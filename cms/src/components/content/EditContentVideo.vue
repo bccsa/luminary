@@ -16,7 +16,7 @@ const hasInitialized = ref(false);
 
 // Collapse the card only initially if there's no video
 watch(
-    () => content.value?.video,
+    () => content.value?.parentMedia?.hlsUrl,
     (video) => {
         if (!hasInitialized.value) {
             collapsed.value = video == null || video === "";
@@ -30,7 +30,7 @@ watch(
 
 <template>
     <LCard
-        v-if="content"
+        v-if="content && content.parentMedia"
         title="Video"
         :icon="VideoCameraIcon"
         collapsible
@@ -40,7 +40,7 @@ watch(
     >
         <LInput
             name="video"
-            v-model="content.video"
+            v-model="content.parentMedia.hlsUrl"
             :icon="LinkIcon"
             placeholder="https://... or https://youtube.com/..."
             :disabled="disabled"
