@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LTeleport from "../common/LTeleport.vue";
-import { watch } from "vue";
 
 type Props = {
     heading: string;
