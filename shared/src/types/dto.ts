@@ -168,6 +168,7 @@ export type MediaUploadDataDto = {
     mediaType: MediaType;
     preset?: MediaPreset;
     filename?: string;
+    languageId?: string;
 };
 
 export type ChangeReqDto = {
