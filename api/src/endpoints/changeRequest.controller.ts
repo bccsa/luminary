@@ -45,11 +45,13 @@ export class ChangeRequestController {
                 const fileName = body[`${index}-changeRequestDoc-files-filename`];
                 const filePreset = body[`${index}-changeRequestDoc-files-preset`];
                 const mediaType = body[`${index}-changeRequestDoc-files-mediaType`];
+                const languageId = body[`${index}-changeRequestDoc-files-languageId`];
 
                 const singleUploadData = createUploadData(file, filePreset, {
                     filename: fileName,
                     hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
                     mediaType: mediaType,
+                    languageId: languageId,
                 });
 
                 // Assign uploadData to the correct field in the doc
