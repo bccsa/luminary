@@ -11,6 +11,7 @@ type Props = {
     tagOrPostType: TagType | PostType;
     disabled: boolean;
     newDocument?: boolean;
+    selectedLanguageId?: string;
 };
 defineProps<Props>();
 
@@ -90,6 +91,7 @@ const handleFileChange = () => {
             :disabled="disabled"
             v-model:parent="parent"
             class="scrollbar-hide"
+            :selectedLanguageId="selectedLanguageId"
         />
     </LCard>
 </template>
