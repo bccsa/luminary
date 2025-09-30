@@ -8,7 +8,7 @@ import {
     type MediaFileDto,
 } from "luminary-shared";
 import { computed, ref, toRaw } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 
 type Props = {
@@ -20,6 +20,31 @@ const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
+// Filter media files by selected language
+const currentLanguageFileCollections = computed(() => {
+    if (!parent.value?.media?.fileCollections || !props.selectedLanguageId) {
+        return parent.value?.media?.fileCollections || [];
+    }
+    return parent.value.media.fileCollections.filter(
+        (f) => f.languageId === props.selectedLanguageId,
+    );
+});
+
+const currentLanguageUploadData = computed(() => {
+    if (!parent.value?.media?.uploadData || !props.selectedLanguageId) {
+        return parent.value?.media?.uploadData || [];
+    }
+    return parent.value.media.uploadData.filter((f) => f.languageId === props.selectedLanguageId);
+});
+
+// Check if current language has any media
+const hasMediaForCurrentLanguage = computed(() => {
+    return (
+        currentLanguageFileCollections.value.length > 0 ||
+        currentLanguageUploadData.value.length > 0
+    );
+});
+
 // HTML element refs
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 const isDragging = ref(false);
@@ -29,44 +54,59 @@ const failureMessage = ref<string | undefined>(undefined);
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-        const reader = new FileReader();
+    // Only process the first file since we allow only one media file per language
+    const file = files[0];
+    const reader = new FileReader();
 
-        reader.onload = (e) => {
-            const fileData = e.target!.result as ArrayBuffer;
+    reader.onload = (e) => {
+        const fileData = e.target!.result as ArrayBuffer;
 
-            if (fileData.byteLength > maxUploadFileSize.value) {
-                failureMessage.value = `Media file is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
-                return;
-            }
+        if (fileData.byteLength > maxUploadFileSize.value) {
+            failureMessage.value = `Media file is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+            return;
+        }
 
-            if (!parent.value) return;
-            if (!parent.value.media || parent.value.media === null) {
-                parent.value.media = { fileCollections: [], uploadData: [] };
-            }
-            if (!parent.value.media.fileCollections) {
-                parent.value.media.fileCollections = [];
-            }
-            if (!parent.value.media.uploadData) {
-                parent.value.media.uploadData = [];
-            }
+        if (!parent.value) return;
+        if (!parent.value.media || parent.value.media === null) {
+            parent.value.media = { fileCollections: [], uploadData: [] };
+        }
+        if (!parent.value.media.fileCollections) {
+            parent.value.media.fileCollections = [];
+        }
+        if (!parent.value.media.uploadData) {
+            parent.value.media.uploadData = [];
+        }
 
-            failureMessage.value = "";
+        failureMessage.value = "";
 
-            // remove extension from filename
-            const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+        // Remove any existing media for the current language
+        if (props.selectedLanguageId) {
+            // Remove existing file collections for this language
+            parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
+                (f) => f.languageId !== props.selectedLanguageId,
+            );
 
-            parent.value.media.uploadData.push({
-                fileData: fileData,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                filename: fileNameWithoutExtension,
-                languageId: props.selectedLanguageId,
-            });
-        };
+            // Remove existing upload data for this language
+            parent.value.media.uploadData = parent.value.media.uploadData.filter(
+                (f) => f.languageId !== props.selectedLanguageId,
+            );
+        }
 
-        reader.readAsArrayBuffer(file);
-    });
+        // remove extension from filename
+        const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+
+        parent.value.media.uploadData.push({
+            fileData: fileData,
+            preset: MediaPreset.Default,
+            mediaType: MediaType.Audio,
+            filename: fileNameWithoutExtension,
+            languageId: props.selectedLanguageId,
+        });
+
+        console.log(parent.value.media.uploadData);
+    };
+
+    reader.readAsArrayBuffer(file);
 
     // Reset the file input
     // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
@@ -164,7 +204,7 @@ defineExpose({
         >
             <!-- Drop instructions -->
             <div class="hidden flex-col items-center justify-center md:flex">
-                <p v-if="isDragging" class="text-sm">Drop your files here</p>
+                <p v-if="isDragging" class="text-sm">Drop your file here</p>
                 <div v-else>
                     <input
                         ref="uploadInput"
@@ -173,33 +213,20 @@ defineExpose({
                         accept="audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"
                         @change="upload"
                         data-test="audio-upload"
-                        multiple
                     />
                 </div>
             </div>
 
             <!-- Thumbnails -->
-            <div
-                v-if="
-                    parent &&
-                    parent.media &&
-                    (parent.media.fileCollections.length > 0 ||
-                        (parent.media.uploadData && parent.media.uploadData.length > 0))
-                "
-                class="scrollbar-hide"
-            >
+            <div v-if="hasMediaForCurrentLanguage" class="scrollbar-hide">
                 <div
-                    v-if="
-                        !isDragging &&
-                        (parent.media.fileCollections.length > 0 ||
-                            (parent.media.uploadData && parent.media.uploadData.length > 0))
-                    "
-                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide"
+                    v-if="!isDragging && hasMediaForCurrentLanguage"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide sm:ml-0"
                     data-test="thumbnail-area"
                 >
-                    <!-- File Collections -->
+                    <!-- File Collections for current language -->
                     <div
-                        v-for="c in parent.media.fileCollections"
+                        v-for="c in currentLanguageFileCollections"
                         :key="c.fileUrl"
                         class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
                     >
@@ -210,9 +237,9 @@ defineExpose({
                         />
                     </div>
 
-                    <!-- Upload Data -->
+                    <!-- Upload Data for current language -->
                     <div
-                        v-for="(a, i) in parent.media?.uploadData"
+                        v-for="(a, i) in currentLanguageUploadData"
                         :key="i"
                         class="flex shrink-0 items-center justify-center rounded text-xs shadow"
                     >
@@ -225,9 +252,12 @@ defineExpose({
                 </div>
             </div>
 
-            <!-- No images fallback -->
+            <!-- No media fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-gray-500">No medias uploaded yet.</p>
+                <p v-if="props.selectedLanguageId" class="text-sm text-gray-500">
+                    No media uploaded for this language yet.
+                </p>
+                <p v-else class="text-sm text-gray-500">No medias uploaded yet.</p>
             </div>
         </div>
     </div>
