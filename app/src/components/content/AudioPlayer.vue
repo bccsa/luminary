@@ -136,7 +136,7 @@ const selectAudio = (index: number) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player z-50 flex w-full flex-col bg-amber-100/50 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                class="expanded-player z-50 flex w-full flex-col bg-amber-100/95 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
