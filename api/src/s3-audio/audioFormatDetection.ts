@@ -69,6 +69,7 @@ export function getFormatFromFilename(filename: string): { ext: string; mime: st
         return { ext: "", mime: "application/octet-stream" };
     }
 
+    // Get the file extension
     const ext = parts.pop()!.toLowerCase();
     const mimeMap: Record<string, string> = {
         mp3: "audio/mpeg",
