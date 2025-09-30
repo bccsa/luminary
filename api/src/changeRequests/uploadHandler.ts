@@ -5,6 +5,7 @@ type GenericUploadData = {
     filename?: string;
     hlsUrl?: string;
     mediaType?: MediaType;
+    languageId?: string;
 };
 
 export function createUploadData(
@@ -23,6 +24,7 @@ export function createUploadData(
             uploadData.hlsUrl = data.hlsUrl;
         }
         uploadData.mediaType = data.mediaType;
+        uploadData.languageId = data.languageId;
     }
 
     uploadData.preset = preset;
