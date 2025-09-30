@@ -26,4 +26,9 @@ export class MediaUploadDataDto {
     @IsString()
     @Expose()
     filename?: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
+    languageId: string;
 }
