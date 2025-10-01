@@ -45,6 +45,35 @@ vi.mock("vue-router", async (importOriginal) => {
 });
 vi.mock("@auth0/auth0-vue");
 
+// Mock video.js to prevent initialization errors
+vi.mock("video.js", () => {
+    const mockVideoPlayer = {
+        poster: vi.fn(),
+        src: vi.fn(),
+        mobileUi: vi.fn(),
+        on: vi.fn(),
+        userActive: vi.fn(),
+        requestFullscreen: vi.fn(),
+        isFullscreen: vi.fn(() => false),
+        pause: vi.fn(),
+        play: vi.fn(),
+        dispose: vi.fn(),
+        off: vi.fn(),
+        currentTime: vi.fn(),
+        duration: vi.fn(),
+        audioTracks: vi.fn(() => []), // Mock audioTracks method
+    };
+
+    const defaultFunction = () => mockVideoPlayer;
+    defaultFunction.browser = {
+        IS_SAFARI: false,
+    };
+
+    return {
+        default: defaultFunction,
+    };
+});
+
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
