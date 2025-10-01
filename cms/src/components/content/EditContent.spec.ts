@@ -56,7 +56,7 @@ vi.mock("vue-router", async (importOriginal) => {
         push: vi.fn(),
         replace: vi.fn(),
     };
-    
+
     return {
         // @ts-expect-error
         ...actual,
