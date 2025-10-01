@@ -303,28 +303,40 @@ describe("SingleContent", () => {
     // Remove all 404-related tests from here - they've been moved to SingleContent.404.spec.ts
 
     it("can zoom the image when clicking on the image", async () => {
+        // Create mock content without hlsUrl so the image div renders instead of video player
+        const mockContentWithoutVideo = {
+            ...mockEnglishContentDto,
+            parentMedia: {
+                fileCollections: [],
+            },
+        };
+
+        // Update the database with modified content
+        await db.docs.update(mockContentWithoutVideo._id, mockContentWithoutVideo);
+
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockEnglishContentDto.slug,
+                slug: mockContentWithoutVideo.slug,
             },
         });
 
-        await waitForExpect(() => {
+        // First, wait for content to load and image to appear
+        await waitForExpect(async () => {
             const image = wrapper.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
-            image.trigger("click");
+            // click on the LImage
+            await image.trigger("click");
 
-            // expect ImageModal to be opened
-            expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
-
-            // expect ImageModal to have the correct image source and correct props
-            const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("imageCollections")).toEqual(
-                mockEnglishContentDto.parentImageData?.fileCollections,
-            );
-            expect(imageModal.props("aspectRatio")).toBe("original");
-            expect(imageModal.props("size")).toBe("post");
+            // Wait for the modal to appear
+            await waitForExpect(() => {
+                expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
+                expect(wrapper.findComponent(ImageModal).props("imageCollections")).toEqual(
+                    mockContentWithoutVideo.parentImageData?.fileCollections,
+                );
+                expect(wrapper.findComponent(ImageModal).props("aspectRatio")).toBe("original");
+                expect(wrapper.findComponent(ImageModal).props("size")).toBe("post");
+            });
         });
     });
 
