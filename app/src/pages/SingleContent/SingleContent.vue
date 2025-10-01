@@ -620,7 +620,7 @@ const quickLanguageSwitch = (languageId: string) => {
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer
-                            v-if="content.video"
+                            v-if="content && content.parentMedia?.hlsUrl"
                             :content="content"
                             :language="selectedLanguageCode"
                         />
