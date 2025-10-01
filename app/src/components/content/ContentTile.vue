@@ -67,7 +67,7 @@ if (props.content.video) {
         :to="{ name: 'content', params: { slug: props.content.slug } }"
         class="ease-out-expo group transition hover:brightness-[1.15]"
     >
-        <div class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 active:shadow-inner">
+        <div class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
             <!-- Image Wrapper (Ensures Play Icon Stays on the Image) -->
             <div class="relative">
                 <LImage
