@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
@@ -19,6 +20,24 @@ vi.mock("vue-router", async (importOriginal) => {
         }),
     };
 });
+
+const RouterLinkStub = {
+    props: ["to"],
+    setup(props: any, { slots }: { slots: Slots }) {
+        return () =>
+            h(
+                "a",
+                {
+                    href: "#",
+                    onClick: (e: Event) => {
+                        e.preventDefault();
+                        routePushMock(props.to);
+                    },
+                },
+                slots.default ? slots.default() : "",
+            );
+    },
+};
 
 describe("ContentTile", () => {
     it("renders the image of content", async () => {
@@ -78,9 +97,14 @@ describe("ContentTile", () => {
             props: {
                 content: mockEnglishContentDto,
             },
+            global: {
+                stubs: {
+                    RouterLink: RouterLinkStub,
+                },
+            },
         });
 
-        await wrapper.findAll("div")[0].trigger("click");
+        await wrapper.find("a").trigger("click");
 
         expect(routePushMock).toHaveBeenCalledWith({
             name: "content",
