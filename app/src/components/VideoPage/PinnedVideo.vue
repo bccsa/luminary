@@ -48,7 +48,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!content.video) return false;
+                if (!content.parentMedia?.hlsUrl) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
