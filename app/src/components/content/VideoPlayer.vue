@@ -199,7 +199,8 @@ onMounted(async () => {
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
 
     // Set player source based on video type (YouTube vs regular)
-    if (isYouTube.value) {
+    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+    if (isYouTube.value && props.content.video) {
         // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
         showAudioModeToggle.value = false;
 
@@ -233,8 +234,8 @@ onMounted(async () => {
                 removeMediaProgress(props.content.video, props.content._id);
             }
         });
-    } else {
-        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    } else if (videoSource) {
+        player.src({ type: "application/x-mpegURL", src: videoSource });
     }
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
@@ -315,14 +316,15 @@ onMounted(async () => {
         const currentTime = player?.currentTime() || 0;
         const durationTime = player?.duration() || 0;
 
-        if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
+        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+        if (durationTime == Infinity || !videoSource || currentTime < 60) return;
 
         // For YouTube videos, aggressively check if we're at the end and remove progress
         // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
         if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 1) {
             if (!progressRemoved) {
                 // Video has reached the end, remove progress
-                removeMediaProgress(props.content.video, props.content._id);
+                removeMediaProgress(props.content.video!, props.content._id);
                 progressRemoved = true;
             }
             return;
@@ -333,27 +335,29 @@ onMounted(async () => {
             progressRemoved = false;
         }
 
-        setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
+        setMediaProgress(videoSource, props.content._id, currentTime, durationTime);
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
     player.on("ready", () => {
-        if (!props.content.video) return;
+        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+        if (!videoSource) return;
 
         // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
         if (!isYouTube.value) {
-            const progress = getMediaProgress(props.content.video, props.content._id);
+            const progress = getMediaProgress(videoSource, props.content._id);
             if (progress > 60) player?.currentTime(progress - 30);
         }
     });
 
     player.on("ended", () => {
-        if (!props.content.video) return;
+        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+        if (!videoSource) return;
         stopKeepAudioAlive();
 
         // Remove player progress when video fully completes (works for both regular and YouTube videos)
         // The 'ended' event fires when the video reaches the end, regardless of video source
-        removeMediaProgress(props.content.video, props.content._id);
+        removeMediaProgress(videoSource, props.content._id);
         progressRemoved = true;
 
         try {
@@ -364,7 +368,8 @@ onMounted(async () => {
     });
 
     player.on("pause", () => {
-        if (!props.content.video) return;
+        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+        if (!videoSource) return;
 
         if (audioMode.value) syncKeepAudioStateAlive();
         if (autoFullscreen)
@@ -436,10 +441,11 @@ watch(audioMode, async (mode) => {
 
     // Generate the audio playlist with the currently selected track as default
     // This ensures the player loads the correct track immediately without needing to switch
+    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
     let audioPlaylistUrl: string | null = null;
-    if (mode) {
+    if (mode && videoSource) {
         const audioMaster = await extractAndBuildAudioMaster(
-            props.content.video!,
+            videoSource,
             selectedTrackInfo,
         );
         const base64 = btoa(
@@ -454,7 +460,38 @@ watch(audioMode, async (mode) => {
      * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
      * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
      */
+<<<<<<< HEAD
     const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
+=======
+    // base64-encoded data: URL for audio-only master
+    const base64 = btoa(
+        String.fromCharCode(...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster)))),
+    );
+    // Construct a data URL for the playlist
+    audioOnlyPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
+
+    // Set the player source based on the mode status
+    player?.src({
+        type: "application/x-mpegURL",
+        src: mode ? audioOnlyPlaylistUrl : props.content.parentMedia?.hlsUrl,
+    });
+
+    player?.ready(() => {
+        /**
+         * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
+         * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
+         */
+        const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
+        player?.currentTime(adjustedTime);
+
+        player?.play();
+
+        // Wait for tracks to be available
+        player?.on("loadedmetadata", () => {
+            const newTracks = (player as any).audioTracks?.();
+
+            if (!newTracks || !selectedTrackInfo) return;
+>>>>>>> 6fae5a4c (refactor: update VideoPlayer component to use parentMedia for video source and progress tracking)
 
     // Helper function to restore the selected audio track when switching back to video mode
     const restoreTrack = () => {
@@ -489,10 +526,13 @@ watch(audioMode, async (mode) => {
     });
 
     // Set the player source - this triggers the listeners above
-    player?.src({
-        type: "application/x-mpegURL",
-        src: mode ? audioPlaylistUrl! : props.content.video,
-    });
+    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+    if (videoSource) {
+        player?.src({
+            type: "application/x-mpegURL",
+            src: mode ? audioPlaylistUrl! : videoSource,
+        });
+    }
 
     // Immediately call play() to start loading and playing as soon as possible
     // The player will handle buffering internally
