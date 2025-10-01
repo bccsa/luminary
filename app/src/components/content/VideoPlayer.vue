@@ -190,6 +190,7 @@ onMounted(async () => {
         },
     };
 
+<<<<<<< ours
     player = videojs(playerElement.value!, options);
 
     // emit event with player on mount
@@ -259,18 +260,65 @@ onMounted(async () => {
             setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
         }
     });
+=======
+    // If statement is to protect from SSR issues
+    if (typeof window !== "undefined" && window.document) {
+        player = videojs(playerElement.value!, options);
 
-    // Handle the "waiting" event, which occurs when the player is buffering
-    player.on("waiting", () => {
-        const currentTime = player?.currentTime() || 0; // Get the current playback time
-        setTimeout(() => {
-            // Check if the player is still stalled after 2 seconds
-            if (player?.currentTime() === currentTime && !player?.paused()) {
-                console.warn("Player stalled, attempting to refresh buffer");
+        // emit event with player on mount
+        const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
+        window.dispatchEvent(playerEvent);
 
-                // Slightly adjust the current time to refresh the buffer
-                player?.currentTime(currentTime + 0.001);
+        player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
+        player.src({ type: "application/x-mpegURL", src: props.content.parentMedia?.hlsUrl });
 
+        // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
+        player.mobileUi({
+            fullscreen: {
+                enterOnRotate: true,
+                exitOnRotate: true,
+                lockOnRotate: true,
+                lockToLandscapeOnEnter: true,
+                disabled: false,
+            },
+            touchControls: {
+                disabled: true,
+            },
+        });
+
+        // Ensure audio tracks are ready when metadata is loaded
+        player.on("loadeddata", () => {
+            setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        });
+
+        // Ensure the audio track language is updated when entering fullscreen mode.
+        // This checks if the current language has changed since the last time it was set,
+        // and updates the audio track language accordingly.
+        let lastLanguageSet: string | null = null;
+
+        player.on("fullscreenchange", () => {
+            if (player?.isFullscreen()) {
+                const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
+                if (lastLanguageSet !== currentLanguage) {
+                    setAudioTrackLanguage(currentLanguage);
+                    lastLanguageSet = currentLanguage;
+                }
+            }
+        });
+>>>>>>> theirs
+
+        // Handle the "waiting" event, which occurs when the player is buffering
+        player.on("waiting", () => {
+            const currentTime = player?.currentTime() || 0; // Get the current playback time
+            setTimeout(() => {
+                // Check if the player is still stalled after 2 seconds
+                if (player?.currentTime() === currentTime && !player?.paused()) {
+                    console.warn("Player stalled, attempting to refresh buffer");
+
+                    // Slightly adjust the current time to refresh the buffer
+                    player?.currentTime(currentTime + 0.001);
+
+<<<<<<< ours
                 // Reapply the preferred audio track language only if not restoring
                 if (!isRestoringTrack.value) {
                     setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
@@ -278,36 +326,44 @@ onMounted(async () => {
             }
         }, 2000);
     });
+=======
+                    // Reapply the preferred audio track language
+                    setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                }
+            }, 2000);
+        });
+>>>>>>> theirs
 
-    // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
-    player.on(["mousemove", "click"], autoHidePlayerControls);
+        // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
+        player.on(["mousemove", "click"], autoHidePlayerControls);
 
-    // Get player playing state
-    player.on("play", () => {
-        playerPlayEventHandler();
+        // Get player playing state
+        player.on("play", () => {
+            playerPlayEventHandler();
 
-        // If audio mode is enabled, sync the keep-alive audio state
-        if (audioMode.value) {
-            // Ensures user interaction already happened
-            requestAnimationFrame(() => {
-                syncKeepAudioStateAlive();
-            });
-        }
-    });
+            // If audio mode is enabled, sync the keep-alive audio state
+            if (audioMode.value) {
+                // Ensures user interaction already happened
+                requestAnimationFrame(() => {
+                    syncKeepAudioStateAlive();
+                });
+            }
+        });
 
-    // Get player user active states
-    player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
+        // Get player user active states
+        player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
 
-    // start video player analytics on mounted
-    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    if (window._paq) {
+        // start video player analytics on mounted
         // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-        window._paq.push(
-            ["MediaAnalytics::enableMediaAnalytics"],
-            ["MediaAnalytics::scanForMedia", window.document],
-        );
-    }
+        if (window._paq) {
+            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+            window._paq.push(
+                ["MediaAnalytics::enableMediaAnalytics"],
+                ["MediaAnalytics::scanForMedia", window.document],
+            );
+        }
 
+<<<<<<< ours
     // Track if we've already removed progress to avoid multiple removals
     let progressRemoved = false;
 
@@ -370,18 +426,59 @@ onMounted(async () => {
     player.on("pause", () => {
         const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
         if (!videoSource) return;
+=======
+        // Save player progress if greater than 60 seconds
+        player.on("timeupdate", () => {
+            const currentTime = player?.currentTime() || 0;
+            const durationTime = player?.duration() || 0;
 
-        if (audioMode.value) syncKeepAudioStateAlive();
-        if (autoFullscreen)
-            setTimeout(() => {
-                if (!player?.paused()) return;
-                try {
-                    player?.exitFullscreen();
-                } catch {
-                    // Do nothing
-                }
-            }, 500);
-    });
+            if (durationTime == Infinity || !props.content.parentMedia?.hlsUrl || currentTime < 60)
+                return;
+            setMediaProgress(
+                props.content.parentMedia?.hlsUrl,
+                props.content._id,
+                currentTime,
+                durationTime,
+            );
+        });
+
+        // Get and apply the player saved progress (rewind 30 seconds)
+        player.on("ready", () => {
+            if (!props.content.parentMedia?.hlsUrl) return;
+            const progress = getMediaProgress(props.content.parentMedia?.hlsUrl, props.content._id);
+            if (progress > 60) player?.currentTime(progress - 30);
+        });
+
+        player.on("ended", () => {
+            if (!props.content.parentMedia?.hlsUrl) return;
+            stopKeepAudioAlive();
+
+            // Remove player progress on ended
+            removeMediaProgress(props.content.parentMedia?.hlsUrl, props.content._id);
+
+            try {
+                player?.exitFullscreen();
+            } catch {
+                // Do nothing
+            }
+        });
+>>>>>>> theirs
+
+        player.on("pause", () => {
+            if (!props.content.parentMedia?.hlsUrl) return;
+
+            if (audioMode.value) syncKeepAudioStateAlive();
+            if (autoFullscreen)
+                setTimeout(() => {
+                    if (!player?.paused()) return;
+                    try {
+                        player?.exitFullscreen();
+                    } catch {
+                        // Do nothing
+                    }
+                }, 500);
+        });
+    }
 });
 
 onUnmounted(() => {
