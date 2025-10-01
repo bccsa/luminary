@@ -40,7 +40,7 @@ describe("VideoPlayer", () => {
 
         await waitForExpect(() => {
             expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({ src: mockEnglishContentDto.video }),
+                expect.objectContaining({ src: mockEnglishContentDto.parentMedia?.hlsUrl }),
             );
         });
 
