@@ -685,7 +685,15 @@ const selectedLanguageCode = computed(() => {
         </div>
 
         <template #footer>
-            <AudioPlayer v-if="content" :content="content" class="z-40" />
+            <AudioPlayer
+                v-if="
+                    content &&
+                    content.parentMedia &&
+                    content.parentMedia?.fileCollections?.length > 0
+                "
+                :content="content"
+                class="z-40"
+            />
         </template>
 
         <IgnorePagePadding ignoreBottom>
