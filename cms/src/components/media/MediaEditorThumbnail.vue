@@ -81,7 +81,7 @@ const mediaElementError = ref(false);
 
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
-                v-show="hover && disabled"
+                v-show="hover && !disabled"
                 title="Delete file version"
                 @click="showModal = true"
             />
