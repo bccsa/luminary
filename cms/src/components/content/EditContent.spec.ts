@@ -43,18 +43,24 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 });
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
+    const mockRouter = {
+        currentRoute: {
+            value: {
+                params: {
+                    languageCode: "eng",
+                },
+                meta: {},
+            },
+        },
+        push: vi.fn(),
+        replace: vi.fn(),
+    };
+    
     return {
         // @ts-expect-error
         ...actual,
-        useRouter: () => ({
-            currentRoute: {
-                value: {
-                    params: {
-                        languageCode: "eng",
-                    },
-                },
-            },
-        }),
+        default: mockRouter,
+        useRouter: () => mockRouter,
         onBeforeRouteLeave: vi.fn(),
     };
 });
