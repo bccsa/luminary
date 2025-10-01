@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink } from "vue-router";
 import {
     DocumentDuplicateIcon,
     TagIcon,
@@ -11,13 +11,11 @@ import {
     UsersIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { appName, isDevMode, logo, showPostsInSidebar, showTagsInSidebar } from "@/globalConfig";
-import { watch, computed } from "vue";
+import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
+import { computed } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 import ProfileMenu from "./ProfileMenu.vue";
 import OnlineIndicator from "../OnlineIndicator.vue";
-
-const route = useRoute();
 
 type NavigationEntry = {
     name: string;
@@ -35,7 +33,7 @@ const navigation = computed(() => [
     {
         name: "Posts",
         icon: DocumentDuplicateIcon,
-        open: showPostsInSidebar.value,
+        open: sidebarSectionExpanded.value.posts,
         visible: hasAnyPermission(DocType.Post, AclPermission.View),
         children: Object.entries(PostType).map((p) => ({
             name: p[0],
@@ -45,7 +43,7 @@ const navigation = computed(() => [
     {
         name: "Tags",
         icon: TagIcon,
-        open: showTagsInSidebar.value,
+        open: sidebarSectionExpanded.value.tags,
         visible: hasAnyPermission(DocType.Tag, AclPermission.View),
         children: Object.entries(TagType).map((t) => ({
             name: t[0],
@@ -78,19 +76,11 @@ const navigation = computed(() => [
     },
 ]);
 
-watch(route, (newRoute) => {
-    if (newRoute.params.docType === DocType.Post) {
-        showPostsInSidebar.value = true;
-    } else if (newRoute.params.docType === DocType.Tag) {
-        showTagsInSidebar.value = true;
-    }
-});
-
 const toggleOpen = (item: NavigationEntry) => {
     if (item.name === "Posts") {
-        showPostsInSidebar.value = !showPostsInSidebar.value;
+        sidebarSectionExpanded.value.posts = !sidebarSectionExpanded.value.posts;
     } else if (item.name === "Tags") {
-        showTagsInSidebar.value = !showTagsInSidebar.value;
+        sidebarSectionExpanded.value.tags = !sidebarSectionExpanded.value.tags;
     }
 };
 </script>
