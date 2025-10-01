@@ -168,7 +168,7 @@ onMounted(async () => {
     window.dispatchEvent(playerEvent);
 
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-    player.src({ type: "application/x-mpegURL", src: props.content.video });
+    player.src({ type: "application/x-mpegURL", src: props.content.parentMedia?.hlsUrl });
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
@@ -255,23 +255,29 @@ onMounted(async () => {
         const currentTime = player?.currentTime() || 0;
         const durationTime = player?.duration() || 0;
 
-        if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
-        setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
+        if (durationTime == Infinity || !props.content.parentMedia?.hlsUrl || currentTime < 60)
+            return;
+        setMediaProgress(
+            props.content.parentMedia?.hlsUrl,
+            props.content._id,
+            currentTime,
+            durationTime,
+        );
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
     player.on("ready", () => {
-        if (!props.content.video) return;
-        const progress = getMediaProgress(props.content.video, props.content._id);
+        if (!props.content.parentMedia?.hlsUrl) return;
+        const progress = getMediaProgress(props.content.parentMedia?.hlsUrl, props.content._id);
         if (progress > 60) player?.currentTime(progress - 30);
     });
 
     player.on("ended", () => {
-        if (!props.content.video) return;
+        if (!props.content.parentMedia?.hlsUrl) return;
         stopKeepAudioAlive();
 
         // Remove player progress on ended
-        removeMediaProgress(props.content.video, props.content._id);
+        removeMediaProgress(props.content.parentMedia?.hlsUrl, props.content._id);
 
         try {
             player?.exitFullscreen();
@@ -281,7 +287,7 @@ onMounted(async () => {
     });
 
     player.on("pause", () => {
-        if (!props.content.video) return;
+        if (!props.content.parentMedia?.hlsUrl) return;
 
         if (audioMode.value) syncKeepAudioStateAlive();
         if (autoFullscreen)
@@ -341,7 +347,7 @@ watch(audioMode, async (mode) => {
     }
 
     // Extract and build an audio-only master playlist from the original HLS manifest
-    const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+    const audioMaster = await extractAndBuildAudioMaster(props.content.parentMedia?.hlsUrl!);
 
     // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
     let audioOnlyPlaylistUrl: string;
@@ -360,7 +366,7 @@ watch(audioMode, async (mode) => {
     // Set the player source based on the mode status
     player?.src({
         type: "application/x-mpegURL",
-        src: mode ? audioOnlyPlaylistUrl : props.content.video,
+        src: mode ? audioOnlyPlaylistUrl : props.content.parentMedia?.hlsUrl,
     });
 
     player?.ready(() => {
