@@ -125,6 +125,10 @@ export const mockEnglishContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+    parentMedia: {
+        hlsUrl: "test-hls-url",
+        fileCollections: []
+    },
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
