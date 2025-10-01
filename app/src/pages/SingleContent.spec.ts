@@ -53,6 +53,9 @@ vi.mock("vue-i18n", () => ({
 
 describe("SingleContent", () => {
     beforeEach(async () => {
+        window.HTMLMediaElement.prototype.load = () => {};
+        window.HTMLMediaElement.prototype.pause = () => {};
+
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
