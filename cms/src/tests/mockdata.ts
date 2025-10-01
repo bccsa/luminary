@@ -127,7 +127,7 @@ export const mockEnglishContentDto: ContentDto = {
     parentPostType: PostType.Blog,
     parentMedia: {
         hlsUrl: "test-hls-url",
-        fileCollections: []
+        fileCollections: [],
     },
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -164,6 +164,10 @@ export const mockFrenchContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+    parentMedia: {
+        hlsUrl: "test-hls-url",
+        fileCollections: [],
+    },
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -199,6 +203,10 @@ export const mockSwahiliContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+    parentMedia: {
+        hlsUrl: "test-hls-url",
+        fileCollections: [],
+    },
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
