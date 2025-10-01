@@ -7,8 +7,7 @@ import {
 } from "./query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
-import { ref, watch } from "vue";
-import LoadingSpinner from "../LoadingSpinner.vue";
+import { ref, watch } from "vue"; 
 import LoadingBar from "../LoadingBar.vue";
 
 type Props = {
