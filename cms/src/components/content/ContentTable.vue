@@ -65,8 +65,7 @@ watch(contentDocs, (newValue) => {
             <div
                 class="flex h-32 w-full items-center justify-center gap-2"
                 v-if="loadingContentOverviewContent"
-            >
-                <!-- <LoadingSpinner class="h-4 w-4 text-zinc-500" /> -->
+            > 
                 <LoadingBar class="h-4 w-4 text-zinc-500" />
             </div>
         </div>
