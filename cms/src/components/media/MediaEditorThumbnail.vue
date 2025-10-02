@@ -2,12 +2,14 @@
 import { TrashIcon, MusicalNoteIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import LDialog from "@/components/common/LDialog.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import type { MediaFileDto, MediaUploadDataDto } from "luminary-shared";
 
 type Props = {
     mediaFile?: MediaFileDto;
     mediaUploadData?: MediaUploadDataDto;
     disabled?: boolean;
+    languageName?: string;
 };
 const props = defineProps<Props>();
 
@@ -76,8 +78,20 @@ const mediaElementError = ref(false);
                 v-else
                 class="flex h-16 w-16 items-center justify-center rounded-sm bg-gray-100 shadow"
             >
-                <MusicalNoteIcon class="h-8 w-8 text-gray-500" />
+                <MusicalNoteIcon class="h-10 w-10 pb-2 text-gray-500" />
             </div>
+
+            <!-- Language Badge  -->
+            <LBadge
+                v-if="languageName"
+                class="absolute -bottom-0 left-1/2 w-full -translate-x-1/2 transform justify-center"
+                variant="info"
+                paddingY="py-0"
+                :rounded="false"
+                size="sm"
+            >
+                {{ languageName }}
+            </LBadge>
 
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
