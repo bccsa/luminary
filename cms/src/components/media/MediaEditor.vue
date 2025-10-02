@@ -283,7 +283,7 @@ defineExpose({
             <div v-if="hasMedia" class="scrollbar-hide">
                 <div
                     v-if="!isDragging && hasMedia"
-                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-4 scrollbar-hide sm:ml-0"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-3 scrollbar-hide sm:ml-0"
                     data-test="thumbnail-area"
                 >
                     <!-- Group audio files by language -->
@@ -296,9 +296,6 @@ defineExpose({
                         :key="language._id"
                         class="flex flex-col justify-center"
                     >
-                        <!-- <div class="px-4 text-xs font-semibold text-gray-700 sm:px-0">
-                            {{ language.name }} ({{ language.languageCode }})
-                        </div> -->
                         <div class="flex gap-2">
                             <!-- File Collections for this language -->
                             <div
@@ -310,6 +307,7 @@ defineExpose({
                             >
                                 <MediaEditorThumbnail
                                     :mediaFile="c"
+                                    :languageName="language.name"
                                     @deleteFileCollection="removeFileCollection"
                                     :disabled="!disabled"
                                 />
@@ -325,6 +323,7 @@ defineExpose({
                             >
                                 <MediaEditorThumbnail
                                     :mediaUploadData="a"
+                                    :languageName="language.name"
                                     @deleteUploadData="removeFileUploadData"
                                     :disabled="!disabled"
                                 />
