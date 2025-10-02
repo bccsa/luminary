@@ -103,8 +103,9 @@ const handleFileChange = () => {
         </template>
         <div v-if="showHelp">
             <p class="mb-2 text-xs">
-                You can upload multiple audio files, one per language. Each language can have only one audio file. 
-                Uploading a new file for a language that already has audio will replace the existing file.
+                You can upload multiple audio files, one per language. Each language can have only
+                one audio file. Uploading a new file for a language that already has audio will
+                replace the existing file.
             </p>
             <p class="mb-2 text-xs">
                 Supported formats: MP3, AAC, Opus, WAV. Maximum file size:
