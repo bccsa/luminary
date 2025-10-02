@@ -9,6 +9,7 @@ import {
 } from "luminary-shared";
 import Rand from "rand-seed";
 import { computed, onBeforeMount, ref } from "vue";
+import { Capacitor } from "@capacitor/core";
 
 type Props = {
     image?: ImageDto;
@@ -49,7 +50,10 @@ const props = withDefaults(defineProps<Props>(), {
     isModal: false,
 });
 
-const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
+const baseUrl: string =
+    Capacitor.getPlatform() == "android"
+        ? "http://10.0.2.2:9000/images"
+        : import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 let closestAspectRatio = 0;
 

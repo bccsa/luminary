@@ -5,6 +5,11 @@ import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
+// import LOGO from "@/assets/logo.svg";
+// import LOGO_SMALL from "@/assets/logo-small.svg";
+// import LOGO_DARK from "@/assets/logo-dark.svg";
+// import LOGO_SMALL_DARK from "@/assets/logo-small.svg";
+
 type Props = {
     showBackButton?: boolean;
 };

@@ -2,9 +2,15 @@ import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "lum
 import { computed, ref, toRaw, watch } from "vue";
 import * as _ from "lodash";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
+import { Capacitor } from "@capacitor/core";
 
 export const appName = import.meta.env.VITE_APP_NAME;
-export const apiUrl = import.meta.env.VITE_API_URL;
+
+// export const apiUrl = import.meta.env.VITE_API_URL;
+
+export const apiUrl =
+    Capacitor.getPlatform() === "android" ? "http://10.0.2.2:3000" : import.meta.env.VITE_API_URL;
+
 export const isDevMode = import.meta.env.DEV;
 
 const isTestEnv = import.meta.env.MODE === "test";
