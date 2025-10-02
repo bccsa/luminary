@@ -13,47 +13,67 @@ export async function processMedia(
     const warnings: string[] = [];
 
     try {
+        // Track files to delete from S3
+        const filesToDelete: string[] = [];
+
         // Handle prevMedia cleanup if needed
         if (prevMedia) {
-            // Strategy: Keep all existing audio files from other languages,
-            // and respect client-side deletions for files that were explicitly removed
+            // Strategy: The client sends ALL fileCollections it wants to keep
+            // We need to:
+            // 1. Delete files that are not in the client's list
+            // 2. Discard invalid files the client may have added
+            // 3. Replace files when uploading for the same language
+
             const languagesBeingUploaded =
                 media.uploadData?.map((u) => u.languageId).filter(Boolean) || [];
 
-            // Get fileUrls that the client is keeping (not deleted)
-            const keptFileUrls = new Set(media.fileCollections.map((c) => c.fileUrl));
+            // Get fileUrls from previous media (valid files)
+            const prevFileUrls = new Set(prevMedia.fileCollections.map((c) => c.fileUrl));
 
-            // Start with all previous file collections
-            const existingFiles = prevMedia.fileCollections.filter((collection) => {
-                // If this language is being uploaded, it will be replaced by new upload
-                if (
-                    languagesBeingUploaded.length > 0 &&
-                    collection.languageId &&
-                    languagesBeingUploaded.includes(collection.languageId)
-                ) {
-                    return false;
+            // Get fileUrls that the client is keeping (only keep if they were in prevMedia)
+            // BUT exclude files for languages that are being uploaded (they'll be replaced)
+            const keptFileUrls = new Set(
+                media.fileCollections
+                    .filter((c) => {
+                        // Only keep if it was in prevMedia
+                        if (!prevFileUrls.has(c.fileUrl)) return false;
+
+                        // Don't keep if its language is being replaced by an upload
+                        if (languagesBeingUploaded.includes(c.languageId)) return false;
+
+                        return true;
+                    })
+                    .map((c) => c.fileUrl),
+            );
+
+            // Check each previous file collection
+            prevMedia.fileCollections.forEach((collection) => {
+                // If the file is not in the kept list, mark it for deletion
+                if (!keptFileUrls.has(collection.fileUrl)) {
+                    // Extract key from URL
+                    const urlParts = collection.fileUrl.split("/");
+                    const key = urlParts[urlParts.length - 1];
+                    if (key && key.length > 0) {
+                        filesToDelete.push(key);
+                    }
                 }
-
-                // If the file was explicitly kept by the client, include it
-                if (keptFileUrls.has(collection.fileUrl)) {
-                    return true;
-                }
-
-                // If this file's language is not in the current submission at all,
-                // it means the client didn't touch this language - keep it
-                const clientLanguages = media.fileCollections
-                    .map((f) => f.languageId)
-                    .filter(Boolean);
-                if (collection.languageId && !clientLanguages.includes(collection.languageId)) {
-                    return true;
-                }
-
-                // Otherwise, the client has removed this file
-                return false;
             });
 
-            // Start with existing files that should be kept
-            media.fileCollections = [...existingFiles];
+            // Delete files from S3
+            if (filesToDelete.length > 0) {
+                try {
+                    await s3Audio.removeObjects(s3Audio.audioBucket, filesToDelete);
+                } catch (error) {
+                    warnings.push(
+                        `Failed to delete ${filesToDelete.length} audio file(s) from storage: ${error.message}`,
+                    );
+                }
+            }
+
+            // Start with only valid files that the client is keeping
+            media.fileCollections = media.fileCollections.filter((c) =>
+                keptFileUrls.has(c.fileUrl),
+            );
         }
 
         if (media.uploadData) {
