@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink } from "vue-router";
 import {
     DocumentDuplicateIcon,
     TagIcon,
@@ -11,13 +11,11 @@ import {
     UsersIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { appName, isDevMode, logo } from "@/globalConfig";
-import { ref, watch } from "vue";
+import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
+import { computed } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 import ProfileMenu from "./ProfileMenu.vue";
 import OnlineIndicator from "../OnlineIndicator.vue";
-
-const route = useRoute();
 
 type NavigationEntry = {
     name: string;
@@ -30,12 +28,12 @@ type NavigationEntry = {
 
 defineEmits(["close"]);
 
-const navigation = ref<NavigationEntry[]>([
+const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
         name: "Posts",
         icon: DocumentDuplicateIcon,
-        open: false,
+        open: sidebarSectionExpanded.value.posts,
         visible: hasAnyPermission(DocType.Post, AclPermission.View),
         children: Object.entries(PostType).map((p) => ({
             name: p[0],
@@ -45,7 +43,7 @@ const navigation = ref<NavigationEntry[]>([
     {
         name: "Tags",
         icon: TagIcon,
-        open: false,
+        open: sidebarSectionExpanded.value.tags,
         visible: hasAnyPermission(DocType.Tag, AclPermission.View),
         children: Object.entries(TagType).map((t) => ({
             name: t[0],
@@ -78,19 +76,13 @@ const navigation = ref<NavigationEntry[]>([
     },
 ]);
 
-watch(route, (newRoute) => {
-    navigation.value = navigation.value.map((item) => {
-        if (!item.children) return item;
-
-        item.children.forEach((subItem) => {
-            if (subItem.to?.params?.docType == newRoute.params.docType) {
-                item.open = true;
-            }
-        });
-
-        return item;
-    });
-});
+const toggleOpen = (item: NavigationEntry) => {
+    if (item.name === "Posts") {
+        sidebarSectionExpanded.value.posts = !sidebarSectionExpanded.value.posts;
+    } else if (item.name === "Tags") {
+        sidebarSectionExpanded.value.tags = !sidebarSectionExpanded.value.tags;
+    }
+};
 </script>
 
 <template>
@@ -118,7 +110,7 @@ watch(route, (newRoute) => {
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
                                 v-slot="{ isActive }"
-                                @click="$emit('close')"
+                                @click.prevent="$emit('close')"
                             >
                                 <component
                                     :is="item.icon"
@@ -133,7 +125,7 @@ watch(route, (newRoute) => {
                                     :class="[
                                         'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
                                     ]"
-                                    @click="item.open = !item.open"
+                                    @click="toggleOpen(item)"
                                 >
                                     <component
                                         :is="item.icon"
@@ -155,7 +147,7 @@ watch(route, (newRoute) => {
                                     as="ul"
                                     class="mt-1 space-y-1 px-2"
                                     static
-                                    v-show="open || item.open"
+                                    v-show="item.open"
                                 >
                                     <li v-for="subItem in item.children" :key="subItem.name">
                                         <DisclosureButton
@@ -163,7 +155,7 @@ watch(route, (newRoute) => {
                                             :to="subItem.to"
                                             active-class="bg-zinc-200 text-zinc-900"
                                             class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
-                                            @click="$emit('close')"
+                                            @click.prevent="$emit('close')"
                                         >
                                             {{ subItem.name }}
                                         </DisclosureButton>

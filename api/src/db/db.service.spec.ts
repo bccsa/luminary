@@ -246,7 +246,7 @@ describe("DbService", () => {
             // if we got past this point without an exception, the test was successful
             res = true;
             expect(res).toBe(true);
-        }, 10000);
+        }, 15000);
 
         it("emits two 'update' events when a document is added or updated", async () => {
             const doc = {

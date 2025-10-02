@@ -82,4 +82,11 @@ describe("globalConfig.ts", () => {
         expect(duration).toBeDefined();
         expect(duration).toBe(200);
     });
+
+    it("doesn't save the media if the duration is Infinity", async () => {
+        setMediaProgress("mediaIdInf", "contentIdInf", 50, Infinity);
+
+        expect(getMediaProgress("mediaIdInf", "contentIdInf")).toBe(0);
+        expect(getMediaDuration("mediaIdInf", "contentIdInf")).toBe(0);
+    });
 });

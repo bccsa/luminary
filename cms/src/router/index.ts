@@ -27,7 +27,11 @@ export const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
-            redirect: { name: "dashboard" },
+            redirect:
+                typeof import.meta.env.VITE_INITIAL_PAGE === "string" &&
+                import.meta.env.VITE_INITIAL_PAGE.trim() !== ""
+                    ? { path: import.meta.env.VITE_INITIAL_PAGE }
+                    : { name: "dashboard" },
             children: [
                 {
                     path: "sandbox",
@@ -61,7 +65,8 @@ export const router = createRouter({
                 {
                     path: ":docType/overview/:tagOrPostType/:languageCode?",
                     name: "overview",
-                    component: () => import("../components/content/ContentOverview/ContentOverview.vue"),
+                    component: () =>
+                        import("../components/content/ContentOverview/ContentOverview.vue"),
                     props: true,
                 },
                 {
@@ -72,7 +77,7 @@ export const router = createRouter({
                         {
                             path: "",
                             name: "groups.index",
-                            component: () => import("../pages/groups/GroupOverview.vue"),
+                            component: () => import("../components/groups/GroupOverview.vue"),
                             meta: {
                                 title: "Groups",
                                 canAccess: {

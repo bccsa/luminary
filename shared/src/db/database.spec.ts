@@ -557,7 +557,7 @@ describe("Database", async () => {
 
         // Queue a new local change
         const newPost = { ...mockPostDto, title: "New Title" };
-        await db.upsert({ doc: newPost, overwiteLocalChanges: true });
+        await db.upsert({ doc: newPost, overwriteLocalChanges: true });
         const newLocalChange = await db.localChanges
             .where("docId")
             .equals(mockPostDto._id)

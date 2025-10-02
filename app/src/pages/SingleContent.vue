@@ -17,7 +17,6 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
-import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -47,13 +46,14 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import {
     markLanguageSwitch,
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -73,6 +73,8 @@ const enableZoom = ref(false);
 const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
 const availableTranslations = ref<ContentDto[]>([]);
 const languages = ref<LanguageDto[]>([]);
+
+const currentImageIndex = ref(0);
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -178,18 +180,14 @@ const unwatch = watch([idbContent, isConnected], () => {
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    // Load from IndexedDB
-    const [translations, langs] = await Promise.all([
+    const [availableContentTranslations, availableLanguages] = await Promise.all([
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
+    if (availableContentTranslations.length > 1) {
+        availableTranslations.value = availableContentTranslations as ContentDto[];
 
-    //
-    if (translations.length > 1) {
-        availableTranslations.value = translations as ContentDto[];
-
-        // Filter languages based on available translations
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
+        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
             availableTranslations.value.some((translation) => translation.language === lang._id),
         );
     }
@@ -213,22 +211,20 @@ watch([content, isConnected], async () => {
 
         watch([contentResults, apiLanguage], () => {
             if (contentResults.value && contentResults.value.length > 1) {
-                availableTranslations.value = contentResults.value as ContentDto[];
+                availableTranslations.value = (contentResults.value as ContentDto[]).filter(
+                    (c) => c.status === PublishStatus.Published,
+                );
             }
 
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
                 const apiLanguages = apiLanguage.value as LanguageDto[];
 
-                // Merge languages from API with those from IndexedDB, filtering out duplicates
-                const mergedLanguages = [
-                    ...languages.value,
-                    ...apiLanguages.filter(
-                        (apiLang) =>
-                            !languages.value.some((localLang) => localLang._id === apiLang._id),
+                // Keep only languages that have a translation
+                languages.value = apiLanguages.filter((lang) =>
+                    availableTranslations.value.some(
+                        (translation) => translation.language === lang._id,
                     ),
-                ];
-
-                languages.value = mergedLanguages;
+                );
             }
         });
     }
@@ -483,13 +479,17 @@ const selectedLanguageCode = computed(() => {
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
+                    <!-- Display the current content's language if no other language is available -->
                     <span class="hidden sm:inline">
-                        {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
+                        {{
+                            languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
+                                ?.name
+                        }}
                     </span>
                     <span class="inline sm:hidden">
                         {{
                             languages
-                                .find((lang) => lang._id === selectedLanguageId)
+                                .find((lang: LanguageDto) => lang._id === selectedLanguageId)
                                 ?.languageCode.toUpperCase()
                         }}
                     </span>
@@ -524,16 +524,6 @@ const selectedLanguageCode = computed(() => {
             </div>
         </template>
 
-        <div class="absolute hidden lg:block">
-            <div
-                @click="router.back()"
-                class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
-            >
-                <ArrowLeftIcon class="h-4 w-4" />
-                Back
-            </div>
-        </div>
-
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
@@ -546,14 +536,34 @@ const selectedLanguageCode = computed(() => {
                             :language="selectedLanguageCode"
                         />
                         <!-- Ensure content.parentId does not contain default content empty string -->
-                        <LImage
+                        <div
                             v-else-if="content.parentId || content.parentImageData"
-                            :image="content.parentImageData"
-                            :content-parent-id="content.parentId"
-                            aspectRatio="video"
-                            size="post"
-                            @click="enableZoom = true"
-                        />
+                            class="relative cursor-pointer"
+                            @click="
+                                () => {
+                                    if (content) {
+                                        currentImageIndex = activeImageCollection(content);
+                                    }
+                                    enableZoom = true;
+                                }
+                            "
+                        >
+                            <!-- Main Image -->
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                aspectRatio="video"
+                                size="post"
+                            />
+
+                            <!-- Icon to indicate multiple images -->
+                            <div
+                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1"
+                            >
+                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                            </div>
+                        </div>
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
@@ -652,12 +662,17 @@ const selectedLanguageCode = computed(() => {
             <RelatedContent
                 v-if="content && tags.length"
                 :selectedContent="content"
-                :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
+                :tags="
+                    tags.filter(
+                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
+                    )
+                "
             />
         </div>
-        <template #footer>
+
+        <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
-        </template>
+        </IgnorePagePadding>
     </BasePage>
 
     <LModal
@@ -675,9 +690,10 @@ const selectedLanguageCode = computed(() => {
     <ImageModal
         v-if="content && enableZoom"
         :content-parent-id="content.parentId"
-        :image="content.parentImageData"
-        aspectRatio="video"
-        size="post"
+        :imageCollections="content?.parentImageData?.fileCollections"
+        :currentIndex="currentImageIndex"
+        aspectRatio="original"
+        @update:index="currentImageIndex = $event"
         @close="enableZoom = false"
     />
 </template>

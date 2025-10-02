@@ -8,7 +8,7 @@ Refer to the [setup guide](../docs/setup-vue-app.md).
 
 When running `npm run dev` the local reloading server of the app will start at http://localhost:4174.
 
-## Query string paramenters
+## Query string parameters
 
 The following query string parameters are supported:
 
@@ -38,7 +38,7 @@ VITE_PLUGINS=["examplePlugin", "examplePlugin2"]
 
 - Every plugin class should have a constructor function
 
-**The files is being copied everytime before vite build, dev, and test is run**
+**The files is being copied every time before vite build, dev, and test is run**
 
 ### Plugin format
 

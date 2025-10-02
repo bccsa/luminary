@@ -1,7 +1,30 @@
+<script lang="ts">
+export const activeImageCollection = computed(() => (content: ContentDto) => {
+    if (!content.parentImageData?.fileCollections?.length) return 0;
+
+    const fileCollections = content.parentImageData.fileCollections;
+    const aspectRatio = 1.78; // 'video' aspect ratio as defined in LImage (default)
+
+    // Find the collection with the closest aspect ratio to 'video' (1.78)
+    const aspectRatios = fileCollections.map((collection) => collection.aspectRatio);
+    const closestAspectRatio = aspectRatios.reduce((acc, cur) => {
+        return Math.abs(cur - aspectRatio) < Math.abs(acc - aspectRatio) ? cur : acc;
+    }, aspectRatios[0] || 0);
+
+    // Return the index of the collection with the closest aspect ratio
+    const index = fileCollections.findIndex(
+        (collection) => collection.aspectRatio === closestAspectRatio,
+    );
+
+    return index >= 0 ? index : 0; // Return 0 if no suitable collection is found
+});
+</script>
+
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
     isConnected,
+    type ContentDto,
     type ImageDto,
     type ImageFileCollectionDto,
     type ImageFileDto,
@@ -21,6 +44,7 @@ type Props = {
 };
 
 const aspectRatiosCSS = {
+    original: "aspect-auto",
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
@@ -29,6 +53,7 @@ const aspectRatiosCSS = {
 };
 
 const aspectRatioNumbers = {
+    original: 0, // placeholder for type safety, not used in calculations
     video: 1.78,
     square: 1,
     vertical: 0.56,
@@ -50,8 +75,6 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
-
-let closestAspectRatio = 0;
 
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
@@ -95,17 +118,14 @@ const filteredFileCollections = computed(() => {
     return res;
 });
 
-// Source set for the primary image element with the closest aspect ratio
-const srcset1 = computed(() => {
-    if (props.image?.uploadData && props.image.uploadData.length > 0) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
+// Calculate the closest aspect ratio to the desired one
+const closestAspectRatio = computed(() => {
+    if (!filteredFileCollections.value.length) return 0;
 
-    if (!filteredFileCollections.value.length) return "";
+    // In modal mode, don't filter by aspect ratio - use the first available
+    if (props.isModal && filteredFileCollections.value.length > 0) {
+        return filteredFileCollections.value[0].aspectRatio;
+    }
 
     const aspectRatios = filteredFileCollections.value
         .map((collection) => collection.aspectRatio)
@@ -116,12 +136,33 @@ const srcset1 = computed(() => {
         .sort((a, b) => a - b);
 
     const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
+    return aspectRatios.reduce((acc, cur) => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
+});
 
-    return filteredFileCollections.value
-        .filter((collection) => collection.aspectRatio == closestAspectRatio)
+// Source set for the primary image element with the closest aspect ratio
+const srcset1 = computed(() => {
+    if (props.aspectRatio == "original") return "";
+
+    if (props.image?.uploadData && props.image.uploadData.length > 0) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+
+    if (!filteredFileCollections.value.length) return "";
+
+    // In modal mode, use all available images without aspect ratio filtering
+    const collectionsToUse = props.isModal
+        ? filteredFileCollections.value
+        : filteredFileCollections.value.filter(
+              (collection) => collection.aspectRatio == closestAspectRatio.value,
+          );
+
+    return collectionsToUse
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
@@ -133,20 +174,22 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!props.image?.fileCollections?.length) return "";
+
+    // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
+    // 400 is a conservative default that avoids excluding all images due to 0 width,
+    // and works well across mobile, modal, and early-render scenarios.
+    const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
+
     return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio != closestAspectRatio)
+        .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            let images = collection.imageFiles.filter(
-                (imgFile) => imgFile.width <= props.parentWidth,
-            );
-            if (images.length === 0 && collection.imageFiles.length > 0) {
-                images = [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            }
-            return images
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
+            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
+            // fallback: smallest image if all are too large
+            const files = images.length
+                ? images
+                : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
+            return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
         })
         .join(", ");
 });
@@ -154,9 +197,14 @@ const srcset2 = computed(() => {
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
-const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
+const showImageElement1 = computed(
+    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
+);
 const showImageElement2 = computed(
-    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
+    () =>
+        (props.aspectRatio == "original" || imageElement1Error.value) &&
+        !imageElement2Error.value &&
+        srcset2.value != "",
 );
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
@@ -171,16 +219,66 @@ const loadFallbackImage = async () => {
 onBeforeMount(async () => {
     await loadFallbackImage();
 });
+
+// In modal mode we want the largest available original image (no aspect ratio coercion)
+const modalSrc = computed(() => {
+    // If we have local upload data (e.g. unsaved/new image), prefer the last blob (likely highest quality)
+    if (props.isModal && props.image?.uploadData?.length) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+    if (!props.isModal) return undefined;
+    const allFiles = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) ||
+        []) as ImageFileDto[];
+    if (!allFiles.length) return fallbackImageUrl.value;
+    // Pick the file with the largest area (width * height) to preserve detail for zooming
+    const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+    return `${baseUrl}/${largest.filename}`;
+});
+
+// Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
+const modalSrcset = computed(() => {
+    if (!props.isModal) return "";
+    // If using uploadData blob, we cannot build a srcset of different widths
+    if (props.image?.uploadData?.length) return "";
+    const files = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) || [])
+        .slice()
+        .sort((a, b) => a.width - b.width);
+    if (!files.length) return "";
+    return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+});
 </script>
 
 <template>
+    <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="srcset1 && showImageElement1"
+        v-if="isModal && modalSrc"
+        :src="modalSrc"
+        :srcset="modalSrcset || undefined"
+        :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        draggable="false"
+        data-test="image-element1"
+    />
+    <img
+        v-else-if="isModal && !modalSrc && fallbackImageUrl"
+        :src="fallbackImageUrl"
+        :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        draggable="false"
+        data-test="image-element1"
+    />
+    <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
+    <img
+        v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
         :class="[
-            aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+            !isModal && sizes[size],
+            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element1"
@@ -188,14 +286,15 @@ onBeforeMount(async () => {
         @error="imageElement1Error = true"
         draggable="false"
     />
+    <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
         src=""
         :srcset="srcset2"
         :class="[
-            aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+            !isModal && sizes[size],
+            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"
@@ -207,9 +306,9 @@ onBeforeMount(async () => {
         v-else
         :src="fallbackImageUrl"
         :class="[
-            aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+            !isModal && sizes[size],
+            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"

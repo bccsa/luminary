@@ -13,13 +13,13 @@ type Props = {
     isModal?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
-    aspectRatio: "video",
     size: "post",
     rounded: true,
     isModal: false,
 });
 
 const aspectRatiosCSS = {
+    original: "aspect-auto",
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
@@ -54,10 +54,11 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="sizes[size]">
+    <div ref="parentRef" :class="isModal ? '' : sizes[size]">
         <div
+            v-if="!isModal"
             :class="[
-                aspectRatiosCSS[aspectRatio],
+                aspectRatio ? aspectRatiosCSS[aspectRatio] : '',
                 rounded ? rounding[size] : '',
                 'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
@@ -75,6 +76,17 @@ onMounted(() => {
                 <slot name="imageOverlay"></slot>
             </div>
         </div>
+
+        <!-- Modal mode: no container constraints -->
+        <LImageProvider
+            v-else
+            :parent-id="contentParentId"
+            :parent-width="parentWidth"
+            :image="props.image"
+            :rounded="props.rounded"
+            :size="props.size"
+            :is-modal="props.isModal"
+        />
 
         <slot></slot>
     </div>

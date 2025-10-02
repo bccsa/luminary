@@ -8,14 +8,14 @@ import {
     type WatchOptions,
 } from "vue";
 
-type Value<T, I> = I extends undefined ? T | undefined : T | I;
+export type Value<T, I> = I extends undefined ? T | undefined : T | I;
 
-type UseDexieLiveQueryWithDepsOptions<I, Immediate> = {
+export type UseDexieLiveQueryWithDepsOptions<I, Immediate> = {
     onError?: (error: any) => void;
     initialValue?: I;
 } & WatchOptions<Immediate>;
 
-type UseDexieLiveQueryOptions<I> = {
+export type UseDexieLiveQueryOptions<I> = {
     onError?: (error: any) => void;
     initialValue?: I;
 };

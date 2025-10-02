@@ -115,16 +115,26 @@ const navigateToLanguage = (language: LanguageDto) => {
         "
     >
         <div class="relative flex cursor-pointer items-center justify-between py-1">
-            <div data-test="content-title" class="w-full">
+            <div
+                data-test="content-title"
+                class="w-full"
+                :class="{
+                    'flex justify-between': isSmallScreen,
+                }"
+            >
                 <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
                 </div>
+                <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
+                    Offline changes
+                </LBadge>
             </div>
 
             <div class="flex items-center justify-end">
                 <div v-if="!isSmallScreen" class="flex gap-1">
-                    <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
-
+                    <LBadge v-if="isLocalChange" variant="warning" class="flex whitespace-nowrap">
+                        Offline changes
+                    </LBadge>
                     <RouterLink
                         v-for="language in accessibleLanguages"
                         :key="language._id"

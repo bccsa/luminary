@@ -42,10 +42,9 @@ describe("EditContentParentValidation.vue", () => {
                 dirty: true,
                 editableParent: {
                     ...mockData.mockPostDto,
-                    memberOf: [],
                     imageData: { fileCollections: [], uploadData: [] },
                 },
-                editableContent: [mockData.mockEnglishContentDto],
+                editableContent: [],
                 localChange: false,
                 existingParent: mockData.mockPostDto,
                 existingContent: [mockData.mockEnglishContentDto],
@@ -59,7 +58,7 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("At least one group membership is required");
+            expect(wrapper.html()).toContain("At least one translation is required");
         });
     });
 
@@ -126,39 +125,11 @@ describe("EditContentParentValidation.vue", () => {
             });
 
             await waitForExpect(() => {
-                expect(wrapper.html()).not.toContain("At least one group membership is required");
                 expect(wrapper.html()).not.toContain("At least one translation is required");
             });
         },
         { timeout: 10000000 },
     );
-
-    it("fails validation if no groups are set", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                tagOrPostType: PostType.Blog,
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: true,
-                editableParent: { ...mockData.mockPostDto, memberOf: [] },
-                editableContent: [],
-                localChange: false,
-                existingParent: mockData.mockPostDto,
-                existingContent: [mockData.mockEnglishContentDto],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canTranslate: true,
-                canPublish: true,
-                untranslatedLanguages: [],
-                canDelete: true,
-            },
-        });
-
-        expect(wrapper.html()).toContain("At least one group membership is required");
-    });
 
     it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
@@ -212,59 +183,5 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         expect(wrapper.html()).not.toContain("Offline changes");
-    });
-
-    it("displays unsaved changes warning when there are changes", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                tagOrPostType: PostType.Blog,
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: true,
-                editableParent: mockData.mockPostDto,
-                editableContent: [mockData.mockEnglishContentDto],
-                localChange: true,
-                existingParent: mockData.mockPostDto,
-                existingContent: [],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canTranslate: true,
-                canPublish: true,
-                untranslatedLanguages: [],
-                canDelete: true,
-            },
-        });
-
-        expect(wrapper.html()).toContain("Unsaved changes");
-    });
-
-    it("doesn't display warning when there are no changes", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                tagOrPostType: PostType.Blog,
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: false,
-                editableParent: mockData.mockPostDto,
-                editableContent: [mockData.mockEnglishContentDto],
-                localChange: false,
-                existingParent: mockData.mockPostDto,
-                existingContent: [mockData.mockEnglishContentDto],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canTranslate: true,
-                canPublish: true,
-                untranslatedLanguages: [],
-                canDelete: true,
-            },
-        });
-
-        expect(wrapper.html()).not.toContain("Unsaved changes");
     });
 });

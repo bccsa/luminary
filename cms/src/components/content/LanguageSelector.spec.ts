@@ -37,9 +37,15 @@ describe("LanguageSelector.vue", () => {
         const items = wrapper.findAll('[data-test^="select-language-"]');
         const visibleLanguages = items.map((item) => item.text());
 
-        expect(visibleLanguages).toContain("eng English");
-        expect(visibleLanguages).toContain("fra Français");
-        expect(visibleLanguages).toContain("swa Swahili");
+        expect(visibleLanguages).toContain(
+            `${mockData.mockLanguageDtoEng.languageCode} ${mockData.mockLanguageDtoEng.name}`,
+        );
+        expect(visibleLanguages).toContain(
+            `${mockData.mockLanguageDtoFra.languageCode} ${mockData.mockLanguageDtoFra.name}`,
+        );
+        expect(visibleLanguages).toContain(
+            `${mockData.mockLanguageDtoSwa.languageCode} ${mockData.mockLanguageDtoSwa.name}`,
+        );
     });
 
     it("can display a dropdown with all languages", async () => {

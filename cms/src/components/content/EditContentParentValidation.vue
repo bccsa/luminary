@@ -17,7 +17,6 @@ import {
     PlusIcon,
     XCircleIcon,
 } from "@heroicons/vue/20/solid";
-import _ from "lodash";
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
@@ -166,14 +165,6 @@ watch(
         if (!_editableParent) return;
 
         validate(
-            "At least one group membership is required",
-            "groups",
-            parentValidations.value,
-            _editableParent,
-            () => _editableParent.memberOf.length > 0,
-        );
-
-        validate(
             "At least one translation is required",
             "translations",
             parentValidations.value,
@@ -224,16 +215,12 @@ watch(
                         @click.stop="showLanguageSelector = !showLanguageSelector"
                         data-test="add-translation-button"
                     />
-
-                    <div
-                        v-if="untranslatedLanguages.length > 0"
-                        class="absolute right-24 z-10 mt-2"
-                    >
+                    <div v-if="untranslatedLanguages.length > 0" class="absolute right-0 z-50 mt-5">
                         <LanguageSelector
                             :languages="untranslatedLanguages"
                             :parent="editableParent"
                             :content="editableContent"
-                            :showSelector="showLanguageSelector"
+                            :show-selector="showLanguageSelector"
                             @create-translation="
                                 (language) => {
                                     emit('createTranslation', language);
@@ -246,7 +233,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-2" :class="{ 'mb-1': isLanguageSelectorCollapsed }">
+                <div class="flex flex-col gap-2" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -263,19 +250,8 @@ watch(
 
             <div class="flex flex-col gap-2">
                 <div
-                    v-if="editableParent && !_.isEqual(editableParent, existingParent)"
-                    class="flex items-center gap-2"
-                >
-                    <p>
-                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                    </p>
-                    <p class="text-xs text-zinc-700">
-                        Unsaved changes to {{ tagOrPostType }}'s settings.
-                    </p>
-                </div>
-                <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
-                    class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
+                    class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
                 >
                     <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
@@ -291,7 +267,7 @@ watch(
                     >
                 </div>
                 <div v-if="!parentIsValid">
-                    <div class="mb-1 mt-1 flex flex-col gap-0.5">
+                    <div class="my-1 flex flex-col gap-0.5">
                         <div
                             v-for="validation in parentValidations.filter((v) => !v.isValid)"
                             :key="validation.id"

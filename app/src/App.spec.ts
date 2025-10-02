@@ -11,6 +11,9 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { mockEnglishContentDto } from "./tests/mockdata";
 import { theme } from "./globalConfig";
+import { createMemoryHistory, createRouter } from "vue-router";
+import HomePage from "@/pages/HomePage.vue";
+import ExplorePage from "@/pages/ExplorePage.vue";
 
 const routeReplaceMock = vi.fn();
 const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
@@ -119,6 +122,44 @@ describe("App", () => {
             });
 
             expect(document.documentElement.classList.contains("dark")).toBe(false);
+        });
+    });
+
+    describe("Router", () => {
+        it("redirects to home when accessed externally", async () => {
+
+            const routes = [
+            { path: "/", name: "home", component: HomePage },
+            { path: "/explore", name: "explore", component: ExplorePage },
+            ];
+
+            const testRouter = createRouter({
+                history: createMemoryHistory(),
+                routes,
+            });
+
+            testRouter.beforeEach(async (to, from, next) => {
+                if (!from.name && to.name !== "home") {
+                    await testRouter.replace({ name: "home" });
+                    await testRouter.push(to.fullPath);
+                    next(false);
+                    return;
+                }
+                next();
+            });
+
+            // Spy on replace and push
+            const replaceSpy = vi.spyOn(testRouter, "replace");
+            const pushSpy = vi.spyOn(testRouter, "push");
+
+            //Simulate external entry
+            await testRouter.push("/explore");
+            await testRouter.isReady();
+
+           await waitForExpect(() => {
+            expect(replaceSpy).toHaveBeenCalledWith({ name: "home" });
+            expect(pushSpy).toHaveBeenCalledWith("/explore");
+           });
         });
     });
 });

@@ -275,7 +275,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     type: DocType.Language,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-languages"],
-    languageCode: "eng",
+    languageCode: "en",
     name: "English",
     default: 1,
     translations: {
@@ -341,7 +341,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     type: DocType.Language,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-languages"],
-    languageCode: "fra",
+    languageCode: "fr",
     name: "Français",
     translations: {
         "menu.home": "Accueil",
@@ -409,7 +409,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
     type: DocType.Language,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-languages"],
-    languageCode: "swa",
+    languageCode: "nb",
     name: "Swahili",
     translations: {
         "menu.home": "Nyumbani",

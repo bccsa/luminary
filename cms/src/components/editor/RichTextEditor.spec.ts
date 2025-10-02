@@ -9,6 +9,7 @@ describe("RichTextEditor", () => {
             props: {
                 disabled: false,
                 text: "<p>Gandalf the Grey</p>",
+                textLanguage: "lang-eng",
             },
         });
 
@@ -29,6 +30,7 @@ describe("RichTextEditor", () => {
             props: {
                 disabled: false,
                 text: "",
+                textLanguage: "lang-eng",
             },
         });
 
@@ -69,6 +71,7 @@ describe("RichTextEditor", () => {
                     type: "doc",
                     content: [{ type: "paragraph", content: [{ type: "text", text: "Test" }] }],
                 }),
+                textLanguage: "lang-eng",
             },
         });
 
