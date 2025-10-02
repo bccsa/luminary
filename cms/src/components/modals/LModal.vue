@@ -9,6 +9,7 @@ defineProps<Props>();
 
 const isVisible = defineModel<boolean>("isVisible");
 
+// Tracks whether the mouse down event occurred on the modal background.
 const mouseDownOnBackground = ref(false);
 
 function handleMouseDown(e: MouseEvent) {
