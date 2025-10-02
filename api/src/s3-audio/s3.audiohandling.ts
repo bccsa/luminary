@@ -15,14 +15,45 @@ export async function processMedia(
     try {
         // Handle prevMedia cleanup if needed
         if (prevMedia) {
-            // Remove file objects that were added to the media: Only the API may add audio files. A client can occasionally submit "new" audio files,
-            // but this usually will happen if an offline client saved changes to media which had file objects removed by another client.
-            // When the offline client comes online, its change request will then contain file objects that were previously removed, and
-            // as such need to be ignored.
-            media.fileCollections = prevMedia.fileCollections.filter((collection) =>
-                // Only include collections from the previous document that are also in the new document
-                media.fileCollections.some((c) => c.fileUrl === collection.fileUrl),
-            );
+            // Strategy: Keep all existing audio files from other languages,
+            // and respect client-side deletions for files that were explicitly removed
+            const languagesBeingUploaded =
+                media.uploadData?.map((u) => u.languageId).filter(Boolean) || [];
+
+            // Get fileUrls that the client is keeping (not deleted)
+            const keptFileUrls = new Set(media.fileCollections.map((c) => c.fileUrl));
+
+            // Start with all previous file collections
+            const existingFiles = prevMedia.fileCollections.filter((collection) => {
+                // If this language is being uploaded, it will be replaced by new upload
+                if (
+                    languagesBeingUploaded.length > 0 &&
+                    collection.languageId &&
+                    languagesBeingUploaded.includes(collection.languageId)
+                ) {
+                    return false;
+                }
+
+                // If the file was explicitly kept by the client, include it
+                if (keptFileUrls.has(collection.fileUrl)) {
+                    return true;
+                }
+
+                // If this file's language is not in the current submission at all,
+                // it means the client didn't touch this language - keep it
+                const clientLanguages = media.fileCollections
+                    .map((f) => f.languageId)
+                    .filter(Boolean);
+                if (collection.languageId && !clientLanguages.includes(collection.languageId)) {
+                    return true;
+                }
+
+                // Otherwise, the client has removed this file
+                return false;
+            });
+
+            // Start with existing files that should be kept
+            media.fileCollections = [...existingFiles];
         }
 
         if (media.uploadData) {
