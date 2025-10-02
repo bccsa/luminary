@@ -79,13 +79,9 @@ const handleFiles = (files: FileList | null) => {
 
         failureMessage.value = "";
 
-        // Remove any existing media for the current language
+        // Remove any existing upload data for the current language
+        // (We don't touch fileCollections - the backend will handle replacing files for this language)
         if (props.selectedLanguageId) {
-            // Remove existing file collections for this language
-            parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
-                (f) => f.languageId !== props.selectedLanguageId,
-            );
-
             // Remove existing upload data for this language
             parent.value.media.uploadData = parent.value.media.uploadData.filter(
                 (f) => f.languageId !== props.selectedLanguageId,
@@ -102,8 +98,6 @@ const handleFiles = (files: FileList | null) => {
             filename: fileNameWithoutExtension,
             languageId: props.selectedLanguageId,
         });
-
-        console.log(parent.value.media.uploadData);
     };
 
     reader.readAsArrayBuffer(file);
