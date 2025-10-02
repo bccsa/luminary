@@ -3,7 +3,7 @@ import { MediaUploadDataDto } from "../dto/MediaUploadDataDto";
 import { S3AudioService } from "./s3Audio.service";
 import { MediaFileDto } from "../dto/MediaFileDto";
 import { v4 as uuidv4 } from "uuid";
-import { getAudioFormatInfo, getFormatFromFilename } from "./audioFormatDetection";
+import { getAudioFormatInfo } from "./audioFormatDetection";
 
 export async function processMedia(
     media: MediaDto,
@@ -331,15 +331,6 @@ async function processQualitySafe(
             // Fall back; format/bitrate unknown in this environment
         }
 
-        // Prefer original filename extension if provided
-        if (uploadData.filename && typeof uploadData.filename === "string") {
-            const filenameFormat = getFormatFromFilename(uploadData.filename);
-            if (filenameFormat.ext) {
-                formatInfo.ext = filenameFormat.ext;
-                formatInfo.mime = filenameFormat.mime;
-            }
-        }
-
         // Fallback to generic audio if we couldn't determine format
         if (!formatInfo.ext) {
             formatInfo.ext = "audio";
@@ -363,7 +354,6 @@ async function processQualitySafe(
 
         file.languageId = (uploadData as MediaUploadDataDto).languageId;
         file.fileUrl = s3Audio.getAudioUrl(key);
-        file.filename = uploadData.filename;
         file.bitrate = bitrate;
         file.mediaType = (uploadData as any).mediaType;
 
