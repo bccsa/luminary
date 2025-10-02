@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import MediaEditor from "./MediaEditor.vue";
 import { MediaType, type ContentParentDto, db } from "luminary-shared";
+import LDialog from "../common/LDialog.vue";
 
 // Mock browser APIs
 global.URL.createObjectURL = vi.fn(() => "mocked-url");
@@ -138,5 +139,67 @@ describe("MediaEditor.vue", () => {
         expect(fileInput.attributes("accept")).toContain("audio/aac");
         expect(fileInput.attributes("accept")).toContain("audio/opus");
         expect(fileInput.attributes("accept")).toContain("audio/wav");
+    });
+
+    it("shows confirmation modal when uploading to a language that already has audio", async () => {
+        parent.media = {
+            fileCollections: [
+                {
+                    fileUrl: "https://example.com/audio-fr.mp3",
+                    languageId: mockData.mockLanguageDtoFra._id,
+                    filename: "test-audio-fr",
+                    bitrate: 128000,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+            uploadData: [],
+        };
+
+        const wrapper = mount(MediaEditor, {
+            props: {
+                parent: parent,
+                disabled: false,
+            },
+        });
+
+        // Create a mock file
+        const mockFile = new File(["audio content"], "test-audio.mp3", { type: "audio/mp3" });
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (index: number) => (index === 0 ? mockFile : null),
+        };
+
+        // Simulate file upload via the exposed handleFiles method
+        const component = wrapper.vm as any;
+        component.handleFiles(fileList);
+
+        await wrapper.vm.$nextTick();
+
+        // Language selector modal should appear
+        const modals = wrapper.findAllComponents(LDialog);
+        expect(modals.length).toBeGreaterThan(0);
+
+        const languageSelector = modals.find(
+            (m) => m.props("title") === "Select Language for Audio",
+        );
+        expect(languageSelector).toBeDefined();
+        expect(languageSelector?.props("open")).toBe(true);
+
+        // Select the French language (which already has audio)
+        component.selectedLanguageForUpload = mockData.mockLanguageDtoFra._id;
+        await wrapper.vm.$nextTick();
+
+        // Trigger the primary action (Upload button)
+        const primaryAction = languageSelector?.props("primaryAction") as Function;
+        primaryAction();
+        await wrapper.vm.$nextTick();
+
+        // Now the replacement confirmation modal should appear
+        const replacementModal = modals.find((m) => m.props("title") === "Replace Existing Audio?");
+        expect(replacementModal).toBeDefined();
+        expect(replacementModal?.props("primaryButtonText")).toBe("Replace");
+        expect(replacementModal?.props("secondaryButtonText")).toBe("Cancel");
+        expect(replacementModal?.props("context")).toBe("danger");
     });
 });
