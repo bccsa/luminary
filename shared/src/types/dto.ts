@@ -168,7 +168,6 @@ export type MediaUploadDataDto = {
     fileData: ArrayBuffer;
     mediaType: MediaType;
     preset?: MediaPreset;
-    filename?: string;
     languageId?: string;
 };
 
