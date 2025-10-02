@@ -6,43 +6,52 @@ import {
     maxUploadFileSize,
     type MediaUploadDataDto,
     type MediaFileDto,
+    type LanguageDto,
+    db,
+    DocType,
 } from "luminary-shared";
 import { computed, ref, toRaw } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
+import LDialog from "@/components/common/LDialog.vue";
 
 type Props = {
-    selectedLanguageId?: string;
     disabled: boolean;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
-// Filter media files by selected language
-const currentLanguageFileCollections = computed(() => {
-    if (!parent.value?.media?.fileCollections || !props.selectedLanguageId) {
-        return parent.value?.media?.fileCollections || [];
-    }
-    return parent.value.media.fileCollections.filter(
-        (f) => f.languageId === props.selectedLanguageId,
-    );
+// Get all available languages
+const availableLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+
+// Get languages that already have audio files
+const usedLanguageIds = computed(() => {
+    const fileCollectionLanguages =
+        parent.value?.media?.fileCollections?.map((f) => f.languageId) || [];
+    const uploadDataLanguages =
+        parent.value?.media?.uploadData?.map((f) => f.languageId).filter(Boolean) || [];
+    return [...new Set([...fileCollectionLanguages, ...uploadDataLanguages])];
 });
 
-const currentLanguageUploadData = computed(() => {
-    if (!parent.value?.media?.uploadData || !props.selectedLanguageId) {
-        return parent.value?.media?.uploadData || [];
-    }
-    return parent.value.media.uploadData.filter((f) => f.languageId === props.selectedLanguageId);
+// Get languages available for new upload
+const availableLanguagesForUpload = computed(() => {
+    return availableLanguages.value.filter((lang) => !usedLanguageIds.value.includes(lang._id));
 });
 
-// Check if current language has any media
-const hasMediaForCurrentLanguage = computed(() => {
-    return (
-        currentLanguageFileCollections.value.length > 0 ||
-        currentLanguageUploadData.value.length > 0
-    );
+// All media files (not filtered by language anymore)
+const allFileCollections = computed(() => {
+    return parent.value?.media?.fileCollections || [];
+});
+
+const allUploadData = computed(() => {
+    return parent.value?.media?.uploadData || [];
+});
+
+// Check if there's any media
+const hasMedia = computed(() => {
+    return allFileCollections.value.length > 0 || allUploadData.value.length > 0;
 });
 
 // HTML element refs
@@ -51,11 +60,50 @@ const isDragging = ref(false);
 const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
+
+// Language selection for upload
+const showLanguageSelector = ref(false);
+const pendingFile = ref<File | null>(null);
+const selectedLanguageForUpload = ref<string | undefined>(undefined);
+
+const confirmLanguageAndUpload = () => {
+    if (!pendingFile.value || !selectedLanguageForUpload.value) return;
+
+    processFileUpload(pendingFile.value, selectedLanguageForUpload.value);
+
+    // Reset state
+    showLanguageSelector.value = false;
+    pendingFile.value = null;
+    selectedLanguageForUpload.value = undefined;
+};
+
+const cancelLanguageSelection = () => {
+    showLanguageSelector.value = false;
+    pendingFile.value = null;
+    selectedLanguageForUpload.value = undefined;
+};
+
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Only process the first file since we allow only one media file per language
+    // Check if there are available languages to upload to
+    if (availableLanguagesForUpload.value.length === 0) {
+        failureMessage.value =
+            "All available languages already have audio files. Delete an existing audio to upload a new one for that language.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Only process the first file
     const file = files[0];
+
+    // Store the pending file and show language selector
+    pendingFile.value = file;
+    selectedLanguageForUpload.value = availableLanguagesForUpload.value[0]?._id;
+    showLanguageSelector.value = true;
+};
+
+const processFileUpload = (file: File, languageId: string) => {
     const reader = new FileReader();
 
     reader.onload = (e) => {
@@ -63,6 +111,7 @@ const handleFiles = (files: FileList | null) => {
 
         if (fileData.byteLength > maxUploadFileSize.value) {
             failureMessage.value = `Media file is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+            showFailureMessage.value = true;
             return;
         }
 
@@ -78,15 +127,12 @@ const handleFiles = (files: FileList | null) => {
         }
 
         failureMessage.value = "";
+        showFailureMessage.value = false;
 
-        // Remove any existing upload data for the current language
-        // (We don't touch fileCollections - the backend will handle replacing files for this language)
-        if (props.selectedLanguageId) {
-            // Remove existing upload data for this language
-            parent.value.media.uploadData = parent.value.media.uploadData.filter(
-                (f) => f.languageId !== props.selectedLanguageId,
-            );
-        }
+        // Remove any existing upload data for this language
+        parent.value.media.uploadData = parent.value.media.uploadData.filter(
+            (f) => f.languageId !== languageId,
+        );
 
         // remove extension from filename
         const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
@@ -96,7 +142,7 @@ const handleFiles = (files: FileList | null) => {
             preset: MediaPreset.Default,
             mediaType: MediaType.Audio,
             filename: fileNameWithoutExtension,
-            languageId: props.selectedLanguageId,
+            languageId: languageId,
         });
     };
 
@@ -104,8 +150,9 @@ const handleFiles = (files: FileList | null) => {
 
     // Reset the file input
     // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
-    uploadInput.value!.value = "";
+    if (uploadInput.value) uploadInput.value!.value = "";
 };
+
 const upload = () => {
     if (!uploadInput.value) return;
     // @ts-ignore - it seems as if the type definition for files is missing in the file input element.
@@ -165,8 +212,8 @@ defineExpose({
 <template>
     <div class="flex flex-col overflow-x-auto">
         <!-- Header with error message toggle -->
-        <div :disabled="disabled" class="flex justify-between px-4">
-            <div class="flex">
+        <div :disabled="disabled" class="mb-3 flex justify-between">
+            <div class="flex justify-center gap-2">
                 <button
                     v-if="failureMessage"
                     class="flex cursor-pointer items-center gap-1 rounded-md"
@@ -175,14 +222,14 @@ defineExpose({
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
                 </button>
-            </div>
-        </div>
 
-        <!-- Error Message -->
-        <div v-if="showFailureMessage" class="px-4">
-            <p class="my-2 text-xs text-red-600">
-                {{ failureMessage }}
-            </p>
+                <!-- Error Message -->
+                <div v-if="showFailureMessage">
+                    <p class="text-xs text-red-600">
+                        {{ failureMessage }}
+                    </p>
+                </div>
+            </div>
         </div>
 
         <!-- Full-width Drag and Drop Area -->
@@ -211,48 +258,99 @@ defineExpose({
                 </div>
             </div>
 
-            <!-- Thumbnails -->
-            <div v-if="hasMediaForCurrentLanguage" class="scrollbar-hide">
+            <!-- Thumbnails - Show all audio files grouped by language -->
+            <div v-if="hasMedia" class="scrollbar-hide">
                 <div
-                    v-if="!isDragging && hasMediaForCurrentLanguage"
-                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide sm:ml-0"
+                    v-if="!isDragging && hasMedia"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-4 scrollbar-hide sm:ml-0"
                     data-test="thumbnail-area"
                 >
-                    <!-- File Collections for current language -->
+                    <!-- Group audio files by language -->
                     <div
-                        v-for="c in currentLanguageFileCollections"
-                        :key="c.fileUrl"
-                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                        v-for="language in availableLanguages.filter(
+                            (lang) =>
+                                allFileCollections.some((f) => f.languageId === lang._id) ||
+                                allUploadData.some((u) => u.languageId === lang._id),
+                        )"
+                        :key="language._id"
+                        class="flex flex-col justify-center"
                     >
-                        <MediaEditorThumbnail
-                            :mediaFile="c"
-                            @deleteFileCollection="removeFileCollection"
-                            :disabled="!disabled"
-                        />
-                    </div>
+                        <!-- <div class="px-4 text-xs font-semibold text-gray-700 sm:px-0">
+                            {{ language.name }} ({{ language.languageCode }})
+                        </div> -->
+                        <div class="flex gap-2">
+                            <!-- File Collections for this language -->
+                            <div
+                                v-for="c in allFileCollections.filter(
+                                    (f) => f.languageId === language._id,
+                                )"
+                                :key="c.fileUrl"
+                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                            >
+                                <MediaEditorThumbnail
+                                    :mediaFile="c"
+                                    @deleteFileCollection="removeFileCollection"
+                                    :disabled="!disabled"
+                                />
+                            </div>
 
-                    <!-- Upload Data for current language -->
-                    <div
-                        v-for="(a, i) in currentLanguageUploadData"
-                        :key="i"
-                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
-                    >
-                        <MediaEditorThumbnail
-                            :mediaUploadData="a"
-                            @deleteUploadData="removeFileUploadData"
-                            :disabled="!disabled"
-                        />
+                            <!-- Upload Data for this language -->
+                            <div
+                                v-for="(a, i) in allUploadData.filter(
+                                    (u) => u.languageId === language._id,
+                                )"
+                                :key="i"
+                                class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                            >
+                                <MediaEditorThumbnail
+                                    :mediaUploadData="a"
+                                    @deleteUploadData="removeFileUploadData"
+                                    :disabled="!disabled"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- No media fallback -->
             <div v-else class="my-4 text-center italic">
-                <p v-if="props.selectedLanguageId" class="text-sm text-gray-500">
-                    No media uploaded for this language yet.
-                </p>
-                <p v-else class="text-sm text-gray-500">No medias uploaded yet.</p>
+                <p class="text-sm text-gray-500">No audio files uploaded yet.</p>
             </div>
         </div>
+
+        <!-- Language Selection Dialog -->
+        <LDialog
+            v-model:open="showLanguageSelector"
+            title="Select Language for Audio"
+            :primaryAction="confirmLanguageAndUpload"
+            primaryButtonText="Upload"
+            :secondaryAction="cancelLanguageSelection"
+            secondaryButtonText="Cancel"
+            context="default"
+        >
+            <div class="mt-4">
+                <label for="language-select" class="mb-2 block text-sm font-medium text-gray-700">
+                    Choose which language this audio file belongs to:
+                </label>
+                <select
+                    id="language-select"
+                    v-model="selectedLanguageForUpload"
+                    class="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                    <option
+                        v-for="lang in availableLanguagesForUpload"
+                        :key="lang._id"
+                        :value="lang._id"
+                    >
+                        {{ lang.name }}
+                    </option>
+                </select>
+                <p class="mt-2 text-xs text-gray-500">
+                    {{ availableLanguagesForUpload.length }} language(s) available. Each language
+                    can have one audio file.
+                </p>
+            </div>
+        </LDialog>
     </div>
 </template>
