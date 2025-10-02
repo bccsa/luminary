@@ -235,4 +235,65 @@ describe("S3AudioHandler", () => {
 
         resAudios.push(audio2);
     });
+
+    it("should delete audio file from S3 when removed from fileCollections", async () => {
+        // First, upload audio for English and Spanish
+        const audio = new MediaDto();
+        audio.fileCollections = [];
+        audio.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../test/" + "silence.wav"),
+                ) as unknown as ArrayBuffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+                languageId: "lang-eng",
+            },
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../test/" + "silence.wav"),
+                ) as unknown as ArrayBuffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+                languageId: "lang-spa",
+            },
+        ];
+        await processMedia(audio, undefined, service);
+        expect(audio.fileCollections.length).toBe(2);
+
+        const englishFile = audio.fileCollections.find((f) => f.languageId === "lang-eng");
+        const spanishFile = audio.fileCollections.find((f) => f.languageId === "lang-spa");
+        expect(englishFile).toBeDefined();
+        expect(spanishFile).toBeDefined();
+
+        const englishKey = englishFile!.fileUrl.split("/").pop()!;
+        const spanishKey = spanishFile!.fileUrl.split("/").pop()!;
+
+        // Verify both files exist in S3
+        const englishExists = await service.getObject(service.audioBucket, englishKey);
+        let spanishExists = await service.getObject(service.audioBucket, spanishKey);
+        expect(englishExists).toBeDefined();
+        expect(spanishExists).toBeDefined();
+
+        // Remove English audio from fileCollections (simulate user deletion)
+        const audio2 = JSON.parse(JSON.stringify(audio)) as MediaDto;
+        audio2.fileCollections = audio2.fileCollections.filter((f) => f.languageId !== "lang-eng");
+
+        await processMedia(audio2, audio, service);
+
+        // Should only have Spanish audio now
+        expect(audio2.fileCollections.length).toBe(1);
+        expect(audio2.fileCollections[0].languageId).toBe("lang-spa");
+
+        // Verify English file is deleted from S3
+        let englishError;
+        await service.getObject(service.audioBucket, englishKey).catch((e) => (englishError = e));
+        expect(englishError).toBeDefined();
+
+        // Verify Spanish file still exists in S3
+        spanishExists = await service.getObject(service.audioBucket, spanishKey);
+        expect(spanishExists).toBeDefined();
+
+        resAudios.push(audio2);
+    });
 });
