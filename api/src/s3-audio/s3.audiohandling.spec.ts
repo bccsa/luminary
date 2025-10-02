@@ -128,7 +128,6 @@ describe("S3AudioHandler", () => {
         audio2.fileCollections.push({
             languageId: "invalid",
             fileUrl: "http://example.com/invalid.mp3",
-            filename: "invalid",
             bitrate: 128,
             mediaType: MediaType.Audio,
         });

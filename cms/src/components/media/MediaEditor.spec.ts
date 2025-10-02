@@ -64,14 +64,12 @@ describe("MediaEditor.vue", () => {
                 {
                     fileUrl: "https://example.com/audio-en.mp3",
                     languageId: mockData.mockLanguageDtoEng._id,
-                    filename: "test-audio-en",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
                 {
                     fileUrl: "https://example.com/audio-fr.mp3",
                     languageId: mockData.mockLanguageDtoFra._id,
-                    filename: "test-audio-fr",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
@@ -100,7 +98,6 @@ describe("MediaEditor.vue", () => {
                 {
                     fileUrl: "https://example.com/audio-fr.mp3",
                     languageId: mockData.mockLanguageDtoFra._id,
-                    filename: "test-audio-fr",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
@@ -147,7 +144,6 @@ describe("MediaEditor.vue", () => {
                 {
                     fileUrl: "https://example.com/audio-fr.mp3",
                     languageId: mockData.mockLanguageDtoFra._id,
-                    filename: "test-audio-fr",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
