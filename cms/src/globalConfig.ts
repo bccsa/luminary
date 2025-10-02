@@ -21,6 +21,7 @@ window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
 });
 export const isSmallScreen = computed(() => windowWidth.value < 1500);
+export const sidebarSectionExpanded = ref({ posts: false, tags: false });
 
 /**
  * The preferred CMS language ID as Vue ref.
