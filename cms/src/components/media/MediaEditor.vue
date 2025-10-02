@@ -35,10 +35,10 @@ const usedLanguageIds = computed(() => {
     return [...new Set([...fileCollectionLanguages, ...uploadDataLanguages])];
 });
 
-// Get languages available for new upload
-const availableLanguagesForUpload = computed(() => {
-    return availableLanguages.value.filter((lang) => !usedLanguageIds.value.includes(lang._id));
-});
+// Check if a language already has audio
+const languageHasAudio = (languageId: string) => {
+    return usedLanguageIds.value.includes(languageId);
+};
 
 // All media files (not filtered by language anymore)
 const allFileCollections = computed(() => {
@@ -63,16 +63,43 @@ const failureMessage = ref<string | undefined>(undefined);
 
 // Language selection for upload
 const showLanguageSelector = ref(false);
+const showReplaceConfirmation = ref(false);
 const pendingFile = ref<File | null>(null);
 const selectedLanguageForUpload = ref<string | undefined>(undefined);
 
 const confirmLanguageAndUpload = () => {
     if (!pendingFile.value || !selectedLanguageForUpload.value) return;
 
+    // Check if the selected language already has audio
+    if (languageHasAudio(selectedLanguageForUpload.value)) {
+        // Show confirmation modal
+        showLanguageSelector.value = false;
+        showReplaceConfirmation.value = true;
+        return;
+    }
+
+    // Proceed with upload if no replacement needed
     processFileUpload(pendingFile.value, selectedLanguageForUpload.value);
 
     // Reset state
     showLanguageSelector.value = false;
+    pendingFile.value = null;
+    selectedLanguageForUpload.value = undefined;
+};
+
+const confirmReplaceAndUpload = () => {
+    if (!pendingFile.value || !selectedLanguageForUpload.value) return;
+
+    processFileUpload(pendingFile.value, selectedLanguageForUpload.value);
+
+    // Reset state
+    showReplaceConfirmation.value = false;
+    pendingFile.value = null;
+    selectedLanguageForUpload.value = undefined;
+};
+
+const cancelReplaceConfirmation = () => {
+    showReplaceConfirmation.value = false;
     pendingFile.value = null;
     selectedLanguageForUpload.value = undefined;
 };
@@ -86,20 +113,12 @@ const cancelLanguageSelection = () => {
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Check if there are available languages to upload to
-    if (availableLanguagesForUpload.value.length === 0) {
-        failureMessage.value =
-            "All available languages already have audio files. Delete an existing audio to upload a new one for that language.";
-        showFailureMessage.value = true;
-        return;
-    }
-
     // Only process the first file
     const file = files[0];
 
     // Store the pending file and show language selector
     pendingFile.value = file;
-    selectedLanguageForUpload.value = availableLanguagesForUpload.value[0]?._id;
+    selectedLanguageForUpload.value = availableLanguages.value[0]?._id;
     showLanguageSelector.value = true;
 };
 
@@ -134,14 +153,10 @@ const processFileUpload = (file: File, languageId: string) => {
             (f) => f.languageId !== languageId,
         );
 
-        // remove extension from filename
-        const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
-
         parent.value.media.uploadData.push({
             fileData: fileData,
             preset: MediaPreset.Default,
             mediaType: MediaType.Audio,
-            filename: fileNameWithoutExtension,
             languageId: languageId,
         });
     };
@@ -347,17 +362,35 @@ defineExpose({
                     v-model="selectedLanguageForUpload"
                     class="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 >
-                    <option
-                        v-for="lang in availableLanguagesForUpload"
-                        :key="lang._id"
-                        :value="lang._id"
-                    >
+                    <option v-for="lang in availableLanguages" :key="lang._id" :value="lang._id">
                         {{ lang.name }}
+                        <span v-if="languageHasAudio(lang._id)"> (has audio)</span>
                     </option>
                 </select>
                 <p class="mt-2 text-xs text-gray-500">
-                    {{ availableLanguagesForUpload.length }} language(s) available. Each language
-                    can have one audio file.
+                    Select a language for this audio file. If a language already has audio, it will
+                    be replaced.
+                </p>
+            </div>
+        </LDialog>
+
+        <!-- Replace Confirmation Dialog -->
+        <LDialog
+            v-model:open="showReplaceConfirmation"
+            title="Replace Existing Audio?"
+            :primaryAction="confirmReplaceAndUpload"
+            primaryButtonText="Replace"
+            :secondaryAction="cancelReplaceConfirmation"
+            secondaryButtonText="Cancel"
+            context="danger"
+        >
+            <div class="mt-4">
+                <p class="text-sm text-gray-700">
+                    The selected language already has an audio file. Uploading this new file will
+                    replace the existing audio.
+                </p>
+                <p class="mt-3 text-sm font-medium text-gray-900">
+                    Do you want to continue and replace the existing audio?
                 </p>
             </div>
         </LDialog>
