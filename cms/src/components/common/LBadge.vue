@@ -27,13 +27,18 @@ type Props = {
     type?: "default" | "language";
     icon?: Component | null;
     withIcon?: boolean;
+    paddingY?: string;
+    paddingX?: string;
+    rounded?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     variant: "default",
     type: "default",
     withIcon: false,
-    customColor: "",
+    paddingY: "py-1",
+    paddingX: "px-2",
+    rounded: true,
 });
 
 const defaultIcon = computed(() => {
@@ -60,7 +65,10 @@ const defaultIcon = computed(() => {
     <span
         :class="[
             variants[variant],
-            'inline-flex items-center rounded-md px-2 py-1 text-xs',
+            'inline-flex items-center  text-xs',
+            rounded ? 'rounded-md' : '',
+            paddingY,
+            paddingX,
             {
                 'flex justify-center font-medium uppercase tracking-widest ring ring-inset':
                     type == 'language',
