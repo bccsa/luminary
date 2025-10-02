@@ -1,9 +1,9 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import MediaEditor from "./MediaEditor.vue";
-import { MediaType, type ContentParentDto } from "luminary-shared";
+import { MediaType, type ContentParentDto, db } from "luminary-shared";
 
 // Mock browser APIs
 global.URL.createObjectURL = vi.fn(() => "mocked-url");
@@ -31,88 +31,45 @@ global.FileReader = MockFileReader as any;
 describe("MediaEditor.vue", () => {
     let parent: ContentParentDto;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         parent = { ...mockData.mockCategoryDto };
+
+        // Add test languages to the database
+        await db.docs.bulkPut([
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
     });
 
-    it("does not show replacement notice when no media exists for current language", async () => {
+    afterEach(async () => {
+        await db.docs.clear();
+    });
+
+    it("shows generic empty state message when no media exists", async () => {
         const wrapper = mount(MediaEditor, {
             props: {
                 parent: parent,
-                selectedLanguageId: "lang-123",
                 disabled: false,
             },
         });
 
-        expect(wrapper.text()).not.toContain(
-            "Uploading a new audio file will replace the existing one",
-        );
+        expect(wrapper.text()).toContain("No audio files uploaded yet.");
     });
 
-    it("does not show replacement notice when media exists for different language", async () => {
-        parent.media = {
-            fileCollections: [
-                {
-                    fileUrl: "https://example.com/audio.mp3",
-                    languageId: "lang-456", // Different language
-                    filename: "test-audio",
-                    bitrate: 128000,
-                    mediaType: MediaType.Audio,
-                },
-            ],
-            uploadData: [],
-        };
-
-        const wrapper = mount(MediaEditor, {
-            props: {
-                parent: parent,
-                selectedLanguageId: "lang-123",
-                disabled: false,
-            },
-        });
-
-        expect(wrapper.text()).not.toContain(
-            "Uploading a new audio file will replace the existing one",
-        );
-    });
-
-    it("shows language-specific empty state message when language is selected", async () => {
-        const wrapper = mount(MediaEditor, {
-            props: {
-                parent: parent,
-                selectedLanguageId: "lang-123",
-                disabled: false,
-            },
-        });
-
-        expect(wrapper.text()).toContain("No media uploaded for this language yet.");
-    });
-
-    it("shows generic empty state message when no language is selected", async () => {
-        const wrapper = mount(MediaEditor, {
-            props: {
-                parent: parent,
-                selectedLanguageId: undefined,
-                disabled: false,
-            },
-        });
-
-        expect(wrapper.text()).toContain("No medias uploaded yet.");
-    });
-
-    it("filters file collections by selected language", async () => {
+    it("displays thumbnail area when audio files exist", async () => {
         parent.media = {
             fileCollections: [
                 {
                     fileUrl: "https://example.com/audio-en.mp3",
-                    languageId: "lang-123",
+                    languageId: mockData.mockLanguageDtoEng._id,
                     filename: "test-audio-en",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
                 {
                     fileUrl: "https://example.com/audio-fr.mp3",
-                    languageId: "lang-456",
+                    languageId: mockData.mockLanguageDtoFra._id,
                     filename: "test-audio-fr",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
@@ -124,22 +81,24 @@ describe("MediaEditor.vue", () => {
         const wrapper = mount(MediaEditor, {
             props: {
                 parent: parent,
-                selectedLanguageId: "lang-123",
                 disabled: false,
             },
         });
 
-        // Should show the thumbnail area since there's media for the current language
+        // Should show the thumbnail area since there's media
         const thumbnailArea = wrapper.find('[data-test="thumbnail-area"]');
         expect(thumbnailArea.exists()).toBe(true);
+
+        // Should not show empty state
+        expect(wrapper.text()).not.toContain("No audio files uploaded yet");
     });
 
-    it("does not show thumbnail area when no media exists for selected language", async () => {
+    it("shows thumbnail area when media exists", async () => {
         parent.media = {
             fileCollections: [
                 {
                     fileUrl: "https://example.com/audio-fr.mp3",
-                    languageId: "lang-456", // Different language
+                    languageId: mockData.mockLanguageDtoFra._id,
                     filename: "test-audio-fr",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
@@ -151,21 +110,19 @@ describe("MediaEditor.vue", () => {
         const wrapper = mount(MediaEditor, {
             props: {
                 parent: parent,
-                selectedLanguageId: "lang-123",
                 disabled: false,
             },
         });
 
-        // Should not show the thumbnail area since there's no media for the current language
+        // Should show the thumbnail area
         const thumbnailArea = wrapper.find('[data-test="thumbnail-area"]');
-        expect(thumbnailArea.exists()).toBe(false);
+        expect(thumbnailArea.exists()).toBe(true);
     });
 
     it("respects file input constraints", async () => {
         const wrapper = mount(MediaEditor, {
             props: {
                 parent: parent,
-                selectedLanguageId: "lang-123",
                 disabled: false,
             },
         });
@@ -173,7 +130,7 @@ describe("MediaEditor.vue", () => {
         const fileInput = wrapper.find('[data-test="audio-upload"]');
         expect(fileInput.exists()).toBe(true);
 
-        // Should not have multiple attribute
+        // Should not have multiple attribute (we handle one file at a time with language selection)
         expect(fileInput.attributes("multiple")).toBeUndefined();
 
         // Should have correct accept types
