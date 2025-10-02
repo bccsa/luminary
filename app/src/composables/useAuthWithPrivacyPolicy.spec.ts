@@ -1,6 +1,7 @@
 import {
     useAuthWithPrivacyPolicy,
     showPrivacyPolicyModal,
+    hasPendingLogin,
 } from "@/composables/useAuthWithPrivacyPolicy";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { userPreferencesAsRef } from "@/globalConfig";
@@ -75,6 +76,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         };
         (userPreferencesAsRef as any).value = userPreferencesMock.value; // Necessary cast
         showPrivacyPolicyModal.value = false;
+        hasPendingLogin.value = false;
     });
 
     it("loginWithRedirect calls originalLoginWithRedirect when privacy policy is accepted", () => {
@@ -95,6 +97,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         loginWithRedirect();
         expect(loginWithRedirectMock).not.toHaveBeenCalled();
         expect(showPrivacyPolicyModal.value).toBe(true);
+        expect(hasPendingLogin.value).toBe(true);
     });
 
     it("completePendingLogin calls originalLoginWithRedirect and closes modal when privacy policy is accepted", async () => {
@@ -106,6 +109,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         await waitForExpect(() => {
             expect(loginWithRedirectMock).toHaveBeenCalled();
             expect(showPrivacyPolicyModal.value).toBe(false);
+            expect(hasPendingLogin.value).toBe(false);
         });
     });
 
@@ -116,6 +120,7 @@ describe("useAuthWithPrivacyPolicy", () => {
 
         await waitForExpect(async () => {
             expect(showPrivacyPolicyModal.value).toBe(false);
+            expect(hasPendingLogin.value).toBe(false);
         });
     });
 

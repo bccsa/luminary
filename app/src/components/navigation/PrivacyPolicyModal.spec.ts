@@ -9,6 +9,7 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
+import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -24,6 +25,9 @@ describe("PrivacyPolicyModal.vue", () => {
         setActivePinia(createTestingPinia());
 
         await db.docs.bulkPut([mockEnglishContentDto]);
+
+        // Reset hasPendingLogin before each test
+        hasPendingLogin.value = false;
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -156,6 +160,50 @@ describe("PrivacyPolicyModal.vue", () => {
         );
 
         // Verify that the "Accept" button is visible
+        expect(wrapper.find("button[name='accept']").exists()).toBe(true);
+    });
+
+    it("hides 'Necessary Only' button when there is a pending login", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        // Simulate a pending login
+        hasPendingLogin.value = true;
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        const wrapper = mount(PrivacyPolicyModal, {
+            props: {
+                show: true,
+            },
+        });
+
+        // Necessary Only button should not be shown when there's a pending login
+        expect(wrapper.find("button[name='necessary-only']").exists()).toBe(false);
+
+        // Accept button should still be visible
+        expect(wrapper.find("button[name='accept']").exists()).toBe(true);
+    });
+
+    it("shows 'Necessary Only' button when there is no pending login", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        // No pending login
+        hasPendingLogin.value = false;
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        const wrapper = mount(PrivacyPolicyModal, {
+            props: {
+                show: true,
+            },
+        });
+
+        // Necessary Only button should be shown when there's no pending login and user is not authenticated
+        expect(wrapper.find("button[name='necessary-only']").exists()).toBe(true);
+
+        // Accept button should also be visible
         expect(wrapper.find("button[name='accept']").exists()).toBe(true);
     });
 });
