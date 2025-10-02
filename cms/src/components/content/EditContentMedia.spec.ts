@@ -74,7 +74,6 @@ describe("EditContentMedia.vue", () => {
                 {
                     fileUrl: "https://example.com/audio.mp3",
                     languageId: mockData.mockLanguageDtoEng._id,
-                    filename: "test-audio",
                     bitrate: 128000,
                     mediaType: MediaType.Audio,
                 },
@@ -97,7 +96,6 @@ describe("EditContentMedia.vue", () => {
                     languageId: mockData.mockLanguageDtoEng._id,
                     preset: MediaPreset.Default,
                     mediaType: MediaType.Audio,
-                    filename: "test-audio",
                 },
             ],
         };
