@@ -233,7 +233,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-2" :class="{ 'mb-1': isLanguageSelectorCollapsed }">
+                <div class="flex flex-col gap-2" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"

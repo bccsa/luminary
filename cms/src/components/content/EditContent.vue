@@ -785,6 +785,7 @@ watch(
                             v-model:parent="editableParent"
                             :disabled="!canEditParent"
                             :existingParent="existingParent"
+                            :newDocument="newDocument"
                         />
 
                         <EditContentImage
