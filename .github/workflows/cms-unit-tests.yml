@@ -1,4 +1,6 @@
 name: Run CMS Unit & Lint Tests
+permissions:
+  contents: read
 
 on:
   pull_request:

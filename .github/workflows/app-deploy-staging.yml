@@ -1,4 +1,6 @@
 name: "Build & Deploy App to staging"
+permissions:
+  contents: read
 
 on:
   push:
