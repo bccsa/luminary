@@ -131,7 +131,6 @@ export const mockEnglishContentDto: ContentDto = {
         fileCollections: [
             {
                 languageId: "lang-eng",
-                filename: "audio.mp3",
                 fileUrl: "https://example.com/audio.mp3",
                 bitrate: 128000,
                 mediaType: MediaType.Audio,
@@ -178,7 +177,6 @@ export const mockFrenchContentDto: ContentDto = {
         fileCollections: [
             {
                 languageId: "lang-fra",
-                filename: "audio-fr.mp3",
                 fileUrl: "https://example.com/audio-fr.mp3",
                 bitrate: 128000,
                 mediaType: MediaType.Audio,
@@ -225,7 +223,6 @@ export const mockSwahiliContentDto: ContentDto = {
         fileCollections: [
             {
                 languageId: "lang-swa",
-                filename: "audio-swa.mp3",
                 fileUrl: "https://example.com/audio-swa.mp3",
                 bitrate: 128000,
                 mediaType: MediaType.Audio,
