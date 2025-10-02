@@ -16,11 +16,6 @@ export class MediaFileDto {
     @Expose()
     fileUrl: string;
 
-    @IsNotEmpty()
-    @IsString()
-    @Expose()
-    filename: string;
-
     @IsNumber()
     @Expose()
     @IsNotEmpty()
