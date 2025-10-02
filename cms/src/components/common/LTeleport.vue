@@ -11,9 +11,7 @@ defineProps<Props>();
 
 <template>
     <Teleport v-if="!isTestEnviroment" :to="to ?? 'body'">
-        <div>
-            <slot />
-        </div>
+        <slot />
     </Teleport>
     <div v-else>
         <slot />
