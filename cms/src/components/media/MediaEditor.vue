@@ -212,7 +212,13 @@ defineExpose({
 <template>
     <div class="flex flex-col overflow-x-auto">
         <!-- Header with error message toggle -->
-        <div :disabled="disabled" class="mb-3 flex justify-between">
+        <div
+            :disabled="disabled"
+            :class="{
+                'mb-3': parent?.media?.fileCollections?.length || parent?.media?.uploadData?.length,
+            }"
+            class="flex justify-between"
+        >
             <div class="flex justify-center gap-2">
                 <button
                     v-if="failureMessage"
@@ -330,7 +336,10 @@ defineExpose({
             context="default"
         >
             <div class="mt-4">
-                <label for="language-select" class="mb-2 block text-sm font-medium text-gray-700">
+                <label
+                    for="language-select"
+                    class="mb-2 mt-1 block text-sm font-medium text-gray-700"
+                >
                     Choose which language this audio file belongs to:
                 </label>
                 <select
