@@ -9,6 +9,7 @@ import LButton from "@/components/button/LButton.vue";
 import { useI18n } from "vue-i18n";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
+import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 
 const { t } = useI18n();
 const { isAuthenticated, logout } = useAuth0();
@@ -36,7 +37,13 @@ const privacyPolicy = useDexieLiveQuery(
 );
 
 // Logic for showing the "Necessary only" button
+// Don't show "Necessary only" if user is trying to log in, because login requires full privacy policy acceptance
 const necessaryOnlyLogic = computed(() => {
+    // If there's a pending login action, don't show "Necessary only"
+    if (hasPendingLogin.value) {
+        return false;
+    }
+
     if (!userPreferencesAsRef.value.privacyPolicy?.status && !isAuthenticated.value) return true;
     if (status.value == "outdated" && !isAuthenticated.value) return true;
     if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted" && !isAuthenticated.value)

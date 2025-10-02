@@ -6,6 +6,9 @@ import { userPreferencesAsRef } from "@/globalConfig";
 export const showPrivacyPolicyModal = ref(false);
 let pendingLoginAction: (() => void) | null = null;
 
+// Reactive state to track if there's a pending login action
+export const hasPendingLogin = ref(false);
+
 /**
  * Enhanced authentication composable that enforces privacy policy acceptance before login.
  */
@@ -30,6 +33,7 @@ export function useAuthWithPrivacyPolicy() {
         } else {
             // Privacy policy not accepted, show modal first
             pendingLoginAction = () => originalLoginWithRedirect();
+            hasPendingLogin.value = true;
             showPrivacyPolicyModal.value = true;
         }
     };
@@ -39,6 +43,7 @@ export function useAuthWithPrivacyPolicy() {
         if (pendingLoginAction && isPrivacyPolicyAccepted.value) {
             const action = pendingLoginAction;
             pendingLoginAction = null;
+            hasPendingLogin.value = false;
             showPrivacyPolicyModal.value = false;
             action();
         }
@@ -48,6 +53,7 @@ export function useAuthWithPrivacyPolicy() {
     const cancelPendingLogin = () => {
         if (pendingLoginAction) {
             pendingLoginAction = null;
+            hasPendingLogin.value = false;
             showPrivacyPolicyModal.value = false;
         }
     };
@@ -59,6 +65,7 @@ export function useAuthWithPrivacyPolicy() {
         loginWithRedirect,
         isPrivacyPolicyAccepted,
         showPrivacyPolicyModal,
+        hasPendingLogin,
         completePendingLogin,
         cancelPendingLogin,
     };
