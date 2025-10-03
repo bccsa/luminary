@@ -8,6 +8,7 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { GroupDto } from "../../dto/GroupDto";
 import { DocType } from "../../enums";
 import { MediaDto } from "../../dto/MediaDto";
+import { MediaFileDto } from "../../dto/MediaFileDto";
 
 /**
  * Upgrade the database schema from version 7 to 8
@@ -48,7 +49,7 @@ export default async function (db: DbService, s3: S3Service, s3Audio: S3AudioSer
                     (doc as PostDto | TagDto).media == undefined
                 ) {
                     doc.media = new MediaDto();
-                    doc.media.fileCollections = [];
+                    doc.media.fileCollections = new Array<MediaFileDto>();
                 }
 
                 const changeReq = new ChangeReqDto();
