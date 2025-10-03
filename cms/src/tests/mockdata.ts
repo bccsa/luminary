@@ -15,9 +15,14 @@ import {
     RedirectType,
     type AccessMap,
     type UserDto,
+<<<<<<< ours
     type StorageDto,
     type S3CredentialDto,
     StorageType,
+=======
+    MediaType,
+    type MediaFileDto,
+>>>>>>> theirs
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -92,6 +97,24 @@ export const mockPostDto: PostDto = {
     tags: ["tag-category1"],
     publishDateVisible: true,
     postType: PostType.Blog,
+    media: {
+        hlsUrl: "test-hls-url.m3u8",
+        fileCollections: [
+            {
+                languageId: "lang-eng",
+                fileUrl: "https://example.com/audio-en.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+
+            {
+                languageId: "lang-fra",
+                fileUrl: "https://example.com/audio-fr.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+        ] as MediaFileDto[],
+    },
 };
 
 export const mockEnglishContentDto: ContentDto = {
@@ -128,9 +151,24 @@ export const mockEnglishContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+
     parentMedia: {
-        hlsUrl: "test-hls-url",
-        fileCollections: [],
+        hlsUrl: "test-hls-url.m3u8",
+        fileCollections: [
+            {
+                languageId: "lang-eng",
+                fileUrl: "https://example.com/audio-en.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+
+            {
+                languageId: "lang-fra",
+                fileUrl: "https://example.com/audio-fr.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+        ] as MediaFileDto[],
     },
 };
 export const mockFrenchContentDto: ContentDto = {
