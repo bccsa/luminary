@@ -23,7 +23,10 @@ describe("EditContentVideo.vue", () => {
     it("displays the video field, when it is defined", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+            parentMedia: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
         const wrapper = mount(EditContentVideo, {
             props: {
@@ -39,7 +42,10 @@ describe("EditContentVideo.vue", () => {
     it("displays video URL in the text input", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+            parentMedia: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
 
         const wrapper = mount(EditContentVideo, {
@@ -60,7 +66,10 @@ describe("EditContentVideo.vue", () => {
     it("can update the video input field", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+            parentMedia: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
         const wrapper = mount(EditContentVideo, {
             props: {

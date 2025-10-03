@@ -46,6 +46,7 @@ jobs:
           echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
           echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
           echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
+          echo VITE_CLIENT_AUDIOS_URL="${{ vars.VITE_CLIENT_AUDIOS_URL }}" >> .env
           echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
           echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
           echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env

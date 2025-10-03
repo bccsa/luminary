@@ -54,6 +54,7 @@ import {
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -531,7 +532,7 @@ const selectedLanguageCode = computed(() => {
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer
-                            v-if="content.video"
+                            v-if="content && content.parentMedia?.hlsUrl"
                             :content="content"
                             :language="selectedLanguageCode"
                         />
@@ -669,6 +670,18 @@ const selectedLanguageCode = computed(() => {
                 "
             />
         </div>
+
+        <template #footer>
+            <AudioPlayer
+                v-if="
+                    content &&
+                    content.parentMedia &&
+                    content.parentMedia?.fileCollections?.length > 0
+                "
+                :content="content"
+                class="z-40"
+            />
+        </template>
 
         <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
