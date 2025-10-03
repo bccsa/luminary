@@ -153,10 +153,15 @@ const processFileUpload = (file: File, languageId: string) => {
             (f) => f.languageId !== languageId,
         );
 
+        // DO NOT DELETE THIS COMMENT
+        /**
+         * This throws an error when uncommented:
+         * It seems that at this point in time, parent.value.media.fileCollections doesn't contain the expected file.
+         */
         // Remove any existing file collections for this language
-        parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
-            (f) => f.languageId !== languageId,
-        );
+        // parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
+        //     (f) => f.languageId !== languageId,
+        // );
 
         parent.value.media.uploadData.push({
             fileData: fileData,
@@ -328,7 +333,7 @@ defineExpose({
                             >
                                 <MediaEditorThumbnail
                                     :mediaUploadData="a"
-                                    :languageCode="language.languageCode"
+                                    :languageCode="language.languageCode.toUpperCase()"
                                     @deleteUploadData="removeFileUploadData"
                                     :disabled="!disabled"
                                 />
