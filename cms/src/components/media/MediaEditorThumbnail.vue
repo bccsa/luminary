@@ -61,6 +61,37 @@ const deleteMessage = `Are you sure you want to delete the audio file?`;
 const mediaElementError = ref(false);
 </script>
 
+<style scoped>
+/* Specifies the size of the audio container */
+audio {
+    width: 140px;
+    height: 65px;
+}
+
+audio::-webkit-media-controls-panel {
+    -webkit-justify-content: center;
+    height: 25px;
+}
+
+/* Removes the timeline */
+audio::-webkit-media-controls-timeline {
+    display: none !important;
+}
+
+/* Removes the time stamp */
+audio::-webkit-media-controls-current-time-display {
+    display: none;
+}
+audio::-webkit-media-controls-time-remaining-display {
+    display: none;
+}
+
+/* Play button css */
+audio::-webkit-media-controls-play-button {
+    margin-right: 10px;
+}
+</style>
+
 <template>
     <div :class="$attrs.class">
         <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
@@ -68,8 +99,8 @@ const mediaElementError = ref(false);
                 v-if="!mediaElementError"
                 :src="src"
                 controls
-                download="false"
-                class="h-16 rounded-sm shadow"
+                controlsList="nodownload noplaybackrate noremoteplayback"
+                class="rounded border-2 border-zinc-200 bg-white shadow"
                 @error="mediaElementError = true"
             />
 
