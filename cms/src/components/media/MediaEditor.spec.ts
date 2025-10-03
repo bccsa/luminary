@@ -58,40 +58,6 @@ describe("MediaEditor.vue", () => {
         expect(wrapper.text()).toContain("No audio files uploaded yet.");
     });
 
-    it("displays thumbnail area when audio files exist", async () => {
-        parent.media = {
-            fileCollections: [
-                {
-                    fileUrl: "https://example.com/audio-en.mp3",
-                    languageId: mockData.mockLanguageDtoEng._id,
-                    bitrate: 128000,
-                    mediaType: MediaType.Audio,
-                },
-                {
-                    fileUrl: "https://example.com/audio-fr.mp3",
-                    languageId: mockData.mockLanguageDtoFra._id,
-                    bitrate: 128000,
-                    mediaType: MediaType.Audio,
-                },
-            ],
-            uploadData: [],
-        };
-
-        const wrapper = mount(MediaEditor, {
-            props: {
-                parent: parent,
-                disabled: false,
-            },
-        });
-
-        // Should show the thumbnail area since there's media
-        const thumbnailArea = wrapper.find('[data-test="thumbnail-area"]');
-        expect(thumbnailArea.exists()).toBe(true);
-
-        // Should not show empty state
-        expect(wrapper.text()).not.toContain("No audio files uploaded yet");
-    });
-
     it("shows thumbnail area when media exists", async () => {
         parent.media = {
             fileCollections: [
