@@ -24,18 +24,6 @@ const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
-// Check if any media exists
-const hasAnyMedia = computed(() => {
-    if (!parent.value?.media) {
-        return false;
-    }
-
-    const hasFileCollections = (parent.value.media.fileCollections?.length || 0) > 0;
-    const hasUploadData = (parent.value.media.uploadData?.length || 0) > 0;
-
-    return hasFileCollections || hasUploadData;
-});
-
 const mediaEditorRef = ref<InstanceType<typeof MediaEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
 
@@ -78,12 +66,8 @@ const handleFileChange = () => {
                     @click.stop="triggerFilePicker"
                     data-test="upload-button"
                 >
-                    <span class="block sm:hidden">{{
-                        hasAnyMedia ? "Add Audio" : "Upload Audio"
-                    }}</span>
-                    <span class="hidden text-sm sm:inline">{{
-                        hasAnyMedia ? "Add" : "Upload"
-                    }}</span>
+                    <span class="block sm:hidden">Upload Audio</span>
+                    <span class="hidden text-sm sm:inline">Upload</span>
                 </LButton>
 
                 <input

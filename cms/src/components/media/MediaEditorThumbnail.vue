@@ -9,7 +9,7 @@ type Props = {
     mediaFile?: MediaFileDto;
     mediaUploadData?: MediaUploadDataDto;
     disabled?: boolean;
-    languageName?: string;
+    languageCode: string;
 };
 const props = defineProps<Props>();
 
@@ -83,14 +83,14 @@ const mediaElementError = ref(false);
 
             <!-- Language Badge  -->
             <LBadge
-                v-if="languageName"
-                class="absolute -bottom-0 left-1/2 w-full -translate-x-1/2 transform justify-center"
+                v-if="languageCode"
+                class="absolute -bottom-0 left-1/2 w-full -translate-x-1/2 transform justify-center font-bold"
                 variant="info"
                 paddingY="py-0"
                 :rounded="false"
                 size="sm"
             >
-                {{ languageName }}
+                {{ languageCode }}
             </LBadge>
 
             <TrashIcon
