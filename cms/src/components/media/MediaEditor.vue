@@ -283,7 +283,7 @@ defineExpose({
             <div v-if="hasMedia" class="scrollbar-hide">
                 <div
                     v-if="!isDragging && hasMedia"
-                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-3 scrollbar-hide sm:ml-0"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide sm:ml-0"
                     data-test="thumbnail-area"
                 >
                     <!-- Group audio files by language -->
@@ -307,7 +307,7 @@ defineExpose({
                             >
                                 <MediaEditorThumbnail
                                     :mediaFile="c"
-                                    :languageName="language.name"
+                                    :languageCode="language.languageCode.toUpperCase()"
                                     @deleteFileCollection="removeFileCollection"
                                     :disabled="!disabled"
                                 />
@@ -323,7 +323,7 @@ defineExpose({
                             >
                                 <MediaEditorThumbnail
                                     :mediaUploadData="a"
-                                    :languageName="language.name"
+                                    :languageCode="language.languageCode"
                                     @deleteUploadData="removeFileUploadData"
                                     :disabled="!disabled"
                                 />
