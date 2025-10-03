@@ -153,6 +153,11 @@ const processFileUpload = (file: File, languageId: string) => {
             (f) => f.languageId !== languageId,
         );
 
+        // Remove any existing file collections for this language
+        parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
+            (f) => f.languageId !== languageId,
+        );
+
         parent.value.media.uploadData.push({
             fileData: fileData,
             preset: MediaPreset.Default,
