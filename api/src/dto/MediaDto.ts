@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsOptional, IsString } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { MediaFileDto } from "./MediaFileDto";
 import { MediaUploadDataDto } from "./MediaUploadDataDto";
@@ -12,7 +12,6 @@ export class MediaDto {
     @Expose()
     hlsUrl?: string;
 
-    @IsNotEmpty()
     @IsArray()
     @Type(() => MediaFileDto)
     @Expose()
