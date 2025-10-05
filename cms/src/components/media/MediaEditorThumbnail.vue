@@ -33,6 +33,7 @@ const audioSrc = computed(() => {
             const url = anyData.fileUrl as string;
             return /^https?:\/\//i.test(url) ? url : `${baseUrl}/${url}`;
         }
+        // Create object URL for local file data if available
         if (props.mediaUploadData.fileData) {
             return URL.createObjectURL(new Blob([props.mediaUploadData.fileData]));
         }
@@ -93,6 +94,10 @@ const play = () => {
 const pause = () => {
     if (!audioEl.value) return;
     audioEl.value.pause();
+
+    // reset to start
+    audioEl.value.currentTime = 0;
+
     isPlaying.value = false;
 };
 
