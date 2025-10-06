@@ -9,6 +9,7 @@ import { apiUrl, initLanguage } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
+import { checkForUpdate } from "./util/checkForUpdate";
 
 const app = createApp(App);
 
@@ -113,3 +114,12 @@ async function Startup() {
 }
 
 Startup();
+
+// Initial delayed check & interval
+setTimeout(() => checkForUpdate(), 1000);
+// Re-check every 5 minutes (configurable via env later if needed)
+setInterval(() => checkForUpdate(), 5 * 60 * 1000);
+
+// Optional: expose manual trigger (for debugging in console)
+// @ts-ignore
+window.__checkUpdate = checkForUpdate;

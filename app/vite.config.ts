@@ -5,6 +5,10 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import util from "util";
 import child_process from "child_process";
 import { visualizer } from "rollup-plugin-visualizer";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { execSync } from "node:child_process";
 
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
@@ -39,6 +43,61 @@ export default defineConfig({
                 }
             },
         },
+        {
+            name: "emit-version-json",
+            apply: "build",
+            closeBundle() {
+                try {
+                    const outDir = path.resolve(__dirname, "dist");
+                    const candidatePaths = [
+                        path.join(outDir, "manifest.json"),
+                        path.join(outDir, ".vite", "manifest.json"),
+                    ];
+                    const manifestPath = candidatePaths.find((p) => fs.existsSync(p));
+                    let manifestRaw = "";
+                    if (manifestPath) {
+                        manifestRaw = fs.readFileSync(manifestPath, "utf-8");
+                    }
+                    let commit = "unknown";
+                    try {
+                        commit = execSync("git rev-parse --short HEAD", {
+                            stdio: ["ignore", "pipe", "ignore"],
+                        })
+                            .toString()
+                            .trim();
+                    } catch {
+                        // ignore git errors (e.g., not a git repo)
+                    }
+                    const buildTime = new Date().toISOString();
+                    const manifestHash = manifestRaw
+                        ? crypto.createHash("sha256").update(manifestRaw).digest("hex").slice(0, 16)
+                        : "nomanifest";
+                    // Combine manifest hash + commit + build time for a unique version hash per build
+                    const versionHash = crypto
+                        .createHash("sha256")
+                        .update(manifestHash + commit + buildTime)
+                        .digest("hex")
+                        .slice(0, 16);
+                    const payload = {
+                        hash: versionHash,
+                        manifestHash,
+                        commit,
+                        buildTime,
+                        manifestPresent: !!manifestPath,
+                    };
+                    fs.writeFileSync(
+                        path.join(outDir, "version.json"),
+                        JSON.stringify(payload, null, 2),
+                        "utf-8",
+                    );
+                } catch (e) {
+                    console.error(
+                        "Failed to emit version.json",
+                        e instanceof Error ? e.message : e,
+                    );
+                }
+            },
+        },
     ],
     resolve: {
         alias: {
@@ -53,6 +112,7 @@ export default defineConfig({
         target: "es2015",
         sourcemap: true,
         minify: env.VITE_BYPASS_MINIFY !== "true",
+        manifest: true,
         rollupOptions: {
             output: {
                 manualChunks: {
