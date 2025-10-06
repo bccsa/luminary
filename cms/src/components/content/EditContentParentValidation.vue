@@ -197,7 +197,7 @@ watch(
 </script>
 
 <template>
-    <div ref="languageSelector" :class="{ 'sticky top-0 z-10': isSmallScreen }">
+    <div ref="languageSelector">
         <LCard
             class="bg-white"
             shadow="small"
