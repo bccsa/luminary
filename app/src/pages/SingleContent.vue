@@ -351,19 +351,42 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+// --- Force language from query param (takes priority over all other language selection) ---
+const langToForce = queryParams.get("langId");
 
-const langToForce = queryParams.get("lang");
 // If lang query param is set, force that language if available
-watch([availableTranslations, languages], () => {
-    if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
-    const lang = languages.value.find((l) => l.languageCode === langToForce);
-    if (!lang) return;
-    const translation = availableTranslations.value.find((c) => c.language === lang._id);
-    if (!translation) return;
-    selectedLanguageId.value = lang._id;
-    // Update content without triggering a route change by replacing the slug
-    content.value = translation;
-});
+watch(
+    [availableTranslations, languages],
+    () => {
+        if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
+        const translation = availableTranslations.value.find((c) => c.language === langToForce);
+        if (!translation) return;
+        // Set selectedLanguageId and content directly, bypassing other watchers
+        selectedLanguageId.value = langToForce;
+        content.value = translation;
+    },
+    { immediate: true },
+);
+
+// Prevent other language selection logic from overriding forced language
+watch(
+    () => selectedLanguageId.value,
+    (val) => {
+        if (langToForce && val !== langToForce) {
+            selectedLanguageId.value = langToForce;
+        }
+    },
+);
+
+watch(
+    () => content.value,
+    (val) => {
+        if (langToForce && availableTranslations.value.length && val?.language !== langToForce) {
+            const translation = availableTranslations.value.find((c) => c.language === langToForce);
+            if (translation) content.value = translation;
+        }
+    },
+);
 
 /**
  * Watches for changes in the `content` reactive property.
