@@ -240,7 +240,7 @@ defineExpose({
         <div
             :disabled="disabled"
             :class="{
-                'mb-3': parent?.media?.fileCollections?.length || parent?.media?.uploadData?.length,
+                'mb-0': parent?.media?.fileCollections?.length || parent?.media?.uploadData?.length,
             }"
             class="flex justify-between"
         >
