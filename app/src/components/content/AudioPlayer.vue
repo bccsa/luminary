@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { type ContentDto, db } from "luminary-shared";
 import {
     PlayIcon,
@@ -24,7 +24,7 @@ type Props = {
     content: ContentDto;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const togglePlay = async () => {
     if (!audioElement.value) return;
@@ -108,17 +108,27 @@ const onPointerUp = () => {
     currentY.value = 0;
     isDragging.value = false;
 };
+
+// write a computed function that will assign the file url of the file collection where the languageId matchs the content languageId
+const matchAudioFileUrl = computed(() => {
+    if (
+        props.content.parentMedia &&
+        props.content.parentMedia.fileCollections &&
+        props.content.language
+    ) {
+        const matchedFile = props.content.parentMedia.fileCollections.find(
+            (file) => file.languageId === props.content.language,
+        );
+        return matchedFile?.fileUrl;
+    }
+    return props.content.parentMedia?.fileCollections?.[0]?.fileUrl;
+});
 </script>
 
 <template>
     <div class="left-0 right-0 z-40 lg:fixed lg:bottom-6 lg:left-auto lg:right-6 lg:rounded-lg">
         <!-- Hidden audio element -->
-        <audio
-            ref="audioElement"
-            :src="content.parentMedia?.fileCollections[0].fileUrl"
-            preload="auto"
-            class="hidden"
-        />
+        <audio ref="audioElement" :src="matchAudioFileUrl" preload="auto" class="hidden" />
 
         <!-- Expanded Player -->
         <transition name="slide-up">
@@ -257,7 +267,7 @@ const onPointerUp = () => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-100/10 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
