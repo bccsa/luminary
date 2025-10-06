@@ -30,6 +30,7 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
+    queryParams,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -349,6 +350,19 @@ watch(tags, () => {
 const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
+});
+
+const langToForce = queryParams.get("lang");
+// If lang query param is set, force that language if available
+watch([availableTranslations, languages], () => {
+    if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
+    const lang = languages.value.find((l) => l.languageCode === langToForce);
+    if (!lang) return;
+    const translation = availableTranslations.value.find((c) => c.language === lang._id);
+    if (!translation) return;
+    selectedLanguageId.value = lang._id;
+    // Update content without triggering a route change by replacing the slug
+    content.value = translation;
 });
 
 /**
