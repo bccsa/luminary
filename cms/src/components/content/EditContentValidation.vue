@@ -41,7 +41,18 @@ const usedLanguage = computed(() => {
     return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
 });
 
-const isContentDirty = computed(() => !_.isEqual(editableContent.value, props.existingContent));
+const isContentDirty = computed(() => {
+    if (!editableContent.value || !props.existingContent) return false;
+
+    // Create copies without parentMedia for comparison since parentMedia is synchronized from parent
+    const editableWithoutParentMedia = { ...editableContent.value };
+    delete editableWithoutParentMedia.parentMedia;
+
+    const existingWithoutParentMedia = { ...props.existingContent };
+    delete existingWithoutParentMedia.parentMedia;
+
+    return !_.isEqual(editableWithoutParentMedia, existingWithoutParentMedia);
+});
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
