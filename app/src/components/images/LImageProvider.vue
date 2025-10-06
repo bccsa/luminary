@@ -312,7 +312,7 @@ const modalSrcset = computed(() => {
         ]"
         alt=""
         data-test="image-element2"
-        loading="eager"
+        loading="lazy"
         @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
