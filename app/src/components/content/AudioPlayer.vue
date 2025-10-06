@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { type ContentDto, db } from "luminary-shared";
 import {
     PlayIcon,
@@ -123,6 +123,42 @@ const matchAudioFileUrl = computed(() => {
     }
     return props.content.parentMedia?.fileCollections?.[0]?.fileUrl;
 });
+
+// Watch for language changes and preserve playback position
+watch(
+    () => props.content.language,
+    (newLanguage, oldLanguage) => {
+        if (!audioElement.value || !newLanguage || !oldLanguage || newLanguage === oldLanguage) {
+            return;
+        }
+
+        // Store current playback state
+        const wasPlaying = isPlaying.value;
+        const currentPosition = audioElement.value.currentTime;
+
+        // Update the audio source (this happens automatically via matchAudioFileUrl)
+        // We need to wait for the new audio to load before setting the position
+        const handleLoadedMetadata = () => {
+            if (audioElement.value) {
+                // Set the saved position
+                audioElement.value.currentTime = currentPosition;
+
+                // Resume playing if it was playing before
+                if (wasPlaying) {
+                    audioElement.value.play().catch((err) => {
+                        console.error("Failed to resume playback after language change:", err);
+                    });
+                }
+
+                // Remove the event listener as it's only needed once
+                audioElement.value.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            }
+        };
+
+        // Add the event listener before the source changes
+        audioElement.value.addEventListener("loadedmetadata", handleLoadedMetadata);
+    },
+);
 </script>
 
 <template>
@@ -267,7 +303,7 @@ const matchAudioFileUrl = computed(() => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-100/10 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
