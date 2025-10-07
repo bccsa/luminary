@@ -374,6 +374,10 @@ export class DbService extends EventEmitter {
             deleteReason: options.reason,
         } as DeleteCmdDto;
 
+        if ((options.doc as unknown as any).slug) {
+            cmd.slug = (options.doc as unknown as ContentDto).slug;
+        }
+
         const d = options.doc as unknown as _contentBaseDto;
         const p = options.prevDoc as unknown as _contentBaseDto;
 
