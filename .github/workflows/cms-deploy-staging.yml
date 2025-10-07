@@ -33,9 +33,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Create .env file
         run: |
