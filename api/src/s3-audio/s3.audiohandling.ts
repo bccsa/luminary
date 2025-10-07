@@ -119,9 +119,10 @@ async function validateAudiosInContent(
     warnings: string[] = [],
 ): Promise<void> {
     try {
-        const allFilenames = fileCollections.flatMap(
-            (collection) => collection.imageFiles?.map((file: any) => file.filename) || [],
-        );
+        // Extract filenames from URLs
+        const allFilenames = fileCollections
+            .map((f) => (typeof f.fileUrl === "string" ? f.fileUrl.split("/").pop() : undefined))
+            .filter((k): k is string => !!k && k.length > 0);
 
         if (allFilenames.length > 0) {
             const inaccessibleAudios = await s3AudioService.checkAudioAccessibility(
