@@ -157,7 +157,7 @@ const tooltipVariants = {
                 class="order-2 h-5 w-5"
                 :class="{
                     [iconVariants[variant]]: $slots.default,
-                    '-mr-0.z': iconRight && $slots.default,
+                    '-mr-0.5': iconRight && $slots.default,
                     '-ml-0.5': !iconRight && $slots.default,
                 }"
             />

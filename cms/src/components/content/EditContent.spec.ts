@@ -322,7 +322,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("renders all the components", async () => {
+    it("renders all the components", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -338,7 +338,7 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
+            expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // Save button is rendered
         });
     });
 
