@@ -4,7 +4,7 @@ import LPaginator from "./LPaginator.vue";
 import LButton from "../button/LButton.vue";
 import { ref } from "vue";
 
-describe.skip("LPaginator", () => {
+describe("LPaginator", () => {
     it("correctly increases the index", async () => {
         const index = ref(0);
         const pageSize = ref(20);

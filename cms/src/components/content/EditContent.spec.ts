@@ -322,7 +322,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("renders all the components", async () => {
+    it("renders all the components", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
