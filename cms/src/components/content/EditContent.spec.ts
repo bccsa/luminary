@@ -328,7 +328,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("renders all the components", async () => {
+    it("renders all the components", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -344,7 +344,7 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
+            expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // Save button is rendered
         });
     });
 
@@ -623,7 +623,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("correctly creates a duplicate of a document and all its translations", async () => {
+    it("correctly creates a duplicate of a document and all its translations", async () => {
         const notificationStore = useNotificationStore();
         const mockNotification = vi.spyOn(notificationStore, "addNotification");
 
@@ -648,20 +648,20 @@ describe("EditContent.vue", () => {
                 await menuTrigger.trigger("click");
             }
 
-            // Now try to find the duplicate button
+            // Now find the duplicate button inside the dropdown menu
             duplicateBtn = wrapper.find("[data-test='duplicate-button']");
             expect(duplicateBtn.exists()).toBe(true);
         });
 
-        let confirmBtn;
-        await waitForExpect(async () => {
-            // Duplicate button click is not triggered outside the waitForExpect()
-            duplicateBtn!.trigger("click");
-            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-            expect(confirmBtn.exists()).toBe(true);
-        });
+        // Trigger the duplicate action
+        await duplicateBtn!.find("button, a, component").trigger("click");
 
-        await confirmBtn!.trigger("click");
+        // Find and trigger the confirmation button in the modal
+        await waitForExpect(async () => {
+            const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+            await confirmBtn.trigger("click");
+        });
 
         await waitForExpect(() => {
             expect(mockNotification).toHaveBeenCalledWith(
@@ -677,7 +677,7 @@ describe("EditContent.vue", () => {
 
         await wrapper.setProps({ id: newParentId });
 
-        await wrapper.find("[data-test='save-button']").trigger("click");
+        await wrapper.find("[data-test='save-button']").find("button").trigger("click");
 
         await waitForExpect(async () => {
             const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
@@ -685,7 +685,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("does not create a redirect when duplicating a document", async () => {
+    it("does not create a redirect when duplicating a document", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -700,17 +700,18 @@ describe("EditContent.vue", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        // Trigger duplicate (if dirty modal appears, handle it; otherwise duplicate directly)
-        let duplicateBtn;
-        await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
-            expect(duplicateBtn.exists()).toBe(true);
-        });
+        // Find and open the actions menu
+        const menuTrigger = wrapper.find('[data-test="content-actions-trigger"]');
+        await menuTrigger.trigger("click");
 
-        // Ensure clean state so duplicate runs without modal OR handle modal confirmation
-        await duplicateBtn!.trigger("click");
+        // Find the duplicate button
+        const duplicateBtn = wrapper.find('[data-test="duplicate-button"]');
+        expect(duplicateBtn.exists()).toBe(true);
 
-        // If the confirmation modal appears (isDirty true path), confirm it
+        // Trigger the duplicate action
+        await duplicateBtn.find("button, a, component").trigger("click");
+
+        // If the confirmation modal appears, confirm it
         const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
         if (confirmBtn.exists()) {
             await confirmBtn.trigger("click");
@@ -721,18 +722,18 @@ describe("EditContent.vue", () => {
         const newParentId = wrapper.vm.editableParent._id;
         expect(newParentId).not.toBe(mockData.mockPostDto._id);
 
-        // Update component prop to point to new duplicate parent (simulate routing replace)
+        // Update component prop to point to new duplicate parent
         await wrapper.setProps({ id: newParentId });
 
         // Save duplicated content
         const saveBtn = wrapper.find('[data-test="save-button"]');
         expect(saveBtn.exists()).toBe(true);
-        await saveBtn.trigger("click");
+        await saveBtn.find("button").trigger("click");
 
         await waitForExpect(async () => {
             const changes = await db.localChanges.toArray();
             const redirects = changes.filter((c) => c.doc?.type === DocType.Redirect);
-            expect(redirects.length).toBe(0); // Guard should prevent redirect creation on duplication
+            expect(redirects.length).toBe(0);
         });
     });
 
