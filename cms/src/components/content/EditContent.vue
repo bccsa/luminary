@@ -35,12 +35,17 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
+import {
+    ArrowTopRightOnSquareIcon,
+    DocumentDuplicateIcon,
+    PlusIcon,
+} from "@heroicons/vue/20/solid";
+import { clientAppUrl, isSmallScreen } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
-import { ArrowTopRightOnSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { TrashIcon } from "@heroicons/vue/24/outline";
+import LButton from "@/components/button/LButton.vue";
 
 type Props = {
     id: Uuid;
@@ -622,6 +627,16 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                 data-test="no-content"
                                 class="flex flex-col items-center justify-center"
                             >
+                                <div>
+                                    <LButton
+                                        :icon="PlusIcon"
+                                        class="w-fit"
+                                        variant="muted"
+                                        @click.stop="showLanguageSelector = !showLanguageSelector"
+                                        data-test="add-translation-button"
+                                        aria-label="Add translation"
+                                    ></LButton>
+                                </div>
                                 <LanguageSelector
                                     :parent="editableParent"
                                     :content="editableContent"
@@ -653,13 +668,26 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     data-test="no-content"
                     class="flex flex-col items-center justify-center"
                 >
-                    <LanguageSelector
-                        :parent="editableParent"
-                        :content="editableContent"
-                        :languages="untranslatedLanguages"
-                        v-model:show-selector="showLanguageSelector"
-                        @create-translation="createTranslation"
-                    />
+                    <div class="">
+                        <LButton
+                            :icon="PlusIcon"
+                            class="w-fit"
+                            variant="muted"
+                            @click.stop="showLanguageSelector = !showLanguageSelector"
+                            data-test="add-translation-button"
+                            aria-label="Add translation"
+                        >
+                            <template #tooltip>Add a new translation</template>
+                        </LButton>
+
+                        <LanguageSelector
+                            :parent="editableParent"
+                            :content="editableContent"
+                            :languages="untranslatedLanguages"
+                            v-model:show-selector="showLanguageSelector"
+                            @create-translation="createTranslation"
+                        />
+                    </div>
                 </EmptyState>
                 <div v-else class="">
                     <EditContentText
