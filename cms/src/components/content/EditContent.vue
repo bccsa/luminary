@@ -45,8 +45,12 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
+import {
+    ArrowTopRightOnSquareIcon,
+    DocumentDuplicateIcon,
+    PlusIcon,
+} from "@heroicons/vue/20/solid";
+import { clientAppUrl, isSmallScreen } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import EditContentImage from "./EditContentImage.vue";
@@ -803,7 +807,7 @@ watch(
                             v-model:parent="editableParent"
                         />
 
-                        <div class="sticky -top-1 z-10">
+                        <div class="-top-1 z-10" :class="{ sticky: isSmallScreen }">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
@@ -843,13 +847,25 @@ watch(
                                 :description="`Please select a language to start editing`"
                                 data-test="no-content"
                                 class="flex flex-col items-center justify-center"
-                                ><LanguageSelector
+                            >
+                                <div>
+                                    <LButton
+                                        :icon="PlusIcon"
+                                        class="w-fit"
+                                        variant="muted"
+                                        @click.stop="showLanguageSelector = !showLanguageSelector"
+                                        data-test="add-translation-button"
+                                        aria-label="Add translation"
+                                    ></LButton>
+                                </div>
+                                <LanguageSelector
                                     :parent="editableParent"
                                     :content="editableContent"
                                     :languages="untranslatedLanguages"
                                     v-model:show-selector="showLanguageSelector"
                                     @create-translation="createTranslation"
-                            /></EmptyState>
+                                />
+                            </EmptyState>
 
                             <div v-else>
                                 <EditContentText
@@ -869,17 +885,31 @@ watch(
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
-                    :description="`Please select a language to start editing
-                    `"
+                    :description="`Please select a language to start editing`"
                     data-test="no-content"
                     class="flex flex-col items-center justify-center"
-                    ><LanguageSelector
-                        :parent="editableParent"
-                        :content="editableContent"
-                        :languages="untranslatedLanguages"
-                        v-model:show-selector="showLanguageSelector"
-                        @create-translation="createTranslation"
-                /></EmptyState>
+                >
+                    <div class="">
+                        <LButton
+                            :icon="PlusIcon"
+                            class="w-fit"
+                            variant="muted"
+                            @click.stop="showLanguageSelector = !showLanguageSelector"
+                            data-test="add-translation-button"
+                            aria-label="Add translation"
+                        >
+                            <template #tooltip>Add a new translation</template>
+                        </LButton>
+
+                        <LanguageSelector
+                            :parent="editableParent"
+                            :content="editableContent"
+                            :languages="untranslatedLanguages"
+                            v-model:show-selector="showLanguageSelector"
+                            @create-translation="createTranslation"
+                        />
+                    </div>
+                </EmptyState>
 
                 <div v-else class="">
                     <EditContentText
