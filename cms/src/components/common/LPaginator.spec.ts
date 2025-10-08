@@ -4,7 +4,7 @@ import LPaginator from "./LPaginator.vue";
 import LButton from "../button/LButton.vue";
 import { ref } from "vue";
 
-describe.skip("LPaginator", () => {
+describe("LPaginator", () => {
     it("correctly increases the index", async () => {
         const index = ref(0);
         const pageSize = ref(20);
@@ -20,10 +20,12 @@ describe.skip("LPaginator", () => {
 
         const buttons = wrapper.findAllComponents(LButton);
 
-        await buttons[2].trigger("click");
+        const nextButton = buttons[2] || buttons.at(-1); // Try index 2 or the last button
+        await nextButton.find("button, a, component").trigger("click");
 
         expect(index.value).toBe(1);
     });
+
     it("correctly decreases the index", async () => {
         const index = ref(4);
         const pageSize = ref(20);
@@ -38,7 +40,7 @@ describe.skip("LPaginator", () => {
         });
 
         const buttons = wrapper.findAllComponents(LButton);
-        await buttons[1].trigger("click");
+        await buttons[1].find("button, a, component").trigger("click");
 
         expect(index.value).toBe(3);
     });
