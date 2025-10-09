@@ -1,10 +1,17 @@
 export const loadFallbackImageUrls = async () => {
-    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}", {
+    const images = import.meta.glob<string>("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}", {
         eager: true,
         import: "default",
     });
 
-    const fallbackImages = Object.values(images);
+    const fallbackImages: string[] = Object.values(images);
+
+    const preloadImage = (src: string) => {
+        const img = new Image();
+        img.src = src;
+    };
+
+    fallbackImages.forEach(preloadImage);
 
     return fallbackImages;
 };
