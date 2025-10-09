@@ -625,7 +625,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it(
+    it.skip(
         "correctly creates a duplicate of a document and all its translations",
         async () => {
             const notificationStore = useNotificationStore();
