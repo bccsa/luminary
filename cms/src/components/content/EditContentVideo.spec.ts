@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { type ContentDto, accessMap } from "luminary-shared";
+import { type ContentDto, type PostDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
@@ -21,14 +21,17 @@ describe("EditContentVideo.vue", () => {
     });
 
     it("displays the video field, when it is defined", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+        const parent = ref<PostDto>({
+            ...mockData.mockPostDto,
+            media: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
         const wrapper = mount(EditContentVideo, {
             props: {
                 disabled: false,
-                content: content.value,
+                parent: parent.value,
             },
         });
 
@@ -37,15 +40,18 @@ describe("EditContentVideo.vue", () => {
     });
 
     it("displays video URL in the text input", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+        const parent = ref<PostDto>({
+            ...mockData.mockPostDto,
+            media: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
 
         const wrapper = mount(EditContentVideo, {
             props: {
                 disabled: false,
-                content: content.value,
+                parent: parent.value,
             },
         });
 
@@ -58,14 +64,17 @@ describe("EditContentVideo.vue", () => {
     });
 
     it("can update the video input field", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
+        const parent = ref<PostDto>({
+            ...mockData.mockPostDto,
+            media: {
+                hlsUrl: "https://example.com/video.mp4",
+                fileCollections: [],
+            },
         });
         const wrapper = mount(EditContentVideo, {
             props: {
                 disabled: false,
-                content: content.value,
+                parent: parent.value,
             },
         });
 

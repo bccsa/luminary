@@ -50,6 +50,7 @@ import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import EditContentImage from "./EditContentImage.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 
 type Props = {
     id: Uuid;
@@ -99,6 +100,12 @@ watch(liveParent, (parent) => {
         !parent.imageData?.uploadData
     ) {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
+
+    if (waitForUpdate.value && parent && editableParent.value.media && !parent.media?.uploadData) {
+        editableParent.value.media = (parent as ContentParentDto).media;
         existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
     }
@@ -394,7 +401,9 @@ const saveChanges = async () => {
 
 const save = async () => {
     if (
-        existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
+        existingParent.value?.imageData?.uploadData !==
+            editableParent.value.imageData?.uploadData ||
+        existingParent.value?.media?.uploadData !== editableParent.value.media?.uploadData
     ) {
         // If the image data has changed, we need to wait for the server to update the image data
         // before saving the parent document
@@ -797,6 +806,15 @@ watch(
                             v-model:parent="editableParent"
                         />
 
+                        <EditContentMedia
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
                         <div class="sticky -top-1 z-10">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
@@ -818,8 +836,8 @@ watch(
                         </div>
 
                         <EditContentVideo
-                            v-model:content="selectedContent"
-                            :disabled="!canTranslate"
+                            v-model:parent="editableParent"
+                            :disabled="!canEditParent"
                         />
                         <EditContentBasic
                             v-model:content="selectedContent"
