@@ -797,7 +797,7 @@ watch(
                             v-model:parent="editableParent"
                         />
 
-                        <div class="-top-1 z-10" :class="{ sticky: isSmallScreen }">
+                        <div class="-top-1 z-10" :class="{ 'sticky': isSmallScreen }">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
