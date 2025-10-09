@@ -658,16 +658,15 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     </div>
                 </div>
             </div>
-
-            <!-- MAIN CONTENT (Desktop) -->
-            <div class="hidden w-full scrollbar-hide lg:block">
+            <!-- main content | This is for desktop-->
+            <div class="relative hidden w-full bg-red-300 scrollbar-hide lg:block">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
                     :description="`Please select a language to start editing`"
                     data-test="no-content"
-                    class="flex flex-col items-center justify-center"
+                    class="bg-blue-200"
                 >
                     <div class="">
                         <LButton
