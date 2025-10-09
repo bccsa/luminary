@@ -44,7 +44,7 @@ export default defineConfig({
             registerType: "autoUpdate",
             includeAssets: ["src/assets"],
             workbox: {
-                globPatterns: ["**/*.{ico,png,webp,jpg,jpeg}"],
+                globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
             },
         }),
     ],
