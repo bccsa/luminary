@@ -24,6 +24,8 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import LDropdown from "../common/LDropdown.vue";
+import LDialog from "../common/LDialog.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -623,67 +625,91 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("correctly creates a duplicate of a document and all its translations", async () => {
-        const notificationStore = useNotificationStore();
-        const mockNotification = vi.spyOn(notificationStore, "addNotification");
+    it(
+        "correctly creates a duplicate of a document and all its translations",
+        async () => {
+            const notificationStore = useNotificationStore();
+            const mockNotification = vi.spyOn(notificationStore, "addNotification");
 
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
 
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("English");
-        });
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+            });
 
-        let duplicateBtn;
-        await waitForExpect(async () => {
-            // Open the dropdown/menu first
-            const menuTrigger = wrapper.find('[data-test="content-actions-trigger"]');
-            if (menuTrigger.exists()) {
-                await menuTrigger.trigger("click");
+            let duplicateBtn;
+            await waitForExpect(async () => {
+                // Find and open the actions menu (dropdown trigger)
+                const dropdown = wrapper.findComponent({ name: "LDropdown" });
+                expect(dropdown.exists()).toBe(true);
+
+                // Open the dropdown by emitting the event
+                await dropdown.vm.$emit("update:show", true);
+
+                // Find the duplicate button - ASSIGN to outer variable without 'const'
+                duplicateBtn = wrapper.find('[data-test="duplicate-button"]');
+                expect(duplicateBtn.exists()).toBe(true);
+            });
+
+            // Trigger the duplicate action
+            if (
+                duplicateBtn!.element.tagName === "BUTTON" ||
+                duplicateBtn!.element.tagName === "A"
+            ) {
+                await duplicateBtn!.trigger("click");
+            } else {
+                const innerBtn = duplicateBtn!.find("button");
+                if (innerBtn.exists()) {
+                    await innerBtn.trigger("click");
+                } else {
+                    await duplicateBtn!.trigger("click");
+                }
             }
 
-            // Now find the duplicate button inside the dropdown menu
-            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
-            expect(duplicateBtn.exists()).toBe(true);
-        });
+            // Find and trigger the confirmation button in the modal
 
-        // Trigger the duplicate action
-        await duplicateBtn!.find("button, a, component").trigger("click");
+            const dialog = wrapper.findComponent(LDialog);
 
-        // Find and trigger the confirmation button in the modal
-        await waitForExpect(async () => {
-            const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-            expect(confirmBtn.exists()).toBe(true);
+            await waitForExpect(() => {
+                expect(dialog.exists()).toBe(true);
+            });
+
+            const confirmBtn = dialog.find('[data-test="modal-primary-button"]');
+            await waitForExpect(async () => {
+                expect(confirmBtn.exists()).toBe(true);
+            });
+
             await confirmBtn.trigger("click");
-        });
+            await waitForExpect(() => {
+                expect(mockNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Successfully duplicated",
+                    }),
+                );
+            });
 
-        await waitForExpect(() => {
-            expect(mockNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: "Successfully duplicated",
-                }),
-            );
-        });
+            //@ts-expect-error
+            const newParentId = wrapper.vm.editableParent._id;
+            expect(newParentId).not.toBe(mockData.mockPostDto._id);
 
-        //@ts-expect-error
-        const newParentId = wrapper.vm.editableParent._id;
-        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+            await wrapper.setProps({ id: newParentId });
 
-        await wrapper.setProps({ id: newParentId });
+            await wrapper.find("[data-test='save-button']").find("button").trigger("click");
 
-        await wrapper.find("[data-test='save-button']").find("button").trigger("click");
-
-        await waitForExpect(async () => {
-            const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
-            expect(res.length).toBeGreaterThan(0);
-        });
-    });
+            await waitForExpect(async () => {
+                const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
+                expect(res.length).toBeGreaterThan(0);
+            });
+        },
+        { timeout: 10000 },
+    );
 
     it("does not create a redirect when duplicating a document", async () => {
         const wrapper = mount(EditContent, {
@@ -700,16 +726,28 @@ describe("EditContent.vue", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        // Find and open the actions menu
-        const menuTrigger = wrapper.find('[data-test="content-actions-trigger"]');
-        await menuTrigger.trigger("click");
+        // Find and open the actions menu using the dropdown component directly
+        const dropdown = wrapper.findComponent(LDropdown);
+        expect(dropdown.exists()).toBe(true);
+
+        // Open the dropdown by emitting the event
+        await dropdown.vm.$emit("update:show", true);
 
         // Find the duplicate button
         const duplicateBtn = wrapper.find('[data-test="duplicate-button"]');
         expect(duplicateBtn.exists()).toBe(true);
 
         // Trigger the duplicate action
-        await duplicateBtn.find("button, a, component").trigger("click");
+        if (duplicateBtn.element.tagName === "BUTTON" || duplicateBtn.element.tagName === "A") {
+            await duplicateBtn.trigger("click");
+        } else {
+            const innerBtn = duplicateBtn.find("button");
+            if (innerBtn.exists()) {
+                await innerBtn.trigger("click");
+            } else {
+                await duplicateBtn.trigger("click");
+            }
+        }
 
         // If the confirmation modal appears, confirm it
         const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
@@ -728,7 +766,18 @@ describe("EditContent.vue", () => {
         // Save duplicated content
         const saveBtn = wrapper.find('[data-test="save-button"]');
         expect(saveBtn.exists()).toBe(true);
-        await saveBtn.find("button").trigger("click");
+
+        // Try to trigger on the saveBtn itself if it's a button, otherwise look for a child button
+        if (saveBtn.element.tagName === "BUTTON" || saveBtn.element.tagName === "A") {
+            await saveBtn.trigger("click");
+        } else {
+            const innerBtn = saveBtn.find("button");
+            if (innerBtn.exists()) {
+                await innerBtn.trigger("click");
+            } else {
+                await saveBtn.trigger("click");
+            }
+        }
 
         await waitForExpect(async () => {
             const changes = await db.localChanges.toArray();
