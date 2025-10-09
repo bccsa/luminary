@@ -43,7 +43,7 @@ onClickOutside(dropdownElementRef, () => {
     <div
         v-show="show"
         ref="dropdownElementRef"
-        class="absolute right-0 top-full z-[9999] mt-1 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
         style="transform: translateZ(0)"
     >
         <div
