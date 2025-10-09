@@ -22,6 +22,17 @@ import ContentTable from "../ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import { ref } from "vue";
 
+// Mock the app router used inside ContentDisplayCard and ContentOverview
+vi.mock("@/router", () => {
+    const push = vi.fn();
+    const router = {
+        push,
+        currentRoute: { value: { meta: {} } },
+    };
+    return { default: router };
+});
+import router from "@/router";
+
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
