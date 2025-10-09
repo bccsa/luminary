@@ -41,4 +41,10 @@ export class DeleteCmdDto extends _baseDto {
     @IsOptional()
     @Expose()
     newMemberOf?: Uuid[];
+
+    @IsOptional()
+    @Expose()
+    @IsString()
+    @Expose()
+    slug?: string;
 }

@@ -591,6 +591,30 @@ describe("DbService", () => {
             expect(res.docs.length).toBe(0);
         });
 
+        it("can append a slug to a delete command document", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                slug: "delete-test-slug",
+                type: DocType.Post,
+            };
+
+            await service.upsertDoc(doc);
+            const deleteCmd = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc,
+                prevDoc: doc,
+            });
+
+            expect(deleteCmd.ok).toBe(true);
+            expect(deleteCmd.id).not.toBe(doc._id);
+
+            const res = await service.getDoc(deleteCmd.id);
+
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].slug).toBe(doc.slug);
+        });
+
         it("can handle exceptions on deleting non-existing documents", async () => {
             const res: any = await service.deleteDoc("non-existing-document");
 

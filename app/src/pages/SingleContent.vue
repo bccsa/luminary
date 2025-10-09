@@ -30,6 +30,7 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
+    queryParams,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -350,6 +351,8 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+// --- Force language from query param (takes priority over all other language selection) ---
+const langToForce = queryParams.get("langId");
 
 /**
  * Watches for changes in the `content` reactive property.
@@ -380,6 +383,16 @@ watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
     () => {
         if (!selectedLanguageId.value || !content.value) return;
+
+        if (langToForce && selectedLanguageId.value !== langToForce) {
+            // If lang query param is set, force that language if available
+            const translation = availableTranslations.value.find((c) => c.language === langToForce);
+            if (translation) {
+                selectedLanguageId.value = langToForce;
+                content.value = translation;
+            }
+            return;
+        }
 
         const preferred = availableTranslations.value.find(
             (c) => c.language === selectedLanguageId.value,
