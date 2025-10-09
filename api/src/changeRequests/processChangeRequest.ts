@@ -12,6 +12,8 @@ import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
+import processGroupDto from "./documentProcessing/processGroupDto";
+import { GroupDto } from "../dto/GroupDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -51,6 +53,7 @@ export async function processChangeRequest(
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3),
         [DocType.Content]: () => processContentDto(doc as ContentDto, db),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
+        [DocType.Group]: () => processGroupDto(doc as GroupDto),
     };
 
     if (docProcessMap[doc.type]) {
