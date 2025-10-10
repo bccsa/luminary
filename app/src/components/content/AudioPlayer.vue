@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { type ContentDto, db } from "luminary-shared";
+import { type ContentDto, db, type LanguageDto } from "luminary-shared";
 import {
     PlayIcon,
     PauseIcon,
     ChevronDownIcon,
-    EllipsisVerticalIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
+    LanguageIcon,
+    XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
+import { nextInMediaQueue, clearMediaQueue } from "@/globalConfig";
 
-const isExpanded = ref(false);
+const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
 const audioElement = ref<HTMLAudioElement | null>(null);
 
@@ -26,14 +28,30 @@ type Props = {
 
 const props = defineProps<Props>();
 
+// Language switcher state
+const showLanguageDropdown = ref(false);
+const selectedLanguageId = ref(props.content.language);
+const isLanguageSwitching = ref(false);
+
+// Available languages for this content
+const availableLanguages = ref<LanguageDto[]>([]);
+const availableAudioLanguages = computed(() => {
+    if (!props.content.parentMedia?.fileCollections) return [];
+
+    const audioLanguageIds = props.content.parentMedia.fileCollections.map((fc) => fc.languageId);
+    return availableLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
+});
+
 const togglePlay = async () => {
     if (!audioElement.value) return;
 
     if (isPlaying.value) {
         audioElement.value.pause();
+        isPlaying.value = false;
     } else {
         try {
             await audioElement.value.play();
+            isPlaying.value = true;
         } catch (err) {
             console.error("Play failed:", err);
         }
@@ -42,6 +60,70 @@ const togglePlay = async () => {
 
 const toggleExpand = () => {
     isExpanded.value = !isExpanded.value;
+};
+
+const closePlayer = () => {
+    // Pause audio if playing
+    if (audioElement.value && isPlaying.value) {
+        audioElement.value.pause();
+    }
+    // Clear the media queue to hide the player
+    clearMediaQueue();
+};
+
+// Language switching
+const switchLanguage = (languageId: string) => {
+    if (!audioElement.value || selectedLanguageId.value === languageId) return;
+
+    // Set flag to indicate we're manually switching languages
+    isLanguageSwitching.value = true;
+
+    // Store current playback state
+    const wasPlaying = isPlaying.value;
+    const currentPosition = audioElement.value.currentTime;
+
+    // Pause current audio
+    audioElement.value.pause();
+
+    // Switch language (this will trigger the matchAudioFileUrl computed to change)
+    selectedLanguageId.value = languageId;
+    showLanguageDropdown.value = false;
+
+    // Wait for the new audio source to load and restore playback state
+    const handleNewAudioReady = () => {
+        if (audioElement.value) {
+            // Set the same position in the new audio
+            audioElement.value.currentTime = currentPosition;
+
+            // Resume playing if it was playing before
+            if (wasPlaying) {
+                audioElement.value.play().catch((err) => {
+                    console.error("Failed to resume playback after language switch:", err);
+                });
+            }
+
+            // Clear the language switching flag
+            isLanguageSwitching.value = false;
+
+            // Remove the event listener as it's only needed once
+            audioElement.value.removeEventListener("loadedmetadata", handleNewAudioReady);
+        }
+    };
+
+    // Add event listener for when the new audio is ready
+    if (audioElement.value) {
+        audioElement.value.addEventListener("loadedmetadata", handleNewAudioReady);
+    }
+};
+
+// Load available languages
+const loadAvailableLanguages = async () => {
+    try {
+        const languages = await db.docs.where("type").equals("language").toArray();
+        availableLanguages.value = languages as LanguageDto[];
+    } catch (error) {
+        console.error("Failed to load languages:", error);
+    }
 };
 
 // skip forward/back
@@ -59,6 +141,9 @@ const formatTime = (time: number) => {
 };
 
 onMounted(() => {
+    // Load available languages
+    loadAvailableLanguages();
+
     if (audioElement.value) {
         const el = audioElement.value;
 
@@ -72,8 +157,66 @@ onMounted(() => {
         el.addEventListener("loadedmetadata", () => {
             duration.value = el.duration;
         });
+
+        // Auto-advance to next track when current track ends
+        el.addEventListener("ended", () => {
+            nextInMediaQueue();
+        });
+
+        // Auto-play when the component mounts (when first added to queue)
+        el.addEventListener(
+            "canplaythrough",
+            () => {
+                if (!isPlaying.value) {
+                    el.play().catch((err) => {
+                        console.log("Auto-play blocked by browser:", err);
+                    });
+                }
+            },
+            { once: true },
+        );
     }
 });
+
+// Auto-play when content changes
+watch(
+    () => props.content,
+    async (newContent, oldContent) => {
+        if (newContent && (!oldContent || newContent._id !== oldContent._id)) {
+            // Reset progress when content changes
+            currentTime.value = 0;
+            duration.value = 0;
+
+            // Wait for the audio element to load the new source, then auto-start playing
+            if (audioElement.value) {
+                const tryToPlay = async () => {
+                    try {
+                        // Wait a bit for the audio source to be loaded
+                        await new Promise((resolve) => setTimeout(resolve, 100));
+                        await audioElement.value!.play();
+                        console.log("Auto-play started successfully");
+                    } catch (err) {
+                        console.error("Auto-play failed:", err);
+                        // Some browsers block auto-play, but that's okay
+                    }
+                };
+
+                // If the audio is already loaded, play immediately
+                if (audioElement.value.readyState >= 2) {
+                    await tryToPlay();
+                } else {
+                    // Wait for the audio to be loaded
+                    const handleCanPlay = async () => {
+                        audioElement.value!.removeEventListener("canplay", handleCanPlay);
+                        await tryToPlay();
+                    };
+                    audioElement.value.addEventListener("canplay", handleCanPlay);
+                }
+            }
+        }
+    },
+    { immediate: true },
+);
 
 onUnmounted(() => {
     if (audioElement.value) {
@@ -81,23 +224,28 @@ onUnmounted(() => {
     }
 });
 
+// Drag functionality for mobile swipe-to-collapse
 const startY = ref(0);
 const currentY = ref(0);
 const isDragging = ref(false);
 
 const onPointerDown = (e: PointerEvent) => {
     startY.value = e.clientY;
-    isDragging.value = false;
+    currentY.value = 0;
+    isDragging.value = true;
 };
 
 const onPointerMove = (e: PointerEvent) => {
+    if (!isDragging.value) return;
+
     const deltaY = e.clientY - startY.value;
 
     if (deltaY > 0) {
         // Only prevent scrolling if dragging downward enough
         e.preventDefault();
-        isDragging.value = true;
         currentY.value = deltaY;
+    } else {
+        currentY.value = 0;
     }
 };
 
@@ -109,56 +257,43 @@ const onPointerUp = () => {
     isDragging.value = false;
 };
 
-// write a computed function that will assign the file url of the file collection where the languageId matchs the content languageId
+const onPointerLeave = () => {
+    if (isDragging.value) {
+        currentY.value = 0;
+        isDragging.value = false;
+    }
+};
+
+// write a computed function that will assign the file url of the file collection where the languageId matches the selected language
 const matchAudioFileUrl = computed(() => {
     if (
         props.content.parentMedia &&
         props.content.parentMedia.fileCollections &&
-        props.content.language
+        selectedLanguageId.value
     ) {
         const matchedFile = props.content.parentMedia.fileCollections.find(
-            (file) => file.languageId === props.content.language,
+            (file) => file.languageId === selectedLanguageId.value,
         );
         return matchedFile?.fileUrl;
     }
     return props.content.parentMedia?.fileCollections?.[0]?.fileUrl;
 });
 
-// Watch for language changes and preserve playback position
-watch(
-    () => props.content.language,
-    (newLanguage, oldLanguage) => {
-        if (!audioElement.value || !newLanguage || !oldLanguage || newLanguage === oldLanguage) {
-            return;
-        }
-
-        // Store current playback state
-        const wasPlaying = isPlaying.value;
-        const currentPosition = audioElement.value.currentTime;
-
-        // Update the audio source (this happens automatically via matchAudioFileUrl)
-        // We need to wait for the new audio to load before setting the position
-        const handleLoadedMetadata = () => {
-            if (audioElement.value) {
-                // Set the saved position
-                audioElement.value.currentTime = currentPosition;
-
-                // Resume playing if it was playing before
-                if (wasPlaying) {
-                    audioElement.value.play().catch((err) => {
-                        console.error("Failed to resume playback after language change:", err);
-                    });
+// Also watch for audio URL changes and auto-play (but not during manual language switching)
+watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
+    if (newUrl && newUrl !== oldUrl && audioElement.value && !isLanguageSwitching.value) {
+        // Small delay to let the audio element load the new source
+        setTimeout(async () => {
+            try {
+                if (audioElement.value && !isLanguageSwitching.value) {
+                    await audioElement.value.play();
                 }
-
-                // Remove the event listener as it's only needed once
-                audioElement.value.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            } catch (err) {
+                // Auto-play failed (normal in some browsers)
             }
-        };
-
-        // Add the event listener before the source changes
-        audioElement.value.addEventListener("loadedmetadata", handleLoadedMetadata);
-    },
-);
+        }, 200);
+    }
+});
 </script>
 
 <template>
@@ -170,20 +305,21 @@ watch(
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player z-50 flex w-full flex-col bg-amber-100/95 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                class="expanded-player z-50 flex max-h-[80vh] w-full flex-col overflow-auto rounded-t-3xl bg-amber-100/95 scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:max-h-none lg:w-80 lg:rounded-2xl"
                 :style="{
-                    transform: currentY ? `translateY(${currentY}px)` : 'none',
-                    transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+                    transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
+                    transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
                 }"
             >
                 <div>
-                    <!-- Swipe-down handle (drag area only) -->
+                    <!-- Swipe-down handle (drag area only) - allows users to drag down to collapse the player on mobile -->
                     <div
-                        class="flex cursor-grab justify-center pb-6 pt-1 active:cursor-grabbing lg:hidden"
+                        class="flex cursor-grab justify-center pb-2 pt-1 active:cursor-grabbing lg:hidden"
                         @pointerdown.stop="onPointerDown"
                         @pointermove="onPointerMove"
                         @pointerup="onPointerUp"
                         @pointercancel="onPointerUp"
+                        @pointerleave="onPointerLeave"
                     >
                         <div
                             class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
@@ -191,11 +327,60 @@ watch(
                     </div>
 
                     <!-- Header -->
-                    <div class="hidden items-center justify-between px-2 lg:flex">
-                        <button @click="toggleExpand" class="p-0.5">
+                    <div
+                        class="flex items-center p-2 lg:px-2"
+                        :class="{
+                            'justify-between': availableAudioLanguages.length > 1,
+                        }"
+                    >
+                        <button @click="toggleExpand" class="hidden p-0.5 lg:block">
                             <ChevronDownIcon class="h-9 w-9" />
                         </button>
-                        <EllipsisVerticalIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+
+                        <!-- Empty div for mobile to keep centering -->
+                        <!-- <div class="lg:hidden"></div> -->
+
+                        <!-- Language Dropdown -->
+                        <div v-if="availableAudioLanguages.length > 1" class="relative">
+                            <button
+                                @click="showLanguageDropdown = !showLanguageDropdown"
+                                class="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-black/10 dark:hover:bg-white/10"
+                            >
+                                <LanguageIcon class="h-4 w-4" />
+                                {{
+                                    availableAudioLanguages.find(
+                                        (l) => l._id === selectedLanguageId,
+                                    )?.name
+                                }}
+                            </button>
+
+                            <div
+                                v-if="showLanguageDropdown"
+                                class="absolute left-0 z-10 mt-1 w-32 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700"
+                            >
+                                <button
+                                    v-for="language in availableAudioLanguages"
+                                    :key="language._id"
+                                    @click="switchLanguage(language._id)"
+                                    class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
+                                    :class="{
+                                        'bg-yellow-50 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200':
+                                            selectedLanguageId === language._id,
+                                    }"
+                                >
+                                    {{ language.name }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center">
+                            <button
+                                @click="closePlayer"
+                                class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
+                            >
+                                <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Cover Image -->
@@ -339,13 +524,21 @@ watch(
                 </div>
             </div>
 
-            <button
-                @click.stop="togglePlay"
-                class="ml-2 flex-shrink-0 rounded-full bg-transparent p-2"
-            >
-                <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
-                <PauseIcon v-else class="h-7 w-7" />
-            </button>
+            <div class="flex items-center gap-4">
+                <button
+                    @click.stop="togglePlay"
+                    class="ml-2 flex-shrink-0 rounded-full bg-transparent p-0"
+                >
+                    <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
+                    <PauseIcon v-else class="h-7 w-7" />
+                </button>
+                <button
+                    @click.stop="closePlayer"
+                    class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
+                >
+                    <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                </button>
+            </div>
         </div>
     </div>
 </template>
