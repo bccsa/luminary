@@ -1,16 +1,8 @@
-<!-- <template>
-    <div class="relative h-3 w-full overflow-hidden rounded-full bg-zinc-200">
-        <div class="absolute left-0 top-0 h-full animate-loading-bar bg-zinc-500">
-
-        </div>
-    </div>
-</template> -->
-
 <template>
     <div class="flex w-full items-center justify-center py-6">
-        <div class="relative h-3 w-full overflow-hidden rounded-full bg-zinc-800 shadow-inner">
+        <div class="relative h-3 w-full overflow-hidden rounded-full bg-zinc-200 shadow-inner">
             <!-- police progress -->
-            <div class="absolute left-0 top-0 h-full rounded-full bg-yellow-400 transition-all duration-500 ease-out"
+            <div class="absolute left-0 top-0 h-full rounded-full bg-zinc-500 transition-all duration-500 ease-out"
                 :style="{ width: progress + '%' }"></div>
 
             <!-- progress animation -->

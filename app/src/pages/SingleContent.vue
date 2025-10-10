@@ -257,7 +257,7 @@ const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == 
 const selectedCategoryId = ref<Uuid | undefined>();
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
-const isLoading = ref(true);
+const isLoading = ref(isConnected.value);
 const is404 = ref(false);
 
 watch(content, () => {
@@ -546,7 +546,6 @@ const selectedLanguageCode = computed(() => {
         <!-- Show LoadingBar while loading -->
 
         <LoadingBar v-else-if="isLoading" />
-        <h1 v-else-if="isLoading"> hello </h1>
 
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
