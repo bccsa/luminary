@@ -40,7 +40,7 @@ import {
     DocumentDuplicateIcon,
     PlusIcon,
 } from "@heroicons/vue/20/solid";
-import { clientAppUrl, isSmallScreen } from "@/globalConfig";
+import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
@@ -588,7 +588,8 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             :newDocument="newDocument"
                             v-model:parent="editableParent"
                         />
-                        <div class="sticky -top-1 z-10">
+
+                        <div class="sticky -top-1 z-10 lg:static">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
