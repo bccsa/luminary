@@ -16,8 +16,18 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
+<<<<<<< ours
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+=======
+import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import {
+    BookmarkIcon as BookmarkIconSolid,
+    TagIcon,
+    SunIcon,
+    PlayIcon,
+} from "@heroicons/vue/24/solid";
+>>>>>>> theirs
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -31,6 +41,7 @@ import {
     theme,
     appLanguageAsRef,
     queryParams,
+    addToMediaQueue,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -51,10 +62,13 @@ import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid"
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+<<<<<<< ours
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
+=======
+>>>>>>> theirs
 
 const router = useRouter();
 
@@ -541,6 +555,7 @@ const selectedLanguageCode = computed(() => {
     return selectedLang?.languageCode || null;
 });
 
+<<<<<<< ours
 watch(
     content,
     (newContent) => {
@@ -556,6 +571,21 @@ const quickLanguageSwitch = (languageId: string) => {
     markLanguageSwitch();
     selectedLanguageId.value = languageId;
     showDropdown.value = false;
+=======
+// Check if the current content has audio files
+const hasAudioFiles = computed(() => {
+    return !!(
+        content.value?.parentMedia?.fileCollections &&
+        content.value.parentMedia.fileCollections.length > 0
+    );
+});
+
+// Function to start playing audio
+const playAudio = () => {
+    if (content.value && hasAudioFiles.value) {
+        addToMediaQueue(content.value);
+    }
+>>>>>>> theirs
 };
 </script>
 
@@ -649,6 +679,40 @@ const quickLanguageSwitch = (languageId: string) => {
                             </div>
                         </div>
                     </IgnorePagePadding>
+
+                    <!-- Enhanced Audio Play Button (only show if content has audio but no video) -->
+                    <div
+                        v-if="hasAudioFiles && !content.parentMedia?.hlsUrl"
+                        class="mb-6 flex justify-center"
+                    >
+                        <button
+                            @click="playAudio"
+                            class="group relative flex items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 px-8 py-4 text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-yellow-600 hover:to-amber-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-yellow-300 active:scale-95"
+                        >
+                            <!-- Animated background effect -->
+                            <div
+                                class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                            ></div>
+
+                            <!-- Play icon with subtle animation -->
+                            <div
+                                class="2 relative z-10 flex items-center justify-center rounded-full bg-white/20 transition-transform duration-300"
+                            >
+                                <PlayIcon class="ml-0.5 h-8 w-8" />
+                            </div>
+
+                            <!-- Text with better typography -->
+                            <div class="relative z-10 flex flex-col items-start">
+                                <span class="text-lg font-bold tracking-wide">Play Audio</span>
+                                <span class="text-xs opacity-90">Listen to this content</span>
+                            </div>
+
+                            <!-- Subtle pulse animation -->
+                            <div
+                                class="absolute inset-0 animate-ping rounded-full bg-yellow-400 opacity-0 group-hover:opacity-20"
+                            ></div>
+                        </button>
+                    </div>
 
                     <div class="flex w-full flex-col items-center">
                         <div
@@ -755,23 +819,10 @@ const quickLanguageSwitch = (languageId: string) => {
                     )
                 "
             />
+            <IgnorePagePadding ignoreBottom>
+                <CopyrightBanner />
+            </IgnorePagePadding>
         </div>
-
-        <template #footer>
-            <AudioPlayer
-                v-if="
-                    content &&
-                    content.parentMedia &&
-                    content.parentMedia?.fileCollections?.length > 0
-                "
-                :content="content"
-                class="z-40"
-            />
-        </template>
-
-        <IgnorePagePadding ignoreBottom>
-            <CopyrightBanner />
-        </IgnorePagePadding>
     </BasePage>
 
     <LModal
