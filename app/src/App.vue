@@ -2,12 +2,14 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
+import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
 const router = useRouter();
@@ -112,6 +114,21 @@ onErrorCaptured((err) => {
             <component :is="Component" :key="routeKey" />
         </KeepAlive>
     </RouterView>
+
+    <!-- Global Audio Player for All Devices -->
+    <div v-if="mediaQueue.length > 0" class="fixed bottom-0 left-0 right-0 z-40">
+        <!-- Single Audio Player for all screen sizes -->
+        <div class="flex justify-center pb-[78px] lg:pb-4">
+            <div class="w-full lg:max-w-md">
+                <AudioPlayer :content="mediaQueue[0]" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation (mobile only) -->
+    <MobileMenu
+        class="fixed bottom-0 left-0 right-0 z-30 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+    />
 
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
