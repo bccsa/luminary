@@ -1,5 +1,18 @@
+<<<<<<< ours
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
 import { computed, ref, watch } from "vue";
+=======
+import {
+    db,
+    DocType,
+    useDexieLiveQuery,
+    type LanguageDto,
+    type Uuid,
+    type ContentDto,
+} from "luminary-shared";
+import { computed, ref, toRaw, watch } from "vue";
+import { isEqual } from "lodash-es";
+>>>>>>> theirs
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export let Sentry: typeof import("@sentry/vue") | null = null;
@@ -263,6 +276,63 @@ export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
     if (index >= 0) {
         _mediaProgress.splice(index, 1);
         localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
+    }
+};
+
+/**
+ * Global media queue for audio playback.
+ * Contains ContentDto items that should be played in sequence.
+ */
+export const mediaQueue = ref<ContentDto[]>([]);
+
+/**
+ * Add content to the media queue and start playing if it's the first item.
+ * @param content - The content to add to the queue
+ */
+export const addToMediaQueue = (content: ContentDto) => {
+    // Check if content has audio files
+    if (!content.parentMedia?.fileCollections?.length) {
+        console.warn("Content has no audio files to play");
+        return;
+    }
+
+    // Check if content is already in queue
+    const existingIndex = mediaQueue.value.findIndex((item) => item._id === content._id);
+    if (existingIndex !== -1) {
+        // If already in queue, move it to the front
+        mediaQueue.value.splice(existingIndex, 1);
+    }
+
+    // Add to front of queue
+    mediaQueue.value.unshift(content);
+};
+
+/**
+ * Remove content from the media queue.
+ * @param contentId - The ID of the content to remove
+ */
+export const removeFromMediaQueue = (contentId: string) => {
+    const index = mediaQueue.value.findIndex((item) => item._id === contentId);
+    if (index !== -1) {
+        mediaQueue.value.splice(index, 1);
+    }
+};
+
+/**
+ * Clear the entire media queue.
+ */
+export const clearMediaQueue = () => {
+    mediaQueue.value = [];
+};
+
+/**
+ * Move to the next item in the media queue.
+ */
+export const nextInMediaQueue = () => {
+    if (mediaQueue.value.length > 1) {
+        mediaQueue.value.shift(); // Remove first item
+    } else {
+        clearMediaQueue(); // Clear if it was the last item
     }
 };
 
