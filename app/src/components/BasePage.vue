@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
-import MobileMenu from "./navigation/MobileMenu.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
 import NotificationBottomManager from "./notifications/NotificationBottomManager.vue";
 import type { ContentDto } from "luminary-shared";
-import AudioPlayer from "./content/AudioPlayer.vue";
 
 defineProps<{
     content?: ContentDto;
@@ -52,13 +50,8 @@ onUnmounted(() => {
 
         <!-- slot for footer -->
         <div class="sticky bottom-0">
-            <AudioPlayer v-if="content" :content="content" class="lg:hidden" />
             <NotificationBottomManager />
             <slot name="footer" />
         </div>
-
-        <MobileMenu
-            class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
     </div>
 </template>
