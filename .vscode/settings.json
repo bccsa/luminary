@@ -4,8 +4,5 @@
   "tailwindCSS.experimental.classRegex": [
     ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
     ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
-  ],
-  "[vue]": {
-    "editor.defaultFormatter": "Vue.volar"
-  }
+  ]
 }
