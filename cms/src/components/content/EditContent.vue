@@ -659,16 +659,16 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 </div>
             </div>
             <!-- main content | This is for desktop-->
-            <div class="relative hidden w-full bg-red-300 scrollbar-hide lg:block">
+            <div class="hidden w-full scrollbar-hide lg:block">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
                     :description="`Please select a language to start editing`"
                     data-test="no-content"
-                    class="bg-blue-200"
+                    class=""
                 >
-                    <div class="">
+                    <div class="relative inline-block w-fit">
                         <LButton
                             :icon="PlusIcon"
                             class="w-fit"
