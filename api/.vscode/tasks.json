@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run API unit tests",
+			"type": "shell",
+			"command": "npm run test --silent",
+			"isBackground": false,
+			"problemMatcher": [
+				"$jest-stylish"
+			],
+			"group": "build"
+		}
+	]
+}
