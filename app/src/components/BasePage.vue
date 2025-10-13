@@ -30,7 +30,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="absolute bottom-0 left-0 right-0 top-0 flex flex-col">
+    <div class="flex h-full w-full flex-col scrollbar-hide">
         <TopBar
             :showBackButton="showBackButton"
             class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"

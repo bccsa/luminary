@@ -21,12 +21,16 @@ import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 =======
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+<<<<<<< ours
 import {
     BookmarkIcon as BookmarkIconSolid,
     TagIcon,
     SunIcon,
     PlayIcon,
 } from "@heroicons/vue/24/solid";
+>>>>>>> theirs
+=======
+import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 >>>>>>> theirs
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -58,8 +62,17 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
+<<<<<<< ours
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
+=======
+import { CheckCircleIcon, DocumentDuplicateIcon, SpeakerWaveIcon } from "@heroicons/vue/20/solid";
+import {
+    markLanguageSwitch,
+    consumeLanguageSwitchFlag,
+    isLanguageSwitchRef,
+} from "@/util/isLangSwitch";
+>>>>>>> theirs
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 <<<<<<< ours
@@ -677,42 +690,19 @@ const playAudio = () => {
                             >
                                 <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
+
+                            <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                            <button
+                                v-if="hasAudioFiles"
+                                @click.stop="playAudio"
+                                class="absolute bottom-3 left-3 flex items-center justify-center gap-1 rounded-full bg-black/60 px-2 py-1 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                title="Play Audio"
+                            >
+                                <SpeakerWaveIcon class="h-5 w-5" />
+                                Listen
+                            </button>
                         </div>
                     </IgnorePagePadding>
-
-                    <!-- Enhanced Audio Play Button (only show if content has audio but no video) -->
-                    <div
-                        v-if="hasAudioFiles && !content.parentMedia?.hlsUrl"
-                        class="mb-6 flex justify-center"
-                    >
-                        <button
-                            @click="playAudio"
-                            class="group relative flex items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 px-8 py-4 text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-yellow-600 hover:to-amber-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-yellow-300 active:scale-95"
-                        >
-                            <!-- Animated background effect -->
-                            <div
-                                class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                            ></div>
-
-                            <!-- Play icon with subtle animation -->
-                            <div
-                                class="2 relative z-10 flex items-center justify-center rounded-full bg-white/20 transition-transform duration-300"
-                            >
-                                <PlayIcon class="ml-0.5 h-8 w-8" />
-                            </div>
-
-                            <!-- Text with better typography -->
-                            <div class="relative z-10 flex flex-col items-start">
-                                <span class="text-lg font-bold tracking-wide">Play Audio</span>
-                                <span class="text-xs opacity-90">Listen to this content</span>
-                            </div>
-
-                            <!-- Subtle pulse animation -->
-                            <div
-                                class="absolute inset-0 animate-ping rounded-full bg-yellow-400 opacity-0 group-hover:opacity-20"
-                            ></div>
-                        </button>
-                    </div>
 
                     <div class="flex w-full flex-col items-center">
                         <div

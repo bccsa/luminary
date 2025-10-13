@@ -330,7 +330,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     <div
                         class="flex items-center p-2 lg:px-2"
                         :class="{
-                            'justify-between': availableAudioLanguages.length > 1,
+                            'justify-between': availableAudioLanguages.length >= 0,
                         }"
                     >
                         <button @click="toggleExpand" class="hidden p-0.5 lg:block">
