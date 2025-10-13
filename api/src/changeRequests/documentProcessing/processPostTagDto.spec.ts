@@ -6,13 +6,19 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { DocType } from "../../enums";
+import { DocType, MediaType } from "../../enums";
 import { processImage } from "../../s3/s3.imagehandling";
 import { S3AudioService } from "../../s3-audio/s3Audio.service";
+import { processMedia } from "../../s3-audio/s3.audiohandling";
 
 // Mock processImage from s3.imagehandling
 jest.mock("../../s3/s3.imagehandling", () => ({
     processImage: jest.fn(),
+}));
+
+// Mock processMedia from s3.audiohandling
+jest.mock("../../s3-audio/s3.audiohandling", () => ({
+    processMedia: jest.fn(),
 }));
 
 describe("processPostTagDto", () => {
@@ -290,6 +296,103 @@ describe("processPostTagDto", () => {
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
             s3,
+        );
+    });
+
+    it("can handle media field when creating a new post without previous document", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog6";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "http://test.com/test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        // This should not throw an error even though prevDoc is undefined
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
+
+        expect(processResult.result.ok).toBe(true);
+    });
+
+    it("can handle media field when deleting a post without previous document", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog7";
+        changeRequest.doc.deleteReq = 1;
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        // This should not throw an error even though prevDoc is undefined
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
+
+        expect(processResult.result.ok).toBe(true);
+    });
+
+    it("can remove media from S3 when a post/tag document is marked for deletion", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog8";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
+
+        // Mark the post document for deletion
+        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
+        deleteRequest.doc.deleteReq = 1;
+        await processChangeRequest(
+            "test-user",
+            deleteRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
+
+        expect(processMedia).toHaveBeenCalledWith(
+            { fileCollections: [] }, // Empty fileCollections to remove the media from S3
+            (changeRequest.doc as PostDto).media,
+            s3Audio,
         );
     });
 });
