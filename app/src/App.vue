@@ -124,7 +124,7 @@ onErrorCaptured((err) => {
         <div v-if="mediaQueue.length > 0" class="">
             <!-- Single Audio Player for all screen sizes -->
             <div class="flex justify-center">
-                <div class="w-full lg:max-w-md lg:absolute lg:z-10 lg:bottom-5 lg:right-5">
+                <div class="w-full lg:absolute lg:-right-24 lg:bottom-5 lg:z-10 lg:max-w-md">
                     <AudioPlayer :content="mediaQueue[0]" />
                 </div>
             </div>
@@ -132,7 +132,9 @@ onErrorCaptured((err) => {
 
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
-        <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden z-10" />
+        <MobileMenu
+            class="z-10 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+        />
     </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
