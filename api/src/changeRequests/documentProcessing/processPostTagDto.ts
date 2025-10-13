@@ -51,7 +51,7 @@ export default async function processPostTagDto(
         if (doc.media) {
             const mediaWarnings = await processMedia(
                 { fileCollections: [] },
-                prevDoc.media,
+                prevDoc?.media,
                 s3Audio,
             );
             if (mediaWarnings && mediaWarnings.length > 0) {
@@ -93,7 +93,7 @@ export default async function processPostTagDto(
 
     // Process medias uploads
     if (doc.media) {
-        const audioWarnings = await processMedia(doc.media, prevDoc.media, s3Audio);
+        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3Audio);
         if (audioWarnings && audioWarnings.length > 0) {
             warnings.push(...audioWarnings);
         }
