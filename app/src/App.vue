@@ -109,8 +109,8 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
-    <div class="bottom-0 left-0 right-0 top-0 flex w-full flex-col">
-        <div class="flex-1">
+    <div class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden">
+        <div class="flex-1 overflow-y-scroll scrollbar-hide">
             <RouterView v-slot="{ Component }">
                 <KeepAlive include="HomePage,ExplorePage,VideoPage">
                     <component :is="Component" :key="routeKey" />
@@ -118,20 +118,21 @@ onErrorCaptured((err) => {
             </RouterView>
         </div>
 
+        <!-- Bottom menu divider for mobile view -->
+        <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
-        <div v-if="mediaQueue.length > 0" class="fixed bottom-0 left-0 right-0 z-40">
+        <div v-if="mediaQueue.length > 0" class="">
             <!-- Single Audio Player for all screen sizes -->
-            <div class="flex justify-center pb-[78px] lg:pb-4">
-                <div class="w-full lg:max-w-md">
+            <div class="flex justify-center">
+                <div class="w-full lg:max-w-md lg:absolute lg:z-10 lg:bottom-5 lg:right-5">
                     <AudioPlayer :content="mediaQueue[0]" />
                 </div>
             </div>
         </div>
 
         <!-- Mobile Navigation (mobile only) -->
-        <MobileMenu
-            class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
+        <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
+        <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden z-10" />
     </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />

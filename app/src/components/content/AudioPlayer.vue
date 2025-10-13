@@ -297,42 +297,30 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 </script>
 
 <template>
-    <div class="left-0 right-0 z-40 lg:fixed lg:bottom-6 lg:left-auto lg:right-6 lg:rounded-lg">
+    <div class="">
         <!-- Hidden audio element -->
         <audio ref="audioElement" :src="matchAudioFileUrl" preload="auto" class="hidden" />
 
         <!-- Expanded Player -->
         <transition name="slide-up">
-            <div
-                v-show="isExpanded"
-                class="expanded-player z-50 flex max-h-[80vh] w-full flex-col overflow-auto rounded-t-3xl bg-amber-100/95 scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:max-h-none lg:w-80 lg:rounded-2xl"
+            <div v-show="isExpanded"
+                class="expanded-player flex max-h-[80vh] w-full flex-col overflow-auto bg-amber-100/95 scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:max-h-none lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
-                }"
-            >
+                }">
                 <div>
                     <!-- Swipe-down handle (drag area only) - allows users to drag down to collapse the player on mobile -->
-                    <div
-                        class="flex cursor-grab justify-center pb-2 pt-1 active:cursor-grabbing lg:hidden"
-                        @pointerdown.stop="onPointerDown"
-                        @pointermove="onPointerMove"
-                        @pointerup="onPointerUp"
-                        @pointercancel="onPointerUp"
-                        @pointerleave="onPointerLeave"
-                    >
-                        <div
-                            class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
-                        ></div>
+                    <div class="flex cursor-grab justify-center pb-2 pt-1 active:cursor-grabbing lg:hidden"
+                        @pointerdown.stop="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
+                        @pointercancel="onPointerUp" @pointerleave="onPointerLeave">
+                        <div class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"></div>
                     </div>
 
                     <!-- Header -->
-                    <div
-                        class="flex items-center p-2 lg:px-2"
-                        :class="{
-                            'justify-between': availableAudioLanguages.length >= 0,
-                        }"
-                    >
+                    <div class="flex items-center p-2 lg:px-2" :class="{
+                        'justify-between': availableAudioLanguages.length >= 0,
+                    }">
                         <button @click="toggleExpand" class="hidden p-0.5 lg:block">
                             <ChevronDownIcon class="h-9 w-9" />
                         </button>
@@ -342,10 +330,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <!-- Language Dropdown -->
                         <div v-if="availableAudioLanguages.length > 1" class="relative">
-                            <button
-                                @click="showLanguageDropdown = !showLanguageDropdown"
-                                class="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-black/10 dark:hover:bg-white/10"
-                            >
+                            <button @click="showLanguageDropdown = !showLanguageDropdown"
+                                class="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-black/10 dark:hover:bg-white/10">
                                 <LanguageIcon class="h-4 w-4" />
                                 {{
                                     availableAudioLanguages.find(
@@ -354,71 +340,49 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 }}
                             </button>
 
-                            <div
-                                v-if="showLanguageDropdown"
-                                class="absolute left-0 z-10 mt-1 w-32 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700"
-                            >
-                                <button
-                                    v-for="language in availableAudioLanguages"
-                                    :key="language._id"
+                            <div v-if="showLanguageDropdown"
+                                class="absolute left-0 z-10 mt-1 w-32 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700">
+                                <button v-for="language in availableAudioLanguages" :key="language._id"
                                     @click="switchLanguage(language._id)"
                                     class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
                                     :class="{
                                         'bg-yellow-50 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200':
                                             selectedLanguageId === language._id,
-                                    }"
-                                >
+                                    }">
                                     {{ language.name }}
                                 </button>
                             </div>
                         </div>
 
                         <div class="flex items-center">
-                            <button
-                                @click="closePlayer"
-                                class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
-                            >
+                            <button @click="closePlayer" class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10">
                                 <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
                             </button>
                         </div>
                     </div>
 
                     <!-- Cover Image -->
-                    <div
-                        class="flex justify-center opacity-100 transition-opacity duration-500 ease-out"
-                    >
-                        <LImage
-                            v-if="content.parentImageData"
-                            :image="content.parentImageData"
-                            :contentParentId="content.parentId"
-                            :rounded="true"
-                            size="thumbnail"
-                            aspectRatio="square"
-                        />
+                    <div class="flex justify-center opacity-100 transition-opacity duration-500 ease-out">
+                        <LImage v-if="content.parentImageData" :image="content.parentImageData"
+                            :contentParentId="content.parentId" :rounded="true" size="thumbnail" aspectRatio="square" />
                     </div>
 
                     <div class="p-2 pb-4">
                         <!-- Title and Author -->
                         <div class="space-y-1 text-center">
-                            <span
-                                v-if="content.author"
-                                class="block min-w-0 truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
-                            >
+                            <span v-if="content.author"
+                                class="block min-w-0 truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600">
                                 {{ content.author }}
                             </span>
-                            <span
-                                class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300"
-                            >
+                            <span class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300">
                                 {{ content.title }}
                             </span>
-                            <span
-                                class="block min-w-0 truncate text-xs font-semibold text-zinc-400"
-                            >
+                            <span class="block min-w-0 truncate text-xs font-semibold text-zinc-400">
                                 {{
                                     content.publishDate
                                         ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
+                                            .toDateTime(content.publishDate)
+                                            .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
                             </span>
@@ -426,23 +390,18 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <!-- Progress bar -->
                         <div class="flex flex-col px-2 pt-2">
-                            <div
-                                class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
-                                @click="
-                                    (e) => {
-                                        const rect = (
-                                            e.target as HTMLElement
-                                        ).getBoundingClientRect();
-                                        const clickX = e.clientX - rect.left;
-                                        const newTime = (clickX / rect.width) * duration;
-                                        if (audioElement) audioElement.currentTime = newTime;
-                                    }
-                                "
-                            >
-                                <div
-                                    class="h-full rounded-[10px] bg-yellow-500"
-                                    :style="{ width: (currentTime / duration) * 100 + '%' }"
-                                ></div>
+                            <div class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400" @click="
+                                (e) => {
+                                    const rect = (
+                                        e.target as HTMLElement
+                                    ).getBoundingClientRect();
+                                    const clickX = e.clientX - rect.left;
+                                    const newTime = (clickX / rect.width) * duration;
+                                    if (audioElement) audioElement.currentTime = newTime;
+                                }
+                            ">
+                                <div class="h-full rounded-[10px] bg-yellow-500"
+                                    :style="{ width: (currentTime / duration) * 100 + '%' }"></div>
                             </div>
                             <div class="mt-1 flex justify-between">
                                 <span class="text-xs text-gray-400 dark:text-zinc-300">
@@ -456,15 +415,11 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <!-- Controls -->
                         <div class="my-1">
-                            <div
-                                class="flex items-center justify-center space-x-8 text-black dark:text-white"
-                            >
+                            <div class="flex items-center justify-center space-x-8 text-black dark:text-white">
                                 <button class="flex items-center space-x-0" @click="skip(-10)">
                                     <ChevronDoubleLeftIcon class="h-5 w-5" />
                                     <span
-                                        class="rounded-2xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
-                                        >10</span
-                                    >
+                                        class="rounded-2xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black">10</span>
                                 </button>
                                 <button @click="togglePlay" class="rounded-full p-3">
                                     <PlayIcon v-if="!isPlaying" class="h-12 w-12" />
@@ -472,9 +427,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 </button>
                                 <button class="flex items-center space-x-0" @click="skip(10)">
                                     <span
-                                        class="rounded-3xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
-                                        >10</span
-                                    >
+                                        class="rounded-3xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black">10</span>
                                     <ChevronDoubleRightIcon class="h-5 w-5" />
                                 </button>
                             </div>
@@ -485,39 +438,26 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         </transition>
 
         <!-- Minimal Player -->
-        <div
-            v-if="!isExpanded"
-            @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
-        >
+        <div v-if="!isExpanded" @click="toggleExpand"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg">
             <div class="flex min-w-0 items-center space-x-2">
-                <LImage
-                    v-if="content.parentImageData"
-                    :image="content.parentImageData"
-                    :contentParentId="content.parentId"
-                    size="smallSquare"
-                    aspectRatio="square"
-                />
+                <LImage v-if="content.parentImageData" :image="content.parentImageData"
+                    :contentParentId="content.parentId" size="smallSquare" aspectRatio="square" />
 
                 <div class="flex min-w-0 flex-col">
                     <span class="block min-w-0 truncate text-sm font-semibold">
                         {{ content.title }}
                     </span>
-                    <span
-                        v-if="content.author || content.summary"
-                        class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400"
-                    >
+                    <span v-if="content.author || content.summary"
+                        class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400">
                         {{ content.author || content.summary }}
                     </span>
-                    <span
-                        v-else
-                        class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300"
-                    >
+                    <span v-else class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300">
                         {{
                             content.publishDate
                                 ? db
-                                      .toDateTime(content.publishDate)
-                                      .toLocaleString(DateTime.DATETIME_MED)
+                                    .toDateTime(content.publishDate)
+                                    .toLocaleString(DateTime.DATETIME_MED)
                                 : ""
                         }}
                     </span>
@@ -525,17 +465,12 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
             </div>
 
             <div class="flex items-center gap-4">
-                <button
-                    @click.stop="togglePlay"
-                    class="ml-2 flex-shrink-0 rounded-full bg-transparent p-0"
-                >
+                <button @click.stop="togglePlay" class="ml-2 flex-shrink-0 rounded-full bg-transparent p-0">
                     <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
                     <PauseIcon v-else class="h-7 w-7" />
                 </button>
-                <button
-                    @click.stop="closePlayer"
-                    class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
-                >
+                <button @click.stop="closePlayer"
+                    class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10">
                     <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
                 </button>
             </div>
@@ -550,11 +485,13 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         transform 0.3s ease-out,
         opacity 0.3s ease-out;
 }
+
 .slide-up-enter-from,
 .slide-up-leave-to {
     transform: translateY(100%);
     opacity: 0;
 }
+
 .slide-up-enter-to,
 .slide-up-leave-from {
     transform: translateY(0%);
@@ -563,8 +500,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
 /* Make sure the div allows vertical drag */
 .expanded-player {
-    touch-action: pan-x; /* only block horizontal gestures; vertical scroll allowed */
+    touch-action: pan-x;
+    /* only block horizontal gestures; vertical scroll allowed */
     user-select: none;
-    overscroll-behavior: contain; /* prevent scroll chaining to parent while dragging */
+    overscroll-behavior: contain;
+    /* prevent scroll chaining to parent while dragging */
 }
 </style>
