@@ -695,7 +695,7 @@ const playAudio = () => {
                             <button
                                 v-if="hasAudioFiles"
                                 @click.stop="playAudio"
-                                class="absolute bottom-3 left-3 flex items-center justify-center gap-1 rounded-full bg-black/60 px-2 py-1 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1 rounded-full bg-black/60 px-2 py-1 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                                 title="Play Audio"
                             >
                                 <SpeakerWaveIcon class="h-5 w-5" />
