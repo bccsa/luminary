@@ -176,7 +176,7 @@ audio::-webkit-media-controls-play-button {
         <!-- Existing uploaded media (custom hover + click playback UI) -->
         <div
             v-if="mediaFile"
-            class="group relative flex h-16 w-16 cursor-pointer items-center justify-center rounded border-2 border-zinc-200 bg-white shadow"
+            class="group relative flex h-16 w-16 cursor-pointer items-center justify-center rounded bg-white shadow"
             @mouseover="hover = true"
             @mouseleave="hover = false"
             @click="togglePlay"
@@ -201,10 +201,7 @@ audio::-webkit-media-controls-play-button {
                 <MusicalNoteIcon v-else class="h-8 w-8 text-gray-500 opacity-70" />
             </div>
             <!-- Scrim when hovering -->
-            <div
-                v-show="hover && !mediaElementError"
-                class="absolute inset-0 rounded bg-black/10"
-            ></div>
+            <div v-show="hover && !mediaElementError" class="absolute inset-0 rounded"></div>
 
             <!-- Language Badge  -->
             <LBadge
@@ -233,15 +230,9 @@ audio::-webkit-media-controls-play-button {
                 :src="audioSrc"
                 controls
                 controlsList="nodownload noplaybackrate noremoteplayback"
-                class="rounded border-2 border-zinc-200 bg-white shadow"
+                class="rounded border-2 border-zinc-200 bg-zinc-100 shadow"
                 @error="mediaElementError = true"
             />
-            <div
-                v-else
-                class="flex h-16 w-16 items-center justify-center rounded-sm bg-gray-100 shadow"
-            >
-                <MusicalNoteIcon class="h-10 w-10 pb-2 text-gray-500" />
-            </div>
 
             <!-- Language Badge  -->
             <LBadge
