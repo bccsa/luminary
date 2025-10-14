@@ -12,7 +12,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-import { clearMediaQueue } from "@/globalConfig";
+import { clearMediaQueue, mediaQueue } from "@/globalConfig";
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
@@ -56,10 +56,15 @@ const togglePlay = async () => {
             console.error("Play failed:", err);
         }
     }
+
+    // Reset auto-hide timer on user interaction
+    resetAutoHideTimer();
 };
 
 const toggleExpand = () => {
     isExpanded.value = !isExpanded.value;
+    // Reset auto-hide timer on user interaction
+    resetAutoHideTimer();
 };
 
 const closePlayer = () => {
@@ -69,6 +74,71 @@ const closePlayer = () => {
     }
     // Clear the media queue to hide the player
     clearMediaQueue();
+};
+
+// Enhanced close with confirmation for multiple tracks
+const closePlayerWithConfirmation = () => {
+    if (mediaQueue.value.length > 1) {
+        // Show confirmation if multiple tracks in queue
+        const confirmed = confirm(
+            `Close player? This will clear ${mediaQueue.value.length} tracks from your queue.`,
+        );
+        if (!confirmed) return;
+    }
+    closePlayer();
+};
+
+// Auto-hide timer for inactivity
+const autoHideTimer = ref<number | null>(null);
+const resetAutoHideTimer = () => {
+    if (autoHideTimer.value) {
+        clearTimeout(autoHideTimer.value);
+    }
+    // Auto-hide after 3 minutes of inactivity (only when minimized)
+    if (!isExpanded.value) {
+        autoHideTimer.value = setTimeout(
+            () => {
+                closePlayerWithConfirmation();
+            },
+            3 * 60 * 1000,
+        ); // 3 minutes
+    }
+};
+
+// Keyboard shortcuts
+const handleKeyDown = (event: KeyboardEvent) => {
+    // Only handle shortcuts when player is visible
+    if (mediaQueue.value.length === 0) return;
+
+    switch (event.key) {
+        case "Escape":
+            event.preventDefault();
+            closePlayerWithConfirmation();
+            break;
+        case " ":
+            // Space bar for play/pause (don't prevent default to allow page scroll)
+            if (event.target === document.body) {
+                event.preventDefault();
+                togglePlay();
+            }
+            break;
+        case "ArrowLeft":
+            event.preventDefault();
+            if (event.ctrlKey || event.metaKey) {
+                skip(-30); // Larger skip with Ctrl/Cmd
+            } else {
+                skip(-10); // Normal skip
+            }
+            break;
+        case "ArrowRight":
+            event.preventDefault();
+            if (event.ctrlKey || event.metaKey) {
+                skip(30); // Larger skip with Ctrl/Cmd
+            } else {
+                skip(10); // Normal skip
+            }
+            break;
+    }
 };
 
 // Language switching
@@ -171,6 +241,8 @@ const skip = (seconds: number) => {
     if (audioElement.value) {
         audioElement.value.currentTime += seconds;
     }
+    // Reset auto-hide timer on user interaction
+    resetAutoHideTimer();
 };
 
 // format mm:ss
@@ -183,6 +255,12 @@ const formatTime = (time: number) => {
 onMounted(() => {
     // Load available languages
     loadAvailableLanguages();
+
+    // Add keyboard event listeners
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Reset auto-hide timer when player becomes active
+    resetAutoHideTimer();
 
     if (audioElement.value) {
         const el = audioElement.value;
@@ -216,6 +294,16 @@ onMounted(() => {
             },
             { once: true },
         );
+    }
+});
+
+onUnmounted(() => {
+    // Remove keyboard event listeners
+    document.removeEventListener("keydown", handleKeyDown);
+
+    // Clear auto-hide timer
+    if (autoHideTimer.value) {
+        clearTimeout(autoHideTimer.value);
     }
 });
 
@@ -416,7 +504,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <div class="flex items-center">
                             <button
-                                @click="closePlayer"
+                                @click="closePlayerWithConfirmation"
                                 class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
                             >
                                 <XMarkIcon class="h-6 w-6" />
@@ -584,7 +672,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     <PauseIcon v-else class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
                 </button>
                 <button
-                    @click.stop="closePlayer"
+                    @click.stop="closePlayerWithConfirmation"
                     class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
                 >
                     <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
