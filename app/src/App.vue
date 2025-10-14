@@ -38,7 +38,7 @@ watchEffect(() => {
             id: "offlineBanner",
             title: "You are offline",
             description:
-                "You can still use the app and browse offline content, but some features (like videos) might not be available.",
+                "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
             state: "warning",
             type: "banner",
             icon: SignalSlashIcon,
