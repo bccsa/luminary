@@ -93,6 +93,8 @@ const closePlayerWithConfirmation = () => {
 };
 
 // Auto-hide timer for inactivity
+const timer = ref<number>(3 * 60 * 1000);
+
 const autoHideTimer = ref<number | null>(null);
 const resetAutoHideTimer = () => {
     if (autoHideTimer.value) {
@@ -100,12 +102,12 @@ const resetAutoHideTimer = () => {
     }
     // Auto-hide after 3 minutes of inactivity (only when minimized)
     if (!isExpanded.value) {
-        autoHideTimer.value = setTimeout(
-            () => {
-                closePlayerWithConfirmation();
-            },
-            3 * 60 * 1000,
-        ); // 3 minutes
+        const timeoutId = setTimeout(() => {
+            closePlayerWithConfirmation();
+        }, timer.value); // 3 minutes
+
+        // This conversion is necessary because setTimeout in Node returns a Timeout object, while in browsers it returns a number
+        autoHideTimer.value = timeoutId as unknown as number;
     }
 };
 
