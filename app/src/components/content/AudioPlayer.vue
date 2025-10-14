@@ -22,6 +22,10 @@ const audioElement = ref<HTMLAudioElement | null>(null);
 const currentTime = ref(0);
 const duration = ref(0);
 
+// seeking states for progress bar drag functionality
+const isSeeking = ref(false);
+const seekTime = ref(0);
+
 type Props = {
     content: ContentDto;
 };
@@ -243,6 +247,68 @@ const skip = (seconds: number) => {
     }
     // Reset auto-hide timer on user interaction
     resetAutoHideTimer();
+};
+
+// Progress bar seeking functionality
+const progressBarRef = ref<HTMLElement | null>(null);
+
+const getSeekTimeFromEvent = (e: MouseEvent | TouchEvent) => {
+    if (!progressBarRef.value) return 0;
+
+    const rect = progressBarRef.value.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clickX = clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    return percentage * duration.value;
+};
+
+const startSeeking = (e: MouseEvent | TouchEvent) => {
+    if (!audioElement.value || duration.value === 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Store reference to the progress bar element
+    progressBarRef.value = e.currentTarget as HTMLElement;
+
+    isSeeking.value = true;
+    seekTime.value = getSeekTimeFromEvent(e);
+
+    // Add global event listeners for mouse/touch move and up
+    const handleMove = (moveEvent: MouseEvent | TouchEvent) => {
+        if (!isSeeking.value) return;
+        moveEvent.preventDefault();
+        seekTime.value = getSeekTimeFromEvent(moveEvent);
+    };
+
+    const handleEnd = (endEvent: MouseEvent | TouchEvent) => {
+        if (!isSeeking.value) return;
+        endEvent.preventDefault();
+        isSeeking.value = false;
+
+        // Apply the final seek position
+        if (audioElement.value) {
+            audioElement.value.currentTime = seekTime.value;
+        }
+
+        // Remove event listeners
+        document.removeEventListener("mousemove", handleMove as EventListener);
+        document.removeEventListener("touchmove", handleMove as EventListener);
+        document.removeEventListener("mouseup", handleEnd as EventListener);
+        document.removeEventListener("touchend", handleEnd as EventListener);
+
+        // Clear the progress bar reference
+        progressBarRef.value = null;
+
+        // Reset auto-hide timer on user interaction
+        resetAutoHideTimer();
+    };
+
+    // Add the event listeners
+    document.addEventListener("mousemove", handleMove as EventListener);
+    document.addEventListener("touchmove", handleMove as EventListener);
+    document.addEventListener("mouseup", handleEnd as EventListener);
+    document.addEventListener("touchend", handleEnd as EventListener);
 };
 
 // format mm:ss
@@ -556,26 +622,22 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <!-- Progress bar -->
                         <div class="flex flex-col px-6 pt-3">
                             <div
-                                class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
-                                @click="
-                                    (e) => {
-                                        const rect = (
-                                            e.target as HTMLElement
-                                        ).getBoundingClientRect();
-                                        const clickX = e.clientX - rect.left;
-                                        const newTime = (clickX / rect.width) * duration;
-                                        if (audioElement) audioElement.currentTime = newTime;
-                                    }
-                                "
+                                class="inline-block h-[6px] w-full cursor-pointer select-none rounded-[10px] bg-zinc-400"
+                                @mousedown="startSeeking"
+                                @touchstart="startSeeking"
                             >
                                 <div
-                                    class="h-full rounded-[10px] bg-yellow-500"
-                                    :style="{ width: (currentTime / duration) * 100 + '%' }"
+                                    class="h-full rounded-[10px] bg-yellow-500 transition-all duration-75"
+                                    :style="{
+                                        width: isSeeking
+                                            ? (seekTime / duration) * 100 + '%'
+                                            : (currentTime / duration) * 100 + '%',
+                                    }"
                                 ></div>
                             </div>
                             <div class="mt-1 flex justify-between">
                                 <span class="text-xs text-gray-400 dark:text-zinc-300">
-                                    {{ formatTime(currentTime) }}
+                                    {{ formatTime(isSeeking ? seekTime : currentTime) }}
                                 </span>
                                 <span class="text-xs text-gray-400 dark:text-zinc-300">
                                     {{ formatTime(duration) }}
