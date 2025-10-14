@@ -305,7 +305,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player flex max-h-[80vh] w-full flex-col overflow-auto bg-amber-100/95 scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                class="expanded-player flex max-h-[80vh] w-full flex-col overflow-auto bg-amber-50 shadow-lg scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:max-h-none lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
@@ -425,7 +425,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         </div>
 
                         <!-- Progress bar -->
-                        <div class="flex flex-col px-2 pt-2">
+                        <div class="flex flex-col px-6 pt-3">
                             <div
                                 class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
                                 @click="
@@ -460,22 +460,32 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 class="flex items-center justify-center space-x-8 text-black dark:text-white"
                             >
                                 <button class="flex items-center space-x-0" @click="skip(-10)">
-                                    <ChevronDoubleLeftIcon class="h-5 w-5" />
+                                    <ChevronDoubleLeftIcon
+                                        class="h-5 w-5 text-zinc-500 dark:text-slate-400"
+                                    />
                                     <span
-                                        class="rounded-2xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
+                                        class="rounded-2xl bg-zinc-500 px-1 py-0.5 text-sm text-white dark:bg-slate-400"
                                         >10</span
                                     >
                                 </button>
                                 <button @click="togglePlay" class="rounded-full p-3">
-                                    <PlayIcon v-if="!isPlaying" class="h-12 w-12" />
-                                    <PauseIcon v-else class="h-12 w-12" />
+                                    <PlayIcon
+                                        v-if="!isPlaying"
+                                        class="h-12 w-12 text-zinc-500 dark:text-slate-400"
+                                    />
+                                    <PauseIcon
+                                        v-else
+                                        class="h-12 w-12 text-zinc-500 dark:text-slate-400"
+                                    />
                                 </button>
                                 <button class="flex items-center space-x-0" @click="skip(10)">
                                     <span
-                                        class="rounded-3xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
+                                        class="rounded-3xl bg-zinc-500 px-1 py-0.5 text-sm text-white dark:bg-slate-400 dark:text-black"
                                         >10</span
                                     >
-                                    <ChevronDoubleRightIcon class="h-5 w-5" />
+                                    <ChevronDoubleRightIcon
+                                        class="h-5 w-5 text-zinc-500 dark:text-slate-400"
+                                    />
                                 </button>
                             </div>
                         </div>
@@ -488,7 +498,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
@@ -529,8 +539,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     @click.stop="togglePlay"
                     class="ml-2 flex-shrink-0 rounded-full bg-transparent p-0"
                 >
-                    <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
-                    <PauseIcon v-else class="h-7 w-7" />
+                    <PlayIcon v-if="!isPlaying" class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
+                    <PauseIcon v-else class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
                 </button>
                 <button
                     @click.stop="closePlayer"
