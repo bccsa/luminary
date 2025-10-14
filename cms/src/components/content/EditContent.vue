@@ -53,8 +53,9 @@ type Props = {
     docType: DocType.Post | DocType.Tag;
     tagOrPostType: TagType | PostType;
 };
-
+const triggerRef = ref<HTMLElement | null>(null);
 const props = defineProps<Props>();
+
 const { addNotification } = useNotificationStore();
 
 // Generate new parent id if it is a new document
@@ -670,6 +671,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 >
                     <div class="relative inline-block w-fit">
                         <LButton
+                            ref="triggerRef"
                             :icon="PlusIcon"
                             class="w-fit"
                             variant="muted"
