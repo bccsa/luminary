@@ -329,7 +329,7 @@ defineExpose({
                                     (u) => u.languageId === language._id,
                                 )"
                                 :key="i"
-                                class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
                             >
                                 <MediaEditorThumbnail
                                     :mediaUploadData="a"
