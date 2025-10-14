@@ -3,6 +3,7 @@ import { createTestingModule } from "../test/testingModule";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 
 describe("ChangeRequest service", () => {
     const oldEnv = process.env;
@@ -21,8 +22,11 @@ describe("ChangeRequest service", () => {
             "name": "() => 'Test User'"
         }`;
 
-        service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service, undefined, undefined);
+        const testingModule = await createTestingModule("changereq-service");
+        service = testingModule.dbService;
+        const s3Service = testingModule.s3Service;
+        const logger = testingModule.testingModule.get(WINSTON_MODULE_PROVIDER);
+        changeRequestService = new ChangeRequestService(logger, service, s3Service);
     });
 
     afterAll(async () => {

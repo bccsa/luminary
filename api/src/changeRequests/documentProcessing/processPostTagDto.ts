@@ -5,8 +5,7 @@ import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "../../s3/s3.imagehandling";
 import { S3Service } from "../../s3/s3.service";
-import { S3AudioService } from "../../s3-audio/s3Audio.service";
-import { processMedia } from "../../s3-audio/s3.audiohandling";
+import { processMedia } from "../../s3/s3.mediahandling";
 
 /**
  * Process Post / Tag DTO
@@ -14,7 +13,6 @@ import { processMedia } from "../../s3-audio/s3.audiohandling";
  * @param prevDoc
  * @param db
  * @param s3
- * @param s3Audio
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
@@ -22,7 +20,6 @@ export default async function processPostTagDto(
     prevDoc: PostDto | TagDto,
     db: DbService,
     s3: S3Service,
-    s3Audio: S3AudioService,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -48,11 +45,7 @@ export default async function processPostTagDto(
 
         // Remove medias from S3
         if (doc.media) {
-            const mediaWarnings = await processMedia(
-                { fileCollections: [] },
-                prevDoc?.media,
-                s3Audio,
-            );
+            const mediaWarnings = await processMedia({ fileCollections: [] }, prevDoc?.media, s3);
             if (mediaWarnings && mediaWarnings.length > 0) {
                 warnings.push(...mediaWarnings);
                 console.log(mediaWarnings);
@@ -73,7 +66,7 @@ export default async function processPostTagDto(
 
     // Process medias uploads
     if (doc.media) {
-        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3Audio);
+        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3);
         if (audioWarnings && audioWarnings.length > 0) {
             warnings.push(...audioWarnings);
         }

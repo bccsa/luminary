@@ -5,18 +5,15 @@ import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { S3Service } from "../s3/s3.service";
 import waitForExpect from "wait-for-expect";
-import { S3AudioService } from "src/s3-audio/s3Audio.service";
 
 describe("processChangeRequest", () => {
     let db: DbService;
     let s3: S3Service;
-    let s3Audio: S3AudioService;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-change-request");
         db = testingModule.dbService;
         s3 = testingModule.s3Service;
-        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -26,18 +23,13 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest(
-            "",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-            s3,
-            s3Audio,
-        ).catch((err) => {
-            expect(err.message).toBe(
-                `Submitted "undefined" document validation failed:\nInvalid document type`,
-            );
-        });
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3).catch(
+            (err) => {
+                expect(err.message).toBe(
+                    `Submitted "undefined" document validation failed:\nInvalid document type`,
+                );
+            },
+        );
     });
 
     // TODO: Reactivate change diffs in change requests - https://github.com/bccsa/luminary/issues/442
@@ -71,14 +63,13 @@ describe("processChangeRequest", () => {
                 },
             },
         };
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
         const processResult = await processChangeRequest(
             "",
             changeRequest2,
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         await waitForExpect(() => {
             expect(processResult.result.message).toBe(

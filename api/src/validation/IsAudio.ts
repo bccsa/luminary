@@ -1,5 +1,5 @@
 import { registerDecorator } from "class-validator";
-import { getAudioFormatInfo } from "../s3-audio/audioFormatDetection";
+import { getAudioFormatInfo } from "../util/audioFormatDetection";
 
 type MusicMetadata = {
     parserBuffer: () => Promise<typeof import("music-metadata")>;

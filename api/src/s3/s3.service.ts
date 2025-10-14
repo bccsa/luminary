@@ -35,10 +35,35 @@ export class S3Service {
     }
 
     /**
+     * Get the configured audio bucket name
+     */
+    public get audioBucket() {
+        return this.s3Config.audioBucket;
+    }
+
+    /**
+     * Override the configured audio bucket name. This is useful for testing
+     */
+    public set audioBucket(bucket: string) {
+        this.s3Config.audioBucket = bucket;
+    }
+
+    /**
      * Get the configured image quality
      */
     public get imageQuality() {
         return this.s3Config.imageQuality;
+    }
+
+    /**
+     * Get the public URL for an object in the audio bucket
+     */
+    public getAudioUrl(key: string): string {
+        if (!this.audioBucket) {
+            throw new Error("Audio bucket is not configured");
+        }
+        const schema = this.s3Config.useSSL ? "https" : "http";
+        return `${schema}://${this.s3Config.endpoint}:${this.s3Config.port}/${this.audioBucket}/${key}`;
     }
 
     /**
@@ -157,5 +182,45 @@ export class S3Service {
         }
 
         return inaccessibleImages;
+    }
+
+    /**
+     * Validate audio upload accessibility
+     */
+    public async validateAudioUpload(
+        bucket: string,
+        key: string,
+    ): Promise<{ success: boolean; error?: string }> {
+        try {
+            // Check if bucket exists
+            const bucketExists = await this.bucketExists(bucket);
+            if (!bucketExists) {
+                return { success: false, error: `Bucket '${bucket}' does not exist` };
+            }
+
+            // Try to get object info to verify it was uploaded successfully
+            await this.client.statObject(bucket, key);
+
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: `Audio validation failed: ${error.message}` };
+        }
+    }
+
+    /**
+     * Check if uploaded audios are accessible
+     */
+    public async checkAudioAccessibility(bucket: string, keys: string[]): Promise<string[]> {
+        const inaccessibleAudios: string[] = [];
+
+        for (const key of keys) {
+            try {
+                await this.client.statObject(bucket, key);
+            } catch (error) {
+                inaccessibleAudios.push(key);
+            }
+        }
+
+        return inaccessibleAudios;
     }
 }

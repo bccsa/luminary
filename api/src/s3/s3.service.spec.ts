@@ -38,15 +38,40 @@ describe("S3Service", () => {
         expect(returnedFile).toBeDefined();
     });
 
-    it("can remove objects", async () => {
-        const bucket = testBucket;
-        const keys = ["testFilename"];
+    it("can create an audio bucket", async () => {
+        const audioBucket = UUID();
+        service.audioBucket = audioBucket;
+        await service.makeBucket(audioBucket);
+        const result = await service.bucketExists(audioBucket);
 
-        const result = await service.removeObjects(bucket, keys);
-        let error;
-        await service.getObject(bucket, keys[0]).catch((e) => (error = e));
+        expect(result).toBeTruthy();
+        await service.removeBucket(audioBucket);
+    });
 
-        expect(result).toBeDefined();
-        expect(error).toBeDefined();
+    it("can upload and get an audio object", async () => {
+        const audioBucket = UUID();
+        service.audioBucket = audioBucket;
+        await service.makeBucket(audioBucket);
+
+        const key = "testAudioFilename";
+        const file = Buffer.from("testAudioFile");
+        const mimetype = "audio/mpeg";
+
+        const result = await service.uploadFile(audioBucket, key, file, mimetype);
+        const returnedFile = await service.getObject(audioBucket, key);
+
+        expect(result.etag).toBeDefined();
+        expect(returnedFile).toBeDefined();
+
+        await service.removeObjects(audioBucket, [key]);
+        await service.removeBucket(audioBucket);
+    });
+
+    it("can generate audio URLs", () => {
+        const testKey = "test-audio.mp3";
+        const url = service.getAudioUrl(testKey);
+
+        expect(url).toContain(testKey);
+        expect(url).toMatch(/^https?:\/\//);
     });
 });

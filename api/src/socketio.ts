@@ -16,7 +16,6 @@ import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails, processJwt } from "./jwt/processJwt";
 import { S3Service } from "./s3/s3.service";
-import { S3AudioService } from "./s3-audio/s3Audio.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 
@@ -92,7 +91,6 @@ export class Socketio implements OnGatewayInit {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
-        private s3Audio: S3AudioService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {

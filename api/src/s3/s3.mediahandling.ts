@@ -1,9 +1,8 @@
 import { MediaDto } from "../dto/MediaDto";
 import { MediaUploadDataDto } from "../dto/MediaUploadDataDto";
-import { S3Service } from "../s3/s3.service";
+import { S3Service } from "./s3.service";
 import { MediaFileDto } from "../dto/MediaFileDto";
 import { v4 as uuidv4 } from "uuid";
-import { getAudioFormatInfo } from "../util/audioFormatDetection";
 
 export async function processMedia(
     media: MediaDto,
@@ -202,10 +201,8 @@ async function validateSingleAudio(
             const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
             const metadata = await mmEsm.parseBuffer(new Uint8Array(uploadData.fileData));
 
-            // Use robust format detection
-            const formatInfo = getAudioFormatInfo(metadata);
-
-            if (!formatInfo.isValidAudio) {
+            // Basic validation - check if we have format info
+            if (!metadata.format.container) {
                 warnings.push(
                     audioFailureMessage + "Uploaded file may not be a valid audio format\n",
                 );
@@ -306,7 +303,7 @@ async function processQualitySafe(
     const warnings: string[] = [];
     try {
         // Parse metadata to infer bitrate and format info
-        let formatInfo = { ext: "", mime: "application/octet-stream", isValidAudio: false };
+        const formatInfo = { ext: "", mime: "application/octet-stream" };
         let bitrate = 0;
         const u8 = new Uint8Array(uploadData.fileData);
 
@@ -318,17 +315,34 @@ async function processQualitySafe(
             const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
             const metadata = await mmEsm.parseBuffer(u8);
 
-            // Use robust format detection instead of hardcoded mapping
-            formatInfo = getAudioFormatInfo(metadata);
+            // Determine format based on container
+            const container = metadata.format.container?.toLowerCase();
+            if (container === "mp3" || container === "mpeg") {
+                formatInfo.ext = "mp3";
+                formatInfo.mime = "audio/mpeg";
+            } else if (container === "flac") {
+                formatInfo.ext = "flac";
+                formatInfo.mime = "audio/flac";
+            } else if (container === "wav") {
+                formatInfo.ext = "wav";
+                formatInfo.mime = "audio/wav";
+            } else if (container === "ogg") {
+                formatInfo.ext = "ogg";
+                formatInfo.mime = "audio/ogg";
+            } else if (container === "aac") {
+                formatInfo.ext = "aac";
+                formatInfo.mime = "audio/aac";
+            } else {
+                // Fallback
+                formatInfo.ext = "audio";
+                formatInfo.mime = "audio/mpeg";
+            }
+
             bitrate = Math.round(metadata.format.bitrate || 0);
         } catch (_err) {
             // Fall back; format/bitrate unknown in this environment
-        }
-
-        // Fallback to generic audio if we couldn't determine format
-        if (!formatInfo.ext) {
             formatInfo.ext = "audio";
-            formatInfo.mime = "audio/mpeg"; // safe default
+            formatInfo.mime = "audio/mpeg";
         }
 
         const key = `${uuidv4()}-${qualityLabel}`;
