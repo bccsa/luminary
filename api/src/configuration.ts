@@ -44,6 +44,7 @@ export type AudioS3Config = {
 
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
+    maxMediaUploadFileSize?: number; // Optional for media uploads
 };
 
 export default () =>
@@ -80,5 +81,6 @@ export default () =>
         } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
         } as SocketIoConfig,
     }) as Configuration;
