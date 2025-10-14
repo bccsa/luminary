@@ -22,7 +22,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
             .reverse()
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!content.parentMedia?.hlsUrl) return false;
+                if (!content.video) return false;
                 if (content.type !== DocType.Content) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
