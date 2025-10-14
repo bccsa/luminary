@@ -81,6 +81,8 @@ export type ContentDto = ContentBaseDto & {
     publishDate?: number;
     expiryDate?: number;
     localisedImage?: Uuid;
+    video?: string;
+    audio?: string;
     author?: string;
     summary?: string;
     text?: string;
