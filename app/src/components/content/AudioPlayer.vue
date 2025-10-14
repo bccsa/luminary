@@ -12,7 +12,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-import { nextInMediaQueue, clearMediaQueue } from "@/globalConfig";
+import { clearMediaQueue } from "@/globalConfig";
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
@@ -75,6 +75,15 @@ const closePlayer = () => {
 const switchLanguage = (languageId: string) => {
     if (!audioElement.value || selectedLanguageId.value === languageId) return;
 
+    // Validate that the target language has audio
+    const targetAudioFile = props.content.parentMedia?.fileCollections?.find(
+        (file) => file.languageId === languageId,
+    );
+    if (!targetAudioFile) {
+        console.warn(`No audio file found for language ${languageId}`);
+        return;
+    }
+
     // Set flag to indicate we're manually switching languages
     isLanguageSwitching.value = true;
 
@@ -84,6 +93,7 @@ const switchLanguage = (languageId: string) => {
 
     // Pause current audio
     audioElement.value.pause();
+    isPlaying.value = false;
 
     // Switch language (this will trigger the matchAudioFileUrl computed to change)
     selectedLanguageId.value = languageId;
@@ -91,15 +101,36 @@ const switchLanguage = (languageId: string) => {
 
     // Wait for the new audio source to load and restore playback state
     const handleNewAudioReady = () => {
-        if (audioElement.value) {
-            // Set the same position in the new audio
-            audioElement.value.currentTime = currentPosition;
+        if (audioElement.value && !audioElement.value.paused) {
+            // Audio might have auto-started, pause it first
+            audioElement.value.pause();
+        }
 
-            // Resume playing if it was playing before
-            if (wasPlaying) {
-                audioElement.value.play().catch((err) => {
-                    console.error("Failed to resume playback after language switch:", err);
-                });
+        if (audioElement.value) {
+            try {
+                // Clamp the current position to the new audio's duration to prevent errors
+                // if the new audio is shorter than the current position
+                const newDuration = audioElement.value.duration;
+                const clampedPosition =
+                    isFinite(newDuration) && newDuration > 0
+                        ? Math.min(currentPosition, newDuration)
+                        : 0;
+
+                // Set the clamped position in the new audio
+                audioElement.value.currentTime = clampedPosition;
+
+                // Resume playing if it was playing before
+                if (wasPlaying) {
+                    audioElement.value.play().catch((err) => {
+                        console.error("Failed to resume playback after language switch:", err);
+                        // If play fails, at least update the playing state
+                        isPlaying.value = false;
+                    });
+                }
+            } catch (error) {
+                console.error("Error during language switch:", error);
+                // Reset playing state on error
+                isPlaying.value = false;
             }
 
             // Clear the language switching flag
@@ -113,6 +144,15 @@ const switchLanguage = (languageId: string) => {
     // Add event listener for when the new audio is ready
     if (audioElement.value) {
         audioElement.value.addEventListener("loadedmetadata", handleNewAudioReady);
+
+        // Add a timeout fallback in case loadedmetadata never fires
+        setTimeout(() => {
+            if (isLanguageSwitching.value) {
+                console.warn("Language switch timeout - loadedmetadata event never fired");
+                isLanguageSwitching.value = false;
+                isPlaying.value = false;
+            }
+        }, 5000); // 5 second timeout
     }
 };
 
@@ -158,9 +198,10 @@ onMounted(() => {
             duration.value = el.duration;
         });
 
-        // Auto-advance to next track when current track ends
+        // Keep player visible when current track ends (don't auto-advance)
         el.addEventListener("ended", () => {
-            nextInMediaQueue();
+            isPlaying.value = false;
+            // Player stays visible - user can replay, switch tracks, or close manually
         });
 
         // Auto-play when the component mounts (when first added to queue)
