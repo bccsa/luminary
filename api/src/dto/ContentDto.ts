@@ -69,6 +69,16 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     localisedImage?: Uuid;
 
+    @IsOptional()
+    @IsString()
+    @Expose()
+    audio?: Uuid;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    video?: Uuid;
+
     @IsOptionalIf((c: ContentDto) => c.status === PublishStatus.Draft)
     @IsNumber()
     @Min(0)
