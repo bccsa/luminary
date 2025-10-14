@@ -102,7 +102,7 @@ const pause = () => {
 };
 
 const togglePlay = () => {
-    if (!props.mediaFile) return; // Only for existing media files
+    if (!props.mediaFile && !props.mediaUploadData) return; // Only for existing media files or uploads
     if (!audioSrc.value) return;
     if (!audioEl.value) return;
     if (isPlaying.value) pause();
@@ -129,11 +129,7 @@ onBeforeUnmount(() => {
     window.removeEventListener(GLOBAL_EVENT, onGlobalPlay);
     if (audioEl.value) {
         // Revoke any object URL for uploads when component unmounts
-        if (
-            props.mediaUploadData &&
-            props.mediaUploadData.fileData &&
-            audioSrc.value.startsWith("blob:")
-        ) {
+        if ((props.mediaUploadData || props.mediaFile) && audioSrc.value.startsWith("blob:")) {
             URL.revokeObjectURL(audioSrc.value);
         }
     }
@@ -223,16 +219,35 @@ audio::-webkit-media-controls-play-button {
             />
         </div>
 
-        <!-- Pending upload media (retain previous inline audio with limited controls) -->
-        <div v-else class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
+        <!-- Pending upload media (same custom UI as existing media) -->
+        <div
+            v-else-if="mediaUploadData"
+            class="group relative flex h-16 w-16 cursor-pointer items-center justify-center rounded bg-white shadow"
+            @mouseover="hover = true"
+            @mouseleave="hover = false"
+            @click="togglePlay"
+        >
             <audio
-                v-if="!mediaElementError"
+                ref="audioEl"
                 :src="audioSrc"
-                controls
-                controlsList="nodownload noplaybackrate noremoteplayback"
-                class="rounded border-2 border-zinc-200 bg-zinc-100 shadow"
+                preload="none"
+                class="hidden"
                 @error="mediaElementError = true"
+                @ended="onEnded"
             />
+            <div class="-mt-4 flex items-center justify-center">
+                <PlayIcon
+                    v-if="!isPlaying && (hover || !mediaElementError)"
+                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                />
+                <PauseIcon
+                    v-else-if="isPlaying && !mediaElementError"
+                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                />
+                <MusicalNoteIcon v-else class="h-8 w-8 text-gray-500 opacity-70" />
+            </div>
+            <!-- Scrim when hovering -->
+            <div v-show="hover && !mediaElementError" class="absolute inset-0 rounded"></div>
 
             <!-- Language Badge  -->
             <LBadge
@@ -250,7 +265,7 @@ audio::-webkit-media-controls-play-button {
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover && disabled"
                 title="Delete file version"
-                @click="showModal = true"
+                @click.stop="showModal = true"
             />
         </div>
     </div>
