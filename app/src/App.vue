@@ -123,10 +123,8 @@ onErrorCaptured((err) => {
         <!-- Global Audio Player for All Devices -->
         <div v-if="mediaQueue.length > 0" class="">
             <!-- Single Audio Player for all screen sizes -->
-            <div class="flex justify-center">
-                <div class="w-full lg:absolute lg:-right-24 lg:bottom-5 lg:z-10 lg:max-w-md">
-                    <AudioPlayer :content="mediaQueue[0]" />
-                </div>
+            <div class="w-full lg:absolute lg:-right-24 lg:bottom-5 lg:z-10 lg:max-w-md">
+                <AudioPlayer :content="mediaQueue[0]" />
             </div>
         </div>
 
