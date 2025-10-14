@@ -369,12 +369,12 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                     <!-- Header -->
                     <div
-                        class="flex items-center p-2 lg:px-2"
+                        class="flex items-center p-2 px-6 lg:px-3"
                         :class="{
                             'justify-between': availableAudioLanguages.length >= 0,
                         }"
                     >
-                        <button @click="toggleExpand" class="hidden p-0.5 lg:block">
+                        <button @click="toggleExpand" class="p-0.5">
                             <ChevronDownIcon class="h-9 w-9" />
                         </button>
 
@@ -419,7 +419,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @click="closePlayer"
                                 class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
                             >
-                                <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                                <XMarkIcon class="h-6 w-6" />
                             </button>
                         </div>
                     </div>
