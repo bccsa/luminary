@@ -505,7 +505,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                         class="h-5 w-5 text-zinc-500 dark:text-slate-400"
                                     />
                                     <span
-                                        class="rounded-2xl bg-zinc-500 px-1 py-0.5 text-sm text-white dark:bg-slate-400"
+                                        class="rounded-2xl bg-zinc-500 px-1 py-0.5 text-sm text-white dark:bg-slate-400 dark:text-black"
                                         >10</span
                                     >
                                 </button>
