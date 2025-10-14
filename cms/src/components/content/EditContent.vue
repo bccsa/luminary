@@ -61,6 +61,7 @@ type Props = {
     docType: DocType.Post | DocType.Tag;
     tagOrPostType: TagType | PostType;
 };
+const triggerRef = ref<HTMLElement | null>(null);
 const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
@@ -885,6 +886,7 @@ watch(
                 >
                     <div class="relative inline-block w-fit">
                         <LButton
+                            ref="triggerRef"
                             :icon="PlusIcon"
                             class="w-fit"
                             variant="muted"
