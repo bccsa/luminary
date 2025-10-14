@@ -3,7 +3,7 @@ import {
     MediaPreset,
     MediaType,
     type ContentParentDto,
-    maxUploadFileSize,
+    maxMediaUploadFileSize,
     type MediaUploadDataDto,
     type MediaFileDto,
     type LanguageDto,
@@ -21,7 +21,7 @@ type Props = {
 defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
-const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1000000);
 
 // Get all available languages
 const availableLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
@@ -128,8 +128,8 @@ const processFileUpload = (file: File, languageId: string) => {
     reader.onload = (e) => {
         const fileData = e.target!.result as ArrayBuffer;
 
-        if (fileData.byteLength > maxUploadFileSize.value) {
-            failureMessage.value = `Media file is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+        if (fileData.byteLength > maxMediaUploadFileSize.value) {
+            failureMessage.value = `Media file is larger than the maximum allowed size of ${maxMediaUploadFileSizeMb.value}MB`;
             showFailureMessage.value = true;
             return;
         }

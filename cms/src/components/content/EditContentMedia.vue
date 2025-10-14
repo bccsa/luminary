@@ -4,7 +4,7 @@ import {
     type DocType,
     type PostType,
     type TagType,
-    maxUploadFileSize,
+    maxMediaUploadFileSize,
 } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon, FilmIcon } from "@heroicons/vue/24/outline";
@@ -22,7 +22,7 @@ defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
-const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1000000);
 
 const mediaEditorRef = ref<InstanceType<typeof MediaEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
@@ -92,8 +92,8 @@ const handleFileChange = () => {
                 replace the existing file.
             </p>
             <p class="mb-2 text-xs">
-                Supported formats: MP3, AAC, Opus, WAV. Maximum file size:
-                {{ maxUploadFileSizeMb }}MB.
+                Supported formats: MP3, AAC, Opus, WAV.
+                <br />Maximum file size: {{ maxMediaUploadFileSizeMb }}MB.
             </p>
         </div>
         <MediaEditor
