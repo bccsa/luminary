@@ -346,7 +346,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player flex max-h-[80vh] w-full flex-col overflow-auto bg-amber-50 shadow-lg scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                class="expanded-player flex max-h-[80vh] w-full flex-col overflow-auto bg-amber-50 shadow-2xl shadow-black/20 scrollbar-hide dark:bg-slate-600 lg:inset-x-0 lg:max-h-none lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
