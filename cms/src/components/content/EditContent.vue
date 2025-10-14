@@ -626,8 +626,8 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             />
                         </div>
                         <EditContentVideo
-                            v-model:parent="editableParent"
-                            :disabled="!canEditParent"
+                            v-model:content="selectedContent"
+                            :disabled="!canTranslate"
                         />
                         <EditContentBasic
                             v-model:content="selectedContent"
