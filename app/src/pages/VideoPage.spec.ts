@@ -60,7 +60,6 @@ describe("VideoPage.vue", () => {
                 {
                     ...mockEnglishContentDto,
                     parentTags: [mockCategoryContentDto.parentId],
-                    parentMedia: { ...mockEnglishContentDto.parentMedia, hlsUrl: "" },
                 } as ContentDto,
             ]);
 
@@ -78,6 +77,7 @@ describe("VideoPage.vue", () => {
                 { ...mockCategoryContentDto, parentPinned: 1 },
                 {
                     ...mockEnglishContentDto,
+                    video: "video.mp4",
                     parentTags: [mockCategoryContentDto.parentId],
                 } as ContentDto,
             ]);
@@ -96,6 +96,7 @@ describe("VideoPage.vue", () => {
                 { ...mockCategoryContentDto, parentPinned: 0 },
                 {
                     ...mockEnglishContentDto,
+                    video: "video.mp4",
                     parentTags: [mockCategoryContentDto.parentId],
                 } as ContentDto,
             ]);
