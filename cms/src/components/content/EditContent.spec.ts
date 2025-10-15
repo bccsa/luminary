@@ -672,21 +672,18 @@ describe("EditContent.vue", () => {
                     await duplicateBtn!.trigger("click");
                 }
             }
+            // Wait for Vue to render the modal (multiple ticks and a short delay)
+            await wrapper.vm.$nextTick();
+            await wrapper.vm.$nextTick();
+            await wait(10);
 
-            // Find and trigger the confirmation button in the modal
-
-            const dialog = wrapper.findComponent(LDialog);
-
+            // Wait for the modal to appear in the DOM before searching for the confirmation button
+            let confirmBtn;
             await waitForExpect(() => {
-                expect(dialog.exists()).toBe(true);
+                confirmBtn = document.querySelector('[data-test="modal-primary-button"]');
+                expect(confirmBtn).not.toBeNull();
             });
-
-            const confirmBtn = dialog.find('[data-test="modal-primary-button"]');
-            await waitForExpect(async () => {
-                expect(confirmBtn.exists()).toBe(true);
-            });
-
-            await confirmBtn.trigger("click");
+            confirmBtn!.click();
             await waitForExpect(() => {
                 expect(mockNotification).toHaveBeenCalledWith(
                     expect.objectContaining({
@@ -877,7 +874,7 @@ describe("EditContent.vue", () => {
     });
 
     describe("delete requests", () => {
-        it.skip("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
+        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
                     id: mockData.mockPostDto._id,
