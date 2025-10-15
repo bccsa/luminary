@@ -161,11 +161,7 @@ const unwatch = watch([idbContent, isConnected], () => {
     const apiContent = apiLiveQuery.toRef();
 
     watch(apiContent, () => {
-<<<<<<< HEAD
-        isLoading.value = true; // API content has loaded (even if not found)
-=======
         isLoading.value = true; // API content has loaded (even if not found)  
->>>>>>> 0eea707c (Add hasPendingLogin state to manage login flow in PrivacyPolicyModal (#1155))
         if (!apiContent.value) {
             content.value = undefined;
             return;
@@ -271,7 +267,7 @@ watch(content, () => {
 });
 
 const check404 = () => {
-    // if (isLoading.value) return false; // Don't show 404 during loading
+    if (isLoading.value) return false; // Don't show 404 during loading
     return (
         !content.value || !isPublished(content.value, content.value ? [content.value.language] : [])
     );
@@ -279,12 +275,6 @@ const check404 = () => {
 
 watch(content, () => {
     is404.value = check404();
-
-    if (is404.value) return;
-
-    if (content.value && content.value._id) {
-        isLoading.value = false; // stop loading when content loaded
-    }
 });
 
 // Function to toggle bookmark for the current content
@@ -481,7 +471,6 @@ watch(
             },
         );
     },
-
     { immediate: true, deep: true },
 );
 
@@ -549,11 +538,8 @@ const selectedLanguageCode = computed(() => {
             </div>
         </template>
 
-<<<<<<< HEAD
-=======
 
 
->>>>>>> 0eea707c (Add hasPendingLogin state to manage login flow in PrivacyPolicyModal (#1155))
         <!-- Show 404 page if content is not found or not published -->
         <NotFoundPage v-if="is404" />
 
@@ -561,10 +547,7 @@ const selectedLanguageCode = computed(() => {
 
         <LoadingBar v-else-if="isLoading" />
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 0eea707c (Add hasPendingLogin state to manage login flow in PrivacyPolicyModal (#1155))
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div class="flex flex-grow justify-center">
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
