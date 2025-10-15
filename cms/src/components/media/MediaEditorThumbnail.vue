@@ -136,37 +136,6 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-/* Specifies the size of the audio container */
-audio {
-    width: 140px;
-    height: 65px;
-}
-
-audio::-webkit-media-controls-panel {
-    -webkit-justify-content: center;
-    height: 25px;
-}
-
-/* Removes the timeline */
-audio::-webkit-media-controls-timeline {
-    display: none !important;
-}
-
-/* Removes the time stamp */
-audio::-webkit-media-controls-current-time-display {
-    display: none;
-}
-audio::-webkit-media-controls-time-remaining-display {
-    display: none;
-}
-
-/* Play button css */
-audio::-webkit-media-controls-play-button {
-    margin-right: 10px;
-}
-</style>
-
 <template>
     <div :class="$attrs.class">
         <!-- Existing uploaded media (custom hover + click playback UI) -->
