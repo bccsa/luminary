@@ -296,6 +296,32 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("renders language selectors in correct places", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: "Language-selector-id",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
+        });
+
+        const placeholderSelector = wrapper.find("[data-test='placeholder-language-selector']");
+
+        await waitForExpect(() => {
+            expect(placeholderSelector.exists()).toBe(true);
+        });
+
+        const mainSelector = wrapper.find("[data-test='language-selector']");
+
+        await waitForExpect(() => {
+            expect(mainSelector.exists()).toBe(true);
+        });
+    });
+
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {
