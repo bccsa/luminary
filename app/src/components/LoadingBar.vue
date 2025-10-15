@@ -1,11 +1,11 @@
-<!-- <template>
+<template>
     <div class="flex w-full items-center justify-center py-6">
         <div class="relative h-3 w-full overflow-hidden rounded-full bg-zinc-200 shadow-inner">
-           
+            <!-- police progress -->
             <div class="absolute left-0 top-0 h-full rounded-full bg-zinc-500 transition-all duration-500 ease-out"
                 :style="{ width: progress + '%' }"></div>
 
-           
+            <!-- progress animation -->
             <div v-if="progress < 100"
                 class="absolute top-0 left-0 h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent">
             </div>
@@ -47,12 +47,4 @@ onMounted(() => {
 .animate-shimmer {
     animation: shimmer 1.5s infinite linear;
 }
-</style> -->
-
-<template>
-    <div class="relative h-3 w-1/2 overflow-hidden rounded-full bg-zinc-200">
-        <div class="absolute left-0 top-0 h-full animate-loading-bar bg-zinc-500">
-
-        </div>
-    </div>
-</template>
+</style>
