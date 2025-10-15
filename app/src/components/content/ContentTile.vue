@@ -41,12 +41,12 @@ function formatDuration(seconds: number): string {
 const durationText = ref("");
 const hasProgress = ref(false);
 
-if (props.content.parentMedia?.hlsUrl) {
+if (props.content.video) {
     const allMedia = localStorage.getItem("mediaProgress");
 
     if (allMedia) {
-        const mediaProgress = getMediaProgress(props.content.parentMedia.hlsUrl, props.content._id);
-        const mediaDuration = getMediaDuration(props.content.parentMedia.hlsUrl, props.content._id);
+        const mediaProgress = getMediaProgress(props.content.video, props.content._id);
+        const mediaDuration = getMediaDuration(props.content.video, props.content._id);
 
         if (mediaProgress > 0 && mediaDuration > 0) {
             hasProgress.value = true;
@@ -99,7 +99,7 @@ if (props.content.parentMedia?.hlsUrl) {
                         <!-- Play Icon (Only if content has a video and titlePosition is not center) -->
                         <div v-if="titlePosition !== 'center'">
                             <div
-                                v-if="content.parentMedia?.hlsUrl"
+                                v-if="content.video"
                                 class="absolute inset-0 flex items-center justify-center rounded-lg"
                             >
                                 <PlayIcon
@@ -107,7 +107,7 @@ if (props.content.parentMedia?.hlsUrl) {
                                 />
                             </div>
                             <div
-                                v-if="content.parentMedia?.hlsUrl"
+                                v-if="content.video"
                                 class="absolute inset-0 flex items-center justify-center rounded-lg"
                             >
                                 <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
@@ -129,7 +129,7 @@ if (props.content.parentMedia?.hlsUrl) {
 
                         <!-- Bottom overlay: progress bar + duration on same line -->
                         <div
-                            v-if="showProgress && content.parentMedia?.hlsUrl && hasProgress"
+                            v-if="showProgress && content.video && hasProgress"
                             class="absolute bottom-2 left-0 right-0 z-10 mx-1 rounded-md bg-black/50 px-1"
                         >
                             <div class="flex h-4 w-full items-center gap-2">
