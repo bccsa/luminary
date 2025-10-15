@@ -372,8 +372,6 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
-// --- Force language from query param (takes priority over all other language selection) ---
-const langToForce = queryParams.get("langId");
 
 const langToForce = queryParams.get("lang");
 // If lang query param is set, force that language if available
