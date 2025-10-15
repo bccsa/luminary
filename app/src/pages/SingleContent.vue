@@ -376,7 +376,6 @@ const selectedCategory = computed(() => {
 // --- Force language from query param (takes priority over all other language selection) ---
 const langToForce = queryParams.get("langId");
 
-const langToForce = queryParams.get("lang");
 // If lang query param is set, force that language if available
 watch([availableTranslations, languages], () => {
     if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
