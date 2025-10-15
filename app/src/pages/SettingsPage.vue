@@ -4,7 +4,7 @@ import LCard from "@/components/common/LCard.vue";
 import { db, getRest, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
-import { getDeviceInfo } from "@/globalConfig";
+import { getDeviceInfo } from "@/globalConfigOld";
 import BasePage from "@/components/BasePage.vue";
 
 const { t } = useI18n();

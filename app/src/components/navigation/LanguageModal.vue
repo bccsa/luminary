@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import LModal from "../form/LModal.vue";
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
@@ -83,45 +83,24 @@ const removeFromSelected = (id: string) => {
 </script>
 
 <template>
-    <LModal
-        name="lModal-languages"
-        class="flex flex-col"
-        :heading="t('language.modal.title')"
-        :is-visible="isVisible"
-        @close="emit('close')"
-    >
-        <transition-group
-            name="language"
-            tag="div"
-            class="divide-y divide-zinc-200 dark:divide-slate-600"
+    <LModal name="lModal-languages" class="flex flex-col" :heading="t('language.modal.title')" :is-visible="isVisible"
+        @close="emit('close')">
+        <transition-group name="language" tag="div" class="divide-y divide-zinc-200 dark:divide-slate-600"
             enter-active-class="transition duration-100 ease-in-out"
-            enter-from-class="opacity-0 transform -translate-y-2"
-            enter-to-class="opacity-100 transform translate-y-0"
+            enter-from-class="opacity-0 transform -translate-y-2" enter-to-class="opacity-100 transform translate-y-0"
             leave-active-class="transition duration-100 ease-in-out"
-            leave-from-class="opacity-100 transform translate-y-0"
-            leave-to-class="opacity-0 transform translate-y-2"
-            move-class="transition duration-100 ease-in-out"
-        >
-            <div
-                v-for="language in languagesSelected"
-                :id="language._id"
-                :key="language._id"
-                class="flex w-full items-center p-3"
-            >
+            leave-from-class="opacity-100 transform translate-y-0" leave-to-class="opacity-0 transform translate-y-2"
+            move-class="transition duration-100 ease-in-out">
+            <div v-for="language in languagesSelected" :id="language._id" :key="language._id"
+                class="flex w-full items-center p-3">
                 <div class="flex w-full justify-between">
-                    <div
-                        class="flex w-full cursor-pointer items-center gap-1"
-                        @click="removeFromSelected(language._id)"
-                    >
-                        <CheckCircleIcon
-                            v-if="appLanguageIdsAsRef.includes(language._id)"
-                            class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400"
-                            :class="
-                                defaultLanguage?._id === language._id
-                                    ? 'cursor-auto text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
-                                    : ''
-                            "
-                        />
+                    <div class="flex w-full cursor-pointer items-center gap-1"
+                        @click="removeFromSelected(language._id)">
+                        <CheckCircleIcon v-if="appLanguageIdsAsRef.includes(language._id)"
+                            class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400" :class="defaultLanguage?._id === language._id
+                                ? 'cursor-auto text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
+                                : ''
+                                " />
                         <div class="flex w-full justify-between">
                             <div class="flex w-full items-center">
                                 <span class="text-sm">{{ language.name }}</span>
@@ -130,34 +109,24 @@ const removeFromSelected = (id: string) => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <ArrowUpIcon
-                            v-if="language._id !== appLanguageIdsAsRef[0]"
+                        <ArrowUpIcon v-if="language._id !== appLanguageIdsAsRef[0]"
                             @click="indexLanguageUp(language._id)"
-                            class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
-                        />
-                        <ArrowDownIcon
-                            v-if="
-                                language._id !== appLanguageIdsAsRef[appLanguageIdsAsRef.length - 1]
-                            "
-                            class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
-                            @click="indexLanguageDown(language._id)"
-                        />
+                            class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500" />
+                        <ArrowDownIcon v-if="
+                            language._id !== appLanguageIdsAsRef[appLanguageIdsAsRef.length - 1]
+                        " class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
+                            @click="indexLanguageDown(language._id)" />
                     </div>
                 </div>
             </div>
         </transition-group>
         <div class="divide-y divide-zinc-200 dark:divide-slate-600">
-            <div
-                v-for="language in availableLanguages"
-                :id="language._id"
-                :key="language._id"
-                class="flex w-full cursor-pointer items-center gap-1 p-3"
-                data-test="add-language-button"
-                @click="setLanguage(language._id)"
-            >
+            <div v-for="language in availableLanguages" :id="language._id" :key="language._id"
+                class="flex w-full cursor-pointer items-center gap-1 p-3" data-test="add-language-button"
+                @click="setLanguage(language._id)">
                 <PlusCircleIcon
-                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                ></PlusCircleIcon>
+                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500">
+                </PlusCircleIcon>
 
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">
@@ -167,13 +136,7 @@ const removeFromSelected = (id: string) => {
             </div>
         </div>
         <template #footer>
-            <LButton
-                variant="primary"
-                size="lg"
-                rounding="less"
-                class="w-full"
-                @click="emit('close')"
-            >
+            <LButton variant="primary" size="lg" rounding="less" class="w-full" @click="emit('close')">
                 {{ t("language.modal.close") }}
             </LButton>
         </template>

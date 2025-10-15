@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import {
     db,
     TagType,
@@ -53,22 +53,15 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
 
 <template>
     <IgnorePagePadding>
-        <h1
-            v-if="isNotTopic && contentByTopic.tagged.value.length"
-            class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200"
-        >
+        <h1 v-if="isNotTopic && contentByTopic.tagged.value.length"
+            class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200">
             {{ t("content.related_title") }}
         </h1>
         <div class="mb-2 flex max-w-full flex-wrap">
             <div class="max-w-full" ref="scrollElement">
-                <HorizontalContentTileCollection
-                    v-for="topic in contentByTopic.tagged.value"
-                    :key="topic.tag._id"
-                    :contentDocs="topic.content"
-                    :title="topic.tag.title"
-                    :summary="topic.tag.summary"
-                    :showPublishDate="false"
-                />
+                <HorizontalContentTileCollection v-for="topic in contentByTopic.tagged.value" :key="topic.tag._id"
+                    :contentDocs="topic.content" :title="topic.tag.title" :summary="topic.tag.summary"
+                    :showPublishDate="false" />
             </div>
         </div>
     </IgnorePagePadding>

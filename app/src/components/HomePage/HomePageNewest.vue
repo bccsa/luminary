@@ -2,7 +2,7 @@
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { watch } from "vue";
 import { type ContentDto, DocType, PostType, TagType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
 import { useI18n } from "vue-i18n";
@@ -38,10 +38,6 @@ watch(newest10Content, async (value) => {
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        :contentDocs="newest10Content"
-        :title="t('home.newest')"
-        :showPublishDate="true"
-        class="pb-1 pt-4"
-    />
+    <HorizontalContentTileCollection :contentDocs="newest10Content" :title="t('home.newest')" :showPublishDate="true"
+        class="pb-1 pt-4" />
 </template>

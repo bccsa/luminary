@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
 import { contentByTag } from "../contentByTag";
@@ -67,23 +67,10 @@ const topicsByCategory = contentByTag(topics, categories, { includeUntagged: tru
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        v-for="(c, index) in topicsByCategory.tagged.value"
-        :key="c.tag._id"
-        :contentDocs="c.content"
-        :title="c.tag.title"
-        aspectRatio="classic"
-        contentTitlePosition="center"
-        :summary="c.tag.summary"
-        class="pb-1"
-        :class="index == 0 ? 'pt-4' : 'pt-2'"
-    />
-    <HorizontalContentTileCollection
-        v-if="topicsByCategory.untagged.value.length"
-        :contentDocs="topicsByCategory.untagged.value"
-        :title="t('explore.other')"
-        aspectRatio="classic"
-        contentTitlePosition="center"
-        class="pb-1 pt-2"
-    />
+    <HorizontalContentTileCollection v-for="(c, index) in topicsByCategory.tagged.value" :key="c.tag._id"
+        :contentDocs="c.content" :title="c.tag.title" aspectRatio="classic" contentTitlePosition="center"
+        :summary="c.tag.summary" class="pb-1" :class="index == 0 ? 'pt-4' : 'pt-2'" />
+    <HorizontalContentTileCollection v-if="topicsByCategory.untagged.value.length"
+        :contentDocs="topicsByCategory.untagged.value" :title="t('explore.other')" aspectRatio="classic"
+        contentTitlePosition="center" class="pb-1 pt-2" />
 </template>

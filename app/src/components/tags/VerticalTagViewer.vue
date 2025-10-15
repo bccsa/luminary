@@ -3,7 +3,7 @@ import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "lumin
 import { toRef } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { isPublished } from "@/util/isPublished";
 import { DateTime } from "luxon";
 
@@ -39,30 +39,19 @@ const tagged = useDexieLiveQueryWithDeps(
 <template>
     <div>
         <div>
-            <RouterLink
-                v-for="content in tagged"
-                :key="content._id"
-                :to="{
-                    name: 'content',
-                    params: { slug: content.slug },
-                }"
-            >
-                <div
-                    class="flex items-center space-x-4 border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
+            <RouterLink v-for="content in tagged" :key="content._id" :to="{
+                name: 'content',
+                params: { slug: content.slug },
+            }">
+                <div class="flex items-center space-x-4 border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
                     :class="{
                         ' border-l-4 border-yellow-500 bg-yellow-100/50  dark:border-yellow-800 dark:bg-yellow-100/10':
                             isContentSelected(content.slug),
-                    }"
-                >
+                    }">
                     <div class="flex items-center">
                         <div class="relative overflow-hidden rounded">
-                            <LImage
-                                v-if="content.parentId"
-                                :contentParentId="content.parentId"
-                                :image="content.parentImageData"
-                                aspectRatio="video"
-                                size="small"
-                            />
+                            <LImage v-if="content.parentId" :contentParentId="content.parentId"
+                                :image="content.parentImageData" aspectRatio="video" size="small" />
                         </div>
                     </div>
                     <div class="ml-2 w-2/3">
@@ -75,8 +64,8 @@ const tagged = useDexieLiveQueryWithDeps(
                             {{
                                 content.publishDate
                                     ? db
-                                          .toDateTime(content.publishDate)
-                                          .toLocaleString(DateTime.DATETIME_MED)
+                                        .toDateTime(content.publishDate)
+                                        .toLocaleString(DateTime.DATETIME_MED)
                                     : ""
                             }}
                         </div>
