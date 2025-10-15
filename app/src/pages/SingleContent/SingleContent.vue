@@ -663,7 +663,7 @@ const playAudio = () => {
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer
-                            v-if="content && content.parentMedia?.hlsUrl"
+                            v-if="content && content.video"
                             :content="content"
                             :language="selectedLanguageCode"
                         />
