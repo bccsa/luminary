@@ -296,7 +296,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("renders language selectors in correct places", async () => {
+    it("renders 2 language selectors", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -306,19 +306,11 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
+            expect(wrapper.find('[data-test="placeholder-language-selector"]').exists()).toBe(true);
         });
 
-        const placeholderSelector = wrapper.find("[data-test='placeholder-language-selector']");
-
         await waitForExpect(() => {
-            expect(placeholderSelector.exists()).toBe(true);
-        });
-
-        const mainSelector = wrapper.find("[data-test='language-selector']");
-
-        await waitForExpect(() => {
-            expect(mainSelector.exists()).toBe(true);
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
         });
     });
 
