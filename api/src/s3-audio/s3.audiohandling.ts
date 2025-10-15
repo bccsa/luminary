@@ -113,7 +113,7 @@ export async function processMedia(
 /**
  * Validate existing audios in file collections
  */
-async function validateAudiosInContent(
+async function validateAudioInContent(
     fileCollections: any[],
     s3AudioService: S3AudioService,
     warnings: string[] = [],
@@ -291,7 +291,7 @@ async function validatAudioProcessing(
 
         //Validate existing audios if any
         if (doc && doc.fileCollections && doc.fileCollections.length > 0) {
-            await validateAudiosInContent(doc.fileCollections, s3Audio, warnings);
+            await validateAudioInContent(doc.fileCollections, s3Audio, warnings);
         }
     } catch (error) {
         warnings.push(`Audio validation failed: ${error.message}`);
