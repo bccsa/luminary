@@ -685,7 +685,11 @@ const contentActions = computed(() => {
                                         action.action();
                                         showContentActionMenuMobile = false;
                                     "
-                                    :data-test="action.name.toLowerCase() + '-button'"
+                                    :data-test="
+                                        action.name.toLowerCase() === 'duplicate'
+                                            ? 'duplicate-button'
+                                            : action.name.toLowerCase() + '-button'
+                                    "
                                     class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                                 >
                                     <component
