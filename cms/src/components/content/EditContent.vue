@@ -854,6 +854,7 @@ watch(
                                     ></LButton>
                                 </div>
                                 <LanguageSelector
+                                    data-test="placeholder-language-selector"
                                     :parent="editableParent"
                                     :content="editableContent"
                                     :languages="untranslatedLanguages"
@@ -898,6 +899,7 @@ watch(
                         </LButton>
 
                         <LanguageSelector
+                            data-test="language-selector"
                             :parent="editableParent"
                             :content="editableContent"
                             :languages="untranslatedLanguages"
