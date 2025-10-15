@@ -154,7 +154,7 @@ async function processMediaUploadSafe(
 
         const promises: Promise<any>[] = [];
 
-        await validatAudioProcessing(media, s3Audio, warnings);
+        await validateAudioUpload(media, s3Audio, warnings);
 
         // For now we only process and upload the original audio as a single "default" quality.
         // If we later add transcoding, we can push multiple qualities here (e.g., 64k, 128k, 192k).
@@ -231,7 +231,7 @@ async function validateSingleAudio(
 /**
  * Validate media prosessing without failing document validation
  */
-async function validatAudioProcessing(
+async function validateAudioUpload(
     doc: any,
     s3Audio: S3AudioService,
     warnings: string[],
