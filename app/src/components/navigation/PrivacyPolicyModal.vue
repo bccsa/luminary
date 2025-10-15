@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfigOld";
 import { useNotificationStore } from "@/stores/notification";
 import { ShieldCheckIcon } from "@heroicons/vue/24/outline";
 import { db, useDexieLiveQuery, type ContentDto } from "luminary-shared";
@@ -161,28 +161,28 @@ setTimeout(() => {
                                 ),
                                 // Log Out Button (shown only for authenticated users when status is outdated and previously accepted)
                                 status === "outdated" &&
-                                userPreferencesAsRef.value.privacyPolicy?.status === "accepted" &&
-                                isAuthenticated.value
+                                    userPreferencesAsRef.value.privacyPolicy?.status === "accepted" &&
+                                    isAuthenticated.value
                                     ? h(
-                                          LButton,
-                                          {
-                                              variant: "secondary",
-                                              name: "deny",
-                                              onClick: () => {
-                                                  userPreferencesAsRef.value.privacyPolicy =
-                                                      undefined;
-                                                  logout({
-                                                      logoutParams: {
-                                                          returnTo: window.location.origin,
-                                                      },
-                                                  });
-                                                  useNotificationStore().removeNotification(
-                                                      "privacy-policy-banner",
-                                                  );
-                                              },
-                                          },
-                                          () => t("privacy_policy.modal.button_logOut"),
-                                      )
+                                        LButton,
+                                        {
+                                            variant: "secondary",
+                                            name: "deny",
+                                            onClick: () => {
+                                                userPreferencesAsRef.value.privacyPolicy =
+                                                    undefined;
+                                                logout({
+                                                    logoutParams: {
+                                                        returnTo: window.location.origin,
+                                                    },
+                                                });
+                                                useNotificationStore().removeNotification(
+                                                    "privacy-policy-banner",
+                                                );
+                                            },
+                                        },
+                                        () => t("privacy_policy.modal.button_logOut"),
+                                    )
                                     : null,
                                 // More Info Button
                                 h(
@@ -214,76 +214,55 @@ setTimeout(() => {
 </script>
 
 <template>
-    <LModal
-        :isVisible="show || false"
-        :heading="t('privacy_policy.modal.title')"
-        @close="show = false"
-    >
+    <LModal :isVisible="show || false" :heading="t('privacy_policy.modal.title')" @close="show = false">
         <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">{{ modalMessageMap[status] }}</p>
 
         <p class="pt-1 italic text-gray-700 dark:text-slate-300"></p>
 
         <template #footer>
             <div class="flex justify-end space-x-2">
-                <LButton
-                    v-if="
-                        !userPreferencesAsRef.privacyPolicy?.status ||
-                        status === 'outdated' ||
-                        status === 'necessaryOnly' ||
-                        (userPreferencesAsRef.privacyPolicy?.status !== 'accepted' &&
-                            !isAuthenticated)
-                    "
-                    variant="primary"
-                    name="accept"
-                    @click="
-                        userPreferencesAsRef.privacyPolicy = {
-                            status: 'accepted',
-                            ts: Date.now(),
-                        };
-                        show = false;
-                    "
-                >
+                <LButton v-if="
+                    !userPreferencesAsRef.privacyPolicy?.status ||
+                    status === 'outdated' ||
+                    status === 'necessaryOnly' ||
+                    (userPreferencesAsRef.privacyPolicy?.status !== 'accepted' &&
+                        !isAuthenticated)
+                " variant="primary" name="accept" @click="
+                    userPreferencesAsRef.privacyPolicy = {
+                        status: 'accepted',
+                        ts: Date.now(),
+                    };
+                show = false;
+                ">
                     {{ t("privacy_policy.modal.button_accept") }}
                 </LButton>
 
-                <LButton
-                    v-if="
-                        status === 'outdated' &&
-                        userPreferencesAsRef.privacyPolicy?.status === 'accepted' &&
-                        isAuthenticated
-                    "
-                    @click="
-                        userPreferencesAsRef.privacyPolicy = undefined;
-                        logout();
-                        useNotificationStore().removeNotification('privacy-policy-banner');
-                        show = false;
-                    "
-                >
+                <LButton v-if="
+                    status === 'outdated' &&
+                    userPreferencesAsRef.privacyPolicy?.status === 'accepted' &&
+                    isAuthenticated
+                " @click="
+                    userPreferencesAsRef.privacyPolicy = undefined;
+                logout();
+                useNotificationStore().removeNotification('privacy-policy-banner');
+                show = false;
+                ">
                     {{ t("privacy_policy.modal.button_logOut") }}
                 </LButton>
 
-                <LButton
-                    v-if="necessaryOnlyLogic"
-                    variant="secondary"
-                    name="necessary-only"
-                    @click="
-                        userPreferencesAsRef.privacyPolicy = {
-                            status: 'necessaryOnly',
-                            ts: Date.now(),
-                        };
-                        show = false;
-                    "
-                >
+                <LButton v-if="necessaryOnlyLogic" variant="secondary" name="necessary-only" @click="
+                    userPreferencesAsRef.privacyPolicy = {
+                        status: 'necessaryOnly',
+                        ts: Date.now(),
+                    };
+                show = false;
+                ">
                     {{ t("privacy_policy.modal.button_necessaryOnly") }}
                 </LButton>
-                <LButton
-                    variant="secondary"
-                    name="more-info"
-                    @click="
-                        router.push({ name: 'content', params: { slug: 'privacy-policy' } });
-                        show = false;
-                    "
-                >
+                <LButton variant="secondary" name="more-info" @click="
+                    router.push({ name: 'content', params: { slug: 'privacy-policy' } });
+                show = false;
+                ">
                     {{ t("privacy_policy.modal.button_readMore") }}
                 </LButton>
             </div>

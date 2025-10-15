@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { firstLanguageSupported } from "@/util/firstSupportedLanguage";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -45,10 +45,8 @@ const copyrightContent = computed(() => {
 
 <template>
     <div>
-        <div
-            v-if="copyrightContent"
-            v-html="copyrightContent"
-            class="text-md prose prose-zinc max-w-full border-t-zinc-100/25 bg-zinc-100/50 px-4 py-2 dark:prose-invert dark:border-t-slate-700/50 dark:bg-slate-800/50"
-        ></div>
+        <div v-if="copyrightContent" v-html="copyrightContent"
+            class="text-md prose prose-zinc max-w-full border-t-zinc-100/25 bg-zinc-100/50 px-4 py-2 dark:prose-invert dark:border-t-slate-700/50 dark:bg-slate-800/50">
+        </div>
     </div>
 </template>

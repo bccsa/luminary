@@ -2,7 +2,7 @@
 // Import required components and modules
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { type ContentDto, DocType, db, PostType, TagType, type Uuid } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
 import { useI18n } from "vue-i18n";
@@ -81,12 +81,6 @@ const watchedContent = useDexieLiveQueryWithDeps(
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        v-if="watchedContent.length > 0"
-        :contentDocs="watchedContent"
-        :title="t('home.continue')"
-        :showPublishDate="true"
-        :showProgress="true"
-        class="pb-1 pt-4"
-    />
+    <HorizontalContentTileCollection v-if="watchedContent.length > 0" :contentDocs="watchedContent"
+        :title="t('home.continue')" :showPublishDate="true" :showProgress="true" class="pb-1 pt-4" />
 </template>

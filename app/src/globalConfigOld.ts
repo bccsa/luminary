@@ -1,5 +1,5 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, toRaw, watchEffect } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import { isEqual } from "lodash-es";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
@@ -54,6 +54,19 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
+// Save the preferred languages to local storage
+// Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
+// to test as mocking localStorage is not working very well. For this reason
+// we are using a watcher so that we can use the ref directly and test it easily
+// without interactions with localStorage (which we choose to ignore for now in testing).
+watch(
+    appLanguageIdsAsRef,
+    (newVal) => {
+        localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
+    },
+    { deep: true },
+);
+
 /**
  * The list of user selected languages sorted by preference as Vue ref.
  */
@@ -77,6 +90,12 @@ export const appLanguagePreferredIdAsRef = computed(() =>
  * The preferred language document as Vue ref.
  */
 export const appLanguageAsRef = ref<LanguageDto | undefined>();
+watch(appLanguagesPreferredAsRef, (newVal) => {
+    if (!newVal || !newVal.length) return;
+    // Prevent updating the value if the language is the same
+    if (isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
+    appLanguageAsRef.value = newVal[0];
+});
 
 /**
  * The default language document as Vue ref.
@@ -84,32 +103,10 @@ export const appLanguageAsRef = ref<LanguageDto | undefined>();
 export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
 
 /**
- * Detects the browser's preferred language from the list of available languages.
- * Uses a more flexible matching approach that handles language variants (e.g., en-US → en).
- */
-const detectBrowserLanguage = (languages: LanguageDto[]): LanguageDto | undefined => {
-    return languages.find((lang) => {
-        const languageCode = lang.languageCode.toLowerCase();
-        return navigator.languages.some((browserLang) =>
-            browserLang.toLowerCase().startsWith(languageCode),
-        );
-    });
-};
-
-/**
- * Filters language IDs to only include those that exist in the CMS languages list.
- */
-const filterValidLanguageIds = (ids: string[], languages: LanguageDto[]): string[] => {
-    return ids.filter((id) => languages.some((lang) => lang._id === id));
-};
-
-/**
  * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
  */
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
-        let hasResolved = false;
-
         const _cmsLanguages = useDexieLiveQuery(
             async () =>
                 (await db.docs
@@ -118,80 +115,76 @@ export const initLanguage = () => {
                     .toArray()) as unknown as Promise<LanguageDto[]>,
             { initialValue: [] },
         );
+        watch(
+            _cmsLanguages,
+            (newVal) => {
+                cmsLanguages.value.slice(0, cmsLanguages.value.length);
+                cmsLanguages.value.push(...newVal);
 
-        /**
-         *  Single watchEffect to handle all language-related logic
-         * This consolidates multiple watchers into one, reducing cascading updates
-         * and improving startup performance.
-         */
-        watchEffect(() => {
-            const languages = _cmsLanguages.value;
+                const defaultLang = newVal.find((l) => l.default === 1);
 
-            // Wait for languages to be loaded from DB
-            if (!languages || languages.length === 0) return;
+                // Prevent updating the value if the language is the same
+                if (isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
-            //  Update cmsLanguages ref (only if changed)
-            if (!isEqual(toRaw(cmsLanguages.value), languages)) {
-                cmsLanguages.value = languages;
-            }
-
-            //  Update default language (only if changed)
-            const defaultLang = languages.find((l) => l.default === 1);
-            if (!isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) {
                 cmsDefaultLanguage.value = defaultLang;
-            }
+            },
+            { deep: true },
+        );
 
-            //  Filter out invalid language IDs
-            let currentLanguageIds = [...appLanguageIdsAsRef.value];
-            const validLanguageIds = filterValidLanguageIds(currentLanguageIds, languages);
+        // Set the preferred language to the preferred language returned by the browser if it is not set
+        // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
+        if (appLanguageIdsAsRef.value.length > 0) resolve();
 
-            //  If no languages selected, try to detect browser preferred language
-            if (validLanguageIds.length === 0) {
-                const browserPreferredLanguage = detectBrowserLanguage(languages);
+        const unwatchCmsLanguages = watch(
+            cmsLanguages,
+            (_languages) => {
+                if (!_languages || _languages.length == 0) return;
+                if (!appLanguageIdsAsRef.value) return;
 
-                if (browserPreferredLanguage) {
-                    validLanguageIds.push(browserPreferredLanguage._id);
+                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => {
+                    if (_languages.find((lang) => id == lang._id)) {
+                        return true;
+                    }
+                    return false;
+                });
+
+                // Check for the browser preferred language in the list of available content languages
+                const browserPreferredLanguageId = _languages.find((l) =>
+                    navigator.languages.includes(l.languageCode),
+                )?._id;
+
+                // If a browser preferred language exists, set it if the ordering has not
+                // already been changed by the user.
+                if (browserPreferredLanguageId && appLanguageIdsAsRef.value.length == 0) {
+                    unwatchCmsLanguages();
+                    //Set the default language of the app
+                    appLanguageIdsAsRef.value = [
+                        browserPreferredLanguageId,
+                        ...appLanguageIdsAsRef.value.filter(
+                            (l) => l !== browserPreferredLanguageId,
+                        ),
+                    ];
+                    resolve();
                 }
-            }
 
-            //  Add CMS default language if not already in the list
-            if (defaultLang && !validLanguageIds.includes(defaultLang._id)) {
-                validLanguageIds.push(defaultLang._id);
-            }
+                // Find the CMS defined default language
+                const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
 
-            //  Update appLanguageIdsAsRef and localStorage (only if changed)
-            if (!isEqual(appLanguageIdsAsRef.value, validLanguageIds)) {
-                appLanguageIdsAsRef.value = validLanguageIds;
-                localStorage.setItem(
-                    "languages",
-                    JSON.stringify(validLanguageIds.filter((id) => id != null)),
-                );
-            }
+                // Add the CMS defined default language to the list of preferred languages if it is not already there
+                if (
+                    cmsDefaultLanguage &&
+                    !appLanguageIdsAsRef.value.includes(cmsDefaultLanguage._id)
+                ) {
+                    appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
+                }
 
-            //  Resolve promise once on first successful initialization
-            if (!hasResolved) {
-                hasResolved = true;
+                unwatchCmsLanguages();
                 resolve();
-            }
-        });
+            },
+            { deep: true },
+        );
     });
 };
-
-/**
- *  Consolidated watchEffect for language preferences and localStorage sync
- * Handles both updating the preferred language and saving to localStorage
- */
-watchEffect(() => {
-    const preferredLanguages = appLanguagesPreferredAsRef.value;
-
-    if (preferredLanguages && preferredLanguages.length > 0) {
-        // Update preferred language (only if changed)
-        const newPreferredLang = preferredLanguages[0];
-        if (!isEqual(toRaw(appLanguageAsRef.value), toRaw(newPreferredLang))) {
-            appLanguageAsRef.value = newPreferredLang;
-        }
-    }
-});
 
 export type mediaProgressEntry = {
     mediaId: string;
@@ -293,20 +286,8 @@ export type UserPreferences = {
 export const userPreferencesAsRef = ref(
     JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
 );
-
-/**
- *  Watch user preferences and sync to localStorage
- * Using watchEffect for automatic dependency tracking
- */
-watchEffect(() => {
-    const prefs = userPreferencesAsRef.value;
-    const serialized = JSON.stringify(prefs);
-    const stored = localStorage.getItem("userPreferences");
-
-    // Only update localStorage if the value actually changed
-    if (serialized !== stored) {
-        localStorage.setItem("userPreferences", serialized);
-    }
+watch(userPreferencesAsRef.value, (newVal) => {
+    localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
 
 /**
@@ -335,26 +316,25 @@ export const theme = computed<"system" | "dark" | "light">({
  */
 export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
 
-/**
- *  Consolidated theme watcher
- * Handles theme changes and updates the document class
- */
-watchEffect(() => {
-    const t = theme.value;
-
-    if (t === "system") {
-        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+// Watch the theme and apply to the document's CSS classes
+watch(
+    theme,
+    (t) => {
+        if (t === "system") {
+            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+        } else if (t === "dark") {
             document.documentElement.classList.add("dark");
         } else {
             document.documentElement.classList.remove("dark");
         }
-    } else if (t === "dark") {
-        document.documentElement.classList.add("dark");
-    } else {
-        document.documentElement.classList.remove("dark");
-    }
 
-    isDarkTheme.value = document.documentElement.classList.contains("dark");
-});
+        isDarkTheme.value = document.documentElement.classList.contains("dark");
+    },
+    { immediate: true },
+);
 
 export const fallbackImageUrls = loadFallbackImageUrls();

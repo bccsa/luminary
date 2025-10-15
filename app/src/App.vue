@@ -2,7 +2,7 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watchEffect } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { userPreferencesAsRef } from "./globalConfigOld";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -24,7 +24,7 @@ const {
 } = useAuthWithPrivacyPolicy();
 
 /**
- * ✅ Un seul watchEffect pour gérer connexion + auth + privacy policy
+ * ✅ One watchEffect for connexion + auth + privacy policy
  */
 watchEffect(() => {
     // 🕵️ Privacy Policy acceptance

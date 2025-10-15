@@ -13,7 +13,7 @@ import {
     removeMediaProgress,
     setMediaProgress,
     queryParams,
-} from "@/globalConfig";
+} from "@/globalConfigOld";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 
 type Props = {
@@ -423,23 +423,12 @@ watch(
 
 <template>
     <div class="relative bg-transparent md:rounded-lg">
-        <LImage
-            :image="content.parentImageData"
-            aspectRatio="video"
-            size="post"
-            :content-parent-id="content.parentId"
-        />
+        <LImage :image="content.parentImageData" aspectRatio="video" size="post"
+            :content-parent-id="content.parentId" />
 
         <div class="video-player absolute bottom-0 left-0 right-0 top-0">
-            <video
-                playsinline
-                ref="playerElement"
-                class="video-js h-full w-full md:rounded-lg"
-                controls
-                preload="auto"
-                data-setup="{}"
-                v-bind:data-matomo-title="props.content.title"
-            ></video>
+            <video playsinline ref="playerElement" class="video-js h-full w-full md:rounded-lg" controls preload="auto"
+                data-setup="{}" v-bind:data-matomo-title="props.content.title"></video>
         </div>
 
         <!-- audio tag to keep player alive -->
@@ -447,20 +436,11 @@ watch(
             <source src="../../assets/silence.wav" type="audio/wav" />
         </audio>
 
-        <transition
-            leave-active-class="transition ease-in duration-500"
-            leave-from-class="opacity-100"
-            enter-to-class="opacity-100"
-            enter-active-class="transition ease-out duration-100"
-            leave-to-class="opacity-0"
-            enter-from-class="opacity-0"
-        >
-            <AudioVideoToggle
-                v-if="showAudioModeToggle"
-                v-model="audioMode"
-                ref="audioModeToggle"
-                class="audio-mode-toggle"
-            ></AudioVideoToggle>
+        <transition leave-active-class="transition ease-in duration-500" leave-from-class="opacity-100"
+            enter-to-class="opacity-100" enter-active-class="transition ease-out duration-100"
+            leave-to-class="opacity-0" enter-from-class="opacity-0">
+            <AudioVideoToggle v-if="showAudioModeToggle" v-model="audioMode" ref="audioModeToggle"
+                class="audio-mode-toggle"></AudioVideoToggle>
         </transition>
     </div>
 </template>

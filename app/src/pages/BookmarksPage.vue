@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfigOld";
 import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
 import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
@@ -47,16 +47,13 @@ const sorted = computed(
             {{ t("bookmarks.title") }}
         </h1>
         <div class="flex flex-wrap gap-4">
-            <ContentTile
-                v-for="content in sorted"
-                :key="content._id"
-                :content="content"
-                class="flex w-auto justify-start"
-            />
+            <ContentTile v-for="content in sorted" :key="content._id" :content="content"
+                class="flex w-auto justify-start" />
         </div>
         <div v-if="!content.length" class="text-zinc-500 dark:text-slate-200">
-            {{ t("bookmarks.empty_page") }} "<BookmarkIcon class="inline h-5 w-5" />"
+            {{ t("bookmarks.empty_page") }} "
+            <BookmarkIcon class="inline h-5 w-5" />"
         </div>
-</BasePage>
-        
+    </BasePage>
+
 </template>

@@ -1,6 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { computed, ref } from "vue";
-import { userPreferencesAsRef } from "@/globalConfig";
+import { userPreferencesAsRef } from "@/globalConfigOld";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);

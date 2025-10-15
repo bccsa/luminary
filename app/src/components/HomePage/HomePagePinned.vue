@@ -10,7 +10,7 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
@@ -71,17 +71,10 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        v-for="(c, index) in pinnedContentByCategory.tagged.value"
-        :key="c.tag._id"
-        :contentDocs="c.content"
-        :title="c.tag.title"
-        :summary="c.tag.summary"
-        :showPublishDate="false"
-        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
-        :class="[
+    <HorizontalContentTileCollection v-for="(c, index) in pinnedContentByCategory.tagged.value" :key="c.tag._id"
+        :contentDocs="c.content" :title="c.tag.title" :summary="c.tag.summary" :showPublishDate="false"
+        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5" :class="[
             index == 0 ? 'pt-4' : 'pt-2',
             index == pinnedContentByCategory.tagged.value.length - 1 ? 'pb-3' : '',
-        ]"
-    />
+        ]" />
 </template>

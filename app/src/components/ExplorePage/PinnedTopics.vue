@@ -9,7 +9,7 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfigOld";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
@@ -75,19 +75,10 @@ const topicsByCategory = contentByTag(topics, categories);
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        v-for="(c, index) in topicsByCategory.tagged.value"
-        :key="c.tag._id"
-        :contentDocs="c.content"
-        :title="c.tag.title"
-        aspectRatio="classic"
-        contentTitlePosition="center"
-        :summary="c.tag.summary"
-        :showPublishDate="false"
-        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
-        :class="[
+    <HorizontalContentTileCollection v-for="(c, index) in topicsByCategory.tagged.value" :key="c.tag._id"
+        :contentDocs="c.content" :title="c.tag.title" aspectRatio="classic" contentTitlePosition="center"
+        :summary="c.tag.summary" :showPublishDate="false" class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5" :class="[
             index == 0 ? 'pt-4' : 'pt-2',
             index == topicsByCategory.tagged.value.length - 1 ? 'pb-4' : '',
-        ]"
-    />
+        ]" />
 </template>

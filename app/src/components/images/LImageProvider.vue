@@ -21,7 +21,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
+import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfigOld";
 import {
     isConnected,
     type ContentDto,
@@ -159,8 +159,8 @@ const srcset1 = computed(() => {
     const collectionsToUse = props.isModal
         ? filteredFileCollections.value
         : filteredFileCollections.value.filter(
-              (collection) => collection.aspectRatio == closestAspectRatio.value,
-          );
+            (collection) => collection.aspectRatio == closestAspectRatio.value,
+        );
 
     return collectionsToUse
         .map((collection) => {
@@ -254,67 +254,28 @@ const modalSrcset = computed(() => {
 
 <template>
     <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
-    <img
-        v-if="isModal && modalSrc"
-        :src="modalSrc"
-        :srcset="modalSrcset || undefined"
-        :alt="''"
-        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
-        draggable="false"
-        data-test="image-element1"
-    />
-    <img
-        v-else-if="isModal && !modalSrc && fallbackImageUrl"
-        :src="fallbackImageUrl"
-        :alt="''"
-        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
-        draggable="false"
-        data-test="image-element1"
-    />
+    <img v-if="isModal && modalSrc" :src="modalSrc" :srcset="modalSrcset || undefined" :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain" draggable="false"
+        data-test="image-element1" />
+    <img v-else-if="isModal && !modalSrc && fallbackImageUrl" :src="fallbackImageUrl" :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain" draggable="false"
+        data-test="image-element1" />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
-    <img
-        v-else-if="srcset1 && showImageElement1"
-        :srcset="srcset1"
-        :class="[
-            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
-            !isModal && sizes[size],
-            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
-        ]"
-        alt=""
-        data-test="image-element1"
-        loading="lazy"
-        @error="imageElement1Error = true"
-        draggable="false"
-    />
+    <img v-else-if="srcset1 && showImageElement1" :srcset="srcset1" :class="[
+        !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+        !isModal && sizes[size],
+        isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
+    ]" alt="" data-test="image-element1" loading="lazy" @error="imageElement1Error = true" draggable="false" />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
-    <img
-        v-else-if="showImageElement2 && srcset2"
-        src=""
-        :srcset="srcset2"
-        :class="[
-            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
-            !isModal && sizes[size],
-            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
-        ]"
-        alt=""
-        data-test="image-element2"
-        loading="lazy"
-        @error="imageElement2Error = true"
-        draggable="false"
-    />
-    <img
-        v-else
-        :src="fallbackImageUrl"
-        :class="[
-            !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
-            !isModal && sizes[size],
-            isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
-        ]"
-        alt=""
-        data-test="image-element2"
-        loading="lazy"
-        @error="imageElement2Error = true"
-        draggable="false"
-        :key="parentId"
-    />
+    <img v-else-if="showImageElement2 && srcset2" src="" :srcset="srcset2" :class="[
+        !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+        !isModal && sizes[size],
+        isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
+    ]" alt="" data-test="image-element2" loading="lazy" @error="imageElement2Error = true" draggable="false" />
+    <img v-else :src="fallbackImageUrl" :class="[
+        !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
+        !isModal && sizes[size],
+        isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
+    ]" alt="" data-test="image-element2" loading="lazy" @error="imageElement2Error = true" draggable="false"
+        :key="parentId" />
 </template>
