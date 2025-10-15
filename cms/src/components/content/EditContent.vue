@@ -640,6 +640,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                     ></LButton>
                                 </div>
                                 <LanguageSelector
+                                    data-test="placeholder-language-selector"
                                     :parent="editableParent"
                                     :content="editableContent"
                                     :languages="untranslatedLanguages"
@@ -683,6 +684,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                         </LButton>
 
                         <LanguageSelector
+                            data-test="language-selector"
                             :parent="editableParent"
                             :content="editableContent"
                             :languages="untranslatedLanguages"
