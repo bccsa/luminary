@@ -126,10 +126,7 @@ describe("ContentTile", () => {
             parentImageData: {},
             publishDate: 1,
             parentPublishDateVisible: false,
-            parentMedia: {
-                hlsUrl: "sample-video.mp4",
-                fileCollections: [],
-            },
+            video: "sample-video.mp4",
         } as unknown as ContentDto;
 
         const wrapper = mount(ContentTile, {
@@ -195,10 +192,6 @@ describe("ContentTile", () => {
             parentPublishDateVisible: false,
             video: "sample-media-id",
             parentId: "post-blog1",
-            parentMedia: {
-                hlsUrl: "sample-media-id",
-                fileCollections: [],
-            },
         } as unknown as ContentDto;
 
         // Set media progress AND duration in localStorage
