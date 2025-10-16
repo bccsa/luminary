@@ -25,7 +25,6 @@ import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import LDropdown from "../common/LDropdown.vue";
-import LDialog from "../common/LDialog.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
