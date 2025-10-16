@@ -626,7 +626,7 @@ const contentActions = computed(() => {
         </template>
 
         <template #topBarActionsMobile>
-            <div class="flex items-center gap-2 lg:hidden">
+            <div class="flex items-center gap-1 lg:hidden">
                 <LButton
                     v-if="
                         isConnected && selectedContent_Existing?.status === PublishStatus.Published
