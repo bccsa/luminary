@@ -528,7 +528,6 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         </template>
 
         <template #topBarActionsMobile>
-            <<<<<<< HEAD
             <EditContentActionsWrapper
                 :revert="revertChanges"
                 :save="saveChanges"
