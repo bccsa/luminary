@@ -557,10 +557,8 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 >
                     <template #tooltip> View Live Version </template>
                 </LButton>
-                <div class="flex h-9 w-10 items-center lg:hidden">
-                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
-                        >Offline changes</LBadge
-                    >
+                <div v-if="isLocalChange" class="flex h-9 w-10 items-center lg:hidden">
+                    <LBadge class="h-full" variant="warning">Offline changes</LBadge>
                 </div>
                 <LButton variant="primary" segmented>
                     <template v-if="isDirty && !newDocument" #left>
@@ -660,10 +658,8 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     <template #tooltip> View Live Version </template>
                     View Live
                 </LButton>
-                <div class="hidden h-9 items-center gap-2 lg:flex">
-                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
-                        >Offline changes</LBadge
-                    >
+                <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
+                    <LBadge class="h-full" variant="warning">Offline changes</LBadge>
                 </div>
                 <LButton variant="primary" segmented>
                     <template v-if="isDirty && !newDocument" #left>
