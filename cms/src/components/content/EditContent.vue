@@ -557,7 +557,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 >
                     <template #tooltip> View Live Version </template>
                 </LButton>
-                <div v-if="isLocalChange" class="flex h-9 w-10 items-center lg:hidden">
+                <div v-if="isLocalChange" class="mr-1 flex h-9 w-10 items-center lg:hidden">
                     <LBadge class="h-full" variant="warning">Offline changes</LBadge>
                 </div>
                 <LButton variant="primary" segmented>
