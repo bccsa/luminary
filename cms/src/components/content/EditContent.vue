@@ -558,7 +558,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 >
                     <template #tooltip> View Live Version </template>
                 </LButton>
-                <div class="mr-4 flex h-9 w-10 items-center lg:hidden">
+                <div class="flex h-9 w-10 items-center lg:hidden">
                     <LBadge class="h-full" v-if="isLocalChange" variant="warning"
                         >Offline changes</LBadge
                     >
@@ -587,7 +587,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             placement="bottom-end"
                         >
                             <template #trigger>
-                                <EllipsisVerticalIcon
+                                <ChevronDownIcon
                                     v-if="!showContentActionMenuMobile"
                                     class="size-5"
                                 />
