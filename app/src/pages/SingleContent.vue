@@ -55,6 +55,7 @@ import {
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import LHighlightable from "@/components/common/LHighlightable.vue";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -661,14 +662,16 @@ const selectedLanguageCode = computed(() => {
                         </span>
                     </div>
 
-                    <div
-                        v-if="content.text"
-                        v-html="text"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                        :class="{
-                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"
-                    ></div>
+                    <LHighlightable>
+                        <div
+                            v-if="content.text"
+                            v-html="text"
+                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                            :class="{
+                                'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                            }"
+                        ></div>
+                    </LHighlightable>
                 </article>
             </div>
 
