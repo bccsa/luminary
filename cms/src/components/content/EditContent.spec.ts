@@ -302,6 +302,24 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("renders 2 language selectors", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: "Language-selector-id",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="placeholder-language-selector"]').exists()).toBe(true);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
+        });
+    });
+
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {
