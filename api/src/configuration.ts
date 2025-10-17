@@ -16,6 +16,7 @@ export type SyncConfig = {
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
+    s3Audio?: AudioS3Config;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
@@ -32,8 +33,18 @@ export type S3Config = {
     imageQuality: number;
 };
 
+export type AudioS3Config = {
+    endpoint: string;
+    port: number;
+    useSSL: boolean;
+    accessKey: string;
+    secretKey: string;
+    audioBucket: string;
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
+    maxMediaUploadFileSize?: number; // Optional for media uploads
 };
 
 export default () =>
@@ -60,7 +71,16 @@ export default () =>
             imageBucket: process.env.S3_IMG_BUCKET,
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as S3Config,
+        s3Audio: {
+            endpoint: process.env.S3_MEDIA_ENDPOINT,
+            port: parseInt(process.env.S3_MEDIA_PORT, 10),
+            useSSL: process.env.S3_MEDIA_USE_SSL === "true",
+            accessKey: process.env.S3_MEDIA_ACCESS_KEY,
+            secretKey: process.env.S3_MEDIA_SECRET_KEY,
+            audioBucket: process.env.S3_MEDIA_BUCKET,
+        } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
         } as SocketIoConfig,
     }) as Configuration;
