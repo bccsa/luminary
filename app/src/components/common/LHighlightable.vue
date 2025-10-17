@@ -197,7 +197,7 @@ function onSelectionChange() {
         showActions.value = true;
         actionPosition.value = {
             x: rect.left - contentRect.left,
-            y: rect.bottom - contentRect.top + 10,
+            y: rect.top - contentRect.top - 60,
         };
     } else {
         showActions.value = false;
@@ -229,7 +229,7 @@ onUnmounted(() => {
                 :style="{
                     left: actionPosition.x + 'px',
                     top: actionPosition.y + 'px',
-                    zIndex: 1000,
+                    zIndex: 9999,
                 }"
             >
                 <div v-if="showHighlightColors">
