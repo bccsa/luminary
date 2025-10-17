@@ -155,13 +155,13 @@ function onSelectionChange() {
 // Register the selection change listener on mount
 onMounted(() => {
     document.addEventListener("selectionchange", handleSelectionChange);
-    document.addEventListener('selectionchange', onSelectionChange);
+    document.addEventListener("selectionchange", onSelectionChange);
 });
 
 // Unregister the selection change listener on unmount
 onUnmounted(() => {
     document.removeEventListener("selectionchange", handleSelectionChange);
-    document.removeEventListener('selectionchange', onSelectionChange);
+    document.removeEventListener("selectionchange", onSelectionChange);
 });
 </script>
 
@@ -172,7 +172,7 @@ onUnmounted(() => {
             <slot></slot>
             <div
                 v-if="showActions && actionPosition"
-                class="pointer-events-auto absolute flex w-max items-center justify-center gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg max-w-[calc(100vw-20px)]"
+                class="pointer-events-auto absolute flex w-max max-w-[calc(100vw-20px)] items-center justify-center gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg"
                 :style="{
                     left: actionPosition.x + 'px',
                     top: actionPosition.y + 'px',
