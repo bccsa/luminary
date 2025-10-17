@@ -187,9 +187,19 @@ function handleSelectionChange() {
 
 function onSelectionChange() {
     const selection = window.getSelection();
-    const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
+    if (!selection) return;
+    const selText = selection.rangeCount > 0 ? selection.toString() : "";
     selectedText.value = selText;
-    if (!selText) {
+    if (selText && content.value) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const contentRect = content.value.getBoundingClientRect();
+        showActions.value = true;
+        actionPosition.value = {
+            x: rect.left - contentRect.left,
+            y: rect.bottom - contentRect.top + 10,
+        };
+    } else {
         showActions.value = false;
         actionPosition.value = null;
     }
