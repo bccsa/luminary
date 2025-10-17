@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { DocumentIcon, PencilIcon, PencilSquareIcon } from "@heroicons/vue/24/outline";
 
 const highlights = ref<{ text: string }[]>([]);
 const content = ref<HTMLElement | null>(null);
@@ -13,6 +14,11 @@ const supportedColors = {
     green: "rgba(0, 255, 0, 0.3)",
     blue: "rgba(0, 0, 255, 0.3)",
     pink: "rgba(255, 192, 203, 0.3)",
+    orange: "rgba(255, 165, 0, 0.3)",
+    purple: "rgba(128, 0, 128, 0.3)",
+    cyan: "rgba(0, 255, 255, 0.3)",
+    brown: "rgba(165, 42, 42, 0.3)",
+    teal: "rgba(0, 128, 128, 0.3)",
 };
 
 function highlightTextInDOM(color: string = "rgba(255, 255, 0, 0.3)") {
@@ -91,21 +97,25 @@ function highlightTextInDOM(color: string = "rgba(255, 255, 0, 0.3)") {
 
 function highlightSelectedText(color: string) {
     highlightTextInDOM(color);
+    showHighlightColors.value = false;
     selectedText.value = "";
     showActions.value = false;
 }
 
-function onMouseUp(event: MouseEvent) {
+function onPointerUp(event: PointerEvent) {
     const selection = window.getSelection();
     const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
     selectedText.value = selText;
     if (selText && content.value) {
         const rect = content.value.getBoundingClientRect();
         showActions.value = true;
+        // Handle both mouse and touch coordinates
+        const clientX = event.clientX || (event.touches && event.touches[0]?.clientX) || 0;
+        const clientY = event.clientY || (event.touches && event.touches[0]?.clientY) || 0;
         actionPosition.value = {
-            x: event.clientX - rect.left,
+            x: clientX - rect.left,
             // add a slightly larger vertical offset so the menu appears below the cursor/selection
-            y: event.clientY - rect.top + 16,
+            y: clientY - rect.top + 16,
         };
     } else {
         showActions.value = false;
@@ -122,40 +132,85 @@ watch(
         });
     },
 );
+
+const showHighlightColors = ref(false);
+
+// Add a global selection change listener to handle external text selections
+function handleSelectionChange() {
+    const selection = window.getSelection();
+    const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
+    selectedText.value = selText;
+}
+
+function onSelectionChange() {
+    const selection = window.getSelection();
+    const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
+    selectedText.value = selText;
+    if (!selText) {
+        showActions.value = false;
+        actionPosition.value = null;
+    }
+}
+
+// Register the selection change listener on mount
+onMounted(() => {
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener('selectionchange', onSelectionChange);
+});
+
+// Unregister the selection change listener on unmount
+onUnmounted(() => {
+    document.removeEventListener("selectionchange", handleSelectionChange);
+    document.removeEventListener('selectionchange', onSelectionChange);
+});
 </script>
 
 <template>
     <div>
         <!-- Sample text content -->
-        <div class="relative" ref="content" @mouseup="onMouseUp">
+        <div class="relative" ref="content" @pointerup="onPointerUp">
             <slot></slot>
             <div
                 v-if="showActions && actionPosition"
-                class="pointer-events-auto absolute flex w-max items-center justify-center gap-1 rounded border bg-white p-2 shadow"
+                class="pointer-events-auto absolute flex w-max items-center justify-center gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg max-w-[calc(100vw-20px)]"
                 :style="{
                     left: actionPosition.x + 'px',
                     top: actionPosition.y + 'px',
                     zIndex: 1000,
                 }"
             >
-                <button
-                    class="m-1 h-6 w-6 gap-1 rounded-full"
-                    v-for="(c, name) in supportedColors"
-                    :key="name"
-                    :style="{ backgroundColor: c }"
-                    @click="highlightSelectedText(c)"
-                ></button>
-                <!-- <div class="color-input-wrapper m-1">
-                    <input
-                        class="color-input"
-                        type="color"
-                        v-model="color"
-                        @keydown.enter="highlightSelectedText(color)"
-                        @change="highlightSelectedText(color)"
-                        :style="{ backgroundColor: color }"
-                        aria-label="custom highlight color"
-                    />
-                </div> -->
+                <div v-if="showHighlightColors">
+                    <button
+                        v-for="(c, name) in supportedColors"
+                        class="m-1 h-6 w-6 gap-1 rounded-full"
+                        :key="name"
+                        :style="{ backgroundColor: c }"
+                        @click.prevent="highlightSelectedText(c)"
+                    ></button>
+                </div>
+                <div class="flex size-max gap-1 divide-x" v-else>
+                    <button
+                        class="flex size-10 w-max flex-col items-center justify-center gap-1 px-2"
+                        @click="showHighlightColors = true"
+                    >
+                        <PencilSquareIcon class="size-10" />
+                        <span class="text-xs">Notes</span>
+                    </button>
+                    <button
+                        class="flex size-10 w-max flex-col items-center justify-center gap-1 px-2"
+                        @click="showHighlightColors = true"
+                    >
+                        <PencilIcon class="size-10" />
+                        <span class="text-xs">Highlight</span>
+                    </button>
+                    <button
+                        class="flex size-10 w-max flex-col items-center justify-center gap-1 px-2"
+                        @click="showHighlightColors = true"
+                    >
+                        <DocumentIcon class="size-10" />
+                        <span class="text-xs">Copy</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
