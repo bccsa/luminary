@@ -28,68 +28,97 @@ function highlightTextInDOM(color: string = "rgba(255, 255, 0, 0.3)") {
     const range = selection.getRangeAt(0);
     if (range.collapsed) return;
 
-    // Create a <mark> element
-    const mark = document.createElement("mark");
-    const toRgba = (c: string, defaultAlpha = 0.3) => {
-        const s = (c || "").trim();
+    const startContainer = range.startContainer;
+    const endContainer = range.endContainer;
+    const startOffset = range.startOffset;
+    const endOffset = range.endOffset;
 
-        // Already rgba(...)
-        if (/^rgba\(/i.test(s)) return s;
+    if (startContainer === endContainer && startContainer.nodeType === Node.TEXT_NODE) {
+        // Simple case: selection within one text node
+        const textNode = startContainer as Text;
+        const text = textNode.textContent || "";
+        const before = text.slice(0, startOffset);
+        const selected = text.slice(startOffset, endOffset);
+        const after = text.slice(endOffset);
 
-        // rgb(...) -> rgba(...)
-        if (/^rgb\(/i.test(s)) {
-            const nums = s.match(/\d+(\.\d+)?/g) || [];
-            const [r, g, b] = nums;
-            return `rgba(${r}, ${g}, ${b}, ${defaultAlpha})`;
+        const mark = document.createElement("mark");
+        mark.style.backgroundColor = color;
+        mark.style.fontWeight = "unset";
+        mark.style.color = "unset";
+        mark.textContent = selected;
+
+        const parent = textNode.parentNode;
+        if (parent) {
+            if (before) {
+                const beforeNode = document.createTextNode(before);
+                parent.insertBefore(beforeNode, textNode);
+            }
+            parent.insertBefore(mark, textNode);
+            if (after) {
+                const afterNode = document.createTextNode(after);
+                parent.insertBefore(afterNode, textNode);
+            }
+            parent.removeChild(textNode);
+        }
+    } else {
+        // Complex case: selection across multiple nodes
+        const walker = document.createTreeWalker(
+            range.commonAncestorContainer,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode: (node) => {
+                    const nodeRange = document.createRange();
+                    nodeRange.selectNodeContents(node);
+                    return range.intersectsNode(node)
+                        ? NodeFilter.FILTER_ACCEPT
+                        : NodeFilter.FILTER_REJECT;
+                },
+            },
+        );
+
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            textNodes.push(node);
         }
 
-        // Hex formats
-        if (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) {
-            let hex = s.slice(1);
-            // Expand short forms
-            if (hex.length === 3 || hex.length === 4) {
-                hex = hex
-                    .split("")
-                    .map((ch) => ch + ch)
-                    .join("");
+        // Process each intersecting text node
+        for (const textNode of textNodes) {
+            const text = textNode.textContent || "";
+            let start = 0;
+            let end = text.length;
+            if (textNode === startContainer) {
+                start = startOffset;
             }
-            if (hex.length === 8) {
-                const r = parseInt(hex.slice(0, 2), 16);
-                const g = parseInt(hex.slice(2, 4), 16);
-                const b = parseInt(hex.slice(4, 6), 16);
-                const a = parseInt(hex.slice(6, 8), 16) / 255;
-                return `rgba(${r}, ${g}, ${b}, ${a})`;
+            if (textNode === endContainer) {
+                end = endOffset;
             }
-            if (hex.length === 6) {
-                const r = parseInt(hex.slice(0, 2), 16);
-                const g = parseInt(hex.slice(2, 4), 16);
-                const b = parseInt(hex.slice(4, 6), 16);
-                return `rgba(${r}, ${g}, ${b}, ${defaultAlpha})`;
+
+            const before = text.slice(0, start);
+            const selected = text.slice(start, end);
+            const after = text.slice(end);
+
+            const mark = document.createElement("mark");
+            mark.style.backgroundColor = color;
+            mark.style.fontWeight = "unset";
+            mark.style.color = "unset";
+            mark.textContent = selected;
+
+            const parent = textNode.parentNode;
+            if (parent) {
+                if (before) {
+                    const beforeNode = document.createTextNode(before);
+                    parent.insertBefore(beforeNode, textNode);
+                }
+                parent.insertBefore(mark, textNode);
+                if (after) {
+                    const afterNode = document.createTextNode(after);
+                    parent.insertBefore(afterNode, textNode);
+                }
+                parent.removeChild(textNode);
             }
         }
-
-        // Named colors or other formats -> resolve and convert
-        const tmp = document.createElement("div");
-        tmp.style.backgroundColor = s;
-        document.body.appendChild(tmp);
-        const resolved = getComputedStyle(tmp).backgroundColor;
-        document.body.removeChild(tmp);
-
-        if (/^rgba\(/i.test(resolved)) return resolved;
-        const nums = resolved.match(/\d+(\.\d+)?/g) || [];
-        if (nums.length >= 3) {
-            const [r, g, b] = nums;
-            return `rgba(${r}, ${g}, ${b}, ${defaultAlpha})`;
-        }
-
-        return s;
-    };
-
-    mark.style.backgroundColor = toRgba(color, 0.3);
-    mark.style.color = "black";
-    mark.style.fontWeight = "bold";
-    mark.appendChild(range.extractContents());
-    range.insertNode(mark);
+    }
 
     // Clear selection
     selection.removeAllRanges();
@@ -102,6 +131,20 @@ function highlightSelectedText(color: string) {
     showActions.value = false;
 }
 
+async function copySelectedText() {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString() : "";
+    if (text) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (err) {
+            console.error("Failed to copy text: ", err);
+        }
+    }
+    // Hide actions after copy
+    showActions.value = false;
+}
+
 function onPointerUp(event: PointerEvent) {
     const selection = window.getSelection();
     const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
@@ -109,13 +152,13 @@ function onPointerUp(event: PointerEvent) {
     if (selText && content.value) {
         const rect = content.value.getBoundingClientRect();
         showActions.value = true;
-        // Handle both mouse and touch coordinates
-        const clientX = event.clientX || (event.touches && event.touches[0]?.clientX) || 0;
-        const clientY = event.clientY || (event.touches && event.touches[0]?.clientY) || 0;
+        // Handle both mouse and touch coordinates (pointer events unify them)
+        const clientX = event.clientX;
+        const clientY = event.clientY;
         actionPosition.value = {
             x: clientX - rect.left,
             // add a slightly larger vertical offset so the menu appears below the cursor/selection
-            y: clientY - rect.top + 16,
+            y: clientY - rect.top,
         };
     } else {
         showActions.value = false;
@@ -205,7 +248,7 @@ onUnmounted(() => {
                     </button>
                     <button
                         class="flex size-10 w-max flex-col items-center justify-center gap-1 px-2"
-                        @click="showHighlightColors = true"
+                        @click="copySelectedText"
                     >
                         <DocumentIcon class="size-10" />
                         <span class="text-xs">Copy</span>
