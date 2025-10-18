@@ -10,7 +10,7 @@ import { jest } from "@jest/globals";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
-import { S3MediaService } from "src/s3-media/media.service";
+import { S3MediaService } from "../s3-media/media.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -50,6 +50,7 @@ export async function createTestingModule(testName: string) {
             DbService,
             Socketio,
             S3Service,
+            S3MediaService,
             {
                 provide: ConfigService,
                 useValue: {
