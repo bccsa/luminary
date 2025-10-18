@@ -35,3 +35,14 @@ export enum DeleteReason {
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
 }
+
+export enum MediaType {
+    Audio = "audio",
+    Video = "video",
+}
+
+export enum MediaPreset {
+    Speech = "speech",
+    Music = "music",
+    Default = "default",
+}
