@@ -16,6 +16,7 @@ export type SyncConfig = {
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
+    s3Media?: S3MediaConfig;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
@@ -43,6 +44,7 @@ export type S3MediaConfig = {
 
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
+    maxMediaUploadFileSize: number; // Optional for media uploads
 };
 
 export default () =>
@@ -79,5 +81,6 @@ export default () =>
         } as S3MediaConfig,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // 15 MB default
         } as SocketIoConfig,
     }) as Configuration;
