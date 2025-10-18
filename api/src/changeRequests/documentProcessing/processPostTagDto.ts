@@ -5,6 +5,8 @@ import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "../../s3/s3.imagehandling";
 import { S3Service } from "../../s3/s3.service";
+import { S3MediaService } from "../../s3-media/media.service";
+import { processMedia } from "../../s3-media/media.handling";
 
 /**
  * Process Post / Tag DTO
@@ -19,6 +21,7 @@ export default async function processPostTagDto(
     prevDoc: PostDto | TagDto,
     db: DbService,
     s3: S3Service,
+    s3Media: S3MediaService,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -42,6 +45,18 @@ export default async function processPostTagDto(
             }
         }
 
+        // Remove media from S3 Media
+        if (doc.media) {
+            const mediaWarnings = await processMedia(
+                { fileCollections: [] },
+                prevDoc?.media,
+                s3Media,
+            );
+            if (mediaWarnings && mediaWarnings.length > 0) {
+                warnings.push(...mediaWarnings);
+            }
+        }
+
         return warnings; // no need to process further
     }
 
@@ -54,6 +69,14 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
+    // Process media uploads
+    if (doc.media) {
+        const mediaWarnings = await processMedia(doc.media, prevDoc?.media, s3Media);
+        if (mediaWarnings && mediaWarnings.length > 0) {
+            warnings.push(...mediaWarnings);
+        }
+    }
+
     // Get content documents that are children of the Post / Tag document
     // and copy essential properties from the Post / Tag document to the child content document
     const contentDocs = await db.getContentByParentId(doc._id);
@@ -61,6 +84,7 @@ export default async function processPostTagDto(
         contentDoc.memberOf = doc.memberOf;
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
+        contentDoc.parentMedia = doc.media;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;
