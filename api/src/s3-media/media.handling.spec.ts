@@ -16,15 +16,27 @@ describe("S3MediaHandler", () => {
         service.mediaBucket = uuidv4();
         await service.makeBucket(service.mediaBucket);
     });
-
     afterAll(async () => {
-        // Cleanup uploaded medias files
-        const removeFiles = resMedias.flatMap((r) =>
-            r.fileCollections.map((f) => f.fileUrl.split("/").pop()!).filter(Boolean),
+        // Cleanup uploaded audio files
+        const removeFiles = Array.from(
+            new Set(
+                resMedias.flatMap((r) =>
+                    r.fileCollections.map((f) => f.fileUrl.split("/").pop()!).filter(Boolean),
+                ),
+            ),
         );
-
-        await service.removeObjects(service.mediaBucket, removeFiles);
-        await service.removeBucket(service.mediaBucket);
+        if (removeFiles.length > 0) {
+            try {
+                await service.removeObjects(service.mediaBucket, removeFiles);
+            } catch (e) {
+                // Ignore errors during cleanup
+            }
+        }
+        try {
+            await service.removeBucket(service.mediaBucket);
+        } catch (e) {
+            // Ignore errors if bucket is not empty or doesn't exist
+        }
     });
 
     it("should be defined", () => {
