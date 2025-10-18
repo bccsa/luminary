@@ -17,7 +17,7 @@ describe("S3MediaHandler", () => {
         await service.makeBucket(service.mediaBucket);
     });
     afterAll(async () => {
-        // Cleanup uploaded audio files
+        // Cleanup uploaded medias files
         const removeFiles = Array.from(
             new Set(
                 resMedias.flatMap((r) =>
