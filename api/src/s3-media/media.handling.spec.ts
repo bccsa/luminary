@@ -19,25 +19,12 @@ describe("S3MediaHandler", () => {
 
     afterAll(async () => {
         // Cleanup uploaded medias files
-        const removeFiles = Array.from(
-            new Set(
-                resMedias.flatMap((r) =>
-                    r.fileCollections.map((f) => f.fileUrl.split("/").pop()!).filter(Boolean),
-                ),
-            ),
+        const removeFiles = resMedias.flatMap((r) =>
+            r.fileCollections.map((f) => f.fileUrl.split("/").pop()!).filter(Boolean),
         );
-        if (removeFiles.length > 0) {
-            try {
-                await service.removeObjects(service.mediaBucket, removeFiles);
-            } catch (e) {
-                // Ignore errors during cleanup
-            }
-        }
-        try {
-            await service.removeBucket(service.mediaBucket);
-        } catch (e) {
-            // Ignore errors if bucket is not empty or doesn't exist
-        }
+
+        await service.removeObjects(service.mediaBucket, removeFiles);
+        await service.removeBucket(service.mediaBucket);
     });
 
     it("should be defined", () => {
