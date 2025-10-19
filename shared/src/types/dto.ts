@@ -116,6 +116,7 @@ export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    media?: MediaDto;
 };
 
 export type PostDto = ContentParentDto & {
