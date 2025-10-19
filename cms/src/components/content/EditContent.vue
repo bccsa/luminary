@@ -50,6 +50,7 @@ import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import EditContentImage from "./EditContentImage.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 
 type Props = {
     id: Uuid;
@@ -99,6 +100,12 @@ watch(liveParent, (parent) => {
         !parent.imageData?.uploadData
     ) {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
+
+    if (waitForUpdate.value && parent && editableParent.value.media && !parent.media?.uploadData) {
+        editableParent.value.media = (parent as ContentParentDto).media;
         existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
     }
@@ -401,6 +408,12 @@ const save = async () => {
         waitForUpdate.value = true;
     }
 
+    if (existingParent.value?.media?.uploadData !== editableParent.value.media?.uploadData) {
+        // If the media data has changed, we need to wait for the server to update the media data
+        // before saving the parent document
+        waitForUpdate.value = true;
+    }
+
     // Bypass saving if the parent document is new and is marked for deletion
     if (!existingContent.value && editableParent.value.deleteReq) {
         return;
@@ -522,6 +535,13 @@ const duplicate = async () => {
     if (clonedParent.imageData) {
         if (clonedParent.imageData.fileCollections) {
             clonedParent.imageData.fileCollections = [];
+        }
+    }
+
+    // Remove Original Media
+    if (clonedParent.media) {
+        if (clonedParent.media.fileCollections) {
+            clonedParent.media.fileCollections = [];
         }
     }
 
@@ -789,6 +809,15 @@ watch(
                         />
 
                         <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
+                        <EditContentMedia
                             v-if="editableParent"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
