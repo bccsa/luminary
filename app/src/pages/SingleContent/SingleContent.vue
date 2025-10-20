@@ -679,7 +679,7 @@ const quickLanguageSwitch = (languageId: string) => {
                         </span>
                     </div>
 
-                    <LHighlightable>
+                    <LHighlightable :content-id="content._id">
                         <div
                             v-if="content.text"
                             v-html="text"
