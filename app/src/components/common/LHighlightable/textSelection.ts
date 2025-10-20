@@ -17,7 +17,7 @@ import {
  */
 export function highlightSelectedText(
     color: string,
-    content: Ref<HTMLElement | undefined>,
+    content: Ref<HTMLElement | null>,
     contentId: string,
 ) {
     highlightTextInDOM(color, content, contentId);
