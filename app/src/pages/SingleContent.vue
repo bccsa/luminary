@@ -662,7 +662,7 @@ const selectedLanguageCode = computed(() => {
                         </span>
                     </div>
 
-                    <LHighlightable>
+                    <LHighlightable :content-id="content._id">
                         <div
                             v-if="content.text"
                             v-html="text"
