@@ -122,8 +122,11 @@ const navigateToLanguage = (language: LanguageDto) => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                <div class="mr-1 truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
+                    <span class="truncate text-sm">{{
+                        contentDoc.updatedBy ? ` - Last edited by ${contentDoc.updatedBy}` : ""
+                    }}</span>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
@@ -193,12 +196,6 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
-            <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="text-zinc-340 mr-[1px] h-4 w-4" />
-                <span title="Last Updated">{{
-                    renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
-                }}</span>
-            </div>
         </div>
 
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
@@ -230,9 +227,6 @@ const navigateToLanguage = (language: LanguageDto) => {
 
             <div class="flex items-center gap-1 text-xs text-zinc-400">
                 <UserIcon class="h-4 w-4 text-zinc-400" />
-                <span title="Last Updated By">{{
-                    `Last Updated By: ${contentDoc.updatedBy || "Unknown"}`
-                }}</span>
             </div>
         </div>
     </div>

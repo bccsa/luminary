@@ -32,7 +32,7 @@ export class ChangeRequestService {
 
         // Process change request
         return await processChangeRequest(
-            userDetails.userId,
+            userDetails.email,
             changeRequest,
             userDetails.groups,
             this.db,
