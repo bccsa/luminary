@@ -83,15 +83,22 @@ const router = createRouter({
     ],
 });
 
-router.beforeEach((to, from, next) => {
-    if (!from.name && to.name !== "home") {
-        router.replace({ name: "home" }).then(() => {
-            router.push(to.fullPath);
-        });
-        return;
-    }
-    next();
-});
+// Replace both beforeEach and afterEach with this single guard
+router.beforeEach(() => {
+    // Check if the length of the browser history is less than or equal to 1
+    const isDirectNavigation = window.history.length == 2;
 
+    if (isDirectNavigation) {
+        const home = router.resolve({ name: "home" }).href;
+        const current = window.location.pathname + window.location.search + window.location.hash;
+
+        if (current !== home) {
+            setTimeout(() => {
+                history.replaceState(null, "", home);
+                history.pushState(null, "", current);
+            }, 0);
+        }
+    }
+});
 
 export default router;
