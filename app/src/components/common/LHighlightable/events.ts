@@ -48,7 +48,10 @@ export function onDocumentClick(event: MouseEvent | TouchEvent) {
  *
  * @param event - PointerEvent or TouchEvent from the interaction
  */
-export function onPointerUp(event: PointerEvent | TouchEvent, content: Ref<HTMLElement | null>) {
+export function onPointerUp(
+    event: PointerEvent | TouchEvent,
+    content: Ref<HTMLElement | undefined>,
+) {
     console.log("onPointerUp called", event.type);
     // Reset the interaction flag when touching outside the menu
     if (actionsMenu.value && !actionsMenu.value.contains(event.target as Node)) {
