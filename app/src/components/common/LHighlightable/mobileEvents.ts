@@ -241,7 +241,7 @@ export function onTouchMove(event: TouchEvent) {
     }
 }
 
-export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | null>) {
+export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | undefined>) {
     console.info("Touch end detected");
 
     // Clear long press timer

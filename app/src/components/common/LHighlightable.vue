@@ -65,6 +65,12 @@ const supportedColors = {
     teal: "rgba(0, 128, 128, 0.3)",
 };
 
+// Wrapper functions to pass the content ref to event handlers
+const handlePointerUp = (event: PointerEvent | TouchEvent) => onPointerUp(event, content);
+const handleTouchEnd = (event: TouchEvent) => onTouchEnd(event, content as HTMLElement);
+const handleHighlightClick = (color: string) =>
+    highlightSelectedText(color, content, props.contentId);
+
 /**
  * Component lifecycle hooks
  */
@@ -105,7 +111,7 @@ onUnmounted(() => {
 <template>
     <div>
         <!-- Content container with pointer event handling -->
-        <div class="relative" ref="content" @pointerup="onPointerUp">
+        <div class="relative" ref="content" @pointerup="handlePointerUp">
             <!-- Slot for the highlightable content -->
             <div
                 class="select-text"
@@ -116,7 +122,7 @@ onUnmounted(() => {
                 "
                 @touchstart.passive="onTouchStart"
                 @touchmove="onTouchMove"
-                @touchend.passive="onTouchEnd"
+                @touchend.passive="handleTouchEnd"
             >
                 <slot></slot>
             </div>
@@ -148,7 +154,7 @@ onUnmounted(() => {
                         class="m-1 h-6 w-6 rounded-full"
                         :key="name"
                         :style="{ backgroundColor: c }"
-                        @click.prevent="highlightSelectedText(c, content, contentId)"
+                        @click.prevent="handleHighlightClick(c)"
                         :aria-label="`Highlight with ${name} color`"
                     ></button>
                 </div>
