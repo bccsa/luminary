@@ -1,7 +1,23 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { DocumentIcon, PencilIcon } from "@heroicons/vue/24/outline";
-import { userPreferencesAsRef } from "@/globalConfig";
+import { restoreHighlightedContent } from "./LHighlightable/highlight";
+import { onDocumentClick, onPointerUp, onMenuPointerDown } from "./LHighlightable/events";
+import {
+    autoScrollInterval,
+    longPressTimer,
+    actionPosition,
+    actionsMenu,
+    showActions,
+    showHighlightColors,
+} from "./LHighlightable/shared";
+import {
+    handleSelectionChange,
+    onSelectionChange,
+    highlightSelectedText,
+    copySelectedText,
+} from "./LHighlightable/textSelection";
+import { onTouchStart, onTouchEnd, onTouchMove } from "./LHighlightable/mobileEvents";
 
 /**
  * LHighlightable Component
@@ -34,19 +50,7 @@ interface Props {
 const props = defineProps<Props>();
 
 /** Reference to the content container DOM element */
-const content = ref<HTMLElement | null>(null);
-
-/** Controls visibility of the actions menu (highlight/copy buttons) */
-const showActions = ref(false);
-
-/** Position of the actions menu relative to the content container */
-const actionPosition = ref<{ x: number; y: number } | null>(null);
-
-/** Currently selected text */
-const selectedText = ref("");
-
-/** Controls visibility of the color picker */
-const showHighlightColors = ref(false);
+const content = ref<HTMLElement | undefined>(undefined);
 
 /** Available highlight colors with their RGBA values */
 const supportedColors = {
@@ -62,314 +66,19 @@ const supportedColors = {
 };
 
 /**
- * Highlights the selected text with the specified color by wrapping it in <mark> elements.
- * Handles both simple (single text node) and complex (multi-node) selections.
- * Prevents nested marks by updating existing marks instead of creating new ones.
- *
- * @param color - RGBA color string for the highlight background
+ * Component lifecycle hooks
  */
-function highlightTextInDOM(color: string = "rgba(255, 255, 0, 0.3)") {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (range.collapsed) return;
-
-    // Check if selection is entirely within a single <mark> element
-    let node: Node | null = range.commonAncestorContainer;
-    let foundMark: HTMLElement | null = null;
-
-    while (node && node !== content.value) {
-        if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "MARK") {
-            foundMark = node as HTMLElement;
-            break;
-        }
-        node = node.parentNode;
-    }
-
-    // If selection is entirely within a mark, just update its color
-    if (
-        foundMark &&
-        range.startContainer.parentNode === foundMark &&
-        range.endContainer.parentNode === foundMark
-    ) {
-        foundMark.style.backgroundColor = color;
-        selection.removeAllRanges();
-        saveHighlightedContent();
-        return;
-    }
-
-    const startContainer = range.startContainer;
-    const endContainer = range.endContainer;
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
-
-    // Simple case: selection within a single text node
-    if (startContainer === endContainer && startContainer.nodeType === Node.TEXT_NODE) {
-        const textNode = startContainer as Text;
-
-        // Check if this text node is already inside a mark
-        let parentMark: HTMLElement | null = null;
-        let parent: Node | null = textNode.parentNode;
-        while (parent && parent !== content.value) {
-            if (
-                parent.nodeType === Node.ELEMENT_NODE &&
-                (parent as HTMLElement).tagName === "MARK"
-            ) {
-                parentMark = parent as HTMLElement;
-                break;
-            }
-            parent = parent.parentNode;
-        }
-
-        if (parentMark) {
-            // Just update the color of the existing mark
-            parentMark.style.backgroundColor = color;
-        } else {
-            // Split the text node and wrap the selected portion in a mark
-            const text = textNode.textContent || "";
-            const before = text.slice(0, startOffset);
-            const selected = text.slice(startOffset, endOffset);
-            const after = text.slice(endOffset);
-
-            const mark = document.createElement("mark");
-            mark.style.backgroundColor = color;
-            mark.style.fontWeight = "unset";
-            mark.style.color = "unset";
-            mark.textContent = selected;
-
-            const parentNode = textNode.parentNode;
-            if (parentNode) {
-                if (before) {
-                    const beforeNode = document.createTextNode(before);
-                    parentNode.insertBefore(beforeNode, textNode);
-                }
-                parentNode.insertBefore(mark, textNode);
-                if (after) {
-                    const afterNode = document.createTextNode(after);
-                    parentNode.insertBefore(afterNode, textNode);
-                }
-                parentNode.removeChild(textNode);
-            }
-        }
-
-        selection.removeAllRanges();
-        saveHighlightedContent();
-        return;
-    }
-
-    // Complex case: selection spans multiple nodes (e.g., across paragraphs)
-    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) => {
-            const nodeRange = document.createRange();
-            nodeRange.selectNodeContents(node);
-            return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-        },
-    });
-
-    // Collect all text nodes that intersect with the selection
-    const textNodes: Node[] = [];
-    let currentNode;
-    while ((currentNode = walker.nextNode())) {
-        textNodes.push(currentNode);
-    }
-
-    // Process each intersecting text node individually
-    textNodes.forEach((textNode) => {
-        if (textNode.nodeType !== Node.TEXT_NODE) return;
-
-        const text = textNode.textContent || "";
-        let start = 0;
-        let end = text.length;
-
-        // Calculate offsets for start and end nodes
-        if (textNode === range.startContainer) {
-            start = range.startOffset;
-        }
-        if (textNode === range.endContainer) {
-            end = range.endOffset;
-        }
-
-        // Skip if nothing to highlight in this node
-        if (start >= end) return;
-
-        // Check if this text node is already inside a mark
-        let parentMark: HTMLElement | null = null;
-        let parent: Node | null = textNode.parentNode;
-        while (parent && parent !== content.value) {
-            if (
-                parent.nodeType === Node.ELEMENT_NODE &&
-                (parent as HTMLElement).tagName === "MARK"
-            ) {
-                parentMark = parent as HTMLElement;
-                break;
-            }
-            parent = parent.parentNode;
-        }
-
-        if (parentMark) {
-            // Just update the color of the existing mark
-            parentMark.style.backgroundColor = color;
-        } else {
-            // Split the text node and wrap the selected part in a mark
-            const before = text.slice(0, start);
-            const selected = text.slice(start, end);
-            const after = text.slice(end);
-
-            const mark = document.createElement("mark");
-            mark.style.backgroundColor = color;
-            mark.style.fontWeight = "unset";
-            mark.style.color = "unset";
-            mark.textContent = selected;
-
-            const parentNode = textNode.parentNode;
-            if (parentNode) {
-                if (before) {
-                    const beforeNode = document.createTextNode(before);
-                    parentNode.insertBefore(beforeNode, textNode);
-                }
-                parentNode.insertBefore(mark, textNode);
-                if (after) {
-                    const afterNode = document.createTextNode(after);
-                    parentNode.insertBefore(afterNode, textNode);
-                }
-                parentNode.removeChild(textNode);
-            }
-        }
-    });
-
-    selection.removeAllRanges();
-    saveHighlightedContent();
-}
-
-/**
- * Applies highlighting with the specified color and saves the updated content.
- * Hides the color picker and actions menu after highlighting.
- *
- * @param color - RGBA color string for the highlight
- */
-function highlightSelectedText(color: string) {
-    highlightTextInDOM(color);
-    saveHighlightedContent();
-    showHighlightColors.value = false;
-    selectedText.value = "";
-    showActions.value = false;
-}
-
-/**
- * Saves the current highlighted content (with all marks) to localStorage.
- * Uses the contentId as the storage key to maintain highlights per document.
- */
-function saveHighlightedContent() {
-    if (!userPreferencesAsRef.value.highlights) userPreferencesAsRef.value.highlights = {};
-
-    // TODO
-    if (content.value) {
-        const slotContent = content.value.querySelector(".prose");
-        if (slotContent) {
-            // localStorage.setItem(`highlights_${props.contentId}`, slotContent.innerHTML);
-            userPreferencesAsRef.value.highlights![props.contentId] = []; // Placeholder for actual highlight data
-            const html = slotContent.innerHTML;
-            const color = "rgba(255, 255, 0, 0.3)"; // Placeholder color
-
-            userPreferencesAsRef.value.highlights![props.contentId]!.push({ html, color });
-        }
-    }
-}
-
-/**
- * Restores previously saved highlights from localStorage.
- * Called on component mount to persist highlights across page reloads.
- */
-function restoreHighlightedContent() {
-    const currentPostHighlights = userPreferencesAsRef.value.highlights?.[props.contentId] || [];
-    if (!currentPostHighlights) return;
-
-    // Restore highlights in the content
-    for (const highlight of currentPostHighlights) {
-        if (content.value) {
-            const slotContent = content.value.querySelector(".prose");
-            if (slotContent) {
-                slotContent.innerHTML = highlight.html;
-            }
-        }
-    }
-}
-
-/**
- * Copies the currently selected text to the system clipboard.
- * Uses the modern Clipboard API with fallback error handling.
- * Hides the actions menu after copying.
- */
-async function copySelectedText() {
-    const selection = window.getSelection();
-    const text = selection ? selection.toString() : "";
-    if (text) {
-        try {
-            await navigator.clipboard.writeText(text);
-        } catch (err) {
-            console.error("Failed to copy text: ", err);
-        }
-    }
-    showActions.value = false;
-}
-
-/**
- * Handles pointer up events (mouse/touch) to show the actions menu.
- * Positions the menu near the cursor/touch point.
- *
- * @param event - PointerEvent from the interaction
- */
-function onPointerUp(event: PointerEvent) {
-    const selection = window.getSelection();
-    const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
-    selectedText.value = selText;
-    if (selText && content.value) {
-        const rect = content.value.getBoundingClientRect();
-        showActions.value = true;
-        actionPosition.value = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top + 16,
-        };
-    } else {
-        showActions.value = false;
-        actionPosition.value = null;
-    }
-}
-
-/**
- * Updates the selectedText ref when the browser selection changes.
- * Used for monitoring selection state.
- */
-function handleSelectionChange() {
-    const selection = window.getSelection();
-    const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
-    selectedText.value = selText;
-}
-
-/**
- * Hides the actions menu when selection is cleared.
- * Prevents the menu from staying visible after deselection.
- */
-function onSelectionChange() {
-    const selection = window.getSelection();
-    if (!selection) return;
-    const selText = selection.rangeCount > 0 ? selection.toString() : "";
-    selectedText.value = selText;
-    if (!selText) {
-        showActions.value = false;
-        actionPosition.value = null;
-    }
-}
-
-// Component lifecycle hooks
 onMounted(() => {
     // Register selection change listeners for showing/hiding actions menu
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("selectionchange", onSelectionChange);
+    document.addEventListener("click", onDocumentClick);
+    // Don't listen to touchend on document level - it conflicts with our touch selection
+    // document.addEventListener("touchend", onDocumentClick);
 
     // Wait for slot content to render, then restore saved highlights
     setTimeout(() => {
-        restoreHighlightedContent();
+        restoreHighlightedContent(content, props.contentId);
     }, 100);
 });
 
@@ -377,6 +86,19 @@ onUnmounted(() => {
     // Clean up event listeners
     document.removeEventListener("selectionchange", handleSelectionChange);
     document.removeEventListener("selectionchange", onSelectionChange);
+    document.removeEventListener("click", onDocumentClick);
+
+    // Clean up auto-scroll interval
+    if (autoScrollInterval.value) {
+        clearInterval(autoScrollInterval.value);
+        autoScrollInterval.value = undefined;
+    }
+
+    // Clean up long press timer
+    if (longPressTimer.value) {
+        clearTimeout(longPressTimer.value);
+        longPressTimer.value = undefined;
+    }
 });
 </script>
 
@@ -385,11 +107,34 @@ onUnmounted(() => {
         <!-- Content container with pointer event handling -->
         <div class="relative" ref="content" @pointerup="onPointerUp">
             <!-- Slot for the highlightable content -->
-            <slot></slot>
+            <div
+                class="select-text"
+                style="
+                    user-select: text !important;
+                    -webkit-user-select: text !important;
+                    -webkit-touch-callout: default !important;
+                "
+                @touchstart.passive="onTouchStart"
+                @touchmove="onTouchMove"
+                @touchend.passive="onTouchEnd"
+            >
+                <slot></slot>
+            </div>
+            showActions: {{ showActions }}, actionPosition: {{ actionPosition }}
+            <!-- Debug info -->
+            <div
+                v-if="showActions || actionPosition"
+                class="fixed right-0 top-0 z-[10000] bg-red-500 p-4 text-white"
+            >
+                showActions: {{ showActions }}, actionPosition: {{ actionPosition }}
+            </div>
 
             <!-- Actions menu (highlight/copy buttons) -->
             <div
                 v-if="showActions && actionPosition"
+                ref="actionsMenu"
+                @pointerdown="onMenuPointerDown"
+                @touchstart.passive="onMenuPointerDown"
                 class="pointer-events-auto absolute z-[9999] flex w-max max-w-[calc(100vw-20px)] items-center justify-center gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg"
                 :style="{
                     left: actionPosition.x + 'px',
@@ -403,7 +148,7 @@ onUnmounted(() => {
                         class="m-1 h-6 w-6 rounded-full"
                         :key="name"
                         :style="{ backgroundColor: c }"
-                        @click.prevent="highlightSelectedText(c)"
+                        @click.prevent="highlightSelectedText(c, content, contentId)"
                         :aria-label="`Highlight with ${name} color`"
                     ></button>
                 </div>
