@@ -24,6 +24,7 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import { nextTick } from "vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -669,6 +670,8 @@ describe("EditContent.vue", () => {
         expect(newParentId).not.toBe(mockData.mockPostDto._id);
 
         await wrapper.setProps({ id: newParentId });
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
 
         await wrapper.find("[data-test='save-button']").trigger("click");
 
@@ -716,6 +719,8 @@ describe("EditContent.vue", () => {
 
         // Update component prop to point to new duplicate parent (simulate routing replace)
         await wrapper.setProps({ id: newParentId });
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
 
         // Save duplicated content
         const saveBtn = wrapper.find('[data-test="save-button"]');
