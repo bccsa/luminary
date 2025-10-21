@@ -54,6 +54,13 @@ vi.mock("vue-router", async (importOriginal) => {
                     },
                 },
             },
+            push: vi.fn(),
+            replace: vi.fn(),
+        }),
+        useRoute: () => ({
+            params: {
+                languageCode: "eng",
+            },
         }),
         onBeforeRouteLeave: vi.fn(),
     };
