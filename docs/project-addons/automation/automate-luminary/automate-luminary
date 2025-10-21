@@ -175,9 +175,9 @@ setup_projects() {
 # --- Start / Restart Services ---
 start_all() {
   info "Starting all services..."
-  (cd "$LUMINARY_ROOT/api" && npm run start:dev &)
-  (cd "$LUMINARY_ROOT/cms" && npm run dev &)
-  (cd "$LUMINARY_ROOT/app" && npm run dev &)
+  (cd "$LUMINARY_ROOT/api" && npm run start:dev) &
+  (cd "$LUMINARY_ROOT/cms" && npm run dev) &
+  (cd "$LUMINARY_ROOT/app" && npm run dev) &
   success "API → http://localhost:3000, CMS → http://localhost:4175, App → http://localhost:4174"
   wait
 }
