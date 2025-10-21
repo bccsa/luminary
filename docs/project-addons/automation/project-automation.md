@@ -55,6 +55,10 @@ Navigate to the script location and run:
 ./automate-luminary <command>
 ```
 
+> **Note:** After running the self-install command, you can use the CLI globally as:
+> ```bash
+> luminary <command>
+> ```
 #### Available Commands
 - `setup`        Install Docker, CouchDB, MinIO, build & seed all projects
 - `start`        Start API, CMS, and App
