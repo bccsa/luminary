@@ -252,6 +252,9 @@ export function restoreHighlightedContent(
 }
 
 export function removeHighlightedText(content: Ref<HTMLElement | undefined>, contentId: string) {
+    console.log("=== removeHighlightedText called ===");
+    console.log("contentId:", contentId);
+
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
         console.log("No selection or no ranges");
@@ -263,13 +266,8 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
         return;
     }
 
-    console.log("Range details:", {
-        startContainer: range.startContainer,
-        endContainer: range.endContainer,
-        commonAncestor: range.commonAncestorContainer,
-        startOffset: range.startOffset,
-        endOffset: range.endOffset,
-    });
+    console.log("Selection text:", selection.toString());
+    console.log("Range commonAncestor:", range.commonAncestorContainer);
 
     const marksToRemove: HTMLElement[] = [];
 
@@ -277,7 +275,7 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
     let node: Node | null = range.commonAncestorContainer;
     while (node && node !== content.value) {
         if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "MARK") {
-            console.log("Found parent mark:", node);
+            console.log("Found parent MARK:", node);
             // Check if this mark intersects with the selection
             if (range.intersectsNode(node)) {
                 marksToRemove.push(node as HTMLElement);
@@ -302,18 +300,18 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
 
     let currentNode;
     while ((currentNode = walker.nextNode())) {
-        console.log("Found child mark via walker:", currentNode);
+        console.log("Found child MARK via walker:", currentNode);
         // Avoid duplicates
         if (!marksToRemove.includes(currentNode as HTMLElement)) {
             marksToRemove.push(currentNode as HTMLElement);
         }
     }
 
-    console.log("Total marks to remove:", marksToRemove.length, marksToRemove);
+    console.log("Total marks to remove:", marksToRemove.length);
 
     // If no marks were found to remove, exit early
     if (marksToRemove.length === 0) {
-        console.log("No marks found to remove");
+        console.log("No marks found to remove - exiting");
         selection.removeAllRanges();
         showHighlightColors.value = false;
         return;
@@ -323,7 +321,7 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
     marksToRemove.forEach((mark) => {
         const parent = mark.parentNode;
         if (parent) {
-            console.log("Removing mark:", mark);
+            console.log("Removing mark from DOM:", mark.textContent?.substring(0, 50));
             while (mark.firstChild) {
                 parent.insertBefore(mark.firstChild, mark);
             }
@@ -332,9 +330,11 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
         }
     });
 
+    console.log("Marks removed from DOM, now saving...");
     selection.removeAllRanges();
     showHighlightColors.value = false;
 
     // Save the updated content (which now has the marks removed)
     saveHighlightedContent(content, contentId);
+    console.log("=== removeHighlightedText complete ===");
 }
