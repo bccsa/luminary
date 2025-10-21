@@ -48,6 +48,7 @@ LUMINARY_COUCHDB_USER=myuser LUMINARY_COUCHDB_PASSWORD=mypass ./automate-luminar
 ## Notes
 - The script must be run with sufficient privileges for installation steps (e.g., `sudo` for global install or Docker setup).
 - For Windows and macOS, Docker must be installed manually.
+- On Linux, automatic Docker installation is only supported for Debian/Ubuntu systems (using `apt-get` and the `docker.io` package). For other Linux distributions (e.g., Fedora, Arch, CentOS), please install Docker manually before running the script.
 - The script locates the `luminary` folder automatically; ensure it exists in your project or home directory.
 
 ## Troubleshooting
