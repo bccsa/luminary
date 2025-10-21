@@ -54,6 +54,13 @@ EOF
 
 # --- Locate luminary folder ---
 find_luminary_root() {
+  # Allow override via LUMINARY_ROOT
+  if [[ -n "${LUMINARY_ROOT:-}" ]]; then
+    info "Using LUMINARY_ROOT override: $LUMINARY_ROOT"
+    echo "$LUMINARY_ROOT"
+    return
+  fi
+
   local dir="$(pwd)"
   while [[ "$dir" != "/" && "$dir" != "" ]]; do
     if [[ -d "$dir/luminary" ]]; then
@@ -71,7 +78,7 @@ find_luminary_root() {
     return
   fi
 
-  error "Could not find 'luminary' folder. Place it somewhere accessible."
+  error "Could not find 'luminary' folder. Place it somewhere accessible. You can also set LUMINARY_ROOT to override the search."
   exit 1
 }
 LUMINARY_ROOT="$(find_luminary_root)"
@@ -278,9 +285,9 @@ EOF
 # --- Entry point ---
 case "${1:-}" in
   setup)
-    check_requirements
     self_install
     install_docker
+    check_requirements
     setup_couchdb
     setup_minio
     setup_projects
