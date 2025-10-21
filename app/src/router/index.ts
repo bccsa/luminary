@@ -83,10 +83,10 @@ const router = createRouter({
     ],
 });
 
-// Replace both beforeEach and afterEach with this single guard
+// Handle direct navigation by manipulating history state
 router.beforeEach(() => {
-    // Check if the length of the browser history is less than or equal to 1
-    const isDirectNavigation = window.history.length == 2;
+    // Check if the length of the browser history is less than or equal to 2
+    const isDirectNavigation = window.history.length === 2;
 
     if (isDirectNavigation) {
         const home = router.resolve({ name: "home" }).href;
