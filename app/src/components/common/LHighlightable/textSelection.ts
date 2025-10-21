@@ -64,20 +64,9 @@ export function onSelectionChange() {
     if (!selection) return;
     const selText = selection.rangeCount > 0 ? selection.toString() : "";
     selectedText.value = selText;
-    console.log(
-        "onSelectionChange - selText:",
-        !!selText,
-        "isInteractingWithMenu:",
-        isInteractingWithMenu.value,
-        "isSelecting:",
-        isSelecting.value,
-        "showActions:",
-        showActions.value,
-    );
 
     // Don't hide the menu if we're interacting with it or currently selecting or menu is showing
     if (!selText && !isInteractingWithMenu.value && !isSelecting.value && !showActions.value) {
-        console.log("Hiding menu");
         showActions.value = false;
         actionPosition.value = undefined;
     }

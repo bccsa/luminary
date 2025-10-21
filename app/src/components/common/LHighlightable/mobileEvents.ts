@@ -20,7 +20,6 @@ const touchSelection = ref<Range | null>(null);
  * Handle touch start events to ensure text selection works on mobile
  */
 export function onTouchStart(event: TouchEvent) {
-    console.info("Touch start detected");
     if (event.touches.length === 1) {
         const touch = event.touches[0];
         initialTouch.value = { x: touch.clientX, y: touch.clientY };
@@ -43,7 +42,6 @@ export function onTouchStart(event: TouchEvent) {
         // Start long press timer (500ms)
         longPressTimer.value = window.setTimeout(() => {
             isLongPress.value = true;
-            console.log("Long press detected");
             // Optionally provide haptic feedback if available
             if (navigator.vibrate) {
                 navigator.vibrate(50);
@@ -81,14 +79,12 @@ export function onTouchMove(event: TouchEvent) {
                     initialTouch.value.x,
                     initialTouch.value.y,
                 );
-                console.log("Start range:", startRange);
                 if (startRange) {
                     touchSelection.value = startRange;
                     const selection = window.getSelection();
                     if (selection) {
                         selection.removeAllRanges();
                         selection.addRange(startRange);
-                        console.log("Set initial selection");
                     }
                 }
             }
@@ -124,7 +120,7 @@ export function onTouchMove(event: TouchEvent) {
                         selection.removeAllRanges();
                         selection.addRange(range);
                     } catch (e) {
-                        console.log("Error updating selection:", e);
+                        // Ignore errors during selection update
                     }
                 }
             }
@@ -242,8 +238,6 @@ export function onTouchMove(event: TouchEvent) {
 }
 
 export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | undefined>) {
-    console.info("Touch end detected");
-
     // Clear long press timer
     if (longPressTimer.value) {
         clearTimeout(longPressTimer.value);
@@ -257,16 +251,13 @@ export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | undefin
     }
 
     if (isSelecting.value) {
-        console.log("Was selecting, checking for selected text");
         isSelecting.value = false;
 
         // Check if there's selected text and show menu
         const selection = window.getSelection();
         const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
-        console.log("Selected text at touch end:", selText);
 
         if (selText && content.value) {
-            console.log("Showing actions menu on touch end");
             const contentRect = content.value.getBoundingClientRect();
 
             // Position based on selection bounds or touch point
@@ -279,13 +270,10 @@ export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | undefin
                     const rangeRect = range.getBoundingClientRect();
                     menuX = rangeRect.left - contentRect.left;
                     menuY = rangeRect.bottom - contentRect.top + 4;
-                    console.log("Menu position from selection:", menuX, menuY);
                 } catch (e) {
-                    console.log("Error getting selection bounds:", e);
                     const touch = event.changedTouches[0];
                     menuX = touch.clientX - contentRect.left;
                     menuY = touch.clientY - contentRect.top + 16;
-                    console.log("Menu position from touch:", menuX, menuY);
                 }
             }
 
@@ -329,12 +317,7 @@ export function onTouchEnd(event: TouchEvent, content: Ref<HTMLElement | undefin
                 x: menuX,
                 y: menuY,
             };
-            console.log("SET showActions to true in onTouchEnd");
-        } else {
-            console.log("Not showing menu - no selected text");
         }
-    } else {
-        console.log("Was not selecting");
     }
     initialTouch.value = null;
     touchSelection.value = null;
