@@ -6,6 +6,7 @@ import {
     actionPosition,
     actionsMenu,
     showHighlightColors,
+    justShownMenu,
 } from "./shared";
 
 /**
@@ -19,13 +20,12 @@ export function onMenuPointerDown() {
  * Handle document-wide clicks to implement a click-outside pattern
  */
 export function onDocumentClick(event: MouseEvent | TouchEvent) {
-    console.log(
-        "onDocumentClick called",
-        "showActions:",
-        showActions.value,
-        "target:",
-        event.target,
-    );
+    // Don't process if we just showed the menu (prevents immediate dismissal)
+    if (justShownMenu.value) {
+        justShownMenu.value = false;
+        return;
+    }
+
     // If menu is shown and click is outside the menu, hide it
     if (
         showActions.value &&
@@ -33,9 +33,13 @@ export function onDocumentClick(event: MouseEvent | TouchEvent) {
         !actionsMenu.value.contains(event.target as Node) &&
         !isInteractingWithMenu.value
     ) {
-        console.log("Hiding menu in onDocumentClick");
         showActions.value = false;
         showHighlightColors.value = false;
+        // Clear the text selection when dismissing the menu
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+        }
     }
 
     // Reset the interaction flag
@@ -52,7 +56,6 @@ export function onPointerUp(
     event: PointerEvent | TouchEvent,
     content: Ref<HTMLElement | undefined>,
 ) {
-    console.log("onPointerUp called", event.type);
     // Reset the interaction flag when touching outside the menu
     if (actionsMenu.value && !actionsMenu.value.contains(event.target as Node)) {
         isInteractingWithMenu.value = false;
@@ -60,11 +63,9 @@ export function onPointerUp(
 
     const selection = window.getSelection();
     const selText = selection && selection.rangeCount > 0 ? selection.toString() : "";
-    console.log("Selected text:", selText);
     selectedText.value = selText;
 
     if (selText && content.value) {
-        console.log("Showing actions menu");
         const contentRect = content.value.getBoundingClientRect();
 
         // Try to position based on selection bounds first, fallback to event coordinates
@@ -77,9 +78,7 @@ export function onPointerUp(
                 const rangeRect = range.getBoundingClientRect();
                 menuX = rangeRect.left - contentRect.left;
                 menuY = rangeRect.bottom - contentRect.top + 4;
-                console.log("Menu position from selection:", menuX, menuY);
             } catch (e) {
-                console.log("Error getting selection bounds:", e);
                 // Fallback to event coordinates
                 let clientX = 0;
                 let clientY = 0;
@@ -95,10 +94,8 @@ export function onPointerUp(
 
                 menuX = clientX - contentRect.left;
                 menuY = clientY - contentRect.top + 16;
-                console.log("Menu position from event:", menuX, menuY);
             }
         } else {
-            console.log("No selection object");
             // Fallback to event coordinates
             let clientX = 0;
             let clientY = 0;
@@ -114,7 +111,6 @@ export function onPointerUp(
 
             menuX = clientX - contentRect.left;
             menuY = clientY - contentRect.top + 16;
-            console.log("Menu position from event fallback:", menuX, menuY);
         }
 
         // Adjust position to prevent clipping off screen
@@ -153,13 +149,12 @@ export function onPointerUp(
         }
 
         showActions.value = true;
+        justShownMenu.value = true;
         actionPosition.value = {
             x: menuX,
             y: menuY,
         };
-        console.log("SET showActions to true in onPointerUp");
     } else {
-        console.log("Not showing menu - no selected text or no content");
         if (!isInteractingWithMenu.value) {
             // Only hide if we're not interacting with the menu
             showActions.value = false;
