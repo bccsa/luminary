@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { DocumentIcon, PencilIcon } from "@heroicons/vue/24/outline";
-import { restoreHighlightedContent } from "./LHighlightable/highlight";
+import { DocumentIcon, MinusCircleIcon, PencilIcon } from "@heroicons/vue/24/outline";
+import { restoreHighlightedContent, removeHighlightedText } from "./LHighlightable/highlight";
 import { onDocumentClick, onPointerUp, onMenuPointerDown } from "./LHighlightable/events";
 import {
     autoScrollInterval,
@@ -67,7 +67,7 @@ const supportedColors = {
 
 // Wrapper functions to pass the content ref to event handlers
 const handlePointerUp = (event: PointerEvent | TouchEvent) => onPointerUp(event, content);
-const handleTouchEnd = (event: TouchEvent) => onTouchEnd(event, content as HTMLElement);
+const handleTouchEnd = (event: TouchEvent) => onTouchEnd(event, content);
 const handleHighlightClick = (color: string) =>
     highlightSelectedText(color, content, props.contentId);
 
@@ -126,29 +126,28 @@ onUnmounted(() => {
             >
                 <slot></slot>
             </div>
-            showActions: {{ showActions }}, actionPosition: {{ actionPosition }}
-            <!-- Debug info -->
-            <div
-                v-if="showActions || actionPosition"
-                class="fixed right-0 top-0 z-[10000] bg-red-500 p-4 text-white"
-            >
-                showActions: {{ showActions }}, actionPosition: {{ actionPosition }}
-            </div>
 
             <!-- Actions menu (highlight/copy buttons) -->
             <div
-                v-if="showActions && actionPosition"
+                v-if="showActions"
                 ref="actionsMenu"
                 @pointerdown="onMenuPointerDown"
                 @touchstart.passive="onMenuPointerDown"
                 class="pointer-events-auto absolute z-[9999] flex w-max max-w-[calc(100vw-20px)] items-center justify-center gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg"
                 :style="{
-                    left: actionPosition.x + 'px',
-                    top: actionPosition.y + 'px',
+                    left: actionPosition?.x + 'px',
+                    top: actionPosition?.y + 'px',
                 }"
             >
                 <!-- Color picker palette (shown when highlight button clicked) -->
                 <div v-if="showHighlightColors">
+                    <button
+                        @click="() => removeHighlightedText(content, props.contentId)"
+                        aria-label="Remove highlight"
+                    >
+                        <MinusCircleIcon class="size-6 text-zinc-500" />
+                        <span class="sr-only">Remove highlight</span>
+                    </button>
                     <button
                         v-for="(c, name) in supportedColors"
                         class="m-1 h-6 w-6 rounded-full"

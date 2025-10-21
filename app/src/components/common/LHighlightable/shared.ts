@@ -26,3 +26,6 @@ export const actionsMenu = ref<HTMLElement | undefined>(undefined);
 
 /** Controls visibility of the color picker */
 export const showHighlightColors = ref(false);
+
+/** Flag to prevent immediate menu dismissal after showing it */
+export const justShownMenu = ref(false);
