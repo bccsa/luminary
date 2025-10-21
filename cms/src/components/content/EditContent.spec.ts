@@ -705,6 +705,9 @@ describe("EditContent.vue", () => {
         });
         saveBtn!.trigger("click");
 
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
+
         await waitForExpect(async () => {
             const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
             expect(res.length).toBeGreaterThan(0);
