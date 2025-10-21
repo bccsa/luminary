@@ -24,8 +24,8 @@ info "Detected platform: $PLATFORM"
 # --- Default environment variables (can be overridden at runtime) ---
 : "${LUMINARY_COUCHDB_USER:=admin}"
 : "${LUMINARY_COUCHDB_PASSWORD:=yourpassword}"
-: "${LUMINARY_MINIO_ACCESS_KEY:=minio}"
-: "${LUMINARY_MINIO_SECRET_KEY:=minio123}"
+: "${LUMINARY_MINIO_ROOT_USER:=minio}"
+: "${LUMINARY_MINIO_ROOT_PASSWORD:=minio123}"
 
 # --- Self-installation ---
 self_install() {
