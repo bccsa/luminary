@@ -149,8 +149,8 @@ setup_minio() {
       -p 9000:9000 \
       -p 9001:9001 \
       --name luminary-storage \
-      -e "MINIO_ACCESS_KEY=$LUMINARY_MINIO_ACCESS_KEY" \
-      -e "MINIO_SECRET_KEY=$LUMINARY_MINIO_SECRET_KEY" \
+      -e "MINIO_ROOT_USER=$LUMINARY_MINIO_ROOT_USER" \
+      -e "MINIO_ROOT_PASSWORD=$LUMINARY_MINIO_ROOT_PASSWORD" \
       quay.io/minio/minio server /data --console-address ":9001"
     success "MinIO running at http://localhost:9001"
   fi
