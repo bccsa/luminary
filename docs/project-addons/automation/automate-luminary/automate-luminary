@@ -182,19 +182,19 @@ restart_all() {
 }
 
 restart_api() {
-  pkill -f "api.*npm run start:dev" || true
+  pgrep -f "$LUMINARY_ROOT/api.*npm run start:dev" | xargs -r kill || true
   (cd "$LUMINARY_ROOT/api" && npm run start:dev &)
   success "API restarted at http://localhost:3000"
 }
 
 restart_cms() {
-  pkill -f "cms.*npm run dev" || true
+  pgrep -f "$LUMINARY_ROOT/cms.*npm run dev" | xargs -r kill || true
   (cd "$LUMINARY_ROOT/cms" && npm run dev &)
   success "CMS restarted at http://localhost:4175"
 }
 
 restart_app() {
-  pkill -f "app.*npm run dev" || true
+  pgrep -f "$LUMINARY_ROOT/app.*npm run dev" | xargs -r kill || true
   (cd "$LUMINARY_ROOT/app" && npm run dev &)
   success "App restarted at http://localhost:4174"
 }
