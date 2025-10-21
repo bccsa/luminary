@@ -32,7 +32,14 @@ self_install() {
   if [[ "$PLATFORM" == "windows" ]]; then
     local target="$USERPROFILE\\bin\\luminary.cmd"
     mkdir -p "$(dirname "$target")"
-    cp "$0" "$target"
+    # Create a .cmd shim that invokes Bash with this script
+    cat > "$target" <<EOF
+@echo off
+setlocal
+set SCRIPT_PATH=%~dp0luminary
+bash "%SCRIPT_PATH%" %*
+endlocal
+EOF
     success "Installed Luminary CLI to $target. Make sure this folder is in your PATH."
   else
     local target="/usr/local/bin/luminary"
