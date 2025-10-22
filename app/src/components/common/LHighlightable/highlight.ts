@@ -300,18 +300,14 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
 
     let currentNode;
     while ((currentNode = walker.nextNode())) {
-        console.log("Found child MARK via walker:", currentNode);
         // Avoid duplicates
         if (!marksToRemove.includes(currentNode as HTMLElement)) {
             marksToRemove.push(currentNode as HTMLElement);
         }
     }
 
-    console.log("Total marks to remove:", marksToRemove.length);
-
     // If no marks were found to remove, exit early
     if (marksToRemove.length === 0) {
-        console.log("No marks found to remove - exiting");
         selection.removeAllRanges();
         showHighlightColors.value = false;
         return;
@@ -321,7 +317,6 @@ export function removeHighlightedText(content: Ref<HTMLElement | undefined>, con
     marksToRemove.forEach((mark) => {
         const parent = mark.parentNode;
         if (parent) {
-            console.log("Removing mark from DOM:", mark.textContent?.substring(0, 50));
             while (mark.firstChild) {
                 parent.insertBefore(mark.firstChild, mark);
             }
