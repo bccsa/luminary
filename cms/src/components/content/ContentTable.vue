@@ -7,8 +7,8 @@ import {
 } from "./query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
-import { ref, watch } from "vue";
-import LoadingSpinner from "../LoadingSpinner.vue";
+import { ref, watch } from "vue"; 
+import LoadingBar from "../LoadingBar.vue";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
@@ -64,9 +64,8 @@ watch(contentDocs, (newValue) => {
             <div
                 class="flex h-32 w-full items-center justify-center gap-2"
                 v-if="loadingContentOverviewContent"
-            >
-                <span class="text-sm text-zinc-500">Loading content...</span>
-                <LoadingSpinner class="h-4 w-4 text-zinc-500" />
+            > 
+                <LoadingBar class="h-4 w-4 text-zinc-500" />
             </div>
         </div>
     </div>

@@ -54,6 +54,7 @@ import {
     isLanguageSwitchRef,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 
 const VideoPlayer = defineAsyncComponent({
@@ -86,7 +87,7 @@ const defaultContent: ContentDto = {
     parentId: "",
     language: appLanguagePreferredIdAsRef.value ? appLanguagePreferredIdAsRef.value : "",
     status: PublishStatus.Published,
-    title: "Loading...",
+    title: "",
     slug: "",
     publishDate: 0,
     parentTags: [],
@@ -132,9 +133,12 @@ const idbContent = useDexieLiveQuery(
     { initialValue: defaultContent },
 );
 
+
 const unwatch = watch([idbContent, isConnected], () => {
+    isLoading.value = true;
     if (idbContent.value) {
         content.value = idbContent.value;
+        isLoading.value = false;
         return;
     }
 
@@ -157,6 +161,7 @@ const unwatch = watch([idbContent, isConnected], () => {
     const apiContent = apiLiveQuery.toRef();
 
     watch(apiContent, () => {
+        isLoading.value = true; // API content has loaded (even if not found)  
         if (!apiContent.value) {
             content.value = undefined;
             return;
@@ -174,6 +179,7 @@ const unwatch = watch([idbContent, isConnected], () => {
 
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
+        isLoading.value = false;
     });
 });
 
@@ -185,6 +191,7 @@ watch([content, isConnected], async () => {
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
+
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
 
@@ -253,6 +260,12 @@ const selectedCategoryId = ref<Uuid | undefined>();
 const isLoading = ref(isConnected.value);
 const is404 = ref(false);
 
+watch(content, () => {
+    if (content.value && content.value._id) {
+        isLoading.value = false; // stop loading when content loaded
+    }
+});
+
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
     return (
@@ -307,6 +320,7 @@ watch([content, is404], () => {
     document.title = is404.value
         ? `Page not found - ${appName}`
         : `${content.value?.seoTitle ? content.value.seoTitle : content.value?.title} - ${appName}`;
+
 
     if (is404.value) return;
 
@@ -485,13 +499,10 @@ const selectedLanguageCode = computed(() => {
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
             <div class="relative w-auto">
-                <button
-                    v-show="availableTranslations.length > 1"
-                    name="translationSelector"
+                <button v-show="availableTranslations.length > 1" name="translationSelector"
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
-                    data-test="translationSelector"
-                >
+                    data-test="translationSelector">
                     <!-- Display the current content's language if no other language is available -->
                     <span class="hidden sm:inline">
                         {{
@@ -507,27 +518,17 @@ const selectedLanguageCode = computed(() => {
                         }}
                     </span>
                 </button>
-                <div
-                    v-if="showDropdown"
-                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
-                >
-                    <div
-                        v-for="language in languages"
-                        :key="language._id"
-                        @click="
-                            onLanguageSelect(language._id);
-                            showDropdown = false;
-                        "
-                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                        data-test="translationOption"
-                    >
+                <div v-if="showDropdown"
+                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700">
+                    <div v-for="language in languages" :key="language._id" @click="
+                        onLanguageSelect(language._id);
+                    showDropdown = false;
+                    " class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                        data-test="translationOption">
                         {{ language.name }}
 
-                        <CheckCircleIcon
-                            v-if="selectedLanguageId === language._id"
-                            class="h-5 w-5 text-yellow-500"
-                            aria-hidden="true"
-                        />
+                        <CheckCircleIcon v-if="selectedLanguageId === language._id" class="h-5 w-5 text-yellow-500"
+                            aria-hidden="true" />
                     </div>
                 </div>
             </div>
@@ -537,21 +538,23 @@ const selectedLanguageCode = computed(() => {
             </div>
         </template>
 
+
+
+        <!-- Show 404 page if content is not found or not published -->
         <NotFoundPage v-if="is404" />
+
+        <!-- Show LoadingBar while loading -->
+
+        <LoadingBar v-else-if="isLoading" />
+
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div class="flex flex-grow justify-center">
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                        <VideoPlayer
-                            v-if="content.video"
-                            :content="content"
-                            :language="selectedLanguageCode"
-                        />
+                        <VideoPlayer v-if="content.video" :content="content" :language="selectedLanguageCode" />
                         <!-- Ensure content.parentId does not contain default content empty string -->
-                        <div
-                            v-else-if="content.parentId || content.parentImageData"
-                            class="relative cursor-pointer"
+                        <div v-else-if="content.parentId || content.parentImageData" class="relative cursor-pointer"
                             @click="
                                 () => {
                                     if (content) {
@@ -559,21 +562,14 @@ const selectedLanguageCode = computed(() => {
                                     }
                                     enableZoom = true;
                                 }
-                            "
-                        >
+                            ">
                             <!-- Main Image -->
-                            <LImage
-                                :image="content.parentImageData"
-                                :content-parent-id="content.parentId"
-                                aspectRatio="video"
-                                size="post"
-                            />
+                            <LImage :image="content.parentImageData" :content-parent-id="content.parentId"
+                                aspectRatio="video" size="post" />
 
                             <!-- Icon to indicate multiple images -->
-                            <div
-                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex items-center gap-1"
-                            >
+                            <div v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1">
                                 <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
                         </div>
@@ -581,27 +577,21 @@ const selectedLanguageCode = computed(() => {
 
                     <div class="flex w-full flex-col items-center">
                         <div class="mt-3 flex flex-col gap-3">
-                            <h1
-                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
-                            >
+                            <h1 class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl">
                                 {{ content.title }}
                             </h1>
-                            <div
-                                v-if="content.author"
-                                class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
-                            >
+                            <div v-if="content.author"
+                                class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300">
                                 By {{ content.author }}
                             </div>
 
-                            <div
-                                class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
-                                v-if="content.publishDate && content.parentPublishDateVisible"
-                            >
+                            <div class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
+                                v-if="content.publishDate && content.parentPublishDateVisible">
                                 {{
                                     content.publishDate
                                         ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
+                                            .toDateTime(content.publishDate)
+                                            .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
                             </div>
@@ -610,77 +600,51 @@ const selectedLanguageCode = computed(() => {
                                 <div class="flex justify-center">
                                     <div @click="toggleBookmark" data-test="bookmark">
                                         <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
-                                        <component
-                                            v-if="
-                                                !(
-                                                    content.parentPostType &&
-                                                    content.parentPostType == PostType.Page
-                                                )
-                                            "
-                                            :is="
-                                                isBookmarked
-                                                    ? BookmarkIconSolid
-                                                    : BookmarkIconOutline
-                                            "
-                                            class="h-6 w-6 cursor-pointer"
-                                            :class="{
+                                        <component v-if="
+                                            !(
+                                                content.parentPostType &&
+                                                content.parentPostType == PostType.Page
+                                            )
+                                        " :is="isBookmarked
+                                            ? BookmarkIconSolid
+                                            : BookmarkIconOutline
+                                            " class="h-6 w-6 cursor-pointer" :class="{
                                                 'text-yellow-500': isBookmarked,
-                                            }"
-                                        />
+                                            }" />
                                     </div>
                                 </div>
                             </div>
 
-                            <div
-                                class="text-center text-sm text-zinc-800 dark:text-slate-200"
-                                v-if="content.summary"
-                            >
+                            <div class="text-center text-sm text-zinc-800 dark:text-slate-200" v-if="content.summary">
                                 {{ content.summary }}
                             </div>
                         </div>
                     </div>
 
                     <!-- Category tag buttons -->
-                    <div
-                        class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
-                        v-if="categoryTags.length"
-                    >
-                        <span
-                            v-for="tag in categoryTags"
-                            :key="tag._id"
-                            @click="
-                                selectedCategoryId = tag.parentId;
-                                showCategoryModal = true;
-                            "
-                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
-                        >
-                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span
-                                class="line-clamp-1"
-                                >{{ tag.title }}</span
-                            >
+                    <div class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                        v-if="categoryTags.length">
+                        <span v-for="tag in categoryTags" :key="tag._id" @click="
+                            selectedCategoryId = tag.parentId;
+                        showCategoryModal = true;
+                        "
+                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25">
+                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span class="line-clamp-1">{{ tag.title
+                            }}</span>
                         </span>
                     </div>
 
-                    <div
-                        v-if="content.text"
-                        v-html="text"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                    <div v-if="content.text" v-html="text" class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
                         :class="{
                             'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"
-                    ></div>
+                        }"></div>
                 </article>
             </div>
 
-            <RelatedContent
-                v-if="content && tags.length"
-                :selectedContent="content"
-                :tags="
-                    tags.filter(
-                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
-                    )
-                "
-            />
+            <RelatedContent v-if="content && tags.length" :selectedContent="content" :tags="tags.filter(
+                (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
+            )
+                " />
         </div>
 
         <IgnorePagePadding ignoreBottom>
@@ -688,11 +652,7 @@ const selectedLanguageCode = computed(() => {
         </IgnorePagePadding>
     </BasePage>
 
-    <LModal
-        :isVisible="showCategoryModal"
-        @close="showCategoryModal = false"
-        :heading="selectedCategory?.title || ''"
-    >
+    <LModal :isVisible="showCategoryModal" @close="showCategoryModal = false" :heading="selectedCategory?.title || ''">
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
                 <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
@@ -700,13 +660,7 @@ const selectedLanguageCode = computed(() => {
         </div>
     </LModal>
 
-    <ImageModal
-        v-if="content && enableZoom"
-        :content-parent-id="content.parentId"
-        :imageCollections="content?.parentImageData?.fileCollections"
-        :currentIndex="currentImageIndex"
-        aspectRatio="original"
-        @update:index="currentImageIndex = $event"
-        @close="enableZoom = false"
-    />
+    <ImageModal v-if="content && enableZoom" :content-parent-id="content.parentId"
+        :imageCollections="content?.parentImageData?.fileCollections" :currentIndex="currentImageIndex"
+        aspectRatio="original" @update:index="currentImageIndex = $event" @close="enableZoom = false" />
 </template>
