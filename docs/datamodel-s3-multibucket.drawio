@@ -1,0 +1,91 @@
+<mxfile host="65bd71144e">
+    <diagram name="S3 Multi-Bucket Data Model" id="s3-multibucket-datamodel">
+        <mxGraphModel dx="2856" dy="467" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;Luminary Data Model&lt;/h1&gt;&lt;h2&gt;Extended with S3 Multi-Bucket Architecture&lt;/h2&gt;&lt;p&gt;Supports multiple content types (images, audios, videos, documents) with bucket-specific configurations&lt;/p&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;fontSize=16;fillColor=#f5f5f5;strokeColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="30" width="700" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;_baseDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ _id: Uuid&lt;br/&gt;+ type: string&lt;br/&gt;+ updatedTimeUtc?: number&lt;br/&gt;+ deleteReq?: number (1 = true)&lt;br/&gt;+ updatedBy: string (Uuid)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="-40" y="170" width="200" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;_contentBaseDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ memberOf: [groupId]&lt;br/&gt;+ bucketConfig: BucketConfigDto&lt;br/&gt;+ bucketType: string&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="180" width="220" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ContentDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ parentId: postId/tagId (Uuid)&lt;br/&gt;+ parentType: string&lt;br/&gt;+ language: languageId&lt;br/&gt;+ status: predefined string&lt;br/&gt;+ slug: string&lt;br/&gt;+ title: string&lt;br/&gt;+ summary: string&lt;br/&gt;+ author: authorId (future)&lt;br/&gt;+ text: string&lt;br/&gt;+ seoTitle: string&lt;br/&gt;+ seoSummary: string&lt;br/&gt;+ audio: string&lt;br/&gt;+ video: string&lt;br/&gt;+ publishDate: number&lt;br/&gt;+ expiryDate?: number&lt;br/&gt;+ parentTags?: [tagId]&lt;br/&gt;+ parentImage?: string&lt;br/&gt;+ parentImageData?: ImageDto&lt;br/&gt;+ parentTagType?: string&lt;br/&gt;+ parentPinned?: number&lt;br/&gt;+ parentTaggedDocs?: Uuid[]&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=11;fontFamily=Helvetica;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="650" y="180" width="250" height="350" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;BucketConfigDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ name: string&lt;br/&gt;+ bucketType: string&lt;br/&gt;+ imageQuality?: number&lt;br/&gt;+ maxSize?: number&lt;br/&gt;+ allowedTypes?: string[]&lt;br/&gt;+ options?: object&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&lt;i&gt;Configuration for each S3 bucket type&lt;/i&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="350" width="220" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;S3ServiceDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ uploadFile(bucketType, key, file)&lt;br/&gt;+ getObject(bucketType, key)&lt;br/&gt;+ removeObjects(bucketType, keys[])&lt;br/&gt;+ validateUpload(bucketType, key)&lt;br/&gt;+ checkAccessibility(bucketType, keys)&lt;br/&gt;+ getBucketConfig(bucketType)&lt;br/&gt;+ get imageBucket() // backward compat&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&lt;i&gt;Multi-bucket aware S3 operations&lt;/i&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=11;fontFamily=Helvetica;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="-40" y="340" width="250" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;BucketManagerDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ register(type, config): void&lt;br/&gt;+ getBucket(type): BucketConfig&lt;br/&gt;+ listBuckets(): string[]&lt;br/&gt;+ hasBucket(type): boolean&lt;br/&gt;+ bucketConfigs: Map&amp;lt;string, BucketConfig&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&lt;i&gt;Registry for bucket configurations&lt;/i&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=11;fontFamily=Helvetica;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+                    <mxGeometry x="-40" y="570" width="250" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ImageDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ fileCollections: [ImageFileCollectionDto]&lt;br/&gt;+ uploadData?: [ImageUploadDataDto]&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="228" width="220" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;LanguageDto&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ languageCode: string&lt;br/&gt;+ name: string&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="402" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;S3 Bucket Types&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&lt;b&gt;Images Bucket:&lt;/b&gt;&lt;br/&gt;• JPEG, PNG, GIF, WebP&lt;br/&gt;• Configurable quality settings&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Audios Bucket:&lt;/b&gt;&lt;br/&gt;• MP3, WAV, OGG, AAC&lt;br/&gt;• Configurable size limits&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Videos Bucket:&lt;/b&gt;&lt;br/&gt;• MP4, AVI, MOV, WebM&lt;br/&gt;• Configurable resolution&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Documents Bucket:&lt;/b&gt;&lt;br/&gt;• PDF, DOC, TXT, etc.&lt;br/&gt;• Configurable access controls&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=10;fontFamily=Helvetica;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="550" width="220" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;S3 Multi-Bucket Architecture Benefits&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;✅ &lt;b&gt;Multiple Content Types:&lt;/b&gt; Support for images, audios, videos, documents&lt;br/&gt;&lt;br/&gt;✅ &lt;b&gt;Bucket-Specific Configs:&lt;/b&gt; Each bucket type has its own settings&lt;br/&gt;&lt;br/&gt;✅ &lt;b&gt;Type-Safe Access:&lt;/b&gt; Enum-based bucket type validation&lt;br/&gt;&lt;br/&gt;✅ &lt;b&gt;Backward Compatible:&lt;/b&gt; Existing imageBucket code still works&lt;br/&gt;&lt;br/&gt;✅ &lt;b&gt;Easy Extension:&lt;/b&gt; Add new bucket types via configuration&lt;br/&gt;&lt;br/&gt;✅ &lt;b&gt;Better Organization:&lt;/b&gt; Content types isolated in separate buckets&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=10;fontFamily=Helvetica;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="530" width="380" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Migration Strategy&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&lt;b&gt;Phase 1:&lt;/b&gt; Add BucketConfig &amp;amp; Manager&lt;br/&gt;&lt;b&gt;Phase 2:&lt;/b&gt; Update S3Service methods&lt;br/&gt;&lt;b&gt;Phase 3:&lt;/b&gt; Gradual consumer migration&lt;br/&gt;&lt;b&gt;Phase 4:&lt;/b&gt; Deprecate old methods&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Maintains backward compatibility via&lt;br/&gt;imageBucket getter throughout migration&lt;/i&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=10;fontFamily=Helvetica;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="760" width="280" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Usage Examples&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;font-family:monospace;font-size:9px;&quot;&gt;// Old way (still works)&lt;br/&gt;s3Service.uploadFile(&lt;br/&gt;  s3Service.imageBucket,&lt;br/&gt;  &#39;profile.jpg&#39;, imageBuffer&lt;br/&gt;);&lt;br/&gt;&lt;br/&gt;// New way&lt;br/&gt;s3Service.uploadFile(&lt;br/&gt;  &#39;images&#39;, &#39;profile.jpg&#39;, imageBuffer&lt;br/&gt;);&lt;br/&gt;&lt;br/&gt;s3Service.uploadFile(&lt;br/&gt;  &#39;audios&#39;, &#39;podcast.mp3&#39;, audioBuffer&lt;br/&gt;);&lt;br/&gt;&lt;br/&gt;s3Service.uploadFile(&lt;br/&gt;  &#39;videos&#39;, &#39;demo.mp4&#39;, videoBuffer&lt;br/&gt;);&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=10;fontFamily=Helvetica;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="650" y="620" width="250" height="230" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;endFill=0;" parent="1" source="22" target="4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;endFill=0;" parent="1" source="4" target="5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=diamond;endFill=1;" parent="1" source="4" target="6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=diamond;endFill=1;" parent="1" source="7" target="8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;endArrow=diamond;endFill=0;" parent="1" source="6" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=diamond;endFill=0;" parent="1" source="5" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=diamond;endFill=0;" parent="1" source="5" target="10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="extends" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="590" y="360" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="has" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="470" y="300" width="40" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="uses" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="85" y="540" width="40" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="configures" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="420" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;endFill=0;" edge="1" parent="1" source="3" target="22">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="160" y="230" as="sourcePoint"/>
+                        <mxPoint x="350" y="230" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="22" value="extends" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="220" width="60" height="20" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
