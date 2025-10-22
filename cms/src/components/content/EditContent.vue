@@ -46,7 +46,7 @@ import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
+import { clientAppUrl, isSmallScreen } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import EditContentImage from "./EditContentImage.vue";
@@ -797,7 +797,7 @@ watch(
                             v-model:parent="editableParent"
                         />
 
-                        <div class="sticky -top-1 z-10">
+                        <div class="-top-1 z-10" :class="{ 'sticky': isSmallScreen }">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
