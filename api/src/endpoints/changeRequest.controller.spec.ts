@@ -70,7 +70,6 @@ describe("ChangeRequestController", () => {
                     imageData: expect.objectContaining({
                         uploadData: [
                             expect.objectContaining({
-                                filename: "test-image.jpg",
                                 preset: "photo",
                                 fileData: expect.any(Buffer),
                             }),

@@ -12,6 +12,7 @@ import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
+import { S3MediaService } from "../s3-media/media.service";
 
 export async function processChangeRequest(
     userId: string,
@@ -19,6 +20,7 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
+    s3Media: S3MediaService,
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
@@ -47,8 +49,9 @@ export async function processChangeRequest(
     doc.updatedBy = userId;
 
     const docProcessMap = {
-        [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3),
-        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3),
+        [DocType.Post]: () =>
+            processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3, s3Media),
+        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3, s3Media),
         [DocType.Content]: () => processContentDto(doc as ContentDto, db),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
     };

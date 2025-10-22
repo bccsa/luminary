@@ -10,6 +10,7 @@ import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { S3MediaService } from "../s3-media/media.service";
 
 @Injectable()
 export class ChangeRequestService {
@@ -22,6 +23,7 @@ export class ChangeRequestService {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
+        private s3Media: S3MediaService,
     ) {
         // Create config object with environmental variables
         this.config = configuration();
@@ -37,6 +39,7 @@ export class ChangeRequestService {
             userDetails.groups,
             this.db,
             this.s3,
+            this.s3Media,
         )
             .then(async (result) => {
                 const ack = await this.upsertDocAck(

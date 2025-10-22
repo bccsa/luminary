@@ -12,6 +12,7 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
+import { createUploadData } from "../changeRequests/uploadHandler";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -32,45 +33,42 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
+        const doc = JSON.parse(body["changeRequestDoc-JSON"]);
+        const changeReqId = JSON.parse(body["changeRequestId"]);
+        const apiVersion = body["changeRequestApiVersion"];
 
-        if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
+        if (files?.length) {
             const apiVersion = body["changeRequestApiVersion"];
             await validateApiVersion(apiVersion);
 
-            const changeReqId = JSON.parse(body["changeRequestId"]);
-            const parsedDoc = JSON.parse(body["changeRequestDoc-JSON"]);
+            for (const [index, file] of files.entries()) {
+                const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                const mediaType = body[`${index}-changeRequestDoc-files-mediaType`];
+                const languageId = body[`${index}-changeRequestDoc-files-languageId`];
 
-            //Only parent documents (Posts and Tags) can have files uploaded,
-            //Child documents only have a reference to the parent document's fileCollection field
-            //without this check it could lead to unexpected behavior or critical errors
-            if (files.length > 0) {
-                const uploadData = [];
-
-                files.forEach((file, index) => {
-                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
-
-                    uploadData.push({
-                        fileData: file.buffer,
-                        filename: fileName,
-                        preset: filePreset,
-                    });
+                const singleUploadData = createUploadData(file, filePreset, {
+                    hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
+                    mediaType: mediaType,
+                    languageId: languageId,
                 });
 
-                parsedDoc.imageData.uploadData = uploadData;
+                // Assign uploadData to the correct field in the doc
+                if (mediaType) {
+                    doc.media.uploadData.push(singleUploadData);
+                } else {
+                    doc.imageData.uploadData.push(singleUploadData);
+                }
             }
-
-            const changeRequest: ChangeReqDto = {
-                id: changeReqId,
-                doc: parsedDoc,
-                apiVersion,
-            };
-
-            return this.changeRequestService.changeRequest(changeRequest, token);
         }
+
+        const changeRequest: ChangeReqDto = {
+            id: changeReqId,
+            doc: doc,
+            apiVersion,
+        };
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
-        return this.changeRequestService.changeRequest(body, token);
+        return this.changeRequestService.changeRequest(changeRequest, token);
     }
 }

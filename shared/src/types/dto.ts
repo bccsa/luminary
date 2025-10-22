@@ -5,6 +5,8 @@ import type {
     PostType,
     RedirectType,
     DeleteReason,
+    MediaType,
+    MediaPreset,
 } from "../types";
 
 export enum AckStatus {
@@ -107,12 +109,14 @@ export type ContentDto = ContentBaseDto & {
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
+    parentMedia?: MediaDto;
 };
 
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    media?: MediaDto;
 };
 
 export type PostDto = ContentParentDto & {
@@ -157,6 +161,27 @@ export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;
     filename?: string;
+};
+
+export type MediaDto = {
+    hlsUrl?: string;
+    fileCollections: MediaFileDto[];
+    uploadData?: MediaUploadDataDto[];
+};
+
+export type MediaFileDto = {
+    languageId: string;
+    fileUrl: string;
+    bitrate: number;
+    mediaType: MediaType;
+    processingProgress?: number;
+};
+
+export type MediaUploadDataDto = {
+    fileData: ArrayBuffer;
+    mediaType: MediaType;
+    preset?: MediaPreset;
+    languageId?: string;
 };
 
 export type ChangeReqDto = {

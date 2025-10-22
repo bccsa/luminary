@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
+import { getSocket, isConnected, maxUploadFileSize, maxMediaUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
 import { db, initDatabase } from "../db/database";
 import { DocType } from "../types";
@@ -133,6 +133,7 @@ describe("socketio", () => {
                 },
             },
             maxUploadFileSize: 1234,
+            maxMediaUploadFileSize: 5678,
         };
 
         socketServer.on("connection", (socket) => {
@@ -144,6 +145,7 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
             expect(maxUploadFileSize.value).toEqual(clientConfig.maxUploadFileSize);
+            expect(maxMediaUploadFileSize.value).toEqual(clientConfig.maxMediaUploadFileSize);
         });
     });
 
