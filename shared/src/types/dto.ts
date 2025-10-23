@@ -108,12 +108,16 @@ export type ContentDto = ContentBaseDto & {
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
+    parentImageBucketId?: Uuid;
+    parentMediaBucketId?: Uuid;
 };
 
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    imageBucketId?: Uuid;
+    mediaBucketId?: Uuid;
 };
 
 export type PostDto = ContentParentDto & {
