@@ -20,12 +20,18 @@ export enum DocType {
     Group = "group",
     Change = "change",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
 }
 
 /**
  * Acl permissions
  */
 export enum AclPermission {
+    /**
+     * Access to view documents
+     */
+    Create = "create",
+
     /**
      * Access to view documents
      */
