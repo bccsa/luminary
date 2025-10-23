@@ -71,3 +71,13 @@ export function onSelectionChange() {
         actionPosition.value = undefined;
     }
 }
+
+export function selectParagraphAtRange(range: Range) {
+    const startContainer = range.startContainer;
+    const endContainer = range.endContainer;
+
+    let paragraphStart: Node | null = startContainer;
+    while (paragraphStart && paragraphStart.nodeType !== Node.ELEMENT_NODE) {
+        paragraphStart = paragraphStart.parentNode;
+    }
+}
