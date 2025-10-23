@@ -7,6 +7,7 @@ export enum DocType {
     Tag = "tag",
     User = "user",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
 }
 
 export enum PublishStatus {
