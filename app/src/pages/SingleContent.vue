@@ -339,6 +339,29 @@ const text = computed(() => {
     return generateHTML(text, [StarterKit, Link]);
 });
 
+const parsedContent = computed(() => {
+    if (!content.value || !content.value.text) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(content.value.text);
+    } catch {
+        return null;
+    }
+});
+
+const contentBlocks = computed(() => {
+    if (!parsedContent.value || !parsedContent.value.content) {
+        return [];
+    }
+
+    return parsedContent.value.content.map((node: any, index: number) => {
+        const html = generateHTML({ type: "doc", content: [node] }, [StarterKit, Link]);
+        return { id: `block-${index}`, html, node };
+    });
+});
+
 // Select the first category in the content by category list on load
 watch(tags, () => {
     if (selectedCategoryId.value) return;
@@ -662,9 +685,25 @@ const selectedLanguageCode = computed(() => {
                         </span>
                     </div>
 
-                    <LHighlightable :content-id="content._id">
+                    <!-- Render each content block individually for easier highlighting -->
+                    <div
+                        v-if="content.text && contentBlocks.length > 0"
+                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                        :class="{
+                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                        }"
+                    >
+                        <LHighlightable
+                            v-for="block in contentBlocks"
+                            :key="block.id"
+                            :content-id="`${content._id}-${block.id}`"
+                        >
+                            <div v-html="block.html"></div>
+                        </LHighlightable>
+                    </div>
+                    <!-- Fallback for non-JSON content -->
+                    <LHighlightable v-else-if="content.text" :content-id="content._id">
                         <div
-                            v-if="content.text"
                             v-html="text"
                             class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
                             :class="{

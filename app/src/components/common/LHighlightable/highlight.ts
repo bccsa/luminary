@@ -1,3 +1,26 @@
+function getParentMark(node: Node, root: Node | null): HTMLElement | null {
+    let parent: Node | null = node.parentNode;
+    while (parent && parent !== root) {
+        if (parent.nodeType === Node.ELEMENT_NODE && (parent as HTMLElement).tagName === "MARK") {
+            return parent as HTMLElement;
+        }
+        parent = parent.parentNode;
+    }
+    return null;
+}
+
+function createMark(selected: string, color: string): HTMLElement {
+    const mark = document.createElement("mark");
+    mark.style.backgroundColor = color;
+    mark.style.fontWeight = "unset";
+    mark.style.color = "unset";
+    mark.textContent = selected;
+    return mark;
+}
+
+function updateMarkColor(mark: HTMLElement, color: string) {
+    mark.style.backgroundColor = color;
+}
 import { userPreferencesAsRef } from "@/globalConfig";
 import type { Ref } from "vue";
 import { showHighlightColors } from "./shared";
@@ -22,7 +45,6 @@ export function highlightTextInDOM(
     // Check if selection is entirely within a single <mark> element
     let node: Node | null = range.commonAncestorContainer;
     let foundMark: HTMLElement | null = null;
-
     while (node && node !== content.value) {
         if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "MARK") {
             foundMark = node as HTMLElement;
@@ -30,14 +52,13 @@ export function highlightTextInDOM(
         }
         node = node.parentNode;
     }
-
     // If selection is entirely within a mark, just update its color
     if (
         foundMark &&
         range.startContainer.parentNode === foundMark &&
         range.endContainer.parentNode === foundMark
     ) {
-        foundMark.style.backgroundColor = color;
+        updateMarkColor(foundMark, color);
         selection.removeAllRanges();
         saveHighlightedContent(content, contentId);
         return;
@@ -51,52 +72,23 @@ export function highlightTextInDOM(
     // Simple case: selection within a single text node
     if (startContainer === endContainer && startContainer.nodeType === Node.TEXT_NODE) {
         const textNode = startContainer as Text;
-
-        // Check if this text node is already inside a mark
-        let parentMark: HTMLElement | null = null;
-        let parent: Node | null = textNode.parentNode;
-        while (parent && parent !== content.value) {
-            if (
-                parent.nodeType === Node.ELEMENT_NODE &&
-                (parent as HTMLElement).tagName === "MARK"
-            ) {
-                parentMark = parent as HTMLElement;
-                break;
-            }
-            parent = parent.parentNode;
-        }
-
+        const parentMark = getParentMark(textNode, content.value ?? null);
         if (parentMark) {
-            // Just update the color of the existing mark
-            parentMark.style.backgroundColor = color;
+            updateMarkColor(parentMark, color);
         } else {
-            // Split the text node and wrap the selected portion in a mark
             const text = textNode.textContent || "";
             const before = text.slice(0, startOffset);
             const selected = text.slice(startOffset, endOffset);
             const after = text.slice(endOffset);
-
-            const mark = document.createElement("mark");
-            mark.style.backgroundColor = color;
-            mark.style.fontWeight = "unset";
-            mark.style.color = "unset";
-            mark.textContent = selected;
-
+            const mark = createMark(selected, color);
             const parentNode = textNode.parentNode;
             if (parentNode) {
-                if (before) {
-                    const beforeNode = document.createTextNode(before);
-                    parentNode.insertBefore(beforeNode, textNode);
-                }
+                if (before) parentNode.insertBefore(document.createTextNode(before), textNode);
                 parentNode.insertBefore(mark, textNode);
-                if (after) {
-                    const afterNode = document.createTextNode(after);
-                    parentNode.insertBefore(afterNode, textNode);
-                }
+                if (after) parentNode.insertBefore(document.createTextNode(after), textNode);
                 parentNode.removeChild(textNode);
             }
         }
-
         selection.removeAllRanges();
         saveHighlightedContent(content, contentId);
         return;
@@ -121,62 +113,26 @@ export function highlightTextInDOM(
     // Process each intersecting text node individually
     textNodes.forEach((textNode) => {
         if (textNode.nodeType !== Node.TEXT_NODE) return;
-
         const text = textNode.textContent || "";
         let start = 0;
         let end = text.length;
-
         // Calculate offsets for start and end nodes
-        if (textNode === range.startContainer) {
-            start = range.startOffset;
-        }
-        if (textNode === range.endContainer) {
-            end = range.endOffset;
-        }
-
-        // Skip if nothing to highlight in this node
+        if (textNode === range.startContainer) start = range.startOffset;
+        if (textNode === range.endContainer) end = range.endOffset;
         if (start >= end) return;
-
-        // Check if this text node is already inside a mark
-        let parentMark: HTMLElement | null = null;
-        let parent: Node | null = textNode.parentNode;
-        while (parent && parent !== content.value) {
-            if (
-                parent.nodeType === Node.ELEMENT_NODE &&
-                (parent as HTMLElement).tagName === "MARK"
-            ) {
-                parentMark = parent as HTMLElement;
-                break;
-            }
-            parent = parent.parentNode;
-        }
-
+        const parentMark = getParentMark(textNode, content.value ?? null);
         if (parentMark) {
-            // Just update the color of the existing mark
-            parentMark.style.backgroundColor = color;
+            updateMarkColor(parentMark, color);
         } else {
-            // Split the text node and wrap the selected part in a mark
             const before = text.slice(0, start);
             const selected = text.slice(start, end);
             const after = text.slice(end);
-
-            const mark = document.createElement("mark");
-            mark.style.backgroundColor = color;
-            mark.style.fontWeight = "unset";
-            mark.style.color = "unset";
-            mark.textContent = selected;
-
+            const mark = createMark(selected, color);
             const parentNode = textNode.parentNode;
             if (parentNode) {
-                if (before) {
-                    const beforeNode = document.createTextNode(before);
-                    parentNode.insertBefore(beforeNode, textNode);
-                }
+                if (before) parentNode.insertBefore(document.createTextNode(before), textNode);
                 parentNode.insertBefore(mark, textNode);
-                if (after) {
-                    const afterNode = document.createTextNode(after);
-                    parentNode.insertBefore(afterNode, textNode);
-                }
+                if (after) parentNode.insertBefore(document.createTextNode(after), textNode);
                 parentNode.removeChild(textNode);
             }
         }
@@ -197,10 +153,6 @@ export function saveHighlightedContent(content: Ref<HTMLElement | undefined>, co
         const slotContent = content.value.querySelector(".prose");
         if (slotContent) {
             const html = slotContent.innerHTML;
-
-            console.log("saveHighlightedContent called for contentId:", contentId);
-            console.log("HTML length:", html.length);
-            console.log("HTML preview:", html.substring(0, 200));
 
             // Check if there are any marks in the HTML
             const hasMarks = html.includes("<mark");
