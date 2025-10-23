@@ -41,6 +41,7 @@ export type BaseDocumentDto = {
 };
 
 export enum AclPermission {
+    Create = "create",
     View = "view",
     Edit = "edit",
     Delete = "delete",
@@ -157,6 +158,24 @@ export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;
     filename?: string;
+};
+
+export type S3CredentialDto = {
+    endpoint: string;
+    accessKey: string;
+    secretKey: string;
+};
+
+export type S3BucketDto = ContentBaseDto & {
+    name: string;
+    fileTypes: string[];
+    httpPath: string;
+    credential?: S3CredentialDto;
+    credential_id?: string;
+};
+
+export type EncryptedStorageDto = BaseDocumentDto & {
+    data: any;
 };
 
 export type ChangeReqDto = {
