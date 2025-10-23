@@ -1,0 +1,14 @@
+import { IsNotEmpty, IsString } from "class-validator";
+import { Expose } from "class-transformer";
+import { _baseDto } from "./_baseDto";
+
+/**
+ * Encrypted storage wrapper. Consumers should decrypt using the
+ * appropriate secure key before use.
+ */
+export class EncryptedStorageDto extends _baseDto {
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
+    data: any;
+}
