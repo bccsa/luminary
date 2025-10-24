@@ -2,6 +2,7 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
+import { EncryptedStorageDto } from "../dto/EncryptedStorageDto";
 import { GroupDto } from "../dto/GroupDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
@@ -13,6 +14,7 @@ import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
+import { S3BucketDto } from "src/dto/S3BucketDto";
 
 /**
  * DocType to DTO map
@@ -25,6 +27,8 @@ const DocTypeMap = {
     post: PostDto,
     tag: TagDto,
     user: UserDto,
+    storage: EncryptedStorageDto,
+    s3BucketDto: S3BucketDto,
 };
 
 /**
