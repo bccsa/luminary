@@ -1,11 +1,18 @@
 <script lang="ts" setup>
 import { onClickOutside } from "@vueuse/core";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
-defineProps<{ padding?: "small" | "medium" | "large" | "none" }>();
+type Props = {
+    padding?: "small" | "medium" | "large" | "none";
+    parent?: HTMLElement | undefined;
+};
+
+defineProps<Props>();
 
 const show = defineModel<boolean>("show", { required: true });
-const dropdownElementRef = ref<HTMLElement | null>(null);
+const dropdownElementRef = ref<HTMLElement | undefined>(undefined);
+
+watch(show, (newVal) => {});
 
 onClickOutside(dropdownElementRef, () => {
     show.value = false;
