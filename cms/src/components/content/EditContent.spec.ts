@@ -55,6 +55,13 @@ vi.mock("vue-router", async (importOriginal) => {
                     },
                 },
             },
+            push: vi.fn(),
+            replace: vi.fn(),
+        }),
+        useRoute: () => ({
+            params: {
+                languageCode: "eng",
+            },
         }),
         onBeforeRouteLeave: vi.fn(),
     };
@@ -300,6 +307,24 @@ describe("EditContent.vue", () => {
             expect(languages.html()).toContain("English");
             expect(languages.html()).not.toContain("Français");
             expect(languages.html()).not.toContain("Swahili");
+        });
+    });
+
+    it("renders 2 language selectors", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: "Language-selector-id",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="placeholder-language-selector"]').exists()).toBe(true);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
         });
     });
 
@@ -673,7 +698,15 @@ describe("EditContent.vue", () => {
         await nextTick();
         await nextTick(); // Sometimes two cycles needed for complex components
 
-        await wrapper.find("[data-test='save-button']").trigger("click");
+        let saveBtn;
+        await waitForExpect(() => {
+            saveBtn = wrapper.find('[data-test="save-button"]');
+            expect(saveBtn.exists()).toBe(true);
+        });
+        saveBtn!.trigger("click");
+
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
 
         await waitForExpect(async () => {
             const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
