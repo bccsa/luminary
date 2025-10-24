@@ -9,6 +9,7 @@ import {
     GlobeEuropeAfricaIcon,
     ArrowUturnRightIcon,
     UsersIcon,
+    CloudIcon,
 } from "@heroicons/vue/20/solid";
 
 import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
@@ -67,6 +68,12 @@ const navigation = computed(() => [
         to: { name: "languages" },
         icon: GlobeEuropeAfricaIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
+    },
+    {
+        name: "S3 Storage",
+        to: { name: "s3-storage" },
+        icon: CloudIcon,
+        visible: hasAnyPermission(DocType.Storage, AclPermission.View),
     },
     {
         name: "Users",
