@@ -33,7 +33,7 @@ const localCredentials = ref<S3CredentialDto>({
 
 // Form data
 const localBucket = ref<S3BucketDto>({
-    _id: props.bucket?._id || undefined,
+    _id: props.bucket?._id || "",
     name: "",
     type: DocType.Storage,
     fileTypes: [],
