@@ -3,12 +3,14 @@ import { computed, toRaw } from "vue";
 
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
+        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
     ],
     [DocType.Language]: [
+        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -16,6 +18,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Translate,
     ],
     [DocType.Post]: [
+        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -23,6 +26,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Publish,
     ],
     [DocType.Tag]: [
+        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -32,6 +36,7 @@ export const availablePermissionsPerDocType = {
     ],
     [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
     [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
+    [DocType.Storage]: [AclPermission.Create, AclPermission.View, AclPermission.Delete],
 };
 
 /**
