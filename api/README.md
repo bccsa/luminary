@@ -26,6 +26,10 @@ For development purposes, MinIO can be installed as a docker for S3 compatible s
 This command will create an instance with a pre-configured access key / secret combination:
 
 ```shell
+docker run -d -p 9000:9000 -p 9001:9001 --name luminary-storage -e "MINIO_ACCESS_KEY=minio" -e "MINIO_SECRET_KEY=minio123" quay.io/minio/minio server /data --console-address ":9001"
+```
+
+```shell
 docker run -d \
    -p 9000:9000 \
    -p 9001:9001 \
