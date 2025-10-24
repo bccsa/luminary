@@ -67,6 +67,10 @@ async function Startup() {
                 type: DocType.User,
                 sync: false,
             },
+            {
+                type: DocType.Storage,
+                sync: true,
+            },
         ],
     }).catch((err) => {
         console.error(err);
