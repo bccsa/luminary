@@ -105,7 +105,7 @@ onClickOutside(sortOptionsMenu, () => {
                 <LButton @click="showSortOptions = !showSortOptions" data-test="sort-toggle-btn">
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
-                <div class="absolute left-[39rem] top-12">
+                <div class="absolute right-0 top-12">
                     <LDropdown
                         ref="sortOptionsMenu"
                         :show="showSortOptions"

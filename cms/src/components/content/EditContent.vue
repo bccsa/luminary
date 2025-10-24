@@ -784,8 +784,8 @@ watch(
         </template>
         <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
             <!-- sidebar -->
-            <div class="w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
-                <div class="max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
+            <div class="h-full w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
+                <div class="h-full max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
                     <div class="flex flex-col gap-2 sm:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -851,7 +851,7 @@ watch(
                                 <div>
                                     <LButton
                                         :icon="PlusIcon"
-                                        class="w-fit"
+                                        class="h-max w-fit"
                                         variant="muted"
                                         @click.stop="showLanguageSelector = !showLanguageSelector"
                                         data-test="add-translation-button"
