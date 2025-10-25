@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty } from "class-validator";
 import { Expose } from "class-transformer";
 import { _baseDto } from "./_baseDto";
 
@@ -8,7 +8,6 @@ import { _baseDto } from "./_baseDto";
  */
 export class EncryptedStorageDto extends _baseDto {
     @IsNotEmpty()
-    @IsString()
     @Expose()
     data: any;
 }
