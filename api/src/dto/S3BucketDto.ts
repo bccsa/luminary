@@ -24,7 +24,6 @@ export class S3BucketDto extends _contentBaseDto {
     httpPath: string; // public base path
 
     @IsOptional()
-    @IsString()
     @Expose()
     /** Optional reference to an EncryptedStorageDto document that holds
      * encrypted S3CredentialDto data. Note: S3CredentialDto itself is a
