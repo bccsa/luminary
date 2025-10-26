@@ -1,5 +1,6 @@
 // This file generates the documents for the change request tests some random data
 
+import { S3BucketDto } from "../dto/S3BucketDto";
 import { ContentDto } from "../dto/ContentDto";
 
 function randomString() {
@@ -106,5 +107,25 @@ export const changeRequest_group = () => {
                 },
             ],
         },
+    };
+};
+
+export const changeRequest_storage = () => {
+    return {
+        id: 47,
+        doc: {
+            _id: "storage-bucket-1",
+            type: "storage",
+            memberOf: ["group-storage-admins"],
+            name: "Test Storage Bucket",
+            httpPath: "/test/storage/path",
+            fileTypes: ["image/*", "audio/*"],
+            credential: {
+                endpoint: "http://example.com",
+                accessKey: "accessAdminKey",
+                secretKey: "secretAdminKey",
+            },
+            credential_id: undefined,
+        } as S3BucketDto,
     };
 };
