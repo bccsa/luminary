@@ -34,6 +34,6 @@ export class S3BucketDto extends _contentBaseDto {
     @IsOptional()
     @IsString()
     @Expose()
-    /* Optional ID of EncryptedStorageDto document that holds */
+    /* Optional ID of EncryptedStorageDto document that holds encrypted S3CredentialDto data */
     credential_id?: Uuid;
 }
