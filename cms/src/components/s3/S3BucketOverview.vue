@@ -1,171 +1,281 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, watch, computed } from "vue";
 import {
     PlusIcon,
     PencilIcon,
     TrashIcon,
     ArrowPathIcon,
     ExclamationTriangleIcon,
+    XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import S3BucketForm from "./S3BucketForm.vue";
-import { useS3Management } from "../../composables/useS3Management";
-import { db, type S3BucketDto, type S3CredentialDto } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type S3BucketDto,
+    type S3CredentialDto,
+    useDexieLiveQuery,
+    type GroupDto,
+} from "luminary-shared";
+import LModal from "../modals/LModal.vue";
+import LInput from "../forms/LInput.vue";
+import LCombobox from "../forms/LCombobox.vue";
+import LDialog from "../common/LDialog.vue";
+import { useNotificationStore } from "@/stores/notification";
+import { XCircleIcon } from "@heroicons/vue/20/solid";
 
-const {
-    buckets,
-    isLoading,
-    error,
-    loadBuckets,
-    createBucket,
-    updateBucket,
-    deleteBucket,
-    testBucketConnection,
-} = useS3Management();
+type bucketStatus = S3BucketDto & { connectionStatus: string };
 
-// Modal state
+// Reactive database queries
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
+
+const buckets = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Storage }).toArray() as unknown as Promise<S3BucketDto[]>,
+    { initialValue: [] as S3BucketDto[] },
+);
+
+const isLoading = ref(false);
+const error = ref<string[] | null>(null);
 const showModal = ref(false);
-const editingBucket = ref<S3BucketDto | null>(null);
+const showCredentials = ref(false);
+const showDeleteModal = ref(false);
 const bucketToDelete = ref<S3BucketDto | null>(null);
-const formLoading = ref(false);
-const formError = ref<string | null>(null);
+const newFileType = ref<string>("");
 
-// Load buckets on component mount
-onMounted(() => {
-    loadBuckets();
-});
+const notification = useNotificationStore();
 
-// Add connection status tracking
-const connectionStatus = ref<Record<string, "connected" | "error" | "testing" | "unknown">>({});
-
-// Enhance buckets with connection status
+// Enhanced bucket status computation
 const bucketsWithStatus = computed(() => {
-    return buckets.value.map((bucket) => {
-        const key = bucket._id ?? bucket._id ?? bucket.name;
+    return buckets.value.map((bucket): bucketStatus => {
+        // You can enhance this logic to actually test bucket connectivity
+        let connectionStatus = "unknown";
+
+        if (bucket.credential || bucket.credential_id) {
+            connectionStatus = "connected"; // You can implement actual connectivity check
+        } else {
+            connectionStatus = "error";
+        }
+
         return {
             ...bucket,
-            connectionStatus: connectionStatus.value[key] || "unknown",
+            connectionStatus,
         };
     });
 });
 
-const handleCreateBucket = () => {
-    editingBucket.value = null;
-    formError.value = null;
-    showModal.value = true;
-};
+const newBucket = ref<S3BucketDto>({
+    _id: db.uuid(),
+    type: DocType.Storage,
+    updatedTimeUtc: Date.now(),
+    memberOf: [],
+    name: "",
+    httpPath: "",
+    credential: {
+        endpoint: "",
+        accessKey: "",
+        secretKey: "",
+    } as S3CredentialDto,
+    fileTypes: [],
+});
 
-const handleEditBucket = (bucket: any) => {
-    // Clone the bucket to avoid readonly types coming from the composable
-    editingBucket.value = {
-        ...bucket,
-        fileTypes: Array.isArray(bucket.fileTypes) ? [...bucket.fileTypes] : [],
-        credential: {
-            endpoint: bucket.credential?.endpoint || "",
-            accessKey: bucket.credential?.accessKey || "",
-            secretKey: "",
-        },
-    } as S3BucketDto;
-    formError.value = null;
-    showModal.value = true;
-};
+const editableBucket = ref<S3BucketDto | null>(null);
+const isEditing = computed(() => !!editableBucket.value);
 
-const handleDeleteBucket = (bucket: any) => {
-    // Ensure bucketToDelete has mutable array types
-    bucketToDelete.value = {
-        ...bucket,
-        fileTypes: Array.isArray(bucket.fileTypes) ? [...bucket.fileTypes] : [],
-    } as S3BucketDto;
-};
-
-const closeModal = () => {
-    showModal.value = false;
-    editingBucket.value = null;
-    formError.value = null;
-};
-
-const cancelDelete = () => {
-    bucketToDelete.value = null;
-};
-
-const handleFormSubmit = async (data: { bucket: S3BucketDto; credentials?: S3CredentialDto }) => {
-    formLoading.value = true;
-    formError.value = null;
-
-    try {
-        if (editingBucket.value) {
-            const bucketId = db.uuid();
-
-            await updateBucket(bucketId, data.bucket, data.credentials);
+// Watch for modal visibility changes
+watch(
+    showModal,
+    (visible) => {
+        if (visible) {
+            // Reset form when modal is shown for new bucket
+            if (!isEditing.value) {
+                resetNewBucket();
+            }
+            showCredentials.value = false;
         } else {
-            await createBucket(data.bucket, data.credentials);
+            // Clear error when modal is closed
+            error.value = null;
+            // Clear editing state when modal is closed
+            if (isEditing.value) {
+                editableBucket.value = null;
+            }
         }
-        closeModal();
-        // Reload buckets to get the latest data
-        await loadBuckets();
-    } catch (err) {
-        formError.value = err instanceof Error ? err.message : "An error occurred";
-    } finally {
-        formLoading.value = false;
-    }
-};
+    },
+    { immediate: false },
+);
 
-const confirmDelete = async () => {
+const localCredentials = ref<S3CredentialDto>({
+    endpoint: "",
+    accessKey: "",
+    secretKey: "",
+});
+
+// Watch for modal opening to populate credentials
+watch(showModal, (isOpen) => {
+    if (isOpen) {
+        const bucket = isEditing.value ? editableBucket.value : newBucket.value;
+        const c =
+            bucket?.credential ??
+            ({
+                endpoint: "",
+                accessKey: "",
+                secretKey: "",
+            } as S3CredentialDto);
+        localCredentials.value = { ...c };
+    }
+});
+
+// Methods
+function resetNewBucket() {
+    newBucket.value = {
+        _id: db.uuid(),
+        type: DocType.Storage,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        name: "",
+        httpPath: "",
+        credential: {
+            endpoint: "",
+            accessKey: "",
+            secretKey: "",
+        } as S3CredentialDto,
+        fileTypes: [],
+    };
+}
+
+function addFileType() {
+    const fileType = newFileType.value.trim();
+    const bucket = isEditing.value ? editableBucket.value : newBucket.value;
+
+    if (fileType && bucket && !bucket.fileTypes.includes(fileType)) {
+        bucket.fileTypes.push(fileType);
+        newFileType.value = "";
+    }
+}
+
+function removeFileType(fileType: string) {
+    const bucket = isEditing.value ? editableBucket.value : newBucket.value;
+    if (!bucket) return;
+
+    const index = bucket.fileTypes.indexOf(fileType);
+    if (index > -1) {
+        bucket.fileTypes.splice(index, 1);
+    }
+}
+
+function editBucket(bucket: S3BucketDto) {
+    editableBucket.value = { ...bucket };
+    showModal.value = true;
+}
+
+function deleteBucket(bucketWithStatus: bucketStatus) {
+    // Find the original bucket without computed properties
+    const originalBucket = buckets.value.find((b) => b._id === bucketWithStatus._id);
+    if (originalBucket) {
+        bucketToDelete.value = originalBucket;
+        showDeleteModal.value = true;
+    }
+}
+
+async function confirmDelete() {
     if (!bucketToDelete.value) return;
 
-    formLoading.value = true;
+    isLoading.value = true;
     try {
-        const bucketId =
-            bucketToDelete.value._id ?? bucketToDelete.value._id ?? bucketToDelete.value.name;
-        await deleteBucket(bucketId);
+        // Mark bucket for deletion using the same pattern as other components
+        bucketToDelete.value.deleteReq = 1;
+        bucketToDelete.value.updatedTimeUtc = Date.now();
+
+        await db.upsert({
+            doc: bucketToDelete.value,
+        });
+
+        showDeleteModal.value = false;
         bucketToDelete.value = null;
-        // Reload buckets after deletion
-        await loadBuckets();
     } catch (err) {
-        // Handle error - could show a toast or error message
         console.error("Failed to delete bucket:", err);
+        error.value = ["Failed to delete bucket"];
     } finally {
-        formLoading.value = false;
+        isLoading.value = false;
     }
-};
+}
 
-const testConnection = async (bucketId: string) => {
-    connectionStatus.value[bucketId] = "testing";
+const saveBucket = async () => {
+    isLoading.value = true;
+    error.value = null;
 
     try {
-        const result = await testBucketConnection(bucketId);
-        connectionStatus.value[bucketId] = result ? "connected" : "error";
+        const bucket = isEditing.value ? editableBucket.value : newBucket.value;
+        if (!bucket) return;
+
+        // Validate required fields
+        if (!bucket.name.trim()) {
+            throw new Error("Bucket name is required");
+        }
+        if (!bucket.httpPath.trim()) {
+            throw new Error("HTTP path is required");
+        }
+
+        // Only include credentials if they're provided
+        const hasCredentials =
+            localCredentials.value.endpoint?.trim() ||
+            localCredentials.value.accessKey?.trim() ||
+            localCredentials.value.secretKey?.trim();
+
+        if (hasCredentials) {
+            bucket.credential = { ...localCredentials.value };
+        } else {
+            // Remove credential field if no credentials provided (use default system config)
+            delete bucket.credential;
+        }
+
+        await db.upsert({ doc: bucket });
+
+        notification.addNotification({
+            title: isEditing.value
+                ? `Bucket "${bucket.name}" updated`
+                : `Bucket "${bucket.name}" created`,
+            description: isEditing.value
+                ? `The Bucket "${bucket.name}" has been updated successfully.`
+                : `The Bucket "${bucket.name}" has been created successfully.`,
+            state: "success",
+        });
+
+        showModal.value = false;
+
+        if (isEditing.value) {
+            editableBucket.value = null;
+        } else {
+            resetNewBucket();
+        }
     } catch (err) {
-        connectionStatus.value[bucketId] = "error";
-        console.error("Connection test failed:", err);
+        console.error("Failed to save bucket:", err);
+        error.value = [err instanceof Error ? err.message : "Failed to save bucket"];
+    } finally {
+        isLoading.value = false;
     }
 };
 
-const getStatusLabel = (status: string): string => {
+async function testConnection(bucket: S3BucketDto) {
+    // TODO: Implement actual connection testing
+    console.log("Testing connection for bucket:", bucket.name);
+    // You can call an API endpoint to test the bucket connection
+}
+
+const getStatusLabel = (status: string) => {
     switch (status) {
         case "connected":
             return "Connected";
         case "error":
-            return "Connection Failed";
+            return "Error";
         case "testing":
             return "Testing...";
         default:
             return "Unknown";
     }
 };
-
-// const formatFileSize = (bytes: number): string => {
-//     const units = ["B", "KB", "MB", "GB"];
-//     let size = bytes;
-//     let unitIndex = 0;
-
-//     while (size >= 1024 && unitIndex < units.length - 1) {
-//         size /= 1024;
-//         unitIndex++;
-//     }
-
-//     return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-// };
 </script>
 
 <template>
@@ -173,7 +283,7 @@ const getStatusLabel = (status: string): string => {
         <div class="border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-medium text-gray-900">S3 Buckets</h2>
-                <LButton :icon="PlusIcon" @click="handleCreateBucket" :disabled="isLoading">
+                <LButton :icon="PlusIcon" @click="showModal = true" :disabled="isLoading">
                     Add Bucket
                 </LButton>
             </div>
@@ -184,45 +294,18 @@ const getStatusLabel = (status: string): string => {
             <p class="mt-2 text-sm text-gray-500">Loading buckets...</p>
         </div>
 
-        <div v-else-if="error" class="px-6 py-8">
-            <div class="rounded-md border border-red-200 bg-red-50 p-4">
-                <div class="flex">
-                    <ExclamationTriangleIcon class="h-5 w-5 text-red-400" />
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-red-800">Error loading buckets</h3>
-                        <p class="mt-1 text-sm text-red-700">{{ error }}</p>
-                        <div class="mt-3">
-                            <LButton @click="loadBuckets" variant="secondary" size="sm">
-                                Try Again
-                            </LButton>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div v-else-if="!buckets.length" class="px-6 py-8 text-center">
-            <div class="text-gray-400">
-                <svg
-                    class="mx-auto h-12 w-12"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-4h-2M4 9h2"
-                    />
-                </svg>
-            </div>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No S3 buckets configured</h3>
             <p class="mt-1 text-sm text-gray-500">
-                Get started by creating your first S3 bucket configuration.
+                {{ "Get started by creating your first S3 bucket configuration." }}
             </p>
             <div class="mt-6">
-                <LButton :icon="PlusIcon" variant="primary" @click="handleCreateBucket">
+                <LButton
+                    :icon="PlusIcon"
+                    variant="primary"
+                    @click="showModal = true"
+                    :disabled="false"
+                >
                     Create Bucket
                 </LButton>
             </div>
@@ -260,45 +343,47 @@ const getStatusLabel = (status: string): string => {
                             </span>
                         </div>
                         <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
-                            <span>{{ bucket.credential?.endpoint }}</span>
+                            <span>{{
+                                bucket.credential?.endpoint || bucket.credential_id
+                                    ? "Configured"
+                                    : "Default"
+                            }}</span>
+                            <span v-if="bucket.credential_id" class="text-blue-600">Encrypted</span>
                             <span v-if="bucket.fileTypes.length">
                                 {{ bucket.fileTypes.length }} file type{{
                                     bucket.fileTypes.length !== 1 ? "s" : ""
                                 }}
                             </span>
-                            <!-- <span v-if="bucket.maxFileSize">
-                                Max size: {{ formatFileSize(bucket.maxFileSize) }}
-                            </span> -->
+                            <span>{{ bucket.httpPath }}</span>
                         </div>
                     </div>
+
+                    <!-- Action Buttons for Buckets -->
                     <div class="flex items-center space-x-2">
                         <LButton
-                            @click="testConnection(bucket._id || bucket.name)"
                             variant="muted"
                             size="sm"
                             :disabled="isLoading || bucket.connectionStatus === 'testing'"
+                            @click="testConnection(bucket)"
                         >
                             <ArrowPathIcon class="h-4 w-4" />
-                            Test
                         </LButton>
                         <LButton
-                            @click="handleEditBucket(bucket)"
                             variant="muted"
                             size="sm"
                             :disabled="isLoading"
+                            @click="editBucket(bucket)"
                         >
                             <PencilIcon class="h-4 w-4" />
-                            Edit
                         </LButton>
                         <LButton
-                            @click="handleDeleteBucket(bucket)"
                             variant="muted"
                             size="sm"
                             context="danger"
                             :disabled="isLoading"
+                            @click="deleteBucket(bucket)"
                         >
                             <TrashIcon class="h-4 w-4" />
-                            Delete
                         </LButton>
                     </div>
                 </div>
@@ -307,58 +392,230 @@ const getStatusLabel = (status: string): string => {
     </div>
 
     <!-- Create/Edit Bucket Modal -->
-    <div
-        v-if="showModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-        @click="closeModal"
+    <LModal
+        v-model:isVisible="showModal"
+        :heading="isEditing ? 'Edit Bucket' : 'Create New Bucket'"
     >
-        <div
-            class="m-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
-            @click.stop
-        >
-            <div class="sticky top-0 z-40 border-b border-gray-200 bg-white px-6 py-4">
-                <h2 class="text-lg font-medium text-gray-900">
-                    {{ editingBucket ? "Edit Bucket" : "Create New Bucket" }}
-                </h2>
-            </div>
-            <div class="">
-                <S3BucketForm
-                    :bucket="editingBucket ?? undefined"
-                    :is-loading="formLoading"
-                    :error="formError"
-                    :edit-mode="!!editingBucket"
-                    @submit="handleFormSubmit"
-                    @cancel="closeModal"
-                />
+        <div v-if="error">
+            <div v-if="error" class="mb-2 flex items-center gap-2">
+                <p>
+                    <XCircleIcon class="h-4 w-4 text-red-400" />
+                </p>
+                <p class="text-sm text-zinc-700">{{ error }}</p>
             </div>
         </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div
-        v-if="bucketToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-        @click="cancelDelete"
-    >
-        <div class="m-4 w-full max-w-md rounded-lg bg-white shadow-xl" @click.stop>
-            <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-lg font-medium text-red-900">Delete Bucket</h2>
+        <div class="space-y-2">
+            <!-- bucket name -->
+            <div>
+                <label for="bucket-name" class="block text-sm font-medium text-gray-700"
+                    >Name</label
+                >
+                <LInput
+                    id="bucket-name"
+                    name="bucketName"
+                    v-model="(isEditing ? editableBucket : newBucket)!.name"
+                    type="text"
+                    placeholder="Images"
+                />
             </div>
-            <div class="p-6">
-                <p class="text-sm text-gray-700">
-                    Are you sure you want to delete the bucket configuration "{{
-                        bucketToDelete.name
-                    }}"? This action cannot be undone.
+
+            <!-- bucket http -->
+            <div>
+                <label for="bucket-name" class="block text-sm font-medium text-gray-700"
+                    >Http path</label
+                >
+                <LInput
+                    id="bucket-path"
+                    name="bucketPath"
+                    v-model="(isEditing ? editableBucket : newBucket)!.httpPath"
+                    type="text"
+                    placeholder="/images"
+                />
+            </div>
+
+            <!-- Allowed File Types -->
+            <div>
+                <label class="mb-0.5 block text-sm font-medium text-gray-700">
+                    Allowed File Types
+                </label>
+                <div class="space-y-0.5">
+                    <div class="flex flex-wrap gap-2">
+                        <span
+                            v-for="fileType in (isEditing ? editableBucket : newBucket)!.fileTypes"
+                            :key="fileType"
+                            class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                        >
+                            {{ fileType }}
+                            <button
+                                type="button"
+                                @click="removeFileType(fileType)"
+                                :disabled="isLoading"
+                                class="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                            >
+                                <XMarkIcon class="h-4 w-4" />
+                            </button>
+                        </span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <LInput
+                            v-model="newFileType"
+                            name=""
+                            type="text"
+                            placeholder="image/jpeg or image/*"
+                            class="flex-1"
+                            :disabled="isLoading"
+                            @keyup.enter="addFileType"
+                        />
+                        <LButton
+                            @click="addFileType"
+                            :disabled="!newFileType.trim() || isLoading"
+                            size="sm"
+                            variant="primary"
+                            :icon="PlusIcon"
+                        >
+                            Add
+                        </LButton>
+                    </div>
+                </div>
+                <p class="mt-1 text-[12px] text-gray-500">
+                    MIME types or patterns (e.g., "image/*", "video/mp4", "application/pdf")
                 </p>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <LButton @click="cancelDelete" variant="secondary" :disabled="formLoading">
+            </div>
+
+            <!-- Group Membership -->
+            <div>
+                <LCombobox
+                    v-model:selected-options="newBucket.memberOf as string[]"
+                    :label="`Group Membership`"
+                    :options="
+                        groups.map((group: GroupDto) => ({
+                            id: group._id,
+                            label: group.name,
+                            value: group._id,
+                        }))
+                    "
+                    :show-selected-in-dropdown="false"
+                    :showSelectedLabels="true"
+                    :disabled="false"
+                    data-test="groupSelector"
+                />
+            </div>
+
+            <!-- S3 Credentials -->
+            <div class="border-t pt-3">
+                <div class="mb-4 flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900">S3 Credentials</h3>
+                    <LButton
+                        @click="showCredentials = !showCredentials"
+                        variant="secondary"
+                        size="sm"
+                    >
+                        {{ showCredentials ? "Hide" : "Show" }} Credentials
+                    </LButton>
+                </div>
+
+                <div v-if="showCredentials" class="space-y-4">
+                    <!-- Endpoint -->
+                    <div>
+                        <label
+                            for="endpoint"
+                            class="mb-0.5 block text-sm font-medium text-gray-700"
+                        >
+                            S3 Endpoint
+                        </label>
+                        <LInput
+                            id="endpoint"
+                            name="endpoint"
+                            v-model="localCredentials.endpoint"
+                            type="url"
+                            placeholder="http://endpoint.com"
+                            :disabled="isLoading"
+                            required
+                        />
+                    </div>
+
+                    <!-- Access Key  -->
+                    <div>
+                        <label
+                            for="accessKey"
+                            class="mb-0.5 block text-sm font-medium text-gray-700"
+                        >
+                            Access Key
+                        </label>
+                        <LInput
+                            id="accessKey"
+                            name=""
+                            v-model="localCredentials.accessKey"
+                            type="text"
+                            placeholder="Your access Key"
+                            :disabled="isLoading"
+                        />
+                    </div>
+
+                    <!-- Secret Key -->
+                    <div>
+                        <label
+                            for="secretKey"
+                            class="mb-0.5 block text-sm font-medium text-gray-700"
+                        >
+                            Secret Key
+                        </label>
+                        <LInput
+                            id="secretKey"
+                            name=""
+                            v-model="localCredentials.secretKey"
+                            type="password"
+                            placeholder="Enter secret key"
+                            :disabled="isLoading"
+                        />
+                    </div>
+
+                    <!-- Security Notice  -->
+                    <div class="rounded-md border border-yellow-200 bg-yellow-50 p-3">
+                        <div class="flex">
+                            <ExclamationTriangleIcon class="h-8 w-8 text-yellow-400" />
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-yellow-800">Security Notice</h3>
+                                <p class="mt-1 text-[12px] text-yellow-700">
+                                    Credentials are encrypted before being stored in the database.
+                                    Leave empty to use the default system S3 configuration.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions buttonss -->
+                <div class="flex justify-end space-x-3 border-t pt-2">
+                    <LButton @click="showModal = false" variant="secondary" :disabled="isLoading">
                         Cancel
                     </LButton>
-                    <LButton @click="confirmDelete" context="danger" :loading="formLoading">
-                        Delete
+                    <LButton
+                        variant="primary"
+                        @click="saveBucket"
+                        :disabled="isLoading"
+                        :loading="isLoading"
+                    >
+                        {{ isEditing ? "Update Bucket" : "Create Bucket" }}
                     </LButton>
                 </div>
             </div>
         </div>
-    </div>
+    </LModal>
+
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete Bucket ${bucketToDelete?.name}?`"
+        :description="`Are you sure you want to delete this bucket and all its contents? This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                confirmDelete();
+                showDeleteModal = false;
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
 </template>
