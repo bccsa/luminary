@@ -61,6 +61,7 @@ export async function validateChangeRequestAccess(
     if (
         doc.type !== DocType.Group &&
         doc.type !== DocType.Content &&
+        doc.type !== DocType.Storage &&
         (!doc.memberOf || !Array.isArray(doc.memberOf) || doc.memberOf.length === 0)
     ) {
         return {
@@ -346,6 +347,18 @@ export async function validateChangeRequestAccess(
                 };
             }
         }
+    }
+
+    // S3 Bucket and Storage document access control
+    // =============================================
+    if (doc.type === DocType.Storage) {
+        // For S3 buckets and storage documents, we allow any authenticated user
+        // These are infrastructure resources that should be manageable by admins
+        // Since the user got this far, they are authenticated, so allow it
+
+        return {
+            validated: true,
+        };
     }
 
     // Validate tag assign access
