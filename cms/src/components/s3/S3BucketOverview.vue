@@ -133,9 +133,8 @@ const shouldShowCredentialsSection = computed(() => {
         return true;
     }
 
-    // For existing buckets, only show if they don't have any credentials configured
-    const bucket = editableBucket.value;
-    return !bucket?.credential_id && !bucket?.credential;
+    // For existing buckets, always show credentials section to allow updates
+    return true;
 });
 
 // Watch for modal visibility changes
@@ -180,6 +179,9 @@ watch(showModal, (isOpen) => {
                 secretKey: "",
             } as S3CredentialDto);
         localCredentials.value = { ...c };
+
+        // For existing buckets, credentials are encrypted on the server.
+        // Users can enter new credentials here to update them.
     }
 });
 
@@ -500,6 +502,17 @@ const saveBucket = async () => {
         if (!isEditing.value && !hasValidCredentials.value) {
             notification.addNotification({
                 title: "S3 credentials are required when creating a new bucket",
+                state: "error",
+            });
+            return; // Don't proceed with save
+        }
+
+        // For existing buckets, if credentials are provided, they must be valid
+        if (isEditing.value && hasPartialCredentials.value && !hasValidCredentials.value) {
+            notification.addNotification({
+                title: "Invalid S3 credentials",
+                description:
+                    "Please provide both access key and secret key, or leave all credential fields empty to keep existing credentials.",
                 state: "error",
             });
             return; // Don't proceed with save
@@ -826,7 +839,7 @@ const saveBucket = async () => {
                             variant="secondary"
                             size="sm"
                         >
-                            {{ showCredentials ? "Hide" : "Show" }} Credentials
+                            {{ isEditing ? "Update" : "Set" }} Credentials
                         </LButton>
                     </div>
 
