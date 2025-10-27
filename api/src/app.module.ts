@@ -11,6 +11,8 @@ import { SearchController } from "./endpoints/search.controller";
 import { SearchService } from "./endpoints/search.service";
 import { ChangeRequestService } from "./endpoints/changeRequest.service";
 import { ChangeRequestController } from "./endpoints/changeRequest.controller";
+import { StorageController } from "./endpoints/storage.controller";
+import { StorageService } from "./endpoints/storage.service";
 import * as winston from "winston";
 import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
@@ -48,7 +50,14 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
             global: true,
         }),
     ],
-    controllers: [AppController, SearchController, ChangeRequestController, QueryController],
-    providers: [DbService, Socketio, S3Service, SearchService, QueryService, ChangeRequestService],
+    controllers: [AppController, SearchController, ChangeRequestController, StorageController],
+    providers: [
+        DbService,
+        Socketio,
+        S3Service,
+        SearchService,
+        ChangeRequestService,
+        StorageService,
+    ],
 })
 export class AppModule {}
