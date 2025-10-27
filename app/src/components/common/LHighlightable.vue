@@ -355,8 +355,6 @@ function handleInputMove(event: PointerEvent) {
         }
     }
 
-    // if (!isSelecting.value) return;
-
     event.preventDefault();
 
     const currentRange = document.caretRangeFromPoint(clientX, clientY);
@@ -443,10 +441,14 @@ onUnmounted(() => {
                 -webkit-user-select: text !important;
                 -webkit-touch-callout: default !important;
             "
-            @pointerdown="handleInputStart"
-            @pointermove="handleInputMove"
-            @pointerup="handleInputEnd"
-            @pointercancel="handleInputEnd"
+            @pointerdown.stop="handleInputStart"
+            @pointermove.stop="handleInputMove"
+            @pointerup.stop="handleInputEnd"
+            @pointercancel.stop="handleInputEnd"
+            @touchstart.stop="handleInputStart"
+            @touchmove.stop="handleInputMove"
+            @touchend.stop="handleInputEnd"
+            @touchcancel.stop="handleInputEnd"
         >
             <slot></slot>
         </div>
