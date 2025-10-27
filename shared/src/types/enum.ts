@@ -36,3 +36,8 @@ export enum DeleteReason {
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
 }
+
+export enum BucketType {
+    Image = "image",
+    Media = "media",
+}
