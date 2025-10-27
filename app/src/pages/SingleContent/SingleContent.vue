@@ -703,26 +703,14 @@ const quickLanguageSwitch = (languageId: string) => {
                         </span>
                     </div>
 
-                    <!-- Render each content block individually for easier highlighting -->
-                    <div
-                        v-if="content.text && contentBlocks.length > 0"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                        :class="{
-                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"
-                    >
-                        <LHighlightable
-                            v-for="block in contentBlocks"
-                            :key="block.id"
-                            :content-id="`${content._id}-${block.id}`"
-                        >
-                            <div v-html="block.html"></div>
-                        </LHighlightable>
-                    </div>
-                    <!-- Fallback for non-JSON content -->
-                    <LHighlightable v-else-if="content.text" :content-id="content._id">
+                    <!-- Render content with highlighting support -->
+                    <LHighlightable v-if="content.text" :content-id="content._id">
                         <div
-                            v-html="text"
+                            v-html="
+                                content.text && contentBlocks.length > 0
+                                    ? contentBlocks.map((block: any) => block.html).join('')
+                                    : text
+                            "
                             class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
                             :class="{
                                 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
