@@ -36,7 +36,12 @@ const availablePermissionsPerDocType = {
     ],
     [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
     [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
-    [DocType.Storage]: [AclPermission.Create, AclPermission.View, AclPermission.Delete],
+    [DocType.Storage]: [
+        AclPermission.Create,
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+    ],
 };
 
 // Valid DocTypes that can be used for ACL assignments
