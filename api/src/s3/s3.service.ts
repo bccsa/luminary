@@ -158,4 +158,75 @@ export class S3Service {
 
         return inaccessibleImages;
     }
+
+    /**
+     * Check bucket connectivity with specific credentials
+     */
+    public async checkBucketConnectivity(
+        credentials: {
+            endpoint: string;
+            accessKey: string;
+            secretKey: string;
+            port?: number;
+            useSSL?: boolean;
+        },
+        bucketName: string,
+    ): Promise<{
+        status: "connected" | "unreachable" | "unauthorized" | "not-found";
+        message?: string;
+    }> {
+        try {
+            // Parse endpoint to extract host and determine SSL/port defaults
+            const url = new URL(credentials.endpoint);
+            const host = url.hostname;
+            const port =
+                credentials.port || parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
+            const useSSL =
+                credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
+
+            const testClient = new Minio.Client({
+                endPoint: host,
+                port: port,
+                useSSL: useSSL,
+                accessKey: credentials.accessKey,
+                secretKey: credentials.secretKey,
+            });
+
+            // Test if bucket exists and is accessible
+            const bucketExists = await testClient.bucketExists(bucketName);
+
+            if (bucketExists) {
+                return { status: "connected" };
+            } else {
+                return {
+                    status: "not-found",
+                    message: `Bucket '${bucketName}' does not exist`,
+                };
+            }
+        } catch (error) {
+            // Check for specific error types
+            if (
+                error.message?.includes("Access Denied") ||
+                error.message?.includes("SignatureDoesNotMatch")
+            ) {
+                return {
+                    status: "unauthorized",
+                    message: "Invalid credentials or insufficient permissions",
+                };
+            } else if (
+                error.message?.includes("ENOTFOUND") ||
+                error.message?.includes("ECONNREFUSED")
+            ) {
+                return {
+                    status: "unreachable",
+                    message: "Cannot connect to S3 endpoint",
+                };
+            } else {
+                return {
+                    status: "unreachable",
+                    message: error.message || "Unknown connection error",
+                };
+            }
+        }
+    }
 }
