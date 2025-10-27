@@ -53,7 +53,8 @@ export async function processChangeRequest(
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3),
         [DocType.Content]: () => processContentDto(doc as ContentDto, db),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
-        [DocType.Storage]: () => processStorageDto(doc as S3BucketDto, prevDoc as S3BucketDto, db),
+        [DocType.Storage]: () =>
+            processStorageDto(doc as S3BucketDto, prevDoc as S3BucketDto, db, s3),
     };
 
     if (docProcessMap[doc.type]) {
