@@ -313,7 +313,7 @@ function positionMenu(clientX: number, clientY: number, range?: Range) {
     showActions.value = true;
 }
 
-function handleInputStart(event: PointerEvent) {
+function handlePointerStart(event: PointerEvent) {
     showActions.value = false;
     showHighlightColors.value = false;
     clearTimer();
@@ -339,12 +339,49 @@ function handleInputStart(event: PointerEvent) {
     // For mouse, do nothing here - let native selection handle it
 }
 
-function handleInputMove(event: PointerEvent) {
+function handleTouchStart(event: TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    showActions.value = false;
+    showHighlightColors.value = false;
+    clearTimer();
+    clearIntervalRef();
+    initialPosition.value = { x: touch.clientX, y: touch.clientY };
+    isSelecting.value = false;
+
+    longPressTimer.value = window.setTimeout(() => {
+        isSelecting.value = true;
+        navigator.vibrate?.(50);
+        const range = document.caretRangeFromPoint(
+            initialPosition.value!.x,
+            initialPosition.value!.y,
+        );
+        if (range && content.value?.contains(range.commonAncestorContainer)) {
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+        }
+    }, LONG_PRESS_DURATION);
+}
+
+function handlePointerMove(event: PointerEvent) {
     if (event.pointerType !== "touch") return; // Ignore mouse moves for manual selection
 
     const clientX = event.clientX;
     const clientY = event.clientY;
 
+    handleMove(clientX, clientY);
+}
+
+function handleTouchMove(event: TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    handleMove(touch.clientX, touch.clientY);
+}
+
+function handleMove(clientX: number, clientY: number) {
     // Cancel long press if moved too far before timeout
     if (longPressTimer.value && initialPosition.value) {
         const deltaX = Math.abs(clientX - initialPosition.value.x);
@@ -354,8 +391,6 @@ function handleInputMove(event: PointerEvent) {
             return;
         }
     }
-
-    event.preventDefault();
 
     const currentRange = document.caretRangeFromPoint(clientX, clientY);
     const selection = window.getSelection();
@@ -396,7 +431,19 @@ function handleInputMove(event: PointerEvent) {
     }
 }
 
-function handleInputEnd(event: PointerEvent) {
+function handlePointerEnd(event: PointerEvent) {
+    handleEnd(event.clientX, event.clientY);
+}
+
+function handleTouchEnd(event: TouchEvent) {
+    // Use the last known touch position or the current touch position if available
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+
+    handleEnd(touch.clientX, touch.clientY);
+}
+
+function handleEnd(clientX: number, clientY: number) {
     clearTimer();
     clearIntervalRef();
     isSelecting.value = false;
@@ -414,11 +461,6 @@ function handleInputEnd(event: PointerEvent) {
         return;
     }
 
-    // Removed the contains check to prevent erroneous clearing of selection
-    // If needed, menu will show where pointerup occurred
-
-    const clientX = event.clientX;
-    const clientY = event.clientY;
     positionMenu(clientX, clientY, selection.getRangeAt(0));
 }
 
@@ -441,14 +483,14 @@ onUnmounted(() => {
                 -webkit-user-select: text !important;
                 -webkit-touch-callout: default !important;
             "
-            @pointerdown.stop="handleInputStart"
-            @pointermove.stop="handleInputMove"
-            @pointerup.stop="handleInputEnd"
-            @pointercancel.stop="handleInputEnd"
-            @touchstart.stop="handleInputStart"
-            @touchmove.stop="handleInputMove"
-            @touchend.stop="handleInputEnd"
-            @touchcancel.stop="handleInputEnd"
+            @pointerdown.stop="handlePointerStart"
+            @pointermove.stop="handlePointerMove"
+            @pointerup.stop="handlePointerEnd"
+            @pointercancel.stop="handlePointerEnd"
+            @touchstart.stop="handleTouchStart"
+            @touchmove.stop="handleTouchMove"
+            @touchend.stop="handleTouchEnd"
+            @touchcancel.stop="handleTouchEnd"
         >
             <slot></slot>
         </div>
