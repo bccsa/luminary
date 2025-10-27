@@ -2,7 +2,7 @@ import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { S3CredentialDto } from "./S3CredentialDto";
-import { Uuid } from "../enums";
+import { BucketType, Uuid } from "../enums";
 
 /**
  * Description of an S3 bucket / storage location used by the application.
@@ -22,6 +22,11 @@ export class S3BucketDto extends _contentBaseDto {
     @IsString()
     @Expose()
     httpPath: string; // public base path
+
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
+    bucketType: BucketType;
 
     @IsOptional()
     @Expose()
