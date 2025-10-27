@@ -46,7 +46,7 @@
         {
             "type": "storage",
             "groupId": "group-super-admins",
-            "permission": ["create", "view", "delete"]
+            "permission": ["create", "view", "edit", "delete"]
         }
     ]
 }
