@@ -124,12 +124,18 @@ describe("processStorageDto", () => {
         ).rejects.toThrow("Failed to create physical S3 bucket");
     });
 
-    it.skip("can't create a bucket document that already exists", async () => {
+    it("can't create a bucket document that already exists", async () => {
         const storageChangeRequest = changeRequest_storage();
         await db.upsertDoc(storageChangeRequest.doc);
 
         // First creation should succeed
         await processStorageDto(storageChangeRequest.doc, undefined, db, s3);
+
+        // Mock bucketExists to return true for the second attempt
+        const { Client } = jest.requireMock("minio");
+        const mockClient = new Client();
+        mockClient.bucketExists = jest.fn().mockResolvedValue(true); // Bucket already exists
+        Client.mockImplementationOnce(() => mockClient);
 
         // Second creation with same name should fail
         const anotherStorageChangeRequest = changeRequest_storage();
@@ -137,9 +143,9 @@ describe("processStorageDto", () => {
         await db.upsertDoc(anotherStorageChangeRequest.doc);
 
         await expect(
-            processStorageDto(storageChangeRequest.doc, undefined, db, s3),
+            processStorageDto(anotherStorageChangeRequest.doc, undefined, db, s3),
         ).rejects.toThrow(
-            `S3 bucket ${storageChangeRequest.doc.name} already exists on the storage provider `,
+            `S3 bucket ${storageChangeRequest.doc.name} already exists on the storage provider.`,
         );
     });
 
