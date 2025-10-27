@@ -4,7 +4,7 @@ import S3BucketOverview from "@/components/s3/S3BucketOverview.vue";
 </script>
 
 <template>
-    <BasePage title="S3 Storage Management" :should-show-page-title="true">
+    <BasePage title="S3 Storage Overview" :should-show-page-title="true">
         <div class="space-y-6">
             <div>
                 <p class="text-gray-600">
