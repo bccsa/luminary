@@ -139,9 +139,6 @@ export default async function processStorageDto(
             if (_prevDoc?.credential_id) {
                 try {
                     await db.deleteDoc(_prevDoc.credential_id);
-                    // warnings.push(
-                    //     `Encrypted credential storage for bucket '${doc.name}' has been deleted`,
-                    // );
                 } catch (error) {
                     warnings.push(
                         `Warning: Failed to delete encrypted credential storage: ${error.message}`,
@@ -153,7 +150,30 @@ export default async function processStorageDto(
         return warnings; // No need to process further for deletion
     }
 
-    // If both are provided, prefer embedded credentials and remove credential_id reference
+    // Handle credential updates for existing buckets
+    if (doc.credential && doc.credential_id && _prevDoc?.credential_id) {
+        // This is an update to existing bucket credentials
+        warnings.push(
+            "Updating credentials for existing bucket. Old encrypted credentials will be deleted.",
+        );
+
+        // Delete the old encrypted credential document
+        try {
+            await db.deleteDoc(_prevDoc.credential_id);
+            warnings.push(
+                `Old encrypted credential document ${_prevDoc.credential_id} has been deleted`,
+            );
+        } catch (error) {
+            warnings.push(
+                `Warning: Failed to delete old encrypted credential document: ${error.message}`,
+            );
+        }
+
+        // Remove the old credential_id reference so new credentials will be processed
+        delete doc.credential_id;
+    }
+
+    // If both are provided (but not an update), prefer embedded credentials and remove credential_id reference
     if (doc.credential && doc.credential_id) {
         warnings.push(
             "Both embedded credentials and credential_id provided. Using embedded credentials and removing credential_id reference.",
