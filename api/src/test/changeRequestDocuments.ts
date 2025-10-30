@@ -19,6 +19,7 @@ export const changeRequest_post = () => {
             publishDateVisible: true,
             postType: "blog",
             deleteReq: 0,
+            imageBucketId: "storage-bucket-1",
         },
     };
 };
@@ -58,6 +59,7 @@ export const changeRequest_content = () => {
             video: "",
             publishDate: 1704114000000,
             expiryDate: 1704114000000,
+            parentImageBucketId: "storage-bucket-1",
         } as ContentDto,
     };
 };
@@ -117,8 +119,8 @@ export const changeRequest_storage = () => {
             _id: "storage-bucket-1",
             type: "storage",
             memberOf: ["group-storage-admins"],
-            name: "Test Storage Bucket",
-            httpPath: "/test/storage/path",
+            name: "TestStorageBucket",
+            httpPath: "https://s3.example.com/testStorageBucket/",
             fileTypes: ["image/*", "audio/*"],
             credential: {
                 endpoint: "http://example.com",
