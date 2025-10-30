@@ -59,6 +59,7 @@ const tagged = useDexieLiveQueryWithDeps(
                             <LImage
                                 v-if="content.parentId"
                                 :contentParentId="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
                                 :image="content.parentImageData"
                                 aspectRatio="video"
                                 size="small"
