@@ -4,8 +4,9 @@ import LCard from "../common/LCard.vue";
 import { PhotoIcon } from "@heroicons/vue/24/solid";
 import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditor from "../images/ImageEditor.vue";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import LButton from "../button/LButton.vue";
+import { useBucketSelection } from "@/composables/useBucketSelection";
 
 type Props = {
     docType: DocType;
@@ -20,6 +21,28 @@ const showHelp = ref(false);
 
 const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
+
+const bucketSelection = useBucketSelection();
+
+// Check if bucket is selected (or auto-selected when only one exists)
+const isBucketSelected = computed(() => {
+    return !!parent.value?.imageBucketId;
+});
+
+// Get the selected bucket's fileTypes for the accept attribute
+const acceptedFileTypes = computed(() => {
+    if (!parent.value?.imageBucketId) {
+        return "image/jpeg, image/png, image/webp"; // default
+    }
+
+    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    if (!bucket || !bucket.fileTypes || bucket.fileTypes.length === 0) {
+        return "image/*"; // accept all images if no restrictions
+    }
+
+    // Convert fileTypes array to accept attribute format
+    return bucket.fileTypes.join(", ");
+});
 
 const triggerFilePicker = () => {
     // Important: reset input so that selecting the same file again works
@@ -53,8 +76,9 @@ const handleFileChange = () => {
                 <LButton
                     :icon="ArrowUpOnSquareIcon"
                     size="base"
-                    :disabled="disabled"
+                    :disabled="disabled || !isBucketSelected"
                     @click.stop="triggerFilePicker"
+                    :title="!isBucketSelected ? 'Please select a storage bucket first' : ''"
                 >
                     <span class="block sm:hidden">Upload Image</span>
                     <span class="hidden text-sm sm:inline">Upload</span>
@@ -64,7 +88,7 @@ const handleFileChange = () => {
                     ref="uploadInput"
                     type="file"
                     class="hidden"
-                    accept="image/jpeg, image/png, image/webp"
+                    :accept="acceptedFileTypes"
                     multiple
                     @change="handleFileChange"
                 />
