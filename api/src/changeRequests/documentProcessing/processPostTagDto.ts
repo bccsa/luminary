@@ -36,6 +36,9 @@ export default async function processPostTagDto(
                 { fileCollections: [] },
                 prevDoc?.imageData,
                 s3,
+                db,
+                prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
+                undefined, // No migration needed for delete - pass undefined to avoid migration logic
             );
             if (imageWarnings && imageWarnings.length > 0) {
                 warnings.push(...imageWarnings);
@@ -47,7 +50,35 @@ export default async function processPostTagDto(
 
     // Process image uploads
     if (doc.imageData) {
-        const imageWarnings = await processImage(doc.imageData, prevDoc?.imageData, s3);
+        let imageWarnings: string[] = [];
+
+        // Check if bucket is specified for this upload
+        if (doc.imageBucketId && doc.imageData.uploadData) {
+            // Use the new bucket-aware processing with db service for bucket lookup
+            try {
+                imageWarnings = await processImage(
+                    doc.imageData,
+                    prevDoc?.imageData,
+                    s3,
+                    db,
+                    doc.imageBucketId,
+                    prevDoc?.imageBucketId, // Pass previous bucket ID for migration
+                );
+            } catch (error) {
+                imageWarnings.push(`Bucket-aware image processing failed: ${error.message}`);
+            }
+        } else {
+            // Use traditional processing for backward compatibility
+            imageWarnings = await processImage(
+                doc.imageData,
+                prevDoc?.imageData,
+                s3,
+                db,
+                doc.imageBucketId,
+                prevDoc?.imageBucketId, // Pass previous bucket ID for migration
+            );
+        }
+
         if (imageWarnings && imageWarnings.length > 0) {
             warnings.push(...imageWarnings);
         }
@@ -61,6 +92,8 @@ export default async function processPostTagDto(
         contentDoc.memberOf = doc.memberOf;
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
+        contentDoc.parentImageBucketId = doc.imageBucketId;
+        contentDoc.parentMediaBucketId = doc.mediaBucketId;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;
