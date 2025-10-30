@@ -870,6 +870,11 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        storage: {
+            view: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-content": {
         post: {
@@ -918,6 +923,11 @@ export const superAdminAccessMap = {
         user: {
             view: true,
             create: true,
+            edit: true,
+            delete: true,
+        },
+        storage: {
+            view: true,
             edit: true,
             delete: true,
         },
