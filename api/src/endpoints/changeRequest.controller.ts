@@ -49,11 +49,13 @@ export class ChangeRequestController {
                 files.forEach((file, index) => {
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                    const fileBucketId = body[`${index}-changeRequestDoc-files-bucketId`];
 
                     uploadData.push({
                         fileData: file.buffer,
                         filename: fileName,
                         preset: filePreset,
+                        bucketId: fileBucketId,
                     });
                 });
 
