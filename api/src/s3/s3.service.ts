@@ -1,118 +1,118 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
-import { S3Config } from "../configuration";
 
 @Injectable()
 export class S3Service {
-    client: Minio.Client;
-    s3Config: S3Config;
+    // Note: No default client or config - everything is bucket-specific now
 
-    constructor(private configService: ConfigService) {
-        this.s3Config = this.configService.get<S3Config>("s3");
+    constructor() {
+        // No configuration needed - each bucket provides its own credentials
+    }
 
-        this.client = new Minio.Client({
-            endPoint: this.s3Config.endpoint,
-            port: this.s3Config.port,
-            useSSL: this.s3Config.useSSL,
-            accessKey: this.s3Config.accessKey,
-            secretKey: this.s3Config.secretKey,
+    /**
+     * Creates a Minio client with specific credentials
+     */
+    public createClient(credentials: {
+        endpoint: string;
+        accessKey: string;
+        secretKey: string;
+        port?: number;
+        useSSL?: boolean;
+    }): Minio.Client {
+        // Parse endpoint to extract host and determine SSL/port defaults
+        const url = new URL(credentials.endpoint);
+        const host = url.hostname;
+        const port =
+            credentials.port || parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
+        const useSSL =
+            credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
+
+        return new Minio.Client({
+            endPoint: host,
+            port: port,
+            useSSL: useSSL,
+            accessKey: credentials.accessKey,
+            secretKey: credentials.secretKey,
         });
     }
 
     /**
-     * Get the configured image bucket name
+     * Uploads a file to an S3 bucket using specific credentials
      */
-    public get imageBucket() {
-        return this.s3Config.imageBucket;
-    }
-
-    /**
-     * Override the configured image bucket name. This is useful for testing
-     */
-    public set imageBucket(bucket: string) {
-        this.s3Config.imageBucket = bucket;
-    }
-
-    /**
-     * Get the configured image quality
-     */
-    public get imageQuality() {
-        return this.s3Config.imageQuality;
-    }
-
-    /**
-     * Uploads a file to an S3 bucket
-     */
-    public async uploadFile(bucket: string, key: string, file: Buffer, mimetype: string) {
+    public async uploadFile(
+        client: Minio.Client,
+        bucket: string,
+        key: string,
+        file: Buffer,
+        mimetype: string,
+    ) {
         const metadata = {
             "Content-Type": mimetype,
         };
-        return this.client.putObject(bucket, key, file, file.length, metadata);
+        return client.putObject(bucket, key, file, file.length, metadata);
     }
 
     /**
-     * Removes objects from a bucket
+     * Removes objects from a bucket using specific credentials
      */
-    public async removeObjects(bucket: string, keys: string[]) {
-        return this.client.removeObjects(bucket, keys);
+    public async removeObjects(client: Minio.Client, bucket: string, keys: string[]) {
+        return client.removeObjects(bucket, keys);
     }
 
     /**
-     * Get an object from a bucket
+     * Get an object from a bucket using specific credentials
      */
-    public async getObject(bucket: string, key: string) {
-        return this.client.getObject(bucket, key);
+    public async getObject(client: Minio.Client, bucket: string, key: string) {
+        return client.getObject(bucket, key);
     }
 
     /**
-     * Checks if a bucket exists
+     * Checks if a bucket exists using specific credentials
      */
-    public async bucketExists(bucket: string) {
-        return this.client.bucketExists(bucket);
+    public async bucketExists(client: Minio.Client, bucket: string) {
+        return client.bucketExists(bucket);
     }
 
     /**
-     * Creates a bucket
+     * Creates a bucket using specific credentials
      */
-    public async makeBucket(bucket: string) {
-        return this.client.makeBucket(bucket);
+    public async makeBucket(client: Minio.Client, bucket: string) {
+        return client.makeBucket(bucket);
     }
 
     /**
-     * Removes a bucket
+     * Removes a bucket using specific credentials
      */
-    public async removeBucket(bucket: string) {
-        return this.client.removeBucket(bucket);
+    public async removeBucket(client: Minio.Client, bucket: string) {
+        return client.removeBucket(bucket);
     }
 
     /**
-     * Lists objects in a bucket
+     * Lists objects in a bucket using specific credentials
      */
-    public async listObjects(bucket: string) {
-        return this.client.listObjects(bucket);
+    public async listObjects(client: Minio.Client, bucket: string) {
+        return client.listObjects(bucket);
     }
 
     /**
-     * Check if the S3/Minio service is available
+     * Check if an S3 service is reachable using specific credentials
      */
-    public async checkConnection(): Promise<boolean> {
-        // Treat connection as healthy only if the configured image bucket exists.
-        // If the bucket is missing or any error occurs, return false so the caller can react.
-        if (!this.imageBucket) return false;
+    public async checkConnection(client: Minio.Client): Promise<boolean> {
+        // Check if S3 service is reachable by attempting to list buckets
         try {
-            return await this.client.bucketExists(this.imageBucket);
+            await client.listBuckets();
+            return true;
         } catch (_) {
             return false;
         }
     }
 
     /**
-     * Check if an object exists in a bucket
+     * Check if an object exists in a bucket using specific credentials
      */
-    public async objectExists(bucket: string, key: string): Promise<boolean> {
+    public async objectExists(client: Minio.Client, bucket: string, key: string): Promise<boolean> {
         try {
-            await this.client.statObject(bucket, key);
+            await client.statObject(bucket, key);
             return true;
         } catch (error) {
             return false;
@@ -120,21 +120,22 @@ export class S3Service {
     }
 
     /**
-     * Validate image upload and accessibility
+     * Validate image upload and accessibility using specific credentials
      */
     public async validateImageUpload(
+        client: Minio.Client,
         bucket: string,
         key: string,
     ): Promise<{ success: boolean; error?: string }> {
         try {
             // Check if bucket exists
-            const bucketExists = await this.bucketExists(bucket);
+            const bucketExists = await client.bucketExists(bucket);
             if (!bucketExists) {
                 return { success: false, error: `Bucket '${bucket}' does not exist` };
             }
 
             // Try to get object info to verify it was uploaded successfully
-            await this.client.statObject(bucket, key);
+            await client.statObject(bucket, key);
 
             return { success: true };
         } catch (error) {
@@ -143,14 +144,18 @@ export class S3Service {
     }
 
     /**
-     * Check if uploaded images are accessible
+     * Check if uploaded images are accessible using specific credentials
      */
-    public async checkImageAccessibility(bucket: string, keys: string[]): Promise<string[]> {
+    public async checkImageAccessibility(
+        client: Minio.Client,
+        bucket: string,
+        keys: string[],
+    ): Promise<string[]> {
         const inaccessibleImages: string[] = [];
 
         for (const key of keys) {
             try {
-                await this.client.statObject(bucket, key);
+                await client.statObject(bucket, key);
             } catch (error) {
                 inaccessibleImages.push(key);
             }
@@ -176,21 +181,7 @@ export class S3Service {
         message?: string;
     }> {
         try {
-            // Parse endpoint to extract host and determine SSL/port defaults
-            const url = new URL(credentials.endpoint);
-            const host = url.hostname;
-            const port =
-                credentials.port || parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
-            const useSSL =
-                credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
-
-            const testClient = new Minio.Client({
-                endPoint: host,
-                port: port,
-                useSSL: useSSL,
-                accessKey: credentials.accessKey,
-                secretKey: credentials.secretKey,
-            });
+            const testClient = this.createClient(credentials);
 
             // Test if bucket exists and is accessible
             const bucketExists = await testClient.bucketExists(bucketName);
