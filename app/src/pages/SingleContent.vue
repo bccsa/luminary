@@ -352,7 +352,7 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 // --- Force language from query param (takes priority over all other language selection) ---
-const langToForce = queryParams.get("langId");
+const langToForce = computed(() => queryParams.get("langId"));
 
 /**
  * Watches for changes in the `content` reactive property.
@@ -384,11 +384,13 @@ watch(
     () => {
         if (!selectedLanguageId.value || !content.value) return;
 
-        if (langToForce && selectedLanguageId.value !== langToForce) {
+        if (langToForce.value && selectedLanguageId.value !== langToForce.value) {
             // If lang query param is set, force that language if available
-            const translation = availableTranslations.value.find((c) => c.language === langToForce);
+            const translation = availableTranslations.value.find(
+                (c) => c.language === langToForce.value,
+            );
             if (translation) {
-                selectedLanguageId.value = langToForce;
+                selectedLanguageId.value = langToForce.value;
                 content.value = translation;
             }
             return;
