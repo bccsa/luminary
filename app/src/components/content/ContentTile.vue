@@ -73,6 +73,7 @@ if (props.content.video) {
                 <LImage
                     :image="content.parentImageData"
                     :content-parent-id="content.parentId"
+                    :parent-image-bucket-id="content.parentImageBucketId"
                     :aspectRatio="aspectRatio"
                     size="thumbnail"
                 >

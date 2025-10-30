@@ -26,6 +26,7 @@ type Props = {
     currentIndex?: number;
     image?: ImageDto; // for single image mode
     contentParentId: Uuid;
+    parentImageBucketId?: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
@@ -400,6 +401,7 @@ onBeforeUnmount(() => {
         >
             <LImage
                 :contentParentId="contentParentId"
+                :parent-image-bucket-id="parentImageBucketId"
                 :image="currentImage"
                 :size="size"
                 :rounded="false"
