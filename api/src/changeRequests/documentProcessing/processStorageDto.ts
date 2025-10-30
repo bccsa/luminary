@@ -7,30 +7,12 @@ import { v4 as uuidv4 } from "uuid";
 import * as Minio from "minio";
 
 /**
- * Creates an S3 client with the provided credentials
- */
-async function createS3ClientFromCredentials(credential: any): Promise<Minio.Client> {
-    // Parse endpoint URL to extract endPoint, port, and useSSL
-    const url = new URL(credential.endpoint);
-    const endPoint = url.hostname;
-    const port = url.port ? parseInt(url.port) : url.protocol === "https:" ? 443 : 80;
-    const useSSL = url.protocol === "https:";
-
-    return new Minio.Client({
-        endPoint,
-        port,
-        useSSL,
-        accessKey: credential.accessKey,
-        secretKey: credential.secretKey,
-    });
-}
-
-/**
  * Creates an S3 client from encrypted credential reference
  */
 async function createS3ClientFromCredentialId(
     credentialId: string,
     db: DbService,
+    s3Service: S3Service,
 ): Promise<Minio.Client> {
     const encryptedStorageResult = await db.getDoc(credentialId);
     if (!encryptedStorageResult.docs || encryptedStorageResult.docs.length === 0) {
@@ -41,7 +23,8 @@ async function createS3ClientFromCredentialId(
     const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
     const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
 
-    return createS3ClientFromCredentials({
+    // Use S3Service to create the client (eliminates duplication)
+    return s3Service.createClient({
         endpoint: encryptedStorage.data.endpoint,
         accessKey: decryptedAccessKey,
         secretKey: decryptedSecretKey,
@@ -60,7 +43,7 @@ export default async function processStorageDto(
     doc: S3BucketDto,
     _prevDoc: S3BucketDto | undefined,
     db: DbService,
-    s3?: S3Service,
+    s3: S3Service, // Required - no longer optional
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -71,11 +54,13 @@ export default async function processStorageDto(
 
             // Get S3 client using the existing credentials
             if (_prevDoc?.credential_id) {
-                s3Client = await createS3ClientFromCredentialId(_prevDoc.credential_id, db);
-            } else if (_prevDoc?.credential) {
-                s3Client = await createS3ClientFromCredentials(_prevDoc.credential);
-            } else if (s3) {
-                s3Client = s3.client;
+                s3Client = await createS3ClientFromCredentialId(_prevDoc.credential_id, db, s3);
+            } else if (_prevDoc?.credential?.accessKey && _prevDoc?.credential?.secretKey) {
+                s3Client = s3.createClient({
+                    endpoint: _prevDoc.credential.endpoint,
+                    accessKey: _prevDoc.credential.accessKey,
+                    secretKey: _prevDoc.credential.secretKey,
+                });
             } else {
                 warnings.push(
                     `Warning: Cannot delete physical S3 bucket '${doc.name}' - no credentials available`,
@@ -189,44 +174,57 @@ export default async function processStorageDto(
         );
     }
 
-    // Create the physical S3 bucket FIRST, before saving any documents
-    let isNewBucket = false;
-    try {
-        let s3Client: Minio.Client;
+    // Create the physical S3 bucket ONLY for new buckets (when _prevDoc is undefined)
+    // For updates, skip bucket creation since the bucket already exists
+    const isNewBucket = !_prevDoc;
 
-        if (doc.credential_id) {
-            // Use credentials from encrypted storage (for updates to existing buckets)
-            s3Client = await createS3ClientFromCredentialId(doc.credential_id, db);
-        } else if (doc.credential) {
-            // Use embedded credentials (for new buckets)
-            s3Client = await createS3ClientFromCredentials(doc.credential);
-            isNewBucket = true; // This is a new bucket with new credentials
-        } else if (s3) {
-            // Fall back to default S3 service
-            s3Client = s3.client;
-        } else {
-            throw new Error("No S3 credentials or service available for bucket creation");
-        }
+    if (isNewBucket) {
+        try {
+            let s3Client: Minio.Client;
 
-        // Check if bucket already exists
-        const bucketExists = await s3Client.bucketExists(doc.name);
+            if (doc.credential?.accessKey && doc.credential?.secretKey) {
+                // Use embedded credentials (for new buckets)
+                s3Client = s3.createClient({
+                    endpoint: doc.credential.endpoint,
+                    accessKey: doc.credential.accessKey,
+                    secretKey: doc.credential.secretKey,
+                });
+            } else {
+                throw new Error("No S3 credentials available for bucket creation");
+            }
 
-        if (!bucketExists) {
-            // Create the physical bucket
-            await s3Client.makeBucket(doc.name);
-        } else {
-            warnings.push(`S3 bucket ${doc.name} already exists on the storage provider.`);
-            throw new Error(`S3 bucket ${doc.name} already exists on the storage provider.`);
-        }
-    } catch (error) {
-        // For new buckets, fail hard - don't save the document if we can't create the physical bucket
-        if (isNewBucket) {
+            // Check if bucket already exists
+            const bucketExists = await s3Client.bucketExists(doc.name);
+
+            if (!bucketExists) {
+                // set the policy of the bucket
+                const bucketPolicy = {
+                    Version: "2012-10-17",
+                    Statement: [
+                        {
+                            Action: ["s3:GetObject"],
+                            Effect: "Allow",
+                            Principal: {
+                                AWS: ["*"],
+                            },
+                            Resource: [`arn:aws:s3:::${doc.name}/*`],
+                            Sid: "",
+                        },
+                    ],
+                };
+
+                // Create the physical bucket
+                await s3Client.makeBucket(doc.name);
+
+                // set the policy
+                await s3Client.setBucketPolicy(doc.name, JSON.stringify(bucketPolicy));
+            } else {
+                throw new Error(`S3 bucket ${doc.name} already exists on the storage provider.`);
+            }
+        } catch (error) {
+            // For new buckets, fail hard - don't save the document if we can't create the physical bucket
             throw new Error(`Failed to create physical S3 bucket ${doc.name}: ${error.message}`);
         }
-        // For existing buckets (updates), log a warning but continue
-        const errorMessage = `Failed to verify/create physical S3 bucket ${doc.name}: ${error.message}`;
-        warnings.push(errorMessage);
-        console.warn(errorMessage);
     }
 
     // Only after physical bucket is created successfully, encrypt and save credentials
