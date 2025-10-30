@@ -217,6 +217,7 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).imageData,
             undefined,
             s3,
+            db,
         );
     });
 
@@ -243,6 +244,7 @@ describe("processPostTagDto", () => {
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
             s3,
+            db,
         );
     });
 });
