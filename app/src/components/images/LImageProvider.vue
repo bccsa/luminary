@@ -41,6 +41,7 @@ type Props = {
     parentWidth: number;
     parentId: Uuid;
     isModal?: boolean;
+    bucketHttpPath?: string;
 };
 
 const aspectRatiosCSS = {
@@ -74,7 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
     isModal: false,
 });
 
-const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
+const baseUrl = computed(() => props.bucketHttpPath || "");
 
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
@@ -166,7 +167,7 @@ const srcset1 = computed(() => {
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
         .join(", ");
@@ -189,7 +190,7 @@ const srcset2 = computed(() => {
             const files = images.length
                 ? images
                 : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+            return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
         })
         .join(", ");
 });
@@ -239,7 +240,7 @@ const modalSrc = computed(() => {
     if (!allFiles.length) return fallbackImageUrl.value;
     // Pick the file with the largest area (width * height) to preserve detail for zooming
     const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
-    return `${baseUrl}/${largest.filename}`;
+    return `${baseUrl.value}/${largest.filename}`;
 });
 
 // Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
@@ -251,7 +252,7 @@ const modalSrcset = computed(() => {
         .slice()
         .sort((a, b) => a.width - b.width);
     if (!files.length) return "";
-    return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+    return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
 });
 
 //Only load fallback when BOTH attempts really failed
