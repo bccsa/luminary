@@ -47,6 +47,15 @@ export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
 
+export type Configuration = {
+    permissionMap: string;
+    auth?: AuthConfig;
+    database?: DatabaseConfig;
+    sync?: SyncConfig;
+    imageProcessing?: ImageProcessingConfig;
+    socketIo?: SocketIoConfig;
+};
+
 export default () =>
     ({
         auth: {
@@ -62,15 +71,9 @@ export default () =>
             tolerance: parseInt(process.env.PORT, 10) || 1000,
         } as SyncConfig,
         permissionMap: process.env.PERMISSION_MAP,
-        s3: {
-            endpoint: process.env.S3_ENDPOINT,
-            port: parseInt(process.env.S3_PORT, 10),
-            useSSL: process.env.S3_USE_SSL === "true",
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
-            imageBucket: process.env.S3_IMG_BUCKET,
+        imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
-        } as S3Config,
+        } as ImageProcessingConfig,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
