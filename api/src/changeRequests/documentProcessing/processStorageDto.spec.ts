@@ -10,6 +10,7 @@ jest.mock("minio", () => {
         Client: jest.fn().mockImplementation(() => ({
             bucketExists: jest.fn().mockResolvedValue(false),
             makeBucket: jest.fn().mockResolvedValue(true),
+            setBucketPolicy: jest.fn().mockResolvedValue(true),
         })),
     };
 });
@@ -113,6 +114,7 @@ describe("processStorageDto", () => {
         Client.mockImplementationOnce(() => ({
             bucketExists: jest.fn().mockResolvedValue(false),
             makeBucket: jest.fn().mockRejectedValue(new Error("S3 connection failed")),
+            setBucketPolicy: jest.fn().mockResolvedValue(true),
         }));
 
         const storageChangeRequest = changeRequest_storage();
