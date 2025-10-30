@@ -9,14 +9,17 @@ type Props = {
     imageFileCollection?: ImageFileCollectionDto;
     imageUploadData?: ImageUploadDto;
     disabled?: boolean;
+    bucketHttpPath?: string;
 };
 const props = defineProps<Props>();
-const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
+const baseUrl = computed(() => {
+    return props.bucketHttpPath ? props.bucketHttpPath : "";
+});
 
 const srcset = computed(() => {
     if (props.imageFileCollection)
         return props.imageFileCollection.imageFiles
-            .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+            .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
             .join(", ");
 
     if (props.imageUploadData)
@@ -72,6 +75,7 @@ const imageElementError = ref(false);
             />
         </div>
     </div>
+    <div></div>
     <LDialog
         v-model:open="showModal"
         title="Delete file version"
