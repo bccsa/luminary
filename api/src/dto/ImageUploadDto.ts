@@ -1,7 +1,8 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsString, IsOptional } from "class-validator";
 import { Expose } from "class-transformer";
 import { IsImage } from "../validation/IsImage";
 import * as sharp from "sharp";
+import { Uuid } from "../enums";
 
 /**
  * Data for uploading an image
@@ -16,4 +17,9 @@ export class ImageUploadDto {
     @IsNotEmpty()
     @Expose()
     preset: keyof sharp.PresetEnum;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    bucketId?: Uuid;
 }
