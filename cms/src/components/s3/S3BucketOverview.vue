@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import { PlusIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
@@ -13,29 +13,18 @@ import {
     AclPermission,
     verifyAccess,
     BucketType,
+    useBucketStatus,
 } from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { XCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/20/solid";
+import { XCircleIcon } from "@heroicons/vue/20/solid";
 import { changeReqErrors } from "luminary-shared";
 import { changeReqWarnings } from "luminary-shared";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
-
-type bucketStatus = S3BucketDto & {
-    connectionStatus:
-        | "connected"
-        | "unreachable"
-        | "unauthorized"
-        | "not-found"
-        | "no-credentials"
-        | "checking"
-        | "unknown";
-    statusMessage?: string;
-};
 
 // Reactive database queries
 const groups = useDexieLiveQuery(
@@ -47,6 +36,14 @@ const buckets = useDexieLiveQuery(
     () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<S3BucketDto[]>,
     { initialValue: [] as S3BucketDto[] },
 );
+
+// Use the shared bucket status composable
+const { fetchBucketStatus, refreshAllStatuses, bucketsWithStatus } = useBucketStatus(buckets);
+
+// Ensure statuses are refreshed on mount
+onMounted(() => {
+    refreshAllStatuses().catch(() => {});
+});
 
 const isLoading = ref(false);
 const errors = ref<string[] | null>(null);
@@ -87,38 +84,18 @@ const newFileType = ref<string>("");
 
 const notification = useNotificationStore();
 
-// Enhanced bucket status computation with real connectivity checking
-const bucketsWithStatus = computed(() => {
-    return buckets.value.map((bucket): bucketStatus => {
-        // Determine initial status based on credentials
-        let connectionStatus: bucketStatus["connectionStatus"] = "unknown";
-
-        if (!bucket.credential && !bucket.credential_id) {
-            connectionStatus = "no-credentials";
-        } else {
-            // Start with unknown status for buckets with credentials
-            connectionStatus = "unknown";
-        }
-
-        return {
-            ...bucket,
-            connectionStatus,
-        };
-    });
-});
-
 const newBucket = ref<S3BucketDto>({
     _id: db.uuid(),
     type: DocType.Storage,
     updatedTimeUtc: Date.now(),
     memberOf: [],
-    name: "audios",
+    name: "",
     bucketType: BucketType.Image,
-    httpPath: "/audios",
+    httpPath: "",
     credential: {
-        endpoint: "http://localhost:9000",
-        accessKey: "minio",
-        secretKey: "minio123",
+        endpoint: "",
+        accessKey: "",
+        secretKey: "",
     } as S3CredentialDto,
     fileTypes: [],
 });
@@ -148,6 +125,7 @@ watch(
             }
             showCredentials.value = false;
             hasAttemptedSubmit.value = false; // Reset submission attempt
+            touchedFields.value.clear(); // Clear touched fields
         } else {
             // Clear error when modal is closed
             errors.value = null;
@@ -156,15 +134,16 @@ watch(
                 editableBucket.value = null;
             }
             hasAttemptedSubmit.value = false; // Reset on close too
+            touchedFields.value.clear(); // Clear touched fields
         }
     },
     { immediate: false },
 );
 
 const localCredentials = ref<S3CredentialDto>({
-    endpoint: "http://localhost:9000",
-    accessKey: "minio",
-    secretKey: "minio123",
+    endpoint: "",
+    accessKey: "",
+    secretKey: "",
 });
 
 // Watch for modal opening to populate credentials
@@ -184,6 +163,34 @@ watch(showModal, (isOpen) => {
         // Users can enter new credentials here to update them.
     }
 });
+
+// Auto-generate httpPath for new buckets based on endpoint and bucket name
+watch(
+    [() => localCredentials.value.endpoint, () => newBucket.value.name, isEditing],
+    ([endpoint, name]) => {
+        // Only auto-generate for new buckets (not editing)
+        if (isEditing.value) return;
+
+        const trimmedEndpoint = endpoint?.trim();
+        const trimmedName = name?.trim();
+
+        if (!trimmedEndpoint || !trimmedName) return;
+
+        try {
+            const url = new URL(trimmedEndpoint);
+            // Generate httpPath as: protocol://host:port/bucketName
+            const protocol = url.protocol; // includes ://
+            const host = url.hostname;
+            const port = url.port;
+            const portPart = port ? `:${port}` : "";
+
+            newBucket.value.httpPath = `${protocol}//${host}${portPart}/${trimmedName}`;
+        } catch (e) {
+            // Invalid URL, skip auto-generation
+        }
+    },
+    { immediate: false },
+);
 
 // Watch for change request errors (e.g., duplicate bucket names, failed bucket creation)
 watch(changeReqErrors, (errors) => {
@@ -245,18 +252,29 @@ function resetNewBucket() {
         _id: db.uuid(),
         type: DocType.Storage,
         updatedTimeUtc: Date.now(),
-        memberOf: ["group-public-content"],
-        name: "audios",
+        memberOf: [],
+        name: "",
         bucketType: BucketType.Image,
-        httpPath: "/audio",
+        httpPath: "",
         credential: {
-            endpoint: "http://localhost:9000",
-            accessKey: "minio",
-            secretKey: "minio123",
+            endpoint: "",
+            accessKey: "",
+            secretKey: "",
         } as S3CredentialDto,
-        fileTypes: ["audio/*"],
+        fileTypes: [],
     };
 }
+
+function openCreateModal() {
+    resetNewBucket();
+    editableBucket.value = null;
+    showModal.value = true;
+}
+
+// Expose method for parent to trigger modal
+defineExpose({
+    openCreateModal,
+});
 
 function addFileType() {
     const fileType = newFileType.value.trim();
@@ -285,13 +303,16 @@ function editBucket(bucket: S3BucketDto) {
     showModal.value = true;
 }
 
-function deleteBucket(bucketWithStatus: bucketStatus) {
-    // Find the original bucket without computed properties
-    const originalBucket = buckets.value.find((b) => b._id === bucketWithStatus._id);
-    if (originalBucket) {
-        bucketToDelete.value = originalBucket;
+function deleteBucket() {
+    // Delete the bucket being edited
+    if (editableBucket.value) {
+        bucketToDelete.value = editableBucket.value;
         showDeleteModal.value = true;
     }
+}
+
+async function handleTestConnection(bucket: S3BucketDto) {
+    await fetchBucketStatus(bucket);
 }
 
 async function confirmDelete() {
@@ -324,6 +345,12 @@ async function confirmDelete() {
 
         showDeleteModal.value = false;
         bucketToDelete.value = null;
+
+        // Close the edit modal if it's open
+        if (showModal.value) {
+            showModal.value = false;
+            editableBucket.value = null;
+        }
 
         notification.addNotification({
             title: `Bucket ${bucketName} deleted`,
@@ -381,7 +408,7 @@ watch(
 
         // Validate bucket name format (S3 rules)
         validate(
-            "Bucket name must follow S3 naming rules: 3-63 characters, lowercase letters, numbers, hyphens, and periods only.",
+            "Bucket name: 3-63 chars, lowercase only, no spaces, use hyphens/periods to separate words",
             "bucketNameFormat",
             validations.value,
             bucket,
@@ -392,7 +419,7 @@ watch(
                 // Length check
                 if (name.length < 3 || name.length > 63) return false;
 
-                // Only lowercase letters, numbers, hyphens, and periods
+                // Only lowercase letters, numbers, hyphens, and periods (no uppercase, no spaces)
                 if (!/^[a-z0-9.-]+$/.test(name)) return false;
 
                 // Cannot start or end with hyphen or period
@@ -420,6 +447,19 @@ watch(
             (b) => !!b.httpPath?.trim(),
         );
 
+        // Validate HTTP path format (must start with http:// or https://)
+        validate(
+            "HTTP path must start with http:// or https://",
+            "httpPathFormat",
+            validations.value,
+            bucket,
+            (b) => {
+                const path = b.httpPath?.trim();
+                if (!path) return true; // Skip if empty (handled by required validation)
+                return path.startsWith("http://") || path.startsWith("https://");
+            },
+        );
+
         // Validate credentials for new buckets
         if (!isEditing.value) {
             validate(
@@ -439,6 +479,19 @@ watch(
                 validations.value,
                 localCredentials.value,
                 () => endpointProvided.value,
+            );
+
+            // Validate endpoint format (must start with http:// or https://)
+            validate(
+                "Endpoint must start with http:// or https://",
+                "endpointFormat",
+                validations.value,
+                localCredentials.value,
+                (c) => {
+                    const endpoint = c.endpoint?.trim();
+                    if (!endpoint) return true; // Skip if empty (handled by required validation)
+                    return endpoint.startsWith("http://") || endpoint.startsWith("https://");
+                },
             );
 
             validate(
@@ -469,18 +522,20 @@ const getFieldValidation = (fieldId: string) => {
     return validations.value.find((v) => v.id === fieldId);
 };
 
-// Helper function to check if a field has an error and should show it
-const hasFieldError = (fieldId: string) => {
-    if (!hasAttemptedSubmit.value) return false; // Don't show errors until submit is attempted
-    const validation = getFieldValidation(fieldId);
-    return validation && !validation.isValid;
+// Track which fields have been touched (interacted with)
+const touchedFields = ref<Set<string>>(new Set());
+
+// Helper function to mark a field as touched
+const touchField = (fieldId: string) => {
+    touchedFields.value.add(fieldId);
 };
 
-// Helper function to get error message for a field
-const getFieldError = (fieldId: string) => {
-    if (!hasAttemptedSubmit.value) return ""; // Don't show errors until submit is attempted
+// Helper function to check if a field has an error and should show it
+const hasFieldError = (fieldId: string) => {
     const validation = getFieldValidation(fieldId);
-    return validation && !validation.isValid ? validation.message : "";
+    // Show error if field has been touched OR form has been submitted
+    const shouldShow = touchedFields.value.has(fieldId) || hasAttemptedSubmit.value;
+    return shouldShow && validation && !validation.isValid;
 };
 
 const saveBucket = async () => {
@@ -551,44 +606,13 @@ const saveBucket = async () => {
         isLoading.value = false;
     }
 };
-
-// async function testConnection(bucket: S3BucketDto) {
-//     try {
-//         const result = await db.get(bucket._id);
-
-//         // Show notification with result
-//         if (result.status === "connected") {
-//             notification.addNotification({
-//                 title: "Bucket connection successful",
-//                 state: "success",
-//             });
-//         } else {
-//             notification.addNotification({
-//                 title: "Connection failed",
-//                 description: result.message || result.status,
-//                 state: "error",
-//             });
-//         }
-//     } catch (error) {
-//         console.error("Failed to test connection:", error);
-//         notification.addNotification({
-//             title: "Failed to test bucket connection",
-//             state: "error",
-//         });
-//     }
-// }
 </script>
 
 <template>
     <div>
-        <div class="border-b border-gray-200 py-4">
-            <div class="flex items-center justify-between px-3 sm:px-0">
-                <h2 class="text-lg font-medium text-gray-900">S3 Buckets</h2>
-                <div class="flex items-center space-x-2">
-                    <LButton :icon="PlusIcon" @click="showModal = true" :disabled="isLoading">
-                        Add Bucket
-                    </LButton>
-                </div>
+        <div class="border-b border-gray-200 py-1.5">
+            <div class="px-3 sm:px-0">
+                <!-- <h2 class="text-lg font-medium text-gray-900">S3 Buckets</h2> -->
             </div>
         </div>
 
@@ -602,16 +626,6 @@ const saveBucket = async () => {
             <p class="mt-1 text-sm text-gray-500">
                 {{ "Get started by creating your first S3 bucket configuration." }}
             </p>
-            <div class="mt-6">
-                <LButton
-                    :icon="PlusIcon"
-                    variant="primary"
-                    @click="showModal = true"
-                    :disabled="false"
-                >
-                    Create Bucket
-                </LButton>
-            </div>
         </div>
 
         <div v-else>
@@ -626,7 +640,7 @@ const saveBucket = async () => {
                         'mb-4': i === bucketsWithStatus.length - 1,
                     }"
                     @edit="editBucket"
-                    @delete="deleteBucket"
+                    @testConnection="handleTestConnection"
                 />
             </div>
         </div>
@@ -637,47 +651,47 @@ const saveBucket = async () => {
         v-model:isVisible="showModal"
         :heading="isEditing ? 'Edit Bucket' : 'Create New Bucket'"
     >
-        <div class="max-h-96 overflow-auto">
+        <div class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error and validation display -->
-            <div v-if="errors || (!isFormValid && hasAttemptedSubmit)" class="mb-4">
+            <div v-if="errors || !isFormValid" class="mb-3">
                 <!-- Global errors -->
                 <div v-if="errors">
                     <div
                         v-for="(error, idx) in errors"
                         :key="idx"
-                        class="mb-2 flex items-center gap-2"
+                        class="mb-1 flex items-center gap-2"
                     >
-                        <p>
-                            <XCircleIcon class="h-4 w-4 text-red-400" />
-                        </p>
-                        <p class="text-sm text-zinc-700">{{ error }}</p>
+                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                        <p class="text-xs text-zinc-700">{{ error }}</p>
                     </div>
                 </div>
 
-                <!-- Real-time validation errors -->
-                <div v-if="!isFormValid && !errors && hasAttemptedSubmit">
-                    <div class="mb-2 flex items-center gap-2">
-                        <p>
-                            <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                        </p>
-                        <p class="text-sm text-zinc-700">Please fix the following issues:</p>
-                    </div>
+                <!-- Real-time validation errors summary -->
+                <div v-if="!isFormValid && !errors">
                     <div
                         v-for="validation in validations.filter((v: any) => !v.isValid)"
                         :key="validation.id"
-                        class="mb-1 ml-6 flex items-center gap-2"
+                        class="mb-1 flex items-center gap-2"
                     >
-                        <p>
-                            <XCircleIcon class="h-3 w-3 text-red-400" />
-                        </p>
+                        <XCircleIcon class="h-4 w-4 text-red-400" />
                         <p class="text-xs text-zinc-700">{{ validation.message }}</p>
                     </div>
                 </div>
             </div>
             <div class="space-y-2">
+                <!-- Warning for editing bucket name -->
+                <div v-if="isEditing" class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
+                    <div class="flex gap-2">
+                        <ExclamationTriangleIcon class="h-4 w-4 flex-shrink-0 text-yellow-600" />
+                        <div class="text-xs text-yellow-800">
+                            <span class="font-medium">Bucket name cannot be changed.</span>
+                            To use a different name, create a new bucket and migrate your data.
+                        </div>
+                    </div>
+                </div>
                 <!-- bucket name -->
                 <div>
-                    <label for="bucket-name" class="block text-sm font-medium text-gray-700"
+                    <label for="bucket-name" class="mb-1 block text-xs font-medium text-gray-700"
                         >Name</label
                     >
                     <LInput
@@ -685,17 +699,30 @@ const saveBucket = async () => {
                         name="bucketName"
                         v-model="(isEditing ? editableBucket : newBucket)!.name"
                         type="text"
-                        placeholder="Images"
-                        :class="{ 'border-red-300': hasFieldError('bucketName') }"
+                        placeholder="my-images or user-uploads"
+                        :class="{
+                            'border-red-300':
+                                hasFieldError('bucketName') || hasFieldError('bucketNameFormat'),
+                        }"
+                        :disabled="isEditing"
+                        @blur="
+                            () => {
+                                touchField('bucketName');
+                                touchField('bucketNameFormat');
+                            }
+                        "
+                        @input="
+                            () => {
+                                touchField('bucketName');
+                                touchField('bucketNameFormat');
+                            }
+                        "
                     />
-                    <p v-if="hasFieldError('bucketName')" class="mt-1 text-xs text-red-600">
-                        {{ getFieldError("bucketName") }}
-                    </p>
                 </div>
 
                 <!-- bucket http -->
                 <div>
-                    <label for="bucket-path" class="block text-sm font-medium text-gray-700"
+                    <label for="bucket-path" class="mb-1 block text-xs font-medium text-gray-700"
                         >Http path</label
                     >
                     <LInput
@@ -703,11 +730,26 @@ const saveBucket = async () => {
                         name="bucketPath"
                         v-model="(isEditing ? editableBucket : newBucket)!.httpPath"
                         type="text"
-                        placeholder="/images"
-                        :class="{ 'border-red-300': hasFieldError('httpPath') }"
+                        placeholder="http://localhost:9000/bucket-name"
+                        :class="{
+                            'border-red-300':
+                                hasFieldError('httpPath') || hasFieldError('httpPathFormat'),
+                        }"
+                        @blur="
+                            () => {
+                                touchField('httpPath');
+                                touchField('httpPathFormat');
+                            }
+                        "
+                        @input="
+                            () => {
+                                touchField('httpPath');
+                                touchField('httpPathFormat');
+                            }
+                        "
                     />
-                    <p v-if="hasFieldError('httpPath')" class="mt-1 text-xs text-red-600">
-                        {{ getFieldError("httpPath") }}
+                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-gray-500">
+                        Auto-generated from endpoint and bucket name
                     </p>
                 </div>
 
@@ -726,29 +768,29 @@ const saveBucket = async () => {
 
                 <!-- Allowed File Types -->
                 <div>
-                    <label class="mb-0.5 block text-sm font-medium text-gray-700">
+                    <label class="mb-1 block text-xs font-medium text-gray-700">
                         Allowed File Types
                     </label>
-                    <div class="space-y-0.5">
-                        <div class="flex flex-wrap gap-2">
+                    <div class="space-y-1.5">
+                        <div class="flex flex-wrap gap-1.5">
                             <span
                                 v-for="fileType in (isEditing ? editableBucket : newBucket)!
                                     .fileTypes"
                                 :key="fileType"
-                                class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                                class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-800"
                             >
                                 {{ fileType }}
                                 <button
                                     type="button"
                                     @click="removeFileType(fileType)"
                                     :disabled="isLoading"
-                                    class="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                    class="ml-1.5 text-blue-600 hover:text-blue-800 focus:outline-none"
                                 >
-                                    <XMarkIcon class="h-4 w-4" />
+                                    <XMarkIcon class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         </div>
-                        <div class="flex space-x-2">
+                        <div class="flex gap-2">
                             <LInput
                                 v-model="newFileType"
                                 name=""
@@ -769,8 +811,8 @@ const saveBucket = async () => {
                             </LButton>
                         </div>
                     </div>
-                    <p class="mt-1 text-[12px] text-gray-500">
-                        MIME types or patterns (e.g., "image/*", "video/mp4", "application/pdf")
+                    <p class="mt-0.5 text-[11px] text-gray-500">
+                        e.g., "image/*", "video/mp4", "application/pdf"
                     </p>
                 </div>
 
@@ -796,12 +838,12 @@ const saveBucket = async () => {
                 </div>
 
                 <!-- Credentials status for existing buckets -->
-                <div v-if="isEditing && !shouldShowCredentialsSection" class="border-t pt-3">
-                    <div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-                        <div class="flex">
+                <div v-if="isEditing && !shouldShowCredentialsSection" class="border-t pt-2">
+                    <div class="rounded-md border border-blue-200 bg-blue-50 p-2">
+                        <div class="flex gap-2">
                             <div class="flex-shrink-0">
                                 <svg
-                                    class="h-5 w-5 text-blue-400"
+                                    class="h-4 w-4 text-blue-400"
                                     viewBox="0 0 20 20"
                                     fill="currentColor"
                                 >
@@ -812,15 +854,14 @@ const saveBucket = async () => {
                                     />
                                 </svg>
                             </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-blue-800">
+                            <div>
+                                <h3 class="font-fold text-xs text-blue-800">
                                     Credentials Configured
                                 </h3>
-                                <p class="mt-1 text-sm text-blue-700">
-                                    This bucket already has
+                                <p class="mt-0.5 text-xs text-blue-700">
+                                    This bucket has
                                     {{ editableBucket?.credential_id ? "encrypted" : "embedded" }}
-                                    credentials configured. Credentials cannot be edited directly
-                                    for security reasons.
+                                    credentials. Cannot be edited directly for security.
                                 </p>
                             </div>
                         </div>
@@ -828,18 +869,19 @@ const saveBucket = async () => {
                 </div>
 
                 <!-- S3 Credentials -->
-                <div v-if="shouldShowCredentialsSection" class="border-t pt-3">
-                    <div class="mb-4 flex items-center justify-between">
-                        <h3 class="text-lg font-medium text-gray-900">
+
+                <div v-if="shouldShowCredentialsSection" class="border-t pt-2">
+                    <div class="mb-2 flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-gray-900">
                             S3 Credentials
                             <span v-if="!isEditing" class="text-red-500">*</span>
                         </h3>
                         <LButton
                             @click="showCredentials = !showCredentials"
-                            variant="secondary"
+                            variant="tertiary"
                             size="sm"
                         >
-                            {{ isEditing ? "Update" : "Set" }} Credentials
+                            {{ showCredentials ? "Hide" : isEditing ? "Update" : "Set" }}
                         </LButton>
                     </div>
 
@@ -851,30 +893,46 @@ const saveBucket = async () => {
                             hasAttemptedSubmit &&
                             !hasValidCredentials
                         "
-                        class="mb-4 rounded-md border border-red-200 bg-red-50 p-3"
+                        class="mb-2 rounded-md border border-red-200 bg-red-50 p-2"
                     >
-                        <div class="flex">
+                        <div class="flex gap-2">
                             <div class="flex-shrink-0">
-                                <ExclamationTriangleIcon class="h-5 w-5 text-red-400" />
+                                <ExclamationTriangleIcon class="h-4 w-4 text-red-400" />
                             </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-red-800">
+                            <div>
+                                <h3 class="text-xs font-medium text-red-800">
                                     Credentials Required
                                 </h3>
-                                <p class="mt-1 text-sm text-red-700">
-                                    S3 credentials are required to create a new bucket. Click "Show
-                                    Credentials" to provide them.
+                                <p class="mt-0.5 text-xs text-red-700">
+                                    Click "Set" above to provide S3 credentials.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="showCredentials" class="space-y-4">
+                    <div v-if="showCredentials" class="space-y-2">
+                        <!-- Security Notice  -->
+                        <div class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
+                            <div class="flex gap-2">
+                                <ExclamationTriangleIcon
+                                    class="h-4 w-4 flex-shrink-0 text-yellow-600"
+                                />
+                                <p class="text-[11px] text-yellow-800">
+                                    Credentials are encrypted before storage.
+                                    {{
+                                        isEditing
+                                            ? "Leave empty to keep existing."
+                                            : "All fields required."
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
                         <!-- Endpoint -->
                         <div>
                             <label
                                 for="endpoint"
-                                class="mb-0.5 block text-sm font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-gray-700"
                             >
                                 S3 Endpoint
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -884,24 +942,34 @@ const saveBucket = async () => {
                                 name="endpoint"
                                 v-model="localCredentials.endpoint"
                                 type="url"
-                                placeholder="https://s3.amazonaws.com or http://localhost:9000"
+                                placeholder="https://your-storage-endpoint.com"
                                 :disabled="isLoading"
                                 :required="!isEditing"
-                                :class="{ 'border-red-300': hasFieldError('endpoint') }"
+                                :class="{
+                                    'border-red-300':
+                                        hasFieldError('endpoint') ||
+                                        hasFieldError('endpointFormat'),
+                                }"
+                                @blur="
+                                    () => {
+                                        touchField('endpoint');
+                                        touchField('endpointFormat');
+                                    }
+                                "
+                                @input="
+                                    () => {
+                                        touchField('endpoint');
+                                        touchField('endpointFormat');
+                                    }
+                                "
                             />
-                            <p v-if="hasFieldError('endpoint')" class="mt-1 text-xs text-red-600">
-                                {{ getFieldError("endpoint") }}
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500">
-                                Full URL including protocol (http:// or https://)
-                            </p>
                         </div>
 
                         <!-- Access Key  -->
                         <div>
                             <label
                                 for="accessKey"
-                                class="mb-0.5 block text-sm font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-gray-700"
                             >
                                 Access Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -915,17 +983,16 @@ const saveBucket = async () => {
                                 :disabled="isLoading"
                                 :required="!isEditing"
                                 :class="{ 'border-red-300': hasFieldError('accessKey') }"
+                                @blur="() => touchField('accessKey')"
+                                @input="() => touchField('accessKey')"
                             />
-                            <p v-if="hasFieldError('accessKey')" class="mt-1 text-xs text-red-600">
-                                {{ getFieldError("accessKey") }}
-                            </p>
                         </div>
 
                         <!-- Secret Key -->
                         <div>
                             <label
                                 for="secretKey"
-                                class="mb-0.5 block text-sm font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-gray-700"
                             >
                                 Secret Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -939,49 +1006,46 @@ const saveBucket = async () => {
                                 :disabled="isLoading"
                                 :required="!isEditing"
                                 :class="{ 'border-red-300': hasFieldError('secretKey') }"
+                                @blur="() => touchField('secretKey')"
+                                @input="() => touchField('secretKey')"
                             />
-                            <p v-if="hasFieldError('secretKey')" class="mt-1 text-xs text-red-600">
-                                {{ getFieldError("secretKey") }}
-                            </p>
-                        </div>
-
-                        <!-- Security Notice  -->
-                        <div class="rounded-md border border-yellow-200 bg-yellow-50 p-3">
-                            <div class="flex">
-                                <ExclamationTriangleIcon class="h-8 w-8 text-yellow-400" />
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-yellow-800">
-                                        Security Notice
-                                    </h3>
-                                    <p class="mt-1 text-[12px] text-yellow-700">
-                                        Credentials are encrypted before being stored in the
-                                        database.
-                                        {{
-                                            isEditing
-                                                ? "Leave empty to keep existing credentials."
-                                                : "All fields are required for new buckets."
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Actions buttons -->
-                <div class="mt-6 flex justify-end space-x-3 border-t pt-4">
-                    <LButton @click="showModal = false" variant="secondary" :disabled="isLoading">
-                        Cancel
-                    </LButton>
-                    <LButton
-                        variant="primary"
-                        @click="saveBucket"
-                        :disabled="isLoading || !isFormValid"
-                        :loading="isLoading"
-                    >
-                        {{ isEditing ? "Update Bucket" : "Create Bucket" }}
-                    </LButton>
-                </div>
+            </div>
+        </div>
+        <!-- Actions buttons -->
+        <div class="flex justify-between border-t pt-3">
+            <div>
+                <LButton
+                    v-if="isEditing"
+                    @click="deleteBucket"
+                    variant="secondary"
+                    context="danger"
+                    size="sm"
+                    :disabled="isLoading"
+                >
+                    Delete
+                </LButton>
+            </div>
+            <div class="flex gap-2">
+                <LButton
+                    @click="showModal = false"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="isLoading"
+                >
+                    Cancel
+                </LButton>
+                <LButton
+                    variant="primary"
+                    size="sm"
+                    @click="saveBucket"
+                    :disabled="isLoading || !isFormValid"
+                    :loading="isLoading"
+                >
+                    {{ isEditing ? "Update" : "Create" }}
+                </LButton>
             </div>
         </div>
     </LModal>
