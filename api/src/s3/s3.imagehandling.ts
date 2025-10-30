@@ -5,21 +5,230 @@ import { v4 as uuidv4 } from "uuid";
 import { S3Service } from "./s3.service";
 import { ImageUploadDto } from "../dto/ImageUploadDto";
 import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
+import { DbService } from "../db/db.service";
+import { S3BucketDto } from "../dto/S3BucketDto";
+import { EncryptedStorageDto } from "../dto/EncryptedStorageDto";
+import { DocType } from "../enums";
+import { decrypt } from "../util/encryption";
+import * as Minio from "minio";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
 
 /**
- * Processes an embedded image upload by resizing the image and uploading it to S3
+ * Create S3 client from bucket credentials
+ */
+async function createS3ClientFromBucket(
+    bucket: S3BucketDto,
+    db: DbService,
+    s3Service: S3Service,
+): Promise<Minio.Client> {
+    let credentials: {
+        endpoint: string;
+        accessKey: string;
+        secretKey: string;
+    };
+
+    if (bucket.credential) {
+        // Use embedded credentials
+        credentials = {
+            endpoint: bucket.credential.endpoint,
+            accessKey: bucket.credential.accessKey!,
+            secretKey: bucket.credential.secretKey!,
+        };
+    } else if (bucket.credential_id) {
+        // Use reference to encrypted credentials
+        const encryptedStorageResult = await db.getDoc(bucket.credential_id);
+        if (encryptedStorageResult.docs.length === 0) {
+            throw new Error("Bucket credentials not found");
+        }
+
+        const encryptedStorage = encryptedStorageResult.docs[0] as EncryptedStorageDto;
+        const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
+        const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
+
+        credentials = {
+            endpoint: encryptedStorage.data.endpoint,
+            accessKey: decryptedAccessKey,
+            secretKey: decryptedSecretKey,
+        };
+    } else {
+        throw new Error("No credentials configured for bucket");
+    }
+
+    // Use S3Service to create the client (eliminates duplication)
+    return s3Service.createClient(credentials);
+}
+
+/**
+ * Migrates all image files from one bucket to another
+ * Supports migration between different S3 systems (e.g., MinIO to AWS S3, or different MinIO instances)
+ * Each bucket uses its own credentials and endpoint, enabling cross-system transfers
+ * Only deletes from old bucket if migration is successful
+ *
+ * @param image - The image DTO containing file collections to migrate
+ * @param oldBucketId - The ID of the source bucket
+ * @param newBucketId - The ID of the destination bucket
+ * @param db - Database service to retrieve bucket configurations
+ * @param s3 - S3 service for creating clients
+ * @returns Array of warnings about migration status
+ */
+async function migrateImagesBetweenBuckets(
+    image: ImageDto,
+    oldBucketId: string,
+    newBucketId: string,
+    db: DbService,
+    s3: S3Service,
+): Promise<string[]> {
+    const warnings: string[] = [];
+
+    try {
+        // Get old and new bucket configurations (each may have different endpoints and credentials)
+        const oldBucketResult = await db.getDoc(oldBucketId);
+        const newBucketResult = await db.getDoc(newBucketId);
+
+        if (!oldBucketResult.docs || oldBucketResult.docs.length === 0) {
+            warnings.push(`Old bucket ${oldBucketId} not found. Cannot migrate images.`);
+            return warnings;
+        }
+
+        if (!newBucketResult.docs || newBucketResult.docs.length === 0) {
+            warnings.push(`New bucket ${newBucketId} not found. Cannot migrate images.`);
+            return warnings;
+        }
+
+        const oldBucket = oldBucketResult.docs[0] as S3BucketDto;
+        const newBucket = newBucketResult.docs[0] as S3BucketDto;
+
+        // Create separate S3 clients for each bucket using their own credentials
+        const oldS3Client = await createS3ClientFromBucket(oldBucket, db, s3);
+        const newS3Client = await createS3ClientFromBucket(newBucket, db, s3);
+
+        // Get all image files to migrate
+        const allFiles = image.fileCollections.flatMap((collection) => collection.imageFiles);
+
+        if (allFiles.length === 0) {
+            warnings.push("No image files to migrate.");
+            return warnings;
+        }
+
+        // Detect cross-system migration for logging
+        const oldEndpoint =
+            oldBucket.credential?.endpoint ||
+            (oldBucket.credential_id ? "(encrypted credentials)" : "unknown");
+        const newEndpoint =
+            newBucket.credential?.endpoint ||
+            (newBucket.credential_id ? "(encrypted credentials)" : "unknown");
+
+        const isCrossSystem =
+            oldEndpoint !== newEndpoint &&
+            oldEndpoint !== "(encrypted credentials)" &&
+            newEndpoint !== "(encrypted credentials)";
+
+        if (isCrossSystem) {
+            console.log(
+                `Initiating cross-system migration from ${oldEndpoint}/${oldBucket.name} to ${newEndpoint}/${newBucket.name}...`,
+            );
+        }
+
+        let successfulMigrations = 0;
+        let failedMigrations = 0;
+
+        // Migrate each file
+        for (const file of allFiles) {
+            try {
+                // Download from old bucket
+                const fileStream = await oldS3Client.getObject(oldBucket.name, file.filename);
+                const chunks: Uint8Array[] = [];
+
+                // Collect all chunks
+                await new Promise<void>((resolve, reject) => {
+                    fileStream.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+                    fileStream.on("end", () => resolve());
+                    fileStream.on("error", (err) => reject(err));
+                });
+
+                const fileBuffer = Buffer.concat(chunks);
+
+                // Get metadata from old bucket
+                const stat = await oldS3Client.statObject(oldBucket.name, file.filename);
+                const metadata = stat.metaData || { "Content-Type": "image/webp" };
+
+                // Upload to new bucket
+                await newS3Client.putObject(
+                    newBucket.name,
+                    file.filename,
+                    fileBuffer,
+                    fileBuffer.length,
+                    metadata,
+                );
+
+                // Delete from old bucket only after successful upload
+                await oldS3Client.removeObject(oldBucket.name, file.filename);
+
+                successfulMigrations++;
+            } catch (error) {
+                failedMigrations++;
+                warnings.push(
+                    `Failed to migrate ${file.filename} from bucket ${oldBucket.name} to ${newBucket.name}: ${error.message}`,
+                );
+            }
+        }
+
+        if (successfulMigrations > 0) {
+            const migrationDetail = isCrossSystem
+                ? `Successfully migrated ${successfulMigrations} image file(s) from ${oldEndpoint}/${oldBucket.name} to ${newEndpoint}/${newBucket.name} (cross-system transfer)`
+                : `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucket.name} to ${newBucket.name}`;
+            warnings.push(migrationDetail);
+        }
+
+        if (failedMigrations > 0) {
+            warnings.push(
+                `Failed to migrate ${failedMigrations} image file(s). These files remain in the old bucket.`,
+            );
+        }
+    } catch (error) {
+        warnings.push(`Image migration failed: ${error.message}`);
+    }
+
+    return warnings;
+}
+
+/**
+ * Processes an embedded image upload by resizing the image and uploading to S3
+ * Requires bucket-specific credentials
+ * Each image upload must specify a bucketId with proper credentials configured
  * Returns warnings for any issues encountered but doesn't throw errors
  */
 export async function processImage(
     image: ImageDto,
     prevImage: ImageDto | undefined,
     s3: S3Service,
+    db?: DbService,
+    parentBucketId?: string,
+    prevParentBucketId?: string,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
     try {
+        // Detect bucket change and migrate images if needed
+        if (
+            prevImage &&
+            prevParentBucketId &&
+            parentBucketId &&
+            prevParentBucketId !== parentBucketId &&
+            db &&
+            image.fileCollections.length > 0
+        ) {
+            const migrationWarnings = await migrateImagesBetweenBuckets(
+                image,
+                prevParentBucketId,
+                parentBucketId,
+                db,
+                s3,
+            );
+            warnings.push(...migrationWarnings);
+        }
+
         if (prevImage) {
             // Remove files that were removed from the image
             const removedFiles = prevImage.fileCollections.flatMap((collection) => {
@@ -31,15 +240,46 @@ export async function processImage(
                 );
             });
 
-            if (removedFiles.length > 0) {
+            if (removedFiles.length > 0 && db && parentBucketId) {
+                // Delete files from the parent's bucketId
                 try {
-                    await s3.removeObjects(
-                        s3.imageBucket,
-                        removedFiles.map((file) => file.filename),
-                    );
+                    const result = await db.getDoc(parentBucketId);
+                    if (!result.docs || result.docs.length === 0) {
+                        warnings.push(
+                            `Bucket ${parentBucketId} not found. Cannot delete ${
+                                removedFiles.length
+                            } files. Manual cleanup required for: ${removedFiles
+                                .map((f) => f.filename)
+                                .join(", ")}`,
+                        );
+                    } else {
+                        const bucketDto = result.docs[0] as S3BucketDto;
+                        const bucketS3Client = await createS3ClientFromBucket(bucketDto, db, s3);
+
+                        // Delete files from the bucket
+                        for (const file of removedFiles) {
+                            try {
+                                await bucketS3Client.removeObject(bucketDto.name, file.filename);
+                            } catch (error) {
+                                warnings.push(
+                                    `Failed to delete ${file.filename} from bucket ${bucketDto.name}: ${error.message}`,
+                                );
+                            }
+                        }
+                    }
                 } catch (error) {
-                    warnings.push(`Failed to remove old images: ${error.message}`);
+                    warnings.push(
+                        `Failed to connect to bucket ${parentBucketId}: ${error.message}. Cannot delete ${removedFiles.length} files.`,
+                    );
                 }
+            } else if (removedFiles.length > 0 && (!db || !parentBucketId)) {
+                warnings.push(
+                    `Warning: ${
+                        removedFiles.length
+                    } old image files cannot be automatically deleted without ${
+                        !db ? "database access" : "parent bucket ID"
+                    }. ` + `Please manually clean up files on the storage provider`,
+                );
             }
 
             // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
@@ -56,9 +296,16 @@ export async function processImage(
 
         // Upload new files
         if (image.uploadData) {
+            if (!db) {
+                warnings.push(
+                    "Database service is required for image uploads in the new bucket-based architecture.",
+                );
+                return warnings;
+            }
+
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
             image.uploadData?.forEach((uploadData) => {
-                promises.push(processImageUploadSafe(uploadData, s3, image));
+                promises.push(processImageUploadSafe(uploadData, s3, image, db));
             });
 
             const results = await Promise.all(promises);
@@ -89,115 +336,11 @@ export async function processImage(
     return warnings;
 }
 
-const imageFailureMessage = "Image upload failed:\n";
-
-/**
- * Validate existing images in file collections
- */
-async function validateImagesInContent(
-    fileCollections: any[],
-    s3Service: S3Service,
-    warnings: string[] = [],
-): Promise<void> {
-    try {
-        const allFilenames = fileCollections.flatMap(
-            (collection) => collection.imageFiles?.map((file: any) => file.filename) || [],
-        );
-
-        if (allFilenames.length > 0) {
-            const inaccessibleImages = await s3Service.checkImageAccessibility(
-                s3Service.imageBucket,
-                allFilenames,
-            );
-            if (inaccessibleImages.length > 0) {
-                warnings.push(`Some images are not accessible: ${inaccessibleImages.join(", ")}`);
-            }
-        }
-    } catch (error) {
-        warnings.push(`Failed to validate existing images: ${error.message}`);
-    }
-}
-
-/**
- * Validate a single image upload
- */
-async function validateSingleImage(
-    uploadData: ImageUploadDto,
-    warnings: string[],
-    imageFailureMessage: string,
-): Promise<void> {
-    try {
-        if (!uploadData.fileData || uploadData.fileData.byteLength === 0) {
-            warnings.push(imageFailureMessage + "Image data is empty or invalid\n");
-            return;
-        }
-
-        // Try to process a test version to ensure the image data is valid
-        // This doesn't actually upload, just validates the data can be processed
-        const metadata = await sharp(uploadData.fileData).metadata();
-
-        if (!metadata.width || !metadata.height) {
-            warnings.push(imageFailureMessage + "Invalid image: unable to determine dimensions\n");
-        }
-
-        if (metadata.width < 100 || metadata.height < 100) {
-            warnings.push(
-                imageFailureMessage +
-                    `Image is very small (${metadata.width}x${metadata.height}px). Consider using a larger image for better quality.`,
-            );
-        }
-    } catch (error) {
-        warnings.push(imageFailureMessage + `Image processing failed: ${error.message}`);
-    }
-}
-
-/**
- * Validate image processing without failing the document validation
- */
-async function validateImageProcessing(
-    doc: any,
-    s3Service: S3Service,
-    warnings: string[],
-): Promise<void> {
-    try {
-        // Check if S3/Minio is connected
-        const isConnected = await s3Service.checkConnection();
-        if (!isConnected) {
-            warnings.push(
-                imageFailureMessage +
-                    "Image storage is not connected. Images will not be processed.\n",
-            );
-        }
-
-        // Check if image bucket exists
-        const bucketExists = await s3Service.bucketExists(s3Service.imageBucket);
-        if (!bucketExists) {
-            warnings.push(
-                imageFailureMessage +
-                    `Image bucket '${s3Service.imageBucket}' does not exist. Images will not be processed.`,
-            );
-        }
-
-        // Validate each image upload
-        if (doc.imageData && doc.imageData.uploadData) {
-            for (const uploadData of doc.imageData.uploadData) {
-                await validateSingleImage(uploadData, warnings, imageFailureMessage);
-            }
-        }
-
-        // Validate existing images if any
-        if (doc.imageData && doc.imageData.fileCollections) {
-            await validateImagesInContent(doc.imageData.fileCollections, s3Service);
-        }
-    } catch (error) {
-        warnings.push(`Image validation failed: ${error.message}`);
-    }
-}
-
 async function processImageUploadSafe(
     uploadData: ImageUploadDto,
     s3: S3Service,
     image: ImageDto,
+    db: DbService, // Required - no longer optional
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
@@ -216,17 +359,85 @@ async function processImageUploadSafe(
 
         const promises: Promise<any>[] = [];
 
-        await validateImageProcessing(uploadData, s3, warnings);
-
         const metadata = await sharp(uploadData.fileData).metadata();
 
         const resultImageCollection = new ImageFileCollectionDto();
         resultImageCollection.aspectRatio =
             Math.round((metadata.width / metadata.height) * 100) / 100;
 
+        // Bucket ID is required in the new architecture
+        if (!uploadData.bucketId) {
+            warnings.push(
+                "No bucket specified for image upload. Each image must specify a target bucket with proper credentials.",
+            );
+            return { success: false, warnings };
+        }
+
+        // Look up the bucket and create bucket-specific S3 client
+        let bucketDto: S3BucketDto;
+        let bucketS3Client: Minio.Client;
+
+        try {
+            const bucketDocs = await db.getDocsByType(DocType.Storage);
+            const foundBucket = bucketDocs.docs.find(
+                (doc: any) => doc._id === uploadData.bucketId,
+            ) as S3BucketDto;
+
+            if (!foundBucket || !foundBucket.name) {
+                warnings.push(
+                    `Bucket with ID ${uploadData.bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
+                );
+                return { success: false, warnings };
+            }
+
+            bucketDto = foundBucket;
+
+            // Validate file type against bucket's allowed fileTypes (if specified)
+            // Use Sharp's detected format to determine mimetype
+            if (bucketDto.fileTypes && bucketDto.fileTypes.length > 0 && metadata.format) {
+                const detectedMimetype = `image/${metadata.format}`;
+                const isAllowed = bucketDto.fileTypes.some((allowedType) => {
+                    // Support wildcards like "image/*"
+                    if (allowedType.endsWith("/*")) {
+                        const prefix = allowedType.slice(0, -2);
+                        return detectedMimetype.startsWith(prefix + "/");
+                    }
+                    // Exact match
+                    return detectedMimetype === allowedType;
+                });
+
+                if (!isAllowed) {
+                    warnings.push(
+                        `File type "${detectedMimetype}" is not allowed for bucket "${
+                            bucketDto.name
+                        }". Allowed types: ${bucketDto.fileTypes.join(", ")}`,
+                    );
+                    return { success: false, warnings };
+                }
+            }
+
+            // Create bucket-specific S3 client with bucket's credentials
+            bucketS3Client = await createS3ClientFromBucket(bucketDto, db, s3);
+        } catch (error) {
+            warnings.push(
+                `Failed to connect to bucket ${uploadData.bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
+            );
+            return { success: false, warnings };
+        }
+
         imageSizes.forEach(async (size) => {
             if (metadata.width < size / 1.1) return; // allow slight upscaling
-            promises.push(processQualitySafe(uploadData, size, s3, preset, resultImageCollection));
+            promises.push(
+                processQualitySafe(
+                    uploadData,
+                    size,
+                    bucketS3Client,
+                    80, // Use default image quality of 80
+                    preset,
+                    resultImageCollection,
+                    bucketDto,
+                ),
+            );
         });
 
         const results = await Promise.all(promises);
@@ -256,15 +467,17 @@ async function processImageUploadSafe(
 async function processQualitySafe(
     uploadData: ImageUploadDto,
     size: number,
-    s3: S3Service,
+    s3Client: Minio.Client,
+    imageQuality: number,
     preset: keyof sharp.PresetEnum,
     resultImageCollection: ImageFileCollectionDto,
+    bucket: S3BucketDto,
 ): Promise<{ success: boolean; warnings: string[] }> {
     try {
         const resized = await sharp(uploadData.fileData)
             .resize(size)
             .webp({
-                quality: s3.imageQuality,
+                quality: imageQuality,
                 preset: preset,
             })
             .toBuffer({ resolveWithObject: true });
@@ -274,8 +487,17 @@ async function processQualitySafe(
         imageFile.height = resized.info.height;
         imageFile.filename = uuidv4();
 
-        // Save resized image to S3
-        await s3.uploadFile(s3.imageBucket, imageFile.filename, resized.data, "image/webp");
+        // Save resized image to S3 using bucket-specific client
+        const metadata = {
+            "Content-Type": "image/webp",
+        };
+        await s3Client.putObject(
+            bucket.name,
+            imageFile.filename,
+            resized.data,
+            resized.data.length,
+            metadata,
+        );
 
         resultImageCollection.imageFiles.push(imageFile);
 
