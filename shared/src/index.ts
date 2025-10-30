@@ -5,4 +5,5 @@ export * from "./permissions/permissions";
 export * from "./socket/socketio";
 export * from "./util";
 export * from "./rest/RestApi";
+export * from "./s3/s3Utils";
 export * from "./config";
