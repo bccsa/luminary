@@ -110,7 +110,7 @@ const toggleOpen = (item: NavigationEntry) => {
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
                                 v-slot="{ isActive }"
-                                @click.prevent="$emit('close')"
+                                @click="$emit('close')"
                             >
                                 <component
                                     :is="item.icon"
@@ -155,7 +155,7 @@ const toggleOpen = (item: NavigationEntry) => {
                                             :to="subItem.to"
                                             active-class="bg-zinc-200 text-zinc-900"
                                             class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
-                                            @click.prevent="$emit('close')"
+                                            @click="$emit('close')"
                                         >
                                             {{ subItem.name }}
                                         </DisclosureButton>
