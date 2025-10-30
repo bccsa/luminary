@@ -41,3 +41,13 @@ export enum BucketType {
     Image = "image",
     Media = "media",
 }
+
+export enum BucketStatus {
+    Connected = "connected",
+    Unreachable = "unreachable",
+    Unauthorized = "unauthorized",
+    NotFound = "not-found",
+    NoCredential = "no-credentials",
+    Checking = "checking",
+    Unknown = "unknown",
+}
