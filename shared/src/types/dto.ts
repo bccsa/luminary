@@ -163,6 +163,7 @@ export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;
     filename?: string;
+    bucketId?: Uuid;
 };
 
 export type S3CredentialDto = {
