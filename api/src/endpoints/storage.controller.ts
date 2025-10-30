@@ -1,32 +1,104 @@
-import { Controller, Post, Body, UseGuards, Headers } from "@nestjs/common";
+import { Controller, Post, Body, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
-import { StorageService } from "./storage.service";
+import { S3Service } from "../s3/s3.service";
+import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
+import { decrypt } from "../util/encryption";
 
-export type BucketStatusCheckDto = {
+export type BucketTestDto = {
+    endpoint: string;
+    accessKey: string;
+    secretKey: string;
+    bucketName: string;
+    apiVersion: string;
+};
+
+export type BucketTestResponseDto = {
+    status: "success" | "error";
+    message: string;
+};
+
+export type BucketStatusDto = {
     bucketId: string;
     apiVersion: string;
 };
 
 export type BucketStatusResponseDto = {
-    bucketId: string;
-    status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
+    status: "connected" | "unreachable" | "unauthorized" | "not-found";
     message?: string;
 };
 
 @Controller("storage")
 export class StorageController {
-    constructor(private readonly storageService: StorageService) {}
+    constructor(
+        private readonly s3Service: S3Service,
+        private readonly dbService: DbService,
+    ) {}
 
     @Post("bucket-status")
     @UseGuards(AuthGuard)
-    async checkBucketStatus(
-        @Body() body: BucketStatusCheckDto,
-        @Headers("Authorization") authHeader: string,
-    ): Promise<BucketStatusResponseDto> {
+    async checkBucketStatus(@Body() body: BucketStatusDto): Promise<BucketStatusResponseDto> {
         await validateApiVersion(body.apiVersion);
-        const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        return this.storageService.checkBucketStatus(body.bucketId, token);
+        try {
+            // Fetch the bucket document from the database
+            const bucketResult = await this.dbService.getDoc(body.bucketId);
+
+            if (!bucketResult.docs || bucketResult.docs.length === 0) {
+                return {
+                    status: "not-found",
+                    message: `Bucket configuration not found: ${body.bucketId}`,
+                };
+            }
+
+            const bucket = bucketResult.docs[0];
+
+            // Get credentials - either embedded or from encrypted storage
+            let credentials: { endpoint: string; accessKey: string; secretKey: string };
+
+            if (bucket.credential) {
+                // Embedded credentials (legacy or new buckets)
+                credentials = {
+                    endpoint: bucket.credential.endpoint,
+                    accessKey: bucket.credential.accessKey,
+                    secretKey: bucket.credential.secretKey,
+                };
+            } else if (bucket.credential_id) {
+                // Encrypted credentials in separate document
+                const encryptedStorageResult = await this.dbService.getDoc(bucket.credential_id);
+
+                if (!encryptedStorageResult.docs || encryptedStorageResult.docs.length === 0) {
+                    return {
+                        status: "not-found",
+                        message: `Credentials not found for bucket: ${bucket.name}`,
+                    };
+                }
+
+                const encryptedStorage = encryptedStorageResult.docs[0];
+                const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
+                const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
+
+                credentials = {
+                    endpoint: encryptedStorage.data.endpoint,
+                    accessKey: decryptedAccessKey,
+                    secretKey: decryptedSecretKey,
+                };
+            } else {
+                return {
+                    status: "not-found",
+                    message: `No credentials configured for bucket: ${bucket.name}`,
+                };
+            }
+
+            // Use S3Service method to check bucket connectivity
+            const result = await this.s3Service.checkBucketConnectivity(credentials, bucket.name);
+
+            return result;
+        } catch (error) {
+            return {
+                status: "unreachable",
+                message: `Error checking bucket status: ${error.message}`,
+            };
+        }
     }
 }
