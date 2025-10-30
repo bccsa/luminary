@@ -6,4 +6,5 @@ export * from "./socket/socketio";
 export * from "./util";
 export * from "./rest/RestApi";
 export * from "./rest/sync2";
+export * from "./s3/s3Utils";
 export * from "./config";
