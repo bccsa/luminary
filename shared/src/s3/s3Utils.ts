@@ -116,24 +116,3 @@ export function validateS3CredentialsFormat(credentials: S3TestCredentialsInput)
 
     return null; // No validation errors
 }
-
-/**
- * Generate the HTTP path for a bucket based on endpoint and bucket name
- */
-export function generateBucketHttpPath(endpoint: string, bucketName: string): string {
-    // Handle different S3-compatible services
-    try {
-        const url = new URL(endpoint);
-
-        // For AWS S3, use virtual-hosted-style URLs
-        if (url.hostname.includes("amazonaws.com")) {
-            return `https://${bucketName}.s3.${url.hostname.split(".").slice(-2).join(".")}`;
-        }
-
-        // For other S3-compatible services, use path-style URLs
-        return `${endpoint.replace(/\/$/, "")}/${bucketName}`;
-    } catch {
-        // Fallback to path-style URL
-        return `${endpoint.replace(/\/$/, "")}/${bucketName}`;
-    }
-}
