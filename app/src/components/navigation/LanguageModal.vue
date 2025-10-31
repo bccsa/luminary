@@ -6,7 +6,7 @@ import LModal from "../form/LModal.vue";
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
-import { markLanguageSwitch } from "@/util/isLangSwitch";
+import { handleLanguageChange, markLanguageSwitch } from "@/util/isLangSwitch";
 
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -23,33 +23,6 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const emit = defineEmits(["close"]);
 
 const defaultLanguage = computed(() => languages.value.find((lang) => lang.default == 1));
-
-const setLanguage = (id: string) => {
-    if (!new Set(appLanguageIdsAsRef.value).has(id)) {
-        appLanguageIdsAsRef.value.push(id);
-        markLanguageSwitch();
-    }
-};
-
-const indexLanguageUp = (id: string) => {
-    const index = appLanguageIdsAsRef.value.indexOf(id);
-    if (index >= 0) {
-        const temp = appLanguageIdsAsRef.value[index - 1];
-        appLanguageIdsAsRef.value[index - 1] = appLanguageIdsAsRef.value[index];
-        appLanguageIdsAsRef.value[index] = temp;
-        markLanguageSwitch();
-    }
-};
-
-const indexLanguageDown = (id: string) => {
-    const index = appLanguageIdsAsRef.value.indexOf(id);
-    if (index >= 0) {
-        const temp = appLanguageIdsAsRef.value[index + 1];
-        appLanguageIdsAsRef.value[index + 1] = appLanguageIdsAsRef.value[index];
-        appLanguageIdsAsRef.value[index] = temp;
-        markLanguageSwitch();
-    }
-};
 
 const languagesSelected = computed(() => {
     const preferredOrder = appLanguageIdsAsRef.value;
@@ -132,7 +105,13 @@ const removeFromSelected = (id: string) => {
                     <div class="flex items-center gap-2">
                         <ArrowUpIcon
                             v-if="language._id !== appLanguageIdsAsRef[0]"
-                            @click="indexLanguageUp(language._id)"
+                            @click="
+                                handleLanguageChange({
+                                    mainSelector: true,
+                                    languageId: language._id,
+                                    options: { increasePriority: true },
+                                })
+                            "
                             class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
                         />
                         <ArrowDownIcon
@@ -140,7 +119,13 @@ const removeFromSelected = (id: string) => {
                                 language._id !== appLanguageIdsAsRef[appLanguageIdsAsRef.length - 1]
                             "
                             class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
-                            @click="indexLanguageDown(language._id)"
+                            @click="
+                                handleLanguageChange({
+                                    mainSelector: true,
+                                    languageId: language._id,
+                                    options: { decreasePriority: true },
+                                })
+                            "
                         />
                     </div>
                 </div>
@@ -153,7 +138,13 @@ const removeFromSelected = (id: string) => {
                 :key="language._id"
                 class="flex w-full cursor-pointer items-center gap-1 p-3"
                 data-test="add-language-button"
-                @click="setLanguage(language._id)"
+                @click="
+                    handleLanguageChange({
+                        mainSelector: true,
+                        languageId: language._id,
+                        options: { add: true },
+                    })
+                "
             >
                 <PlusCircleIcon
                     class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"

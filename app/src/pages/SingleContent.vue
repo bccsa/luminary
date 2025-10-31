@@ -16,7 +16,7 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, watch, type Ref } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -52,6 +52,7 @@ import {
     markLanguageSwitch,
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
+    handleLanguageChange,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
@@ -359,25 +360,31 @@ const langToForce = computed(() => queryParams.get("langId"));
  * When `content` is updated, it sets the `selectedLanguageId`
  * to the `language` property of the new `content` value, if available.
  */
-watch(content, () => {
-    selectedLanguageId.value = content.value?.language;
-});
+watch(
+    () => [content.value, appLanguagePreferredIdAsRef.value],
+    ([newContent, preferredId]) => {
+        if (!newContent) return;
+
+        // On page load: if preferred language exists and has translation → switch to it
+        const preferredTranslation = availableTranslations.value.find(
+            (t) => t.language === preferredId,
+        );
+
+        if (preferredTranslation && preferredTranslation.slug !== (newContent as ContentDto).slug) {
+            // Navigate to preferred version
+            router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
+            return;
+        }
+
+        // Otherwise, sync dropdown to current content's language
+        selectedLanguageId.value = (newContent as ContentDto).language;
+    },
+    { immediate: true },
+);
 
 const hasConsumedLangSwitch = ref(false);
 
 // Change language
-const onLanguageSelect = (languageId: Uuid) => {
-    markLanguageSwitch(); // reactive version without argument
-    selectedLanguageId.value = languageId;
-
-    // Prevent route change by not replacing the slug
-    const preferred = availableTranslations.value.find((c) => c.language === languageId);
-
-    if (preferred && preferred.slug !== content.value?.slug) {
-        // Update content without triggering a route change
-        content.value = preferred;
-    }
-};
 
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
@@ -385,13 +392,13 @@ watch(
         if (!selectedLanguageId.value || !content.value) return;
 
         if (langToForce.value && selectedLanguageId.value !== langToForce.value) {
-            // If lang query param is set, force that language if available
-            const translation = availableTranslations.value.find(
-                (c) => c.language === langToForce.value,
-            );
-            if (translation) {
-                selectedLanguageId.value = langToForce.value;
-                content.value = translation;
+            if (selectedLanguageId.value && langToForce.value) {
+                handleLanguageChange({
+                    previousLanguage: selectedLanguageId.value,
+                    languageId: langToForce.value,
+                    availableTranslations: availableTranslations.value,
+                    content: content as unknown as Ref<ContentDto>,
+                });
             }
             return;
         }
@@ -481,6 +488,67 @@ const selectedLanguageCode = computed(() => {
     const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
     return selectedLang?.languageCode || null;
 });
+
+// watch content to keep selectedLanguageId in sync
+watch(
+    content,
+    (newContent) => {
+        if (!newContent) return;
+        // Only update if different
+        if (selectedLanguageId.value !== newContent.language) {
+            selectedLanguageId.value = newContent.language;
+        }
+    },
+    { immediate: true },
+);
+
+// watch selectedLanguageId to update content when user changes language
+watch(
+    appLanguagePreferredIdAsRef,
+    (preferredId) => {
+        if (preferredId && selectedLanguageId.value !== preferredId) {
+            selectedLanguageId.value = preferredId;
+        }
+    },
+    { immediate: true },
+);
+
+// 2. When the dropdown changes → update content + URL + global priority
+watch(selectedLanguageId, async (newId, oldId) => {
+    if (!newId || newId === oldId || !content.value) return;
+
+    const target = availableTranslations.value.find((t) => t.language === newId);
+    if (!target) return;
+
+    // ---- update the local content ref
+    content.value = target;
+
+    // ---- change the URL if the slug is different
+    if (target.slug !== props.slug) {
+        await router.replace({ name: "content", params: { slug: target.slug } });
+    }
+
+    // ---- tell the global system that the user switched language
+    handleLanguageChange({
+        mainSelector: true,
+        languageId: newId,
+        previousLanguage: oldId,
+        availableTranslations: availableTranslations.value,
+        content: content as Ref<ContentDto>,
+    });
+});
+
+const quickLanguageSwitch = (languageId: string) => {
+    if (!selectedLanguageId.value) return;
+
+    handleLanguageChange({
+        previousLanguage: selectedLanguageId.value,
+        languageId: languageId,
+        availableTranslations: availableTranslations.value,
+        content: content as unknown as Ref<ContentDto>,
+    });
+    showDropdown.value = false;
+};
 </script>
 
 <template>
@@ -516,10 +584,7 @@ const selectedLanguageCode = computed(() => {
                     <div
                         v-for="language in languages"
                         :key="language._id"
-                        @click="
-                            onLanguageSelect(language._id);
-                            showDropdown = false;
-                        "
+                        @click="quickLanguageSwitch(language._id)"
                         class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
                         data-test="translationOption"
                     >
