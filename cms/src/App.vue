@@ -28,14 +28,10 @@ const routeKey = computed(() => {
 <template>
     <template v-if="isAuthenticated">
         <div class="relative flex h-screen w-full overflow-hidden">
-            <KeepAlive>
-                <MobileSideBar v-model:open="sidebarOpen" />
-            </KeepAlive>
+            <MobileSideBar v-model:open="sidebarOpen" />
 
             <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
-                <KeepAlive>
-                    <SideBar @close="sidebarOpen = false" />
-                </KeepAlive>
+                <SideBar @close="sidebarOpen = false" />
             </div>
 
             <div class="flex flex-1 flex-col lg:pl-72">
