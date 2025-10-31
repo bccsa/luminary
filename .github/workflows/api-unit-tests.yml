@@ -15,7 +15,6 @@ on:
 env:
   CI: true
   DB_DATABASE: "luminary-test"
-  ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
 
 jobs:
   test:
