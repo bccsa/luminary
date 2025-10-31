@@ -1,6 +1,6 @@
 import { nextTick, watch, type WatchHandle } from "vue";
 import { createI18n, type I18n } from "vue-i18n";
-import { appLanguageAsRef, appName, cmsDefaultLanguage } from "./globalConfig";
+import { appLanguageAsRef, appName, cmsDefaultLanguage } from "./globalConfigOld";
 import router from "./router";
 
 /**
