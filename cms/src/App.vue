@@ -40,6 +40,8 @@ const routeKey = computed(() => {
 
             <div class="flex flex-1 flex-col lg:pl-72">
                 <div class="h-full w-full overflow-hidden">
+                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+                     routes (e.g. Post / Tag overviews) -->
                     <RouterView :key="routeKey" v-slot="{ Component }">
                         <component :is="Component" @open-mobile-sidebar="sidebarOpen = true" />
                     </RouterView>
