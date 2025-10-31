@@ -218,6 +218,8 @@ describe("processPostTagDto", () => {
             undefined,
             s3,
             db,
+            "storage-bucket-1", // imageBucketId from changeRequest_post()
+            undefined, // prevImageBucketId
         );
     });
 
@@ -245,6 +247,8 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).imageData,
             s3,
             db,
+            "storage-bucket-1", // prevDoc?.imageBucketId - Delete from the bucket where files currently exist
+            undefined, // No migration needed for delete
         );
     });
 });
