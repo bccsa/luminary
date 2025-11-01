@@ -133,11 +133,11 @@ export const router = createRouter({
                     props: true,
                 },
                 {
-                    path: "s3-storage",
-                    name: "s3-storage",
+                    path: "storage",
+                    name: "storage",
                     component: S3ManagementPage,
                     meta: {
-                        title: "S3 Storage",
+                        title: "Storage",
                         canAccess: {
                             docType: DocType.Storage,
                             permission: AclPermission.View,
