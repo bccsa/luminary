@@ -103,6 +103,10 @@ async function migrateImagesBetweenBuckets(
         const oldS3Client = await createS3ClientFromBucket(oldBucket, db, s3);
         const newS3Client = await createS3ClientFromBucket(newBucket, db, s3);
 
+        // Extract actual bucket names from public URLs
+        const oldBucketName = s3.extractBucketNameFromUrl(oldBucket.publicUrl);
+        const newBucketName = s3.extractBucketNameFromUrl(newBucket.publicUrl);
+
         // Get all image files to migrate
         const allFiles = image.fileCollections.flatMap((collection) => collection.imageFiles);
 
@@ -126,7 +130,7 @@ async function migrateImagesBetweenBuckets(
 
         if (isCrossSystem) {
             console.log(
-                `Initiating cross-system migration from ${oldEndpoint}/${oldBucket.name} to ${newEndpoint}/${newBucket.name}...`,
+                `Initiating cross-system migration from ${oldEndpoint}/${oldBucketName} to ${newEndpoint}/${newBucketName}...`,
             );
         }
 
@@ -137,7 +141,7 @@ async function migrateImagesBetweenBuckets(
         for (const file of allFiles) {
             try {
                 // Download from old bucket
-                const fileStream = await oldS3Client.getObject(oldBucket.name, file.filename);
+                const fileStream = await oldS3Client.getObject(oldBucketName, file.filename);
                 const chunks: Uint8Array[] = [];
 
                 // Collect all chunks
@@ -150,12 +154,12 @@ async function migrateImagesBetweenBuckets(
                 const fileBuffer = Buffer.concat(chunks);
 
                 // Get metadata from old bucket
-                const stat = await oldS3Client.statObject(oldBucket.name, file.filename);
+                const stat = await oldS3Client.statObject(oldBucketName, file.filename);
                 const metadata = stat.metaData || { "Content-Type": "image/webp" };
 
                 // Upload to new bucket
                 await newS3Client.putObject(
-                    newBucket.name,
+                    newBucketName,
                     file.filename,
                     fileBuffer,
                     fileBuffer.length,
@@ -163,21 +167,21 @@ async function migrateImagesBetweenBuckets(
                 );
 
                 // Delete from old bucket only after successful upload
-                await oldS3Client.removeObject(oldBucket.name, file.filename);
+                await oldS3Client.removeObject(oldBucketName, file.filename);
 
                 successfulMigrations++;
             } catch (error) {
                 failedMigrations++;
                 warnings.push(
-                    `Failed to migrate ${file.filename} from bucket ${oldBucket.name} to ${newBucket.name}: ${error.message}`,
+                    `Failed to migrate ${file.filename} from bucket ${oldBucketName} to ${newBucketName}: ${error.message}`,
                 );
             }
         }
 
         if (successfulMigrations > 0) {
             const migrationDetail = isCrossSystem
-                ? `Successfully migrated ${successfulMigrations} image file(s) from ${oldEndpoint}/${oldBucket.name} to ${newEndpoint}/${newBucket.name} (cross-system transfer)`
-                : `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucket.name} to ${newBucket.name}`;
+                ? `Successfully migrated ${successfulMigrations} image file(s) from ${oldEndpoint}/${oldBucketName} to ${newEndpoint}/${newBucketName} (cross-system transfer)`
+                : `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucketName} to ${newBucketName}`;
             warnings.push(migrationDetail);
         }
 
@@ -256,13 +260,16 @@ export async function processImage(
                         const bucketDto = result.docs[0] as S3BucketDto;
                         const bucketS3Client = await createS3ClientFromBucket(bucketDto, db, s3);
 
+                        // Extract actual bucket name from public URL
+                        const bucketName = s3.extractBucketNameFromUrl(bucketDto.publicUrl);
+
                         // Delete files from the bucket
                         for (const file of removedFiles) {
                             try {
-                                await bucketS3Client.removeObject(bucketDto.name, file.filename);
+                                await bucketS3Client.removeObject(bucketName, file.filename);
                             } catch (error) {
                                 warnings.push(
-                                    `Failed to delete ${file.filename} from bucket ${bucketDto.name}: ${error.message}`,
+                                    `Failed to delete ${file.filename} from bucket ${bucketName}: ${error.message}`,
                                 );
                             }
                         }
@@ -436,6 +443,7 @@ async function processImageUploadSafe(
                     preset,
                     resultImageCollection,
                     bucketDto,
+                    s3,
                 ),
             );
         });
@@ -472,8 +480,11 @@ async function processQualitySafe(
     preset: keyof sharp.PresetEnum,
     resultImageCollection: ImageFileCollectionDto,
     bucket: S3BucketDto,
+    s3Service: S3Service,
 ): Promise<{ success: boolean; warnings: string[] }> {
     try {
+        // Extract actual bucket name from public URL
+        const bucketName = s3Service.extractBucketNameFromUrl(bucket.publicUrl);
         const resized = await sharp(uploadData.fileData)
             .resize(size)
             .webp({
@@ -492,7 +503,7 @@ async function processQualitySafe(
             "Content-Type": "image/webp",
         };
         await s3Client.putObject(
-            bucket.name,
+            bucketName,
             imageFile.filename,
             resized.data,
             resized.data.length,
