@@ -5,8 +5,10 @@ import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
 import { isSmallScreen } from "@/globalConfig";
+import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
 
 const bucketOverviewRef = ref<InstanceType<typeof S3BucketOverview> | null>(null);
+const canEdit = hasAnyPermission(DocType.Storage, AclPermission.Edit);
 
 const createNew = () => {
     bucketOverviewRef.value?.openCreateModal();
@@ -18,7 +20,7 @@ const createNew = () => {
         <template #pageNav>
             <div class="flex gap-4">
                 <LButton
-                    v-if="!isSmallScreen"
+                    v-if="!isSmallScreen && canEdit"
                     variant="primary"
                     :icon="PlusIcon"
                     @click="createNew"
@@ -27,7 +29,7 @@ const createNew = () => {
                     Add Bucket
                 </LButton>
                 <PlusIcon
-                    v-else-if="isSmallScreen"
+                    v-else-if="isSmallScreen && canEdit"
                     class="h-6 w-6 text-zinc-500"
                     @click="createNew"
                 />
