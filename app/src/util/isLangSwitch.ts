@@ -65,6 +65,7 @@ export const handleLanguageChange = ({
     }
 
     const index = appLanguageIdsAsRef.value.indexOf(languageId);
+    if (index === -1) return;
     if (options.increasePriority && index > 0) {
         [appLanguageIdsAsRef.value[index - 1], appLanguageIdsAsRef.value[index]] = [
             appLanguageIdsAsRef.value[index],

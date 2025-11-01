@@ -391,14 +391,12 @@ watch(
         if (!selectedLanguageId.value || !content.value) return;
 
         if (langToForce && selectedLanguageId.value !== langToForce) {
-            if (selectedLanguageId.value && langToForce) {
-                handleLanguageChange({
-                    previousLanguage: selectedLanguageId.value,
-                    languageId: langToForce,
-                    availableTranslations: availableTranslations.value,
-                    content: content as unknown as Ref<ContentDto>,
-                });
-            }
+            handleLanguageChange({
+                previousLanguage: selectedLanguageId.value,
+                languageId: langToForce,
+                availableTranslations: availableTranslations.value,
+                content: content as unknown as Ref<ContentDto>,
+            });
             return;
         }
 
