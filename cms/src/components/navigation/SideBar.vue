@@ -70,8 +70,8 @@ const navigation = computed(() => [
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
     },
     {
-        name: "S3 Storage",
-        to: { name: "s3-storage" },
+        name: "Storage",
+        to: { name: "storage" },
         icon: CloudIcon,
         visible: hasAnyPermission(DocType.Storage, AclPermission.View),
     },
