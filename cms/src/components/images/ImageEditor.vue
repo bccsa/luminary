@@ -14,8 +14,10 @@ import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     disabled: boolean;
+    /** The bucket ID where existing images are currently stored (before any migration) */
+    existingImagesBucketId?: string;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
     bucketSelected: [bucketId: string];
@@ -27,12 +29,25 @@ const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = useBucketSelection();
 
-// Get Bucket HTTP Path method
+// Get separate URLs for existing vs new content
+// This ensures existing images continue to display from their original bucket
+// even when the user changes bucket selection, preventing fallback images
+const existingImagesBucketUrl = computed(() => {
+    if (props.existingImagesBucketId) {
+        const bucket = bucketSelection.getBucketById(props.existingImagesBucketId);
+        return bucket ? bucket.publicUrl : bucketBaseUrl.value;
+    }
+    return bucketBaseUrl.value;
+});
+
+const newUploadsBucketUrl = computed(() => {
+    return bucketBaseUrl.value;
+});
 const bucketBaseUrl = computed(() => {
     // If parent or imageBucketId is not set, pass null to getBucketById (it accepts string | null)
     const bucketId = parent.value?.imageBucketId ?? null;
     const bucket = bucketSelection.getBucketById(bucketId);
-    return bucket ? bucket.httpPath : undefined;
+    return bucket ? bucket.publicUrl : undefined;
 });
 
 // Get accepted file types based on selected bucket
@@ -249,15 +264,16 @@ defineExpose({
         <!-- Bucket Selection Dropdown (always show if multiple buckets, or show if none selected) -->
         <div
             v-if="bucketSelection.imageBuckets.value.length > 1 || !parent?.imageBucketId"
-            class="px-0.5 pb-2"
+            class="mb-2 px-0.5 pt-1"
         >
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
-                label="Storage Bucket"
-                placeholder="Select a storage bucket"
+                label=""
+                placeholder="Select storage bucket"
                 :disabled="disabled"
                 @update:modelValue="handleBucketChange"
+                class="text-sm"
             />
             <p
                 v-if="fileTypeDescription && parent?.imageBucketId"
@@ -341,7 +357,7 @@ defineExpose({
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"
-                            :bucketHttpPath="bucketBaseUrl"
+                            :bucketHttpPath="existingImagesBucketUrl"
                             @deleteFileCollection="removeFileCollection"
                             :disabled="!disabled"
                         />
@@ -355,7 +371,7 @@ defineExpose({
                     >
                         <ImageEditorThumbnail
                             :imageUploadData="u"
-                            :bucketHttpPath="bucketBaseUrl"
+                            :bucketHttpPath="newUploadsBucketUrl"
                             @deleteUploadData="removeFileUploadData"
                             :disabled="!disabled"
                         />
