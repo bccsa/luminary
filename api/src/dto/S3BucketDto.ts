@@ -21,7 +21,7 @@ export class S3BucketDto extends _contentBaseDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
-    httpPath: string; // public base path
+    publicUrl: string; // public base path
 
     @IsNotEmpty()
     @IsString()
