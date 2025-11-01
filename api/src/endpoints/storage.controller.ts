@@ -24,7 +24,7 @@ export type BucketStatusDto = {
 };
 
 export type BucketStatusResponseDto = {
-    status: "connected" | "unreachable" | "unauthorized" | "not-found";
+    status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
     message?: string;
 };
 
@@ -85,13 +85,13 @@ export class StorageController {
                 };
             } else {
                 return {
-                    status: "not-found",
+                    status: "no-credentials",
                     message: `No credentials configured for bucket: ${bucket.name}`,
                 };
             }
 
             // Use S3Service method to check bucket connectivity
-            const result = await this.s3Service.checkBucketConnectivity(credentials, bucket.name);
+            const result = await this.s3Service.checkBucketConnectivity(credentials);
 
             return result;
         } catch (error) {
