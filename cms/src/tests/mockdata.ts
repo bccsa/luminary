@@ -818,6 +818,7 @@ export const superAdminAccessMap = {
         storage: {
             view: true,
             edit: true,
+            assign: true,
             delete: true,
         },
     },
@@ -873,6 +874,7 @@ export const superAdminAccessMap = {
         storage: {
             view: true,
             edit: true,
+            assign: true,
             delete: true,
         },
     },
@@ -929,6 +931,8 @@ export const superAdminAccessMap = {
         storage: {
             view: true,
             edit: true,
+            assign: true,
+
             delete: true,
         },
     },
