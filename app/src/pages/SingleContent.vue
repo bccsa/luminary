@@ -49,7 +49,6 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import {
-    markLanguageSwitch,
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
     handleLanguageChange,
@@ -353,7 +352,7 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 // --- Force language from query param (takes priority over all other language selection) ---
-const langToForce = computed(() => queryParams.get("langId"));
+const langToForce = queryParams.get("langId");
 
 /**
  * Watches for changes in the `content` reactive property.
@@ -391,11 +390,11 @@ watch(
     () => {
         if (!selectedLanguageId.value || !content.value) return;
 
-        if (langToForce.value && selectedLanguageId.value !== langToForce.value) {
-            if (selectedLanguageId.value && langToForce.value) {
+        if (langToForce && selectedLanguageId.value !== langToForce) {
+            if (selectedLanguageId.value && langToForce) {
                 handleLanguageChange({
                     previousLanguage: selectedLanguageId.value,
-                    languageId: langToForce.value,
+                    languageId: langToForce,
                     availableTranslations: availableTranslations.value,
                     content: content as unknown as Ref<ContentDto>,
                 });
@@ -502,7 +501,7 @@ watch(
     { immediate: true },
 );
 
-// watch selectedLanguageId to update content when user changes language
+// Sync preferred language changes to dropdown
 watch(
     appLanguagePreferredIdAsRef,
     (preferredId) => {
@@ -512,31 +511,6 @@ watch(
     },
     { immediate: true },
 );
-
-// 2. When the dropdown changes → update content + URL + global priority
-watch(selectedLanguageId, async (newId, oldId) => {
-    if (!newId || newId === oldId || !content.value) return;
-
-    const target = availableTranslations.value.find((t) => t.language === newId);
-    if (!target) return;
-
-    // ---- update the local content ref
-    content.value = target;
-
-    // ---- change the URL if the slug is different
-    if (target.slug !== props.slug) {
-        await router.replace({ name: "content", params: { slug: target.slug } });
-    }
-
-    // ---- tell the global system that the user switched language
-    handleLanguageChange({
-        mainSelector: true,
-        languageId: newId,
-        previousLanguage: oldId,
-        availableTranslations: availableTranslations.value,
-        content: content as Ref<ContentDto>,
-    });
-});
 
 const quickLanguageSwitch = (languageId: string) => {
     if (!selectedLanguageId.value) return;
