@@ -501,17 +501,6 @@ watch(
     { immediate: true },
 );
 
-// Sync preferred language changes to dropdown
-watch(
-    appLanguagePreferredIdAsRef,
-    (preferredId) => {
-        if (preferredId && selectedLanguageId.value !== preferredId) {
-            selectedLanguageId.value = preferredId;
-        }
-    },
-    { immediate: true },
-);
-
 const quickLanguageSwitch = (languageId: string) => {
     if (!selectedLanguageId.value) return;
 
