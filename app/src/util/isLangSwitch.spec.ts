@@ -100,15 +100,6 @@ describe("isLangSwitch", () => {
             expect(isLanguageSwitchRef.value).toBe(true);
         });
 
-        it("should warn if non-main selector without previousLanguage", () => {
-            const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-            handleLanguageChange({ mainSelector: false, languageId: "lang-eng" });
-            expect(consoleWarnSpy).toHaveBeenCalledWith(
-                "Non-main selector requires previousLanguage",
-            );
-            consoleWarnSpy.mockRestore();
-        });
-
         it("should warn if languageId is missing", () => {
             const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             handleLanguageChange({ mainSelector: true });

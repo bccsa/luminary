@@ -38,16 +38,10 @@ export const handleLanguageChange = ({
     mainSelector = false,
     options = {},
     languageId,
-    previousLanguage,
     availableTranslations,
     content,
 }: HandleLanguageChangeArgs) => {
     markLanguageSwitch();
-
-    if (!mainSelector && !previousLanguage) {
-        console.warn("Non-main selector requires previousLanguage");
-        return;
-    }
 
     if (!languageId) {
         console.warn("Missing Argument: languageId");

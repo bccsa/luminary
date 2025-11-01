@@ -505,7 +505,6 @@ const quickLanguageSwitch = (languageId: string) => {
     if (!selectedLanguageId.value) return;
 
     handleLanguageChange({
-        previousLanguage: selectedLanguageId.value,
         languageId: languageId,
         availableTranslations: availableTranslations.value,
         content: content as unknown as Ref<ContentDto>,
