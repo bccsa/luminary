@@ -42,7 +42,6 @@ export type BaseDocumentDto = {
 };
 
 export enum AclPermission {
-    Create = "create",
     View = "view",
     Edit = "edit",
     Delete = "delete",
@@ -175,7 +174,7 @@ export type S3CredentialDto = {
 export type S3BucketDto = ContentBaseDto & {
     name: string;
     fileTypes: string[];
-    httpPath: string;
+    publicUrl: string;
     bucketType: BucketType;
     credential?: S3CredentialDto;
     credential_id?: string;
