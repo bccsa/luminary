@@ -76,7 +76,7 @@ describe("processStorageDto", () => {
         );
     });
 
-    it("handles gracefully when both credential and credential_id are provided (legacy test)", async () => {
+    it("handles gracefully when both credential and credential_id are provided", async () => {
         const doc = changeRequest_storage().doc;
         doc.credential_id = "some-uuid";
 
