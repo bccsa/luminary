@@ -14,6 +14,7 @@ import {
     verifyAccess,
     BucketType,
     useBucketStatus,
+    hasAnyPermission,
 } from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
@@ -32,10 +33,24 @@ const groups = useDexieLiveQuery(
     { initialValue: [] as GroupDto[] },
 );
 
+// Filter groups to only show those where user has both Edit and Assign permissions
+const availableGroups = computed(() => {
+    return groups.value.filter((group) => {
+        return (
+            verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
+            verifyAccess([group._id], DocType.Group, AclPermission.Assign)
+        );
+    });
+});
+
 const buckets = useDexieLiveQuery(
     () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<S3BucketDto[]>,
     { initialValue: [] as S3BucketDto[] },
 );
+
+// Delete permission check
+const canDelete = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Delete));
+const canEdit = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Edit));
 
 // Use the shared bucket status composable
 const { fetchBucketStatus, refreshAllStatuses, bucketsWithStatus } = useBucketStatus(buckets);
@@ -91,7 +106,7 @@ const newBucket = ref<S3BucketDto>({
     memberOf: [],
     name: "",
     bucketType: BucketType.Image,
-    httpPath: "",
+    publicUrl: "",
     credential: {
         endpoint: "",
         accessKey: "",
@@ -101,7 +116,10 @@ const newBucket = ref<S3BucketDto>({
 });
 
 const editableBucket = ref<S3BucketDto | null>(null);
-const isEditing = computed(() => !!editableBucket.value);
+const isEditing = computed(() => {
+    if (!canEdit.value) return false;
+    return !!editableBucket.value;
+});
 
 // Determine if we should show credentials section
 const shouldShowCredentialsSection = computed(() => {
@@ -163,34 +181,6 @@ watch(showModal, (isOpen) => {
         // Users can enter new credentials here to update them.
     }
 });
-
-// Auto-generate httpPath for new buckets based on endpoint and bucket name
-watch(
-    [() => localCredentials.value.endpoint, () => newBucket.value.name, isEditing],
-    ([endpoint, name]) => {
-        // Only auto-generate for new buckets (not editing)
-        if (isEditing.value) return;
-
-        const trimmedEndpoint = endpoint?.trim();
-        const trimmedName = name?.trim();
-
-        if (!trimmedEndpoint || !trimmedName) return;
-
-        try {
-            const url = new URL(trimmedEndpoint);
-            // Generate httpPath as: protocol://host:port/bucketName
-            const protocol = url.protocol; // includes ://
-            const host = url.hostname;
-            const port = url.port;
-            const portPart = port ? `:${port}` : "";
-
-            newBucket.value.httpPath = `${protocol}//${host}${portPart}/${trimmedName}`;
-        } catch (e) {
-            // Invalid URL, skip auto-generation
-        }
-    },
-    { immediate: false },
-);
 
 // Watch for change request errors (e.g., duplicate bucket names, failed bucket creation)
 watch(changeReqErrors, (errors) => {
@@ -255,7 +245,7 @@ function resetNewBucket() {
         memberOf: [],
         name: "",
         bucketType: BucketType.Image,
-        httpPath: "",
+        publicUrl: "",
         credential: {
             endpoint: "",
             accessKey: "",
@@ -406,9 +396,9 @@ watch(
             (b) => !!b.name?.trim(),
         );
 
-        // Validate bucket name format (S3 rules)
+        // Validate bucket name format
         validate(
-            "Bucket name: 3-63 chars, lowercase only, no spaces, use hyphens/periods to separate words",
+            "Bucket name: 3-63 chars, alphanumeric characters, spaces, hyphens, and periods allowed",
             "bucketNameFormat",
             validations.value,
             bucket,
@@ -419,42 +409,30 @@ watch(
                 // Length check
                 if (name.length < 3 || name.length > 63) return false;
 
-                // Only lowercase letters, numbers, hyphens, and periods (no uppercase, no spaces)
-                if (!/^[a-z0-9.-]+$/.test(name)) return false;
-
-                // Cannot start or end with hyphen or period
-                if (
-                    name.startsWith("-") ||
-                    name.startsWith(".") ||
-                    name.endsWith("-") ||
-                    name.endsWith(".")
-                )
-                    return false;
-
-                // Cannot be formatted as an IP address
-                if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return false;
+                // Allow alphanumeric, spaces, hyphens, and periods
+                if (!/^[a-zA-Z0-9.\s-]+$/.test(name)) return false;
 
                 return true;
             },
         );
 
-        // Validate HTTP path
+        // Validate Public URL
         validate(
-            "HTTP path is required",
-            "httpPath",
+            "Public URL is required",
+            "publicUrl",
             validations.value,
             bucket,
-            (b) => !!b.httpPath?.trim(),
+            (b) => !!b.publicUrl?.trim(),
         );
 
-        // Validate HTTP path format (must start with http:// or https://)
+        // Validate Public URL format (must start with http:// or https://)
         validate(
-            "HTTP path must start with http:// or https://",
-            "httpPathFormat",
+            "Public URL must start with http:// or https://",
+            "publicUrlFormat",
             validations.value,
             bucket,
             (b) => {
-                const path = b.httpPath?.trim();
+                const path = b.publicUrl?.trim();
                 if (!path) return true; // Skip if empty (handled by required validation)
                 return path.startsWith("http://") || path.startsWith("https://");
             },
@@ -661,7 +639,7 @@ const saveBucket = async () => {
                         :key="idx"
                         class="mb-1 flex items-center gap-2"
                     >
-                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                        <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
                         <p class="text-xs text-zinc-700">{{ error }}</p>
                     </div>
                 </div>
@@ -673,22 +651,12 @@ const saveBucket = async () => {
                         :key="validation.id"
                         class="mb-1 flex items-center gap-2"
                     >
-                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                        <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
                         <p class="text-xs text-zinc-700">{{ validation.message }}</p>
                     </div>
                 </div>
             </div>
             <div class="space-y-2">
-                <!-- Warning for editing bucket name -->
-                <div v-if="isEditing" class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
-                    <div class="flex gap-2">
-                        <ExclamationTriangleIcon class="h-4 w-4 flex-shrink-0 text-yellow-600" />
-                        <div class="text-xs text-yellow-800">
-                            <span class="font-medium">Bucket name cannot be changed.</span>
-                            To use a different name, create a new bucket and migrate your data.
-                        </div>
-                    </div>
-                </div>
                 <!-- bucket name -->
                 <div>
                     <label for="bucket-name" class="mb-1 block text-xs font-medium text-gray-700"
@@ -699,12 +667,11 @@ const saveBucket = async () => {
                         name="bucketName"
                         v-model="(isEditing ? editableBucket : newBucket)!.name"
                         type="text"
-                        placeholder="my-images or user-uploads"
+                        placeholder="My Images or user-uploads"
                         :class="{
                             'border-red-300':
                                 hasFieldError('bucketName') || hasFieldError('bucketNameFormat'),
                         }"
-                        :disabled="isEditing"
                         @blur="
                             () => {
                                 touchField('bucketName');
@@ -720,36 +687,36 @@ const saveBucket = async () => {
                     />
                 </div>
 
-                <!-- bucket http -->
+                <!-- bucket public URL -->
                 <div>
                     <label for="bucket-path" class="mb-1 block text-xs font-medium text-gray-700"
-                        >Http path</label
+                        >Public URL</label
                     >
                     <LInput
                         id="bucket-path"
                         name="bucketPath"
-                        v-model="(isEditing ? editableBucket : newBucket)!.httpPath"
+                        v-model="(isEditing ? editableBucket : newBucket)!.publicUrl"
                         type="text"
                         placeholder="http://localhost:9000/bucket-name"
                         :class="{
                             'border-red-300':
-                                hasFieldError('httpPath') || hasFieldError('httpPathFormat'),
+                                hasFieldError('publicUrl') || hasFieldError('publicUrlFormat'),
                         }"
                         @blur="
                             () => {
-                                touchField('httpPath');
-                                touchField('httpPathFormat');
+                                touchField('publicUrl');
+                                touchField('publicUrlFormat');
                             }
                         "
                         @input="
                             () => {
-                                touchField('httpPath');
-                                touchField('httpPathFormat');
+                                touchField('publicUrl');
+                                touchField('publicUrlFormat');
                             }
                         "
                     />
                     <p v-if="!isEditing" class="mt-0.5 text-[11px] text-gray-500">
-                        Auto-generated from endpoint and bucket name
+                        Must be set manually - no auto-generation
                     </p>
                 </div>
 
@@ -824,7 +791,7 @@ const saveBucket = async () => {
                         "
                         :label="`Group Membership`"
                         :options="
-                            groups.map((group: GroupDto) => ({
+                            availableGroups.map((group: GroupDto) => ({
                                 id: group._id,
                                 label: group.name,
                                 value: group._id,
@@ -918,12 +885,8 @@ const saveBucket = async () => {
                                     class="h-4 w-4 flex-shrink-0 text-yellow-600"
                                 />
                                 <p class="text-[11px] text-yellow-800">
-                                    Credentials are encrypted before storage.
-                                    {{
-                                        isEditing
-                                            ? "Leave empty to keep existing."
-                                            : "All fields required."
-                                    }}
+                                    Credentials are encrypted and not retrievable before storage.
+                                    {{ isEditing ? "Leave empty to keep existing." : "" }}
                                 </p>
                             </div>
                         </div>
@@ -1018,7 +981,7 @@ const saveBucket = async () => {
         <div class="flex justify-between border-t pt-3">
             <div>
                 <LButton
-                    v-if="isEditing"
+                    v-if="isEditing && canDelete"
                     @click="deleteBucket"
                     variant="secondary"
                     context="danger"
