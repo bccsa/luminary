@@ -4,7 +4,6 @@ import { AclPermission, DocType } from "../enums";
 // Define permissions per DocType
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
-        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -18,7 +17,6 @@ const availablePermissionsPerDocType = {
         AclPermission.Translate,
     ],
     [DocType.Post]: [
-        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -26,7 +24,6 @@ const availablePermissionsPerDocType = {
         AclPermission.Publish,
     ],
     [DocType.Tag]: [
-        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
@@ -37,9 +34,9 @@ const availablePermissionsPerDocType = {
     [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
     [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
     [DocType.Storage]: [
-        AclPermission.Create,
         AclPermission.View,
         AclPermission.Edit,
+        AclPermission.Assign,
         AclPermission.Delete,
     ],
 };
