@@ -37,6 +37,39 @@ export class S3Service {
     }
 
     /**
+     * Extracts the bucket name from a public URL
+     * Examples:
+     * - https://s3.cdn.bcc.africa/ac-images → ac-images
+     * - http://localhost:9000/images → images
+     * - https://mybucket.s3.amazonaws.com → mybucket (virtual-hosted style)
+     */
+    public extractBucketNameFromUrl(publicUrl: string): string {
+        try {
+            const url = new URL(publicUrl);
+            const pathname = url.pathname;
+
+            // Handle path-style URLs: /bucket-name or /bucket-name/
+            if (pathname && pathname !== "/") {
+                const pathParts = pathname.split("/").filter((part) => part.length > 0);
+                if (pathParts.length > 0) {
+                    return pathParts[0]; // First path segment is the bucket name
+                }
+            }
+
+            // Handle virtual-hosted style URLs: bucket-name.s3.amazonaws.com
+            const hostname = url.hostname;
+            const hostParts = hostname.split(".");
+            if (hostParts.length > 1 && hostParts[1] === "s3") {
+                return hostParts[0]; // First subdomain is the bucket name
+            }
+
+            throw new Error("Could not extract bucket name from URL");
+        } catch (error) {
+            throw new Error(`Invalid public URL format: ${publicUrl}. ${error.message}`);
+        }
+    }
+
+    /**
      * Uploads a file to an S3 bucket using specific credentials
      */
     public async uploadFile(
@@ -167,38 +200,30 @@ export class S3Service {
     /**
      * Check bucket connectivity with specific credentials
      */
-    public async checkBucketConnectivity(
-        credentials: {
-            endpoint: string;
-            accessKey: string;
-            secretKey: string;
-            port?: number;
-            useSSL?: boolean;
-        },
-        bucketName: string,
-    ): Promise<{
-        status: "connected" | "unreachable" | "unauthorized" | "not-found";
+    public async checkBucketConnectivity(credentials: {
+        endpoint: string;
+        accessKey: string;
+        secretKey: string;
+        port?: number;
+        useSSL?: boolean;
+    }): Promise<{
+        status: "connected" | "unreachable" | "unauthorized" | "no-credentials";
         message?: string;
     }> {
         try {
             const testClient = this.createClient(credentials);
 
-            // Test if bucket exists and is accessible
-            const bucketExists = await testClient.bucketExists(bucketName);
+            // Test if we can connect and authenticate by listing buckets
+            await testClient.listBuckets();
 
-            if (bucketExists) {
-                return { status: "connected" };
-            } else {
-                return {
-                    status: "not-found",
-                    message: `Bucket '${bucketName}' does not exist`,
-                };
-            }
+            return { status: "connected" };
         } catch (error) {
             // Check for specific error types
             if (
                 error.message?.includes("Access Denied") ||
-                error.message?.includes("SignatureDoesNotMatch")
+                error.message?.includes("SignatureDoesNotMatch") ||
+                error.message?.includes("InvalidAccessKeyId") ||
+                error.message?.includes("Forbidden")
             ) {
                 return {
                     status: "unauthorized",
@@ -206,7 +231,8 @@ export class S3Service {
                 };
             } else if (
                 error.message?.includes("ENOTFOUND") ||
-                error.message?.includes("ECONNREFUSED")
+                error.message?.includes("ECONNREFUSED") ||
+                error.message?.includes("EHOSTUNREACH")
             ) {
                 return {
                     status: "unreachable",
