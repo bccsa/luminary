@@ -30,11 +30,6 @@ export enum AclPermission {
     /**
      * Access to view documents
      */
-    Create = "create",
-
-    /**
-     * Access to view documents
-     */
     View = "view",
 
     /**
