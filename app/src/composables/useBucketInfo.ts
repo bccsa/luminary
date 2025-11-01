@@ -21,11 +21,8 @@ export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
     const bucketBaseUrl = computed(() => {
         if (!bucket.value) return;
 
-        // Use the httpPath from the bucket
-        // Note: httpPath is only available for buckets with embedded credentials
-        // For buckets with encrypted credentials (credential_id), httpPath won't be set
-        // and we'll fall back to the environment variable
-        return bucket.value.httpPath;
+        // Use the publicUrl from the bucket
+        return bucket.value.publicUrl;
     });
 
     return {
