@@ -1,6 +1,5 @@
 import processStorageDto from "./processStorageDto";
 import { DbService } from "../../db/db.service";
-import { S3Service } from "../../s3/s3.service";
 import { createTestingModule } from "../../test/testingModule";
 import { changeRequest_storage } from "../../test/changeRequestDocuments";
 
@@ -17,21 +16,19 @@ jest.mock("minio", () => {
 
 describe("processStorageDto", () => {
     let db: DbService;
-    let s3: S3Service;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-storage-dto");
 
         db = testingModule.dbService;
-        s3 = testingModule.s3Service;
     });
 
-    it("encrypts embedded credentials, stores encrypted storage doc, sets credential_id, and creates physical bucket", async () => {
+    it("encrypts embedded credentials, stores encrypted storage doc, and sets credential_id", async () => {
         const storageChangeRequest = changeRequest_storage();
 
         await db.upsertDoc(storageChangeRequest.doc);
 
-        await processStorageDto(storageChangeRequest.doc, undefined, db, s3);
+        await processStorageDto(storageChangeRequest.doc, undefined, db);
 
         // credential_id should be set and credential should be removed
         expect(storageChangeRequest.doc.credential_id).toBeDefined();
@@ -57,7 +54,7 @@ describe("processStorageDto", () => {
 
         await db.upsertDoc(storageChangeRequest.doc);
 
-        await processStorageDto(storageChangeRequest.doc, undefined, db, s3);
+        await processStorageDto(storageChangeRequest.doc, undefined, db);
 
         // The old credential_id should be removed and credential should be processed normally
         expect(storageChangeRequest.doc.credential_id).toBeDefined(); // New credential_id from processing embedded credential
@@ -74,9 +71,7 @@ describe("processStorageDto", () => {
 
         await db.upsertDoc(storageChangeRequest.doc);
 
-        await expect(
-            processStorageDto(storageChangeRequest.doc, undefined, db, s3),
-        ).rejects.toThrow(
+        await expect(processStorageDto(storageChangeRequest.doc, undefined, db)).rejects.toThrow(
             "S3 bucket must have either embedded credentials or a credential_id reference",
         );
     });
@@ -87,7 +82,7 @@ describe("processStorageDto", () => {
 
         await db.upsertDoc(doc);
 
-        const warnings = await processStorageDto(doc, undefined, db, s3);
+        const warnings = await processStorageDto(doc, undefined, db);
 
         // Should handle gracefully with warning, not throw error
         expect(
@@ -120,10 +115,11 @@ describe("processStorageDto", () => {
         const storageChangeRequest = changeRequest_storage();
         await db.upsertDoc(storageChangeRequest.doc);
 
-        // For new buckets with credentials, should throw error if creation fails
-        await expect(
-            processStorageDto(storageChangeRequest.doc, undefined, db, s3),
-        ).rejects.toThrow("Failed to create physical S3 bucket");
+        // Physical bucket creation is skipped - should process credentials without error
+        const warnings = await processStorageDto(storageChangeRequest.doc, undefined, db);
+
+        // Should complete without throwing errors (no specific warnings expected)
+        expect(Array.isArray(warnings)).toBe(true);
     });
 
     it("can't create a bucket document that already exists", async () => {
@@ -131,7 +127,7 @@ describe("processStorageDto", () => {
         await db.upsertDoc(storageChangeRequest.doc);
 
         // First creation should succeed
-        await processStorageDto(storageChangeRequest.doc, undefined, db, s3);
+        await processStorageDto(storageChangeRequest.doc, undefined, db);
 
         // Mock bucketExists to return true for the second attempt
         const { Client } = jest.requireMock("minio");
@@ -144,11 +140,9 @@ describe("processStorageDto", () => {
         anotherStorageChangeRequest.doc.name = storageChangeRequest.doc.name; // Same bucket name
         await db.upsertDoc(anotherStorageChangeRequest.doc);
 
-        await expect(
-            processStorageDto(anotherStorageChangeRequest.doc, undefined, db, s3),
-        ).rejects.toThrow(
-            `S3 bucket ${storageChangeRequest.doc.name} already exists on the storage provider.`,
-        );
+        // Physical bucket creation is now skipped, so no duplication error should occur
+        const warnings = await processStorageDto(anotherStorageChangeRequest.doc, undefined, db);
+        expect(Array.isArray(warnings)).toBe(true);
     });
 
     it("deletes a bucket when document is marked for deletion and the data encrypted document", async () => {
@@ -158,7 +152,7 @@ describe("processStorageDto", () => {
 
         await db.upsertDoc(doc);
 
-        await processStorageDto(doc, doc, db, s3);
+        await processStorageDto(doc, doc, db);
 
         const deletedDoc = await db.getDoc(doc._id);
         expect(deletedDoc.docs.length).toBe(0);
