@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { type ContentParentDto, type DocType, type PostType, type TagType } from "luminary-shared";
 import LCard from "../common/LCard.vue";
-import { PhotoIcon } from "@heroicons/vue/24/solid";
+import { ExclamationCircleIcon, PhotoIcon } from "@heroicons/vue/24/solid";
 import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditor from "../images/ImageEditor.vue";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import { useBucketSelection } from "@/composables/useBucketSelection";
 
@@ -23,6 +23,29 @@ const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
 
 const bucketSelection = useBucketSelection();
+
+// Track the existing images bucket ID to handle bucket changes properly
+const existingImagesBucketId = ref<string | undefined>(undefined);
+
+// Initialize existingImagesBucketId when component loads with existing images
+watch(
+    () => parent.value,
+    (newParent) => {
+        if (newParent?.imageBucketId && newParent?.imageData?.fileCollections?.length) {
+            // If we don't have an existingImagesBucketId yet, and there are existing images,
+            // set it to the current imageBucketId (this represents where the images are actually stored)
+            if (!existingImagesBucketId.value) {
+                existingImagesBucketId.value = newParent.imageBucketId;
+            }
+        }
+
+        // If no images exist, clear the existing bucket reference
+        if (!newParent?.imageData?.fileCollections?.length) {
+            existingImagesBucketId.value = undefined;
+        }
+    },
+    { immediate: true },
+);
 
 // Check if bucket is selected (or auto-selected when only one exists)
 const isBucketSelected = computed(() => {
@@ -74,6 +97,7 @@ const handleFileChange = () => {
         <template #actions>
             <div>
                 <LButton
+                    v-if="isBucketSelected"
                     :icon="ArrowUpOnSquareIcon"
                     size="base"
                     :disabled="disabled || !isBucketSelected"
@@ -110,11 +134,20 @@ const handleFileChange = () => {
                 Uploaded images are automatically scaled for various screen and display sizes.
             </p>
         </div>
+        <span
+            v-if="!isBucketSelected && !hasImages"
+            class="ml-2 flex items-center text-xs text-red-600"
+        >
+            <ExclamationCircleIcon class="mr-1 inline h-4 w-4 text-red-600" />
+            Please select a storage bucket first.</span
+        >
         <ImageEditor
             ref="imageEditorRef"
             :disabled="disabled"
+            :existing-images-bucket-id="existingImagesBucketId"
             v-model:parent="parent"
             class="scrollbar-hide"
+            @bucket-selected="() => {}"
         />
     </LCard>
 </template>
