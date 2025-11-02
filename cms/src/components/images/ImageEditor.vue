@@ -262,10 +262,7 @@ defineExpose({
 <template>
     <div class="flex flex-col overflow-x-auto">
         <!-- Bucket Selection Dropdown (always show if multiple buckets, or show if none selected) -->
-        <div
-            v-if="bucketSelection.imageBuckets.value.length > 1 || !parent?.imageBucketId"
-            class="mb-2 px-0.5 pt-1"
-        >
+        <div v-if="bucketSelection.imageBuckets.value.length > 1" class="mb-2 px-0.5 pt-1">
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
