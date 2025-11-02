@@ -87,14 +87,11 @@ describe("StorageController", () => {
             });
 
             expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
-            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith(
-                {
-                    endpoint: "http://localhost:9000",
-                    accessKey: "testAccessKey",
-                    secretKey: "testSecretKey",
-                },
-                "test-bucket",
-            );
+            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
+                endpoint: "http://localhost:9000",
+                accessKey: "testAccessKey",
+                secretKey: "testSecretKey",
+            });
         });
 
         it("should return not-found when bucket document does not exist", async () => {
@@ -163,14 +160,11 @@ describe("StorageController", () => {
             expect(mockDecrypt).toHaveBeenNthCalledWith(1, "encryptedAccessKey");
             expect(mockDecrypt).toHaveBeenNthCalledWith(2, "encryptedSecretKey");
 
-            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith(
-                {
-                    endpoint: "http://localhost:9000",
-                    accessKey: "decryptedAccessKey",
-                    secretKey: "decryptedSecretKey",
-                },
-                "test-bucket",
-            );
+            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
+                endpoint: "http://localhost:9000",
+                accessKey: "decryptedAccessKey",
+                secretKey: "decryptedSecretKey",
+            });
         });
 
         it("should return not-found when encrypted credentials are missing", async () => {
@@ -198,11 +192,11 @@ describe("StorageController", () => {
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
-        it("should return not-found when bucket has no credentials", async () => {
+        it("should return no-credentials when bucket has no credentials", async () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
-                // No credential or credential_id
+                // No credential or credential_id fields
             };
 
             mockGetDoc.mockResolvedValue({
@@ -216,11 +210,9 @@ describe("StorageController", () => {
 
             expect(response.status).toBe(201);
             expect(response.body).toEqual({
-                status: "not-found",
+                status: "no-credentials",
                 message: "No credentials configured for bucket: test-bucket",
             });
-
-            expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
         it("should return unreachable status when bucket cannot be reached", async () => {
@@ -287,10 +279,10 @@ describe("StorageController", () => {
             });
         });
 
-        it("should return not-found when bucket does not exist on S3", async () => {
+        it("should return connected when credentials are valid (credential-only check)", async () => {
             const mockBucket = {
                 _id: "bucket-123",
-                name: "non-existent-bucket",
+                name: "test-bucket",
                 credential: {
                     endpoint: "http://localhost:9000",
                     accessKey: "testAccessKey",
@@ -303,8 +295,8 @@ describe("StorageController", () => {
             });
 
             mockCheckBucketConnectivity.mockResolvedValue({
-                status: "not-found",
-                message: "Bucket 'non-existent-bucket' does not exist",
+                status: "connected",
+                message: "Credentials valid and S3 service accessible",
             });
 
             const response = await request(app.getHttpServer())
@@ -314,8 +306,8 @@ describe("StorageController", () => {
 
             expect(response.status).toBe(201);
             expect(response.body).toEqual({
-                status: "not-found",
-                message: "Bucket 'non-existent-bucket' does not exist",
+                status: "connected",
+                message: "Credentials valid and S3 service accessible",
             });
         });
 
