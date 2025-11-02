@@ -716,7 +716,7 @@ const saveBucket = async () => {
                         "
                     />
                     <p v-if="!isEditing" class="mt-0.5 text-[11px] text-gray-500">
-                        Must be set manually - no auto-generation
+                        Must be set manually including "http://" or "https://"
                     </p>
                 </div>
 
