@@ -329,6 +329,31 @@ const saveChanges = async () => {
         });
         return;
     }
+
+    // Validate image bucket selection
+    const hasImageBucket = !!editableParent.value.imageBucketId;
+    const hasImages =
+        (editableParent.value.imageData?.fileCollections?.length ?? 0) > 0 ||
+        (editableParent.value.imageData?.uploadData?.length ?? 0) > 0;
+
+    // If a bucket is selected but no images exist, clear the bucket and show error
+    if (hasImageBucket && !hasImages) {
+        editableParent.value.imageBucketId = undefined;
+        addNotification({
+            title: "Changes not saved",
+            description:
+                "Storage bucket cannot be set without images. Please upload an image first.",
+            state: "error",
+        });
+        return;
+    }
+
+    /**
+     * Create a redirect if neccessary
+     * This is done if the content document is currently published,
+     * was already published, the slug has changed
+     * and the user has edit access to redirect documents.
+     */
     await createRedirect();
     await save();
     addNotification({
