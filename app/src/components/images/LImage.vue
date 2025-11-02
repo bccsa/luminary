@@ -77,7 +77,7 @@ onMounted(() => {
                 :rounded="props.rounded"
                 :size="props.size"
                 :is-modal="props.isModal"
-                :bucket-http-path="bucketBaseUrl"
+                :bucketPublicUrl="bucketBaseUrl"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
@@ -93,7 +93,7 @@ onMounted(() => {
             :rounded="props.rounded"
             :size="props.size"
             :is-modal="props.isModal"
-            :bucket-http-path="bucketBaseUrl"
+            :bucketPublicUrl="bucketBaseUrl"
         />
 
         <slot></slot>

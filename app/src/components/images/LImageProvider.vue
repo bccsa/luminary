@@ -41,7 +41,7 @@ type Props = {
     parentWidth: number;
     parentId: Uuid;
     isModal?: boolean;
-    bucketHttpPath?: string;
+    bucketPublicUrl?: string;
 };
 
 const aspectRatiosCSS = {
@@ -75,7 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
     isModal: false,
 });
 
-const baseUrl = computed(() => props.bucketHttpPath || "");
+const baseUrl = computed(() => props.bucketPublicUrl || "");
 
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
