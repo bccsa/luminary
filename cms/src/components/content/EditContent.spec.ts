@@ -5,10 +5,14 @@ import {
     db,
     DocType,
     type ContentDto,
+    type PostDto,
     accessMap,
     PostType,
     PublishStatus,
     isConnected,
+    type S3BucketDto,
+    BucketType,
+    type EncryptedStorageDto,
 } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
@@ -976,6 +980,248 @@ describe("EditContent.vue", () => {
                     _id: mockData.mockEnglishContentDto._id,
                     title: "New Title",
                 });
+            });
+        });
+    });
+
+    describe("Image bucket validation", () => {
+        it("should prevent saving when bucket is selected but no images exist", async () => {
+            // insert bucket document in the database
+            const bucketDoc: S3BucketDto = {
+                _id: "bucket-test-123",
+                name: "Test Bucket",
+                memberOf: [],
+                type: DocType.Storage,
+                fileTypes: ["image/*"],
+                publicUrl: "https://example.com/bucket-test-123",
+                bucketType: BucketType.Image,
+                updatedTimeUtc: Date.now(),
+                credential_id: "cred-123",
+            };
+
+            const credentialDoc: EncryptedStorageDto = {
+                _id: "cred-123",
+                type: DocType.Storage,
+                updatedTimeUtc: Date.now(),
+                data: {
+                    endpoint: "https://s3.example.com",
+                    accessKeyId: "ACCESS_KEY_ID",
+                    secretAccessKey: "SECRET_ACCESS_KEY",
+                },
+            };
+
+            await db.docs.bulkPut([bucketDoc, credentialDoc]);
+
+            const notificationStore = useNotificationStore();
+
+            // Create a post without images but with a bucket ID
+            const postWithoutImages: PostDto = {
+                ...mockData.mockPostDto,
+                _id: "post-no-images",
+                imageBucketId: "bucket-test-123",
+                imageData: undefined,
+            };
+
+            // Create corresponding content document
+            const contentForPostWithoutImages: ContentDto = {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post-no-images-eng",
+                parentId: postWithoutImages._id,
+            };
+
+            await db.docs.put(postWithoutImages);
+            await db.docs.put(contentForPostWithoutImages);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: postWithoutImages._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a small change to enable save button
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            // Click the save button
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Check that an error notification was shown
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Changes not saved",
+                        description:
+                            "Storage bucket cannot be set without images. Please upload an image first.",
+                        state: "error",
+                    }),
+                );
+            });
+
+            // The bucket ID should remain in the database (unchanged) since save was prevented
+            // It's only cleared in the editable state, not persisted
+            const savedDoc = await db.get<PostDto>(postWithoutImages._id);
+            expect(savedDoc.imageBucketId).toBe("bucket-test-123");
+        });
+
+        it("should allow saving when bucket is selected and images exist", async () => {
+            const notificationStore = useNotificationStore();
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change and save
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
+            });
+        });
+
+        it("should allow saving when no bucket is selected and no images exist", async () => {
+            const notificationStore = useNotificationStore();
+
+            // Create a post without images or bucket
+            const postWithoutBucket: PostDto = {
+                ...mockData.mockPostDto,
+                _id: "post-no-bucket",
+                imageBucketId: undefined,
+                imageData: undefined,
+            };
+
+            // Create corresponding content document
+            const contentForPostWithoutBucket: ContentDto = {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post-no-bucket-eng",
+                parentId: postWithoutBucket._id,
+            };
+
+            await db.docs.put(postWithoutBucket);
+            await db.docs.put(contentForPostWithoutBucket);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: postWithoutBucket._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            // Click save
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
+            });
+        });
+
+        it("should allow saving when bucket is selected and upload data exists", async () => {
+            const notificationStore = useNotificationStore();
+
+            // Create a post with bucket and upload data but no file collections
+            const postWithUploadData: PostDto = {
+                ...mockData.mockPostDto,
+                _id: "post-with-uploads",
+                imageBucketId: "bucket-test-123",
+                imageData: {
+                    fileCollections: [],
+                    uploadData: [
+                        {
+                            filename: "new-image.jpg",
+                            preset: "photo",
+                            fileData: new ArrayBuffer(100),
+                            bucketId: "bucket-test-123",
+                        },
+                    ],
+                },
+            };
+
+            // Create corresponding content document
+            const contentForPostWithUploadData: ContentDto = {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post-with-uploads-eng",
+                parentId: postWithUploadData._id,
+            };
+
+            await db.docs.put(postWithUploadData);
+            await db.docs.put(contentForPostWithUploadData);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: postWithUploadData._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            // Click save
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
             });
         });
     });
