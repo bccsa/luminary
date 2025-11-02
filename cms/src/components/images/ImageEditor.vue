@@ -266,7 +266,7 @@ defineExpose({
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
-                label=""
+                label="Bucket"
                 placeholder="Select storage bucket"
                 :disabled="disabled"
                 @update:modelValue="handleBucketChange"
