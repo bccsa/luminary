@@ -50,6 +50,8 @@ const statusText = computed(() => {
             return "Connected";
         case "unreachable":
             return "Unreachable";
+        case "unauthorized":
+            return "Unauthorized";
         case "not-found":
             return "Not Found";
         case "no-credentials":
