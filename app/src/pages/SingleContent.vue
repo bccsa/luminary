@@ -102,7 +102,7 @@ const idbContent = useDexieLiveQuery(
             .toArray()
             .then((docs) => {
                 if (!docs?.length) {
-                    router.replace("/");
+                    // Remove redirect: Let the 404 logic handle it
                     return undefined;
                 }
 
@@ -138,7 +138,7 @@ const unwatch = watch([idbContent, isConnected], () => {
         return;
     }
 
-    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, we clear the content
+    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, set to undefined for 404
     if (!isConnected.value) {
         content.value = undefined;
         return;
@@ -168,7 +168,8 @@ const unwatch = watch([idbContent, isConnected], () => {
                 router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 return;
             }
-            router.replace("/");
+            // Remove redirect: Set to undefined for 404
+            content.value = undefined;
             return;
         }
 
