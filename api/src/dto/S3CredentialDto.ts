@@ -7,6 +7,7 @@
  */
 export type S3CredentialDto = {
     endpoint: string;
+    bucketName?: string; // encrypted when persisted inside EncryptedStorageDto
     accessKey?: string; // encrypted when persisted inside EncryptedStorageDto
     secretKey?: string; // encrypted when persisted inside EncryptedStorageDto
 };
