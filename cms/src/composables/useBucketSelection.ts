@@ -6,7 +6,7 @@ export function useBucketSelection() {
     const selectedMediaBucket = ref<string | null>(null);
 
     // Get buckets directly from the database (already available in CMS)
-    const allBuckets = useDexieLiveQuery(
+    const buckets = useDexieLiveQuery(
         () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<S3BucketDto[]>,
         { initialValue: [] as S3BucketDto[] },
     );
@@ -16,21 +16,21 @@ export function useBucketSelection() {
      */
     const getBucketById = (bucketId: string | null): S3BucketDto | null => {
         if (!bucketId) return null;
-        return allBuckets.value.find((bucket) => bucket._id === bucketId) || null;
+        return buckets.value.find((bucket) => bucket._id === bucketId) || null;
     };
 
     /**
      * Get buckets suitable for image uploads
      */
     const imageBuckets = computed(() => {
-        return allBuckets.value.filter((bucket) => bucket.bucketType === BucketType.Image);
+        return buckets.value.filter((bucket) => bucket.bucketType === BucketType.Image);
     });
 
     /**
      * Get buckets suitable for media uploads
      */
     const mediaBuckets = computed(() => {
-        return allBuckets.value.filter((bucket) => bucket.bucketType === BucketType.Media);
+        return buckets.value.filter((bucket) => bucket.bucketType === BucketType.Media);
     });
 
     /**
@@ -67,6 +67,9 @@ export function useBucketSelection() {
     });
 
     return {
+        // All buckets
+        buckets,
+
         // Bucket data
         imageBuckets,
         mediaBuckets,
