@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, toRaw, watchEffect } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
 import {
@@ -97,6 +97,13 @@ const handleBucketChange = (bucketId: string) => {
     }
 };
 
+// HTML element refs
+const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
+const isDragging = ref(false);
+const dragCounter = ref(0);
+const showFailureMessage = ref(false);
+const failureMessage = ref<string | undefined>(undefined);
+
 // Validate that selected bucket still exists and auto-select if only one available
 watchEffect(() => {
     // Check if the currently selected bucket still exists in the database
@@ -120,14 +127,32 @@ watchEffect(() => {
         parent.value!.imageBucketId = bucketSelection.autoSelectImageBucket.value;
         emit("bucketSelected", bucketSelection.autoSelectImageBucket.value);
     }
-});
 
-// HTML element refs
-const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
-const isDragging = ref(false);
-const dragCounter = ref(0);
-const showFailureMessage = ref(false);
-const failureMessage = ref<string | undefined>(undefined);
+    // Proactively show error messages for bucket configuration issues
+    // This ensures users see the error immediately, not just when they try to upload
+    if (!bucketSelection.hasImageBuckets.value) {
+        // No buckets configured at all
+        failureMessage.value =
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        showFailureMessage.value = true;
+    } else if (!parent.value?.imageBucketId && bucketSelection.imageBuckets.value.length > 1) {
+        // Multiple buckets available but none selected
+        failureMessage.value = "Please select a storage bucket before uploading images.";
+        showFailureMessage.value = true;
+    } else if (parent.value?.imageBucketId) {
+        // Bucket is selected, clear any bucket-related errors
+        // Only clear if the current error is about bucket selection/configuration
+        const bucketRelatedErrors = [
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
+            "Please select a storage bucket before uploading images.",
+            "The selected storage bucket no longer exists. Please select another bucket.",
+        ];
+        if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
+            failureMessage.value = undefined;
+            showFailureMessage.value = false;
+        }
+    }
+});
 
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -211,7 +236,6 @@ const upload = () => {
 
 const removeFileCollection = (collection: ImageFileCollectionDto) => {
     if (!parent.value?.imageData?.fileCollections) return;
-
     parent.value.imageData.fileCollections = parent.value.imageData.fileCollections
         .filter((f) => f !== collection)
         .map((f) => toRaw(f));
@@ -281,8 +305,8 @@ defineExpose({
         </div>
 
         <!-- Header with error message toggle -->
-        <div :disabled="disabled" class="flex justify-between px-4">
-            <div class="flex">
+        <div :disabled="disabled" class="flex justify-between">
+            <div class="flex gap-1">
                 <button
                     v-if="failureMessage"
                     class="flex cursor-pointer items-center gap-1 rounded-md"
@@ -291,14 +315,14 @@ defineExpose({
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
                 </button>
-            </div>
-        </div>
 
-        <!-- Error Message -->
-        <div v-if="showFailureMessage" class="px-4">
-            <p class="my-2 text-xs text-red-600">
-                {{ failureMessage }}
-            </p>
+                <!-- Error Message -->
+                <div v-if="showFailureMessage" class="">
+                    <p class="my-2 text-xs text-red-600">
+                        {{ failureMessage }}
+                    </p>
+                </div>
+            </div>
         </div>
 
         <!-- Full-width Drag and Drop Area -->
