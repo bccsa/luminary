@@ -212,13 +212,12 @@ setTimeout(() => {
     );
 }, 2000);
 
-const shouldHidePrivacyPolicy =
-    import.meta.env.VITE_SHOULD_HIDE_PRIVACY_POLICY === "true" ? true : false;
+const shouldHidePrivacyPolicy = import.meta.env.VITE_SHOULD_HIDE_PRIVACY_POLICY === "true";
 </script>
 
 <template>
     <LModal
-        :isVisible="show || false || !shouldHidePrivacyPolicy"
+        :isVisible="show || false || shouldHidePrivacyPolicy"
         :heading="t('privacy_policy.modal.title')"
         @close="show = false"
     >
