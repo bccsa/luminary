@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { type ContentParentDto, type DocType, type PostType, type TagType } from "luminary-shared";
 import LCard from "../common/LCard.vue";
-import { ExclamationCircleIcon, PhotoIcon } from "@heroicons/vue/24/solid";
+import { PhotoIcon } from "@heroicons/vue/24/solid";
 import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditor from "../images/ImageEditor.vue";
 import { ref, computed, watch } from "vue";
@@ -134,10 +134,7 @@ const handleFileChange = () => {
                 Uploaded images are automatically scaled for various screen and display sizes.
             </p>
         </div>
-        <span v-if="!isBucketSelected" class="mb-1 flex items-center text-xs text-red-600">
-            <ExclamationCircleIcon class="mr-1 inline h-4 w-4 text-red-600" />
-            Please select a storage bucket first.</span
-        >
+
         <ImageEditor
             ref="imageEditorRef"
             :disabled="disabled"
