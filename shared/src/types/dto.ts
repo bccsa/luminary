@@ -167,6 +167,7 @@ export type ImageUploadDto = {
 
 export type S3CredentialDto = {
     endpoint: string;
+    bucketName: string;
     accessKey: string;
     secretKey: string;
 };
