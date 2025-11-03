@@ -11,8 +11,11 @@ import { EncryptedStorageDto } from "../dto/EncryptedStorageDto";
 import { DocType } from "../enums";
 import { decrypt } from "../util/encryption";
 import * as Minio from "minio";
+import configuration from "../configuration";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
+
+const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 
 /**
  * Create S3 client from bucket credentials
@@ -446,7 +449,7 @@ async function processImageUploadSafe(
                         size,
                         bucketS3Client,
                         bucketName,
-                        80, // Use default image quality of 80
+                        defaultImageQuality,
                         preset,
                         resultImageCollection,
                     ),
