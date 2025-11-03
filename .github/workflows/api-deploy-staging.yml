@@ -69,4 +69,5 @@ jobs:
           docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
           --restart unless-stopped 
           --name=${{ vars.DOCKER_CONTAINER }}
+          --env-file api/.env
           ${{ vars.DOCKER_IMAGE }}
