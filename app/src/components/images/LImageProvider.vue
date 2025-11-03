@@ -50,6 +50,7 @@ const aspectRatiosCSS = {
     vertical: "aspect-[9/16]",
     wide: "aspect-[18/9]",
     classic: "aspect-[4/3]",
+    smallSquare: "aspect-[3/2]",
 };
 
 const aspectRatioNumbers = {
@@ -59,12 +60,14 @@ const aspectRatioNumbers = {
     vertical: 0.56,
     wide: 2,
     classic: 1.33,
+    smallSquare: 0.5,
 };
 
 const sizes = {
     small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
     thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
+    smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
 };
 
 const props = withDefaults(defineProps<Props>(), {
