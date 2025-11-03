@@ -73,6 +73,10 @@ vi.mock("vue-router", async (importOriginal) => {
 // @ts-expect-error
 window.scrollTo = vi.fn();
 
+// Mock URL.createObjectURL for image upload tests
+global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+global.URL.revokeObjectURL = vi.fn();
+
 describe("EditContent.vue", () => {
     beforeEach(async () => {
         // Set up the Pinia store before each test
