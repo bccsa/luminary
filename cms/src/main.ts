@@ -71,6 +71,8 @@ async function Startup() {
             {
                 type: DocType.Storage,
                 sync: true,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
             },
         ],
     }).catch((err) => {
