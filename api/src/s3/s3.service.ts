@@ -27,7 +27,7 @@ export class S3Service {
         const useSSL =
             credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
 
-        // Cloudflare R2 requires region 'auto' and path-style addressing
+        // Cloudflare R2 requires region
         const isCloudflareR2 = host.includes(".r2.cloudflarestorage.com");
 
         const clientConfig: any = {
