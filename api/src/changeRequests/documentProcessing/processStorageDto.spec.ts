@@ -41,6 +41,7 @@ describe("processStorageDto", () => {
 
         //  stored credentials should be encrypted
         expect(storedDoc.docs[0].data).toBeDefined();
+        expect(storedDoc.docs[0].data.bucketName).not.toBe("testStorageBucket");
         expect(storedDoc.docs[0].data.accessKey).not.toBe("accessAdminKey");
         expect(storedDoc.docs[0].data.secretKey).not.toBe("secretAdminKey");
     });
