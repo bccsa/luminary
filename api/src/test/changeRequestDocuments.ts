@@ -124,6 +124,7 @@ export const changeRequest_storage = () => {
             fileTypes: ["image/*", "audio/*"],
             credential: {
                 endpoint: "http://example.com",
+                bucketName: "testStorageBucket",
                 accessKey: "accessAdminKey",
                 secretKey: "secretAdminKey",
             },
