@@ -266,6 +266,21 @@ describe("SingleContent", () => {
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
+
+    it("displays the 404 error page when routing with an invalid slug and does not redirect to homepage", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: "invalid-slug",
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+            // Ensure no redirect to homepage occurred
+            expect(routeReplaceMock).not.toHaveBeenCalled();
+        });
+    });
     // TODO: Add test to check if the notification is shown when the content is available in the preferred language
 
     it("sets the meta data correctly", async () => {
