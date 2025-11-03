@@ -86,6 +86,7 @@ export default async function processStorageDto(
     if (doc.credential && !doc.credential_id) {
         try {
             // Encrypt the credentials
+            const encryptedBucketName = await encrypt(doc.credential.bucketName);
             const encryptedAccessKey = await encrypt(doc.credential.accessKey);
             const encryptedSecretKey = await encrypt(doc.credential.secretKey);
 
@@ -95,6 +96,7 @@ export default async function processStorageDto(
             storageDoc._id = uuidv4();
             storageDoc.data = {
                 endpoint: doc.credential.endpoint,
+                bucketName: encryptedBucketName,
                 accessKey: encryptedAccessKey,
                 secretKey: encryptedSecretKey,
             };
