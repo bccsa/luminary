@@ -109,6 +109,7 @@ const newBucket = ref<S3BucketDto>({
     publicUrl: "",
     credential: {
         endpoint: "",
+        bucketName: "",
         accessKey: "",
         secretKey: "",
     } as S3CredentialDto,
@@ -160,6 +161,7 @@ watch(
 
 const localCredentials = ref<S3CredentialDto>({
     endpoint: "",
+    bucketName: "",
     accessKey: "",
     secretKey: "",
 });
@@ -172,6 +174,7 @@ watch(showModal, (isOpen) => {
             bucket?.credential ??
             ({
                 endpoint: "",
+                bucketName: "",
                 accessKey: "",
                 secretKey: "",
             } as S3CredentialDto);
@@ -248,6 +251,7 @@ function resetNewBucket() {
         publicUrl: "",
         credential: {
             endpoint: "",
+            bucketName: "",
             accessKey: "",
             secretKey: "",
         } as S3CredentialDto,
@@ -358,17 +362,26 @@ async function confirmDelete() {
 }
 
 const endpointProvided = computed(() => !!localCredentials.value.endpoint?.trim());
+const bucketNameProvided = computed(() => !!localCredentials.value.bucketName?.trim());
 const accessKeyProvided = computed(() => !!localCredentials.value.accessKey?.trim());
 const secretKeyProvided = computed(() => !!localCredentials.value.secretKey?.trim());
 
 // Computed to check if all credential fields are provided
 const hasCompleteCredentials = computed(
-    () => endpointProvided.value && accessKeyProvided.value && secretKeyProvided.value,
+    () =>
+        endpointProvided.value &&
+        bucketNameProvided.value &&
+        accessKeyProvided.value &&
+        secretKeyProvided.value,
 );
 
 // Computed to check if any credential fields are provided
 const hasPartialCredentials = computed(
-    () => endpointProvided.value || accessKeyProvided.value || secretKeyProvided.value,
+    () =>
+        endpointProvided.value ||
+        bucketNameProvided.value ||
+        accessKeyProvided.value ||
+        secretKeyProvided.value,
 );
 
 // Computed to determine if credentials are valid (all or none)
@@ -470,6 +483,14 @@ watch(
                     if (!endpoint) return true; // Skip if empty (handled by required validation)
                     return endpoint.startsWith("http://") || endpoint.startsWith("https://");
                 },
+            );
+
+            validate(
+                "Bucket name is required when providing credentials",
+                "bucketName",
+                validations.value,
+                localCredentials.value,
+                () => bucketNameProvided.value,
             );
 
             validate(
@@ -926,6 +947,38 @@ const saveBucket = async () => {
                                     }
                                 "
                             />
+                            <p class="mt-0.5 text-[11px] text-gray-500">
+                                Examples of endpoint: <br />
+                                • MinIO: http://localhost:9000 <br />
+                                • AWS S3: https://s3.amazonaws.com <br />
+                                • Cloudflare R2: https://&lt;account-id&gt;.r2.cloudflarestorage.com
+                            </p>
+                        </div>
+
+                        <!-- Bucket Name -->
+                        <div>
+                            <label
+                                for="bucketName"
+                                class="mb-1 block text-xs font-medium text-gray-700"
+                            >
+                                Bucket Name
+                                <span v-if="!isEditing" class="text-red-500">*</span>
+                            </label>
+                            <LInput
+                                id="bucketName"
+                                name="bucketName"
+                                v-model="localCredentials.bucketName"
+                                type="text"
+                                placeholder="my-bucket-name"
+                                :disabled="isLoading"
+                                :required="!isEditing"
+                                :class="{ 'border-red-300': hasFieldError('bucketName') }"
+                                @blur="() => touchField('bucketName')"
+                                @input="() => touchField('bucketName')"
+                            />
+                            <p class="mt-0.5 text-[11px] text-gray-500">
+                                The actual bucket name (do not include in endpoint)
+                            </p>
                         </div>
 
                         <!-- Access Key  -->
@@ -964,7 +1017,7 @@ const saveBucket = async () => {
                                 id="secretKey"
                                 name=""
                                 v-model="localCredentials.secretKey"
-                                type="password"
+                                type="text"
                                 placeholder="Enter secret key"
                                 :disabled="isLoading"
                                 :required="!isEditing"
