@@ -18,14 +18,16 @@ describe("S3ImageHandler", () => {
 
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",
+        bucketName: "", // Will be set in beforeAll
         accessKey: "minio",
         secretKey: "minio123",
     };
 
     beforeAll(async () => {
         service = (await createTestingModule("imagehandling")).s3Service;
-        testClient = service.createClient(testCredentials);
         testBucket = uuidv4();
+        testCredentials.bucketName = testBucket;
+        testClient = service.createClient(testCredentials);
         await service.makeBucket(testClient, testBucket);
     });
 
@@ -177,6 +179,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
 
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",
+        bucketName: "test-bucket", // placeholder
         accessKey: "minio",
         secretKey: "minio123",
     };
@@ -189,6 +192,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
     });
 
     beforeEach(async () => {
+        // Create unique bucket names for each test
+        sourceBucket = `${uuidv4()}-source-bucket`;
+        targetBucket = `${uuidv4()}-target-bucket`;
+
         // Create fresh bucket DTOs for each test
         sourceBucketDto = {
             _id: `storage-${uuidv4()}`,
@@ -196,9 +203,12 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Source Bucket`,
             bucketType: BucketType.Image,
-            publicUrl: `http://127.0.0.1:9000/${uuidv4()}-source-bucket`,
+            publicUrl: `http://127.0.0.1:9000/${sourceBucket}`,
             fileTypes: ["image/*"],
-            credential: testCredentials,
+            credential: {
+                ...testCredentials,
+                bucketName: sourceBucket,
+            },
             updatedTimeUtc: Date.now(),
         };
         targetBucketDto = {
@@ -207,15 +217,14 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Target Bucket`,
             bucketType: BucketType.Image,
-            publicUrl: `http://127.0.0.1:9000/${uuidv4()}-target-bucket`,
+            publicUrl: `http://127.0.0.1:9000/${targetBucket}`,
             fileTypes: ["image/*"],
-            credential: testCredentials,
+            credential: {
+                ...testCredentials,
+                bucketName: targetBucket,
+            },
             updatedTimeUtc: Date.now(),
         };
-
-        // extract bucket names for physical bucket creation
-        sourceBucket = await service.extractBucketNameFromUrl(sourceBucketDto.publicUrl);
-        targetBucket = await service.extractBucketNameFromUrl(targetBucketDto.publicUrl);
 
         await service.makeBucket(testClient, sourceBucket);
         await service.makeBucket(testClient, targetBucket);
@@ -497,6 +506,7 @@ describe("S3ImageHandler - File Type Validation", () => {
 
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",
+        bucketName: "", // will be set in beforeAll
         accessKey: "minio",
         secretKey: "minio123",
     };
@@ -505,9 +515,11 @@ describe("S3ImageHandler - File Type Validation", () => {
         const module = await createTestingModule("filetype-validation");
         service = module.s3Service;
         dbService = module.dbService;
-        testClient = service.createClient(testCredentials);
 
         testBucket = `filetype-test-${uuidv4()}`;
+        testCredentials.bucketName = testBucket;
+        testClient = service.createClient(testCredentials);
+
         await service.makeBucket(testClient, testBucket);
 
         // Create bucket with restricted file types
