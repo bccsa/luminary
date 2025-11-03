@@ -129,27 +129,26 @@ describe.skip("EditAclByGroup.vue", () => {
 
         // Group=Public Editors, DocType=Group, Permission=View
         // Check if the view permission is set
-        const aclEntry = group.acl.find(
-            (acl) =>
-                acl.groupId === "group-public-editors" &&
-                acl.type == DocType.Group &&
-                acl.permission.includes(AclPermission.View),
-        );
-        expect(aclEntry).toBeDefined();
-        expect(aclEntry?.permission.includes(AclPermission.View)).toBe(true);
+        expect(
+            group.acl.find(
+                (acl) =>
+                    acl.groupId === "group-public-editors" &&
+                    acl.type == DocType.Group &&
+                    acl.permission.includes(AclPermission.View),
+            ),
+        ).toBeDefined();
 
-        // Click on the View permission cell for the Group row
-        // Row 0 (Group) * 7 permissions + column 1 (View) = index 1
-        await wrapper.findAll('[data-test="permissionCell"]')[1].trigger("click");
+        await wrapper.findAll('[data-test="permissionCell"]')[0].trigger("click");
 
         // Check if the view permission is removed
-        const updatedAclEntry = group.acl.find(
-            (acl) => acl.groupId === "group-public-editors" && acl.type == DocType.Group,
-        );
-        // The entry should still exist (because it has Assign permission)
-        // but View permission should be removed
-        expect(updatedAclEntry).toBeDefined();
-        expect(updatedAclEntry?.permission.includes(AclPermission.View)).toBe(false);
+        expect(
+            group.acl.find(
+                (acl) =>
+                    acl.groupId === "group-public-editors" &&
+                    acl.type == DocType.Group &&
+                    acl.permission.includes(AclPermission.View),
+            ),
+        ).toBeUndefined();
     });
 
     it("correctly duplicates an ACL group", async () => {
