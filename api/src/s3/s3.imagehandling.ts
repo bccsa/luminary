@@ -21,9 +21,10 @@ async function createS3ClientFromBucket(
     bucket: S3BucketDto,
     db: DbService,
     s3Service: S3Service,
-): Promise<Minio.Client> {
+): Promise<{ client: Minio.Client; bucketName: string }> {
     let credentials: {
         endpoint: string;
+        bucketName: string;
         accessKey: string;
         secretKey: string;
     };
@@ -32,6 +33,7 @@ async function createS3ClientFromBucket(
         // Use embedded credentials
         credentials = {
             endpoint: bucket.credential.endpoint,
+            bucketName: bucket.credential.bucketName!,
             accessKey: bucket.credential.accessKey!,
             secretKey: bucket.credential.secretKey!,
         };
@@ -43,11 +45,13 @@ async function createS3ClientFromBucket(
         }
 
         const encryptedStorage = encryptedStorageResult.docs[0] as EncryptedStorageDto;
+        const decryptedBucketName = await decrypt(encryptedStorage.data.bucketName);
         const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
         const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
 
         credentials = {
             endpoint: encryptedStorage.data.endpoint,
+            bucketName: decryptedBucketName,
             accessKey: decryptedAccessKey,
             secretKey: decryptedSecretKey,
         };
@@ -56,7 +60,10 @@ async function createS3ClientFromBucket(
     }
 
     // Use S3Service to create the client (eliminates duplication)
-    return s3Service.createClient(credentials);
+    return {
+        client: s3Service.createClient(credentials),
+        bucketName: credentials.bucketName,
+    };
 }
 
 /**
@@ -100,12 +107,16 @@ async function migrateImagesBetweenBuckets(
         const newBucket = newBucketResult.docs[0] as S3BucketDto;
 
         // Create separate S3 clients for each bucket using their own credentials
-        const oldS3Client = await createS3ClientFromBucket(oldBucket, db, s3);
-        const newS3Client = await createS3ClientFromBucket(newBucket, db, s3);
-
-        // Extract actual bucket names from public URLs
-        const oldBucketName = s3.extractBucketNameFromUrl(oldBucket.publicUrl);
-        const newBucketName = s3.extractBucketNameFromUrl(newBucket.publicUrl);
+        const { client: oldS3Client, bucketName: oldBucketName } = await createS3ClientFromBucket(
+            oldBucket,
+            db,
+            s3,
+        );
+        const { client: newS3Client, bucketName: newBucketName } = await createS3ClientFromBucket(
+            newBucket,
+            db,
+            s3,
+        );
 
         // Get all image files to migrate
         const allFiles = image.fileCollections.flatMap((collection) => collection.imageFiles);
@@ -258,10 +269,8 @@ export async function processImage(
                         );
                     } else {
                         const bucketDto = result.docs[0] as S3BucketDto;
-                        const bucketS3Client = await createS3ClientFromBucket(bucketDto, db, s3);
-
-                        // Extract actual bucket name from public URL
-                        const bucketName = s3.extractBucketNameFromUrl(bucketDto.publicUrl);
+                        const { client: bucketS3Client, bucketName } =
+                            await createS3ClientFromBucket(bucketDto, db, s3);
 
                         // Delete files from the bucket
                         for (const file of removedFiles) {
@@ -382,7 +391,6 @@ async function processImageUploadSafe(
 
         // Look up the bucket and create bucket-specific S3 client
         let bucketDto: S3BucketDto;
-        let bucketS3Client: Minio.Client;
 
         try {
             const bucketDocs = await db.getDocsByType(DocType.Storage);
@@ -424,29 +432,32 @@ async function processImageUploadSafe(
             }
 
             // Create bucket-specific S3 client with bucket's credentials
-            bucketS3Client = await createS3ClientFromBucket(bucketDto, db, s3);
+            const { client: bucketS3Client, bucketName } = await createS3ClientFromBucket(
+                bucketDto,
+                db,
+                s3,
+            );
+
+            imageSizes.forEach(async (size) => {
+                if (metadata.width < size / 1.1) return; // allow slight upscaling
+                promises.push(
+                    processQualitySafe(
+                        uploadData,
+                        size,
+                        bucketS3Client,
+                        bucketName,
+                        80, // Use default image quality of 80
+                        preset,
+                        resultImageCollection,
+                    ),
+                );
+            });
         } catch (error) {
             warnings.push(
                 `Failed to connect to bucket ${uploadData.bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
             );
             return { success: false, warnings };
         }
-
-        imageSizes.forEach(async (size) => {
-            if (metadata.width < size / 1.1) return; // allow slight upscaling
-            promises.push(
-                processQualitySafe(
-                    uploadData,
-                    size,
-                    bucketS3Client,
-                    80, // Use default image quality of 80
-                    preset,
-                    resultImageCollection,
-                    bucketDto,
-                    s3,
-                ),
-            );
-        });
 
         const results = await Promise.all(promises);
 
@@ -476,15 +487,12 @@ async function processQualitySafe(
     uploadData: ImageUploadDto,
     size: number,
     s3Client: Minio.Client,
+    bucketName: string,
     imageQuality: number,
     preset: keyof sharp.PresetEnum,
     resultImageCollection: ImageFileCollectionDto,
-    bucket: S3BucketDto,
-    s3Service: S3Service,
 ): Promise<{ success: boolean; warnings: string[] }> {
     try {
-        // Extract actual bucket name from public URL
-        const bucketName = s3Service.extractBucketNameFromUrl(bucket.publicUrl);
         const resized = await sharp(uploadData.fileData)
             .resize(size)
             .webp({
