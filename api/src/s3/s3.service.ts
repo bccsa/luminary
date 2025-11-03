@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import * as Minio from "minio";
-
 @Injectable()
 export class S3Service {
     // Note: No default client or config - everything is bucket-specific now
@@ -14,6 +13,7 @@ export class S3Service {
      */
     public createClient(credentials: {
         endpoint: string;
+        bucketName: string;
         accessKey: string;
         secretKey: string;
         port?: number;
@@ -27,46 +27,23 @@ export class S3Service {
         const useSSL =
             credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
 
-        return new Minio.Client({
+        // Cloudflare R2 requires region 'auto' and path-style addressing
+        const isCloudflareR2 = host.includes(".r2.cloudflarestorage.com");
+
+        const clientConfig: any = {
             endPoint: host,
             port: port,
             useSSL: useSSL,
             accessKey: credentials.accessKey,
             secretKey: credentials.secretKey,
-        });
-    }
+        };
 
-    /**
-     * Extracts the bucket name from a public URL
-     * Examples:
-     * - https://s3.cdn.bcc.africa/ac-images → ac-images
-     * - http://localhost:9000/images → images
-     * - https://mybucket.s3.amazonaws.com → mybucket (virtual-hosted style)
-     */
-    public extractBucketNameFromUrl(publicUrl: string): string {
-        try {
-            const url = new URL(publicUrl);
-            const pathname = url.pathname;
-
-            // Handle path-style URLs: /bucket-name or /bucket-name/
-            if (pathname && pathname !== "/") {
-                const pathParts = pathname.split("/").filter((part) => part.length > 0);
-                if (pathParts.length > 0) {
-                    return pathParts[0]; // First path segment is the bucket name
-                }
-            }
-
-            // Handle virtual-hosted style URLs: bucket-name.s3.amazonaws.com
-            const hostname = url.hostname;
-            const hostParts = hostname.split(".");
-            if (hostParts.length > 1 && hostParts[1] === "s3") {
-                return hostParts[0]; // First subdomain is the bucket name
-            }
-
-            throw new Error("Could not extract bucket name from URL");
-        } catch (error) {
-            throw new Error(`Invalid public URL format: ${publicUrl}. ${error.message}`);
+        // Cloudflare R2 specific configuration
+        if (isCloudflareR2) {
+            clientConfig.region = "auto";
         }
+
+        return new Minio.Client(clientConfig);
     }
 
     /**
@@ -202,6 +179,7 @@ export class S3Service {
      */
     public async checkBucketConnectivity(credentials: {
         endpoint: string;
+        bucketName: string;
         accessKey: string;
         secretKey: string;
         port?: number;
@@ -213,8 +191,23 @@ export class S3Service {
         try {
             const testClient = this.createClient(credentials);
 
-            // Test if we can connect and authenticate by listing buckets
-            await testClient.listBuckets();
+            // For R2, test by checking if the specific bucket exists instead of listing all buckets
+            // Some R2 tokens may not have permission to list all buckets
+            const isCloudflareR2 = credentials.endpoint.includes(".r2.cloudflarestorage.com");
+
+            if (isCloudflareR2) {
+                // Check if the specific bucket exists
+                const exists = await testClient.bucketExists(credentials.bucketName);
+                if (!exists) {
+                    return {
+                        status: "unreachable",
+                        message: `Bucket '${credentials.bucketName}' does not exist`,
+                    };
+                }
+            } else {
+                // For other S3 services, list buckets as before
+                await testClient.listBuckets();
+            }
 
             return { status: "connected" };
         } catch (error) {
@@ -223,7 +216,10 @@ export class S3Service {
                 error.message?.includes("Access Denied") ||
                 error.message?.includes("SignatureDoesNotMatch") ||
                 error.message?.includes("InvalidAccessKeyId") ||
-                error.message?.includes("Forbidden")
+                error.message?.includes("Forbidden") ||
+                error.code === "SignatureDoesNotMatch" ||
+                error.code === "InvalidAccessKeyId" ||
+                error.code === "AccessDenied"
             ) {
                 return {
                     status: "unauthorized",
