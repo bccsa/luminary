@@ -28,7 +28,8 @@ export class S3Service {
             credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
 
         // Cloudflare R2 requires region
-        const isCloudflareR2 = host.includes(".r2.cloudflarestorage.com");
+        const isCloudflareR2 =
+            host === "r2.cloudflarestorage.com" || host.endsWith(".r2.cloudflarestorage.com");
 
         const clientConfig: any = {
             endPoint: host,
@@ -195,9 +196,7 @@ export class S3Service {
             // Some R2 tokens may not have permission to list all buckets
             // Parse the endpoint as a URL and check the actual hostname for Cloudflare R2
             let endpointToParse = credentials.endpoint;
-            if (
-                !/^([a-z][a-z0-9.+-]*:)?\/\//i.test(endpointToParse)
-            ) {
+            if (!/^([a-z][a-z0-9.+-]*:)?\/\//i.test(endpointToParse)) {
                 // If the endpoint does not have a protocol, prepend one for URL parsing
                 endpointToParse = "https://" + endpointToParse;
             }
@@ -208,8 +207,8 @@ export class S3Service {
                 hostname = "";
             }
             const isCloudflareR2 =
-                hostname === "r2.cloudflarestorage.com"
-                || hostname.endsWith(".r2.cloudflarestorage.com");
+                hostname === "r2.cloudflarestorage.com" ||
+                hostname.endsWith(".r2.cloudflarestorage.com");
 
             if (isCloudflareR2) {
                 // Check if the specific bucket exists
