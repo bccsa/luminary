@@ -52,6 +52,24 @@ const isBucketSelected = computed(() => {
     return !!parent.value?.imageBucketId;
 });
 
+// Whether there are images already present or staged for upload
+const hasImages = computed(() => {
+    const imgData = parent.value?.imageData;
+    if (!imgData) return false;
+
+    // Existing saved file collections
+    if (Array.isArray(imgData.fileCollections) && imgData.fileCollections.length > 0) {
+        return true;
+    }
+
+    // Upload data may be an array (files staged for upload) or an object with keys
+    const ud = imgData.uploadData;
+    if (Array.isArray(ud) && ud.length > 0) return true;
+    if (ud && typeof ud === "object" && Object.keys(ud).length > 0) return true;
+
+    return false;
+});
+
 // Get the selected bucket's fileTypes for the accept attribute
 const acceptedFileTypes = computed(() => {
     if (!parent.value?.imageBucketId) {
