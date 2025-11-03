@@ -54,12 +54,18 @@ export class StorageController {
             const bucket = bucketResult.docs[0];
 
             // Get credentials - either embedded or from encrypted storage
-            let credentials: { endpoint: string; accessKey: string; secretKey: string };
+            let credentials: {
+                endpoint: string;
+                bucketName: string;
+                accessKey: string;
+                secretKey: string;
+            };
 
             if (bucket.credential) {
                 // Embedded credentials (legacy or new buckets)
                 credentials = {
                     endpoint: bucket.credential.endpoint,
+                    bucketName: bucket.credential.bucketName,
                     accessKey: bucket.credential.accessKey,
                     secretKey: bucket.credential.secretKey,
                 };
@@ -75,11 +81,13 @@ export class StorageController {
                 }
 
                 const encryptedStorage = encryptedStorageResult.docs[0];
+                const decryptedBucketName = await decrypt(encryptedStorage.data.bucketName);
                 const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
                 const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
 
                 credentials = {
                     endpoint: encryptedStorage.data.endpoint,
+                    bucketName: decryptedBucketName,
                     accessKey: decryptedAccessKey,
                     secretKey: decryptedSecretKey,
                 };
