@@ -649,6 +649,116 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("correctly creates a duplicate of a document and all its translations", async () => {
+        const notificationStore = useNotificationStore();
+        const mockNotification = vi.spyOn(notificationStore, "addNotification");
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            // Duplicate button click is not triggered outside the waitForExpect()
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+
+        await confirmBtn!.trigger("click");
+
+        await waitForExpect(() => {
+            expect(mockNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: "Successfully duplicated",
+                }),
+            );
+        });
+
+        //@ts-expect-error
+        const newParentId = wrapper.vm.editableParent._id;
+        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+
+        await wrapper.setProps({ id: newParentId });
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
+
+        await wrapper.find("[data-test='save-button']").trigger("click");
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
+            expect(res.length).toBeGreaterThan(0);
+        });
+    });
+
+    it("does not create a redirect when duplicating a document", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        // Ensure base content loaded
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        // Trigger duplicate (if dirty modal appears, handle it; otherwise duplicate directly)
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        // Ensure clean state so duplicate runs without modal OR handle modal confirmation
+        await duplicateBtn!.trigger("click");
+
+        // If the confirmation modal appears (isDirty true path), confirm it
+        const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+        if (confirmBtn.exists()) {
+            await confirmBtn.trigger("click");
+        }
+
+        // Capture new parent id
+        //@ts-expect-error accessing vm internals for test
+        const newParentId = wrapper.vm.editableParent._id;
+        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+
+        // Update component prop to point to new duplicate parent (simulate routing replace)
+        await wrapper.setProps({ id: newParentId });
+        await nextTick();
+        await nextTick(); // Sometimes two cycles needed for complex components
+
+        // Save duplicated content
+        const saveBtn = wrapper.find('[data-test="save-button"]');
+        expect(saveBtn.exists()).toBe(true);
+        await saveBtn.trigger("click");
+
+        await waitForExpect(async () => {
+            const changes = await db.localChanges.toArray();
+            const redirects = changes.filter((c) => c.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(0); // Guard should prevent redirect creation on duplication
+        });
+    });
+
     it("correctly updates text field in indexedDB from rich text editor", async () => {
         const wrapper = mount(EditContent, {
             props: {
