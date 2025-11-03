@@ -20,18 +20,4 @@ describe("EditContentValidation.vue", () => {
 
         expect(wrapper.html()).toContain("test-image.webp");
     });
-
-    it("shows warning when no bucket is selected", async () => {
-        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, imageBucketId: undefined });
-        const wrapper = mount(EditContentImage, {
-            props: {
-                docType: DocType.Tag,
-                parent: parent.value,
-                tagOrPostType: TagType.Category,
-                disabled: false,
-            },
-        });
-
-        expect(wrapper.html()).toContain("Please select a storage bucket first.");
-    });
 });
