@@ -10,6 +10,7 @@ describe("S3Service", () => {
     const testBucket = UUID();
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",
+        bucketName: testBucket,
         accessKey: "minio",
         secretKey: "minio123",
     };
@@ -72,35 +73,6 @@ describe("S3Service", () => {
     it("can check bucket connectivity", async () => {
         const result = await service.checkBucketConnectivity(testCredentials);
         expect(result.status).toBe("connected");
-    });
-
-    it("can extract bucket name from path-style URL", () => {
-        expect(service.extractBucketNameFromUrl("https://s3.cdn.bcc.africa/ac-images")).toBe(
-            "ac-images",
-        );
-        expect(service.extractBucketNameFromUrl("http://localhost:9000/images")).toBe("images");
-        expect(
-            service.extractBucketNameFromUrl("https://minio.example.com:9000/my-bucket-name"),
-        ).toBe("my-bucket-name");
-    });
-
-    it("can extract bucket name from virtual-hosted style URL", () => {
-        expect(service.extractBucketNameFromUrl("https://mybucket.s3.amazonaws.com")).toBe(
-            "mybucket",
-        );
-        expect(
-            service.extractBucketNameFromUrl("https://test-bucket.s3.us-west-2.amazonaws.com"),
-        ).toBe("test-bucket");
-    });
-
-    it("throws error for invalid URLs", () => {
-        expect(() => service.extractBucketNameFromUrl("invalid-url")).toThrow(
-            "Invalid public URL format",
-        );
-        expect(() => service.extractBucketNameFromUrl("https://example.com")).toThrow(
-            "Could not extract bucket name from URL",
-        );
-        expect(() => service.extractBucketNameFromUrl("")).toThrow("Invalid public URL format");
     });
 
     it("can list objects in a bucket", async () => {
@@ -214,6 +186,7 @@ describe("S3Service", () => {
     it("can create client with custom port and SSL settings", () => {
         const httpsClient = service.createClient({
             endpoint: "https://s3.example.com:9000",
+            bucketName: "test-bucket",
             accessKey: "test",
             secretKey: "test",
             port: 9000,
@@ -222,6 +195,7 @@ describe("S3Service", () => {
 
         const httpClient = service.createClient({
             endpoint: "http://localhost:9000",
+            bucketName: "test-bucket",
             accessKey: "test",
             secretKey: "test",
             port: 9000,
@@ -235,6 +209,7 @@ describe("S3Service", () => {
     it("returns false when checking connection with invalid credentials", async () => {
         const invalidClient = service.createClient({
             endpoint: "http://127.0.0.1:9000",
+            bucketName: testBucket,
             accessKey: "invalid",
             secretKey: "invalid",
         });
@@ -246,6 +221,7 @@ describe("S3Service", () => {
     it("returns unauthorized status for invalid credentials", async () => {
         const result = await service.checkBucketConnectivity({
             endpoint: "http://127.0.0.1:9000",
+            bucketName: testBucket,
             accessKey: "invalid",
             secretKey: "invalid",
         });
@@ -258,6 +234,7 @@ describe("S3Service", () => {
     it("returns unreachable status for invalid endpoint", async () => {
         const result = await service.checkBucketConnectivity({
             endpoint: "http://non-existent-host-12345.example.com:9000",
+            bucketName: "test-bucket",
             accessKey: "test",
             secretKey: "test",
         });
