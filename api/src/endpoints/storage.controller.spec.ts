@@ -125,6 +125,7 @@ describe("StorageController", () => {
                 _id: "cred-456",
                 data: {
                     endpoint: "http://localhost:9000",
+                    bucketName: "encryptedBucketName",
                     accessKey: "encryptedAccessKey",
                     secretKey: "encryptedSecretKey",
                 },
@@ -135,6 +136,7 @@ describe("StorageController", () => {
                 .mockResolvedValueOnce({ docs: [mockEncryptedStorage] });
 
             mockDecrypt
+                .mockResolvedValueOnce("decryptedBucketName")
                 .mockResolvedValueOnce("decryptedAccessKey")
                 .mockResolvedValueOnce("decryptedSecretKey");
 
@@ -156,12 +158,14 @@ describe("StorageController", () => {
             expect(mockGetDoc).toHaveBeenNthCalledWith(1, "bucket-123");
             expect(mockGetDoc).toHaveBeenNthCalledWith(2, "cred-456");
 
-            expect(mockDecrypt).toHaveBeenCalledTimes(2);
-            expect(mockDecrypt).toHaveBeenNthCalledWith(1, "encryptedAccessKey");
-            expect(mockDecrypt).toHaveBeenNthCalledWith(2, "encryptedSecretKey");
+            expect(mockDecrypt).toHaveBeenCalledTimes(3);
+            expect(mockDecrypt).toHaveBeenNthCalledWith(1, "encryptedBucketName");
+            expect(mockDecrypt).toHaveBeenNthCalledWith(2, "encryptedAccessKey");
+            expect(mockDecrypt).toHaveBeenNthCalledWith(3, "encryptedSecretKey");
 
             expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
                 endpoint: "http://localhost:9000",
+                bucketName: "decryptedBucketName",
                 accessKey: "decryptedAccessKey",
                 secretKey: "decryptedSecretKey",
             });
