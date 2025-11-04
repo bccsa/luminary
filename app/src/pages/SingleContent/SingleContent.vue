@@ -68,8 +68,6 @@ const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
 const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
-const availableTranslations = ref<ContentDto[]>([]);
-const languages = ref<LanguageDto[]>([]);
 
 const currentImageIndex = ref(0);
 
@@ -92,6 +90,33 @@ const { content, isLoading, isCheckingApi } = useContentLoader(
     props.slug,
     defaultContent,
     isConnected,
+);
+
+// Load available translations for the current content
+const availableTranslations = useDexieLiveQueryWithDeps(
+    [content],
+    ([content]: [ContentDto | undefined]) => {
+        if (!content || !content.parentId) return Promise.resolve([]);
+        return db.docs
+            .where("parentId")
+            .equals(content.parentId)
+            .and((doc) => doc.type === DocType.Content)
+            .toArray() as unknown as Promise<ContentDto[]>;
+    },
+    { initialValue: [] as ContentDto[] },
+);
+
+// Load language metadata for all available translations
+const languages = useDexieLiveQueryWithDeps(
+    [availableTranslations],
+    ([translations]: [ContentDto[]]) => {
+        const languageIds = translations.map((t) => t.language);
+        if (languageIds.length === 0) return Promise.resolve([]);
+        return db.docs.where("_id").anyOf(languageIds).toArray() as unknown as Promise<
+            LanguageDto[]
+        >;
+    },
+    { initialValue: [] as LanguageDto[] },
 );
 
 const tags = useDexieLiveQueryWithDeps(

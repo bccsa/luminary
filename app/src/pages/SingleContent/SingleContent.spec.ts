@@ -22,12 +22,21 @@ import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from
 import NotFoundPage from "../NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
+
+const mockUseAuth0 = vi.hoisted(() =>
+    vi.fn(() => ({
+        isAuthenticated: { value: false },
+        user: { value: undefined },
+        loginWithRedirect: vi.fn(),
+        logout: vi.fn(),
+    })),
+);
+
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -43,7 +52,10 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
-vi.mock("@auth0/auth0-vue");
+
+vi.mock("@auth0/auth0-vue", () => ({
+    useAuth0: mockUseAuth0,
+}));
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -73,10 +85,6 @@ describe("SingleContent", () => {
         ]);
 
         setActivePinia(createTestingPinia());
-
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isAuthenticated: ref(false),
-        });
     });
 
     afterEach(async () => {
@@ -452,7 +460,6 @@ describe("SingleContent", () => {
     });
 
     it("shows the notification when the content is available in the preferred language", async () => {
-        // Skip this test for now - need to debug notification logic after refactor
         await initLanguage();
 
         const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
@@ -460,8 +467,10 @@ describe("SingleContent", () => {
 
         appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
 
-        const { cmsLanguages } = await import("@/globalConfig");
+        const { cmsLanguages, appLanguageAsRef } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        // Set the preferred language to English
+        appLanguageAsRef.value = mockLanguageDtoEng;
 
         await db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);
 
@@ -487,6 +496,6 @@ describe("SingleContent", () => {
                     type: "banner",
                 }),
             );
-        }, 15000);
-    }, 15000);
+        });
+    });
 });
