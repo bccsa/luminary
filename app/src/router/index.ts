@@ -6,7 +6,7 @@ const ExplorePage = import("@/pages/ExplorePage.vue");
 const VideoPage = import("@/pages/VideoPage.vue");
 const SettingsPage = import("@/pages/SettingsPage.vue");
 const BookmarksPage = import("@/pages/BookmarksPage.vue");
-const SingleContent = import("@/pages/SingleContent.vue");
+const SingleContent = import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = import("@/pages/NotFoundPage.vue");
 
 const router = createRouter({

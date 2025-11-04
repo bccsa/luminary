@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import {
-    ApiLiveQuery,
-    type ApiSearchQuery,
     DocType,
     PostType,
     PublishStatus,
     TagType,
     db,
     isConnected,
-    useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
-    type BaseDocumentDto,
     type ContentDto,
-    type RedirectDto,
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
@@ -34,7 +29,7 @@ import {
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import RelatedContent from "../components/content/RelatedContent.vue";
+import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
@@ -55,6 +50,7 @@ import {
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import { useContentLoader } from "./helpersSingleContent";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -78,7 +74,6 @@ const languages = ref<LanguageDto[]>([]);
 const currentImageIndex = ref(0);
 
 const defaultContent: ContentDto = {
-    // set to initial content (loading state)
     _id: "",
     type: DocType.Content,
     updatedTimeUtc: 0,
@@ -92,152 +87,19 @@ const defaultContent: ContentDto = {
     parentTags: [],
 };
 
-const content = ref<ContentDto | undefined>(defaultContent);
-
-const idbContent = useDexieLiveQuery(
-    () =>
-        db.docs
-            .where("slug")
-            .equals(props.slug)
-            .toArray()
-            .then((docs) => {
-                if (!docs?.length) {
-                    // Remove redirect: Let the 404 logic handle it
-                    return undefined;
-                }
-
-                // Check if the document is a redirect
-                const redirect = docs.find((d) => d.type === DocType.Redirect) as
-                    | RedirectDto
-                    | undefined;
-
-                if (redirect && redirect.toSlug) {
-                    // If toSlug matches a route name, redirect to that route
-                    const routes = router.getRoutes();
-
-                    const targetRoute = routes.find((r) => r.name === redirect.toSlug);
-                    if (targetRoute) {
-                        router.replace({ name: redirect.toSlug });
-                    } else {
-                        // Otherwise, treat as a content slug
-                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                    }
-
-                    return undefined;
-                }
-
-                // Return the first content doc (normal case)
-                return docs.find((d) => d.type === DocType.Content) as ContentDto | undefined;
-            }),
-    { initialValue: defaultContent },
+// Use the new helper to load content
+const { content, isLoading, isCheckingApi } = useContentLoader(
+    props.slug,
+    defaultContent,
+    isConnected,
 );
-
-const unwatch = watch([idbContent, isConnected], () => {
-    if (idbContent.value) {
-        content.value = idbContent.value;
-        return;
-    }
-
-    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, set to undefined for 404
-    if (!isConnected.value) {
-        content.value = undefined;
-        return;
-    }
-
-    // Stop the watcher on the IndexedDB content and start a new one on the API content
-    unwatch();
-
-    const query = ref<ApiSearchQuery>({
-        slug: props.slug,
-    });
-
-    const apiLiveQuery = new ApiLiveQuery(query, {
-        initialValue: [defaultContent] as BaseDocumentDto[],
-    });
-    const apiContent = apiLiveQuery.toRef();
-
-    watch(apiContent, () => {
-        if (!apiContent.value) {
-            content.value = undefined;
-            return;
-        }
-        // Check if the returned content is a redirect, and redirect to the new slug
-        if (apiContent.value?.type == DocType.Redirect) {
-            const redirect = apiContent.value as unknown as RedirectDto;
-            if (redirect.toSlug) {
-                router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                return;
-            }
-            // Remove redirect: Set to undefined for 404
-            content.value = undefined;
-            return;
-        }
-
-        // If the content is not a redirect, set it to the content ref
-        content.value = apiContent.value as ContentDto;
-    });
-});
-
-// Load available languages from IndexedDB immediately (even when online)
-watch([content, isConnected], async () => {
-    if (!content.value) return;
-
-    const [availableContentTranslations, availableLanguages] = await Promise.all([
-        db.docs.where("parentId").equals(content.value.parentId).toArray(),
-        db.docs.where("type").equals(DocType.Language).toArray(),
-    ]);
-    if (availableContentTranslations.length > 1) {
-        availableTranslations.value = availableContentTranslations as ContentDto[];
-
-        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((translation) => translation.language === lang._id),
-        );
-    }
-
-    if (isConnected.value) {
-        // If online, do API call to get list of available languages and update dropdown
-        const languageQuery = ref<ApiSearchQuery>({
-            types: [DocType.Language],
-        });
-
-        const contentQuery = ref<ApiSearchQuery>({
-            types: [DocType.Content],
-            parentId: content.value.parentId,
-        });
-
-        const contentLiveQuery = new ApiLiveQuery(contentQuery);
-        const apiLanguageLiveQuery = new ApiLiveQuery(languageQuery);
-
-        const contentResults = contentLiveQuery.toArrayAsRef();
-        const apiLanguage = apiLanguageLiveQuery.toArrayAsRef();
-
-        watch([contentResults, apiLanguage], () => {
-            if (contentResults.value && contentResults.value.length > 1) {
-                availableTranslations.value = (contentResults.value as ContentDto[]).filter(
-                    (c) => c.status === PublishStatus.Published,
-                );
-            }
-
-            if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
-                const apiLanguages = apiLanguage.value as LanguageDto[];
-
-                // Keep only languages that have a translation
-                languages.value = apiLanguages.filter((lang) =>
-                    availableTranslations.value.some(
-                        (translation) => translation.language === lang._id,
-                    ),
-                );
-            }
-        });
-    }
-});
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
     ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
-            .anyOf((content?.parentTags || []).concat([content?.parentId || ""])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
+            .anyOf((content?.parentTags || []).concat([content?.parentId || ""]))
             .filter((t) => {
                 const tag = t as ContentDto;
                 if (tag.parentType != DocType.Tag) return false;
@@ -250,18 +112,17 @@ const tags = useDexieLiveQueryWithDeps(
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
-// If connected, we are waiting for data to load from the API, unless found in IndexedDB
-const isLoading = ref(isConnected.value);
 const is404 = ref(false);
 
 const check404 = () => {
-    if (isLoading.value) return false; // Don't show 404 during loading
+    // Don't show 404 while loading or checking API
+    if (isLoading.value || isCheckingApi.value) return false;
     return (
         !content.value || !isPublished(content.value, content.value ? [content.value.language] : [])
     );
 };
 
-watch(content, () => {
+watch([content, isLoading, isCheckingApi], () => {
     is404.value = check404();
 });
 
@@ -301,25 +162,22 @@ const isBookmarked = computed(() => {
 
 // Set document title and meta tags
 watch([content, is404], () => {
-    if (content.value) {
-        isLoading.value = false; // Content is loaded
+    // Only update title when we have definitive content state (not loading placeholder)
+    if (content.value && content.value._id !== "") {
+        document.title = is404.value
+            ? `Page not found - ${appName}`
+            : `${content.value?.seoTitle ? content.value.seoTitle : content.value?.title} - ${appName}`;
     }
-
-    document.title = is404.value
-        ? `Page not found - ${appName}`
-        : `${content.value?.seoTitle ? content.value.seoTitle : content.value?.title} - ${appName}`;
 
     if (is404.value) return;
 
     // SEO meta tag settings
     let metaTag = document.querySelector("meta[name='description']");
     if (!metaTag) {
-        // If the meta tag doesn't exist, create it
         metaTag = document.createElement("meta");
         metaTag.setAttribute("name", "description");
         document.head.appendChild(metaTag);
     }
-    // Update the content attribute
     metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
 });
 
