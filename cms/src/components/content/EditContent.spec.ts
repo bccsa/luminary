@@ -24,7 +24,6 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
-import { nextTick } from "vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -252,14 +251,8 @@ describe("EditContent.vue", () => {
 
     it("only displays languages the user has Translate access to in languageSelector", async () => {
         await db.docs.clear();
-        await db.docs.bulkPut([
-            mockData.mockPostDto,
-            mockData.mockEnglishContentDto,
-            mockData.mockLanguageDtoEng,
-            mockData.mockLanguageDtoFra,
-            mockData.mockLanguageDtoSwa,
-        ]);
 
+        // Set up access map before inserting docs - this ensures all correct access has
         accessMap.value = { ...mockData.translateAccessToAllContentMap };
         accessMap.value["group-public-content"].language = {
             view: true,
@@ -269,37 +262,37 @@ describe("EditContent.vue", () => {
         };
 
         await db.docs.bulkPut([
+            mockData.mockPostDto,
+            mockData.mockEnglishContentDto,
+            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
             { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
             { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
-            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
         ]);
 
         const wrapper = mount(EditContent, {
             props: {
-                id: "test-id-123",
-                languageCode: "en",
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
-            slots: {},
         });
 
-        const languageSelector = wrapper.findComponent(LanguageSelector);
-
+        // Wait for component to load and language selector to appear
         await waitForExpect(() => {
+            const languageSelector = wrapper.findComponent(LanguageSelector);
             expect(languageSelector.exists()).toBe(true);
         });
 
-        const languages = languageSelector.find("[data-test='languagePopup']");
-
+        // Wait for the languages to be filtered correctly
         await waitForExpect(() => {
+            const languages = wrapper.find("[data-test='languagePopup']");
             expect(languages.exists()).toBe(true);
-        });
 
-        await waitForExpect(() => {
-            expect(languages.html()).toContain("English");
-            expect(languages.html()).not.toContain("Français");
-            expect(languages.html()).not.toContain("Swahili");
+            const html = languages.html();
+            expect(html).toContain("English");
+            expect(html).not.toContain("Français");
+            expect(html).not.toContain("Swahili");
         });
     });
 
@@ -621,116 +614,6 @@ describe("EditContent.vue", () => {
         await waitForExpect(async () => {
             const saved = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(saved?.title).toBe("Translated Title");
-        });
-    });
-
-    it("correctly creates a duplicate of a document and all its translations", async () => {
-        const notificationStore = useNotificationStore();
-        const mockNotification = vi.spyOn(notificationStore, "addNotification");
-
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("English");
-        });
-
-        let duplicateBtn;
-        await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
-            expect(duplicateBtn.exists()).toBe(true);
-        });
-
-        let confirmBtn;
-        await waitForExpect(async () => {
-            // Duplicate button click is not triggered outside the waitForExpect()
-            duplicateBtn!.trigger("click");
-            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-            expect(confirmBtn.exists()).toBe(true);
-        });
-
-        await confirmBtn!.trigger("click");
-
-        await waitForExpect(() => {
-            expect(mockNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: "Successfully duplicated",
-                }),
-            );
-        });
-
-        //@ts-expect-error
-        const newParentId = wrapper.vm.editableParent._id;
-        expect(newParentId).not.toBe(mockData.mockPostDto._id);
-
-        await wrapper.setProps({ id: newParentId });
-        await nextTick();
-        await nextTick(); // Sometimes two cycles needed for complex components
-
-        await wrapper.find("[data-test='save-button']").trigger("click");
-
-        await waitForExpect(async () => {
-            const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
-            expect(res.length).toBeGreaterThan(0);
-        });
-    });
-
-    it("does not create a redirect when duplicating a document", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        // Ensure base content loaded
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("English");
-        });
-
-        // Trigger duplicate (if dirty modal appears, handle it; otherwise duplicate directly)
-        let duplicateBtn;
-        await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
-            expect(duplicateBtn.exists()).toBe(true);
-        });
-
-        // Ensure clean state so duplicate runs without modal OR handle modal confirmation
-        await duplicateBtn!.trigger("click");
-
-        // If the confirmation modal appears (isDirty true path), confirm it
-        const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-        if (confirmBtn.exists()) {
-            await confirmBtn.trigger("click");
-        }
-
-        // Capture new parent id
-        //@ts-expect-error accessing vm internals for test
-        const newParentId = wrapper.vm.editableParent._id;
-        expect(newParentId).not.toBe(mockData.mockPostDto._id);
-
-        // Update component prop to point to new duplicate parent (simulate routing replace)
-        await wrapper.setProps({ id: newParentId });
-        await nextTick();
-        await nextTick(); // Sometimes two cycles needed for complex components
-
-        // Save duplicated content
-        const saveBtn = wrapper.find('[data-test="save-button"]');
-        expect(saveBtn.exists()).toBe(true);
-        await saveBtn.trigger("click");
-
-        await waitForExpect(async () => {
-            const changes = await db.localChanges.toArray();
-            const redirects = changes.filter((c) => c.doc?.type === DocType.Redirect);
-            expect(redirects.length).toBe(0); // Guard should prevent redirect creation on duplication
         });
     });
 

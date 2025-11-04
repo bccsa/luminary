@@ -517,23 +517,31 @@ const duplicate = async () => {
     // Handle new data for duplicated document and keep old data
     const clonedParent = _.cloneDeep(editableParent.value);
     clonedParent._id = db.uuid();
+    delete (clonedParent as any)._rev; // avoid rev collisions
+
+    clonedParent.tags = [];
+
+    // Clear cached/tag-derived fields on Tag parents
+    if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
 
     // Remove Original Image
-    if (clonedParent.imageData) {
-        if (clonedParent.imageData.fileCollections) {
-            clonedParent.imageData.fileCollections = [];
-        }
-    }
+    if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
 
     // Duplicate all content documents and make them unique
     const clonedContent = editableContent.value.map((c) => {
         const newContent = _.cloneDeep(c);
         newContent._id = db.uuid();
+        delete (newContent as any)._rev;
         newContent.updatedTimeUtc = Date.now();
         newContent.title += " (Copy)";
         newContent.slug += "-copy";
         newContent.parentId = clonedParent._id;
+        newContent.parentType = editableParent.value.type;
         newContent.status = PublishStatus.Draft;
+
+        // Reset tag-related cached fields on content
+        newContent.parentTags = [];
+        newContent.parentTaggedDocs = [];
 
         return newContent;
     });
@@ -541,8 +549,6 @@ const duplicate = async () => {
     editableParent.value = clonedParent;
     editableContent.value = clonedContent;
 
-    // Don't route in test environment so component isn't remounted and loses data integrity
-    // for relevant tests
     if (import.meta.env.MODE !== "test") {
         await router.replace({
             name: "edit",
