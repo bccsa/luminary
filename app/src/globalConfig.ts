@@ -186,6 +186,20 @@ export const initLanguage = () => {
     });
 };
 
+watch(
+    appLanguageIdsAsRef,
+    () => {
+        const highestPriorityId = appLanguageIdsAsRef.value[0];
+        if (!highestPriorityId) return;
+
+        const lang = cmsLanguages.value.find((l) => l._id === highestPriorityId);
+        if (lang && !isEqual(toRaw(appLanguageAsRef.value), toRaw(lang))) {
+            appLanguageAsRef.value = lang;
+        }
+    },
+    { deep: true },
+);
+
 export type mediaProgressEntry = {
     mediaId: string;
     contentId: Uuid;

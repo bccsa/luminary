@@ -16,7 +16,7 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, watch, type Ref } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -49,9 +49,10 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import {
-    markLanguageSwitch,
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
+    handleLanguageChange,
+    markLanguageSwitch,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
@@ -178,8 +179,22 @@ const unwatch = watch([idbContent, isConnected], () => {
 });
 
 // Load available languages from IndexedDB immediately (even when online)
+const currentParentId = ref<string>("");
+
 watch([content, isConnected], async () => {
     if (!content.value) return;
+
+    // Only reload translations if we're viewing a different parent content
+    // This prevents flash when switching between translations of the same content
+    if (
+        currentParentId.value === content.value.parentId &&
+        availableTranslations.value.length > 0
+    ) {
+        return;
+    }
+
+    currentParentId.value = content.value.parentId;
+    isLoadingTranslations.value = true;
 
     const [availableContentTranslations, availableLanguages] = await Promise.all([
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
@@ -193,8 +208,12 @@ watch([content, isConnected], async () => {
         );
     }
 
+    isLoadingTranslations.value = false;
+
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
+        isLoadingTranslations.value = true;
+
         const languageQuery = ref<ApiSearchQuery>({
             types: [DocType.Language],
         });
@@ -227,6 +246,9 @@ watch([content, isConnected], async () => {
                     ),
                 );
             }
+
+            // Mark translations as loaded once we have data from the API
+            isLoadingTranslations.value = false;
         });
     }
 });
@@ -251,6 +273,7 @@ const selectedCategoryId = ref<Uuid | undefined>();
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
 const isLoading = ref(isConnected.value);
+const isLoadingTranslations = ref(false);
 const is404 = ref(false);
 
 const check404 = () => {
@@ -359,25 +382,71 @@ const langToForce = queryParams.get("langId");
  * When `content` is updated, it sets the `selectedLanguageId`
  * to the `language` property of the new `content` value, if available.
  */
-watch(content, () => {
-    selectedLanguageId.value = content.value?.language;
-});
+const hasAutoNavigated = ref(false);
+const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
+
+watch(
+    () => [content.value, appLanguagePreferredIdAsRef.value],
+    ([newContent, preferredId]) => {
+        if (!newContent) return;
+
+        // Check if user actively changed their preferred language (via LanguageModal)
+        const preferredLanguageChanged = previousPreferredId.value !== preferredId;
+        previousPreferredId.value = preferredId as string;
+
+        // If user changed preferred language and a translation exists, switch to it smoothly
+        if (preferredLanguageChanged && hasAutoNavigated.value) {
+            const preferredTranslation = availableTranslations.value.find(
+                (t) => t.language === preferredId,
+            );
+
+            if (
+                preferredTranslation &&
+                preferredTranslation.slug !== (newContent as ContentDto).slug
+            ) {
+                // Update content directly (no navigation) - same as quick selector
+                content.value = preferredTranslation;
+
+                // Update the URL in the browser without triggering navigation
+                const newUrl = router.resolve({
+                    name: "content",
+                    params: { slug: preferredTranslation.slug },
+                }).href;
+                window.history.replaceState(window.history.state, "", newUrl);
+
+                selectedLanguageId.value = preferredTranslation.language;
+                return;
+            }
+        }
+
+        // Only auto-navigate once on initial load, not when user changes preferences via LanguageModal
+        if (!hasAutoNavigated.value) {
+            hasAutoNavigated.value = true;
+
+            // On page load: if preferred language exists and has translation → switch to it
+            const preferredTranslation = availableTranslations.value.find(
+                (t) => t.language === preferredId,
+            );
+
+            if (
+                preferredTranslation &&
+                preferredTranslation.slug !== (newContent as ContentDto).slug
+            ) {
+                // Navigate to preferred version
+                router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
+                return;
+            }
+        }
+
+        // Otherwise, sync dropdown to current content's language
+        selectedLanguageId.value = (newContent as ContentDto).language;
+    },
+    { immediate: true },
+);
 
 const hasConsumedLangSwitch = ref(false);
 
 // Change language
-const onLanguageSelect = (languageId: Uuid) => {
-    markLanguageSwitch(); // reactive version without argument
-    selectedLanguageId.value = languageId;
-
-    // Prevent route change by not replacing the slug
-    const preferred = availableTranslations.value.find((c) => c.language === languageId);
-
-    if (preferred && preferred.slug !== content.value?.slug) {
-        // Update content without triggering a route change
-        content.value = preferred;
-    }
-};
 
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
@@ -385,12 +454,12 @@ watch(
         if (!selectedLanguageId.value || !content.value) return;
 
         if (langToForce && selectedLanguageId.value !== langToForce) {
-            // If lang query param is set, force that language if available
-            const translation = availableTranslations.value.find((c) => c.language === langToForce);
-            if (translation) {
-                selectedLanguageId.value = langToForce;
-                content.value = translation;
-            }
+            handleLanguageChange({
+                previousLanguage: selectedLanguageId.value,
+                languageId: langToForce,
+                availableTranslations: availableTranslations.value,
+                content: content as unknown as Ref<ContentDto>,
+            });
             return;
         }
 
@@ -398,9 +467,18 @@ watch(
             (c) => c.language === selectedLanguageId.value,
         );
 
-        // Route only if different slug
+        // Update content and URL if different slug
         if (preferred && preferred.slug !== content.value.slug) {
-            router.replace({ name: "content", params: { slug: preferred.slug } });
+            // Update the content directly (no navigation)
+            content.value = preferred;
+
+            // Update the URL in the browser without triggering navigation
+            const newUrl = router.resolve({
+                name: "content",
+                params: { slug: preferred.slug },
+            }).href;
+            window.history.replaceState(window.history.state, "", newUrl);
+
             return;
         }
 
@@ -479,6 +557,28 @@ const selectedLanguageCode = computed(() => {
     const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
     return selectedLang?.languageCode || null;
 });
+
+// watch content to keep selectedLanguageId in sync
+watch(
+    content,
+    (newContent) => {
+        if (!newContent) return;
+        // Only update if different
+        if (selectedLanguageId.value !== newContent.language) {
+            selectedLanguageId.value = newContent.language;
+        }
+    },
+    { immediate: true },
+);
+
+const quickLanguageSwitch = (languageId: string) => {
+    // Mark that this is a user-initiated language switch
+    markLanguageSwitch();
+
+    // Update the selected language - the watch will handle navigation
+    selectedLanguageId.value = languageId;
+    showDropdown.value = false;
+};
 </script>
 
 <template>
@@ -486,7 +586,9 @@ const selectedLanguageCode = computed(() => {
         <template #quickControls v-if="!is404">
             <div class="relative w-auto">
                 <button
-                    v-show="availableTranslations.length > 1"
+                    v-show="
+                        !isLoading && !isLoadingTranslations && availableTranslations.length > 1
+                    "
                     name="translationSelector"
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
@@ -514,10 +616,7 @@ const selectedLanguageCode = computed(() => {
                     <div
                         v-for="language in languages"
                         :key="language._id"
-                        @click="
-                            onLanguageSelect(language._id);
-                            showDropdown = false;
-                        "
+                        @click="quickLanguageSwitch(language._id)"
                         class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
                         data-test="translationOption"
                     >
