@@ -451,7 +451,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it.skip("shows the notification when the content is available in the preferred language", async () => {
+    it("shows the notification when the content is available in the preferred language", async () => {
         // Skip this test for now - need to debug notification logic after refactor
         await initLanguage();
 
