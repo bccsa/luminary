@@ -252,14 +252,8 @@ describe("EditContent.vue", () => {
 
     it("only displays languages the user has Translate access to in languageSelector", async () => {
         await db.docs.clear();
-        await db.docs.bulkPut([
-            mockData.mockPostDto,
-            mockData.mockEnglishContentDto,
-            mockData.mockLanguageDtoEng,
-            mockData.mockLanguageDtoFra,
-            mockData.mockLanguageDtoSwa,
-        ]);
 
+        // Set up access map before inserting docs - this ensures all correct access has been given
         accessMap.value = { ...mockData.translateAccessToAllContentMap };
         accessMap.value["group-public-content"].language = {
             view: true,
@@ -269,37 +263,37 @@ describe("EditContent.vue", () => {
         };
 
         await db.docs.bulkPut([
+            mockData.mockPostDto,
+            mockData.mockEnglishContentDto,
+            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
             { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
             { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
-            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
         ]);
 
         const wrapper = mount(EditContent, {
             props: {
-                id: "test-id-123",
-                languageCode: "en",
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
-            slots: {},
         });
 
-        const languageSelector = wrapper.findComponent(LanguageSelector);
-
+        // Wait for component to load and language selector to appear
         await waitForExpect(() => {
+            const languageSelector = wrapper.findComponent(LanguageSelector);
             expect(languageSelector.exists()).toBe(true);
         });
 
-        const languages = languageSelector.find("[data-test='languagePopup']");
-
+        // Wait for the languages to be filtered correctly
         await waitForExpect(() => {
+            const languages = wrapper.find("[data-test='languagePopup']");
             expect(languages.exists()).toBe(true);
-        });
 
-        await waitForExpect(() => {
-            expect(languages.html()).toContain("English");
-            expect(languages.html()).not.toContain("Français");
-            expect(languages.html()).not.toContain("Swahili");
+            const html = languages.html();
+            expect(html).toContain("English");
+            expect(html).not.toContain("Français");
+            expect(html).not.toContain("Swahili");
         });
     });
 
@@ -949,6 +943,83 @@ describe("EditContent.vue", () => {
                 const deletebutton = wrapper.find('[data-test="delete-button"]');
                 expect(deletebutton.exists()).toBe(false);
             });
+        });
+    });
+
+    it("resets tag-related fields when duplicating a document", async () => {
+        // Seed parent with tags and content with cached tag fields
+        await db.docs.put({
+            ...mockData.mockPostDto,
+            tags: ["tag-category2", "tag-topicA"],
+        } as any);
+
+        await db.docs.bulkPut([
+            {
+                ...mockData.mockEnglishContentDto,
+                parentTags: ["old-parent-tag"],
+                parentTaggedDocs: ["old-parent-doc-id"],
+            } as any,
+            {
+                ...mockData.mockFrenchContentDto,
+                parentTags: ["old-parent-tag"],
+                parentTaggedDocs: ["old-parent-doc-id"],
+            } as any,
+            {
+                ...mockData.mockSwahiliContentDto,
+                parentTags: ["old-parent-tag"],
+                parentTaggedDocs: ["old-parent-doc-id"],
+            } as any,
+        ]);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        // Ensure it loaded
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        // Trigger duplicate and confirm modal if present
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+        await duplicateBtn!.trigger("click");
+
+        const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+        if (confirmBtn.exists()) {
+            await confirmBtn.trigger("click");
+        }
+
+        // Access duplicated parent/content from component instance
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // New parent id must differ
+        const newParentId = vm.editableParent._id as string;
+        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+
+        // Parent tags should be cleared
+        expect(Array.isArray(vm.editableParent.tags)).toBe(true);
+        expect(vm.editableParent.tags).toEqual([]);
+
+        // All duplicated content should have tag caches cleared
+        expect(Array.isArray(vm.editableContent)).toBe(true);
+        vm.editableContent.forEach((c: any) => {
+            expect(c.parentId).toBe(newParentId);
+            expect(Array.isArray(c.parentTags)).toBe(true);
+            expect(c.parentTags).toEqual([]);
+            expect(Array.isArray(c.parentTaggedDocs)).toBe(true);
+            expect(c.parentTaggedDocs).toEqual([]);
+            // Ensure no stray tags field on content clones
+            expect("tags" in c).toBe(false);
         });
     });
 });
