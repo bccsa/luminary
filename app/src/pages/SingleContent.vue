@@ -169,7 +169,6 @@ const unwatch = watch([idbContent, isConnected], () => {
                 router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 return;
             }
-            router.replace("/");
             return;
         }
 
