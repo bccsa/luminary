@@ -212,7 +212,7 @@ setTimeout(() => {
     );
 }, 2000);
 
-const shouldHidePrivacyPolicy = import.meta.env.VITE_SHOULD_HIDE_PRIVACY_POLICY === "true";
+const shouldHidePrivacyPolicy = import.meta.env.VITE_HIDE_PRIVACY_POLICY === "true";
 </script>
 
 <template>
