@@ -40,6 +40,14 @@ vi.mock("vue-router", async (importOriginal) => {
             }),
             replace: routeReplaceMock,
             back: vi.fn(),
+            resolve: vi.fn().mockImplementation((to: any) => {
+                if (typeof to === "string") return { href: to } as any;
+                const name = to?.name ?? "";
+                const slug = to?.params?.slug ? `/${to.params.slug}` : "";
+                // Simulate a resolved href
+                return { href: `/${name}${slug}` } as any;
+            }),
+            getRoutes: vi.fn().mockReturnValue([]),
         })),
     };
 });
@@ -56,6 +64,9 @@ describe("SingleContent", () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
+
+        // Ensure router mock is clean for each test
+        routeReplaceMock.mockClear();
 
         appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
 
@@ -266,6 +277,34 @@ describe("SingleContent", () => {
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
+
+    it("does not redirect to the homepage '/' when no content is found", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: "non-existent-slug",
+            },
+        });
+
+        // Wait for 404 state to render
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+        });
+
+        // Ensure no redirect attempts to "/" or a home-like route
+        expect(routeReplaceMock).not.toHaveBeenCalledWith("/");
+        expect(
+            routeReplaceMock.mock.calls.some((args) => {
+                const firstArg = args?.[0];
+                return (
+                    firstArg === "/" ||
+                    (typeof firstArg === "object" &&
+                        firstArg?.name &&
+                        /home|index/i.test(firstArg.name))
+                );
+            }),
+        ).toBe(false);
+    });
     // TODO: Add test to check if the notification is shown when the content is available in the preferred language
 
     it("sets the meta data correctly", async () => {
@@ -387,17 +426,30 @@ describe("SingleContent", () => {
                 slug: mockEnglishContentDto.slug,
             },
         });
+
+        // Wait until initial content is rendered
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
 
+        // Open the language dropdown
         const translationSelector = wrapper.find("[data-test='translationSelector']");
-
         await translationSelector.trigger("click");
 
-        await waitForExpect(async () => {
-            await wrapper.findAll("[data-test='translationOption']")[1].trigger("click");
+        // Wait for options to render (must have at least 2)
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[data-test='translationOption']").length).toBeGreaterThan(1);
+        });
 
+        // Choose the French option explicitly if present, otherwise pick the second option
+        const options = wrapper.findAll("[data-test='translationOption']");
+        const frenchOption =
+            options.find((o) => o.text().includes(mockLanguageDtoFra.name)) || options[1];
+
+        await frenchOption.trigger("click");
+
+        // Expect French content to be shown
+        await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
         });
     });
