@@ -103,7 +103,6 @@ const idbContent = useDexieLiveQuery(
             .toArray()
             .then((docs) => {
                 if (!docs?.length) {
-                    router.replace("/");
                     return undefined;
                 }
 
@@ -169,7 +168,6 @@ const unwatch = watch([idbContent, isConnected], () => {
                 router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 return;
             }
-            router.replace("/");
             return;
         }
 
