@@ -103,7 +103,6 @@ const idbContent = useDexieLiveQuery(
             .toArray()
             .then((docs) => {
                 if (!docs?.length) {
-                    router.replace("/");
                     return undefined;
                 }
 
