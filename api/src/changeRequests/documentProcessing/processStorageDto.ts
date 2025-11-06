@@ -62,16 +62,7 @@ export default async function processStorageDto(
         );
     }
 
-    // Create the physical S3 bucket ONLY for new buckets (when _prevDoc is undefined)
-    // For updates, skip bucket creation since the bucket already exists
-    // NOTE: Physical bucket management has been removed - buckets are assumed to exist
-    const isNewBucket = !_prevDoc;
-
-    if (isNewBucket) {
-        // No physical bucket creation - buckets are managed outside the CMS
-    }
-
-    // Only after physical bucket is created successfully, encrypt and save credentials
+    // Process new embedded credentials if provided
     if (doc.credential && !doc.credential_id) {
         try {
             // Encrypt the credentials
