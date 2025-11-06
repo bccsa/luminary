@@ -21,6 +21,9 @@ export type FileTypeValidation = {
 
 export type ConnectionStatus = "connected" | "error" | "testing" | "unknown";
 
+/**
+ * S3 Bucket with connection status
+ */
 export type S3BucketWithStatus = StorageDto & {
     connectionStatus: ConnectionStatus;
 };
