@@ -1,5 +1,5 @@
 import { ref, computed, watch } from "vue";
-import type { S3BucketDto } from "../types";
+import type { StorageDto } from "../types";
 import { BucketStatus } from "../types/enum";
 import { config } from "../config";
 
@@ -8,20 +8,20 @@ export type BucketStatusInfo = {
     statusMessage?: string;
 };
 
-export type BucketWithStatus = S3BucketDto & BucketStatusInfo;
+export type BucketWithStatus = StorageDto & BucketStatusInfo;
 
 /**
  * Reactive composable for checking bucket connectivity status
  * This function makes API calls to check bucket status and maintains reactive state
  */
-export function useBucketStatus(buckets: { value: S3BucketDto[] }) {
+export function useBucketStatus(buckets: { value: StorageDto[] }) {
     // Map to store bucket status by bucket ID
     const statusMap = ref(new Map<string, BucketStatusInfo>());
 
     /**
      * Fetch the status of a single bucket from the API
      */
-    async function fetchBucketStatus(bucket: S3BucketDto): Promise<void> {
+    async function fetchBucketStatus(bucket: StorageDto): Promise<void> {
         // Default when no credentials
         if (!bucket.credential && !bucket.credential_id) {
             statusMap.value.set(bucket._id as string, {
