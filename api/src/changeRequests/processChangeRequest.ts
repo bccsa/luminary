@@ -7,7 +7,7 @@ import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { ContentDto } from "../dto/ContentDto";
 import { LanguageDto } from "../dto/LanguageDto";
-import { S3BucketDto } from "../dto/S3BucketDto";
+import { StorageDto } from "../dto/StorageDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
@@ -53,7 +53,7 @@ export async function processChangeRequest(
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3),
         [DocType.Content]: () => processContentDto(doc as ContentDto, db),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
-        [DocType.Storage]: () => processStorageDto(doc as S3BucketDto, prevDoc as S3BucketDto, db),
+        [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
     };
 
     if (docProcessMap[doc.type]) {
