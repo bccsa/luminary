@@ -87,8 +87,7 @@ const toggleOpen = (item: NavigationEntry) => {
 
 <template>
     <div
-        @scroll.stop
-        class="flex max-h-screen grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
+        class="flex max-h-screen grow flex-col gap-y-5 border-r border-zinc-200 bg-zinc-100 px-6 pt-2"
     >
         <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2">
             <img class="h-8" :src="logo" :alt="appName" />
@@ -99,79 +98,75 @@ const toggleOpen = (item: NavigationEntry) => {
                 DEV
             </span>
         </div>
-        <nav class="flex flex-1 flex-col">
-            <ul role="list" class="flex flex-1 flex-col justify-between gap-y-7">
-                <li>
-                    <ul role="list" class="-mx-2 space-y-1">
-                        <li v-for="item in navigation" :key="item.name">
-                            <RouterLink
-                                v-if="item.visible && !item.children && item.to"
-                                :to="item.to"
-                                active-class="bg-zinc-200 text-zinc-950"
-                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
-                                v-slot="{ isActive }"
-                                @click="$emit('close')"
-                            >
-                                <component
-                                    :is="item.icon"
-                                    :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
-                                    class="h-6 w-6 shrink-0"
-                                    aria-hidden="true"
-                                />
-                                {{ item.name }}
-                            </RouterLink>
-                            <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
+        <nav class="flex flex-1 flex-col overflow-y-auto">
+            <ul role="list" class="space-y-1">
+                <li v-for="item in navigation" :key="item.name">
+                    <RouterLink
+                        v-if="item.visible && !item.children && item.to"
+                        :to="item.to"
+                        active-class="bg-zinc-200 text-zinc-950"
+                        class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
+                        v-slot="{ isActive }"
+                        @click="$emit('close')"
+                    >
+                        <component
+                            :is="item.icon"
+                            :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
+                            class="h-6 w-6 shrink-0"
+                            aria-hidden="true"
+                        />
+                        {{ item.name }}
+                    </RouterLink>
+                    <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
+                        <DisclosureButton
+                            :class="[
+                                'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
+                            ]"
+                            @click="toggleOpen(item)"
+                        >
+                            <component
+                                :is="item.icon"
+                                class="h-6 w-6 shrink-0 text-zinc-600"
+                                aria-hidden="true"
+                            />
+                            {{ item.name }}
+                            <ChevronRightIcon
+                                :class="[
+                                    open || item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                    'ml-auto h-5 w-5 shrink-0',
+                                ]"
+                                aria-hidden="true"
+                            />
+                        </DisclosureButton>
+                        <DisclosurePanel
+                            as="ul"
+                            class="mt-1 space-y-1 px-2"
+                            static
+                            v-show="item.open"
+                        >
+                            <li v-for="subItem in item.children" :key="subItem.name">
                                 <DisclosureButton
-                                    :class="[
-                                        'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
-                                    ]"
-                                    @click="toggleOpen(item)"
+                                    :as="RouterLink"
+                                    :to="subItem.to"
+                                    active-class="bg-zinc-200 text-zinc-900"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
+                                    @click="$emit('close')"
                                 >
-                                    <component
-                                        :is="item.icon"
-                                        class="h-6 w-6 shrink-0 text-zinc-600"
-                                        aria-hidden="true"
-                                    />
-                                    {{ item.name }}
-                                    <ChevronRightIcon
-                                        :class="[
-                                            open || item.open
-                                                ? 'rotate-90 text-zinc-500'
-                                                : 'text-zinc-400',
-                                            'ml-auto h-5 w-5 shrink-0',
-                                        ]"
-                                        aria-hidden="true"
-                                    />
+                                    {{ subItem.name }}
                                 </DisclosureButton>
-                                <DisclosurePanel
-                                    as="ul"
-                                    class="mt-1 space-y-1 px-2"
-                                    static
-                                    v-show="item.open"
-                                >
-                                    <li v-for="subItem in item.children" :key="subItem.name">
-                                        <DisclosureButton
-                                            :as="RouterLink"
-                                            :to="subItem.to"
-                                            active-class="bg-zinc-200 text-zinc-900"
-                                            class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
-                                            @click="$emit('close')"
-                                        >
-                                            {{ subItem.name }}
-                                        </DisclosureButton>
-                                    </li>
-                                </DisclosurePanel>
-                            </Disclosure>
-                        </li>
-                    </ul>
-                </li>
-                <li class="flex w-full flex-col justify-between gap-2 rounded-md p-1">
-                    <OnlineIndicator />
-                    <div class="flex w-full items-center">
-                        <ProfileMenu />
-                    </div>
+                            </li>
+                        </DisclosurePanel>
+                    </Disclosure>
                 </li>
             </ul>
         </nav>
+        <ul class="shrink-0">
+            <li class="flex w-full flex-col justify-between gap-2 rounded-md p-1 pb-2">
+                <OnlineIndicator />
+                <div class="flex w-full items-center">
+                    <ProfileMenu />
+                </div>
+            </li>
+        </ul>
     </div>
 </template>
