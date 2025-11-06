@@ -85,17 +85,9 @@ describe("processStorageDto", () => {
 
         const warnings = await processStorageDto(doc, undefined, db);
 
-        // Should handle gracefully with warning, not throw error
-        expect(
-            warnings.some((w) =>
-                w.includes("Both embedded credentials and credential_id provided"),
-            ),
-        ).toBe(true);
-        expect(
-            warnings.some((w) =>
-                w.includes("Using embedded credentials and removing credential_id reference"),
-            ),
-        ).toBe(true);
+        expect(warnings).toContain(
+            "The previous credentials will be deleted and replaced with new ones.",
+        );
 
         // After processing, credential_id should be set to new value (from processing embedded credential)
         // and credential should be removed
