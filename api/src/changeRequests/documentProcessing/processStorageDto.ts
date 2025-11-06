@@ -55,9 +55,7 @@ export default async function processStorageDto(
 
     // Validate that we have credentials
     if (!doc.credential && !doc.credential_id) {
-        throw new Error(
-            "S3 bucket must have either embedded credentials or a credential_id reference",
-        );
+        throw new Error("Missing S3 bucket credentials");
     }
 
     // Process new embedded credentials if provided
