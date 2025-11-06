@@ -7,48 +7,66 @@ import { initLanguage } from "@/globalConfig";
 
 export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Mock setup functions
-export const setupAuth0Mock = () => {
-    vi.mock("@auth0/auth0-vue", async (importOriginal) => {
-        const actual = await importOriginal();
-        return {
-            ...(actual as any),
-            useAuth0: () => ({
-                user: { name: "Test User", email: "test@example.com" },
-                logout: vi.fn(),
-                loginWithRedirect: vi.fn(),
-                isAuthenticated: true,
-                isLoading: false,
-            }),
-            authGuard: vi.fn(),
-        };
-    });
-};
+// Set up mocks at module level (must be executed before tests run)
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useAuth0: () => ({
+            user: { name: "Test User", email: "test@example.com" },
+            logout: vi.fn(),
+            loginWithRedirect: vi.fn(),
+            isAuthenticated: true,
+            isLoading: false,
+        }),
+        authGuard: vi.fn(),
+    };
+});
 
-export const setupRouterMock = () => {
-    vi.mock("vue-router", async (importOriginal) => {
-        const actual = await importOriginal();
-        return {
-            // @ts-expect-error
-            ...actual,
-            useRouter: () => ({
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: () => ({
+            push: vi.fn(),
+            replace: vi.fn(),
+            back: vi.fn(),
+            currentRoute: {
+                value: {
+                    name: "edit",
+                    params: {
+                        languageCode: "eng",
+                    },
+                },
+            },
+        }),
+        onBeforeRouteLeave: vi.fn(),
+    };
+});
+
+// @ts-expect-error
+window.scrollTo = vi.fn();
+
+export const getDefaultMountOptions = () => ({
+    global: {
+        mocks: {
+            $router: {
+                push: vi.fn(),
+                replace: vi.fn(),
+                back: vi.fn(),
                 currentRoute: {
                     value: {
+                        name: "edit",
                         params: {
                             languageCode: "eng",
                         },
                     },
                 },
-            }),
-            onBeforeRouteLeave: vi.fn(),
-        };
-    });
-};
-
-export const setupWindowMocks = () => {
-    // @ts-expect-error
-    window.scrollTo = vi.fn();
-};
+            },
+        },
+    },
+});
 
 export const setupTestEnvironment = async () => {
     // Set up the Pinia store before each test

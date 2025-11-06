@@ -1,4 +1,46 @@
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
+
+// Set up mocks before any imports
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useAuth0: () => ({
+            user: { name: "Test User", email: "test@example.com" },
+            logout: vi.fn(),
+            loginWithRedirect: vi.fn(),
+            isAuthenticated: true,
+            isLoading: false,
+        }),
+        authGuard: vi.fn(),
+    };
+});
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: () => ({
+            push: vi.fn(),
+            replace: vi.fn(),
+            back: vi.fn(),
+            currentRoute: {
+                value: {
+                    name: "edit",
+                    params: {
+                        languageCode: "eng",
+                    },
+                },
+            },
+        }),
+        onBeforeRouteLeave: vi.fn(),
+    };
+});
+
+// @ts-expect-error
+window.scrollTo = vi.fn();
+
 import { mount } from "@vue/test-utils";
 import { db, DocType, PostType } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
