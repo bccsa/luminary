@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
+    type S3BucketDto,
     type GroupDto,
-    type StorageDto,
     AclPermission,
     verifyAccess,
     DocType,
@@ -18,7 +18,7 @@ import type { BucketStatus } from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
-    bucket: StorageDto & {
+    bucket: S3BucketDto & {
         connectionStatus: BucketStatus;
         statusMessage?: string;
     };
@@ -26,7 +26,7 @@ type Props = {
 };
 
 type Emits = {
-    edit: [bucket: StorageDto];
+    edit: [bucket: S3BucketDto];
 };
 
 const props = defineProps<Props>();
