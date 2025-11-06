@@ -62,7 +62,7 @@ export class StorageController {
             };
 
             if (bucket.credential) {
-                // Embedded credentials (legacy or new buckets)
+                // Embedded credentials
                 credentials = {
                     endpoint: bucket.credential.endpoint,
                     bucketName: bucket.credential.bucketName,
