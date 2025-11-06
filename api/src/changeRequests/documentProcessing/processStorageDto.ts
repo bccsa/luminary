@@ -1,8 +1,6 @@
 import { StorageDto } from "../../dto/StorageDto";
-import { CryptoDto } from "../../dto/CryptoDto";
 import { DbService } from "../../db/db.service";
-import { encrypt } from "../../util/encryption";
-import { v4 as uuidv4 } from "uuid";
+import { storeCredentials } from "../../util/encryption";
 
 /**
  * Processes S3 bucket documents
@@ -65,27 +63,11 @@ export default async function processStorageDto(
     // Process new embedded credentials if provided
     if (doc.credential && !doc.credential_id) {
         try {
-            // Encrypt the credentials
-            const encryptedBucketName = await encrypt(doc.credential.bucketName);
-            const encryptedAccessKey = await encrypt(doc.credential.accessKey);
-            const encryptedSecretKey = await encrypt(doc.credential.secretKey);
+            // Use helper to encrypt and store credentials
+            const savedId = await storeCredentials(db, doc.credential as any);
 
-            // Create encrypted storage document
-            const storageDoc = new CryptoDto();
-
-            storageDoc._id = uuidv4();
-            storageDoc.data = {
-                endpoint: doc.credential.endpoint,
-                bucketName: encryptedBucketName,
-                accessKey: encryptedAccessKey,
-                secretKey: encryptedSecretKey,
-            };
-
-            // Save the storage document
-            const savedStorage = await db.upsertDoc(storageDoc);
-
-            // Reference the storage document and remove embedded credentials
-            doc.credential_id = savedStorage.id;
+            // Update document to reference stored credentials
+            doc.credential_id = savedId;
 
             // Remove embedded credentials to avoid storing them in plain text
             delete doc.credential;
