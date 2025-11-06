@@ -248,9 +248,7 @@ describe("processPostTagDto", () => {
         );
 
         expect(processResult.result.ok).toBe(true);
-        expect(processResult.warnings).toContain(
-            "Image bucket ID is not specified for image processing.",
-        );
+        expect(processResult.warnings).toContain("Bucket is not specified for image processing.");
         expect(processImage).not.toHaveBeenCalled();
     });
 
