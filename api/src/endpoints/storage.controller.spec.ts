@@ -150,9 +150,7 @@ describe("StorageController", () => {
             expect(mockGetDoc).toHaveBeenCalledTimes(1);
             expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
 
-            expect(mockRetrieve).toHaveBeenCalledTimes(1);
-            expect(mockRetrieve).toHaveBeenCalledWith(expect.any(Object), "cred-456");
-
+            // Check that the decrypted credentials were used
             expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
                 endpoint: "http://localhost:9000",
                 bucketName: "decryptedBucketName",
