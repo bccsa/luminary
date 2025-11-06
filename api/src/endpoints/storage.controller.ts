@@ -3,7 +3,7 @@ import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
-import { decrypt } from "../util/encryption";
+import { retrieveCredentials } from "../util/encryption";
 
 export type BucketTestDto = {
     endpoint: string;
@@ -71,26 +71,24 @@ export class StorageController {
                 };
             } else if (bucket.credential_id) {
                 // Encrypted credentials in separate document
-                const encryptedStorageResult = await this.dbService.getDoc(bucket.credential_id);
+                try {
+                    const decrypted = await retrieveCredentials(
+                        this.dbService,
+                        bucket.credential_id,
+                    );
 
-                if (!encryptedStorageResult.docs || encryptedStorageResult.docs.length === 0) {
+                    credentials = {
+                        endpoint: decrypted.endpoint,
+                        bucketName: decrypted.bucketName,
+                        accessKey: decrypted.accessKey,
+                        secretKey: decrypted.secretKey,
+                    };
+                } catch (err) {
                     return {
                         status: "not-found",
                         message: `Credentials not found for bucket: ${bucket.name}`,
                     };
                 }
-
-                const encryptedStorage = encryptedStorageResult.docs[0];
-                const decryptedBucketName = await decrypt(encryptedStorage.data.bucketName);
-                const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
-                const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
-
-                credentials = {
-                    endpoint: encryptedStorage.data.endpoint,
-                    bucketName: decryptedBucketName,
-                    accessKey: decryptedAccessKey,
-                    secretKey: decryptedSecretKey,
-                };
             } else {
                 return {
                     status: "no-credentials",
