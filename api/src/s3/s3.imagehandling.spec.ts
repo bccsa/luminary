@@ -5,7 +5,7 @@ import { createTestingModule } from "../test/testingModule";
 import * as fs from "fs";
 import * as path from "path";
 import * as Minio from "minio";
-import { S3BucketDto } from "../dto/S3BucketDto";
+import { StorageDto } from "../dto/StorageDto";
 import { DbService } from "../db/db.service";
 import { v4 as uuidv4 } from "uuid";
 import { BucketType, DocType } from "../enums";
@@ -174,8 +174,8 @@ describe("S3ImageHandler - Bucket Migration", () => {
     let testClient: Minio.Client;
     let sourceBucket: string;
     let targetBucket: string;
-    let sourceBucketDto: S3BucketDto;
-    let targetBucketDto: S3BucketDto;
+    let sourceBucketDto: StorageDto;
+    let targetBucketDto: StorageDto;
 
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",
@@ -385,7 +385,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             secretKey: "test",
         };
 
-        const crossSystemBucketDto: S3BucketDto = {
+        const crossSystemBucketDto: StorageDto = {
             _id: `storage-${uuidv4()}`,
             type: DocType.Storage,
             memberOf: ["group-public-content"],
@@ -436,7 +436,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
 
     it("should preserve files in old bucket if migration fails", async () => {
         // Create an invalid target bucket that doesn't exist physically
-        const invalidBucketDto: S3BucketDto = {
+        const invalidBucketDto: StorageDto = {
             _id: `storage-${uuidv4()}`,
             type: DocType.Storage,
             memberOf: ["group-public-content"],
@@ -501,8 +501,8 @@ describe("S3ImageHandler - File Type Validation", () => {
     let dbService: DbService;
     let testClient: Minio.Client;
     let testBucket: string;
-    let restrictedBucketDto: S3BucketDto;
-    let allowAllBucketDto: S3BucketDto;
+    let restrictedBucketDto: StorageDto;
+    let allowAllBucketDto: StorageDto;
 
     const testCredentials = {
         endpoint: "http://127.0.0.1:9000",

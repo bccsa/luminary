@@ -1,5 +1,5 @@
-import { S3BucketDto } from "../../dto/S3BucketDto";
-import { EncryptedStorageDto } from "../../dto/EncryptedStorageDto";
+import { StorageDto } from "../../dto/StorageDto";
+import { CryptoDto } from "../../dto/CryptoDto";
 import { DbService } from "../../db/db.service";
 import { encrypt } from "../../util/encryption";
 import { v4 as uuidv4 } from "uuid";
@@ -12,8 +12,8 @@ import { v4 as uuidv4 } from "uuid";
  * @returns Array of warnings (if any)
  */
 export default async function processStorageDto(
-    doc: S3BucketDto,
-    _prevDoc: S3BucketDto | undefined,
+    doc: StorageDto,
+    _prevDoc: StorageDto | undefined,
     db: DbService,
 ): Promise<string[]> {
     const warnings: string[] = [];
@@ -91,7 +91,7 @@ export default async function processStorageDto(
             const encryptedSecretKey = await encrypt(doc.credential.secretKey);
 
             // Create encrypted storage document
-            const storageDoc = new EncryptedStorageDto();
+            const storageDoc = new CryptoDto();
 
             storageDoc._id = uuidv4();
             storageDoc.data = {

@@ -6,8 +6,8 @@ import { S3Service } from "./s3.service";
 import { ImageUploadDto } from "../dto/ImageUploadDto";
 import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 import { DbService } from "../db/db.service";
-import { S3BucketDto } from "../dto/S3BucketDto";
-import { EncryptedStorageDto } from "../dto/EncryptedStorageDto";
+import { StorageDto } from "../dto/StorageDto";
+import { CryptoDto } from "../dto/CryptoDto";
 import { DocType } from "../enums";
 import { decrypt } from "../util/encryption";
 import * as Minio from "minio";
@@ -21,7 +21,7 @@ const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; 
  * Create S3 client from bucket credentials
  */
 async function createS3ClientFromBucket(
-    bucket: S3BucketDto,
+    bucket: StorageDto,
     db: DbService,
     s3Service: S3Service,
 ): Promise<{ client: Minio.Client; bucketName: string }> {
@@ -47,7 +47,7 @@ async function createS3ClientFromBucket(
             throw new Error("Bucket credentials not found");
         }
 
-        const encryptedStorage = encryptedStorageResult.docs[0] as EncryptedStorageDto;
+        const encryptedStorage = encryptedStorageResult.docs[0] as CryptoDto;
         const decryptedBucketName = await decrypt(encryptedStorage.data.bucketName);
         const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
         const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
@@ -106,8 +106,8 @@ async function migrateImagesBetweenBuckets(
             return warnings;
         }
 
-        const oldBucket = oldBucketResult.docs[0] as S3BucketDto;
-        const newBucket = newBucketResult.docs[0] as S3BucketDto;
+        const oldBucket = oldBucketResult.docs[0] as StorageDto;
+        const newBucket = newBucketResult.docs[0] as StorageDto;
 
         // Create separate S3 clients for each bucket using their own credentials
         const { client: oldS3Client, bucketName: oldBucketName } = await createS3ClientFromBucket(
@@ -271,7 +271,7 @@ export async function processImage(
                                 .join(", ")}`,
                         );
                     } else {
-                        const bucketDto = result.docs[0] as S3BucketDto;
+                        const bucketDto = result.docs[0] as StorageDto;
                         const { client: bucketS3Client, bucketName } =
                             await createS3ClientFromBucket(bucketDto, db, s3);
 
@@ -393,13 +393,13 @@ async function processImageUploadSafe(
         }
 
         // Look up the bucket and create bucket-specific S3 client
-        let bucketDto: S3BucketDto;
+        let bucketDto: StorageDto;
 
         try {
             const bucketDocs = await db.getDocsByType(DocType.Storage);
             const foundBucket = bucketDocs.docs.find(
                 (doc: any) => doc._id === uploadData.bucketId,
-            ) as S3BucketDto;
+            ) as StorageDto;
 
             if (!foundBucket || !foundBucket.name) {
                 warnings.push(

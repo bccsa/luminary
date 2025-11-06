@@ -1,6 +1,6 @@
 // This file generates the documents for the change request tests some random data
 
-import { S3BucketDto } from "../dto/S3BucketDto";
+import { StorageDto } from "../dto/StorageDto";
 import { ContentDto } from "../dto/ContentDto";
 
 function randomString() {
@@ -129,6 +129,6 @@ export const changeRequest_storage = () => {
                 secretKey: "secretAdminKey",
             },
             credential_id: undefined,
-        } as S3BucketDto,
+        } as StorageDto,
     };
 };

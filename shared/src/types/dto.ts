@@ -170,7 +170,7 @@ export type S3CredentialDto = {
     secretKey: string;
 };
 
-export type S3BucketDto = ContentBaseDto & {
+export type StorageDto = ContentBaseDto & {
     name: string;
     fileTypes: string[];
     publicUrl: string;
@@ -179,7 +179,7 @@ export type S3BucketDto = ContentBaseDto & {
     credential_id?: string;
 };
 
-export type EncryptedStorageDto = BaseDocumentDto & {
+export type CryptoDto = BaseDocumentDto & {
     data: any;
 };
 

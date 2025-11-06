@@ -13,7 +13,7 @@ import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
-import { S3BucketDto } from "../dto/S3BucketDto";
+import { StorageDto } from "../dto/StorageDto";
 
 /**
  * DocType to DTO map
@@ -26,7 +26,7 @@ const DocTypeMap = {
     post: PostDto,
     tag: TagDto,
     user: UserDto,
-    storage: S3BucketDto,
+    storage: StorageDto,
 };
 
 /**
