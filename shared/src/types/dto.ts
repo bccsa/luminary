@@ -109,7 +109,6 @@ export type ContentDto = ContentBaseDto & {
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
-    parentMediaBucketId?: Uuid;
 };
 
 export type ContentParentDto = ContentBaseDto & {
@@ -117,7 +116,6 @@ export type ContentParentDto = ContentBaseDto & {
     tags: Uuid[];
     publishDateVisible: boolean;
     imageBucketId?: Uuid;
-    mediaBucketId?: Uuid;
 };
 
 export type PostDto = ContentParentDto & {

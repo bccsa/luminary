@@ -93,7 +93,6 @@ export default async function processPostTagDto(
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
         contentDoc.parentImageBucketId = doc.imageBucketId;
-        contentDoc.parentMediaBucketId = doc.mediaBucketId;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;
