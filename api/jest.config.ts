@@ -13,7 +13,6 @@ const config: Config = {
     collectCoverageFrom: ["**/*.(t|j)s"],
     coverageDirectory: "../coverage",
     testEnvironment: "node",
-    testTimeout: 10000, // Increase timeout for database setup
 };
 
 export default config;
