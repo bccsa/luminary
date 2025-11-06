@@ -64,9 +64,7 @@ describe("Encryption", () => {
         delete process.env.ENCRYPTION_KEY;
         resetEncryptionKey();
 
-        await expect(encrypt("test")).rejects.toThrow(
-            "ENCRYPTION_KEY environment variable is required for encryption",
-        );
+        await expect(encrypt("test")).rejects.toThrow("Encryption key is required for encryption");
     });
 
     it("should handle encryption key reset correctly", async () => {
@@ -109,5 +107,18 @@ describe("Encryption", () => {
 
         expect(decrypted).toEqual(complexObject);
         expect(typeof encrypted).toBe("string");
+    });
+
+    it("should decrypt an object encrypted correctly", async () => {
+        const originalObject = {
+            key1: "value1",
+            key2: 123,
+            key3: { nestedKey: "nestedValue" },
+        };
+
+        const encrypted = await encryptObject(originalObject);
+        const decrypted = await decryptObject<typeof originalObject>(encrypted);
+
+        expect(decrypted).toEqual(originalObject);
     });
 });
