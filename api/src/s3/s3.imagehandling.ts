@@ -7,9 +7,8 @@ import { ImageUploadDto } from "../dto/ImageUploadDto";
 import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 import { DbService } from "../db/db.service";
 import { StorageDto } from "../dto/StorageDto";
-import { CryptoDto } from "../dto/CryptoDto";
 import { DocType } from "../enums";
-import { decrypt } from "../util/encryption";
+import { retrieveCredentials } from "../util/encryption";
 import * as Minio from "minio";
 import configuration from "../configuration";
 
@@ -41,22 +40,13 @@ async function createS3ClientFromBucket(
             secretKey: bucket.credential.secretKey!,
         };
     } else if (bucket.credential_id) {
-        // Use reference to encrypted credentials
-        const encryptedStorageResult = await db.getDoc(bucket.credential_id);
-        if (encryptedStorageResult.docs.length === 0) {
-            throw new Error("Bucket credentials not found");
-        }
-
-        const encryptedStorage = encryptedStorageResult.docs[0] as CryptoDto;
-        const decryptedBucketName = await decrypt(encryptedStorage.data.bucketName);
-        const decryptedAccessKey = await decrypt(encryptedStorage.data.accessKey);
-        const decryptedSecretKey = await decrypt(encryptedStorage.data.secretKey);
-
+        // Use reference to encrypted credentials (new single-object payload)
+        const decrypted = await retrieveCredentials(db, bucket.credential_id);
         credentials = {
-            endpoint: encryptedStorage.data.endpoint,
-            bucketName: decryptedBucketName,
-            accessKey: decryptedAccessKey,
-            secretKey: decryptedSecretKey,
+            endpoint: decrypted.endpoint,
+            bucketName: decrypted.bucketName!,
+            accessKey: decrypted.accessKey!,
+            secretKey: decrypted.secretKey!,
         };
     } else {
         throw new Error("No credentials configured for bucket");
