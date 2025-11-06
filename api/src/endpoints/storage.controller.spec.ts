@@ -12,7 +12,7 @@ describe("StorageController", () => {
     const mockCreateClient = jest.fn();
     const mockCheckBucketConnectivity = jest.fn();
     const mockGetDoc = jest.fn();
-    const mockDecrypt = jest.fn();
+    const mockRetrieve = jest.fn();
 
     beforeAll(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -47,8 +47,9 @@ describe("StorageController", () => {
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(encryption, "decrypt").mockImplementation(mockDecrypt);
+        // Reset mocks and re-establish spies so each test sets its own mock implementations
+        jest.resetAllMocks();
+        jest.spyOn(encryption, "retrieveCredentials").mockImplementation(mockRetrieve);
     });
 
     describe("POST /storage/bucket-status", () => {
@@ -68,7 +69,7 @@ describe("StorageController", () => {
                 },
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
@@ -121,24 +122,16 @@ describe("StorageController", () => {
                 credential_id: "cred-456",
             };
 
-            const mockEncryptedStorage = {
-                _id: "cred-456",
-                data: {
-                    endpoint: "http://localhost:9000",
-                    bucketName: "encryptedBucketName",
-                    accessKey: "encryptedAccessKey",
-                    secretKey: "encryptedSecretKey",
-                },
-            };
+            // Simulate bucket doc with credential_id
+            mockGetDoc.mockResolvedValueOnce({ docs: [mockBucket] });
 
-            mockGetDoc
-                .mockResolvedValueOnce({ docs: [mockBucket] })
-                .mockResolvedValueOnce({ docs: [mockEncryptedStorage] });
-
-            mockDecrypt
-                .mockResolvedValueOnce("decryptedBucketName")
-                .mockResolvedValueOnce("decryptedAccessKey")
-                .mockResolvedValueOnce("decryptedSecretKey");
+            // Mock retrieveCredentials to return the decrypted credential object
+            mockRetrieve.mockResolvedValueOnce({
+                endpoint: "http://localhost:9000",
+                bucketName: "decryptedBucketName",
+                accessKey: "decryptedAccessKey",
+                secretKey: "decryptedSecretKey",
+            });
 
             mockCheckBucketConnectivity.mockResolvedValue({
                 status: "connected",
@@ -154,14 +147,11 @@ describe("StorageController", () => {
                 status: "connected",
             });
 
-            expect(mockGetDoc).toHaveBeenCalledTimes(2);
-            expect(mockGetDoc).toHaveBeenNthCalledWith(1, "bucket-123");
-            expect(mockGetDoc).toHaveBeenNthCalledWith(2, "cred-456");
+            expect(mockGetDoc).toHaveBeenCalledTimes(1);
+            expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
 
-            expect(mockDecrypt).toHaveBeenCalledTimes(3);
-            expect(mockDecrypt).toHaveBeenNthCalledWith(1, "encryptedBucketName");
-            expect(mockDecrypt).toHaveBeenNthCalledWith(2, "encryptedAccessKey");
-            expect(mockDecrypt).toHaveBeenNthCalledWith(3, "encryptedSecretKey");
+            expect(mockRetrieve).toHaveBeenCalledTimes(1);
+            expect(mockRetrieve).toHaveBeenCalledWith(expect.any(Object), "cred-456");
 
             expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
                 endpoint: "http://localhost:9000",
