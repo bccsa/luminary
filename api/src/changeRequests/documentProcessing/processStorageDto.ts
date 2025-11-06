@@ -64,7 +64,7 @@ export default async function processStorageDto(
     if (doc.credential && !doc.credential_id) {
         try {
             // Use helper to encrypt and store credentials
-            const savedId = await storeCredentials(db, doc.credential as any);
+            const savedId = await storeCredentials(db, doc.credential);
 
             // Update document to reference stored credentials
             doc.credential_id = savedId;
