@@ -53,22 +53,14 @@ export default async function processPostTagDto(
         let imageWarnings: string[] = [];
 
         // Check if bucket is specified for this upload
-        if (doc.imageBucketId && doc.imageData.uploadData) {
-            // Use the new bucket-aware processing with db service for bucket lookup
-            try {
-                imageWarnings = await processImage(
-                    doc.imageData,
-                    prevDoc?.imageData,
-                    s3,
-                    db,
-                    doc.imageBucketId,
-                    prevDoc?.imageBucketId, // Pass previous bucket ID for migration
-                );
-            } catch (error) {
-                imageWarnings.push(`Bucket-aware image processing failed: ${error.message}`);
-            }
-        } else {
-            // Use traditional processing for backward compatibility
+        if (!doc.imageBucketId) {
+            imageWarnings.push("Image bucket ID is not specified for image processing.");
+
+            return imageWarnings; // Exit early if no bucket ID is provided
+        }
+
+        // Use the new bucket processing with db service for bucket lookup
+        try {
             imageWarnings = await processImage(
                 doc.imageData,
                 prevDoc?.imageData,
@@ -77,6 +69,8 @@ export default async function processPostTagDto(
                 doc.imageBucketId,
                 prevDoc?.imageBucketId, // Pass previous bucket ID for migration
             );
+        } catch (error) {
+            imageWarnings.push(`Bucket image processing failed: ${error.message}`);
         }
 
         if (imageWarnings && imageWarnings.length > 0) {
