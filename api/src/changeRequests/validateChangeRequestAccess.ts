@@ -61,7 +61,6 @@ export async function validateChangeRequestAccess(
     if (
         doc.type !== DocType.Group &&
         doc.type !== DocType.Content &&
-        doc.type !== DocType.Storage &&
         (!doc.memberOf || !Array.isArray(doc.memberOf) || doc.memberOf.length === 0)
     ) {
         return {
@@ -273,6 +272,7 @@ export async function validateChangeRequestAccess(
 
     if (
         doc.type !== DocType.Content &&
+        doc.type !== DocType.Storage &&
         doc.memberOf &&
         Array.isArray(doc.memberOf) &&
         doc.memberOf.length > 0
@@ -352,9 +352,31 @@ export async function validateChangeRequestAccess(
     // S3 Bucket and Storage document access control
     // =============================================
     if (doc.type === DocType.Storage) {
-        // For S3 buckets and storage documents, we allow any authenticated user
-        // These are infrastructure resources that should be manageable by admins
-        // Since the user got this far, they are authenticated, so allow it
+        // Storage documents contain sensitive S3 credentials and should only be
+        // manageable by users with proper Edit permissions to the storage's groups.
+        // Check if user has Edit permission to all groups the storage belongs to.
+
+        if (!doc.memberOf || !Array.isArray(doc.memberOf) || doc.memberOf.length === 0) {
+            return {
+                validated: false,
+                error: "Storage document must have group membership",
+            };
+        }
+
+        if (
+            !PermissionSystem.verifyAccess(
+                (originalDoc as any).memberOf || doc.memberOf,
+                DocType.Storage,
+                AclPermission.Edit,
+                groupMembership,
+                "all",
+            )
+        ) {
+            return {
+                validated: false,
+                error: "No 'Edit' access to storage document groups",
+            };
+        }
 
         return {
             validated: true,
