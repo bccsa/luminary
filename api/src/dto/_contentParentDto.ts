@@ -27,9 +27,4 @@ export class _contentParentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     imageBucketId?: string; // S3 bucket ID for image storage
-
-    @IsOptional()
-    @IsString()
-    @Expose()
-    mediaBucketId?: string; // S3 bucket ID for media files (audio, video, documents ...)
 }
