@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import { type StorageDto, db, useDexieLiveQuery, BucketType } from "luminary-shared";
+import { type S3BucketDto, db, useDexieLiveQuery, BucketType } from "luminary-shared";
 
 export function useBucketSelection() {
     const selectedImageBucket = ref<string | null>(null);
@@ -7,14 +7,14 @@ export function useBucketSelection() {
 
     // Get buckets directly from the database (already available in CMS)
     const buckets = useDexieLiveQuery(
-        () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<StorageDto[]>,
-        { initialValue: [] as StorageDto[] },
+        () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<S3BucketDto[]>,
+        { initialValue: [] as S3BucketDto[] },
     );
 
     /**
      * Get bucket by ID
      */
-    const getBucketById = (bucketId: string | null): StorageDto | null => {
+    const getBucketById = (bucketId: string | null): S3BucketDto | null => {
         if (!bucketId) return null;
         return buckets.value.find((bucket) => bucket._id === bucketId) || null;
     };
