@@ -6,7 +6,7 @@ import BucketDisplayCard from "./BucketDisplayCard.vue";
 import {
     db,
     DocType,
-    type StorageDto,
+    type S3BucketDto,
     type S3CredentialDto,
     useDexieLiveQuery,
     type GroupDto,
@@ -44,8 +44,8 @@ const availableGroups = computed(() => {
 });
 
 const buckets = useDexieLiveQuery(
-    () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<StorageDto[]>,
-    { initialValue: [] as StorageDto[] },
+    () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<S3BucketDto[]>,
+    { initialValue: [] as S3BucketDto[] },
 );
 
 // Delete permission check
@@ -94,12 +94,12 @@ const hasAttemptedSubmit = ref(false); // Track if user has tried to submit
 const showModal = ref(false);
 const showCredentials = ref(false);
 const showDeleteModal = ref(false);
-const bucketToDelete = ref<StorageDto | null>(null);
+const bucketToDelete = ref<S3BucketDto | null>(null);
 const newFileType = ref<string>("");
 
 const notification = useNotificationStore();
 
-const newBucket = ref<StorageDto>({
+const newBucket = ref<S3BucketDto>({
     _id: db.uuid(),
     type: DocType.Storage,
     updatedTimeUtc: Date.now(),
@@ -116,7 +116,7 @@ const newBucket = ref<StorageDto>({
     fileTypes: [],
 });
 
-const editableBucket = ref<StorageDto | null>(null);
+const editableBucket = ref<S3BucketDto | null>(null);
 const isEditing = computed(() => {
     if (!canEdit.value) return false;
     return !!editableBucket.value;
@@ -292,7 +292,7 @@ function removeFileType(fileType: string) {
     }
 }
 
-function editBucket(bucket: StorageDto) {
+function editBucket(bucket: S3BucketDto) {
     editableBucket.value = { ...bucket };
     showModal.value = true;
 }
@@ -305,7 +305,7 @@ function deleteBucket() {
     }
 }
 
-async function handleTestConnection(bucket: StorageDto) {
+async function handleTestConnection(bucket: S3BucketDto) {
     await fetchBucketStatus(bucket);
 }
 
