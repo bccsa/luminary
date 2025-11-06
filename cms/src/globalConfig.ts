@@ -20,6 +20,7 @@ const windowWidth = ref(window.innerWidth);
 window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
 });
+export const isMobileScreen = computed(() => windowWidth.value < 1024);
 export const isSmallScreen = computed(() => windowWidth.value < 1500);
 export const sidebarSectionExpanded = ref({ posts: false, tags: false });
 

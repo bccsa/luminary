@@ -20,7 +20,7 @@ import {
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
-import { isSmallScreen } from "@/globalConfig";
+import { isSmallScreen, isMobileScreen } from "@/globalConfig";
 
 type Props = {
     languages: LanguageDto[];
@@ -70,18 +70,20 @@ const checkStickyState = () => {
         isTransitioning = true;
 
         // Update collapse state based on sticky state
-        if (shouldBeSticky) {
-            setTimeout(() => {
-                if (isLanguageSelectorSticky.value) {
-                    isLanguageSelectorCollapsed.value = true;
+        if (isMobileScreen.value) {
+            if (shouldBeSticky) {
+                setTimeout(() => {
+                    if (isLanguageSelectorSticky.value) {
+                        isLanguageSelectorCollapsed.value = true;
+                        isTransitioning = false;
+                    }
+                }, 150);
+            } else {
+                isLanguageSelectorCollapsed.value = false;
+                setTimeout(() => {
                     isTransitioning = false;
-                }
-            }, 150);
-        } else {
-            isLanguageSelectorCollapsed.value = false;
-            setTimeout(() => {
-                isTransitioning = false;
-            }, 150);
+                }, 150);
+            }
         }
     }
 };
