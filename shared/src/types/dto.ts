@@ -179,7 +179,7 @@ export type StorageDto = ContentBaseDto & {
     credential_id?: string;
 };
 
-export type EncryptedStorageDto = BaseDocumentDto & {
+export type CryptoDto = BaseDocumentDto & {
     data: any;
 };
 
