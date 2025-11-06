@@ -223,6 +223,37 @@ describe("processPostTagDto", () => {
         );
     });
 
+    it("doesn't process images if no imageBucketId is provided", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog4";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1,
+                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
+                },
+            ],
+        };
+        delete (changeRequest.doc as PostDto).imageBucketId; // Remove imageBucketId to simulate missing bucket ID
+
+        // Ensure previous tests' calls to the mocked processImage do not affect this assertion
+        (processImage as jest.Mock).mockClear();
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.result.ok).toBe(true);
+        expect(processResult.warnings).toContain(
+            "Image bucket ID is not specified for image processing.",
+        );
+        expect(processImage).not.toHaveBeenCalled();
+    });
+
     it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog5";
