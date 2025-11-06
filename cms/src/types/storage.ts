@@ -1,8 +1,8 @@
 // S3 Management Types
-import { type S3BucketDto, type S3CredentialDto } from "luminary-shared";
+import { type StorageDto, type S3CredentialDto } from "luminary-shared";
 
 export type CreateBucketRequest = {
-    bucket: S3BucketDto;
+    bucket: StorageDto;
     credentials?: S3CredentialDto;
 };
 
@@ -21,6 +21,6 @@ export type FileTypeValidation = {
 
 export type ConnectionStatus = "connected" | "error" | "testing" | "unknown";
 
-export type S3BucketWithStatus = S3BucketDto & {
+export type S3BucketWithStatus = StorageDto & {
     connectionStatus: ConnectionStatus;
 };
