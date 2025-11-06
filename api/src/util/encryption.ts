@@ -1,5 +1,9 @@
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from "crypto";
 import { promisify } from "util";
+import { v4 as uuidv4 } from "uuid";
+import { CryptoDto } from "../dto/CryptoDto";
+import { DbService } from "../db/db.service";
+import type { S3CredentialDto } from "../dto/S3CredentialDto";
 
 /**
  * Encryption utilities for sensitive data like S3 credentials.
@@ -24,7 +28,7 @@ async function initializeKey(): Promise<void> {
     const encryptionSecret = process.env.ENCRYPTION_KEY;
 
     if (!encryptionSecret) {
-        throw new Error("ENCRYPTION_KEY environment variable is required for encryption");
+        throw new Error("Encryption key is required for encryption");
     }
 
     // Use a fixed salt for key derivation to ensure consistency
@@ -88,6 +92,13 @@ export async function decrypt(encryptedData: string): Promise<string> {
  * Encrypt a JSON object (like S3CredentialDto) and return base64 string.
  */
 export async function encryptObject<T>(obj: T): Promise<string> {
+    // require initialization
+    if (!encryptionKey) {
+        await initializeKey();
+    } else {
+        // Key is already initialized
+    }
+
     const jsonString = JSON.stringify(obj);
     return encrypt(jsonString);
 }
@@ -101,8 +112,69 @@ export async function decryptObject<T>(encryptedData: string): Promise<T> {
 }
 
 /**
- * Reset the cached encryption key. Useful for testing or when secret changes.
+ * Reset the cached encryption key.
+ * Useful for testing or when secret changes.
  */
 export function resetEncryptionKey(): void {
     encryptionKey = null;
+}
+
+/**
+ * Store S3 credentials encrypted in a CryptoDto and return the saved document id.
+ */
+export async function storeCredentials(
+    db: DbService,
+    credential: S3CredentialDto,
+): Promise<string> {
+    if (!encryptionKey) {
+        await initializeKey();
+    }
+
+    if (!credential) throw new Error("No credential provided");
+
+    // Encrypt the whole credential object as a single payload. This is simpler
+    // and future-proof (adds/changes fields without changing storage format).
+    const encryptedPayload = await encryptObject(credential);
+
+    // Create encrypted storage document
+    const storageDoc = new CryptoDto();
+    storageDoc._id = uuidv4();
+    storageDoc.data = {
+        encrypted: encryptedPayload,
+    };
+
+    // Save and return id
+    const saved = await db.upsertDoc(storageDoc);
+
+    // Return the saved document id for reference
+    return saved.id;
+}
+
+/**
+ * Retrieve and decrypt S3 credentials by credential document id.
+ */
+export async function retrieveCredentials(
+    db: DbService,
+    credentialId: string,
+): Promise<S3CredentialDto> {
+    // require initialization
+    if (!encryptionKey) {
+        await initializeKey();
+    }
+
+    const storageResult = await db.getDoc(credentialId);
+
+    if (!storageResult.docs || storageResult.docs.length === 0) {
+        throw new Error(`Credentials not found for id: ${credentialId}`);
+    }
+
+    const storageDoc = storageResult.docs[0];
+
+    if (!storageDoc.data || !storageDoc.data.encrypted) {
+        throw new Error(`Invalid encrypted credential format for id: ${credentialId}`);
+    }
+
+    const decrypted = await decryptObject<S3CredentialDto>(storageDoc.data.encrypted);
+
+    return decrypted;
 }
