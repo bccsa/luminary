@@ -73,7 +73,7 @@ describe("processStorageDto", () => {
         await db.upsertDoc(storageChangeRequest.doc);
 
         await expect(processStorageDto(storageChangeRequest.doc, undefined, db)).rejects.toThrow(
-            "S3 bucket must have either embedded credentials or a credential_id reference",
+            "Missing S3 bucket credentials",
         );
     });
 
