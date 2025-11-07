@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
+import "videojs-youtube";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
@@ -15,6 +16,7 @@ import {
     queryParams,
 } from "@/globalConfig";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
+import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtubeUtils";
 
 type Props = {
     content: ContentDto;
@@ -34,6 +36,19 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
+// YouTube detection
+const isYouTube = ref<boolean>(false);
+// const youTubeThumbnail = ref<string | null>(null);
+
+// Check if the current video is a YouTube video
+if (props.content.video) {
+    isYouTube.value = isYouTubeUrl(props.content.video);
+    if (isYouTube.value) {
+        // hides audio mode toggle for YouTube videos as it's not supported
+        showAudioModeToggle.value = false;
+    }
+}
+
 const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
 
 let timeout: any;
@@ -51,6 +66,10 @@ function playerPlayEventHandler() {
 }
 
 function playerUserActiveEventHandler() {
+    if (isYouTube.value) {
+        showAudioModeToggle.value = false;
+    }
+
     if (audioMode.value) {
         // Always show controls and toggle in audio-only mode
         showAudioModeToggle.value = true;
@@ -168,7 +187,20 @@ onMounted(async () => {
     window.dispatchEvent(playerEvent);
 
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-    player.src({ type: "application/x-mpegURL", src: props.content.video });
+
+    // Set player source based on video type (YouTube vs regular)
+    if (isYouTube.value) {
+        // add options for youtube
+
+        player.src({
+            type: "video/youtube",
+            src: convertToVideoJSYouTubeUrl(props.content.video!),
+        });
+        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
+        showAudioModeToggle.value = false;
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
@@ -318,6 +350,11 @@ onUnmounted(() => {
 });
 
 watch(audioMode, async (mode) => {
+    // Skip audio-only mode for YouTube videos as it's not supported
+    if (isYouTube.value) {
+        audioMode.value = false;
+    }
+
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
     player?.userActive(true);
@@ -456,7 +493,7 @@ watch(
             enter-from-class="opacity-0"
         >
             <AudioVideoToggle
-                v-if="showAudioModeToggle"
+                v-if="showAudioModeToggle && !isYouTube"
                 v-model="audioMode"
                 ref="audioModeToggle"
                 class="audio-mode-toggle"

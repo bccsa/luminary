@@ -22,6 +22,26 @@
     @apply !text-5xl;
 }
 
+/* Hide big play button when video has loaded/started */
+.video-player .vjs-has-started .vjs-big-play-button {
+    display: none !important;
+}
+
+/* Also hide when video is not paused */
+.video-player:not(.vjs-paused) .vjs-big-play-button {
+    display: none !important;
+}
+
+/* Hide big play button when video is playing */
+.video-player .vjs-playing .vjs-big-play-button {
+    display: none !important;
+}
+
+/* Hide big play button when user has interacted */
+.video-player .vjs-user-active .vjs-big-play-button {
+    display: none !important;
+}
+
 /* Position skip buttons next to the big play button */
 .video-player .vjs-skip-forward-10,
 .video-player .vjs-skip-backward-10 {
@@ -135,4 +155,32 @@
 
 .video-player .vjs-volume-control {
     @apply hidden md:block; /* Hidden on mobile (sm) and shown on medium (md) and up */
+}
+
+/* Hide VideoJS loading spinner */
+.video-player .vjs-loading-spinner {
+    display: none !important;
+}
+
+.video-player .vjs-waiting .vjs-loading-spinner {
+    display: none !important;
+}
+
+/* Hide loading spinner on all states */
+.video-player .vjs-loading-spinner,
+.video-player .vjs-loading-spinner:before,
+.video-player .vjs-loading-spinner:after {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Also hide any potential buffering indicators */
+.video-player .vjs-waiting {
+    background: none !important;
+}
+
+.video-player .vjs-waiting:before,
+.video-player .vjs-waiting:after {
+    display: none !important;
 }
