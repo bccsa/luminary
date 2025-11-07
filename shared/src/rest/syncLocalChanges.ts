@@ -32,12 +32,10 @@ async function handleAck(ack: ChangeReqAckDto) {
 /**
  * Push a single local change to the api
  * @param localChange the local change to push
- * @param localChanges the local changes from db as Ref to keep reactivity
  */
 async function pushLocalChange(localChange: LocalChangeDto) {
     const formData = new LFormData();
-    formData.append("changeRequestId", localChange.id);
-    formData.append("changeRequestDoc", localChange.doc);
+    formData.append("changeRequest", localChange);
 
     const res = await getRest().changeRequest(formData);
 
