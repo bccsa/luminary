@@ -122,10 +122,12 @@ describe("localChanges", () => {
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
-                    ["changeRequestId", "1234"],
                     [
-                        "changeRequestDoc-JSON",
-                        JSON.stringify({ _id: "test-doc", type: "post", updatedTimeUtc: 1234 }),
+                        "changeRequest-JSON",
+                        JSON.stringify({
+                            id: 1234,
+                            doc: { _id: "test-doc", type: "post", updatedTimeUtc: 1234 },
+                        }),
                     ],
                 ]),
             );
@@ -188,8 +190,7 @@ describe("localChanges", () => {
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                    ["changeRequest-JSON", JSON.stringify(localChange)],
                 ]),
             );
         });
@@ -226,8 +227,7 @@ describe("localChanges", () => {
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                    ["changeRequest-JSON", JSON.stringify(localChange)],
                 ]),
             );
             expect(await db.localChanges.count()).toBe(0);
@@ -285,8 +285,7 @@ describe("localChanges", () => {
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                    ["changeRequest-JSON", JSON.stringify(localChange)],
                 ]),
             );
             expect(await db.localChanges.count()).toBe(0);

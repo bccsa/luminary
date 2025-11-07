@@ -11,8 +11,10 @@ function getFormDataEntries(formData: FormData) {
 
 describe("LFormData (images)", () => {
     it("appends multiple image files from an array", () => {
+        console.log("TEST: Starting 'appends multiple image files from an array'");
         const img1 = new File(["a"], "a.webp", { type: "image/webp" });
         const img2 = new File(["b"], "b.webp", { type: "image/webp" });
+        console.log("TEST: Created files, img1 instanceof File:", img1 instanceof File);
         const obj = {
             images: [
                 { fileData: img1, filename: "a.webp", width: 100, height: 80 },
@@ -20,9 +22,13 @@ describe("LFormData (images)", () => {
             ],
             label: "gallery",
         };
+        console.log("TEST: Created obj with images");
         const form = new LFormData();
+        console.log("TEST: About to call form.append");
         form.append("galleryDoc", obj);
+        console.log("TEST: Called form.append");
         const entries = getFormDataEntries(form);
+        console.log("TEST: Got entries, keys:", Object.keys(entries));
 
         // Check first file
         expect(entries["0-galleryDoc-files-path"]).toBe("images[0]");
