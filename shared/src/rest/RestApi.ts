@@ -113,7 +113,7 @@ class RestApi {
 
     async changeRequest(query: ChangeRequestQuery | FormData) {
         if (query instanceof LFormData) {
-            (query as LFormData).append("changeRequestApiVersion", "0.0.0");
+            (query as LFormData).append("apiVersion", "0.0.0");
         }
         (query as ChangeRequestQuery).apiVersion = "0.0.0";
         return await this.http.post("changerequest", query);

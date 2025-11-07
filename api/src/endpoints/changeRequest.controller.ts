@@ -33,37 +33,58 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
-            const apiVersion = body["changeRequestApiVersion"];
+        // Check if this is a multipart form data request (with potential binary data)
+        const jsonKey = Object.keys(body).find((key) => key.endsWith("-JSON"));
+
+        if (files?.length || jsonKey) {
+            const apiVersion = body["apiVersion"];
             await validateApiVersion(apiVersion);
+            // Parse the main JSON payload
+            const parsedData = JSON.parse(body[jsonKey]);
 
-            const changeReqId = JSON.parse(body["changeRequestId"]);
-            const parsedDoc = JSON.parse(body["changeRequestDoc-JSON"]);
-
-            //Only parent documents (Posts and Tags) can have files uploaded,
-            //Child documents only have a reference to the parent document's fileCollection field
-            //without this check it could lead to unexpected behavior or critical errors
+            // Reconstruct binary data from uploaded files back into the document structure
             if (files.length > 0) {
-                const uploadData = [];
+                const baseKey = jsonKey.replace("-JSON", "");
 
                 files.forEach((file, index) => {
-                    // TODO: change after #1208 is implemented
-                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                    const filePrefix = `${index}-${baseKey}-files-`;
+                    const pathKey = `${filePrefix}path`;
+                    const path = body[pathKey];
 
-                    uploadData.push({
-                        fileData: file.buffer,
-                        filename: fileName,
-                        preset: filePreset,
+                    if (!path) {
+                        throw new Error(`Missing path information for file at index ${index}`);
+                    }
+
+                    // Extract all metadata fields for this file
+                    const fileMetadata: Record<string, any> = {};
+                    Object.keys(body).forEach((key) => {
+                        if (key.startsWith(filePrefix) && key !== pathKey) {
+                            const fieldName = key.replace(filePrefix, "");
+                            const value = body[key];
+
+                            // Convert string values back to their original types if needed
+                            if (fieldName === "width" || fieldName === "height") {
+                                fileMetadata[fieldName] = parseInt(value, 10);
+                            } else if (value === "true" || value === "false") {
+                                fileMetadata[fieldName] = value === "true";
+                            } else {
+                                fileMetadata[fieldName] = value;
+                            }
+                        }
                     });
-                });
 
-                parsedDoc.imageData.uploadData = uploadData;
+                    // Add the binary data from the uploaded file
+                    fileMetadata.fileData = file.buffer;
+
+                    // Reconstruct the object at the specified path
+                    this.setValueAtPath(parsedData, path, fileMetadata);
+                });
             }
 
+            // Extract the ChangeReqDto from the parsed data
             const changeRequest: ChangeReqDto = {
-                id: changeReqId,
-                doc: parsedDoc,
+                id: parsedData.id,
+                doc: parsedData.doc,
                 apiVersion,
             };
 
@@ -73,5 +94,28 @@ export class ChangeRequestController {
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
         return this.changeRequestService.changeRequest(body, token);
+    }
+
+    /**
+     * Set a value at a specific path in an object
+     * Supports paths like "images[0].thumbnail" or "media.video"
+     */
+    private setValueAtPath(obj: any, path: string, value: any): void {
+        const parts = path.split(/\.|\[|\]/).filter((p) => p !== "");
+        let current = obj;
+
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            const nextPart = parts[i + 1];
+            const isArrayIndex = /^\d+$/.test(nextPart);
+
+            if (!(part in current)) {
+                current[part] = isArrayIndex ? [] : {};
+            }
+            current = current[part];
+        }
+
+        const lastPart = parts[parts.length - 1];
+        current[lastPart] = value;
     }
 }

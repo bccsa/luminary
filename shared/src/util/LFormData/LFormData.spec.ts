@@ -23,16 +23,23 @@ describe("LFormData (images)", () => {
         const form = new LFormData();
         form.append("galleryDoc", obj);
         const entries = getFormDataEntries(form);
+
+        // Check first file
+        expect(entries["0-galleryDoc-files-path"]).toBe("images[0]");
         expect(entries["0-galleryDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["0-galleryDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["0-galleryDoc-files-filename"]).toBe("a.webp");
         expect(entries["0-galleryDoc-files-width"]).toBe("100");
         expect(entries["0-galleryDoc-files-height"]).toBe("80");
+
+        // Check second file
+        expect(entries["1-galleryDoc-files-path"]).toBe("images[1]");
         expect(entries["1-galleryDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["1-galleryDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["1-galleryDoc-files-filename"]).toBe("b.webp");
         expect(entries["1-galleryDoc-files-width"]).toBe("200");
         expect(entries["1-galleryDoc-files-height"]).toBe("160");
+
         expect(entries["galleryDoc-JSON"]).toBe(
             JSON.stringify({ images: [null, null], label: "gallery" }),
         );
@@ -48,6 +55,8 @@ describe("LFormData (images)", () => {
         const form = new LFormData();
         form.append("coverDoc", obj);
         const entries = getFormDataEntries(form);
+
+        expect(entries["0-coverDoc-files-path"]).toBe("image");
         expect(entries["0-coverDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["0-coverDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["0-coverDoc-files-filename"]).toBe("nested.webp");
