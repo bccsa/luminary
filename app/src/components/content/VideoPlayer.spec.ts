@@ -7,7 +7,15 @@ import waitForExpect from "wait-for-expect";
 
 // Mock YouTube utilities
 vi.mock("@/util/youtubeUtils", () => ({
-    isYouTubeUrl: vi.fn((url: string) => url.includes("youtube.com")),
+    isYouTubeUrl: vi.fn((url: string) => {
+        try {
+            const hostname = new URL(url).hostname;
+            const allowedHosts = ["youtube.com", "www.youtube.com"];
+            return allowedHosts.includes(hostname);
+        } catch (_) {
+            return false;
+        }
+    }),
     convertToVideoJSYouTubeUrl: vi.fn((url: string) => url),
     getYouTubeThumbnail: vi.fn(() => "https://img.youtube.com/vi/test/hqdefault.jpg"),
 }));
