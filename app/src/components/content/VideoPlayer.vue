@@ -190,8 +190,7 @@ onMounted(async () => {
 
     // Set player source based on video type (YouTube vs regular)
     if (isYouTube.value) {
-        // add options for youtube
-
+        // Configure YouTube player with branding disabled
         player.src({
             type: "video/youtube",
             src: convertToVideoJSYouTubeUrl(props.content.video!),
