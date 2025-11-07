@@ -19,7 +19,7 @@ describe("YouTube Utilities", () => {
         "https://example.com/video.mp4",
         "not-a-url",
         "",
-        "https://youtube.com/watch?v=invalid_id_too_short",
+        "https://youtube.com/watch?v=inv",
     ];
 
     describe("isYouTubeUrl", () => {
