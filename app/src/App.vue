@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
-import { isConnected } from "luminary-shared";
+import { db, isConnected } from "luminary-shared";
 import { userPreferencesAsRef } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import { mongoToDexie } from "./util/MongoQuery/mongoToDexie";
 
 const router = useRouter();
 const {
@@ -103,6 +104,25 @@ const routeKey = computed(() => {
 onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
+});
+
+const startTime = Date.now();
+mongoToDexie(db.docs, {
+    selector: {
+        type: "content",
+        parentPinned: 1, // 1 = true
+        publishDate: { $lte: Date.now() },
+        // expiryDate: { $eq: undefined },
+        // expiryDate: undefined,
+        $or: [
+            { expiryDate: undefined },
+            { expiryDate: { $gt: Date.now() } },
+        ],
+        // expiryDate: { $gt: Date.now() },
+    }
+}).toArray().then((docs) => {
+    console.log("All docs in Dexie:", docs)
+    console.log("Time to load all docs into Dexie:", Date.now() - startTime, "ms");
 });
 </script>
 
