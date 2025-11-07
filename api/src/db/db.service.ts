@@ -44,12 +44,21 @@ export type GetDocsOptions = {
 export type DbQueryResult = {
     docs: Array<any>;
     warnings?: Array<string>;
+    warning?: string;
+    bookmark?: string;
     version?: number;
     blockStart?: number;
     blockEnd?: number;
     group?: string;
     type?: DocType;
     contentOnly?: boolean;
+    execution_stats?: {
+        total_keys_examined?: number;
+        total_docs_examined?: number;
+        total_quorum_docs_examined?: number;
+        results_returned?: number;
+        execution_time_ms?: number;
+    };
 };
 
 /**
@@ -64,6 +73,27 @@ export type DbUpsertResult = {
     changes?: any;
 };
 
+/**
+ * Database service for interacting with CouchDB.
+ * Provides methods for CRUD operations, document synchronization, and query execution.
+ *
+ * @extends EventEmitter
+ *
+ * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
+ * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ *
+ * @example
+ * // Listen for document updates
+ * dbService.on('update', (doc) => {
+ *   console.log('Document updated:', doc);
+ * });
+ *
+ * @example
+ * // Listen for group updates
+ * dbService.on('groupUpdate', (groupDoc) => {
+ *   console.log('Group updated:', groupDoc);
+ * });
+ */
 @Injectable()
 export class DbService extends EventEmitter {
     private db: any;
@@ -109,6 +139,18 @@ export class DbService extends EventEmitter {
                     // Emit specific group document update event (used by permission system to update access maps)
                     if (update.doc.type === "group") {
                         this.emit("groupUpdate", update.doc);
+                    }
+
+                    // Emit specific language document update event
+                    else if (update.doc.type === DocType.Language) {
+                        this.emit("languageUpdate", update.doc);
+                    }
+
+                    // Emit delete commands for language documents
+                    else if (update.doc.type === DocType.DeleteCmd) {
+                        const doc = update.doc as DeleteCmdDto;
+                        if (doc.deleteReason === DeleteReason.Deleted)
+                            this.emit("languageUpdate", doc);
                     }
                 }
             })
@@ -436,7 +478,7 @@ export class DbService extends EventEmitter {
     getLatestDocUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
-                .view("sync", "updatedTimeUtc", {
+                .view("sync_deprecated", "updatedTimeUtc", {
                     limit: 1,
                     descending: true,
                 })
@@ -485,17 +527,14 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the query result
      */
     async executeFindQuery(query: nano.MangoQuery): Promise<DbQueryResult> {
-        const res = await this.db.find(query);
+        const res: DbQueryResult = await this.db.find(query);
 
         // calculate the start and end of the block, used to pass back to the client for pagination
         const { blockStart, blockEnd } = this.calcBlockStartEnd(res.docs);
 
-        return {
-            docs: res.docs,
-            warnings: res.warnings,
-            blockStart: blockStart,
-            blockEnd: blockEnd,
-        };
+        res.blockStart = blockStart;
+        res.blockEnd = blockEnd;
+        return res;
     }
 
     /**
