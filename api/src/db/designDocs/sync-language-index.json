@@ -1,0 +1,24 @@
+{
+    "_id": "_design/sync-language-index",
+    "language": "query",
+    "views": {
+        "sync-language-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "language"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}

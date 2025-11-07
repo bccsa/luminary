@@ -1,0 +1,24 @@
+{
+    "_id": "_design/sync-redirect-index",
+    "language": "query",
+    "views": {
+        "sync-redirect-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "redirect"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}

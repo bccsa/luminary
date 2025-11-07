@@ -5,17 +5,17 @@ export type MongoComparisonCriteria = {
     $lte?: number;
     $ne?: number | string | boolean;
     $in?: Array<number | string | boolean>;
+    $elemMatch?: MongoComparisonCriteria;
+    $exists?: boolean;
 };
 
 /**
  * DTO representing a MongoDB-like / CouchDB MangoQuery selector.
  * Supports logical operators: $or, $and.
  * Field criteria can be equality primitives or comparison objects.
+ * Validation is performed using template-based validation in MongoQueryTemplates.
  */
 export class MongoSelectorDto {
-    // Class validation for MongoSelectorDTO is done in the custom IsMongoSelector decorator which validates the entire structure recursively.
-    // Hence, no need for individual property decorators here.
-
     $or?: MongoSelectorDto[];
     $and?: MongoSelectorDto[];
 

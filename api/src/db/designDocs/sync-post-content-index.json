@@ -1,0 +1,27 @@
+{
+    "_id": "_design/sync-post-content-index",
+    "language": "query",
+    "views": {
+        "sync-post-content-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "group"
+                    },
+                    "parentType": {
+                        "$eq": "post"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}
