@@ -189,9 +189,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequest-JSON", JSON.stringify(localChange)],
-                ]),
+                expect.arrayContaining([["changeRequest-JSON", JSON.stringify(localChange)]]),
             );
         });
     });
@@ -226,9 +224,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequest-JSON", JSON.stringify(localChange)],
-                ]),
+                expect.arrayContaining([["changeRequest-JSON", JSON.stringify(localChange)]]),
             );
             expect(await db.localChanges.count()).toBe(0);
         });
@@ -284,9 +280,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as FormData;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequest-JSON", JSON.stringify(localChange)],
-                ]),
+                expect.arrayContaining([["changeRequest-JSON", JSON.stringify(localChange)]]),
             );
             expect(await db.localChanges.count()).toBe(0);
         });
