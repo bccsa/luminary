@@ -97,9 +97,25 @@ export class LFormData extends FormData {
 
     append(key: string, value: any) {
         if (typeof value === "object") {
+            console.log(`LFormData.append called with key="${key}"`);
+            console.log(`  value keys:`, Object.keys(value));
+            console.log(`  typeof structuredClone:`, typeof structuredClone);
+
             // Work on a deep clone to avoid mutating the original
-            const valueClone = structuredClone(value);
+            let valueClone;
+            try {
+                valueClone = structuredClone(value);
+                console.log(`  After clone, keys:`, Object.keys(valueClone));
+            } catch (e) {
+                console.error(`  structuredClone failed:`, e);
+                valueClone = JSON.parse(JSON.stringify(value)); // Fallback
+                console.log(`  After JSON clone, keys:`, Object.keys(valueClone));
+            }
+
             const files = this.extractAnyFile(valueClone);
+
+            console.log(`  Files found: ${files.length}`);
+            files.forEach((f, i) => console.log(`    File ${i}: path="${f.path}"`));
 
             if (files.length > 0) {
                 files.forEach((fileEntry, index) => {
@@ -108,6 +124,7 @@ export class LFormData extends FormData {
 
                     // Store the path so the API can reconstruct the structure
                     super.append(`${fileKey}-path`, path);
+                    console.log(`  Appended: "${fileKey}-path" = "${path}"`);
 
                     // Store all metadata from the file object
                     let fileName: string | undefined;
