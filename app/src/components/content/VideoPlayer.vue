@@ -454,7 +454,9 @@ watch(
 @import "./VideoPlayer.css";
 
 .audio-mode-toggle {
-    @apply !absolute right-2 top-2;
+    position: absolute !important;
+    right: 0.5rem;
+    top: 0.5rem;
 }
 </style>
 
