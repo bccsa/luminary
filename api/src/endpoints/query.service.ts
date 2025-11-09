@@ -139,7 +139,7 @@ export class QueryService {
 
         // Permission filtering: DeleteCmd documents
         else if (query.selector.type === DocType.DeleteCmd) {
-            // For content documents we strictly speaking need to check Post and Tag permissions using the
+            // For content document delete commands we strictly speaking need to check Post and Tag permissions using the
             // parentType field of the content document. This is however not available in the DeleteCmd documents.
             // As a compromise we combine all view groups for both Post and Tag document types. This may in some cases
             // distribute delete commands to users who would not normally have access to the content document,
