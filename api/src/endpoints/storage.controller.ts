@@ -3,7 +3,8 @@ import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
-import { retrieveCredentials } from "../util/encryption";
+import { retrieveCryptoData } from "../util/encryption";
+import { S3CredentialDto } from "../dto/S3CredentialDto";
 
 export type BucketTestDto = {
     endpoint: string;
@@ -72,7 +73,7 @@ export class StorageController {
             } else if (bucket.credential_id) {
                 // Encrypted credentials in separate document
                 try {
-                    const decrypted = await retrieveCredentials(
+                    const decrypted = await retrieveCryptoData<S3CredentialDto>(
                         this.dbService,
                         bucket.credential_id,
                     );

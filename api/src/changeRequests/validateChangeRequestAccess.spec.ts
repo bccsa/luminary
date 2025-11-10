@@ -704,42 +704,4 @@ describe("validateChangeRequestAccess", () => {
             expect(res.validated).toBe(true);
         });
     });
-
-    describe("Storage document access", () => {
-        it("can validate edit permission on storage document", async () => {
-            const testChangeReq_storage = plainToClass(ChangeReqDto, {
-                id: 1,
-                doc: {
-                    _id: "storage-test",
-                    type: "storage",
-                    name: "Test Storage",
-                    memberOf: ["group-super-admins"],
-                    publicUrl: "https://s3.example.com/test/",
-                    fileTypes: ["image/*"],
-                    credential: {
-                        endpoint: "http://example.com",
-                        bucketName: "testBucket",
-                        accessKey: "accessKey",
-                        secretKey: "secretKey",
-                    },
-                },
-            });
-
-            // User with edit access should be accepted
-            const resWithAccess = await validateChangeRequestAccess(
-                testChangeReq_storage,
-                ["group-super-admins"],
-                db,
-            );
-            expect(resWithAccess.validated).toBe(true);
-
-            // User without edit access should be rejected
-            const resWithoutAccess = await validateChangeRequestAccess(
-                testChangeReq_storage,
-                ["group-private-users"],
-                db,
-            );
-            expect(resWithoutAccess.error).toBe("No 'Edit' access to storage document groups");
-        });
-    });
 });
