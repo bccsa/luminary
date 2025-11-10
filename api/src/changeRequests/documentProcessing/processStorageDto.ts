@@ -1,6 +1,7 @@
 import { StorageDto } from "../../dto/StorageDto";
 import { DbService } from "../../db/db.service";
-import { storeCredentials } from "../../util/encryption";
+import { storeCryptoData } from "../../util/encryption";
+import { S3CredentialDto } from "../../dto/S3CredentialDto";
 
 /**
  * Processes S3 bucket documents
@@ -62,7 +63,7 @@ export default async function processStorageDto(
     if (doc.credential && !doc.credential_id) {
         try {
             // Use helper to encrypt and store credentials
-            const savedId = await storeCredentials(db, doc.credential);
+            const savedId = await storeCryptoData<S3CredentialDto>(db, doc.credential);
 
             // Update document to reference stored credentials
             doc.credential_id = savedId;
