@@ -49,7 +49,7 @@ describe("StorageController", () => {
     beforeEach(() => {
         // Reset mocks and re-establish spies so each test sets its own mock implementations
         jest.resetAllMocks();
-        jest.spyOn(encryption, "retrieveCredentials").mockImplementation(mockRetrieve);
+        jest.spyOn(encryption, "retrieveCryptoData").mockImplementation(mockRetrieve);
     });
 
     describe("POST /storage/bucket-status", () => {
