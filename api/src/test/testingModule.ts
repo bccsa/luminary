@@ -64,9 +64,6 @@ export async function createTestingModule(testName: string) {
                                 database,
                             } as DatabaseConfig;
                         }
-
-                        // S3Service no longer requires configuration - it uses bucket-specific credentials
-                        return undefined;
                     }),
                 },
             },

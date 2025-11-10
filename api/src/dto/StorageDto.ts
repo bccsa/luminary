@@ -1,5 +1,5 @@
-import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { Expose } from "class-transformer";
+import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Expose, Type } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { S3CredentialDto } from "./S3CredentialDto";
 import { BucketType, Uuid } from "../enums";
@@ -29,6 +29,8 @@ export class StorageDto extends _contentBaseDto {
     bucketType: BucketType;
 
     @IsOptional()
+    @ValidateNested()
+    @Type(() => S3CredentialDto)
     @Expose()
     /** Optional reference to an EncryptedStorageDto document that holds
      * encrypted S3CredentialDto data. Note: S3CredentialDto itself is a

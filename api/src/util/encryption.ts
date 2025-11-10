@@ -3,7 +3,6 @@ import { promisify } from "util";
 import { v4 as uuidv4 } from "uuid";
 import { CryptoDto } from "../dto/CryptoDto";
 import { DbService } from "../db/db.service";
-import type { S3CredentialDto } from "../dto/S3CredentialDto";
 
 /**
  * Encryption utilities for sensitive data like S3 credentials.
@@ -95,8 +94,6 @@ export async function encryptObject<T>(obj: T): Promise<string> {
     // require initialization
     if (!encryptionKey) {
         await initializeKey();
-    } else {
-        // Key is already initialized
     }
 
     const jsonString = JSON.stringify(obj);
@@ -120,21 +117,18 @@ export function resetEncryptionKey(): void {
 }
 
 /**
- * Store S3 credentials encrypted in a CryptoDto and return the saved document id.
+ * Store data encrypted in a CryptoDto and return the saved document id.
  */
-export async function storeCredentials(
-    db: DbService,
-    credential: S3CredentialDto,
-): Promise<string> {
+export async function storeCryptoData<T>(db: DbService, data: T): Promise<string> {
     if (!encryptionKey) {
         await initializeKey();
     }
 
-    if (!credential) throw new Error("No credential provided");
+    if (!data) throw new Error("No data provided");
 
-    // Encrypt the whole credential object as a single payload. This is simpler
+    // Encrypt the whole data object as a single payload. This is simpler
     // and future-proof (adds/changes fields without changing storage format).
-    const encryptedPayload = await encryptObject(credential);
+    const encryptedPayload = await encryptObject(data);
 
     // Create encrypted storage document
     const storageDoc = new CryptoDto();
@@ -151,30 +145,27 @@ export async function storeCredentials(
 }
 
 /**
- * Retrieve and decrypt S3 credentials by credential document id.
+ * Retrieve and decrypt data by document id.
  */
-export async function retrieveCredentials(
-    db: DbService,
-    credentialId: string,
-): Promise<S3CredentialDto> {
+export async function retrieveCryptoData<T>(db: DbService, dataId: string): Promise<T> {
     // require initialization
     if (!encryptionKey) {
         await initializeKey();
     }
 
-    const storageResult = await db.getDoc(credentialId);
+    const storageResult = await db.getDoc(dataId);
 
     if (!storageResult.docs || storageResult.docs.length === 0) {
-        throw new Error(`Credentials not found for id: ${credentialId}`);
+        throw new Error(`Data not found for id: ${dataId}`);
     }
 
     const storageDoc = storageResult.docs[0];
 
     if (!storageDoc.data || !storageDoc.data.encrypted) {
-        throw new Error(`Invalid encrypted credential format for id: ${credentialId}`);
+        throw new Error(`Invalid encrypted data format for id: ${dataId}`);
     }
 
-    const decrypted = await decryptObject<S3CredentialDto>(storageDoc.data.encrypted);
+    const decrypted = await decryptObject<T>(storageDoc.data.encrypted);
 
     return decrypted;
 }
