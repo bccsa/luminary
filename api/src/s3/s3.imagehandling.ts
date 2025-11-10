@@ -8,7 +8,8 @@ import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 import { DbService } from "../db/db.service";
 import { StorageDto } from "../dto/StorageDto";
 import { DocType } from "../enums";
-import { retrieveCredentials } from "../util/encryption";
+import { retrieveCryptoData } from "../util/encryption";
+import { S3CredentialDto } from "../dto/S3CredentialDto";
 import * as Minio from "minio";
 import configuration from "../configuration";
 
@@ -41,7 +42,7 @@ async function createS3ClientFromBucket(
         };
     } else if (bucket.credential_id) {
         // Use reference to encrypted credentials (new single-object payload)
-        const decrypted = await retrieveCredentials(db, bucket.credential_id);
+        const decrypted = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
         credentials = {
             endpoint: decrypted.endpoint,
             bucketName: decrypted.bucketName!,
