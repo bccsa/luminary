@@ -624,18 +624,9 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                 title=""
                                 :description="`Please select a language to start editing`"
                                 data-test="no-content"
-                                class="flex flex-col items-center justify-center"
+                                class="relative flex flex-col items-center justify-center"
                             >
-                                <div class="relative">
-                                    <LanguageSelector
-                                        class="absolute bottom-0"
-                                        data-test="placeholder-language-selector"
-                                        :parent="editableParent"
-                                        :content="editableContent"
-                                        :languages="untranslatedLanguages"
-                                        v-model:show-selector="showLanguageSelector"
-                                        @create-translation="createTranslation"
-                                    />
+                                <div class="flex flex-col-reverse items-center">
                                     <LButton
                                         :icon="PlusIcon"
                                         class="h-max w-fit"
@@ -644,6 +635,17 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                         data-test="add-translation-button"
                                         aria-label="Add translation"
                                     ></LButton>
+
+                                    <div class="absolute bottom-20">
+                                        <LanguageSelector
+                                            data-test="placeholder-language-selector"
+                                            :parent="editableParent"
+                                            :content="editableContent"
+                                            :languages="untranslatedLanguages"
+                                            v-model:show-selector="showLanguageSelector"
+                                            @create-translation="createTranslation"
+                                        />
+                                    </div>
                                 </div>
                             </EmptyState>
                             <div v-else>
