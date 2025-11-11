@@ -125,7 +125,7 @@ describe("StorageController", () => {
             // Simulate bucket doc with credential_id
             mockGetDoc.mockResolvedValueOnce({ docs: [mockBucket] });
 
-            // Mock retrieveCredentials to return the decrypted credential object
+            // Mock retrieveCryptoData to return the decrypted credential object
             mockRetrieve.mockResolvedValueOnce({
                 endpoint: "http://localhost:9000",
                 bucketName: "decryptedBucketName",
