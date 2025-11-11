@@ -54,9 +54,7 @@ export default async function processPostTagDto(
 
         // Check if bucket is specified for this upload
         if (!doc.imageBucketId) {
-            imageWarnings.push("Bucket is not specified for image processing.");
-
-            return imageWarnings; // Exit early if no bucket ID is provided
+            throw new Error("Bucket is not specified for image processing.");
         }
 
         // Use the new bucket processing with db service for bucket lookup
