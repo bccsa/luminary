@@ -48,22 +48,23 @@ describe("ChangeRequestController", () => {
         const responseData = { success: true };
         mockChangeRequest.mockResolvedValue(responseData);
 
+        const changeRequest = {
+            id: 123,
+            doc: {
+                _id: "post-test",
+                type: DocType.Post,
+                imageData: { uploadData: [null] }, // null placeholder for binary data
+            },
+        };
+
         const response = await request(app.getHttpServer())
             .post("/changerequest")
             .set("Authorization", "Bearer fake-token")
-            .field("changeRequestApiVersion", "0.0.0")
-            .field("changeRequestId", JSON.stringify(123))
-            .field(
-                "changeRequestDoc-JSON",
-                JSON.stringify({
-                    _id: "post-test",
-                    type: DocType.Post,
-                    imageData: { uploadData: [] },
-                }),
-            )
-            .field("0-changeRequestDoc-files-filename", "test-image.jpg")
-            .field("0-changeRequestDoc-files-preset", "photo")
-            .attach("0-changeRequestDoc-files-fileData", testImagePath);
+            .field("apiVersion", "0.0.0")
+            .field("changeRequest-JSON", JSON.stringify(changeRequest))
+            .field("0-changeRequest-files-filename", "test-image.jpg")
+            .field("0-changeRequest-files-preset", "photo")
+            .attach("0-changeRequest-files-fileData", testImagePath);
 
         expect(response.status).toBe(201); // or whatever your route returns
         expect(response.body).toEqual(responseData);
@@ -72,6 +73,7 @@ describe("ChangeRequestController", () => {
         expect(mockChangeRequest).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: 123,
+                apiVersion: "0.0.0",
                 doc: expect.objectContaining({
                     _id: "post-test",
                     imageData: expect.objectContaining({
