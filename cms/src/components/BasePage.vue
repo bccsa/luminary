@@ -32,7 +32,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
-    <div class="flex h-full min-h-screen flex-col scrollbar-hide">
+    <div class="flex h-full flex-col overflow-scroll pb-5 scrollbar-hide">
         <div class="sticky top-0 z-20">
             <div
                 class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"
@@ -137,7 +137,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     :class="isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8'"
                 >
                     <div
-                        class="relative z-0 h-screen flex-1 overflow-y-auto scrollbar-hide"
+                        class="relative z-0 h-full flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
