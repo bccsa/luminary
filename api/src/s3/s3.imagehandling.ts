@@ -8,57 +8,12 @@ import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 import { DbService } from "../db/db.service";
 import { StorageDto } from "../dto/StorageDto";
 import { DocType } from "../enums";
-import { retrieveCryptoData } from "../util/encryption";
-import { S3CredentialDto } from "../dto/S3CredentialDto";
 import * as Minio from "minio";
 import configuration from "../configuration";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
 
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
-
-/**
- * Create S3 client from bucket credentials
- */
-async function createS3ClientFromBucket(
-    bucket: StorageDto,
-    db: DbService,
-    s3Service: S3Service,
-): Promise<{ client: Minio.Client; bucketName: string }> {
-    let credentials: {
-        endpoint: string;
-        bucketName: string;
-        accessKey: string;
-        secretKey: string;
-    };
-
-    if (bucket.credential) {
-        // Use embedded credentials
-        credentials = {
-            endpoint: bucket.credential.endpoint,
-            bucketName: bucket.credential.bucketName!,
-            accessKey: bucket.credential.accessKey!,
-            secretKey: bucket.credential.secretKey!,
-        };
-    } else if (bucket.credential_id) {
-        // Use reference to encrypted credentials (new single-object payload)
-        const decrypted = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
-        credentials = {
-            endpoint: decrypted.endpoint,
-            bucketName: decrypted.bucketName!,
-            accessKey: decrypted.accessKey!,
-            secretKey: decrypted.secretKey!,
-        };
-    } else {
-        throw new Error("No credentials configured for bucket");
-    }
-
-    // Use S3Service to create the client (eliminates duplication)
-    return {
-        client: s3Service.createClient(credentials),
-        bucketName: credentials.bucketName,
-    };
-}
 
 /**
  * Migrates all image files from one bucket to another
@@ -83,33 +38,14 @@ async function migrateImagesBetweenBuckets(
     const warnings: string[] = [];
 
     try {
-        // Get old and new bucket configurations (each may have different endpoints and credentials)
-        const oldBucketResult = await db.getDoc(oldBucketId);
-        const newBucketResult = await db.getDoc(newBucketId);
-
-        if (!oldBucketResult.docs || oldBucketResult.docs.length === 0) {
-            warnings.push(`Old bucket ${oldBucketId} not found. Cannot migrate images.`);
-            return warnings;
-        }
-
-        if (!newBucketResult.docs || newBucketResult.docs.length === 0) {
-            warnings.push(`New bucket ${newBucketId} not found. Cannot migrate images.`);
-            return warnings;
-        }
-
-        const oldBucket = oldBucketResult.docs[0] as StorageDto;
-        const newBucket = newBucketResult.docs[0] as StorageDto;
-
-        // Create separate S3 clients for each bucket using their own credentials
-        const { client: oldS3Client, bucketName: oldBucketName } = await createS3ClientFromBucket(
-            oldBucket,
+        // Use S3Service to create clients from bucket configurations
+        const { client: oldS3Client, bucketName: oldBucketName } = await s3.createClientFromBucket(
+            oldBucketId,
             db,
-            s3,
         );
-        const { client: newS3Client, bucketName: newBucketName } = await createS3ClientFromBucket(
-            newBucket,
+        const { client: newS3Client, bucketName: newBucketName } = await s3.createClientFromBucket(
+            newBucketId,
             db,
-            s3,
         );
 
         // Get all image files to migrate
@@ -120,24 +56,8 @@ async function migrateImagesBetweenBuckets(
             return warnings;
         }
 
-        // Detect cross-system migration for logging
-        const oldEndpoint =
-            oldBucket.credential?.endpoint ||
-            (oldBucket.credential_id ? "(encrypted credentials)" : "unknown");
-        const newEndpoint =
-            newBucket.credential?.endpoint ||
-            (newBucket.credential_id ? "(encrypted credentials)" : "unknown");
-
-        const isCrossSystem =
-            oldEndpoint !== newEndpoint &&
-            oldEndpoint !== "(encrypted credentials)" &&
-            newEndpoint !== "(encrypted credentials)";
-
-        if (isCrossSystem) {
-            console.log(
-                `Initiating cross-system migration from ${oldEndpoint}/${oldBucketName} to ${newEndpoint}/${newBucketName}...`,
-            );
-        }
+        // Note: We can't easily determine endpoints from clients, but this is for logging only
+        console.log(`Initiating migration from bucket ${oldBucketName} to ${newBucketName}...`);
 
         let successfulMigrations = 0;
         let failedMigrations = 0;
@@ -184,10 +104,9 @@ async function migrateImagesBetweenBuckets(
         }
 
         if (successfulMigrations > 0) {
-            const migrationDetail = isCrossSystem
-                ? `Successfully migrated ${successfulMigrations} image file(s) from ${oldEndpoint}/${oldBucketName} to ${newEndpoint}/${newBucketName} (cross-system transfer)`
-                : `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucketName} to ${newBucketName}`;
-            warnings.push(migrationDetail);
+            warnings.push(
+                `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucketName} to ${newBucketName}`,
+            );
         }
 
         if (failedMigrations > 0) {
@@ -204,8 +123,8 @@ async function migrateImagesBetweenBuckets(
 
 /**
  * Processes an embedded image upload by resizing the image and uploading to S3
- * Requires bucket-specific credentials
- * Each image upload must specify a bucketId with proper credentials configured
+ * Requires bucket-specific credentials configured at the post/tag level
+ * Bucket ID is passed from the parent post/tag document for consistency
  * Returns warnings for any issues encountered but doesn't throw errors
  */
 export async function processImage(
@@ -262,9 +181,8 @@ export async function processImage(
                                 .join(", ")}`,
                         );
                     } else {
-                        const bucketDto = result.docs[0] as StorageDto;
                         const { client: bucketS3Client, bucketName } =
-                            await createS3ClientFromBucket(bucketDto, db, s3);
+                            await s3.createClientFromBucket(parentBucketId, db);
 
                         // Delete files from the bucket
                         for (const file of removedFiles) {
@@ -297,7 +215,7 @@ export async function processImage(
             // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
             // as such need to be ignored.
             image.fileCollections = prevImage.fileCollections.filter((collection) =>
-                // Only include collections from the previous document that are also in the new document
+                // Only include collections from the previous document
                 image.fileCollections.some((c) =>
                     c.imageFiles.some((f) => collection.imageFiles[0]?.filename === f.filename),
                 ),
@@ -307,15 +225,18 @@ export async function processImage(
         // Upload new files
         if (image.uploadData) {
             if (!db) {
-                warnings.push(
-                    "Database service is required for image uploads in the new bucket-based architecture.",
-                );
+                warnings.push("Unable to upload images - system configuration error.");
+                return warnings;
+            }
+
+            if (!parentBucketId) {
+                warnings.push("Parent bucket ID is required for image uploads.");
                 return warnings;
             }
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
             image.uploadData?.forEach((uploadData) => {
-                promises.push(processImageUploadSafe(uploadData, s3, image, db));
+                promises.push(processImageUpload(uploadData, s3, image, db, parentBucketId));
             });
 
             const results = await Promise.all(promises);
@@ -346,11 +267,12 @@ export async function processImage(
     return warnings;
 }
 
-async function processImageUploadSafe(
+async function processImageUpload(
     uploadData: ImageUploadDto,
     s3: S3Service,
     image: ImageDto,
     db: DbService, // Required - no longer optional
+    bucketId: string, // Parent-level bucket ID
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
@@ -375,10 +297,10 @@ async function processImageUploadSafe(
         resultImageCollection.aspectRatio =
             Math.round((metadata.width / metadata.height) * 100) / 100;
 
-        // Bucket ID is required in the new architecture
-        if (!uploadData.bucketId) {
+        // Bucket ID is required
+        if (!bucketId) {
             warnings.push(
-                "No bucket specified for image upload. Each image must specify a target bucket with proper credentials.",
+                "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
             );
             return { success: false, warnings };
         }
@@ -389,12 +311,12 @@ async function processImageUploadSafe(
         try {
             const bucketDocs = await db.getDocsByType(DocType.Storage);
             const foundBucket = bucketDocs.docs.find(
-                (doc: any) => doc._id === uploadData.bucketId,
+                (doc: any) => doc._id === bucketId,
             ) as StorageDto;
 
             if (!foundBucket || !foundBucket.name) {
                 warnings.push(
-                    `Bucket with ID ${uploadData.bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
+                    `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
                 );
                 return { success: false, warnings };
             }
@@ -426,16 +348,15 @@ async function processImageUploadSafe(
             }
 
             // Create bucket-specific S3 client with bucket's credentials
-            const { client: bucketS3Client, bucketName } = await createS3ClientFromBucket(
-                bucketDto,
+            const { client: bucketS3Client, bucketName } = await s3.createClientFromBucket(
+                bucketId,
                 db,
-                s3,
             );
 
             imageSizes.forEach(async (size) => {
                 if (metadata.width < size / 1.1) return; // allow slight upscaling
                 promises.push(
-                    processQualitySafe(
+                    resizeAndUploadImage(
                         uploadData,
                         size,
                         bucketS3Client,
@@ -448,7 +369,7 @@ async function processImageUploadSafe(
             });
         } catch (error) {
             warnings.push(
-                `Failed to connect to bucket ${uploadData.bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
+                `Failed to connect to bucket ${bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
             );
             return { success: false, warnings };
         }
@@ -477,7 +398,7 @@ async function processImageUploadSafe(
     }
 }
 
-async function processQualitySafe(
+async function resizeAndUploadImage(
     uploadData: ImageUploadDto,
     size: number,
     s3Client: Minio.Client,

@@ -6,6 +6,7 @@ import * as Minio from "minio";
 describe("S3Service", () => {
     let service: S3Service;
     let testClient: Minio.Client;
+    let dbService: any;
 
     const testBucket = UUID();
     const testCredentials = {
@@ -16,8 +17,18 @@ describe("S3Service", () => {
     };
 
     beforeAll(async () => {
-        service = (await createTestingModule("s3-testing")).s3Service;
+        const module = await createTestingModule("s3-testing");
+        service = module.s3Service;
+        dbService = module.dbService;
         testClient = service.createClient(testCredentials);
+
+        // Create the test bucket
+        try {
+            await service.makeBucket(testClient, testBucket);
+        } catch (error) {
+            // Bucket might already exist, ignore the error
+            console.log("Test bucket already exists or creation failed:", error.message);
+        }
     });
 
     beforeEach(async () => {});
@@ -34,7 +45,14 @@ describe("S3Service", () => {
 
     it("can create a bucket", async () => {
         const bucket = testBucket;
-        await service.makeBucket(testClient, bucket);
+        try {
+            await service.makeBucket(testClient, bucket);
+        } catch (error) {
+            // Bucket might already exist, which is fine for this test
+            if (!error.message?.includes("already own it")) {
+                throw error;
+            }
+        }
         const result = await service.bucketExists(testClient, bucket);
 
         expect(result).toBeTruthy();
@@ -241,5 +259,181 @@ describe("S3Service", () => {
 
         expect(result.status).toBe("unreachable");
         expect(result.message).toBeDefined();
+    });
+
+    describe("createClientFromBucket", () => {
+        it("can create client from bucket with embedded credentials", async () => {
+            // Create a bucket document with embedded credentials
+            const bucketDoc = {
+                _id: "test-bucket-with-embedded-creds",
+                type: "storage",
+                name: "Test Bucket",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                credential: {
+                    endpoint: "http://127.0.0.1:9000",
+                    bucketName: testBucket,
+                    accessKey: "minio",
+                    secretKey: "minio123",
+                },
+            };
+
+            // Save bucket to database
+            await dbService.upsertDoc(bucketDoc);
+
+            // Test createClientFromBucket
+            const result = await service.createClientFromBucket(bucketDoc._id, dbService);
+
+            expect(result).toBeDefined();
+            expect(result.client).toBeInstanceOf(Minio.Client);
+            expect(result.bucketName).toBe(testBucket);
+
+            // Verify the client works by checking bucket existence
+            const bucketExists = await result.client.bucketExists(result.bucketName);
+            expect(bucketExists).toBe(true);
+        });
+
+        it("can create client from bucket with encrypted credentials", async () => {
+            // First create an encrypted credential document
+            const credentialData = {
+                endpoint: "http://127.0.0.1:9000",
+                bucketName: testBucket,
+                accessKey: "minio",
+                secretKey: "minio123",
+            };
+
+            // Create the encrypted credential document using the encryption utility
+            const { storeCryptoData } = await import("../util/encryption");
+            const encryptedCredId = await storeCryptoData(dbService, credentialData);
+
+            // Create a bucket document with credential reference
+            const bucketDoc = {
+                _id: "test-bucket-with-encrypted-creds",
+                type: "storage",
+                name: "Test Bucket Encrypted",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                credential_id: encryptedCredId,
+            };
+
+            // Save bucket to database
+            await dbService.upsertDoc(bucketDoc);
+
+            // Test createClientFromBucket
+            const result = await service.createClientFromBucket(bucketDoc._id, dbService);
+
+            expect(result).toBeDefined();
+            expect(result.client).toBeInstanceOf(Minio.Client);
+            expect(result.bucketName).toBe(testBucket);
+
+            // Verify the client works by checking bucket existence
+            const bucketExists = await result.client.bucketExists(result.bucketName);
+            expect(bucketExists).toBe(true);
+        });
+
+        it("throws error when bucket is not found", async () => {
+            const nonExistentBucketId = "non-existent-bucket-id";
+
+            await expect(
+                service.createClientFromBucket(nonExistentBucketId, dbService),
+            ).rejects.toThrow(`Bucket with ID ${nonExistentBucketId} not found`);
+        });
+
+        it("throws error when bucket has no credentials configured", async () => {
+            // Create a bucket document without any credentials
+            const bucketDoc = {
+                _id: "test-bucket-no-credentials",
+                type: "storage",
+                name: "Test Bucket No Creds",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                // No credential or credential_id
+            };
+
+            // Save bucket to database
+            await dbService.upsertDoc(bucketDoc);
+
+            await expect(service.createClientFromBucket(bucketDoc._id, dbService)).rejects.toThrow(
+                "No credentials configured for bucket",
+            );
+        });
+
+        it("throws error when encrypted credential reference is invalid", async () => {
+            // Create a bucket document with invalid credential reference
+            const bucketDoc = {
+                _id: "test-bucket-invalid-cred-ref",
+                type: "storage",
+                name: "Test Bucket Invalid Cred Ref",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                credential_id: "non-existent-credential-id",
+            };
+
+            // Save bucket to database
+            await dbService.upsertDoc(bucketDoc);
+
+            await expect(
+                service.createClientFromBucket(bucketDoc._id, dbService),
+            ).rejects.toThrow();
+        });
+
+        it("can create multiple clients from different buckets", async () => {
+            // Create two different bucket documents
+            const bucket1Doc = {
+                _id: "test-bucket-1",
+                type: "storage",
+                name: "Test Bucket 1",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                credential: {
+                    endpoint: "http://127.0.0.1:9000",
+                    bucketName: testBucket,
+                    accessKey: "minio",
+                    secretKey: "minio123",
+                },
+            };
+
+            const bucket2Doc = {
+                _id: "test-bucket-2",
+                type: "storage",
+                name: "Test Bucket 2",
+                fileTypes: ["image/*"],
+                publicUrl: "http://localhost:9000/test-bucket",
+                bucketType: "s3",
+                credential: {
+                    endpoint: "http://127.0.0.1:9000",
+                    bucketName: testBucket, // Using same bucket but different config docs
+                    accessKey: "minio",
+                    secretKey: "minio123",
+                },
+            };
+
+            // Save buckets to database
+            await dbService.upsertDoc(bucket1Doc);
+            await dbService.upsertDoc(bucket2Doc);
+
+            // Test creating clients from both buckets
+            const result1 = await service.createClientFromBucket(bucket1Doc._id, dbService);
+            const result2 = await service.createClientFromBucket(bucket2Doc._id, dbService);
+
+            expect(result1).toBeDefined();
+            expect(result1.client).toBeInstanceOf(Minio.Client);
+            expect(result1.bucketName).toBe(testBucket);
+
+            expect(result2).toBeDefined();
+            expect(result2.client).toBeInstanceOf(Minio.Client);
+            expect(result2.bucketName).toBe(testBucket);
+
+            // Verify both clients work
+            const bucket1Exists = await result1.client.bucketExists(result1.bucketName);
+            const bucket2Exists = await result2.client.bucketExists(result2.bucketName);
+            expect(bucket1Exists).toBe(true);
+            expect(bucket2Exists).toBe(true);
+        });
     });
 });

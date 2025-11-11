@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import * as Minio from "minio";
+import { S3CredentialDto } from "../dto/S3CredentialDto";
+
 @Injectable()
 export class S3Service {
     // Note: No default client or config - everything is bucket-specific now
@@ -173,6 +175,58 @@ export class S3Service {
         }
 
         return inaccessibleImages;
+    }
+
+    /**
+     * Creates an S3 client from a bucket configuration stored in the database
+     * Handles both embedded credentials and encrypted credential references
+     */
+    public async createClientFromBucket(
+        bucketId: string,
+        db: any, // DbService type
+    ): Promise<{ client: Minio.Client; bucketName: string }> {
+        const { retrieveCryptoData } = await import("../util/encryption");
+
+        // Get bucket configuration
+        const result = await db.getDoc(bucketId);
+        if (!result.docs || result.docs.length === 0) {
+            throw new Error(`Bucket with ID ${bucketId} not found`);
+        }
+
+        const bucket = result.docs[0];
+
+        let credentials: {
+            endpoint: string;
+            bucketName: string;
+            accessKey: string;
+            secretKey: string;
+        };
+
+        if (bucket.credential) {
+            // Use embedded credentials
+            credentials = {
+                endpoint: bucket.credential.endpoint,
+                bucketName: bucket.credential.bucketName!,
+                accessKey: bucket.credential.accessKey!,
+                secretKey: bucket.credential.secretKey!,
+            };
+        } else if (bucket.credential_id) {
+            // Use reference to encrypted credentials
+            const decrypted = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
+            credentials = {
+                endpoint: decrypted.endpoint,
+                bucketName: decrypted.bucketName!,
+                accessKey: decrypted.accessKey!,
+                secretKey: decrypted.secretKey!,
+            };
+        } else {
+            throw new Error("No credentials configured for bucket");
+        }
+
+        return {
+            client: this.createClient(credentials),
+            bucketName: credentials.bucketName,
+        };
     }
 
     /**
