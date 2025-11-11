@@ -268,7 +268,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-with-embedded-creds",
                 type: "storage",
                 name: "Test Bucket",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 credential: {
@@ -312,7 +312,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-with-encrypted-creds",
                 type: "storage",
                 name: "Test Bucket Encrypted",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 credential_id: encryptedCredId,
@@ -347,7 +347,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-no-credentials",
                 type: "storage",
                 name: "Test Bucket No Creds",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 // No credential or credential_id
@@ -367,7 +367,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-invalid-cred-ref",
                 type: "storage",
                 name: "Test Bucket Invalid Cred Ref",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 credential_id: "non-existent-credential-id",
@@ -387,7 +387,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-1",
                 type: "storage",
                 name: "Test Bucket 1",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 credential: {
@@ -402,7 +402,7 @@ describe("S3Service", () => {
                 _id: "test-bucket-2",
                 type: "storage",
                 name: "Test Bucket 2",
-                fileTypes: ["image/*"],
+                mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/test-bucket",
                 bucketType: "s3",
                 credential: {

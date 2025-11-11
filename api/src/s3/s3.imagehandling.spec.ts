@@ -204,7 +204,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             name: `Source Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `http://127.0.0.1:9000/${sourceBucket}`,
-            fileTypes: ["image/*"],
+            mimeTypes: ["image/*"],
             credential: {
                 ...testCredentials,
                 bucketName: sourceBucket,
@@ -218,7 +218,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             name: `Target Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `http://127.0.0.1:9000/${targetBucket}`,
-            fileTypes: ["image/*"],
+            mimeTypes: ["image/*"],
             credential: {
                 ...testCredentials,
                 bucketName: targetBucket,
@@ -391,7 +391,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             name: `Cross System Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `https://s3.amazonaws.com/${uuidv4()}-cross-bucket`,
-            fileTypes: ["image/*"],
+            mimeTypes: ["image/*"],
             credential: crossSystemCredentials,
             updatedTimeUtc: Date.now(),
         };
@@ -441,7 +441,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             name: `Invalid Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `http://127.0.0.1:9000/nonexistent-bucket-${uuidv4()}`,
-            fileTypes: ["image/*"],
+            mimeTypes: ["image/*"],
             credential: {
                 endpoint: "http://127.0.0.1:9000",
                 accessKey: "minio",
@@ -527,7 +527,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             name: `Restricted Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `http://127.0.0.1:9000/${testBucket}/restricted`,
-            fileTypes: ["image/jpeg", "image/png"],
+            mimeTypes: ["image/jpeg", "image/png"],
             credential: testCredentials,
             updatedTimeUtc: Date.now(),
         };
@@ -540,7 +540,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             name: `Allow All Bucket`,
             bucketType: BucketType.Image,
             publicUrl: `http://127.0.0.1:9000/${testBucket}/allow-all`,
-            fileTypes: [],
+            mimeTypes: [],
             credential: testCredentials,
             updatedTimeUtc: Date.now(),
         };
@@ -558,7 +558,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         }
     });
 
-    it("should allow upload when format matches allowed fileTypes", async () => {
+    it("should allow upload when format matches allowed mimeTypes", async () => {
         const image = new ImageDto();
         image.uploadData = [
             {
@@ -583,9 +583,9 @@ describe("S3ImageHandler - File Type Validation", () => {
         expect(image.fileCollections.length).toBeGreaterThan(0);
     });
 
-    it("should reject upload when format doesn't match allowed fileTypes", async () => {
+    it("should reject upload when format doesn't match allowed mimeTypes", async () => {
         // Update bucket to only allow webp (testImage.jpg will be rejected as it's jpeg)
-        restrictedBucketDto.fileTypes = ["image/webp"];
+        restrictedBucketDto.mimeTypes = ["image/webp"];
         await dbService.upsertDoc(restrictedBucketDto);
 
         const image = new ImageDto();
@@ -614,11 +614,11 @@ describe("S3ImageHandler - File Type Validation", () => {
         expect(image.fileCollections.length).toBe(0);
 
         // Reset bucket for next tests
-        restrictedBucketDto.fileTypes = ["image/jpeg", "image/png"];
+        restrictedBucketDto.mimeTypes = ["image/jpeg", "image/png"];
         await dbService.upsertDoc(restrictedBucketDto);
     });
 
-    it("should allow all uploads when fileTypes is empty", async () => {
+    it("should allow all uploads when mimeTypes is empty", async () => {
         const image = new ImageDto();
         image.uploadData = [
             {
@@ -637,15 +637,15 @@ describe("S3ImageHandler - File Type Validation", () => {
             allowAllBucketDto._id,
         );
 
-        // Should succeed with any format when fileTypes is empty
+        // Should succeed with any format when mimeTypes is empty
         const fileTypeWarning = warnings.find((w) => w.includes("not allowed"));
         expect(fileTypeWarning).toBeUndefined();
         expect(image.fileCollections.length).toBeGreaterThan(0);
     });
 
-    it("should support wildcard fileTypes like image/*", async () => {
+    it("should support wildcard mimeTypes like image/*", async () => {
         // Update bucket to use wildcard
-        restrictedBucketDto.fileTypes = ["image/*"];
+        restrictedBucketDto.mimeTypes = ["image/*"];
         await dbService.upsertDoc(restrictedBucketDto);
 
         const image = new ImageDto();

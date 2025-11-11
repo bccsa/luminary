@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { S3CredentialDto } from "./S3CredentialDto";
@@ -16,7 +16,7 @@ export class StorageDto extends _contentBaseDto {
     @IsArray()
     @IsString({ each: true })
     @Expose()
-    fileTypes: string[] = []; // e.g. ['image','media','attachment']
+    mimeTypes: string[] = []; // e.g. ['image/*','audio/*','application/pdf']
 
     @IsNotEmpty()
     @IsString()
@@ -25,6 +25,7 @@ export class StorageDto extends _contentBaseDto {
 
     @IsNotEmpty()
     @IsString()
+    @IsEnum(BucketType)
     @Expose()
     bucketType: BucketType;
 

@@ -121,7 +121,7 @@ export const changeRequest_storage = () => {
             memberOf: ["group-storage-admins"],
             name: "testStorageBucket",
             publicUrl: "https://s3.example.com/testStorageBucket/",
-            fileTypes: ["image/*", "audio/*"],
+            mimeTypes: ["image/*", "audio/*"],
             credential: {
                 endpoint: "http://example.com",
                 bucketName: "testStorageBucket",

@@ -51,18 +51,18 @@ const bucketBaseUrl = computed(() => {
 });
 
 // Get accepted file types based on selected bucket
-const acceptedFileTypes = computed(() => {
+const acceptedmimeTypes = computed(() => {
     if (!parent.value?.imageBucketId) {
         return "image/*"; // default to all images
     }
 
     const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
-    if (!bucket || !bucket.fileTypes || bucket.fileTypes.length === 0) {
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*"; // accept all images if no restrictions
     }
 
-    // Convert fileTypes array to accept attribute format
-    return bucket.fileTypes.join(", ");
+    // Convert mimeTypes array to accept attribute format
+    return bucket.mimeTypes.join(", ");
 });
 
 // Get file type description for user
@@ -72,12 +72,12 @@ const fileTypeDescription = computed(() => {
     }
 
     const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
-    if (!bucket || !bucket.fileTypes || bucket.fileTypes.length === 0) {
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "All image types";
     }
 
     // Format for display
-    return `Accepts: ${bucket.fileTypes.join(", ")}`;
+    return `Accepts: ${bucket.mimeTypes.join(", ")}`;
 });
 
 // Bucket dropdown options
@@ -343,7 +343,7 @@ defineExpose({
                         ref="uploadInput"
                         type="file"
                         class="mb-4 hidden"
-                        :accept="acceptedFileTypes"
+                        :accept="acceptedmimeTypes"
                         @change="upload"
                         data-test="image-upload"
                         multiple

@@ -52,19 +52,19 @@ const isBucketSelected = computed(() => {
     return !!parent.value?.imageBucketId;
 });
 
-// Get the selected bucket's fileTypes for the accept attribute
-const acceptedFileTypes = computed(() => {
+// Get the selected bucket's mimeTypes for the accept attribute
+const acceptedmimeTypes = computed(() => {
     if (!parent.value?.imageBucketId) {
         return "image/jpeg, image/png, image/webp"; // default
     }
 
     const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
-    if (!bucket || !bucket.fileTypes || bucket.fileTypes.length === 0) {
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*"; // accept all images if no restrictions
     }
 
-    // Convert fileTypes array to accept attribute format
-    return bucket.fileTypes.join(", ");
+    // Convert mimeTypes array to accept attribute format
+    return bucket.mimeTypes.join(", ");
 });
 
 const triggerFilePicker = () => {
@@ -112,7 +112,7 @@ const handleFileChange = () => {
                     ref="uploadInput"
                     type="file"
                     class="hidden"
-                    :accept="acceptedFileTypes"
+                    :accept="acceptedmimeTypes"
                     multiple
                     @change="handleFileChange"
                 />
