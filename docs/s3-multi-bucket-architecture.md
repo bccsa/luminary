@@ -329,7 +329,7 @@ Enable debug logging by checking browser console for:
   name: string;
   bucketType: 'image' | 'media';
   publicUrl: string;
-  fileTypes: string[];
+  mimeTypes: string[];
   credential?: S3CredentialDto;
   credential_id?: string;
 }

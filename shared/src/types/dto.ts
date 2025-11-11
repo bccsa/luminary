@@ -171,7 +171,7 @@ export type S3CredentialDto = {
 
 export type StorageDto = ContentBaseDto & {
     name: string;
-    fileTypes: string[];
+    mimeTypes: string[];
     publicUrl: string;
     bucketType: BucketType;
     credential?: S3CredentialDto;
