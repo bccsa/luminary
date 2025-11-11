@@ -39,46 +39,59 @@ export class ChangeRequestController {
         if (files?.length || jsonKey) {
             const apiVersion = body["apiVersion"];
             await validateApiVersion(apiVersion);
+
             // Parse the main JSON payload
             const parsedData = JSON.parse(body[jsonKey]);
 
-            // Reconstruct binary data from uploaded files back into the document structure
+            // Patch binary data (file buffers) back into null placeholders
             if (files.length > 0) {
                 const baseKey = jsonKey.replace("-JSON", "");
 
-                files.forEach((file, index) => {
+                // Reconstruct file objects with metadata from form fields
+                const fileObjects = files.map((file, index) => {
                     const filePrefix = `${index}-${baseKey}-files-`;
-                    const pathKey = `${filePrefix}path`;
-                    const path = body[pathKey];
-
-                    if (!path) {
-                        throw new Error(`Missing path information for file at index ${index}`);
-                    }
+                    const fileObj: Record<string, any> = {};
 
                     // Extract all metadata fields for this file
-                    const fileMetadata: Record<string, any> = {};
                     Object.keys(body).forEach((key) => {
-                        if (key.startsWith(filePrefix) && key !== pathKey) {
+                        if (key.startsWith(filePrefix)) {
                             const fieldName = key.replace(filePrefix, "");
+
+                            // Skip the fileData field - we'll add the buffer separately
+                            if (fieldName === "fileData") return;
+
                             const value = body[key];
 
-                            // Convert string values back to their original types if needed
-                            if (fieldName === "width" || fieldName === "height") {
-                                fileMetadata[fieldName] = parseInt(value, 10);
+                            console.log(
+                                `Extracting metadata: ${fieldName}=${value} (type: ${typeof value})`,
+                            );
+
+                            // Convert string values back to their original types
+                            if (!isNaN(Number(value)) && value !== "") {
+                                fileObj[fieldName] = Number(value);
                             } else if (value === "true" || value === "false") {
-                                fileMetadata[fieldName] = value === "true";
+                                fileObj[fieldName] = value === "true";
                             } else {
-                                fileMetadata[fieldName] = value;
+                                fileObj[fieldName] = value;
                             }
                         }
                     });
 
                     // Add the binary data from the uploaded file
-                    fileMetadata.fileData = file.buffer;
+                    fileObj.fileData = file.buffer;
 
-                    // Reconstruct the object at the specified path
-                    this.setValueAtPath(parsedData, path, fileMetadata);
+                    console.log(
+                        `File ${index}: buffer length=${
+                            file.buffer.length
+                        }, buffer type=${typeof file.buffer}, is Buffer=${Buffer.isBuffer(
+                            file.buffer,
+                        )}`,
+                    );
+
+                    return fileObj;
                 });
+
+                this.patchFileData(parsedData, fileObjects);
             }
 
             // Extract the ChangeReqDto from the parsed data
@@ -97,25 +110,42 @@ export class ChangeRequestController {
     }
 
     /**
-     * Set a value at a specific path in an object
-     * Supports paths like "images[0].thumbnail" or "media.video"
+     * Recursively find null values and replace them with file objects in order
      */
-    private setValueAtPath(obj: any, path: string, value: any): void {
-        const parts = path.split(/\.|\[|\]/).filter((p) => p !== "");
-        let current = obj;
+    private patchFileData(obj: any, fileObjects: any[]): void {
+        let fileIndex = 0;
 
-        for (let i = 0; i < parts.length - 1; i++) {
-            const part = parts[i];
-            const nextPart = parts[i + 1];
-            const isArrayIndex = /^\d+$/.test(nextPart);
+        const patch = (value: any) => {
+            if (!value || typeof value !== "object") return;
 
-            if (!(part in current)) {
-                current[part] = isArrayIndex ? [] : {};
+            if (Array.isArray(value)) {
+                for (let i = 0; i < value.length; i++) {
+                    if (value[i] === null && fileIndex < fileObjects.length) {
+                        value[i] = fileObjects[fileIndex++];
+                    } else if (typeof value[i] === "object") {
+                        patch(value[i]);
+                    }
+                }
+            } else {
+                for (const key of Object.keys(value)) {
+                    // Prevent prototype pollution
+                    // https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/Prototype_pollution
+                    // ChangeReqDto has doc: any with only @IsObject() validation
+                    // An attacker can exploit this vulnerability by passing a specially crafted object that modifies the prototype of built-in objects.
+                    // ( Class-validator won't detect this ) Class-validator doesn't recursively check for dangerous keys like __proto__
+                    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+                        continue;
+                    }
+
+                    if (value[key] === null && fileIndex < fileObjects.length) {
+                        value[key] = fileObjects[fileIndex++];
+                    } else if (typeof value[key] === "object") {
+                        patch(value[key]);
+                    }
+                }
             }
-            current = current[part];
-        }
+        };
 
-        const lastPart = parts[parts.length - 1];
-        current[lastPart] = value;
+        patch(obj);
     }
 }
