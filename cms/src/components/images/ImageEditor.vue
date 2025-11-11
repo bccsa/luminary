@@ -188,14 +188,14 @@ const handleFiles = (files: FileList | null) => {
     }
 
     // Process files with the selected bucket
-    processFiles(fileArray, parent.value.imageBucketId);
+    processFiles(fileArray);
 
     // Reset the file input
     // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
     uploadInput.value!.value = "";
 };
 
-const processFiles = (files: File[], bucketId: string) => {
+const processFiles = (files: File[]) => {
     files.forEach((file) => {
         const reader = new FileReader();
 
@@ -218,7 +218,6 @@ const processFiles = (files: File[], bucketId: string) => {
                 filename: file.name,
                 preset: "photo",
                 fileData,
-                bucketId: bucketId,
             } as ImageUploadDto;
 
             parent.value.imageData.uploadData.push(uploadData);

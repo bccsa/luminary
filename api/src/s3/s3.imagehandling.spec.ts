@@ -258,7 +258,6 @@ describe("S3ImageHandler - Bucket Migration", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: sourceBucketDto._id,
             },
         ];
 
@@ -407,7 +406,6 @@ describe("S3ImageHandler - Bucket Migration", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: sourceBucketDto._id,
             },
         ];
 
@@ -462,7 +460,6 @@ describe("S3ImageHandler - Bucket Migration", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: sourceBucketDto._id,
             },
         ];
 
@@ -569,7 +566,6 @@ describe("S3ImageHandler - File Type Validation", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: restrictedBucketDto._id,
             },
         ];
 
@@ -599,7 +595,6 @@ describe("S3ImageHandler - File Type Validation", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: restrictedBucketDto._id,
             },
         ];
 
@@ -631,7 +626,6 @@ describe("S3ImageHandler - File Type Validation", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: allowAllBucketDto._id,
             },
         ];
 
@@ -661,7 +655,6 @@ describe("S3ImageHandler - File Type Validation", () => {
                     path.resolve(__dirname + "/../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
-                bucketId: restrictedBucketDto._id,
             },
         ];
 
