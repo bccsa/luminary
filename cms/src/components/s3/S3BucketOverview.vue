@@ -113,7 +113,7 @@ const newBucket = ref<StorageDto>({
         accessKey: "",
         secretKey: "",
     } as S3CredentialDto,
-    fileTypes: [],
+    mimeTypes: [],
 });
 
 const editableBucket = ref<StorageDto | null>(null);
@@ -255,7 +255,7 @@ function resetNewBucket() {
             accessKey: "",
             secretKey: "",
         } as S3CredentialDto,
-        fileTypes: [],
+        mimeTypes: [],
     };
 }
 
@@ -274,8 +274,8 @@ function addFileType() {
     const fileType = newFileType.value.trim();
     const bucket = isEditing.value ? editableBucket.value : newBucket.value;
 
-    if (fileType && bucket && !bucket.fileTypes.includes(fileType)) {
-        bucket.fileTypes.push(fileType);
+    if (fileType && bucket && !bucket.mimeTypes.includes(fileType)) {
+        bucket.mimeTypes.push(fileType);
         newFileType.value = "";
     }
 }
@@ -286,9 +286,9 @@ function removeFileType(fileType: string) {
     const bucket = isEditing.value ? editableBucket.value : newBucket.value;
     if (!bucket) return;
 
-    const index = bucket.fileTypes.indexOf(fileType);
+    const index = bucket.mimeTypes.indexOf(fileType);
     if (index > -1) {
-        bucket.fileTypes.splice(index, 1);
+        bucket.mimeTypes.splice(index, 1);
     }
 }
 
@@ -763,7 +763,7 @@ const saveBucket = async () => {
                         <div class="flex flex-wrap gap-1.5">
                             <span
                                 v-for="fileType in (isEditing ? editableBucket : newBucket)!
-                                    .fileTypes"
+                                    .mimeTypes"
                                 :key="fileType"
                                 class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-800"
                             >

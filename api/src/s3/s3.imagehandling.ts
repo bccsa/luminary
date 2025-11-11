@@ -323,11 +323,11 @@ async function processImageUpload(
 
             bucketDto = foundBucket;
 
-            // Validate file type against bucket's allowed fileTypes (if specified)
+            // Validate file type against bucket's allowed mimeTypes (if specified)
             // Use Sharp's detected format to determine mimetype
-            if (bucketDto.fileTypes && bucketDto.fileTypes.length > 0 && metadata.format) {
+            if (bucketDto.mimeTypes && bucketDto.mimeTypes.length > 0 && metadata.format) {
                 const detectedMimetype = `image/${metadata.format}`;
-                const isAllowed = bucketDto.fileTypes.some((allowedType) => {
+                const isAllowed = bucketDto.mimeTypes.some((allowedType) => {
                     // Support wildcards like "image/*"
                     if (allowedType.endsWith("/*")) {
                         const prefix = allowedType.slice(0, -2);
@@ -341,7 +341,7 @@ async function processImageUpload(
                     warnings.push(
                         `File type "${detectedMimetype}" is not allowed for bucket "${
                             bucketDto.name
-                        }". Allowed types: ${bucketDto.fileTypes.join(", ")}`,
+                        }". Allowed types: ${bucketDto.mimeTypes.join(", ")}`,
                     );
                     return { success: false, warnings };
                 }
