@@ -11,10 +11,8 @@ function getFormDataEntries(formData: FormData) {
 
 describe("LFormData (images)", () => {
     it("appends multiple image files from an array", () => {
-        console.log("TEST: Starting 'appends multiple image files from an array'");
         const img1 = new File(["a"], "a.webp", { type: "image/webp" });
         const img2 = new File(["b"], "b.webp", { type: "image/webp" });
-        console.log("TEST: Created files, img1 instanceof File:", img1 instanceof File);
         const obj = {
             images: [
                 { fileData: img1, filename: "a.webp", width: 100, height: 80 },
@@ -22,16 +20,12 @@ describe("LFormData (images)", () => {
             ],
             label: "gallery",
         };
-        console.log("TEST: Created obj with images");
         const form = new LFormData();
-        console.log("TEST: About to call form.append");
         form.append("galleryDoc", obj);
-        console.log("TEST: Called form.append");
         const entries = getFormDataEntries(form);
-        console.log("TEST: Got entries, keys:", Object.keys(entries));
 
-        // Check first file
-        expect(entries["0-galleryDoc-files-path"]).toBe("images[0]");
+        // Check first file (no path field anymore - files are patched back in order)
+        expect(entries["0-galleryDoc-files-fileData"]).toBeDefined();
         expect(entries["0-galleryDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["0-galleryDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["0-galleryDoc-files-filename"]).toBe("a.webp");
@@ -39,13 +33,13 @@ describe("LFormData (images)", () => {
         expect(entries["0-galleryDoc-files-height"]).toBe("80");
 
         // Check second file
-        expect(entries["1-galleryDoc-files-path"]).toBe("images[1]");
         expect(entries["1-galleryDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["1-galleryDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["1-galleryDoc-files-filename"]).toBe("b.webp");
         expect(entries["1-galleryDoc-files-width"]).toBe("200");
         expect(entries["1-galleryDoc-files-height"]).toBe("160");
 
+        // The JSON has null placeholders where binary data was extracted
         expect(entries["galleryDoc-JSON"]).toBe(
             JSON.stringify({ images: [null, null], label: "gallery" }),
         );
@@ -62,14 +56,16 @@ describe("LFormData (images)", () => {
         form.append("coverDoc", obj);
         const entries = getFormDataEntries(form);
 
-        expect(entries["0-coverDoc-files-path"]).toBe("image");
+        // No path field - binary data is replaced with null and patched back in order on API side
         expect(entries["0-coverDoc-files-fileData"]).toHaveProperty("size");
         expect(entries["0-coverDoc-files-fileData"]).toHaveProperty("type");
         expect(entries["0-coverDoc-files-filename"]).toBe("nested.webp");
         expect(entries["0-coverDoc-files-width"]).toBe("300");
         expect(entries["0-coverDoc-files-height"]).toBe("200");
+
+        // The JSON has null placeholder where image was, but preserves other fields
         expect(entries["coverDoc-JSON"]).toBe(
-            JSON.stringify({ meta: { author: "Jane" }, tag: "cover" }),
+            JSON.stringify({ meta: { author: "Jane" }, image: null, tag: "cover" }),
         );
     });
 
