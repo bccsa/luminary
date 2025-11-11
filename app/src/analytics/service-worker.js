@@ -1,24 +1,36 @@
-// Define a whitelist of allowed Matomo server hosts (e.g., by hostname only, or full base URLs)
-const ALLOWED_MATOMO_SERVERS = import.meta.process.env.VITE_ALLOWED_MATOMO_SERVERS;
+/* global matomoAnalytics */
+// Whitelisted Matomo server origins (must be a JSON array of origins).
+// Example: VITE_ALLOWED_MATOMO_SERVERS='["https://analytics.example.com"]'
+const ALLOWED_MATOMO_SERVERS = JSON.parse(import.meta.env.VITE_ALLOWED_MATOMO_SERVERS || "[]");
 
-const matomoServerUrlRaw = new URL(location.href).searchParams.get("matomo_server");
-let MATOMO_SERVER = undefined;
+// In a service worker, self.location is the worker script URL (use it for query params).
+const matomoServerUrlRaw = new URL(self.location.href).searchParams.get("matomo_server");
 
 function verifyMatomoServer(serverUrl) {
-    if (!matomoServerUrlRaw) throw new Error("matomo_server query parameter is missing.");
+    if (!Array.isArray(ALLOWED_MATOMO_SERVERS) || ALLOWED_MATOMO_SERVERS.length === 0) {
+        throw new Error("VITE_ALLOWED_MATOMO_SERVERS must be a non-empty JSON array of origins.");
+    }
+    if (!serverUrl) throw new Error("matomo_server query parameter is missing.");
     const url = new URL(serverUrl);
-    const isSecure = url.protocol === "https:";
-    const isWhitelisted = ALLOWED_MATOMO_SERVERS.includes(url.origin);
-    if (!isSecure) throw new Error("Only HTTPS Matomo servers are allowed.");
-    if (!isWhitelisted) throw new Error(`Matomo server "${url.origin}" is not whitelisted.`);
-    return true;
+    if (url.protocol !== "https:") throw new Error("Only HTTPS Matomo servers are allowed.");
+    const origin = url.origin;
+    if (!ALLOWED_MATOMO_SERVERS.includes(origin)) {
+        throw new Error(`Matomo server "${origin}" is not whitelisted.`);
+    }
+    return origin;
 }
 
-if (verifyMatomoServer(matomoServerUrlRaw)) {
-    const url = new URL(matomoServerUrlRaw);
-    MATOMO_SERVER = url.origin;
+try {
+    const MATOMO_SERVER = verifyMatomoServer(matomoServerUrlRaw);
+    self.importScripts(`${MATOMO_SERVER}/offline-service-worker.js`);
+    // prefer self.matomoAnalytics if provided by imported script
+    const analytics =
+        self.matomoAnalytics ||
+        (typeof matomoAnalytics !== "undefined" ? matomoAnalytics : undefined);
+    if (analytics && typeof analytics.initialize === "function") {
+        analytics.initialize({ queueLimit: 10000, timeLimit: 86400 * 30 });
+    }
+} catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Matomo initialization failed:", e);
 }
-
-self.importScripts(`${MATOMO_SERVER}/offline-service-worker.js`);
-// eslint-disable-next-line no-undef
-matomoAnalytics.initialize({ queueLimit: 10000, timeLimit: 86400 * 30 });
