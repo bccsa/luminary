@@ -27,50 +27,46 @@ export class LFormData extends FormData {
     }
     /**
      * This method extracts any file(and it's metadata) from a JSON object.
-     * It searches through the object recursively and returns an array of file data objects
-     * with their paths in the original structure.
-     * A file data object is any object that contains a field with binary data
+     * It searches through the object recursively and returns an array of file data objects.
+     * A file data object is any object that contains a field with binary data.
+     * The binary data objects are replaced with null in the original structure.
      * @param json object to search inside of for files
-     * @returns Array of {path: string, data: object} containing the path and file data
+     * @returns Array of file data objects
      */
     private extractAnyFile(json: Object) {
         if (!json || typeof json !== "object") {
             throw new Error("Input must be an object");
         }
 
-        const results: Array<{ path: string; data: any }> = [];
+        const results: any[] = [];
         const seen = new WeakSet();
 
-        const find = (value: any, currentPath: string = "") => {
+        const find = (value: any) => {
             if (!value || typeof value !== "object") return;
             if (seen.has(value)) return;
             seen.add(value);
 
             if (Array.isArray(value)) {
                 for (let i = 0; i < value.length; i++) {
-                    const itemPath = `${currentPath}[${i}]`;
-                    // Check if this array item contains binary data
                     if (typeof value[i] === "object" && value[i] !== null) {
                         const hasBinary = this.containsBinaryData(value[i]);
                         if (hasBinary) {
-                            results.push({ path: itemPath, data: value[i] });
+                            results.push(value[i]);
                             value[i] = null; // Mark as extracted
                         } else {
-                            find(value[i], itemPath);
+                            find(value[i]);
                         }
                     }
                 }
             } else {
                 for (const [key, val] of Object.entries(value)) {
-                    const fieldPath = currentPath ? `${currentPath}.${key}` : key;
-
                     if (typeof val === "object" && val !== null) {
                         const hasBinary = this.containsBinaryData(val);
                         if (hasBinary) {
-                            results.push({ path: fieldPath, data: val });
-                            delete value[key]; // Mark as extracted
+                            results.push(val);
+                            value[key] = null; // Replace with null
                         } else {
-                            find(val, fieldPath);
+                            find(val);
                         }
                     }
                 }
@@ -95,40 +91,39 @@ export class LFormData extends FormData {
         return false;
     }
 
+    /**
+     * Deep clone an object while preserving binary data references
+     * structuredClone() doesn't work properly with File objects in some environments
+     */
+    private deepCloneWithBinary(obj: any): any {
+        if (obj === null || typeof obj !== "object") return obj;
+        if (this.isBinary(obj)) return obj; // Keep binary data as-is
+
+        if (Array.isArray(obj)) {
+            return obj.map((item) => this.deepCloneWithBinary(item));
+        }
+
+        const cloned: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            cloned[key] = this.deepCloneWithBinary(value);
+        }
+        return cloned;
+    }
+
     append(key: string, value: any) {
         if (typeof value === "object") {
-            console.log(`LFormData.append called with key="${key}"`);
-            console.log(`  value keys:`, Object.keys(value));
-            console.log(`  typeof structuredClone:`, typeof structuredClone);
-
             // Work on a deep clone to avoid mutating the original
-            let valueClone;
-            try {
-                valueClone = structuredClone(value);
-                console.log(`  After clone, keys:`, Object.keys(valueClone));
-            } catch (e) {
-                console.error(`  structuredClone failed:`, e);
-                valueClone = JSON.parse(JSON.stringify(value)); // Fallback
-                console.log(`  After JSON clone, keys:`, Object.keys(valueClone));
-            }
-
+            // Note: structuredClone() doesn't work with File objects in test environments
+            const valueClone = this.deepCloneWithBinary(value);
             const files = this.extractAnyFile(valueClone);
 
-            console.log(`  Files found: ${files.length}`);
-            files.forEach((f, i) => console.log(`    File ${i}: path="${f.path}"`));
-
             if (files.length > 0) {
-                files.forEach((fileEntry, index) => {
+                files.forEach((fileData, index) => {
                     const fileKey = `${index}-${key}-files`;
-                    const { path, data } = fileEntry;
-
-                    // Store the path so the API can reconstruct the structure
-                    super.append(`${fileKey}-path`, path);
-                    console.log(`  Appended: "${fileKey}-path" = "${path}"`);
 
                     // Store all metadata from the file object
                     let fileName: string | undefined;
-                    Object.entries(data).forEach(([k, v]) => {
+                    Object.entries(fileData).forEach(([k, v]) => {
                         if (k === "filename") fileName = v as string;
                         const valueKey = `${fileKey}-${k}`;
 
