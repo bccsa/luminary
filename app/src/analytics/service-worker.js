@@ -2,37 +2,21 @@
 const ALLOWED_MATOMO_SERVERS = import.meta.process.env.VITE_ALLOWED_MATOMO_SERVERS;
 
 const matomoServerUrlRaw = new URL(location.href).searchParams.get("matomo_server");
-let MATOMO_SERVER = null;
+let MATOMO_SERVER = undefined;
 
-try {
-    if (matomoServerUrlRaw) {
-        // Normalize the provided server URL (strip trailing slashes, enforce HTTPS)
-        const url = new URL(matomoServerUrlRaw);
-        // Optionally enforce HTTPS only:
-        if (url.protocol !== "https:") {
-            throw new Error("Only HTTPS Matomo servers are allowed.");
-        }
-        // Check against allowed servers (by origin)
-        if (ALLOWED_MATOMO_SERVERS.includes(url.origin)) {
-            MATOMO_SERVER = url.origin;
-        } else {
-            throw new Error(`Matomo server "${url.origin}" is not whitelisted.`);
-        }
-    } else {
-        throw new Error("matomo_server query parameter is missing.");
-    }
-} catch (e) {
-    // Abort further script execution if invalid
-    // Optionally, you can log the error to a monitoring endpoint
-    console.error("[ServiceWorker] Invalid matomo_server provided:", e.message);
-    // Exit early and do not import scripts or initialize analytics
-    // In a service worker, return; essentially halts further execution
-    // If this code is at global scope, set a guard
-    // For this snippet, we return for the rest of this script scope
-    // (No further initialization will run)
-    // Optionally, you can self.unregister() here
-    // self.unregister && self.unregister();
-    throw e; // stops script execution
+function verifyMatomoServer(serverUrl) {
+    if (!matomoServerUrlRaw) throw new Error("matomo_server query parameter is missing.");
+    const url = new URL(serverUrl);
+    const isSecure = url.protocol === "https:";
+    const isWhitelisted = ALLOWED_MATOMO_SERVERS.includes(url.origin);
+    if (!isSecure) throw new Error("Only HTTPS Matomo servers are allowed.");
+    if (!isWhitelisted) throw new Error(`Matomo server "${url.origin}" is not whitelisted.`);
+    return true;
+}
+
+if (verifyMatomoServer(matomoServerUrlRaw)) {
+    const url = new URL(matomoServerUrlRaw);
+    MATOMO_SERVER = url.origin;
 }
 
 self.importScripts(`${MATOMO_SERVER}/offline-service-worker.js`);
