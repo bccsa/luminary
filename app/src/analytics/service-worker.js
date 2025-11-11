@@ -11,7 +11,13 @@ function verifyMatomoServer(serverUrl) {
         throw new Error("VITE_ALLOWED_MATOMO_SERVERS must be a non-empty JSON array of origins.");
     }
     if (!serverUrl) throw new Error("matomo_server query parameter is missing.");
-    const url = new URL(serverUrl);
+    let url;
+    try {
+        url = new URL(serverUrl);
+    } catch (_) {
+        throw new Error("Invalid matomo_server URL.");
+    }
+    // Ensure only HTTPS servers are allowed
     if (url.protocol !== "https:") throw new Error("Only HTTPS Matomo servers are allowed.");
     const origin = url.origin;
     if (!ALLOWED_MATOMO_SERVERS.includes(origin)) {
@@ -24,9 +30,11 @@ try {
     const MATOMO_SERVER = verifyMatomoServer(matomoServerUrlRaw);
     self.importScripts(`${MATOMO_SERVER}/offline-service-worker.js`);
     // prefer self.matomoAnalytics if provided by imported script
+    // Ensure matomoAnalytics is defined in the global scope
     const analytics =
         self.matomoAnalytics ||
         (typeof matomoAnalytics !== "undefined" ? matomoAnalytics : undefined);
+    // Initialize Matomo Analytics with custom options
     if (analytics && typeof analytics.initialize === "function") {
         analytics.initialize({ queueLimit: 10000, timeLimit: 86400 * 30 });
     }
