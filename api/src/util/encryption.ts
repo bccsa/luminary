@@ -118,6 +118,8 @@ export function resetEncryptionKey(): void {
 
 /**
  * Store data encrypted in a CryptoDto and return the saved document id.
+ * @param db Database service
+ * @param data Data object to encrypt and store
  */
 export async function storeCryptoData<T>(db: DbService, data: T): Promise<string> {
     if (!encryptionKey) {
@@ -128,13 +130,13 @@ export async function storeCryptoData<T>(db: DbService, data: T): Promise<string
 
     // Encrypt the whole data object as a single payload. This is simpler
     // and future-proof (adds/changes fields without changing storage format).
-    const encryptedPayload = await encryptObject(data);
+    const encryptedData = await encryptObject(data);
 
     // Create encrypted storage document
     const storageDoc = new CryptoDto();
     storageDoc._id = uuidv4();
     storageDoc.data = {
-        encrypted: encryptedPayload,
+        encrypted: encryptedData,
     };
 
     // Save and return id
@@ -146,6 +148,8 @@ export async function storeCryptoData<T>(db: DbService, data: T): Promise<string
 
 /**
  * Retrieve and decrypt data by document id.
+ * @param db Database service
+ * @param dataId Id to retrieve and decrypt data for
  */
 export async function retrieveCryptoData<T>(db: DbService, dataId: string): Promise<T> {
     // require initialization
