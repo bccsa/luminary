@@ -223,7 +223,7 @@ describe("processPostTagDto", () => {
         );
     });
 
-    it("doesn't process images if no imageBucketId is provided", async () => {
+    it("throws error when no imageBucketId is provided for image processing", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog4";
         (changeRequest.doc as PostDto).imageData = {
@@ -239,16 +239,10 @@ describe("processPostTagDto", () => {
         // Ensure previous tests' calls to the mocked processImage do not affect this assertion
         (processImage as jest.Mock).mockClear();
 
-        const processResult = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-            s3,
-        );
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db, s3),
+        ).rejects.toThrow("Bucket is not specified for image processing.");
 
-        expect(processResult.result.ok).toBe(true);
-        expect(processResult.warnings).toContain("Bucket is not specified for image processing.");
         expect(processImage).not.toHaveBeenCalled();
     });
 
