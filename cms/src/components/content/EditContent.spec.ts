@@ -1085,7 +1085,6 @@ describe("EditContent.vue", () => {
                             filename: "new-image.jpg",
                             preset: "photo",
                             fileData: new ArrayBuffer(100),
-                            bucketId: "bucket-test-123",
                         },
                     ],
                 },
