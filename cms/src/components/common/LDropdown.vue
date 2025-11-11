@@ -16,10 +16,10 @@ onClickOutside(dropdownElementRef, () => {
     <div
         v-show="show"
         ref="dropdownElementRef"
-        class="relative right-0 top-full z-[9999] w-56 origin-top-right bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="relative right-0 z-[9999] w-56 origin-top-right bg-white ring-1 ring-black ring-opacity-5 focus:outline-none lg:top-full"
         style="transform: translateZ(0)"
     >
-        <div class="absolute inset-0 size-full h-max rounded-md bg-white shadow-lg">
+        <div class="inset-0 size-full h-max rounded-md bg-white shadow-lg lg:absolute">
             <div
                 class="py-1"
                 :class="[

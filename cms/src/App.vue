@@ -27,7 +27,7 @@ const routeKey = computed(() => {
 
 <template>
     <template v-if="isAuthenticated">
-        <div class="relative flex h-screen w-full overflow-hidden">
+        <div class="relative flex w-full">
             <MobileSideBar v-model:open="sidebarOpen" />
 
             <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
@@ -36,6 +36,8 @@ const routeKey = computed(() => {
 
             <div class="flex flex-1 flex-col lg:pl-72">
                 <div class="h-full w-full overflow-hidden">
+                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+                    routes (e.g. Post / Tag overviews) -->
                     <RouterView :key="routeKey" v-slot="{ Component }">
                         <component :is="Component" @open-mobile-sidebar="sidebarOpen = true" />
                     </RouterView>

@@ -782,7 +782,7 @@ watch(
                 </LButton>
             </div>
         </template>
-        <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
+        <div class="flex h-full flex-col gap-2 lg:flex-row lg:overflow-y-hidden">
             <!-- sidebar -->
             <div class="h-full w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
                 <div class="h-full max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
@@ -848,7 +848,16 @@ watch(
                                 data-test="no-content"
                                 class="flex flex-col items-center justify-center"
                             >
-                                <div>
+                                <div class="relative">
+                                    <LanguageSelector
+                                        class="absolute bottom-0"
+                                        data-test="placeholder-language-selector"
+                                        :parent="editableParent"
+                                        :content="editableContent"
+                                        :languages="untranslatedLanguages"
+                                        v-model:show-selector="showLanguageSelector"
+                                        @create-translation="createTranslation"
+                                    />
                                     <LButton
                                         :icon="PlusIcon"
                                         class="h-max w-fit"
@@ -858,14 +867,6 @@ watch(
                                         aria-label="Add translation"
                                     ></LButton>
                                 </div>
-                                <LanguageSelector
-                                    data-test="placeholder-language-selector"
-                                    :parent="editableParent"
-                                    :content="editableContent"
-                                    :languages="untranslatedLanguages"
-                                    v-model:show-selector="showLanguageSelector"
-                                    @create-translation="createTranslation"
-                                />
                             </EmptyState>
 
                             <div v-else>
