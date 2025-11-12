@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import LButton from "@/components/button/LButton.vue";
-import LBadge from "@/components/common/LBadge.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
@@ -23,16 +21,8 @@ import {
     type RedirectDto,
     RedirectType,
     useDexieLiveQuery,
-    isConnected,
 } from "luminary-shared";
-import {
-    DocumentIcon,
-    TagIcon,
-    CloudArrowUpIcon,
-    ArrowUturnLeftIcon,
-    TrashIcon,
-} from "@heroicons/vue/24/solid";
-import { ChevronDownIcon, ChevronUpIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
+import { DocumentIcon, TagIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -45,11 +35,11 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
+import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
-import LDropdown from "../common/LDropdown.vue";
+import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 
 type Props = {
     id: Uuid;
@@ -57,19 +47,16 @@ type Props = {
     docType: DocType.Post | DocType.Tag;
     tagOrPostType: TagType | PostType;
 };
-const props = defineProps<Props>();
 
+const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 // Generate new parent id if it is a new document
-const parentId = props.id == "new" ? db.uuid() : props.id;
-const newDocument = props.id == "new";
-
+const parentId = props.id === "new" ? db.uuid() : props.id;
+const newDocument = props.id === "new";
 const waitForUpdate = ref(false);
 
 // Refs
-// The initial ref is populated with an empty object and thereafter filled with the actual
-// data retrieved from the database.
 const editableParent = ref<ContentParentDto>({
     _id: parentId,
     type: props.docType,
@@ -79,16 +66,13 @@ const editableParent = ref<ContentParentDto>({
     publishDateVisible: true,
 });
 const isLoading = computed(() => editableParent.value == undefined);
-const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
+const existingParent = ref<ContentParentDto>();
 const liveParent = useDexieLiveQuery(
     async () => (await db.get(parentId)) as unknown as Promise<ContentParentDto>,
-    {
-        initialValue: editableParent.value,
-    },
+    { initialValue: editableParent.value },
 );
-
 const editableContent = ref<ContentDto[]>([]);
-const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const existingContent = ref<ContentDto[]>();
 const showDeleteModal = ref(false);
 
 watch(liveParent, (parent) => {
@@ -105,13 +89,12 @@ watch(liveParent, (parent) => {
 });
 
 let icon = DocumentIcon;
-if (props.docType == DocType.Tag) {
+if (props.docType === DocType.Tag) {
     icon = TagIcon;
 }
 
 if (newDocument) {
-    // Set default tag properties if it is a new tag
-    if (props.docType == DocType.Tag) {
+    if (props.docType === DocType.Tag) {
         (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
         (editableParent.value as TagDto).pinned = 0;
         (editableParent.value as TagDto).publishDateVisible = false;
@@ -120,7 +103,6 @@ if (newDocument) {
         (editableParent.value as PostDto).publishDateVisible = true;
     }
 } else {
-    // Get a copy of the parent document from IndexedDB, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
         if (!p) {
             addNotification({
@@ -129,21 +111,15 @@ if (newDocument) {
                 state: "error",
                 timer: 5000,
             });
-
             router.push({
                 name: "overview",
-                params: {
-                    docType: props.docType,
-                    tagOrPostType: props.tagOrPostType,
-                },
+                params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
             });
         }
-
         editableParent.value = _.cloneDeep(p);
         existingParent.value = _.cloneDeep(p);
     });
 
-    // In the same way as the parent document, get a copy of the content documents
     db.whereParent(parentId, props.docType).then((doc) => {
         editableContent.value.push(...doc);
         existingContent.value = _.cloneDeep(doc);
@@ -152,9 +128,8 @@ if (newDocument) {
 
 const untranslatedLanguages = computed(() => {
     if (!editableContent.value) return [];
-
     return translatableLanguagesAsRef.value
-        .filter((l) => !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq))
+        .filter((l) => !editableContent.value?.find((c) => c.language === l._id && !c.deleteReq))
         .sort(sortByName);
 });
 
@@ -163,11 +138,10 @@ const selectedLanguageId = computed({
     get() {
         if (!cmsLanguages.value) return undefined;
         if (props.languageCode) {
-            const preferred = cmsLanguages.value.find((l) => l.languageCode == props.languageCode);
+            const preferred = cmsLanguages.value.find((l) => l.languageCode === props.languageCode);
             if (preferred) return preferred._id;
         }
-        if (cmsLanguages.value.length > 0) return cmsLanguages.value[0]._id;
-        return undefined;
+        return cmsLanguages.value.length > 0 ? cmsLanguages.value[0]._id : undefined;
     },
     set(val) {
         _selectedLanguageId.value = val;
@@ -175,21 +149,20 @@ const selectedLanguageId = computed({
 });
 
 const selectedLanguage = computed(() => {
-    return cmsLanguages.value.find((l) => l._id == selectedLanguageId.value);
+    return cmsLanguages.value.find((l) => l._id === selectedLanguageId.value);
 });
 
-// Content language selection
 const selectedContent = computed(() => {
-    if (editableContent.value.length == 0) return undefined;
+    if (editableContent.value.length === 0) return undefined;
     return editableContent.value.find(
-        (c) => c.language == selectedLanguageId.value && !c.deleteReq,
+        (c) => c.language === selectedLanguageId.value && !c.deleteReq,
     );
 });
 
 const selectedContent_Existing = computed(() => {
-    if (existingContent.value?.length == 0) return undefined;
+    if (existingContent.value?.length === 0) return undefined;
     return existingContent.value?.find(
-        (c) => c.language == selectedLanguageId.value && !c.deleteReq,
+        (c) => c.language === selectedLanguageId.value && !c.deleteReq,
     );
 });
 
@@ -209,13 +182,12 @@ const createTranslation = (language: LanguageDto) => {
     };
     editableContent.value?.push(newContent);
     selectedLanguageId.value = language._id;
-
     router.replace({
         name: "edit",
         params: {
             docType: editableParent.value?.docType,
             tagType:
-                editableParent.value?.docType == DocType.Tag
+                editableParent.value?.docType === DocType.Tag
                     ? (editableParent.value as unknown as TagDto).tagType
                     : undefined,
             id: editableParent.value?._id,
@@ -227,7 +199,8 @@ const createTranslation = (language: LanguageDto) => {
 const canTranslate = computed(() => {
     if (editableParent.value.memberOf.length === 0) return true;
     if (!editableParent.value || !selectedLanguage.value) return false;
-    if (!canPublish.value && selectedContent.value?.status == PublishStatus.Published) return false;
+    if (!canPublish.value && selectedContent.value?.status === PublishStatus.Published)
+        return false;
     if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
         return false;
     if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
@@ -243,9 +216,7 @@ const canPublish = computed(
 
 const canEditParent = computed(() => {
     if (editableParent.value) {
-        // Allow editing if the parent is not part of any group to allow the editor to set a group
-        if (editableParent.value.memberOf.length == 0) return true;
-
+        if (editableParent.value.memberOf.length === 0) return true;
         return verifyAccess(
             editableParent.value.memberOf,
             props.docType,
@@ -253,7 +224,6 @@ const canEditParent = computed(() => {
             "all",
         );
     }
-
     return false;
 });
 
@@ -262,7 +232,6 @@ const canDelete = computed(() => {
     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
-// Dirty check and save
 const isDirty = computed(
     () =>
         !_.isEqual(
@@ -279,33 +248,23 @@ const isValid = ref(true);
 
 const createRedirect = async () => {
     if (!selectedContent.value || !selectedContent_Existing.value) return;
-
-    // Only create a redirect when we're working with the SAME content document.
     if (selectedContent.value._id !== selectedContent_Existing.value._id) return;
-
-    // If the slug is the same or if the user does not have edit access to redirects, do not create a redirect
     if (
         selectedContent.value.slug === selectedContent_Existing.value.slug ||
         !verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Edit)
     )
         return;
-
-    // Do not create a redirect if the content was not published or is currently not published
     if (
         selectedContent_Existing.value.status !== PublishStatus.Published ||
         selectedContent.value.status !== PublishStatus.Published
     )
         return;
-
-    // Do not create a redirect if the content was scheduled or is currently scheduled
     if (
         (selectedContent.value.publishDate && selectedContent.value.publishDate > Date.now()) ||
         (selectedContent_Existing.value.publishDate &&
             selectedContent_Existing.value.publishDate > Date.now())
     )
         return;
-
-    // Do not create a redirect if the content was expired or is currently expired
     if (
         (selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now()) ||
         (selectedContent_Existing.value.expiryDate &&
@@ -313,7 +272,6 @@ const createRedirect = async () => {
     )
         return;
 
-    // Create a new redirect document
     const newRedirect: RedirectDto = {
         _id: db.uuid(),
         type: DocType.Redirect,
@@ -323,13 +281,11 @@ const createRedirect = async () => {
         redirectType: RedirectType.Temporary,
         toSlug: selectedContent.value.slug,
     };
-
     addNotification({
         title: "Redirect created",
         description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
         state: "info",
     });
-
     await db.upsert({ doc: newRedirect });
 };
 
@@ -342,14 +298,10 @@ const saveChanges = async () => {
         });
         return;
     }
-
-    // Check if content is currently published
     const prevContentDoc = existingContent.value?.find(
         (d) => d.language === selectedLanguageId.value,
     );
     const isPublished = prevContentDoc?.status === PublishStatus.Published;
-
-    // If editing a published doc, require publish permission
     if (
         isPublished &&
         !verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)
@@ -361,8 +313,6 @@ const saveChanges = async () => {
         });
         return;
     }
-
-    // If no translate access at all, disallow saving
     if (!canTranslate.value) {
         addNotification({
             title: "Insufficient Permissions",
@@ -371,23 +321,13 @@ const saveChanges = async () => {
         });
         return;
     }
-
-    /**
-     * Create a redirect if neccessary
-     * This is done if the content document is currently published,
-     * was already published, the slug has changed
-     * and the user has edit access to redirect documents.
-     */
     await createRedirect();
-
     await save();
-
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
         description: `The ${props.tagOrPostType} was saved successfully`,
         state: "success",
     });
-
     existingParent.value = _.cloneDeep(editableParent.value);
     existingContent.value = _.cloneDeep(editableContent.value);
 };
@@ -396,40 +336,23 @@ const save = async () => {
     if (
         existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
     ) {
-        // If the image data has changed, we need to wait for the server to update the image data
-        // before saving the parent document
         waitForUpdate.value = true;
     }
-
-    // Bypass saving if the parent document is new and is marked for deletion
-    if (!existingContent.value && editableParent.value.deleteReq) {
-        return;
-    }
-
-    // Save the parent document
+    if (!existingContent.value && editableParent.value.deleteReq) return;
     await db.upsert({ doc: editableParent.value });
-
     if (!editableParent.value.deleteReq) {
-        // Save the content documents that changed
         const pList: Promise<any>[] = [];
         editableContent.value.forEach((c) => {
-            const prevContentDoc = existingContent.value?.find((d) => d._id == c._id);
-
-            // Only save the document if it has changed
+            const prevContentDoc = existingContent.value?.find((d) => d._id === c._id);
             if (_.isEqual(c, prevContentDoc)) return;
-
-            // Do not save newly created documents that are marked for deletion
             if (c.deleteReq && !prevContentDoc) return;
-
             pList.push(db.upsert({ doc: c }));
         });
-
         await Promise.all(pList);
     }
 };
 
 const revertChanges = () => {
-    // Restore the parent document to the previous version
     if (
         (_.isEqual(editableContent.value, existingContent.value) &&
             _.isEqual(editableParent.value, existingParent.value)) ||
@@ -444,10 +367,7 @@ const revertChanges = () => {
         return;
     }
     editableParent.value = _.cloneDeep(existingParent.value!);
-
-    // Restore the content documents to the previous versions
     editableContent.value = _.cloneDeep(existingContent.value!);
-
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
         description: `The changes to the ${props.tagOrPostType} have been reverted`,
@@ -457,7 +377,6 @@ const revertChanges = () => {
 
 const deleteParent = async () => {
     if (!editableParent.value) return;
-
     if (!canDelete.value) {
         addNotification({
             title: "Insufficient Permissions",
@@ -466,28 +385,21 @@ const deleteParent = async () => {
         });
         return;
     }
-
     editableParent.value.deleteReq = 1;
-
     save();
-
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
         description: `The ${props.tagOrPostType} was successfully deleted`,
         state: "success",
     });
-
     router.push({
         name: "overview",
         params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
     });
 };
 
-const isLocalChange = db.isLocalChangeAsRef(parentId);
-
 router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 
-// Set the language code in the URL
 watch(selectedLanguage, () => {
     if (selectedLanguage.value) {
         router.replace(
@@ -505,29 +417,16 @@ const liveUrl = computed(() => {
     return url.toString();
 });
 
-const ensureRedirect = () => window.open(liveUrl.value, "_blank");
-
 const showDuplicateModal = ref(false);
-
 const duplicate = async () => {
     showDuplicateModal.value = false;
-
     if (!editableParent.value) return;
-
-    // Handle new data for duplicated document and keep old data
     const clonedParent = _.cloneDeep(editableParent.value);
     clonedParent._id = db.uuid();
-    delete (clonedParent as any)._rev; // avoid rev collisions
-
+    delete (clonedParent as any)._rev;
     clonedParent.tags = [];
-
-    // Clear cached/tag-derived fields on Tag parents
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
-
-    // Remove Original Image
     if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
-
-    // Duplicate all content documents and make them unique
     const clonedContent = editableContent.value.map((c) => {
         const newContent = _.cloneDeep(c);
         newContent._id = db.uuid();
@@ -538,17 +437,12 @@ const duplicate = async () => {
         newContent.parentId = clonedParent._id;
         newContent.parentType = editableParent.value.type;
         newContent.status = PublishStatus.Draft;
-
-        // Reset tag-related cached fields on content
         newContent.parentTags = [];
         newContent.parentTaggedDocs = [];
-
         return newContent;
     });
-
     editableParent.value = clonedParent;
     editableContent.value = clonedContent;
-
     if (import.meta.env.MODE !== "test") {
         await router.replace({
             name: "edit",
@@ -561,22 +455,20 @@ const duplicate = async () => {
             },
         });
     }
-
     addNotification({
         title: "Successfully duplicated",
         description: `This ${props.tagOrPostType} has successfully been duplicated`,
         state: "success",
     });
 };
+
 const showLanguageSelector = ref(false);
-const showContentActionMenuMobile = ref(false);
-const showContentActionMenuDesktop = ref(false);
 
 const contentActions = computed(() => {
     const actions = [
         {
             name: "Duplicate",
-            action: duplicate,
+            action: () => (showDuplicateModal.value = true),
             icon: DocumentDuplicateIcon,
             iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
         },
@@ -584,15 +476,15 @@ const contentActions = computed(() => {
     if (canDelete.value) {
         actions.push({
             name: "Delete",
-            action: async () => {
-                showDeleteModal.value = true;
-            },
+            action: () => (showDeleteModal.value = true),
             icon: TrashIcon,
             iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
         });
     }
     return actions;
 });
+
+const isLocalChange = db.isLocalChangeAsRef(parentId);
 </script>
 
 <template>
@@ -604,6 +496,7 @@ const contentActions = computed(() => {
             <div class="flex items-center gap-2 text-lg"><LoadingBar /></div>
         </div>
     </div>
+
     <BasePage
         :icon="icon"
         :loading="isLoading"
@@ -626,167 +519,42 @@ const contentActions = computed(() => {
         </template>
 
         <template #topBarActionsMobile>
-            <div class="flex items-center gap-1 lg:hidden">
-                <LButton
-                    v-if="
-                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
-                    "
-                    :icon="ArrowTopRightOnSquareIcon"
-                    iconLeft
-                    variant="tertiary"
-                    class="text-zinc-500/90"
-                    @click="ensureRedirect"
-                    target="_blank"
-                >
-                    <template #tooltip> View Live Version </template>
-                </LButton>
-                <div v-if="isLocalChange" class="mr-1 flex h-9 w-10 items-center lg:hidden">
-                    <LBadge class="h-full" variant="warning">Offline changes</LBadge>
-                </div>
-                <LButton variant="primary" segmented>
-                    <template v-if="isDirty && !newDocument" #left>
-                        <span
-                            class="flex items-center gap-1"
-                            @click.stop="revertChanges"
-                            data-test="revert-changes-button"
-                        >
-                            <ArrowUturnLeftIcon class="size-5" />
-                        </span>
-                    </template>
-                    <span
-                        class="flex items-center gap-1"
-                        @click="saveChanges"
-                        data-test="save-button"
-                    >
-                        <CloudArrowUpIcon class="size-5" />
-                    </span>
-                    <template #right>
-                        <LDropdown
-                            v-model:show="showContentActionMenuMobile"
-                            padding="small"
-                            placement="bottom-end"
-                        >
-                            <template #trigger>
-                                <ChevronDownIcon
-                                    v-if="!showContentActionMenuMobile"
-                                    class="size-5"
-                                />
-                                <ChevronUpIcon v-else class="size-5" />
-                            </template>
-                            <ul>
-                                <li
-                                    role="menuitem"
-                                    tabindex="-1"
-                                    v-for="action in contentActions"
-                                    :key="action.name"
-                                    @click="
-                                        action.action();
-                                        showContentActionMenuMobile = false;
-                                    "
-                                    :data-test="
-                                        action.name.toLowerCase() === 'duplicate'
-                                            ? 'duplicate-button'
-                                            : action.name.toLowerCase() + '-button'
-                                    "
-                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
-                                >
-                                    <component
-                                        :is="action.icon"
-                                        :class="action.iconClass"
-                                        aria-hidden="true"
-                                    />
-                                    <div class="flex flex-col text-nowrap leading-none">
-                                        {{ action.name }}
-                                    </div>
-                                </li>
-                            </ul>
-                        </LDropdown>
-                    </template>
-                </LButton>
-            </div>
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="saveChanges"
+                :delete="deleteParent"
+                :duplicate="duplicate"
+                :parentId="editableParent._id"
+                :liveUrl="liveUrl"
+                :isPublished="selectedContent_Existing?.status === PublishStatus.Published"
+                :mobile="true"
+                :newDocument="newDocument"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+            />
+        </template>
+        <!-- ==================== DESKTOP ACTIONS ==================== -->
+        <template #topBarActionsDesktop>
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="saveChanges"
+                :delete="deleteParent"
+                :duplicate="duplicate"
+                :parentId="editableParent._id"
+                :liveUrl="liveUrl"
+                :isPublished="selectedContent_Existing?.status === PublishStatus.Published"
+                :mobile="false"
+                :newDocument="newDocument"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+            />
         </template>
 
-        <template #topBarActionsDesktop>
-            <div class="hidden items-center gap-1 lg:flex">
-                <LButton
-                    v-if="
-                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
-                    "
-                    :icon="ArrowTopRightOnSquareIcon"
-                    iconLeft
-                    variant="tertiary"
-                    class="text-zinc-500/90"
-                    @click="ensureRedirect"
-                    target="_blank"
-                    name="view-live"
-                >
-                    <template #tooltip> View Live Version </template>
-                    View Live
-                </LButton>
-                <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
-                    <LBadge class="h-full" variant="warning">Offline changes</LBadge>
-                </div>
-                <LButton variant="primary" segmented>
-                    <template v-if="isDirty && !newDocument" #left>
-                        <span
-                            class="flex items-center gap-1"
-                            @click.stop="revertChanges"
-                            data-test="revert-changes-button"
-                        >
-                            <ArrowUturnLeftIcon class="size-5" />
-                            Revert
-                        </span>
-                    </template>
-                    <span
-                        class="flex items-center gap-1"
-                        @click="saveChanges"
-                        data-test="save-button"
-                    >
-                        <CloudArrowUpIcon class="size-5" />
-                        Save
-                    </span>
-                    <template #right>
-                        <LDropdown
-                            v-model:show="showContentActionMenuDesktop"
-                            padding="small"
-                            placement="bottom-end"
-                        >
-                            <template #trigger>
-                                <ChevronDownIcon
-                                    v-if="!showContentActionMenuDesktop"
-                                    class="size-5"
-                                />
-                                <ChevronUpIcon v-else class="size-5" />
-                            </template>
-                            <ul>
-                                <li
-                                    role="menuitem"
-                                    tabindex="-1"
-                                    v-for="action in contentActions"
-                                    :key="action.name"
-                                    @click="
-                                        action.action();
-                                        showContentActionMenuDesktop = false;
-                                    "
-                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
-                                >
-                                    <component
-                                        :is="action.icon"
-                                        :class="action.iconClass"
-                                        aria-hidden="true"
-                                    />
-                                    <div class="flex flex-col text-nowrap leading-none">
-                                        {{ action.name }}
-                                    </div>
-                                </li>
-                            </ul>
-                        </LDropdown>
-                    </template>
-                </LButton>
-            </div>
-        </template>
+        <!-- ==================== MAIN CONTENT ==================== -->
         <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
-            <!-- sidebar -->
+            <!-- SIDEBAR -->
             <div class="w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
                 <div class="max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
                     <div class="flex flex-col gap-2 sm:pb-4">
@@ -800,7 +568,6 @@ const contentActions = computed(() => {
                             :existingParent="existingParent"
                             :newDocument="newDocument"
                         />
-
                         <EditContentImage
                             v-if="editableParent"
                             :docType="props.docType"
@@ -809,7 +576,6 @@ const contentActions = computed(() => {
                             :newDocument="newDocument"
                             v-model:parent="editableParent"
                         />
-
                         <div class="sticky -top-1 z-10">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
@@ -829,7 +595,6 @@ const contentActions = computed(() => {
                                 @create-translation="(language) => createTranslation(language)"
                             />
                         </div>
-
                         <EditContentVideo
                             v-model:content="selectedContent"
                             :disabled="!canTranslate"
@@ -840,8 +605,7 @@ const contentActions = computed(() => {
                             :disabled="!canTranslate"
                             :disable-publish="!canPublish"
                         />
-
-                        <!-- This is for mobile  -->
+                        <!-- Mobile Content Editor -->
                         <div class="block w-full scrollbar-hide lg:hidden">
                             <EmptyState
                                 v-if="!selectedContent"
@@ -850,14 +614,15 @@ const contentActions = computed(() => {
                                 :description="`Please select a language to start editing`"
                                 data-test="no-content"
                                 class="flex flex-col items-center justify-center"
-                                ><LanguageSelector
+                            >
+                                <LanguageSelector
                                     :parent="editableParent"
                                     :content="editableContent"
                                     :languages="untranslatedLanguages"
                                     v-model:show-selector="showLanguageSelector"
                                     @create-translation="createTranslation"
-                            /></EmptyState>
-
+                                />
+                            </EmptyState>
                             <div v-else>
                                 <EditContentText
                                     v-model:content="selectedContent"
@@ -870,24 +635,25 @@ const contentActions = computed(() => {
                     </div>
                 </div>
             </div>
-            <!-- main content | This is for desktop-->
+
+            <!-- MAIN CONTENT (Desktop) -->
             <div class="hidden w-full scrollbar-hide lg:block">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
-                    :description="`Please select a language to start editing
-                    `"
+                    :description="`Please select a language to start editing`"
                     data-test="no-content"
                     class="flex flex-col items-center justify-center"
-                    ><LanguageSelector
+                >
+                    <LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
                         v-model:show-selector="showLanguageSelector"
                         @create-translation="createTranslation"
-                /></EmptyState>
-
+                    />
+                </EmptyState>
                 <div v-else class="">
                     <EditContentText
                         v-model:content="selectedContent"
@@ -900,6 +666,8 @@ const contentActions = computed(() => {
             </div>
         </div>
     </BasePage>
+
+    <!-- MODALS -->
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
     <LDialog
         v-model:open="showDeleteModal"

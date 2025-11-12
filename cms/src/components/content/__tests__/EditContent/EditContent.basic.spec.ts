@@ -202,7 +202,7 @@ describe("EditContent - Basic Operations", () => {
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
+            expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
         });
     });
 

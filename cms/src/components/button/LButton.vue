@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Component, computed, useSlots } from "vue";
+import { type Component, computed, useSlots, ref } from "vue";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
 
@@ -41,21 +41,9 @@ const buttonClasses = cva({
             context: "danger",
             class: "hover:text-red-600 active:text-red-700",
         },
-        {
-            variant: "muted",
-            size: "sm",
-            class: "-mx-2 -my-1.5",
-        },
-        {
-            variant: "muted",
-            size: "base",
-            class: "-mx-3 -my-2",
-        },
-        {
-            variant: "muted",
-            size: "lg",
-            class: "-mx-3.5 -my-2.5",
-        },
+        { variant: "muted", size: "sm", class: "-mx-2 -my-1.5" },
+        { variant: "muted", size: "base", class: "-mx-3 -my-2" },
+        { variant: "muted", size: "lg", class: "-mx-3.5 -my-2.5" },
     ],
 });
 
@@ -70,6 +58,8 @@ type Props = {
     iconRight?: boolean;
     disabled?: boolean;
     segmented?: boolean;
+    dropdownAnchor?: boolean;
+    mainDynamicCss?: string; // NEW: custom background for main (middle) segment
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -80,14 +70,15 @@ const props = withDefaults(defineProps<Props>(), {
     iconRight: false,
     disabled: false,
     segmented: false,
+    dropdownAnchor: false,
+    mainDynamicCss: undefined,
 });
 
 const slots = useSlots();
 const isSegmented = computed(() => props.segmented || Boolean(slots.left) || Boolean(slots.right));
+const rightSegmentRef = ref<HTMLElement | null>(null);
 
 function segmentClass(base: string, position: "left" | "middle" | "right") {
-    // Remove rounding from base and re-apply per segment; draw dividers between internal segments.
-    // Tailwind's ordering ensures later classes override earlier ones when merged.
     const radius =
         position === "left"
             ? "rounded-l-md"
@@ -95,7 +86,6 @@ function segmentClass(base: string, position: "left" | "middle" | "right") {
               ? "rounded-r-md"
               : "rounded-none";
     const divider = position !== "left" ? "border-l" : "";
-    // Neutral divider color; could map per variant if needed later.
     const dividerColor = position !== "left" ? "border-zinc-300" : "";
     return twMerge(base, "rounded-none", radius, divider, dividerColor);
 }
@@ -116,16 +106,14 @@ const tooltipVariants = {
 </script>
 
 <template>
-    <!-- Segmented mode: wrapper group with up to three interactive regions -->
+    <!-- ====================== SEGMENTED MODE ====================== -->
     <div
         v-if="isSegmented"
         role="group"
         class="isolate inline-flex items-stretch"
-        :class="{
-            'pointer-events-none opacity-50': disabled,
-        }"
+        :class="{ 'pointer-events-none opacity-50': disabled }"
     >
-        <!-- Left segment -->
+        <!-- LEFT SEGMENT -->
         <button
             v-if="$slots.left"
             type="button"
@@ -134,20 +122,24 @@ const tooltipVariants = {
         >
             <slot name="left" />
         </button>
-        <!-- Main segment (inherits original content/icon behavior) -->
+
+        <!-- MIDDLE SEGMENT (MAIN) – now supports custom bg via mainBg -->
         <button
             type="button"
             :disabled="disabled"
             :class="
-                segmentClass(
-                    buttonClasses({ variant, size, context }),
-                    $slots.left && $slots.right
-                        ? 'middle'
-                        : $slots.left
-                          ? 'right'
-                          : $slots.right
-                            ? 'left'
-                            : 'middle',
+                twMerge(
+                    segmentClass(
+                        buttonClasses({ variant, size, context }),
+                        $slots.left && $slots.right
+                            ? 'middle'
+                            : $slots.left
+                              ? 'right'
+                              : $slots.right
+                                ? 'left'
+                                : 'middle',
+                    ),
+                    mainDynamicCss,
                 )
             "
         >
@@ -165,22 +157,23 @@ const tooltipVariants = {
                 <slot />
             </span>
         </button>
-        <!-- Right segment -->
-        <button
+
+        <!-- RIGHT SEGMENT -->
+        <div
             v-if="$slots.right"
-            type="button"
-            :disabled="disabled"
-            :class="segmentClass(buttonClasses({ variant, size, context }), 'right')"
+            ref="rightSegmentRef"
+            :class="[segmentClass(buttonClasses({ variant, size, context }), 'right'), 'relative']"
         >
             <slot name="right" />
-        </button>
+        </div>
     </div>
-    <!-- Standard single button mode -->
+
+    <!-- ====================== NORMAL BUTTON ====================== -->
     <component
         v-else
         :is="is"
         :disabled="disabled"
-        :class="twMerge(buttonClasses({ variant, size, context }))"
+        :class="twMerge(buttonClasses({ variant, size, context }), mainDynamicCss)"
     >
         <component
             v-if="icon"
@@ -192,7 +185,10 @@ const tooltipVariants = {
                 '-ml-0.5': !iconRight && $slots.default,
             }"
         />
-        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
+        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
+            <slot />
+        </span>
+        <!-- Tooltip -->
         <span
             v-if="$slots.tooltip"
             class="absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-sm group-hover:block"

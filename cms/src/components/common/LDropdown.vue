@@ -8,6 +8,7 @@ const props = defineProps<{
     padding?: "small" | "medium" | "large" | "none";
     placement?: "bottom-end" | "bottom-start";
     triggerClass?: string;
+    width?: "auto" | "full" | "default";
 }>();
 
 const show = defineModel<boolean>("show", { required: true });
@@ -83,10 +84,22 @@ const paddingClass = computed(() =>
             ? "p-3"
             : "p-0",
 );
+
+const widthClass = computed(() => {
+    switch (props.width) {
+        case "auto":
+            return "w-auto";
+        case "full":
+            return "w-full";
+        case "default":
+        default:
+            return "w-56";
+    }
+});
 </script>
 
 <template>
-    <div ref="rootRef" class="relative inline-flex" v-bind="$attrs">
+    <div ref="rootRef" class="inline-flex" v-bind="$attrs">
         <div
             class="cursor-pointer select-none outline-none focus:outline-none"
             :class="props.triggerClass"
@@ -107,8 +120,8 @@ const paddingClass = computed(() =>
             v-show="show"
             ref="panelRef"
             :id="panelId"
-            class="absolute z-[9999] mt-1 w-56 origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-            :class="placementClasses"
+            class="absolute z-[9999] mt-1 origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            :class="[placementClasses, widthClass]"
             role="menu"
             @keydown="onPanelKeydown"
         >
