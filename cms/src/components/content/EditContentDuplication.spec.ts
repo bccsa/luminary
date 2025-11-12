@@ -95,7 +95,7 @@ describe("EditContent.vue - Duplication", () => {
         // Click the dropdown chevron to open the menu
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
         expect(dropdownTrigger.exists()).toBe(true);
-        await dropdownTrigger.trigger('click');
+        await dropdownTrigger.trigger("click");
         await nextTick();
 
         // Find and click the duplicate button inside the dropdown
@@ -155,7 +155,7 @@ describe("EditContent.vue - Duplication", () => {
         // Click the dropdown chevron to open the menu
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
         expect(dropdownTrigger.exists()).toBe(true);
-        await dropdownTrigger.trigger('click');
+        await dropdownTrigger.trigger("click");
         await nextTick();
 
         // Find and click the duplicate button inside the dropdown
@@ -231,7 +231,7 @@ describe("EditContent.vue - Duplication", () => {
         // Click the dropdown chevron to open the menu
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
         expect(dropdownTrigger.exists()).toBe(true);
-        await dropdownTrigger.trigger('click');
+        await dropdownTrigger.trigger("click");
         await nextTick();
 
         let duplicateBtn;
