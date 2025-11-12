@@ -483,9 +483,7 @@ const contentActions = computed(() => {
     if (canDelete.value) {
         actions.push({
             name: "Delete",
-            action: async () => {
-                showDeleteModal.value = true;
-            },
+            action: () => (showDeleteModal.value = true),
             icon: TrashIcon,
             iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
         });
