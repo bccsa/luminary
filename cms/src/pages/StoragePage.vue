@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import S3BucketOverview from "@/components/s3/S3BucketOverview.vue";
+import S3BucketOverview from "@/components/s3/StorageOverview.vue";
 import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
