@@ -373,6 +373,9 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
+// --- Force language from query param (takes priority over all other language selection) ---
+const langToForce = queryParams.get("langId");
+
 /**
  * Watches for changes in the `content` reactive property.
  * When `content` is updated, it sets the `selectedLanguageId`
@@ -443,7 +446,6 @@ watch(
 const hasConsumedLangSwitch = ref(false);
 
 // Change language
-
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
     () => {
