@@ -1,7 +1,25 @@
 /* global matomoAnalytics */
-// Whitelisted Matomo server origins (must be a JSON array of origins).
-// Example: VITE_ALLOWED_MATOMO_SERVERS='["https://analytics.example.com"]'
-const ALLOWED_MATOMO_SERVERS = JSON.parse(import.meta.env.VITE_ALLOWED_MATOMO_SERVERS || "[]");
+//@ts-ignore
+const ALLOWED_MATOMO_SERVERS = (() => {
+    try {
+        // Prefer whitelist injected by the page before registration (safe for classic/module contexts).
+        if (typeof self !== "undefined" && self.__VITE_ALLOWED_MATOMO_SERVERS) {
+            return JSON.parse(self.__VITE_ALLOWED_MATOMO_SERVERS);
+        }
+        // Fallback: process.env if some bundler provides it when building the SW
+        if (
+            typeof process !== "undefined" &&
+            process.env &&
+            process.env.VITE_ALLOWED_MATOMO_SERVERS
+        ) {
+            return JSON.parse(process.env.VITE_ALLOWED_MATOMO_SERVERS);
+        }
+    } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to parse VITE_ALLOWED_MATOMO_SERVERS:", err);
+    }
+    return [];
+})();
 
 // In a service worker, self.location is the worker script URL (use it for query params).
 const matomoServerUrlRaw = new URL(self.location.href).searchParams.get("matomo_server");
