@@ -16,7 +16,7 @@ import {
     queryParams,
 } from "@/globalConfig";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
-import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtubeUtils";
+import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
 type Props = {
     content: ContentDto;
@@ -38,7 +38,6 @@ const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
 // YouTube detection
 const isYouTube = ref<boolean>(false);
-// const youTubeThumbnail = ref<string | null>(null);
 
 // Check if the current video is a YouTube video
 if (props.content.video) {
