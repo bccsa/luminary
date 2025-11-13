@@ -130,6 +130,15 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
     }
 
     if (segment === "right" && props.dropdownAnchor) {
+        if (props.rightAction) {
+            props.rightAction(event);
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        return;
+    }
+
+    if (segment === "right" && props.dropdownAnchor) {
         const panel = rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-panel]");
         if (panel && panel.contains(event.target as Node)) {
             return;

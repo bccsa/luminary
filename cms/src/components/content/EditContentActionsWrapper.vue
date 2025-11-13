@@ -4,7 +4,7 @@ import { CloudArrowUpIcon } from "@heroicons/vue/20/solid";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
+import { ArrowTopRightOnSquareIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
 import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
@@ -27,13 +27,14 @@ type Props = {
     }>;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
 
-const handleRightAction = () => {
-    showContentActionsMenuDesktop.value = !showContentActionsMenuDesktop.value;
+const openLiveUrl = () => {
+    if (!props.liveUrl) return;
+    window.open(props.liveUrl, "_blank", "noopener");
 };
 </script>
 
@@ -44,13 +45,22 @@ const handleRightAction = () => {
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
 
+        <LButton
+            v-if="isPublished && liveUrl"
+            variant="tertiary"
+            :icon="ArrowTopRightOnSquareIcon"
+            class="text-zinc-500/90"
+            @click="openLiveUrl"
+        >
+            <template #tooltip>View Live Version</template>
+        </LButton>
+
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
             variant="primary"
             segmented
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
             :main-action="async () => await save()"
-            :right-action="handleRightAction"
             dropdown-anchor
         >
             <template v-if="isDirty && !newDocument" #left>
@@ -110,13 +120,23 @@ const handleRightAction = () => {
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
 
+        <LButton
+            v-if="isPublished && liveUrl"
+            variant="tertiary"
+            :icon="ArrowTopRightOnSquareIcon"
+            class="text-zinc-500/90"
+            @click="openLiveUrl"
+        >
+            <template #tooltip>View Live Version</template>
+            View Live
+        </LButton>
+
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
             variant="primary"
             segmented
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
             :main-action="async () => await save()"
-            :right-action="handleRightAction"
             dropdown-anchor
         >
             <template v-if="isDirty && !newDocument" #left>

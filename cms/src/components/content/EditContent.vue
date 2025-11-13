@@ -40,7 +40,7 @@ import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
+import { ArrowTopRightOnSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     id: Uuid;
@@ -540,7 +540,6 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :isLocalChange="isLocalChange"
                 :actions="contentActions"
             />
-            =======
             <div class="flex items-center gap-2 lg:hidden">
                 <LButton
                     v-if="
