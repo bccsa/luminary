@@ -84,7 +84,7 @@ const showContentActionsMenuMobile = ref(false);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-500 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
@@ -147,7 +147,7 @@ const showContentActionsMenuMobile = ref(false);
                                 action.action();
                                 showContentActionsMenuDesktop = false;
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-500 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
