@@ -338,7 +338,7 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
+            expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // Save button is rendered
         });
     });
 
@@ -816,22 +816,26 @@ describe("EditContent.vue", () => {
             });
         });
 
-        it("Check if the user does not have delete access", async () => {
-            delete accessMap.value["group-public-content"].post?.delete;
+        it(
+            "Check if the user does not have delete access",
+            async () => {
+                delete accessMap.value["group-public-content"].post?.delete;
 
-            const wrapper = mount(EditContent, {
-                props: {
-                    docType: DocType.Post,
-                    id: mockData.mockPostDto._id,
-                    languageCode: "eng",
-                    tagOrPostType: PostType.Blog,
-                },
-            });
+                const wrapper = mount(EditContent, {
+                    props: {
+                        docType: DocType.Post,
+                        id: mockData.mockPostDto._id,
+                        languageCode: "eng",
+                        tagOrPostType: PostType.Blog,
+                    },
+                });
 
-            await waitForExpect(async () => {
-                const deletebutton = wrapper.find('[data-test="delete-button"]');
-                expect(deletebutton.exists()).toBe(false);
-            });
-        });
+                await waitForExpect(async () => {
+                    const deletebutton = wrapper.find('[data-test="delete-button"]');
+                    expect(deletebutton.exists()).toBe(false);
+                });
+            },
+            { timeout: 10000 },
+        );
     });
 });

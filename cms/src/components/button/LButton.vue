@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Component } from "vue";
+import { type Component, computed, useSlots, ref } from "vue";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
 
@@ -8,7 +8,7 @@ const buttonClasses = cva({
     variants: {
         variant: {
             primary:
-                "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 active:text-zinc-50 disabled:bg-zinc-300 disabled:text-zinc-100 disabled:ring-zinc-300",
+                "bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 active:text-zinc-50 disabled:bg-zinc-300 disabled:text-zinc-100 disabled:ring-zinc-300",
             secondary:
                 "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500",
             tertiary:
@@ -41,21 +41,9 @@ const buttonClasses = cva({
             context: "danger",
             class: "hover:text-red-600 active:text-red-700",
         },
-        {
-            variant: "muted",
-            size: "sm",
-            class: "-mx-2 -my-1.5",
-        },
-        {
-            variant: "muted",
-            size: "base",
-            class: "-mx-3 -my-2",
-        },
-        {
-            variant: "muted",
-            size: "lg",
-            class: "-mx-3.5 -my-2.5",
-        },
+        { variant: "muted", size: "sm", class: "-mx-2 -my-1.5" },
+        { variant: "muted", size: "base", class: "-mx-3 -my-2" },
+        { variant: "muted", size: "lg", class: "-mx-3.5 -my-2.5" },
     ],
 });
 
@@ -69,16 +57,38 @@ type Props = {
     icon?: Component | Function;
     iconRight?: boolean;
     disabled?: boolean;
+    segmented?: boolean;
+    dropdownAnchor?: boolean;
+    mainDynamicCss?: string; // NEW: custom background for main (middle) segment
 };
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     is: "button",
     variant: "secondary",
     context: "default",
     size: "base",
     iconRight: false,
     disabled: false,
+    segmented: false,
+    dropdownAnchor: false,
+    mainDynamicCss: undefined,
 });
+
+const slots = useSlots();
+const isSegmented = computed(() => props.segmented || Boolean(slots.left) || Boolean(slots.right));
+const rightSegmentRef = ref<HTMLElement | null>(null);
+
+function segmentClass(base: string, position: "left" | "middle" | "right") {
+    const radius =
+        position === "left"
+            ? "rounded-l-md"
+            : position === "right"
+              ? "rounded-r-md"
+              : "rounded-none";
+    const divider = position !== "left" ? "border-l" : "";
+    const dividerColor = position !== "left" ? "border-zinc-300" : "";
+    return twMerge(base, "rounded-none", radius, divider, dividerColor);
+}
 
 const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
@@ -96,10 +106,74 @@ const tooltipVariants = {
 </script>
 
 <template>
+    <!-- ====================== SEGMENTED MODE ====================== -->
+    <div
+        v-if="isSegmented"
+        role="group"
+        class="isolate inline-flex items-stretch"
+        :class="{ 'pointer-events-none opacity-50': disabled }"
+    >
+        <!-- LEFT SEGMENT -->
+        <button
+            v-if="$slots.left"
+            type="button"
+            :disabled="disabled"
+            :class="segmentClass(buttonClasses({ variant, size, context }), 'left')"
+        >
+            <slot name="left" />
+        </button>
+
+        <!-- MIDDLE SEGMENT (MAIN) – now supports custom bg via mainBg -->
+        <button
+            type="button"
+            :disabled="disabled"
+            :class="
+                twMerge(
+                    segmentClass(
+                        buttonClasses({ variant, size, context }),
+                        $slots.left && $slots.right
+                            ? 'middle'
+                            : $slots.left
+                              ? 'right'
+                              : $slots.right
+                                ? 'left'
+                                : 'middle',
+                    ),
+                    mainDynamicCss,
+                )
+            "
+        >
+            <component
+                v-if="icon"
+                :is="icon"
+                class="order-2 h-5 w-5"
+                :class="{
+                    [iconVariants[variant]]: $slots.default,
+                    '-mr-0.5': iconRight && $slots.default,
+                    '-ml-0.5': !iconRight && $slots.default,
+                }"
+            />
+            <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
+                <slot />
+            </span>
+        </button>
+
+        <!-- RIGHT SEGMENT -->
+        <div
+            v-if="$slots.right"
+            ref="rightSegmentRef"
+            :class="[segmentClass(buttonClasses({ variant, size, context }), 'right'), 'relative']"
+        >
+            <slot name="right" />
+        </div>
+    </div>
+
+    <!-- ====================== NORMAL BUTTON ====================== -->
     <component
+        v-else
         :is="is"
         :disabled="disabled"
-        :class="twMerge(buttonClasses({ variant, size, context }))"
+        :class="twMerge(buttonClasses({ variant, size, context }), mainDynamicCss)"
     >
         <component
             v-if="icon"
@@ -111,7 +185,10 @@ const tooltipVariants = {
                 '-ml-0.5': !iconRight && $slots.default,
             }"
         />
-        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
+        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
+            <slot />
+        </span>
+        <!-- Tooltip -->
         <span
             v-if="$slots.tooltip"
             class="absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-sm group-hover:block"

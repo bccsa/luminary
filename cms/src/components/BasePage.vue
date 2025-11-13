@@ -4,7 +4,6 @@ import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { type Component } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
-import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     title?: string;
@@ -132,7 +131,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <div class="w-full">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="max-h-full" :class="isSmallScreen ? 'ml-4 pr-4' : 'lg:ml-8 lg:pr-8'">
+                <div class="max-h-full sm:px-8">
                     <div
                         class="relative z-0 h-screen flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"

@@ -75,8 +75,9 @@ describe("EditContent.vue - Duplication", () => {
     });
 
     it("correctly creates a duplicate of a document and all its translations", async () => {
+        const mockNotification = vi.fn();
         const notificationStore = useNotificationStore();
-        const mockNotification = vi.spyOn(notificationStore, "addNotification");
+        notificationStore.addNotification = mockNotification;
 
         const wrapper = mount(EditContent, {
             props: {
@@ -91,9 +92,16 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
+        // Click the dropdown chevron to open the menu
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        expect(dropdownTrigger.exists()).toBe(true);
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        // Find and click the duplicate button inside the dropdown
         let duplicateBtn;
         await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
             expect(duplicateBtn.exists()).toBe(true);
         });
 
@@ -144,9 +152,16 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
+        // Click the dropdown chevron to open the menu
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        expect(dropdownTrigger.exists()).toBe(true);
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        // Find and click the duplicate button inside the dropdown
         let duplicateBtn;
         await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
             expect(duplicateBtn.exists()).toBe(true);
         });
 
@@ -213,9 +228,15 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
+        // Click the dropdown chevron to open the menu
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        expect(dropdownTrigger.exists()).toBe(true);
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
         let duplicateBtn;
         await waitForExpect(() => {
-            duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
             expect(duplicateBtn.exists()).toBe(true);
         });
         await duplicateBtn!.trigger("click");
