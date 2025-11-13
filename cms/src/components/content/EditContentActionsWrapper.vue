@@ -31,6 +31,10 @@ defineProps<Props>();
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
+
+const handleRightAction = () => {
+    showContentActionsMenuDesktop.value = !showContentActionsMenuDesktop.value;
+};
 </script>
 
 <template>
@@ -41,22 +45,21 @@ const showContentActionsMenuMobile = ref(false);
         </div>
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
-        <LButton variant="primary" segmented>
+        <LButton
+            variant="primary"
+            segmented
+            :left-action="isDirty && !newDocument ? () => revert() : undefined"
+            :main-action="async () => await save()"
+            :right-action="handleRightAction"
+            dropdown-anchor
+        >
             <template v-if="isDirty && !newDocument" #left>
-                <span
-                    @click.stop="() => revert()"
-                    data-test="revert-changes-button"
-                    class="flex items-center gap-1"
-                >
+                <span data-test="revert-changes-button" class="flex items-center gap-1">
                     <ArrowUturnLeftIcon class="size-5" />
                 </span>
             </template>
 
-            <span
-                @click="async () => await save()"
-                data-test="save-button"
-                class="flex items-center gap-1"
-            >
+            <span data-test="save-button" class="flex items-center gap-1">
                 <CloudArrowUpIcon class="size-5" />
             </span>
 
@@ -66,6 +69,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    trigger-class="flex h-full w-full items-center justify-center"
                 >
                     <template #trigger>
                         <ChevronDownIcon v-if="!showContentActionsMenuMobile" class="size-5" />
@@ -84,14 +88,14 @@ const showContentActionsMenuMobile = ref(false);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-500 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none">
+                            <div class="flex flex-col text-nowrap leading-none text-zinc-400">
                                 {{ action.name }}
                             </div>
                         </li>
@@ -107,23 +111,22 @@ const showContentActionsMenuMobile = ref(false);
         </div>
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
-        <LButton variant="primary" segmented>
+        <LButton
+            variant="primary"
+            segmented
+            :left-action="isDirty && !newDocument ? () => revert() : undefined"
+            :main-action="async () => await save()"
+            :right-action="handleRightAction"
+            dropdown-anchor
+        >
             <template v-if="isDirty && !newDocument" #left>
-                <span
-                    @click.stop="() => revert()"
-                    data-test="revert-changes-button"
-                    class="flex items-center gap-1"
-                >
+                <span data-test="revert-changes-button" class="flex items-center gap-1">
                     <ArrowUturnLeftIcon class="size-5" />
                     Revert
                 </span>
             </template>
 
-            <span
-                @click="async () => await save()"
-                data-test="save-button"
-                class="flex items-center gap-1"
-            >
+            <span data-test="save-button" class="flex items-center gap-1">
                 <CloudArrowUpIcon class="size-5" />
                 Save
             </span>
@@ -134,6 +137,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    trigger-class="flex h-full w-full items-center justify-center"
                 >
                     <template #trigger>
                         <ChevronDownIcon v-if="!showContentActionsMenuDesktop" class="size-5" />
@@ -147,14 +151,14 @@ const showContentActionsMenuMobile = ref(false);
                                 action.action();
                                 showContentActionsMenuDesktop = false;
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-500 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none">
+                            <div class="flex flex-col text-nowrap leading-none text-zinc-400">
                                 {{ action.name }}
                             </div>
                         </li>

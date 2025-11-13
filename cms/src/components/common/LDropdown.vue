@@ -19,6 +19,11 @@ const panelId = `dropdown-panel-${Math.random().toString(36).slice(2)}`;
 const toggle = () => (show.value = !show.value);
 const close = () => (show.value = false);
 
+const onTriggerClick = (event: MouseEvent) => {
+    if (event.defaultPrevented) return;
+    toggle();
+};
+
 onClickOutside(rootRef, () => {
     if (show.value) close();
 });
@@ -109,7 +114,7 @@ const widthClass = computed(() => {
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click.stop="toggle()"
+            @click="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >
@@ -123,6 +128,7 @@ const widthClass = computed(() => {
             class="absolute z-[9999] mt-1 origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
             :class="[placementClasses, widthClass]"
             role="menu"
+            data-dropdown-panel
             @keydown="onPanelKeydown"
         >
             <div class="py-1" :class="paddingClass">
