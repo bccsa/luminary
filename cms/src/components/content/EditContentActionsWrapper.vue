@@ -4,11 +4,7 @@ import { CloudArrowUpIcon } from "@heroicons/vue/20/solid";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import {
-    ArrowTopRightOnSquareIcon,
-    ChevronDownIcon,
-    ChevronUpIcon,
-} from "@heroicons/vue/24/outline";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
 import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
@@ -31,15 +27,10 @@ type Props = {
     }>;
 };
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
-
-const openLiveUrl = () => {
-    if (!props.liveUrl) return;
-    window.open(props.liveUrl, "_blank", "noopener");
-};
 </script>
 
 <template>
