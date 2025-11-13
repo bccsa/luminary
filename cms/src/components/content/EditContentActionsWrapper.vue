@@ -4,7 +4,11 @@ import { CloudArrowUpIcon } from "@heroicons/vue/20/solid";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import { ArrowTopRightOnSquareIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
+import {
+    ArrowTopRightOnSquareIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
+} from "@heroicons/vue/24/outline";
 import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
@@ -44,16 +48,6 @@ const openLiveUrl = () => {
         <div v-if="isLocalChange" class="mr-7 flex h-9 w-10 items-center lg:hidden">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
-
-        <LButton
-            v-if="isPublished && liveUrl"
-            variant="tertiary"
-            :icon="ArrowTopRightOnSquareIcon"
-            class="text-zinc-500/90"
-            @click="openLiveUrl"
-        >
-            <template #tooltip>View Live Version</template>
-        </LButton>
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
@@ -98,14 +92,14 @@ const openLiveUrl = () => {
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-600 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-400">
+                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
                                 {{ action.name }}
                             </div>
                         </li>
@@ -119,18 +113,6 @@ const openLiveUrl = () => {
         <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
-
-        <LButton
-            v-if="isPublished && liveUrl"
-            variant="tertiary"
-            :icon="ArrowTopRightOnSquareIcon"
-            class="text-zinc-500/90"
-            @click="openLiveUrl"
-        >
-            <template #tooltip>View Live Version</template>
-            View Live
-        </LButton>
-
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
             variant="primary"

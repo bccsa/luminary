@@ -11,16 +11,6 @@ vi.mock("@/router", () => {
     };
     return { default: router };
 });
-import router from "@/router";
-import ContentOverview from "./ContentOverview.vue";
-import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
-import * as mockData from "@/tests/mockdata";
-import { setActivePinia } from "pinia";
-import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
-import waitForExpect from "wait-for-expect";
-import ContentTable from "../ContentTable.vue";
-import { cmsLanguageIdAsRef } from "@/globalConfig";
-import { ref } from "vue";
 
 // Mock the app router used inside ContentDisplayCard and ContentOverview
 vi.mock("@/router", () => {
