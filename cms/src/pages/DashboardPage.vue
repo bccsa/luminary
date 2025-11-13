@@ -6,7 +6,7 @@ const initialPage = import.meta.env.VITE_INITIAL_PAGE;
 
 <template>
     <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
-        <p class="p-3">
+        <p>
             It looks like the dashboard isn't ready yet.
             <RouterLink
                 class="text-yellow-500"

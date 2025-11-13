@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
-import { type Component } from "vue";
+import { ref, type Component } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
+import MobileSideBar from "./navigation/MobileSideBar.vue";
+import SideBar from "./navigation/SideBar.vue";
 
 type Props = {
     title?: string;
@@ -15,7 +17,6 @@ type Props = {
     backLinkText?: string;
     backLinkParams?: Record<string, string | undefined>;
     isFullWidth?: boolean;
-    onOpenMobileSidebar?: () => void;
 };
 
 withDefaults(defineProps<Props>(), {
@@ -26,13 +27,25 @@ withDefaults(defineProps<Props>(), {
     isFullWidth: false,
 });
 
+const sidebarOpen = ref(false);
 const router = useRouter();
 const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
     <div class="flex h-full min-h-screen flex-col scrollbar-hide">
-        <div class="sticky top-0 z-20">
+        <KeepAlive>
+            <MobileSideBar v-model:open="sidebarOpen" />
+        </KeepAlive>
+        <div
+            class="absolute bottom-0 left-0 top-0 hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col"
+        >
+            <KeepAlive>
+                <SideBar />
+            </KeepAlive>
+        </div>
+
+        <div class="sticky top-0 z-20 lg:pl-72">
             <div
                 class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"
                 :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
@@ -42,7 +55,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     class="-m-2.5 p-2.5 text-zinc-700"
                     @click="
                         !isEditContentPage
-                            ? onOpenMobileSidebar?.()
+                            ? (sidebarOpen = true)
                             : router.push({ name: 'overview' })
                     "
                 >
@@ -108,7 +121,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <header
                     v-if="$slots.actions"
                     :class="[
-                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center',
+                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
                         {
                             'sm:justify-center': centered,
                             'sm:justify-between': !centered,
@@ -128,10 +141,10 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     </div>
                 </header>
 
-                <div class="w-full">
+                <div class="w-full lg:pl-72">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="max-h-full sm:px-8">
+                <div class="max-h-full sm:px-3 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
                         class="relative z-0 h-screen flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
@@ -143,7 +156,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 
                 <div
                     v-if="$slots.footer"
-                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:ml-8 lg:pb-4 lg:pr-8"
+                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:ml-8 lg:pb-4 lg:pl-72 lg:pr-8"
                 >
                     <slot name="footer" />
                 </div>
