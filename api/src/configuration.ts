@@ -13,6 +13,16 @@ export type SyncConfig = {
     tolerance: number;
 };
 
+export type ValidationConfig = {
+    /**
+     * When set to true, query template validation will log warnings instead of throwing exceptions.
+     * This is useful during development for testing queries without strict validation.
+     * Environment variable: BYPASS_TEMPLATE_VALIDATION=true
+     * WARNING: Never enable this in production!
+     */
+    bypassTemplateValidation: boolean;
+};
+
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
@@ -20,6 +30,7 @@ export type Configuration = {
     database?: DatabaseConfig;
     sync?: SyncConfig;
     socketIo?: SocketIoConfig;
+    validation?: ValidationConfig;
 };
 
 export type S3Config = {
@@ -63,4 +74,7 @@ export default () =>
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
+        validation: {
+            bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
+        } as ValidationConfig,
     }) as Configuration;
