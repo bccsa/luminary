@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
-import "videojs-youtube";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
@@ -140,6 +139,11 @@ function stopKeepAudioAlive() {
 
 onMounted(async () => {
     const videojs = (await import("video.js")).default;
+
+    // Lazy load videojs-youtube only if we're playing a YouTube video
+    if (isYouTube.value) {
+        await import("videojs-youtube");
+    }
 
     let options = {
         fluid: false,
