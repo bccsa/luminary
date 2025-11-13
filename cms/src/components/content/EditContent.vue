@@ -22,7 +22,7 @@ import {
     RedirectType,
     useDexieLiveQuery,
 } from "luminary-shared";
-import { DocumentIcon, TagIcon, TrashIcon } from "@heroicons/vue/24/solid";
+import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -40,7 +40,7 @@ import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
+import { ArrowTopRightOnSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     id: Uuid;

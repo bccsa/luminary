@@ -60,6 +60,9 @@ type Props = {
     segmented?: boolean;
     dropdownAnchor?: boolean;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
+    leftAction?: (event: MouseEvent) => void | Promise<void>;
+    mainAction?: (event: MouseEvent) => void | Promise<void>;
+    rightAction?: (event: MouseEvent) => void | Promise<void>;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -72,11 +75,19 @@ const props = withDefaults(defineProps<Props>(), {
     segmented: false,
     dropdownAnchor: false,
     mainDynamicCss: undefined,
+    leftAction: undefined,
+    mainAction: undefined,
+    rightAction: undefined,
 });
 
 const slots = useSlots();
 const isSegmented = computed(() => props.segmented || Boolean(slots.left) || Boolean(slots.right));
 const rightSegmentRef = ref<HTMLElement | null>(null);
+const emit = defineEmits<{
+    (e: "left-click", event: MouseEvent): void;
+    (e: "main-click", event: MouseEvent): void;
+    (e: "right-click", event: MouseEvent): void;
+}>();
 
 function segmentClass(base: string, position: "left" | "middle" | "right") {
     const radius =
@@ -103,6 +114,56 @@ const tooltipVariants = {
     tertiary: "bg-white text-zinc-900 border border-zinc-200",
     muted: "bg-white text-zinc-600 border border-zinc-200",
 };
+
+type Segment = "left" | "main" | "right";
+
+function handleSegmentClick(segment: Segment, event: MouseEvent) {
+    if (props.disabled) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+    }
+
+    if (event.defaultPrevented) {
+        event.stopPropagation();
+        return;
+    }
+
+    if (segment === "right" && props.dropdownAnchor) {
+        if (props.rightAction) {
+            props.rightAction(event);
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        return;
+    }
+
+    if (segment === "right" && props.dropdownAnchor) {
+        const panel = rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-panel]");
+        if (panel && panel.contains(event.target as Node)) {
+            return;
+        }
+    }
+
+    if (segment === "left") emit("left-click", event);
+    if (segment === "main") emit("main-click", event);
+    if (segment === "right") emit("right-click", event);
+
+    const action =
+        segment === "left"
+            ? props.leftAction
+            : segment === "main"
+              ? props.mainAction
+              : props.rightAction;
+    if (action) {
+        event.preventDefault();
+        event.stopPropagation();
+        action(event);
+        return;
+    }
+
+    event.stopPropagation();
+}
 </script>
 
 <template>
@@ -119,6 +180,7 @@ const tooltipVariants = {
             type="button"
             :disabled="disabled"
             :class="segmentClass(buttonClasses({ variant, size, context }), 'left')"
+            @click="handleSegmentClick('left', $event)"
         >
             <slot name="left" />
         </button>
@@ -142,6 +204,7 @@ const tooltipVariants = {
                     mainDynamicCss,
                 )
             "
+            @click="handleSegmentClick('main', $event)"
         >
             <component
                 v-if="icon"
@@ -159,13 +222,19 @@ const tooltipVariants = {
         </button>
 
         <!-- RIGHT SEGMENT -->
-        <div
+        <component
             v-if="$slots.right"
             ref="rightSegmentRef"
+            :is="dropdownAnchor ? 'div' : 'button'"
+            :type="dropdownAnchor ? undefined : 'button'"
+            :disabled="dropdownAnchor ? undefined : disabled"
             :class="[segmentClass(buttonClasses({ variant, size, context }), 'right'), 'relative']"
+            :role="dropdownAnchor ? 'button' : undefined"
+            :tabindex="dropdownAnchor ? 0 : undefined"
+            @click.capture="handleSegmentClick('right', $event as MouseEvent)"
         >
             <slot name="right" />
-        </div>
+        </component>
     </div>
 
     <!-- ====================== NORMAL BUTTON ====================== -->

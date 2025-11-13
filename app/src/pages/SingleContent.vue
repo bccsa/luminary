@@ -376,6 +376,18 @@ const selectedCategory = computed(() => {
 // --- Force language from query param (takes priority over all other language selection) ---
 const langToForce = queryParams.get("langId");
 
+// If lang query param is set, force that language if available
+watch([availableTranslations, languages], () => {
+    if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
+    const lang = languages.value.find((l) => l.languageCode === langToForce);
+    if (!lang) return;
+    const translation = availableTranslations.value.find((c) => c.language === lang._id);
+    if (!translation) return;
+    selectedLanguageId.value = lang._id;
+    // Update content without triggering a route change by replacing the slug
+    content.value = translation;
+});
+
 /**
  * Watches for changes in the `content` reactive property.
  * When `content` is updated, it sets the `selectedLanguageId`

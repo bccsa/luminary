@@ -11,6 +11,16 @@ vi.mock("@/router", () => {
     };
     return { default: router };
 });
+
+// Mock the app router used inside ContentDisplayCard and ContentOverview
+vi.mock("@/router", () => {
+    const push = vi.fn();
+    const router = {
+        push,
+        currentRoute: { value: { meta: {} } },
+    };
+    return { default: router };
+});
 import router from "@/router";
 import ContentOverview from "./ContentOverview.vue";
 import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
