@@ -131,7 +131,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <div class="w-full">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="max-h-full">
+                <div class="max-h-full sm:px-8">
                     <div
                         class="relative z-0 h-screen flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
