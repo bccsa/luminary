@@ -4,7 +4,7 @@ import { nextTick } from "vue";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import S3ManagementPage from "@/pages/S3ManagementPage.vue";
+import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 
@@ -135,7 +135,7 @@ export const router = createRouter({
                 {
                     path: "storage",
                     name: "storage",
-                    component: S3ManagementPage,
+                    component: StoragePage,
                     meta: {
                         title: "Storage",
                         canAccess: {
