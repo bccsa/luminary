@@ -9,9 +9,12 @@ const ALLOWED_MATOMO_SERVERS = (() => {
         // Fallback: process.env if some bundler provides it when building the SW
         if (
             typeof process !== "undefined" &&
+            //eslint-disable-next-line no-undef
             process.env &&
+            //eslint-disable-next-line no-undef
             process.env.VITE_ALLOWED_MATOMO_SERVERS
         ) {
+            //eslint-disable-next-line no-undef
             return JSON.parse(process.env.VITE_ALLOWED_MATOMO_SERVERS);
         }
     } catch (err) {
