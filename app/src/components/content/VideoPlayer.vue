@@ -294,10 +294,21 @@ onMounted(async () => {
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
-    player.on("ready", () => {
+    // For YouTube videos, use 'loadedmetadata' event to ensure video is ready for seeking
+    const progressEvent = isYouTube.value ? "loadedmetadata" : "ready";
+    player.on(progressEvent, () => {
         if (!props.content.video) return;
         const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player?.currentTime(progress - 30);
+        if (progress > 60) {
+            // For YouTube, use a small delay to ensure the player is ready to seek
+            if (isYouTube.value) {
+                setTimeout(() => {
+                    player?.currentTime(progress - 30);
+                }, 100);
+            } else {
+                player?.currentTime(progress - 30);
+            }
+        }
     });
 
     player.on("ended", () => {
