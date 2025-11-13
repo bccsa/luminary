@@ -40,6 +40,7 @@ import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     id: Uuid;
@@ -466,6 +467,12 @@ const showLanguageSelector = ref(false);
 
 const contentActions = computed(() => {
     const actions = [
+        {
+            name: "Preview",
+            action: () => window.open(liveUrl.value, "_blank"),
+            icon: ArrowTopRightOnSquareIcon,
+            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+        },
         {
             name: "Duplicate",
             action: () => (showDuplicateModal.value = true),

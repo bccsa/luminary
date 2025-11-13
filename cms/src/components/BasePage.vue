@@ -4,7 +4,6 @@ import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { type Component } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
-import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     title?: string;
