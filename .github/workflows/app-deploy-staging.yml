@@ -45,6 +45,7 @@ jobs:
           echo VITE_PRIVACY_POLICY_ID=="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
           echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
           echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
+          echo VITE_ALLOWED_MATOMO_SERVERS="${{ vars.VITE_ALLOWED_MATOMO_SERVERS }}" >> .env
           echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
           echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
           echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
