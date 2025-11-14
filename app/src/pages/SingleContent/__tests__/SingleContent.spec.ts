@@ -84,13 +84,29 @@ describe("SingleContent", () => {
 
         setActivePinia(createTestingPinia());
 
+        // Reset notification store spy
+        vi.clearAllMocks();
+
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
+        });
+
+        // Reset document.referrer to empty for each test
+        Object.defineProperty(document, "referrer", {
+            value: "",
+            configurable: true,
+            writable: true,
         });
     });
 
     afterEach(async () => {
         await db.docs.clear();
+
+        // Restore window.location if it was changed
+        if (!(window.location instanceof Location)) {
+            delete (window as any).location;
+            (window as any).location = new URL("http://localhost:3000/");
+        }
     });
 
     it("displays the video player when defined", async () => {
@@ -363,15 +379,20 @@ describe("SingleContent", () => {
         await initLanguage();
 
         // Clear any language switch flag from previous tests
-        // This ensures the notification will show when viewing non-preferred language content
         const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
-        consumeLanguageSwitchFlag(); // Reset the flag to false
+        consumeLanguageSwitchFlag();
 
         appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
 
         // Set the CMS languages so that the preferred language computation works
         const { cmsLanguages } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock external referrer BEFORE mounting (changed from empty to external)
+        Object.defineProperty(document, "referrer", {
+            value: "https://example.com",
+            configurable: true,
+        });
 
         // Navigate to French content (not the preferred language)
         const wrapper = mount(SingleContent, {
@@ -394,6 +415,83 @@ describe("SingleContent", () => {
                     type: "banner",
                 }),
             );
-        }, 5000);
+        }, 3000);
+    });
+
+    it("shows the notification when opening from external link", async () => {
+        await initLanguage();
+
+        const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
+        consumeLanguageSwitchFlag();
+
+        appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
+
+        const { cmsLanguages } = await import("@/globalConfig");
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock document.referrer BEFORE mounting to simulate external navigation
+        Object.defineProperty(document, "referrer", {
+            value: "https://google.com/search",
+            configurable: true,
+        });
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                    title: "Translation available",
+                    description: `The content is also available in English. Click here to view it.`,
+                    state: "info",
+                    type: "banner",
+                }),
+            );
+        }, 3000);
+    });
+
+    it("shows the notification when opening from direct link (no referrer)", async () => {
+        await initLanguage();
+
+        const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
+        consumeLanguageSwitchFlag();
+
+        appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
+
+        const { cmsLanguages } = await import("@/globalConfig");
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock empty referrer BEFORE mounting to simulate direct link/bookmark
+        Object.defineProperty(document, "referrer", {
+            value: "",
+            configurable: true,
+        });
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+
+        // With empty referrer, it SHOULD show (direct links are treated as external)
+        await waitForExpect(() => {
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                }),
+            );
+        }, 3000);
     });
 });
