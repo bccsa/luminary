@@ -67,6 +67,12 @@ async function Startup() {
                 type: DocType.User,
                 sync: false,
             },
+            {
+                type: DocType.Storage,
+                sync: true,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
         ],
     }).catch((err) => {
         console.error(err);

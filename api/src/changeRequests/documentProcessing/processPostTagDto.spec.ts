@@ -217,7 +217,33 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).imageData,
             undefined,
             s3,
+            db,
+            "storage-bucket-1", // imageBucketId from changeRequest_post()
+            undefined, // prevImageBucketId
         );
+    });
+
+    it("throws error when no imageBucketId is provided for image processing", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog4";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1,
+                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
+                },
+            ],
+        };
+        delete (changeRequest.doc as PostDto).imageBucketId; // Remove imageBucketId to simulate missing bucket ID
+
+        // Ensure previous tests' calls to the mocked processImage do not affect this assertion
+        (processImage as jest.Mock).mockClear();
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db, s3),
+        ).rejects.toThrow("Bucket is not specified for image processing.");
+
+        expect(processImage).not.toHaveBeenCalled();
     });
 
     it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
@@ -243,6 +269,9 @@ describe("processPostTagDto", () => {
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
             s3,
+            db,
+            "storage-bucket-1", // prevDoc?.imageBucketId - Delete from the bucket where files currently exist
+            undefined, // No migration needed for delete
         );
     });
 });

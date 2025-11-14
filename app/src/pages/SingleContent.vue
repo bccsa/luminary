@@ -674,6 +674,7 @@ const quickLanguageSwitch = (languageId: string) => {
                             <LImage
                                 :image="content.parentImageData"
                                 :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
                                 aspectRatio="video"
                                 size="post"
                             />
@@ -812,6 +813,7 @@ const quickLanguageSwitch = (languageId: string) => {
     <ImageModal
         v-if="content && enableZoom"
         :content-parent-id="content.parentId"
+        :parent-image-bucket-id="content.parentImageBucketId"
         :imageCollections="content?.parentImageData?.fileCollections"
         :currentIndex="currentImageIndex"
         aspectRatio="original"

@@ -1,118 +1,131 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
-import { S3Config } from "../configuration";
+import { S3CredentialDto } from "../dto/S3CredentialDto";
 
 @Injectable()
 export class S3Service {
-    client: Minio.Client;
-    s3Config: S3Config;
+    // Note: No default client or config - everything is bucket-specific now
 
-    constructor(private configService: ConfigService) {
-        this.s3Config = this.configService.get<S3Config>("s3");
-
-        this.client = new Minio.Client({
-            endPoint: this.s3Config.endpoint,
-            port: this.s3Config.port,
-            useSSL: this.s3Config.useSSL,
-            accessKey: this.s3Config.accessKey,
-            secretKey: this.s3Config.secretKey,
-        });
+    constructor() {
+        // No configuration needed - each bucket provides its own credentials
     }
 
     /**
-     * Get the configured image bucket name
+     * Creates a Minio client with specific credentials
      */
-    public get imageBucket() {
-        return this.s3Config.imageBucket;
+    public createClient(credentials: {
+        endpoint: string;
+        bucketName: string;
+        accessKey: string;
+        secretKey: string;
+        port?: number;
+        useSSL?: boolean;
+    }): Minio.Client {
+        // Parse endpoint to extract host and determine SSL/port defaults
+        const url = new URL(credentials.endpoint);
+        const host = url.hostname;
+        const port =
+            credentials.port || parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
+        const useSSL =
+            credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
+
+        // Cloudflare R2 requires region
+        const isCloudflareR2 =
+            host === "r2.cloudflarestorage.com" || host.endsWith(".r2.cloudflarestorage.com");
+
+        const clientConfig: any = {
+            endPoint: host,
+            port: port,
+            useSSL: useSSL,
+            accessKey: credentials.accessKey,
+            secretKey: credentials.secretKey,
+        };
+
+        // Cloudflare R2 specific configuration
+        if (isCloudflareR2) {
+            clientConfig.region = "auto";
+        }
+
+        return new Minio.Client(clientConfig);
     }
 
     /**
-     * Override the configured image bucket name. This is useful for testing
+     * Uploads a file to an S3 bucket using specific credentials
      */
-    public set imageBucket(bucket: string) {
-        this.s3Config.imageBucket = bucket;
-    }
-
-    /**
-     * Get the configured image quality
-     */
-    public get imageQuality() {
-        return this.s3Config.imageQuality;
-    }
-
-    /**
-     * Uploads a file to an S3 bucket
-     */
-    public async uploadFile(bucket: string, key: string, file: Buffer, mimetype: string) {
+    public async uploadFile(
+        client: Minio.Client,
+        bucket: string,
+        key: string,
+        file: Buffer,
+        mimetype: string,
+    ) {
         const metadata = {
             "Content-Type": mimetype,
         };
-        return this.client.putObject(bucket, key, file, file.length, metadata);
+        return client.putObject(bucket, key, file, file.length, metadata);
     }
 
     /**
-     * Removes objects from a bucket
+     * Removes objects from a bucket using specific credentials
      */
-    public async removeObjects(bucket: string, keys: string[]) {
-        return this.client.removeObjects(bucket, keys);
+    public async removeObjects(client: Minio.Client, bucket: string, keys: string[]) {
+        return client.removeObjects(bucket, keys);
     }
 
     /**
-     * Get an object from a bucket
+     * Get an object from a bucket using specific credentials
      */
-    public async getObject(bucket: string, key: string) {
-        return this.client.getObject(bucket, key);
+    public async getObject(client: Minio.Client, bucket: string, key: string) {
+        return client.getObject(bucket, key);
     }
 
     /**
-     * Checks if a bucket exists
+     * Checks if a bucket exists using specific credentials
      */
-    public async bucketExists(bucket: string) {
-        return this.client.bucketExists(bucket);
+    public async bucketExists(client: Minio.Client, bucket: string) {
+        return client.bucketExists(bucket);
     }
 
     /**
-     * Creates a bucket
+     * Creates a bucket using specific credentials
      */
-    public async makeBucket(bucket: string) {
-        return this.client.makeBucket(bucket);
+    public async makeBucket(client: Minio.Client, bucket: string) {
+        return client.makeBucket(bucket);
     }
 
     /**
-     * Removes a bucket
+     * Removes a bucket using specific credentials
      */
-    public async removeBucket(bucket: string) {
-        return this.client.removeBucket(bucket);
+    public async removeBucket(client: Minio.Client, bucket: string) {
+        return client.removeBucket(bucket);
     }
 
     /**
-     * Lists objects in a bucket
+     * Lists objects in a bucket using specific credentials
      */
-    public async listObjects(bucket: string) {
-        return this.client.listObjects(bucket);
+    public async listObjects(client: Minio.Client, bucket: string) {
+        return client.listObjects(bucket);
     }
 
     /**
-     * Check if the S3/Minio service is available
+     * Check if an S3 service is reachable using specific credentials
      */
-    public async checkConnection(): Promise<boolean> {
-        // Treat connection as healthy only if the configured image bucket exists.
-        // If the bucket is missing or any error occurs, return false so the caller can react.
-        if (!this.imageBucket) return false;
+    public async checkConnection(client: Minio.Client): Promise<boolean> {
+        // Check if S3 service is reachable by attempting to list buckets
         try {
-            return await this.client.bucketExists(this.imageBucket);
+            await client.listBuckets();
+            return true;
         } catch (_) {
             return false;
         }
     }
 
     /**
-     * Check if an object exists in a bucket
+     * Check if an object exists in a bucket using specific credentials
      */
-    public async objectExists(bucket: string, key: string): Promise<boolean> {
+    public async objectExists(client: Minio.Client, bucket: string, key: string): Promise<boolean> {
         try {
-            await this.client.statObject(bucket, key);
+            await client.statObject(bucket, key);
             return true;
         } catch (error) {
             return false;
@@ -120,21 +133,22 @@ export class S3Service {
     }
 
     /**
-     * Validate image upload and accessibility
+     * Validate image upload and accessibility using specific credentials
      */
     public async validateImageUpload(
+        client: Minio.Client,
         bucket: string,
         key: string,
     ): Promise<{ success: boolean; error?: string }> {
         try {
             // Check if bucket exists
-            const bucketExists = await this.bucketExists(bucket);
+            const bucketExists = await client.bucketExists(bucket);
             if (!bucketExists) {
                 return { success: false, error: `Bucket '${bucket}' does not exist` };
             }
 
             // Try to get object info to verify it was uploaded successfully
-            await this.client.statObject(bucket, key);
+            await client.statObject(bucket, key);
 
             return { success: true };
         } catch (error) {
@@ -143,19 +157,158 @@ export class S3Service {
     }
 
     /**
-     * Check if uploaded images are accessible
+     * Check if uploaded images are accessible using specific credentials
      */
-    public async checkImageAccessibility(bucket: string, keys: string[]): Promise<string[]> {
+    public async checkImageAccessibility(
+        client: Minio.Client,
+        bucket: string,
+        keys: string[],
+    ): Promise<string[]> {
         const inaccessibleImages: string[] = [];
 
         for (const key of keys) {
             try {
-                await this.client.statObject(bucket, key);
+                await client.statObject(bucket, key);
             } catch (error) {
                 inaccessibleImages.push(key);
             }
         }
 
         return inaccessibleImages;
+    }
+
+    /**
+     * Creates an S3 client from a bucket configuration stored in the database
+     * Handles both embedded credentials and encrypted credential references
+     */
+    public async createClientFromBucket(
+        bucketId: string,
+        db: any, // DbService type
+    ): Promise<{ client: Minio.Client; bucketName: string }> {
+        const { retrieveCryptoData } = await import("../util/encryption");
+
+        // Get bucket configuration
+        const result = await db.getDoc(bucketId);
+        if (!result.docs || result.docs.length === 0) {
+            throw new Error(`Bucket with ID ${bucketId} not found`);
+        }
+
+        const bucket = result.docs[0];
+
+        let credentials: {
+            endpoint: string;
+            bucketName: string;
+            accessKey: string;
+            secretKey: string;
+        };
+
+        if (bucket.credential) {
+            // Use embedded credentials
+            credentials = {
+                endpoint: bucket.credential.endpoint,
+                bucketName: bucket.credential.bucketName!,
+                accessKey: bucket.credential.accessKey!,
+                secretKey: bucket.credential.secretKey!,
+            };
+        } else if (bucket.credential_id) {
+            // Use reference to encrypted credentials
+            const decrypted = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
+            credentials = {
+                endpoint: decrypted.endpoint,
+                bucketName: decrypted.bucketName!,
+                accessKey: decrypted.accessKey!,
+                secretKey: decrypted.secretKey!,
+            };
+        } else {
+            throw new Error("No credentials configured for bucket");
+        }
+
+        return {
+            client: this.createClient(credentials),
+            bucketName: credentials.bucketName,
+        };
+    }
+
+    /**
+     * Check bucket connectivity with specific credentials
+     */
+    public async checkBucketConnectivity(credentials: {
+        endpoint: string;
+        bucketName: string;
+        accessKey: string;
+        secretKey: string;
+        port?: number;
+        useSSL?: boolean;
+    }): Promise<{
+        status: "connected" | "unreachable" | "unauthorized" | "no-credentials";
+        message?: string;
+    }> {
+        try {
+            const testClient = this.createClient(credentials);
+
+            // For R2, test by checking if the specific bucket exists instead of listing all buckets
+            // Some R2 tokens may not have permission to list all buckets
+            // Parse the endpoint as a URL and check the actual hostname for Cloudflare R2
+            let endpointToParse = credentials.endpoint;
+            if (!/^([a-z][a-z0-9.+-]*:)?\/\//i.test(endpointToParse)) {
+                // If the endpoint does not have a protocol, prepend one for URL parsing
+                endpointToParse = "https://" + endpointToParse;
+            }
+            let hostname: string;
+            try {
+                hostname = new URL(endpointToParse).hostname;
+            } catch (e) {
+                hostname = "";
+            }
+            const isCloudflareR2 =
+                hostname === "r2.cloudflarestorage.com" ||
+                hostname.endsWith(".r2.cloudflarestorage.com");
+
+            if (isCloudflareR2) {
+                // Check if the specific bucket exists
+                const exists = await testClient.bucketExists(credentials.bucketName);
+                if (!exists) {
+                    return {
+                        status: "unreachable",
+                        message: `Bucket '${credentials.bucketName}' does not exist`,
+                    };
+                }
+            } else {
+                // For other S3 services, list buckets as before
+                await testClient.listBuckets();
+            }
+
+            return { status: "connected" };
+        } catch (error) {
+            // Check for specific error types
+            if (
+                error.message?.includes("Access Denied") ||
+                error.message?.includes("SignatureDoesNotMatch") ||
+                error.message?.includes("InvalidAccessKeyId") ||
+                error.message?.includes("Forbidden") ||
+                error.code === "SignatureDoesNotMatch" ||
+                error.code === "InvalidAccessKeyId" ||
+                error.code === "AccessDenied"
+            ) {
+                return {
+                    status: "unauthorized",
+                    message: "Invalid credentials or insufficient permissions",
+                };
+            } else if (
+                error.message?.includes("ENOTFOUND") ||
+                error.message?.includes("ECONNREFUSED") ||
+                error.message?.includes("EHOSTUNREACH")
+            ) {
+                return {
+                    status: "unreachable",
+                    message: "Cannot connect to S3 endpoint",
+                };
+            } else {
+                return {
+                    status: "unreachable",
+                    message: error.message || "Unknown connection error",
+                };
+            }
+        }
     }
 }

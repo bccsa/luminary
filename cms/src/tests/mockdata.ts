@@ -502,6 +502,11 @@ export const mockGroupDtoPrivateContent: GroupDto = {
             groupId: "group-private-editors",
             permission: [AclPermission.View, AclPermission.Assign],
         },
+        {
+            type: DocType.Storage,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
+        },
     ],
 };
 
@@ -548,6 +553,11 @@ export const mockGroupDtoPublicContent: GroupDto = {
         },
         {
             type: DocType.User,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
+        },
+        {
+            type: DocType.Storage,
             groupId: "group-public-editors",
             permission: [AclPermission.View, AclPermission.Edit],
         },
@@ -677,6 +687,17 @@ export const mockGroupDtoPublicEditors: GroupDto = {
                 AclPermission.Publish,
             ],
         },
+        {
+            type: DocType.Storage,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
     ],
 };
 export const mockGroupDtoSuperAdmins: GroupDto = {
@@ -794,6 +815,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
+            delete: true,
+        },
     },
     "group-private-content": {
         post: {
@@ -842,6 +869,12 @@ export const superAdminAccessMap = {
         user: {
             view: true,
             edit: true,
+            delete: true,
+        },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
             delete: true,
         },
     },
@@ -893,6 +926,13 @@ export const superAdminAccessMap = {
             view: true,
             create: true,
             edit: true,
+            delete: true,
+        },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
+
             delete: true,
         },
     },

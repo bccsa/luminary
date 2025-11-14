@@ -4,6 +4,7 @@ import { nextTick } from "vue";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
+import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 
@@ -130,6 +131,19 @@ export const router = createRouter({
                     name: "user",
                     component: () => import("../components/users/EditUser.vue"),
                     props: true,
+                },
+                {
+                    path: "storage",
+                    name: "storage",
+                    component: StoragePage,
+                    meta: {
+                        title: "Storage",
+                        canAccess: {
+                            docType: DocType.Storage,
+                            permission: AclPermission.View,
+                        },
+                        onlineOnly: true,
+                    },
                 },
                 { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
             ],
