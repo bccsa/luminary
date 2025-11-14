@@ -276,9 +276,7 @@ const is404 = ref(false);
 
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
-    return (
-        !content.value || !isPublished(content.value, content.value ? [content.value.language] : [])
-    );
+    return !isPublished(content.value, content.value ? [content.value.language] : []);
 };
 
 watch(content, () => {
