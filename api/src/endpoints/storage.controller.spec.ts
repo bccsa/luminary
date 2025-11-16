@@ -380,10 +380,10 @@ describe("StorageController", () => {
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
                 .query({ bucketId: "bucket-123", apiVersion: "0.0.0" });
+            // No Authorization header - should fail with 401
 
-            // Without overriding the guard, this would fail authentication
-            // But since we overrode it in the test setup, we expect it to pass
-            expect(response.status).toBe(200);
+            expect(response.status).toBe(401);
+            expect(response.body.message).toBe("Authorization token required");
         });
     });
 });
