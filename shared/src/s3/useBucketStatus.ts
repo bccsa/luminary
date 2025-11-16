@@ -1,7 +1,7 @@
 import { ref, computed, watch } from "vue";
 import type { StorageDto } from "../types";
 import { BucketStatus } from "../types/enum";
-import { config } from "../config";
+import { getRest } from "../rest/RestApi";
 
 export type BucketStatusInfo = {
     connectionStatus: BucketStatus;
@@ -30,47 +30,36 @@ export function useBucketStatus(buckets: { value: StorageDto[] }) {
             return;
         }
 
-        // Prepare request
+        // Mark as checking
+        statusMap.value.set(bucket._id as string, {
+            connectionStatus: BucketStatus.Checking,
+        });
+
         try {
-            // Ensure apiUrl and token come from shared config
-            const apiUrl = config?.apiUrl ?? "";
-            const token = config?.token ?? "";
+            // Use the RestApi singleton to make the request
+            const rest = getRest();
+            const result = await rest.getBucketStatus(bucket._id as string);
 
-            // Mark as checking
-            statusMap.value.set(bucket._id as string, {
-                connectionStatus: BucketStatus.Checking,
-            });
-
-            const res = await fetch(`${apiUrl.replace(/\/$/, "")}/storage/bucket-status`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: token ? `Bearer ${token}` : "",
-                },
-                body: JSON.stringify({ bucketId: bucket._id, apiVersion: "0.0.0" }),
-            });
-
-            if (!res.ok) {
-                const text = await res.text().catch(() => "");
-                statusMap.value.set(bucket._id as string, {
-                    connectionStatus: BucketStatus.Unreachable,
-                    statusMessage: `Error: ${res.status} ${res.statusText} ${text}`,
-                });
-                return;
-            }
-
-            const json = await res.json().catch(() => null);
-            if (!json || !json.status) {
+            if (!result || !result.status) {
                 statusMap.value.set(bucket._id as string, {
                     connectionStatus: BucketStatus.Unknown,
-                    statusMessage: json?.message,
+                    statusMessage: result?.message,
                 });
                 return;
             }
 
+            // Map API response status to BucketStatus enum
+            const statusMap_temp: Record<string, BucketStatus> = {
+                connected: BucketStatus.Connected,
+                unreachable: BucketStatus.Unreachable,
+                unauthorized: BucketStatus.Unauthorized,
+                "not-found": BucketStatus.NotFound,
+                "no-credentials": BucketStatus.NoCredential,
+            };
+
             statusMap.value.set(bucket._id as string, {
-                connectionStatus: json.status,
-                statusMessage: json.message,
+                connectionStatus: statusMap_temp[result.status] || BucketStatus.Unknown,
+                statusMessage: result.message,
             });
         } catch (err: any) {
             statusMap.value.set(bucket._id as string, {
