@@ -33,6 +33,30 @@ export class HttpReq<T> {
         }
     }
 
+    async getWithQueryParams(endpoint: string, params: Record<string, string>) {
+        const headers: any = {};
+        this.token && (headers.Authorization = `Bearer ${this.token}`);
+
+        try {
+            const schema = "https://";
+            const regex = /^https?:\/\//;
+            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const queryParams = new URLSearchParams(params);
+            const res = await fetch(`${url}/${endpoint}?${queryParams}`, {
+                method: "GET",
+                headers: headers,
+            });
+            if (!res.ok) {
+                throw new Error(`HTTP error! Status: ${res.status}`);
+            }
+            return res.json().catch((err) => {
+                console.log(err.message);
+            }); // Parse the JSON response
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
     async post(endpoint: string, query: T | FormData) {
         try {
             const schema = "https://";
