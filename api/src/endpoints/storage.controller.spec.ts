@@ -6,6 +6,8 @@ import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
 import * as encryption from "../util/encryption";
+import * as jwtModule from "../jwt/processJwt";
+import * as permissionsService from "../permissions/permissions.service";
 
 describe("StorageController", () => {
     let app: INestApplication;
@@ -13,6 +15,8 @@ describe("StorageController", () => {
     const mockCheckBucketConnectivity = jest.fn();
     const mockGetDoc = jest.fn();
     const mockRetrieve = jest.fn();
+    const mockProcessJwt = jest.fn();
+    const mockVerifyAccess = jest.fn();
 
     beforeAll(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -50,20 +54,28 @@ describe("StorageController", () => {
         // Reset mocks and re-establish spies so each test sets its own mock implementations
         jest.resetAllMocks();
         jest.spyOn(encryption, "retrieveCryptoData").mockImplementation(mockRetrieve);
+        jest.spyOn(jwtModule, "processJwt").mockImplementation(mockProcessJwt);
+        jest.spyOn(permissionsService.PermissionSystem, "verifyAccess").mockImplementation(
+            mockVerifyAccess,
+        );
+
+        // Default mocks
+        mockProcessJwt.mockResolvedValue({
+            groups: ["group-public-users"],
+            userId: "user-123",
+        });
+        mockVerifyAccess.mockReturnValue(true);
     });
 
-    describe("POST /storage/bucket-status", () => {
-        const bucketStatusRequest = {
-            bucketId: "bucket-123",
-            apiVersion: "0.0.0",
-        };
-
+    describe("GET /storage/storagestatus", () => {
         it("should return connected status when bucket is accessible", async () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential: {
                     endpoint: "http://localhost:9000",
+                    bucketName: "test-bucket",
                     accessKey: "testAccessKey",
                     secretKey: "testSecretKey",
                 },
@@ -78,11 +90,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "connected",
             });
@@ -90,6 +102,7 @@ describe("StorageController", () => {
             expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
             expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
                 endpoint: "http://localhost:9000",
+                bucketName: "test-bucket",
                 accessKey: "testAccessKey",
                 secretKey: "testSecretKey",
             });
@@ -101,11 +114,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "not-found",
                 message: "Bucket configuration not found: bucket-123",
@@ -119,6 +132,7 @@ describe("StorageController", () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential_id: "cred-456",
             };
 
@@ -138,11 +152,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "connected",
             });
@@ -163,19 +177,19 @@ describe("StorageController", () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential_id: "cred-456",
             };
 
-            mockGetDoc
-                .mockResolvedValueOnce({ docs: [mockBucket] })
-                .mockResolvedValueOnce({ docs: [] });
+            mockGetDoc.mockResolvedValueOnce({ docs: [mockBucket] });
+            mockRetrieve.mockRejectedValueOnce(new Error("Credentials not found"));
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "not-found",
                 message: "Credentials not found for bucket: test-bucket",
@@ -188,6 +202,7 @@ describe("StorageController", () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 // No credential or credential_id fields
             };
 
@@ -196,11 +211,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "no-credentials",
                 message: "No credentials configured for bucket: test-bucket",
@@ -211,8 +226,10 @@ describe("StorageController", () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential: {
                     endpoint: "http://invalid-endpoint:9000",
+                    bucketName: "test-bucket",
                     accessKey: "testAccessKey",
                     secretKey: "testSecretKey",
                 },
@@ -228,11 +245,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "unreachable",
                 message: "Cannot connect to S3 endpoint",
@@ -243,8 +260,10 @@ describe("StorageController", () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential: {
                     endpoint: "http://localhost:9000",
+                    bucketName: "test-bucket",
                     accessKey: "wrongAccessKey",
                     secretKey: "wrongSecretKey",
                 },
@@ -260,23 +279,25 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "unauthorized",
                 message: "Invalid credentials or insufficient permissions",
             });
         });
 
-        it("should return connected when credentials are valid (credential-only check)", async () => {
+        it("should return connected when credentials are valid", async () => {
             const mockBucket = {
                 _id: "bucket-123",
                 name: "test-bucket",
+                memberOf: ["group-public-users"],
                 credential: {
                     endpoint: "http://localhost:9000",
+                    bucketName: "test-bucket",
                     accessKey: "testAccessKey",
                     secretKey: "testSecretKey",
                 },
@@ -292,11 +313,11 @@ describe("StorageController", () => {
             });
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "connected",
                 message: "Credentials valid and S3 service accessible",
@@ -307,25 +328,62 @@ describe("StorageController", () => {
             mockGetDoc.mockRejectedValue(new Error("Database connection failed"));
 
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .set("Authorization", "Bearer fake-token")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
 
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "unreachable",
                 message: "Error checking bucket status: Database connection failed",
             });
         });
 
+        it("should require bucketId parameter", async () => {
+            const response = await request(app.getHttpServer())
+                .get("/storage/storagestatus")
+                .query({ apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
+
+            expect(response.status).toBe(400);
+        });
+
+        it("should deny access when user lacks permissions", async () => {
+            mockVerifyAccess.mockReturnValue(false);
+
+            const mockBucket = {
+                _id: "bucket-123",
+                name: "test-bucket",
+                memberOf: ["group-admin"],
+                credential: {
+                    endpoint: "http://localhost:9000",
+                    bucketName: "test-bucket",
+                    accessKey: "testAccessKey",
+                    secretKey: "testSecretKey",
+                },
+            };
+
+            mockGetDoc.mockResolvedValue({
+                docs: [mockBucket],
+            });
+
+            const response = await request(app.getHttpServer())
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .set("Authorization", "Bearer fake-token");
+
+            expect(response.status).toBe(403);
+            expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
+        });
+
         it("should require authentication", async () => {
             const response = await request(app.getHttpServer())
-                .post("/storage/bucket-status")
-                .send(bucketStatusRequest);
+                .get("/storage/storagestatus")
+                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" });
 
             // Without overriding the guard, this would fail authentication
             // But since we overrode it in the test setup, we expect it to pass
-            expect(response.status).toBe(201);
+            expect(response.status).toBe(200);
         });
     });
 });
