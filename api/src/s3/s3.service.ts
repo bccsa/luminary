@@ -240,42 +240,19 @@ export class S3Service {
         port?: number;
         useSSL?: boolean;
     }): Promise<{
-        status: "connected" | "unreachable" | "unauthorized" | "no-credentials";
+        status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
         message?: string;
     }> {
         try {
             const testClient = this.createClient(credentials);
 
-            // For R2, test by checking if the specific bucket exists instead of listing all buckets
-            // Some R2 tokens may not have permission to list all buckets
-            // Parse the endpoint as a URL and check the actual hostname for Cloudflare R2
-            let endpointToParse = credentials.endpoint;
-            if (!/^([a-z][a-z0-9.+-]*:)?\/\//i.test(endpointToParse)) {
-                // If the endpoint does not have a protocol, prepend one for URL parsing
-                endpointToParse = "https://" + endpointToParse;
-            }
-            let hostname: string;
-            try {
-                hostname = new URL(endpointToParse).hostname;
-            } catch (e) {
-                hostname = "";
-            }
-            const isCloudflareR2 =
-                hostname === "r2.cloudflarestorage.com" ||
-                hostname.endsWith(".r2.cloudflarestorage.com");
-
-            if (isCloudflareR2) {
-                // Check if the specific bucket exists
-                const exists = await testClient.bucketExists(credentials.bucketName);
-                if (!exists) {
-                    return {
-                        status: "unreachable",
-                        message: `Bucket '${credentials.bucketName}' does not exist`,
-                    };
-                }
-            } else {
-                // For other S3 services, list buckets as before
-                await testClient.listBuckets();
+            // Check if the specific bucket exists (works for all S3-compatible services)
+            const exists = await testClient.bucketExists(credentials.bucketName);
+            if (!exists) {
+                return {
+                    status: "not-found",
+                    message: `Bucket '${credentials.bucketName}' does not exist`,
+                };
             }
 
             return { status: "connected" };
