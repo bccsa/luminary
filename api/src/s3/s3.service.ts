@@ -249,6 +249,9 @@ export class S3Service {
             // Check if the specific bucket exists (works for all S3-compatible services)
             const exists = await testClient.bucketExists(credentials.bucketName);
             if (!exists) {
+                console.log(
+                    `Bucket '${credentials.bucketName}' does not exist on the storage provider.`,
+                );
                 return {
                     status: "not-found",
                     message: `Bucket '${credentials.bucketName}' does not exist`,
