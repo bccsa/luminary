@@ -57,6 +57,16 @@ export type ChangeRequestQuery = {
     apiVersion?: string;
 };
 
+export type BucketStatusQuery = {
+    bucketId: string;
+    apiVersion: string;
+};
+
+export type BucketStatusResponse = {
+    status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
+    message?: string;
+};
+
 export { syncActive };
 
 class RestApi {
@@ -107,6 +117,13 @@ class RestApi {
         }
         (query as ChangeRequestQuery).apiVersion = "0.0.0";
         return await this.http.post("changerequest", query);
+    }
+
+    async getBucketStatus(bucketId: string): Promise<BucketStatusResponse | undefined> {
+        return await this.http.getWithQueryParams("storage/storagestatus", {
+            bucketId,
+            apiVersion: "0.0.0",
+        });
     }
 }
 
