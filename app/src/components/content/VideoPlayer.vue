@@ -200,6 +200,51 @@ onMounted(async () => {
         });
         // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
         showAudioModeToggle.value = false;
+
+        // Force CSS classes to be properly applied after YouTube iframe loads
+        // YouTube creates an iframe asynchronously, so we need to ensure our CSS is applied after it's ready
+        player.on("ready", () => {
+            // Force repaint by toggling a class
+            const playerEl = player?.el();
+            if (playerEl) {
+                playerEl.classList.add("vjs-youtube-loaded");
+                // Use requestAnimationFrame to ensure DOM updates are applied
+                requestAnimationFrame(() => {
+                    playerEl.classList.remove("vjs-youtube-loaded");
+                });
+            }
+        });
+
+        // Also handle the loadedmetadata event for YouTube videos
+        player.on("loadedmetadata", () => {
+            const playerEl = player?.el();
+            if (playerEl) {
+                // Ensure the video-js class and our custom classes are properly applied
+                playerEl.classList.add("video-js");
+
+                // Find the tech element (YouTube iframe wrapper) and ensure it has proper styling
+                const techEl = playerEl.querySelector(".vjs-tech");
+                if (techEl) {
+                    (techEl as HTMLElement).classList.add("vjs-tech");
+                }
+            }
+        });
+
+        // Add a slight delay to ensure YouTube iframe is fully initialized
+        // This helps with the initial load issue where styles aren't applied properly
+        setTimeout(() => {
+            const playerEl = player?.el();
+            if (playerEl instanceof HTMLElement) {
+                // Force a style recalculation
+                void playerEl.offsetHeight;
+
+                // Ensure all parent containers have proper classes
+                const videoPlayerContainer = playerEl.closest(".video-player");
+                if (videoPlayerContainer) {
+                    videoPlayerContainer.classList.add("vjs-youtube-container");
+                }
+            }
+        }, 100);
     } else {
         player.src({ type: "application/x-mpegURL", src: props.content.video });
     }
@@ -298,6 +343,18 @@ onMounted(async () => {
         if (!props.content.video) return;
         const progress = getMediaProgress(props.content.video, props.content._id);
         if (progress > 60) player?.currentTime(progress - 30);
+
+        // For YouTube videos, ensure all CSS classes are properly applied after player is fully ready
+        if (isYouTube.value) {
+            const playerEl = player?.el();
+            if (playerEl instanceof HTMLElement) {
+                // Force a repaint to ensure all styles are applied
+                requestAnimationFrame(() => {
+                    playerEl.offsetHeight; // Trigger reflow
+                    playerEl.classList.add("vjs-youtube-ready");
+                });
+            }
+        }
     });
 
     player.on("ended", () => {
