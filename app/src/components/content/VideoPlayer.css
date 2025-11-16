@@ -22,26 +22,6 @@
     @apply !text-5xl;
 }
 
-/* Hide big play button when video has loaded/started */
-.video-player .vjs-has-started .vjs-big-play-button {
-    display: none !important;
-}
-
-/* Also hide when video is not paused */
-.video-player:not(.vjs-paused) .vjs-big-play-button {
-    display: none !important;
-}
-
-/* Hide big play button when video is playing */
-.video-player .vjs-playing .vjs-big-play-button {
-    display: none !important;
-}
-
-/* Hide big play button when user has interacted */
-.video-player .vjs-user-active .vjs-big-play-button {
-    display: none !important;
-}
-
 /* Position skip buttons next to the big play button */
 .video-player .vjs-skip-forward-10,
 .video-player .vjs-skip-backward-10 {
