@@ -293,7 +293,10 @@ function removeFileType(fileType: string) {
 }
 
 function editBucket(bucket: StorageDto) {
-    editableBucket.value = { ...bucket };
+    editableBucket.value = {
+        ...bucket,
+        mimeTypes: Array.isArray(bucket.mimeTypes) ? [...bucket.mimeTypes] : [],
+    };
     showModal.value = true;
 }
 
@@ -579,6 +582,11 @@ const saveBucket = async () => {
             // For editing existing buckets, remove credential field if no credentials provided
             // (keeps existing credential_id if present)
             delete bucket.credential;
+        }
+
+        // Ensure mimeTypes is always a valid array
+        if (!Array.isArray(bucket.mimeTypes)) {
+            bucket.mimeTypes = [];
         }
 
         // Track that we're saving a bucket
