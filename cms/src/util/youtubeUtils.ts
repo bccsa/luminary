@@ -28,27 +28,3 @@ export function extractYouTubeId(url: string): string | null {
     const match = url.match(regex);
     return match ? match[1] : null;
 }
-
-/**
- * Gets YouTube video thumbnail URL
- * @param url - The YouTube URL
- * @param quality - Thumbnail quality ('default', 'medium', 'high', 'standard', 'maxres')
- * @returns Thumbnail URL or null
- */
-export function getYouTubeThumbnail(
-    url: string,
-    quality: "default" | "medium" | "high" | "standard" | "maxres" = "high",
-): string | null {
-    const videoId = extractYouTubeId(url);
-    if (!videoId) return null;
-
-    const qualityMap = {
-        default: "default.jpg",
-        medium: "mqdefault.jpg",
-        high: "hqdefault.jpg",
-        standard: "sddefault.jpg",
-        maxres: "maxresdefault.jpg",
-    };
-
-    return `https://img.youtube.com/vi/${videoId}/${qualityMap[quality]}`;
-}

@@ -17,7 +17,6 @@ vi.mock("@/util/youtubeUtils", () => ({
         }
     }),
     convertToVideoJSYouTubeUrl: vi.fn((url: string) => url),
-    getYouTubeThumbnail: vi.fn(() => "https://img.youtube.com/vi/test/hqdefault.jpg"),
 }));
 
 const posterMock = vi.hoisted(() => vi.fn());
