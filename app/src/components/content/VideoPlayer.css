@@ -10,6 +10,11 @@
     @apply md:!rounded-lg;
 }
 
+/* Ensure YouTube iframe also gets the proper styling */
+.video-player .vjs-tech iframe {
+    @apply md:!rounded-lg;
+}
+
 .video-player .vjs-poster img {
     @apply object-cover md:!rounded-lg;
 }
