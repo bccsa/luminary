@@ -1,28 +1,21 @@
-import { Controller, Post, Body, UseGuards } from "@nestjs/common";
+import {
+    Controller,
+    Get,
+    Query,
+    UseGuards,
+    Headers,
+    HttpException,
+    HttpStatus,
+} from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
 import { retrieveCryptoData } from "../util/encryption";
 import { S3CredentialDto } from "../dto/S3CredentialDto";
-
-export type BucketTestDto = {
-    endpoint: string;
-    accessKey: string;
-    secretKey: string;
-    bucketName: string;
-    apiVersion: string;
-};
-
-export type BucketTestResponseDto = {
-    status: "success" | "error";
-    message: string;
-};
-
-export type BucketStatusDto = {
-    bucketId: string;
-    apiVersion: string;
-};
+import { processJwt } from "../jwt/processJwt";
+import { PermissionSystem } from "../permissions/permissions.service";
+import { AclPermission, DocType } from "../enums";
 
 export type BucketStatusResponseDto = {
     status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
@@ -36,23 +29,55 @@ export class StorageController {
         private readonly dbService: DbService,
     ) {}
 
-    @Post("bucket-status")
+    @Get("storagestatus")
     @UseGuards(AuthGuard)
-    async checkBucketStatus(@Body() body: BucketStatusDto): Promise<BucketStatusResponseDto> {
-        await validateApiVersion(body.apiVersion);
+    async getStorageStatus(
+        @Query("bucketId") bucketId: string,
+        @Query("apiVersion") apiVersion: string,
+        @Headers("Authorization") authHeader: string,
+    ): Promise<BucketStatusResponseDto> {
+        await validateApiVersion(apiVersion);
+
+        // Extract and process JWT token
+        const token = authHeader?.replace("Bearer ", "") ?? "";
+        if (!token) {
+            throw new HttpException("Authorization token required", HttpStatus.UNAUTHORIZED);
+        }
+
+        const userDetails = await processJwt(token, this.dbService, undefined);
+
+        // Validate bucketId parameter
+        if (!bucketId) {
+            throw new HttpException("bucketId query parameter is required", HttpStatus.BAD_REQUEST);
+        }
 
         try {
             // Fetch the bucket document from the database
-            const bucketResult = await this.dbService.getDoc(body.bucketId);
+            const bucketResult = await this.dbService.getDoc(bucketId);
 
             if (!bucketResult.docs || bucketResult.docs.length === 0) {
                 return {
                     status: "not-found",
-                    message: `Bucket configuration not found: ${body.bucketId}`,
+                    message: `Bucket configuration not found: ${bucketId}`,
                 };
             }
 
             const bucket = bucketResult.docs[0];
+
+            // Check if user has view permission for this bucket
+            const hasPermission = PermissionSystem.verifyAccess(
+                bucket.memberOf,
+                DocType.Storage,
+                AclPermission.View,
+                userDetails.groups,
+            );
+
+            if (!hasPermission) {
+                throw new HttpException(
+                    "Insufficient permissions to view this bucket",
+                    HttpStatus.FORBIDDEN,
+                );
+            }
 
             // Get credentials - either embedded or from encrypted storage
             let credentials: {
@@ -102,6 +127,11 @@ export class StorageController {
 
             return result;
         } catch (error) {
+            // Handle HttpExceptions (permission errors, etc.)
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
             return {
                 status: "unreachable",
                 message: `Error checking bucket status: ${error.message}`,
