@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, shallowMount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import SingleContent from "./SingleContent.vue";
+import SingleContent from "../SingleContent.vue";
 import {
     mockPostDto,
     mockEnglishContentDto,
@@ -19,7 +19,7 @@ import {
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import NotFoundPage from "./NotFoundPage.vue";
+import NotFoundPage from "../../NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";

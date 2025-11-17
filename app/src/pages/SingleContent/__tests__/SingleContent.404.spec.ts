@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import SingleContent from "../../SingleContent.vue";
+import SingleContent from "../SingleContent.vue";
 import {
     mockPostDto,
     mockEnglishContentDto,
