@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { DocumentIcon, MinusCircleIcon, PencilIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps<{ contentId: string }>();
@@ -11,6 +11,8 @@ const showActions = ref(false);
 const showColors = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 
+let isUsingCustomMenu = false;
+
 const colors = {
     yellow: "rgba(255,255,0,0.3)",
     green: "rgba(0,255,0,0.3)",
@@ -20,99 +22,115 @@ const colors = {
     purple: "rgba(128,0,128,0.3)",
 };
 
-let debounceTimer: number | null = null;
-
 function getSelectionRect() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
     const range = sel.getRangeAt(0);
-    return range.getBoundingClientRect();
+    const rect = range.getBoundingClientRect();
+    return rect.height <= 1 || rect.width <= 1 ? null : rect;
 }
 
 function updateMenu() {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => {
+    if (isUsingCustomMenu) return;
+
+    nextTick(() => {
         const rect = getSelectionRect();
         const sel = window.getSelection();
 
-        const isValidSelection =
-            sel &&
-            !sel.isCollapsed &&
-            rect &&
-            rect.width > 0 &&
-            rect.height > 0 &&
-            content.value?.contains(sel.anchorNode);
+        const hasValidSelection =
+            sel && !sel.isCollapsed && rect && content.value?.contains(sel.anchorNode);
 
-        if (isValidSelection && rect) {
-            menuPos.value = {
-                x: rect.left + rect.width / 2,
-                y: rect.top - 8, // Slightly above
-            };
+        if (hasValidSelection && rect) {
+            menuPos.value = { x: rect.left + rect.width / 2, y: rect.top - 12 };
             showActions.value = true;
             showColors.value = false;
-        } else {
+        } else if (!isUsingCustomMenu) {
             showActions.value = false;
             showColors.value = false;
         }
-    }, 120);
+    });
+}
+
+// CRITICAL: Save + clear selection → mutate → restore
+function withSavedSelection(fn: () => void) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+        fn();
+        return;
+    }
+
+    const range = sel.getRangeAt(0).cloneRange();
+    const wasCollapsed = sel.isCollapsed;
+
+    sel.removeAllRanges(); // ← This is the magic line
+    fn();
+    if (!wasCollapsed) {
+        sel.addRange(range);
+    }
 }
 
 function applyHighlight(color: string) {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
 
     const range = sel.getRangeAt(0);
     if (!content.value?.contains(range.commonAncestorContainer)) return;
 
-    // If already fully inside a mark → recolor
-    const ancestorMark =
-        range.commonAncestorContainer instanceof Element
-            ? range.commonAncestorContainer.closest("mark")
-            : range.commonAncestorContainer.parentElement?.closest("mark");
+    // Recolor existing full mark?
+    const ancestor = range.commonAncestorContainer;
+    const markAncestor =
+        ancestor instanceof Element
+            ? ancestor.closest("mark")
+            : ancestor.parentElement?.closest("mark");
 
     if (
-        ancestorMark &&
-        ancestorMark.contains(range.startContainer) &&
-        ancestorMark.contains(range.endContainer)
+        markAncestor &&
+        markAncestor.contains(range.startContainer) &&
+        markAncestor.contains(range.endContainer)
     ) {
-        ancestorMark.style.backgroundColor = color;
-    } else {
-        const mark = document.createElement("mark");
-        mark.style.backgroundColor = color;
-        try {
-            range.surroundContents(mark);
-        } catch {
-            const fragment = range.extractContents();
-            mark.appendChild(fragment);
-            range.insertNode(mark);
-        }
+        withSavedSelection(() => {
+            markAncestor.style.backgroundColor = color;
+            saveHighlights();
+        });
+        updateMenu();
+        return;
     }
 
-    sel.removeAllRanges();
-    saveHighlights();
-    updateMenu(); // Keep menu open if selection still exists (e.g. partial remove)
+    // Fresh highlight — safe DOM mutation
+    withSavedSelection(() => {
+        const mark = document.createElement("mark");
+        mark.style.backgroundColor = color;
+
+        const contents = range.extractContents();
+        mark.appendChild(contents);
+        range.insertNode(mark);
+
+        if (mark.parentNode) mark.parentNode.normalize();
+        saveHighlights();
+    });
+
+    updateMenu();
 }
 
 function removeHighlight() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
 
-    const marks = Array.from(content.value?.querySelectorAll("mark") || []).filter((mark) =>
-        range.intersectsNode(mark),
+    const range = sel.getRangeAt(0);
+    const marks = Array.from(content.value?.querySelectorAll("mark") || []).filter((m) =>
+        range.intersectsNode(m),
     );
 
-    marks.forEach((mark) => {
-        const parent = mark.parentNode;
-        while (mark.firstChild) parent?.insertBefore(mark.firstChild, mark);
-        parent?.removeChild(mark);
-        if (parent && typeof (parent as Node).normalize === "function") {
-            (parent as Node).normalize();
-        }
+    withSavedSelection(() => {
+        marks.forEach((mark) => {
+            const parent = mark.parentNode;
+            while (mark.firstChild) parent?.insertBefore(mark.firstChild, mark);
+            parent?.removeChild(mark);
+        });
+        marks[0]?.parentNode?.normalize();
+        saveHighlights();
     });
 
-    sel.removeAllRanges();
-    saveHighlights();
     updateMenu();
 }
 
@@ -124,6 +142,7 @@ function copyText() {
 function hideMenu() {
     showActions.value = false;
     showColors.value = false;
+    isUsingCustomMenu = false;
 }
 
 function saveHighlights() {
@@ -131,11 +150,8 @@ function saveHighlights() {
     if (!prose) return;
     const html = prose.innerHTML;
     const data = JSON.parse(localStorage.getItem("highlights") || "{}");
-    if (html.includes("<mark")) {
-        data[props.contentId] = html;
-    } else {
-        delete data[props.contentId];
-    }
+    if (html.includes("<mark")) data[props.contentId] = html;
+    else delete data[props.contentId];
     localStorage.setItem("highlights", JSON.stringify(data));
 }
 
@@ -143,92 +159,91 @@ function restoreHighlights() {
     const data = JSON.parse(localStorage.getItem("highlights") || "{}");
     const saved = data[props.contentId];
     if (saved && content.value) {
-        const prose = content.value.querySelector(".prose");
-        if (prose) prose.innerHTML = saved;
+        content.value.querySelector(".prose")!.innerHTML = saved;
     }
 }
 
-// One unified handler — no duplicates, no flicker
-function handleUserSelection() {
-    updateMenu();
-}
-
-// Prevent native context menu only when our menu is visible
 function handleContextMenu(e: Event) {
     if (showActions.value) e.preventDefault();
 }
 
+function handleClickOutside(e: MouseEvent) {
+    if (actionsMenu.value && !actionsMenu.value.contains(e.target as Node)) hideMenu();
+}
+
+function startMenuInteraction() {
+    isUsingCustomMenu = true;
+}
+
+watch(showActions, (v) => {
+    if (!v) isUsingCustomMenu = false;
+    content.value?.classList.toggle("native-selection-hidden", v);
+});
+
 onMounted(() => {
     restoreHighlights();
-
-    // Only one listener needed!
-    document.addEventListener("selectionchange", handleUserSelection);
-    document.addEventListener("pointerup", handleUserSelection);
+    document.addEventListener("selectionchange", updateMenu);
     document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("click", (e) => {
-        if (actionsMenu.value && !actionsMenu.value.contains(e.target as Node)) {
-            hideMenu();
-        }
-    });
-
-    // Initial check
-    setTimeout(handleUserSelection, 200);
+    document.addEventListener("click", handleClickOutside);
+    setTimeout(updateMenu, 100);
 });
 
 onUnmounted(() => {
-    document.removeEventListener("selectionchange", handleUserSelection);
-    document.removeEventListener("pointerup", handleUserSelection);
+    document.removeEventListener("selectionchange", updateMenu);
     document.removeEventListener("contextmenu", handleContextMenu);
+    document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
 <template>
     <div ref="content" class="relative">
-        <div class="prose select-text" style="user-select: text; -webkit-user-select: text">
+        <div class="prose select-text" :class="{ 'native-selection-hidden': showActions }">
             <slot />
         </div>
 
         <teleport to="body">
             <transition
-                enter-active-class="transition duration-100 ease-out"
-                leave-active-class="transition duration-75 ease-in"
-                enter-from-class="scale-95 opacity-0"
-                leave-to-class="scale-95 opacity-0"
+                enter-active-class="transition duration-150 ease-out"
+                leave-active-class="transition duration-100 ease-in"
+                enter-from-class="scale-90 opacity-0"
+                leave-to-class="scale-90 opacity-0"
             >
                 <div
                     v-if="showActions"
                     ref="actionsMenu"
-                    class="fixed z-[9999] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-xl"
+                    class="fixed z-[9999] -translate-x-1/2 select-none rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl"
                     :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
+                    @mousedown.prevent="startMenuInteraction"
+                    @touchstart.prevent="startMenuInteraction"
                     @click.stop
                 >
-                    <div v-if="showColors" class="flex flex-wrap items-center gap-3">
+                    <div v-if="showColors" class="flex flex-wrap items-center gap-4">
                         <button @click="removeHighlight" class="rounded-lg p-2 hover:bg-red-50">
-                            <MinusCircleIcon class="size-8 text-red-600" />
+                            <MinusCircleIcon class="size-9 text-red-600" />
                         </button>
                         <button
                             v-for="(color, name) in colors"
                             :key="name"
-                            class="h-10 w-10 rounded-full border-4 border-white shadow-lg transition-transform hover:scale-110"
+                            class="h-12 w-12 rounded-full border-4 border-white shadow-lg ring-2 ring-gray-200 transition-transform hover:scale-110"
                             :style="{ backgroundColor: color }"
                             @click="applyHighlight(color)"
                         />
                         <button
                             @click="showColors = false"
-                            class="ml-2 text-sm text-gray-600 underline"
+                            class="ml-4 text-sm font-medium text-gray-600"
                         >
                             Back
                         </button>
                     </div>
 
-                    <div v-else class="flex gap-6">
+                    <div v-else class="flex gap-10">
                         <button @click="showColors = true" class="flex flex-col items-center">
-                            <PencilIcon class="size-8 text-blue-600" />
-                            <span class="mt-1 text-xs font-medium">Highlight</span>
+                            <PencilIcon class="size-10 text-blue-600" />
+                            <span class="mt-2 text-xs font-semibold">Highlight</span>
                         </button>
                         <button @click="copyText" class="flex flex-col items-center">
-                            <DocumentIcon class="size-8 text-green-600" />
-                            <span class="mt-1 text-xs font-medium">Copy</span>
+                            <DocumentIcon class="size-10 text-green-600" />
+                            <span class="mt-2 text-xs font-semibold">Copy</span>
                         </button>
                     </div>
                 </div>
@@ -236,3 +251,27 @@ onUnmounted(() => {
         </teleport>
     </div>
 </template>
+
+<style scoped>
+mark {
+    border-radius: 4px;
+    padding: 0 4px;
+    margin: 0 -4px;
+    transition: background-color 0.2s;
+}
+
+.native-selection-hidden::selection,
+.native-selection-hidden *::selection {
+    background: transparent !important;
+}
+
+.native-selection-hidden * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+.prose:not(.native-selection-hidden) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+</style>
