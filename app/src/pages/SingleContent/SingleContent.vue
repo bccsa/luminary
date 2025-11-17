@@ -51,25 +51,8 @@ import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid"
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import { isExternalNavigation } from "@/router";
 
-// External referrer helper
-const isExternalReferrer = (): boolean => {
-    const referrer = document.referrer;
-
-    // No referrer = direct link/bookmark = treat as external
-    if (!referrer) return true;
-
-    try {
-        const refURL = new URL(referrer);
-        const currentURL = new URL(window.location.href);
-
-        // Compare origins (protocol + hostname + port)
-        return refURL.origin !== currentURL.origin;
-    } catch {
-        // If URL parsing fails, treat as external for safety
-        return true;
-    }
-};
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
     loadingComponent: LoadingSpinner,
@@ -405,7 +388,7 @@ watch(
 const openedFromExternalLink = ref(false);
 
 onMounted(() => {
-    openedFromExternalLink.value = isExternalReferrer();
+    openedFromExternalLink.value = isExternalNavigation();
     window.addEventListener("click", onClickOutside);
 });
 
