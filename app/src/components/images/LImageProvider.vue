@@ -210,7 +210,7 @@ const showImageElement2 = computed(
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
-    // ---- NEW: prevent double-loading ----
+    // Prevent double-loading
     if (fallbackImageUrl.value) return;
 
     const randomImage = (await fallbackImageUrls)[
@@ -254,9 +254,7 @@ const modalSrcset = computed(() => {
     return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
 });
 
-/* -------------------------------------------------------------
-   Only load fallback when BOTH attempts really failed
-   ------------------------------------------------------------- */
+//Only load fallback when BOTH attempts really failed
 const hasCompletelyFailed = computed(() => {
     const triedPrimary = !!srcset1.value;
     const triedSecondary = imageElement1Error.value || !!srcset2.value;
@@ -271,19 +269,6 @@ watch(
     hasCompletelyFailed,
     (failed) => {
         if (failed) loadFallbackImage();
-    },
-    { immediate: true },
-);
-
-/* -------------------------------------------------------------
-   (original watch kept – harmless, does nothing when the new one runs)
-   ------------------------------------------------------------- */
-watch(
-    [showImageElement1, showImageElement2],
-    ([show1, show2]) => {
-        if (!show1 && !show2) {
-            loadFallbackImage();
-        }
     },
     { immediate: true },
 );
