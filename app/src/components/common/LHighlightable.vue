@@ -10,24 +10,14 @@ interface Props {
 const props = defineProps<Props>();
 const content = ref<HTMLElement | null>(null);
 const actionsMenu = ref<HTMLElement | null>(null);
-const longPressTimer = ref<number | null>(null);
-const autoScrollInterval = ref<number | null>(null);
-const initialPosition = ref<{ x: number; y: number } | null>(null);
 
 const selectedText = ref("");
-const isSelecting = ref(false);
 const showActions = ref(false);
 const actionPosition = ref<{ x: number; y: number } | null>(null);
 const showHighlightColors = ref(false);
 
-const LONG_PRESS_DURATION = 500;
-const SCROLL_INTERVAL = 16;
-const SCROLL_SPEED = 5;
-const SCROLL_THRESHOLD_TOP = 150;
-const SCROLL_THRESHOLD_BOTTOM = 120;
 const MENU_WIDTH = 200;
 const MENU_HEIGHT = 100;
-const MOVE_THRESHOLD = 10; // Pixels to cancel long press if moved
 
 const supportedColors = {
     yellow: "rgba(255, 255, 0, 0.3)",
@@ -40,20 +30,6 @@ const supportedColors = {
     brown: "rgba(165, 42, 42, 0.3)",
     teal: "rgba(0, 128, 128, 0.3)",
 };
-
-function clearTimer() {
-    if (longPressTimer.value) {
-        clearTimeout(longPressTimer.value);
-        longPressTimer.value = null;
-    }
-}
-
-function clearIntervalRef() {
-    if (autoScrollInterval.value) {
-        clearInterval(autoScrollInterval.value);
-        autoScrollInterval.value = null;
-    }
-}
 
 function getParentMark(node: Node, root: Node | null): HTMLElement | null {
     let parent: Node | null = node.parentNode;
@@ -313,164 +289,74 @@ function positionMenu(clientX: number, clientY: number, range?: Range) {
     showActions.value = true;
 }
 
-function handlePointerStart(event: PointerEvent) {
-    showActions.value = false;
-    showHighlightColors.value = false;
-    clearTimer();
-    clearIntervalRef();
-    initialPosition.value = { x: event.clientX, y: event.clientY };
-    isSelecting.value = false;
+function handleMouseUp() {
+    // Small timeout to ensure selection is complete
+    setTimeout(() => {
+        const selection = window.getSelection();
 
-    if (event.pointerType === "touch") {
-        longPressTimer.value = window.setTimeout(() => {
-            isSelecting.value = true;
-            navigator.vibrate?.(50);
-            const range = document.caretRangeFromPoint(
-                initialPosition.value!.x,
-                initialPosition.value!.y,
-            );
-            if (range && content.value?.contains(range.commonAncestorContainer)) {
-                const selection = window.getSelection();
-                selection?.removeAllRanges();
-                selection?.addRange(range);
-            }
-        }, LONG_PRESS_DURATION);
-    }
-    // For mouse, do nothing here - let native selection handle it
-}
-
-function handleTouchStart(event: TouchEvent) {
-    const touch = event.touches[0];
-    if (!touch) return;
-
-    showActions.value = false;
-    showHighlightColors.value = false;
-    clearTimer();
-    clearIntervalRef();
-    initialPosition.value = { x: touch.clientX, y: touch.clientY };
-    isSelecting.value = false;
-
-    longPressTimer.value = window.setTimeout(() => {
-        isSelecting.value = true;
-        navigator.vibrate?.(50);
-        const range = document.caretRangeFromPoint(
-            initialPosition.value!.x,
-            initialPosition.value!.y,
-        );
-        if (range && content.value?.contains(range.commonAncestorContainer)) {
-            const selection = window.getSelection();
-            selection?.removeAllRanges();
-            selection?.addRange(range);
-        }
-    }, LONG_PRESS_DURATION);
-}
-
-function handlePointerMove(event: PointerEvent) {
-    if (event.pointerType !== "touch") return; // Ignore mouse moves for manual selection
-
-    const clientX = event.clientX;
-    const clientY = event.clientY;
-
-    handleMove(clientX, clientY);
-}
-
-function handleTouchMove(event: TouchEvent) {
-    const touch = event.touches[0];
-    if (!touch) return;
-
-    handleMove(touch.clientX, touch.clientY);
-}
-
-function handleMove(clientX: number, clientY: number) {
-    // Cancel long press if moved too far before timeout
-    if (longPressTimer.value && initialPosition.value) {
-        const deltaX = Math.abs(clientX - initialPosition.value.x);
-        const deltaY = Math.abs(clientY - initialPosition.value.y);
-        if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
-            clearTimer();
+        if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
+            showActions.value = false;
+            showHighlightColors.value = false;
             return;
         }
-    }
 
-    const currentRange = document.caretRangeFromPoint(clientX, clientY);
+        const range = selection.getRangeAt(0);
+        if (!content.value?.contains(range.commonAncestorContainer)) {
+            return;
+        }
+
+        selectedText.value = selection.toString();
+
+        // Position menu at the end of the selection
+        const rects = range.getClientRects();
+        if (rects.length > 0) {
+            const lastRect = rects[rects.length - 1];
+            positionMenu(lastRect.right, lastRect.bottom, range);
+        }
+    }, 10);
+}
+
+function handleSelectionChange() {
     const selection = window.getSelection();
-    if (
-        !currentRange ||
-        !selection ||
-        !content.value?.contains(currentRange.commonAncestorContainer)
-    ) {
-        return;
-    }
 
-    const startRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : currentRange;
-    const range = document.createRange();
-    const comparison = startRange.compareBoundaryPoints(Range.START_TO_START, currentRange);
-    if (comparison <= 0) {
-        range.setStart(startRange.startContainer, startRange.startOffset);
-        range.setEnd(currentRange.endContainer, currentRange.endOffset);
-    } else {
-        range.setStart(currentRange.startContainer, currentRange.startOffset);
-        range.setEnd(startRange.endContainer, startRange.endOffset);
-    }
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    clearIntervalRef();
-    const viewportHeight = window.innerHeight;
-    if (clientY < SCROLL_THRESHOLD_TOP || clientY > viewportHeight - SCROLL_THRESHOLD_BOTTOM) {
-        autoScrollInterval.value = window.setInterval(() => {
-            window.scrollBy(0, clientY < SCROLL_THRESHOLD_TOP ? -SCROLL_SPEED : SCROLL_SPEED);
-            const newRange = document.caretRangeFromPoint(clientX, clientY);
-            if (newRange && content.value?.contains(newRange.commonAncestorContainer)) {
-                const selection = window.getSelection();
-                selection?.removeAllRanges();
-                selection?.addRange(newRange);
-            }
-        }, SCROLL_INTERVAL);
-    }
-}
-
-function handlePointerEnd(event: PointerEvent) {
-    handleEnd(event.clientX, event.clientY);
-}
-
-function handleTouchEnd(event: TouchEvent) {
-    // Use the last known touch position or the current touch position if available
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-
-    handleEnd(touch.clientX, touch.clientY);
-}
-
-function handleEnd(clientX: number, clientY: number) {
-    clearTimer();
-    clearIntervalRef();
-    isSelecting.value = false;
-    initialPosition.value = null;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const text = selection.toString();
-    selectedText.value = text;
-
-    if (!text) {
-        selection.removeAllRanges();
+    // Hide actions if no selection
+    if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
         showActions.value = false;
+        showHighlightColors.value = false;
         return;
     }
+}
 
-    positionMenu(clientX, clientY, selection.getRangeAt(0));
+// Handle clicks outside to close menus
+function handleClickOutside(event: MouseEvent) {
+    if (actionsMenu.value && !actionsMenu.value.contains(event.target as Node)) {
+        const selection = window.getSelection();
+        if (!selection?.toString().trim()) {
+            showActions.value = false;
+            showHighlightColors.value = false;
+        }
+    }
 }
 
 onMounted(() => {
     setTimeout(() => restoreHighlightedContent(props.contentId), 100);
+
+    // Listen for mouse selection on desktop
+    if (content.value) {
+        content.value.addEventListener("mouseup", handleMouseUp);
+    }
+
+    // Listen for selection changes (for keyboard selection and clearing)
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("click", handleClickOutside);
 });
 
 onUnmounted(() => {
-    clearTimer();
-    clearIntervalRef();
+    if (content.value) {
+        content.value.removeEventListener("mouseup", handleMouseUp);
+    }
+    document.removeEventListener("selectionchange", handleSelectionChange);
+    document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
@@ -481,16 +367,8 @@ onUnmounted(() => {
             style="
                 user-select: text !important;
                 -webkit-user-select: text !important;
-                -webkit-touch-callout: default !important;
+                -webkit-touch-callout: none !important;
             "
-            @pointerdown.stop="handlePointerStart"
-            @pointermove.stop="handlePointerMove"
-            @pointerup.stop="handlePointerEnd"
-            @pointercancel.stop="handlePointerEnd"
-            @touchstart.stop="handleTouchStart"
-            @touchmove.stop="handleTouchMove"
-            @touchend.stop="handleTouchEnd"
-            @touchcancel.stop="handleTouchEnd"
         >
             <slot></slot>
         </div>
