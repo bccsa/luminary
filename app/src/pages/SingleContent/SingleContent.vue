@@ -276,7 +276,15 @@ const is404 = ref(false);
 
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
-    return !isPublished(content.value, content.value ? [content.value.language] : []);
+
+    // If content is undefined (not Sifound), show 404
+    if (!content.value) return true;
+
+    // If content is still the default loading content, don't show 404 yet
+    if (content.value === defaultContent) return false;
+
+    // Check if content is published
+    return !isPublished(content.value, [content.value.language]);
 };
 
 watch(content, () => {
