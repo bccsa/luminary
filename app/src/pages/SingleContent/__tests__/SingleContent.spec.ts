@@ -27,6 +27,8 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
+const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
+
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -50,6 +52,12 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
+
+vi.mock("@/router", () => ({
+    isExternalNavigation: () => mockIsExternalNavigation(),
+    markInternalNavigation: vi.fn(),
+}));
+
 vi.mock("@auth0/auth0-vue");
 
 vi.mock("vue-i18n", () => ({
@@ -66,6 +74,9 @@ describe("SingleContent", () => {
 
         // Ensure router mock is clean for each test
         routeReplaceMock.mockClear();
+
+        // By default, mock as internal navigation (not external)
+        mockIsExternalNavigation.mockReturnValue(false);
 
         appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
 
@@ -90,23 +101,10 @@ describe("SingleContent", () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
         });
-
-        // Reset document.referrer to empty for each test
-        Object.defineProperty(document, "referrer", {
-            value: "",
-            configurable: true,
-            writable: true,
-        });
     });
 
     afterEach(async () => {
         await db.docs.clear();
-
-        // Restore window.location if it was changed
-        if (!(window.location instanceof Location)) {
-            delete (window as any).location;
-            (window as any).location = new URL("http://localhost:3000/");
-        }
     });
 
     it("displays the video player when defined", async () => {
@@ -388,11 +386,8 @@ describe("SingleContent", () => {
         const { cmsLanguages } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
-        // Mock external referrer BEFORE mounting (changed from empty to external)
-        Object.defineProperty(document, "referrer", {
-            value: "https://example.com",
-            configurable: true,
-        });
+        // Mock external navigation BEFORE mounting
+        mockIsExternalNavigation.mockReturnValue(true);
 
         // Navigate to French content (not the preferred language)
         const wrapper = mount(SingleContent, {
@@ -429,11 +424,8 @@ describe("SingleContent", () => {
         const { cmsLanguages } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
-        // Mock document.referrer BEFORE mounting to simulate external navigation
-        Object.defineProperty(document, "referrer", {
-            value: "https://google.com/search",
-            configurable: true,
-        });
+        // Mock external navigation (e.g., from Google)
+        mockIsExternalNavigation.mockReturnValue(true);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -458,7 +450,7 @@ describe("SingleContent", () => {
         }, 3000);
     });
 
-    it("shows the notification when opening from direct link (no referrer)", async () => {
+    it("shows the notification when opening from direct link (URL paste/bookmark)", async () => {
         await initLanguage();
 
         const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
@@ -469,11 +461,8 @@ describe("SingleContent", () => {
         const { cmsLanguages } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
-        // Mock empty referrer BEFORE mounting to simulate direct link/bookmark
-        Object.defineProperty(document, "referrer", {
-            value: "",
-            configurable: true,
-        });
+        // Mock external navigation (direct link/bookmark/URL paste)
+        mockIsExternalNavigation.mockReturnValue(true);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -485,7 +474,7 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
         });
 
-        // With empty referrer, it SHOULD show (direct links are treated as external)
+        // Direct links are treated as external, so notification SHOULD show
         await waitForExpect(() => {
             expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
