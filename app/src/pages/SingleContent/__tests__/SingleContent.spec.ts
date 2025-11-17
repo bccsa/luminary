@@ -19,7 +19,6 @@ import {
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import NotFoundPage from "../../NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
