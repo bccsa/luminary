@@ -289,7 +289,7 @@ function positionMenu(clientX: number, clientY: number, range?: Range) {
     showActions.value = true;
 }
 
-function handleMouseUp() {
+function handleSelectionEnd() {
     // Small timeout to ensure selection is complete
     setTimeout(() => {
         const selection = window.getSelection();
@@ -323,7 +323,6 @@ function handleSelectionChange() {
     if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
         showActions.value = false;
         showHighlightColors.value = false;
-        return;
     }
 }
 
@@ -341,20 +340,12 @@ function handleClickOutside(event: MouseEvent) {
 onMounted(() => {
     setTimeout(() => restoreHighlightedContent(props.contentId), 100);
 
-    // Listen for mouse selection on desktop
-    if (content.value) {
-        content.value.addEventListener("mouseup", handleMouseUp);
-    }
-
-    // Listen for selection changes (for keyboard selection and clearing)
+    // Listen for selection changes (for clearing)
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("click", handleClickOutside);
 });
 
 onUnmounted(() => {
-    if (content.value) {
-        content.value.removeEventListener("mouseup", handleMouseUp);
-    }
     document.removeEventListener("selectionchange", handleSelectionChange);
     document.removeEventListener("click", handleClickOutside);
 });
@@ -369,6 +360,8 @@ onUnmounted(() => {
                 -webkit-user-select: text !important;
                 -webkit-touch-callout: none !important;
             "
+            @mouseup="handleSelectionEnd"
+            @touchend="handleSelectionEnd"
         >
             <slot></slot>
         </div>
