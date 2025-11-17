@@ -34,7 +34,7 @@ import {
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import RelatedContent from "../components/content/RelatedContent.vue";
+import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
@@ -276,9 +276,15 @@ const is404 = ref(false);
 
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
-    return (
-        !content.value || !isPublished(content.value, content.value ? [content.value.language] : [])
-    );
+
+    // If content is undefined (not Sifound), show 404
+    if (!content.value) return true;
+
+    // If content is still the default loading content, don't show 404 yet
+    if (content.value === defaultContent) return false;
+
+    // Check if content is published
+    return !isPublished(content.value, [content.value.language]);
 };
 
 watch(content, () => {

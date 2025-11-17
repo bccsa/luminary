@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, shallowMount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import SingleContent from "./SingleContent.vue";
+import SingleContent from "../SingleContent.vue";
 import {
     mockPostDto,
     mockEnglishContentDto,
@@ -19,7 +19,6 @@ import {
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
@@ -211,102 +210,6 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays the 404 error when the content is scheduled", async () => {
-        // Set a future publish date and an expired date
-        await db.docs.update(mockEnglishContentDto._id, {
-            publishDate: Date.now() + 10000,
-        } as any);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            expect(wrapper.find("article").exists()).toBe(false);
-        });
-    });
-
-    it("displays the 404 error when the content is expired", async () => {
-        // Set a future publish date and an expired date
-        await db.docs.update(mockEnglishContentDto._id, {
-            publishDate: Date.now(),
-            expiryDate: Date.now() - 1000,
-        } as ContentDto);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            expect(wrapper.find("article").exists()).toBe(false);
-        });
-    });
-
-    it("displays the 404 error page when content has a draft status", async () => {
-        await db.docs.update(mockEnglishContentDto._id, {
-            status: "draft",
-        } as any);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            expect(wrapper.find("article").exists()).toBe(false);
-        });
-    });
-
-    it("displays the 404 error page when routing with an invalid slug", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: "invalid-slug",
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            expect(wrapper.find("article").exists()).toBe(false);
-        });
-    });
-
-    it("does not redirect to the homepage '/' when no content is found", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: "non-existent-slug",
-            },
-        });
-
-        // Wait for 404 state to render
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            expect(wrapper.find("article").exists()).toBe(false);
-        });
-
-        // Ensure no redirect attempts to "/" or a home-like route
-        expect(routeReplaceMock).not.toHaveBeenCalledWith("/");
-        expect(
-            routeReplaceMock.mock.calls.some((args) => {
-                const firstArg = args?.[0];
-                return (
-                    firstArg === "/" ||
-                    (typeof firstArg === "object" &&
-                        firstArg?.name &&
-                        /home|index/i.test(firstArg.name))
-                );
-            }),
-        ).toBe(false);
-    });
-    // TODO: Add test to check if the notification is shown when the content is available in the preferred language
-
     it("sets the meta data correctly", async () => {
         mount(SingleContent, {
             props: {
@@ -376,6 +279,8 @@ describe("SingleContent", () => {
             expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
         });
     });
+
+    // Remove all 404-related tests from here - they've been moved to SingleContent.404.spec.ts
 
     it("can zoom the image when clicking on the image", async () => {
         const wrapper = mount(SingleContent, {
