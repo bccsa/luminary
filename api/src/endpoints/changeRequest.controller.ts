@@ -62,10 +62,6 @@ export class ChangeRequestController {
 
                             const value = body[key];
 
-                            console.log(
-                                `Extracting metadata: ${fieldName}=${value} (type: ${typeof value})`,
-                            );
-
                             // Convert string values back to their original types
                             if (!isNaN(Number(value)) && value !== "") {
                                 fileObj[fieldName] = Number(value);
@@ -79,14 +75,6 @@ export class ChangeRequestController {
 
                     // Add the binary data from the uploaded file
                     fileObj.fileData = file.buffer;
-
-                    console.log(
-                        `File ${index}: buffer length=${
-                            file.buffer.length
-                        }, buffer type=${typeof file.buffer}, is Buffer=${Buffer.isBuffer(
-                            file.buffer,
-                        )}`,
-                    );
 
                     return fileObj;
                 });
