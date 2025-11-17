@@ -29,22 +29,14 @@ export class S3Service {
         const useSSL =
             credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
 
-        // Cloudflare R2 requires region
-        const isCloudflareR2 =
-            host === "r2.cloudflarestorage.com" || host.endsWith(".r2.cloudflarestorage.com");
-
         const clientConfig: any = {
             endPoint: host,
             port: port,
             useSSL: useSSL,
             accessKey: credentials.accessKey,
             secretKey: credentials.secretKey,
+            region: "auto",
         };
-
-        // Cloudflare R2 specific configuration
-        if (isCloudflareR2) {
-            clientConfig.region = "auto";
-        }
 
         return new Minio.Client(clientConfig);
     }
