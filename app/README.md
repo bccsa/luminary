@@ -2,6 +2,79 @@
 
 This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser
 
+## Project Structure
+
+> **Note:** We are currently migrating to a new component organization structure where each feature folder will contain a `__tests__` subdirectory alongside its related components. For example:
+>
+> ```
+> pages/ComponentFolder/
+> ├── __tests__/
+> └── [related components]
+> ```
+
+```
+app/
+├── e2e/                          # End-to-end tests
+│   ├── tsconfig.json
+│   └── vue.spec.ts
+├── public/                       # Static assets
+├── scripts/                      # Build and deployment scripts
+│   └── setup-nginxvars.sh
+├── src/
+│   ├── analytics/                # Analytics tracking and integration
+│   ├── assets/                   # Images, styles, and static resources
+│   ├── components/               # Vue components
+│   │   ├── BasePage.vue          # Base page component
+│   │   ├── ExplorePage/          # Explore page components
+│   │   ├── HomePage/             # Home page components
+│   │   ├── VideoPage/            # Video player components
+│   │   ├── button/               # Button components
+│   │   ├── common/               # Shared common components
+│   │   ├── content/              # Content display components
+│   │   ├── form/                 # Form components
+│   │   ├── images/               # Image components
+│   │   ├── navigation/           # Navigation components
+│   │   ├── notifications/        # Notification components
+│   │   └── tags/                 # Tag components
+│   ├── composables/              # Vue composables (reusable composition logic)
+│   ├── guards/                   # Route guards
+│   ├── pages/                    # Page-level components
+│   │   ├── BookmarksPage.vue
+│   │   ├── ExplorePage.vue
+│   │   ├── HomePage.vue
+│   │   ├── NotFoundPage.vue
+│   │   ├── SettingsPage.vue
+│   │   ├── SingleContent.vue
+│   │   └── VideoPage.vue
+│   ├── plugins/                  # Plugin system for extending functionality
+│   ├── router/                   # Vue Router configuration
+│   ├── stores/                   # Pinia state management stores
+│   │   └── notification.ts
+│   ├── tests/                    # Test utilities and helpers
+│   ├── types/                    # TypeScript type definitions
+│   ├── util/                     # Utility functions
+│   ├── analytics.ts              # Analytics entry point
+│   ├── auth.ts                   # Authentication logic
+│   ├── globalConfig.ts           # Global configuration
+│   ├── i18n.ts                   # Internationalization setup
+│   ├── main.ts                   # Application entry point
+│   └── App.vue                   # Root Vue component
+├── Dockerfile                    # Docker configuration for production
+├── nginx.conf                    # Nginx configuration for production
+├── index.html                    # HTML entry point
+├── package.json                  # Dependencies and scripts
+├── playwright.config.ts          # Playwright E2E test configuration
+├── postcss.config.js             # PostCSS configuration
+├── tailwind.config.ts            # Tailwind CSS configuration
+├── tsconfig.json                 # TypeScript configuration (base)
+├── tsconfig.app.json             # TypeScript configuration (app)
+├── tsconfig.node.json            # TypeScript configuration (Node)
+├── tsconfig.vitest.json          # TypeScript configuration (Vitest)
+├── vite.config.ts                # Vite build configuration
+├── vitest.config.ts              # Vitest test configuration
+└── vitest.setup.ts               # Vitest test setup
+```
+
 ## Local setup
 
 Refer to the [setup guide](../docs/setup-vue-app.md).
