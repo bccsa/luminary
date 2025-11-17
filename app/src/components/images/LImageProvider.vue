@@ -31,7 +31,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, onBeforeMount, ref } from "vue";
+import { computed, onBeforeMount, ref, watch } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -250,6 +250,17 @@ const modalSrcset = computed(() => {
     if (!files.length) return "";
     return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
 });
+
+// Check all sources and only load fallback if all fail
+watch(
+    [showImageElement1, showImageElement2],
+    ([show1, show2]) => {
+        if (!show1 && !show2) {
+            loadFallbackImage();
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
