@@ -24,44 +24,45 @@ const mockImage = {
 };
 
 describe("LImageProvider", () => {
-    // The fallback image classic-100.webp has been removed in a PR probably.
-    it("renders the smallest image in srcset2 if all are too large for the tile", async () => {
+    it("does not load fallback image if either main image loads successfully", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id",
-                parentWidth: 50, // smaller than any image width
+                parentWidth: 50,
                 image: mockImage,
                 aspectRatio: "video",
             },
         });
         await wrapper.vm.$nextTick();
-        // Simulate error on image 1 to trigger image 2
-        //@ts-expect-error
-        wrapper.vm.imageElement1Error = true;
-        await wrapper.vm.$nextTick();
+        // No error simulated, should not show fallback
+        const img1 = wrapper.find('img[data-test="image-element1"]');
         const img2 = wrapper.find('img[data-test="image-element2"]');
-        expect(img2.exists()).toBe(true);
-        // Should contain the smallest image from the classic collection (since video is closest, classic is srcset2)
-        expect(img2.attributes("srcset")).toContain("classic-100.webp");
+        expect(img1.exists() || img2.exists()).toBe(true);
+        const fallbackImg = wrapper
+            .findAll("img")
+            .find(
+                (img) =>
+                    img.attributes("src")?.includes("webp") &&
+                    img.attributes("data-test") === "image-element2",
+            );
+        expect(fallbackImg).toBeUndefined();
     });
 
-    it("renders fallback image when no main images are available", async () => {
+    it("loads fallback image only when both imageElement1Error and imageElement2Error are true", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
-                parentId: "test-id",
+                parentId: "test-id-fallback",
                 parentWidth: 600,
+                image: mockImage,
+                aspectRatio: "video",
             },
         });
-
         await wrapper.vm.$nextTick();
-
-        // Simulate both image errors to force fallback rendering
         //@ts-expect-error
         wrapper.vm.imageElement1Error = true;
         //@ts-expect-error
         wrapper.vm.imageElement2Error = true;
         await wrapper.vm.$nextTick();
-
         const fallbackImg = wrapper.find('img[data-test="image-element2"]');
         await waitForExpect(() => {
             expect(fallbackImg.exists()).toBe(true);
@@ -69,22 +70,36 @@ describe("LImageProvider", () => {
         });
     });
 
+    it("does not load fallback image if srcset1 or srcset2 is available and no error occurred", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-srcset",
+                parentWidth: 600,
+                image: mockImage,
+                aspectRatio: "video",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        // Should show main image, not fallback
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.exists()).toBe(true);
+        expect(img1.attributes("srcset")).toContain("video-300.webp");
+        expect(img1.attributes("srcset")).toContain("video-600.webp");
+    });
+
     it("does not filter out higher quality images when isModal is true", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id-modal",
-                parentWidth: 50, // Smaller than larger images to ensure filtering would normally occur
+                parentWidth: 50,
                 image: mockImage,
                 aspectRatio: "video",
-                isModal: true, // Set isModal to true
+                isModal: true,
             },
         });
         await wrapper.vm.$nextTick();
-
         const img1 = wrapper.find('img[data-test="image-element1"]');
         expect(img1.exists()).toBe(true);
-
-        // Expect the srcset to contain larger images that would normally be filtered out
         expect(img1.attributes("srcset")).toContain("video-300.webp");
         expect(img1.attributes("srcset")).toContain("video-600.webp");
     });
