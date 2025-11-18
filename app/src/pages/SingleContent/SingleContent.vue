@@ -16,7 +16,7 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, defineAsyncComponent, onMounted, ref, watch, type Ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -48,14 +48,10 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import {
-    consumeLanguageSwitchFlag,
-    isLanguageSwitchRef,
-    handleLanguageChange,
-    markLanguageSwitch,
-} from "@/util/isLangSwitch";
+import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import { isExternalNavigation } from "@/router";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -79,13 +75,12 @@ const languages = ref<LanguageDto[]>([]);
 const currentImageIndex = ref(0);
 
 const defaultContent: ContentDto = {
-    // set to initial content (loading state)
     _id: "",
     type: DocType.Content,
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguagePreferredIdAsRef.value ? appLanguagePreferredIdAsRef.value : "",
+    language: appLanguagePreferredIdAsRef.value || "",
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
@@ -102,19 +97,15 @@ const idbContent = useDexieLiveQuery(
             .equals(props.slug)
             .toArray()
             .then((docs) => {
-                if (!docs?.length) {
-                    return undefined;
-                }
+                if (!docs?.length) return undefined;
 
                 // Check if the document is a redirect
                 const redirect = docs.find((d) => d.type === DocType.Redirect) as
                     | RedirectDto
                     | undefined;
-
                 if (redirect && redirect.toSlug) {
                     // If toSlug matches a route name, redirect to that route
                     const routes = router.getRoutes();
-
                     const targetRoute = routes.find((r) => r.name === redirect.toSlug);
                     if (targetRoute) {
                         router.replace({ name: redirect.toSlug });
@@ -122,11 +113,9 @@ const idbContent = useDexieLiveQuery(
                         // Otherwise, treat as a content slug
                         router.replace({ name: "content", params: { slug: redirect.toSlug } });
                     }
-
                     return undefined;
                 }
 
-                // Return the first content doc (normal case)
                 return docs.find((d) => d.type === DocType.Content) as ContentDto | undefined;
             }),
     { initialValue: defaultContent },
@@ -147,10 +136,7 @@ const unwatch = watch([idbContent, isConnected], () => {
     // Stop the watcher on the IndexedDB content and start a new one on the API content
     unwatch();
 
-    const query = ref<ApiSearchQuery>({
-        slug: props.slug,
-    });
-
+    const query = ref<ApiSearchQuery>({ slug: props.slug });
     const apiLiveQuery = new ApiLiveQuery(query, {
         initialValue: [defaultContent] as BaseDocumentDto[],
     });
@@ -161,14 +147,13 @@ const unwatch = watch([idbContent, isConnected], () => {
             content.value = undefined;
             return;
         }
-        // Check if the returned content is a redirect, and redirect to the new slug
-        if (apiContent.value?.type == DocType.Redirect) {
+
+        if (apiContent.value.type === DocType.Redirect) {
             const redirect = apiContent.value as unknown as RedirectDto;
             if (redirect.toSlug) {
                 router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 return;
             }
-            return;
         }
 
         // If the content is not a redirect, set it to the content ref
@@ -178,6 +163,7 @@ const unwatch = watch([idbContent, isConnected], () => {
 
 // Load available languages from IndexedDB immediately (even when online)
 const currentParentId = ref<string>("");
+const isLoadingTranslations = ref(false);
 
 watch([content, isConnected], async () => {
     if (!content.value) return;
@@ -198,11 +184,11 @@ watch([content, isConnected], async () => {
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
+
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
-
         languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((translation) => translation.language === lang._id),
+            availableTranslations.value.some((t) => t.language === lang._id),
         );
     }
 
@@ -212,10 +198,7 @@ watch([content, isConnected], async () => {
         // If online, do API call to get list of available languages and update dropdown
         isLoadingTranslations.value = true;
 
-        const languageQuery = ref<ApiSearchQuery>({
-            types: [DocType.Language],
-        });
-
+        const languageQuery = ref<ApiSearchQuery>({ types: [DocType.Language] });
         const contentQuery = ref<ApiSearchQuery>({
             types: [DocType.Content],
             parentId: content.value.parentId,
@@ -236,12 +219,8 @@ watch([content, isConnected], async () => {
 
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
                 const apiLanguages = apiLanguage.value as LanguageDto[];
-
-                // Keep only languages that have a translation
                 languages.value = apiLanguages.filter((lang) =>
-                    availableTranslations.value.some(
-                        (translation) => translation.language === lang._id,
-                    ),
+                    availableTranslations.value.some((t) => t.language === lang._id),
                 );
             }
 
@@ -271,7 +250,6 @@ const selectedCategoryId = ref<Uuid | undefined>();
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
 const isLoading = ref(isConnected.value);
-const isLoadingTranslations = ref(false);
 const is404 = ref(false);
 
 const check404 = () => {
@@ -300,12 +278,11 @@ const toggleBookmark = () => {
     if (isBookmarked.value) {
         // Remove from bookmarks
         userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
-            (bookmark) => bookmark.id != content.value?.parentId,
+            (b) => b.id != content.value?.parentId,
         );
     } else {
         // Add to bookmarks
         if (!content.value) return;
-
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
         useNotificationStore().addNotification({
             id: "bookmark-added",
@@ -320,20 +297,16 @@ const toggleBookmark = () => {
 
 // Check if the current content is bookmarked
 const isBookmarked = computed(() => {
-    return userPreferencesAsRef.value.bookmarks?.some(
-        (bookmark) => bookmark.id == content.value?.parentId,
-    );
+    return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-// Set document title and meta tags
 watch([content, is404], () => {
-    if (content.value) {
-        isLoading.value = false; // Content is loaded
-    }
+    if (content.value) isLoading.value = false;
 
+    // Set document title and meta tags
     document.title = is404.value
         ? `Page not found - ${appName}`
-        : `${content.value?.seoTitle ? content.value.seoTitle : content.value?.title} - ${appName}`;
+        : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
 
     if (is404.value) return;
 
@@ -350,28 +323,20 @@ watch([content, is404], () => {
 });
 
 const text = computed(() => {
-    if (!content.value || !content.value.text) {
-        return "";
-    }
-
-    let text;
-
     // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
+    if (!content.value?.text) return "";
     try {
-        text = JSON.parse(content.value.text);
+        const json = JSON.parse(content.value.text);
+        return generateHTML(json, [StarterKit, Link]);
     } catch {
         return content.value.text;
     }
-    return generateHTML(text, [StarterKit, Link]);
 });
 
-// Select the first category in the content by category list on load
 watch(tags, () => {
     if (selectedCategoryId.value) return;
     const categories = tags.value.filter((t) => t.parentTagType == TagType.Category);
-    if (categories.length) {
-        selectedCategoryId.value = categories[0].parentId;
-    }
+    if (categories.length) selectedCategoryId.value = categories[0].parentId;
 });
 
 const selectedCategory = computed(() => {
@@ -379,33 +344,36 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-// --- Force language from query param (takes priority over all other language selection) ---
+// Force language from query param
 const langToForce = queryParams.get("langId");
 
-// If lang query param is set, force that language if available
-watch([availableTranslations, languages], () => {
-    if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
-    const lang = languages.value.find((l) => l.languageCode === langToForce);
-    if (!lang) return;
-    const translation = availableTranslations.value.find((c) => c.language === lang._id);
-    if (!translation) return;
-    selectedLanguageId.value = lang._id;
-    // Update content without triggering a route change by replacing the slug
-    content.value = translation;
-});
+watch(
+    [availableTranslations, languages],
+    () => {
+        if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
+        const lang = languages.value.find((l) => l.languageCode === langToForce);
+        if (!lang) return;
+        const translation = availableTranslations.value.find((c) => c.language === lang._id);
+        if (!translation) return;
+        selectedLanguageId.value = lang._id;
+        content.value = translation;
+    },
+    { immediate: true },
+);
+
+const hasAutoNavigated = ref(false);
+const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
 
 /**
  * Watches for changes in the `content` reactive property.
  * When `content` is updated, it sets the `selectedLanguageId`
  * to the `language` property of the new `content` value, if available.
  */
-const hasAutoNavigated = ref(false);
-const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
-
 watch(
     () => [content.value, appLanguagePreferredIdAsRef.value],
     ([newContent, preferredId]) => {
         if (!newContent) return;
+        const currentContent = newContent as ContentDto;
 
         // Check if user actively changed their preferred language (via LanguageModal)
         const preferredLanguageChanged = previousPreferredId.value !== preferredId;
@@ -413,24 +381,17 @@ watch(
 
         // If user changed preferred language and a translation exists, switch to it smoothly
         if (preferredLanguageChanged && hasAutoNavigated.value) {
+            // On page load: if preferred language exists and has translation → switch to it
             const preferredTranslation = availableTranslations.value.find(
                 (t) => t.language === preferredId,
             );
-
-            if (
-                preferredTranslation &&
-                preferredTranslation.slug !== (newContent as ContentDto).slug
-            ) {
-                // Update content directly (no navigation) - same as quick selector
+            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
                 content.value = preferredTranslation;
-
-                // Update the URL in the browser without triggering navigation
                 const newUrl = router.resolve({
                     name: "content",
                     params: { slug: preferredTranslation.slug },
                 }).href;
                 window.history.replaceState(window.history.state, "", newUrl);
-
                 selectedLanguageId.value = preferredTranslation.language;
                 return;
             }
@@ -439,123 +400,91 @@ watch(
         // Only auto-navigate once on initial load, not when user changes preferences via LanguageModal
         if (!hasAutoNavigated.value) {
             hasAutoNavigated.value = true;
-
-            // On page load: if preferred language exists and has translation → switch to it
             const preferredTranslation = availableTranslations.value.find(
                 (t) => t.language === preferredId,
             );
-
-            if (
-                preferredTranslation &&
-                preferredTranslation.slug !== (newContent as ContentDto).slug
-            ) {
-                // Navigate to preferred version
+            // Navigate to preferred version
+            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
                 router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
                 return;
             }
         }
 
         // Otherwise, sync dropdown to current content's language
-        selectedLanguageId.value = (newContent as ContentDto).language;
+        selectedLanguageId.value = currentContent.language;
     },
     { immediate: true },
 );
 
-const hasConsumedLangSwitch = ref(false);
+const openedFromExternalLink = ref(false);
 
-// Change language
+onMounted(() => {
+    openedFromExternalLink.value = isExternalNavigation();
+    window.addEventListener("click", onClickOutside);
+});
+
+// Quick language switch (dropdown)
+watch(selectedLanguageId, (newId) => {
+    if (!newId || !content.value) return;
+
+    const target = availableTranslations.value.find((c) => c.language === newId);
+    if (!target || target.slug === content.value.slug) return;
+
+    content.value = target;
+    const newUrl = router.resolve({ name: "content", params: { slug: target.slug } }).href;
+    window.history.replaceState(window.history.state, "", newUrl);
+});
+
+// Show banner: only external + preferred lang exists + different slug
 watch(
-    [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
-    () => {
-        if (!selectedLanguageId.value || !content.value) return;
+    () => [
+        content.value,
+        appLanguagePreferredIdAsRef.value,
+        openedFromExternalLink.value,
+        availableTranslations.value,
+    ],
+    ([cur, prefId, external, translations]) => {
+        if (!cur || !prefId || !external) return;
+        const currentContent = cur as ContentDto;
+        if (currentContent.language === prefId) return;
 
-        if (langToForce && selectedLanguageId.value !== langToForce) {
-            handleLanguageChange({
-                previousLanguage: selectedLanguageId.value,
-                languageId: langToForce,
-                availableTranslations: availableTranslations.value,
-                content: content as unknown as Ref<ContentDto>,
+        const preferred = (translations as ContentDto[]).find(
+            (t) => t.language === prefId && t.slug !== currentContent.slug,
+        );
+
+        if (!preferred) return;
+
+        setTimeout(() => {
+            useNotificationStore().addNotification({
+                id: "content-available",
+                title: t("notification.translation_available.title"),
+                description: t("notification.translation_available.description", {
+                    language: appLanguageAsRef.value?.name,
+                }),
+                state: "info",
+                type: "banner",
+                closable: true,
+                link: { name: "content", params: { slug: preferred.slug } },
+                openLink: true,
             });
-            return;
-        }
-
-        const preferred = availableTranslations.value.find(
-            (c) => c.language === selectedLanguageId.value,
-        );
-
-        // Update content and URL if different slug
-        if (preferred && preferred.slug !== content.value.slug) {
-            // Update the content directly (no navigation)
-            content.value = preferred;
-
-            // Update the URL in the browser without triggering navigation
-            const newUrl = router.resolve({
-                name: "content",
-                params: { slug: preferred.slug },
-            }).href;
-            window.history.replaceState(window.history.state, "", newUrl);
-
-            return;
-        }
-
-        // Consume the language switch flag only once to determine if the user switched language via dropdown
-        if (!hasConsumedLangSwitch.value) {
-            isLanguageSwitchRef.value = consumeLanguageSwitchFlag();
-            hasConsumedLangSwitch.value = true;
-        }
-
-        // Show banner only if it wasn't from dropdown AND there's actually a different slug to navigate to
-        if (
-            content.value.language !== appLanguagePreferredIdAsRef.value &&
-            !isLanguageSwitchRef.value
-        ) {
-            const preferredContent = availableTranslations.value.find(
-                (c) => c.language === appLanguagePreferredIdAsRef.value,
-            );
-
-            // Only show banner if there's a preferred language version with a *different* slug
-            if (preferredContent && preferredContent.slug !== content.value.slug) {
-                setTimeout(() => {
-                    useNotificationStore().addNotification({
-                        id: "content-available",
-                        title: t("notification.translation_available.title"),
-                        description: t("notification.translation_available.description", {
-                            language: appLanguageAsRef.value?.name,
-                        }),
-                        state: "info",
-                        type: "banner",
-                        closable: true,
-                        link: {
-                            name: "content",
-                            params: { slug: preferredContent.slug },
-                        },
-                        openLink: true,
-                    });
-                }, 3000);
-            }
-        }
-
-        // Remove banner if user views content in preferred language
-        const removeNotificationIfNeeded = () => {
-            if (content.value?.language === appLanguagePreferredIdAsRef.value) {
-                useNotificationStore().removeNotification("content-available");
-            }
-        };
-
-        removeNotificationIfNeeded();
-
-        watch(
-            () => router.currentRoute.value.name,
-            () => {
-                removeNotificationIfNeeded();
-            },
-        );
+        }, 800);
     },
-    { immediate: true, deep: true },
+    { immediate: true },
+);
+
+// Remove banner when user is on preferred language
+watch(
+    () => content.value?.language,
+    (lang) => {
+        if (lang === appLanguagePreferredIdAsRef.value) {
+            useNotificationStore().removeNotification("content-available");
+        }
+    },
+    { immediate: true },
 );
 
 const showDropdown = ref(false);
-// Simple dropdown close on click outside using Vue's global event
+
 function onClickOutside(event: MouseEvent) {
     const dropdown = document.querySelector("[name='translationSelector']");
     if (showDropdown.value && dropdown && !dropdown.contains(event.target as Node)) {
@@ -567,19 +496,16 @@ onMounted(() => {
     window.addEventListener("click", onClickOutside);
 });
 
-// Convert selectedLanguageId to language code for VideoPlayer
 const selectedLanguageCode = computed(() => {
     if (!selectedLanguageId.value || !languages.value.length) return null;
     const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
     return selectedLang?.languageCode || null;
 });
 
-// watch content to keep selectedLanguageId in sync
 watch(
     content,
     (newContent) => {
         if (!newContent) return;
-        // Only update if different
         if (selectedLanguageId.value !== newContent.language) {
             selectedLanguageId.value = newContent.language;
         }
@@ -588,10 +514,7 @@ watch(
 );
 
 const quickLanguageSwitch = (languageId: string) => {
-    // Mark that this is a user-initiated language switch
     markLanguageSwitch();
-
-    // Update the selected language - the watch will handle navigation
     selectedLanguageId.value = languageId;
     showDropdown.value = false;
 };
@@ -610,7 +533,6 @@ const quickLanguageSwitch = (languageId: string) => {
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
-                    <!-- Display the current content's language if no other language is available -->
                     <span class="hidden sm:inline">
                         {{
                             languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
@@ -637,7 +559,6 @@ const quickLanguageSwitch = (languageId: string) => {
                         data-test="translationOption"
                     >
                         {{ language.name }}
-
                         <CheckCircleIcon
                             v-if="selectedLanguageId === language._id"
                             class="h-5 w-5 text-yellow-500"
@@ -663,28 +584,22 @@ const quickLanguageSwitch = (languageId: string) => {
                             :content="content"
                             :language="selectedLanguageCode"
                         />
-                        <!-- Ensure content.parentId does not contain default content empty string -->
                         <div
                             v-else-if="content.parentId || content.parentImageData"
                             class="relative cursor-pointer"
                             @click="
                                 () => {
-                                    if (content) {
-                                        currentImageIndex = activeImageCollection(content);
-                                    }
+                                    if (content) currentImageIndex = activeImageCollection(content);
                                     enableZoom = true;
                                 }
                             "
                         >
-                            <!-- Main Image -->
                             <LImage
                                 :image="content.parentImageData"
                                 :content-parent-id="content.parentId"
                                 aspectRatio="video"
                                 size="post"
                             />
-
-                            <!-- Icon to indicate multiple images -->
                             <div
                                 v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
                                 class="absolute bottom-2 right-2 flex items-center gap-1"
@@ -707,7 +622,6 @@ const quickLanguageSwitch = (languageId: string) => {
                             >
                                 By {{ content.author }}
                             </div>
-
                             <div
                                 class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"
@@ -720,11 +634,9 @@ const quickLanguageSwitch = (languageId: string) => {
                                         : ""
                                 }}
                             </div>
-
                             <div class="items-center">
                                 <div class="flex justify-center">
                                     <div @click="toggleBookmark" data-test="bookmark">
-                                        <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
                                         <component
                                             v-if="
                                                 !(
@@ -738,14 +650,11 @@ const quickLanguageSwitch = (languageId: string) => {
                                                     : BookmarkIconOutline
                                             "
                                             class="h-6 w-6 cursor-pointer"
-                                            :class="{
-                                                'text-yellow-500': isBookmarked,
-                                            }"
+                                            :class="{ 'text-yellow-500': isBookmarked }"
                                         />
                                     </div>
                                 </div>
                             </div>
-
                             <div
                                 class="text-center text-sm text-zinc-800 dark:text-slate-200"
                                 v-if="content.summary"
@@ -755,7 +664,6 @@ const quickLanguageSwitch = (languageId: string) => {
                         </div>
                     </div>
 
-                    <!-- Category tag buttons -->
                     <div
                         class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
                         v-if="categoryTags.length"
@@ -769,10 +677,8 @@ const quickLanguageSwitch = (languageId: string) => {
                             "
                             class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
                         >
-                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span
-                                class="line-clamp-1"
-                                >{{ tag.title }}</span
-                            >
+                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" />
+                            <span class="line-clamp-1">{{ tag.title }}</span>
                         </span>
                     </div>
 

@@ -27,6 +27,8 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
+const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
+
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -50,6 +52,12 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
+
+vi.mock("@/router", () => ({
+    isExternalNavigation: () => mockIsExternalNavigation(),
+    markInternalNavigation: vi.fn(),
+}));
+
 vi.mock("@auth0/auth0-vue");
 
 vi.mock("vue-i18n", () => ({
@@ -67,6 +75,9 @@ describe("SingleContent", () => {
         // Ensure router mock is clean for each test
         routeReplaceMock.mockClear();
 
+        // By default, mock as internal navigation (not external)
+        mockIsExternalNavigation.mockReturnValue(false);
+
         appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
 
         await db.docs.bulkPut([
@@ -83,6 +94,9 @@ describe("SingleContent", () => {
         ]);
 
         setActivePinia(createTestingPinia());
+
+        // Reset notification store spy
+        vi.clearAllMocks();
 
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
@@ -363,15 +377,17 @@ describe("SingleContent", () => {
         await initLanguage();
 
         // Clear any language switch flag from previous tests
-        // This ensures the notification will show when viewing non-preferred language content
         const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
-        consumeLanguageSwitchFlag(); // Reset the flag to false
+        consumeLanguageSwitchFlag();
 
         appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
 
         // Set the CMS languages so that the preferred language computation works
         const { cmsLanguages } = await import("@/globalConfig");
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock external navigation BEFORE mounting
+        mockIsExternalNavigation.mockReturnValue(true);
 
         // Navigate to French content (not the preferred language)
         const wrapper = mount(SingleContent, {
@@ -394,6 +410,77 @@ describe("SingleContent", () => {
                     type: "banner",
                 }),
             );
-        }, 5000);
+        }, 3000);
+    });
+
+    it("shows the notification when opening from external link", async () => {
+        await initLanguage();
+
+        const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
+        consumeLanguageSwitchFlag();
+
+        appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
+
+        const { cmsLanguages } = await import("@/globalConfig");
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock external navigation (e.g., from Google)
+        mockIsExternalNavigation.mockReturnValue(true);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                    title: "Translation available",
+                    description: `The content is also available in English. Click here to view it.`,
+                    state: "info",
+                    type: "banner",
+                }),
+            );
+        }, 3000);
+    });
+
+    it("shows the notification when opening from direct link (URL paste/bookmark)", async () => {
+        await initLanguage();
+
+        const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
+        consumeLanguageSwitchFlag();
+
+        appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
+
+        const { cmsLanguages } = await import("@/globalConfig");
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Mock external navigation (direct link/bookmark/URL paste)
+        mockIsExternalNavigation.mockReturnValue(true);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+
+        // Direct links are treated as external, so notification SHOULD show
+        await waitForExpect(() => {
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                }),
+            );
+        }, 3000);
     });
 });

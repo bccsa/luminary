@@ -9,6 +9,17 @@ const BookmarksPage = import("@/pages/BookmarksPage.vue");
 const SingleContent = import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = import("@/pages/NotFoundPage.vue");
 
+// Track if navigation is from within the app
+let isInternalNavigation = false;
+
+export const markInternalNavigation = () => {
+    isInternalNavigation = true;
+};
+
+export const isExternalNavigation = () => {
+    return !isInternalNavigation;
+};
+
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     scrollBehavior(to, from, savedPosition) {
@@ -84,7 +95,15 @@ const router = createRouter({
 });
 
 // Handle direct navigation by manipulating history state
-router.beforeEach(() => {
+router.beforeEach((to, from) => {
+    // Mark as internal navigation if we're coming from another route in the app
+    // from.name will be null/undefined on initial page load or direct URL access
+    if (from.name !== undefined) {
+        isInternalNavigation = true;
+    } else {
+        isInternalNavigation = false;
+    }
+
     // Check if the length of the browser history is less than or equal to 2
     const isDirectNavigation = window.history.length === 2;
 
