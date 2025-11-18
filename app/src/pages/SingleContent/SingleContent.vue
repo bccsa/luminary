@@ -99,15 +99,18 @@ const idbContent = useDexieLiveQuery(
             .then((docs) => {
                 if (!docs?.length) return undefined;
 
+                // Check if the document is a redirect
                 const redirect = docs.find((d) => d.type === DocType.Redirect) as
                     | RedirectDto
                     | undefined;
                 if (redirect && redirect.toSlug) {
+                    // If toSlug matches a route name, redirect to that route
                     const routes = router.getRoutes();
                     const targetRoute = routes.find((r) => r.name === redirect.toSlug);
                     if (targetRoute) {
                         router.replace({ name: redirect.toSlug });
                     } else {
+                        // Otherwise, treat as a content slug
                         router.replace({ name: "content", params: { slug: redirect.toSlug } });
                     }
                     return undefined;
@@ -124,11 +127,13 @@ const unwatch = watch([idbContent, isConnected], () => {
         return;
     }
 
+    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, we clear the content
     if (!isConnected.value) {
         content.value = undefined;
         return;
     }
 
+    // Stop the watcher on the IndexedDB content and start a new one on the API content
     unwatch();
 
     const query = ref<ApiSearchQuery>({ slug: props.slug });
@@ -151,17 +156,20 @@ const unwatch = watch([idbContent, isConnected], () => {
             }
         }
 
+        // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
 });
 
-// Load available languages
+// Load available languages from IndexedDB immediately (even when online)
 const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
+    // Only reload translations if we're viewing a different parent content
+    // This prevents flash when switching between translations of the same content
     if (
         currentParentId.value === content.value.parentId &&
         availableTranslations.value.length > 0
@@ -187,6 +195,7 @@ watch([content, isConnected], async () => {
     isLoadingTranslations.value = false;
 
     if (isConnected.value) {
+        // If online, do API call to get list of available languages and update dropdown
         isLoadingTranslations.value = true;
 
         const languageQuery = ref<ApiSearchQuery>({ types: [DocType.Language] });
@@ -215,6 +224,7 @@ watch([content, isConnected], async () => {
                 );
             }
 
+            // Mark translations as loaded once we have data from the API
             isLoadingTranslations.value = false;
         });
     }
@@ -225,7 +235,7 @@ const tags = useDexieLiveQueryWithDeps(
     ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
-            .anyOf((content?.parentTags || []).concat([content?.parentId || ""]))
+            .anyOf((content?.parentTags || []).concat([content?.parentId || ""])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
             .filter((t) => {
                 const tag = t as ContentDto;
                 if (tag.parentType != DocType.Tag) return false;
@@ -238,6 +248,7 @@ const tags = useDexieLiveQueryWithDeps(
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
+// If connected, we are waiting for data to load from the API, unless found in IndexedDB
 const isLoading = ref(isConnected.value);
 const is404 = ref(false);
 
@@ -258,16 +269,19 @@ watch(content, () => {
     is404.value = check404();
 });
 
+// Function to toggle bookmark for the current content
 const toggleBookmark = () => {
     if (!userPreferencesAsRef.value.bookmarks) {
         userPreferencesAsRef.value.bookmarks = [];
     }
 
     if (isBookmarked.value) {
+        // Remove from bookmarks
         userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
             (b) => b.id != content.value?.parentId,
         );
     } else {
+        // Add to bookmarks
         if (!content.value) return;
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
         useNotificationStore().addNotification({
@@ -281,6 +295,7 @@ const toggleBookmark = () => {
     }
 };
 
+// Check if the current content is bookmarked
 const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
@@ -288,22 +303,27 @@ const isBookmarked = computed(() => {
 watch([content, is404], () => {
     if (content.value) isLoading.value = false;
 
+    // Set document title and meta tags
     document.title = is404.value
         ? `Page not found - ${appName}`
         : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
 
     if (is404.value) return;
 
+    // SEO meta tag settings
     let metaTag = document.querySelector("meta[name='description']");
     if (!metaTag) {
+        // If the meta tag doesn't exist, create it
         metaTag = document.createElement("meta");
         metaTag.setAttribute("name", "description");
         document.head.appendChild(metaTag);
     }
+    // Update the content attribute
     metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
 });
 
 const text = computed(() => {
+    // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
     if (!content.value?.text) return "";
     try {
         const json = JSON.parse(content.value.text);
@@ -344,16 +364,24 @@ watch(
 const hasAutoNavigated = ref(false);
 const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
 
+/**
+ * Watches for changes in the `content` reactive property.
+ * When `content` is updated, it sets the `selectedLanguageId`
+ * to the `language` property of the new `content` value, if available.
+ */
 watch(
     () => [content.value, appLanguagePreferredIdAsRef.value],
     ([newContent, preferredId]) => {
         if (!newContent) return;
         const currentContent = newContent as ContentDto;
 
+        // Check if user actively changed their preferred language (via LanguageModal)
         const preferredLanguageChanged = previousPreferredId.value !== preferredId;
         previousPreferredId.value = preferredId as string;
 
+        // If user changed preferred language and a translation exists, switch to it smoothly
         if (preferredLanguageChanged && hasAutoNavigated.value) {
+            // On page load: if preferred language exists and has translation → switch to it
             const preferredTranslation = availableTranslations.value.find(
                 (t) => t.language === preferredId,
             );
@@ -369,17 +397,20 @@ watch(
             }
         }
 
+        // Only auto-navigate once on initial load, not when user changes preferences via LanguageModal
         if (!hasAutoNavigated.value) {
             hasAutoNavigated.value = true;
             const preferredTranslation = availableTranslations.value.find(
                 (t) => t.language === preferredId,
             );
+            // Navigate to preferred version
             if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
                 router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
                 return;
             }
         }
 
+        // Otherwise, sync dropdown to current content's language
         selectedLanguageId.value = currentContent.language;
     },
     { immediate: true },
