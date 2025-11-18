@@ -24,32 +24,12 @@ app/
 │   ├── analytics/                # Analytics tracking and integration
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components
-│   │   ├── BasePage.vue          # Base page component
-│   │   ├── ExplorePage/          # Explore page components
-│   │   ├── HomePage/             # Home page components
-│   │   ├── VideoPage/            # Video player components
-│   │   ├── button/               # Button components
-│   │   ├── common/               # Shared common components
-│   │   ├── content/              # Content display components
-│   │   ├── form/                 # Form components
-│   │   ├── images/               # Image components
-│   │   ├── navigation/           # Navigation components
-│   │   ├── notifications/        # Notification components
-│   │   └── tags/                 # Tag components
 │   ├── composables/              # Vue composables (reusable composition logic)
 │   ├── guards/                   # Route guards
 │   ├── pages/                    # Page-level components
-│   │   ├── BookmarksPage.vue
-│   │   ├── ExplorePage.vue
-│   │   ├── HomePage.vue
-│   │   ├── NotFoundPage.vue
-│   │   ├── SettingsPage.vue
-│   │   ├── SingleContent.vue
-│   │   └── VideoPage.vue
 │   ├── plugins/                  # Plugin system for extending functionality
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
-│   │   └── notification.ts
 │   ├── tests/                    # Test utilities and helpers
 │   ├── types/                    # TypeScript type definitions
 │   ├── util/                     # Utility functions
