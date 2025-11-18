@@ -32,7 +32,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
-    <div class="flex h-full flex-col overflow-scroll pb-5 scrollbar-hide">
+    <div class="flex h-full flex-col overflow-scroll scrollbar-hide">
         <div class="sticky top-0 z-20">
             <div
                 class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"

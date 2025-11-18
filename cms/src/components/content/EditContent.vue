@@ -566,8 +566,8 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         <div class="flex h-full flex-col gap-2 lg:flex-row lg:overflow-y-hidden">
             <!-- sidebar -->
             <div class="h-full w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
-                <div class="h-full max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
-                    <div class="flex flex-col gap-2 sm:pb-4">
+                <div class="h-full scrollbar-hide sm:pb-16">
+                    <div class="flex flex-col gap-2 pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
@@ -624,9 +624,9 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                 title=""
                                 :description="`Please select a language to start editing`"
                                 data-test="no-content"
-                                class="relative flex flex-col items-center justify-center"
+                                class="mb-3 flex flex-col items-center justify-center"
                             >
-                                <div class="flex flex-col-reverse items-center">
+                                <div class="relative flex flex-col-reverse items-center">
                                     <LButton
                                         :icon="PlusIcon"
                                         class="h-max w-fit"
@@ -636,7 +636,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                         aria-label="Add translation"
                                     ></LButton>
 
-                                    <div class="absolute bottom-20">
+                                    <div class="absolute bottom-10">
                                         <LanguageSelector
                                             data-test="placeholder-language-selector"
                                             :parent="editableParent"

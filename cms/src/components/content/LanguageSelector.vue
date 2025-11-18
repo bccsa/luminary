@@ -2,7 +2,6 @@
 import LBadge from "@/components/common/LBadge.vue";
 import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
-import { onClickOutside } from "@vueuse/core";
 import { ref } from "vue";
 import LDropdown from "../common/LDropdown.vue";
 
@@ -19,10 +18,6 @@ const showSelector = defineModel<boolean>("showSelector", { required: true });
 const languages = defineModel<LanguageDto[]>("languages");
 
 const languagePopup = ref();
-
-onClickOutside(languagePopup, () => {
-    showSelector.value = false;
-});
 </script>
 
 <template>
