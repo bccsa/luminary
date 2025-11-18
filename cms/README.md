@@ -20,34 +20,11 @@ cms/
 ├── src/
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components
-│   │   ├── BasePage.vue          # Base page component
-│   │   ├── BleedHorizontal.vue   # Layout component for full-width sections
-│   │   ├── EmptyState.vue        # Empty state component
-│   │   ├── LoadingBar.vue        # Loading bar component
-│   │   ├── LoadingSpinner.vue    # Loading spinner component
-│   │   ├── OnlineIndicator.vue   # Online/offline status indicator
-│   │   ├── button/               # Button components
-│   │   ├── common/               # Shared common components
-│   │   ├── content/              # Content management components
-│   │   ├── editor/               # Rich text editor components
-│   │   ├── forms/                # Form components
-│   │   ├── groups/               # Group management components
-│   │   ├── images/               # Image components
-│   │   ├── languages/            # Language/translation components
-│   │   ├── modals/               # Modal dialog components
-│   │   ├── navigation/           # Navigation components
-│   │   ├── notifications/        # Notification components
-│   │   ├── redirects/            # Redirect management components
-│   │   └── users/                # User management components
 │   ├── composables/              # Vue composables (reusable composition logic)
 │   ├── pages/                    # Page-level components
-│   │   ├── DashboardPage.vue
-│   │   ├── NotFoundPage.vue
-│   │   ├── SettingsPage.vue
 │   │   └── internal/             # Internal pages
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
-│   │   └── notification.ts
 │   ├── tests/                    # Test utilities and helpers
 │   ├── util/                     # Utility functions
 │   ├── auth.ts                   # Authentication logic
