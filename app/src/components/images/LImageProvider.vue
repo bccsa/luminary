@@ -31,7 +31,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, onBeforeMount, ref } from "vue";
+import { computed, onBeforeMount, ref, watch } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -210,6 +210,9 @@ const showImageElement2 = computed(
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
+    // Prevent double-loading
+    if (fallbackImageUrl.value) return;
+
     const randomImage = (await fallbackImageUrls)[
         Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
     ] as string;
@@ -250,6 +253,25 @@ const modalSrcset = computed(() => {
     if (!files.length) return "";
     return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
 });
+
+//Only load fallback when BOTH attempts really failed
+const hasCompletelyFailed = computed(() => {
+    const triedPrimary = !!srcset1.value;
+    const triedSecondary = imageElement1Error.value || !!srcset2.value;
+
+    const failedPrimary = imageElement1Error.value || (triedPrimary && !srcset1.value);
+    const failedSecondary = imageElement2Error.value || (triedSecondary && !srcset2.value);
+
+    return (triedPrimary || triedSecondary) && failedPrimary && failedSecondary;
+});
+
+watch(
+    hasCompletelyFailed,
+    (failed) => {
+        if (failed) loadFallbackImage();
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
