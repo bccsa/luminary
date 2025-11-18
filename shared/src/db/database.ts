@@ -193,6 +193,20 @@ class Database extends Dexie {
         );
     }
 
+    async getSyncList() {
+        const _v = await this.getLuminaryInternals("syncList");
+        if (_v && Array.isArray(_v)) {
+            const { syncList } = await import("../rest/sync2/state");
+            syncList.value = _v;
+        }
+        return _v;
+    }
+
+    async setSyncList() {
+        const { syncList } = await import("../rest/sync2/state");
+        return await this.setLuminaryInternals("syncList", cloneDeep(syncList.value));
+    }
+
     async setLuminaryInternals(key: string, value: any) {
         return await this.luminaryInternals.put({ id: key, value: value }, key);
     }
@@ -822,6 +836,8 @@ class Database extends Dexie {
      */
     async purge() {
         syncMap.value.clear();
+        const { syncList } = await import("../rest/sync2/state");
+        syncList.value = [];
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
@@ -878,6 +894,17 @@ export async function initDatabase() {
         },
         { deep: true },
     );
+
+    // Watch syncList for changes and persist to IndexedDB
+    import("../rest/sync2/state").then(({ syncList }) => {
+        watch(
+            syncList,
+            () => {
+                db.setSyncList();
+            },
+            { deep: true },
+        );
+    });
 }
 
 /**
