@@ -8,7 +8,6 @@ import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 import { DbService } from "../db/db.service";
 import { StorageDto } from "../dto/StorageDto";
 import { DocType } from "../enums";
-import * as Minio from "minio";
 import configuration from "../configuration";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
@@ -28,25 +27,19 @@ const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; 
  * @param s3 - S3 service for creating clients
  * @returns Array of warnings about migration status
  */
+// TODO: S3Service now uses a static create() method - this function already updated to use S3Service.create()
 async function migrateImagesBetweenBuckets(
     image: ImageDto,
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-    s3: S3Service,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
     try {
-        // Use S3Service to create clients from bucket configurations
-        const { client: oldS3Client, bucketName: oldBucketName } = await s3.createClientFromBucket(
-            oldBucketId,
-            db,
-        );
-        const { client: newS3Client, bucketName: newBucketName } = await s3.createClientFromBucket(
-            newBucketId,
-            db,
-        );
+        // Create S3Service instances for each bucket
+        const oldS3Service = await S3Service.create(oldBucketId, db);
+        const newS3Service = await S3Service.create(newBucketId, db);
 
         // Get all image files to migrate
         const allFiles = image.fileCollections.flatMap((collection) => collection.imageFiles);
@@ -55,6 +48,9 @@ async function migrateImagesBetweenBuckets(
             warnings.push("No image files to migrate.");
             return warnings;
         }
+
+        const oldBucketName = oldS3Service.getBucketName();
+        const newBucketName = newS3Service.getBucketName();
 
         // Note: We can't easily determine endpoints from clients, but this is for logging only
         console.log(`Initiating migration from bucket ${oldBucketName} to ${newBucketName}...`);
@@ -66,7 +62,7 @@ async function migrateImagesBetweenBuckets(
         for (const file of allFiles) {
             try {
                 // Download from old bucket
-                const fileStream = await oldS3Client.getObject(oldBucketName, file.filename);
+                const fileStream = await oldS3Service.getObject(file.filename);
                 const chunks: Uint8Array[] = [];
 
                 // Collect all chunks
@@ -78,21 +74,21 @@ async function migrateImagesBetweenBuckets(
 
                 const fileBuffer = Buffer.concat(chunks);
 
-                // Get metadata from old bucket
-                const stat = await oldS3Client.statObject(oldBucketName, file.filename);
+                // Get metadata from old bucket (need to use getClient for statObject)
+                const stat = await oldS3Service
+                    .getClient()
+                    .statObject(oldBucketName, file.filename);
                 const metadata = stat.metaData || { "Content-Type": "image/webp" };
 
                 // Upload to new bucket
-                await newS3Client.putObject(
-                    newBucketName,
+                await newS3Service.uploadFile(
                     file.filename,
                     fileBuffer,
-                    fileBuffer.length,
-                    metadata,
+                    metadata["Content-Type"] || "image/webp",
                 );
 
                 // Delete from old bucket only after successful upload
-                await oldS3Client.removeObject(oldBucketName, file.filename);
+                await oldS3Service.getClient().removeObject(oldBucketName, file.filename);
 
                 successfulMigrations++;
             } catch (error) {
@@ -130,8 +126,7 @@ async function migrateImagesBetweenBuckets(
 export async function processImage(
     image: ImageDto,
     prevImage: ImageDto | undefined,
-    s3: S3Service,
-    db?: DbService,
+    db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
 ): Promise<string[]> {
@@ -152,7 +147,6 @@ export async function processImage(
                 prevParentBucketId,
                 parentBucketId,
                 db,
-                s3,
             );
             warnings.push(...migrationWarnings);
         }
@@ -181,16 +175,21 @@ export async function processImage(
                                 .join(", ")}`,
                         );
                     } else {
-                        const { client: bucketS3Client, bucketName } =
-                            await s3.createClientFromBucket(parentBucketId, db);
+                        const bucketS3Service = await S3Service.create(parentBucketId, db);
 
                         // Delete files from the bucket
                         for (const file of removedFiles) {
                             try {
-                                await bucketS3Client.removeObject(bucketName, file.filename);
+                                await bucketS3Service
+                                    .getClient()
+                                    .removeObject(bucketS3Service.getBucketName(), file.filename);
                             } catch (error) {
                                 warnings.push(
-                                    `Failed to delete ${file.filename} from bucket ${bucketName}: ${error.message}`,
+                                    `Failed to delete ${
+                                        file.filename
+                                    } from bucket ${bucketS3Service.getBucketName()}: ${
+                                        error.message
+                                    }`,
                                 );
                             }
                         }
@@ -236,7 +235,7 @@ export async function processImage(
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
             image.uploadData?.forEach((uploadData) => {
-                promises.push(processImageUpload(uploadData, s3, image, db, parentBucketId));
+                promises.push(processImageUpload(uploadData, image, db, parentBucketId));
             });
 
             const results = await Promise.all(promises);
@@ -269,7 +268,6 @@ export async function processImage(
 
 async function processImageUpload(
     uploadData: ImageUploadDto,
-    s3: S3Service,
     image: ImageDto,
     db: DbService, // Required - no longer optional
     bucketId: string, // Parent-level bucket ID
@@ -347,11 +345,8 @@ async function processImageUpload(
                 }
             }
 
-            // Create bucket-specific S3 client with bucket's credentials
-            const { client: bucketS3Client, bucketName } = await s3.createClientFromBucket(
-                bucketId,
-                db,
-            );
+            // Create bucket-specific S3 service with bucket's credentials
+            const bucketS3Service = await S3Service.create(bucketId, db);
 
             imageSizes.forEach(async (size) => {
                 if (metadata.width < size / 1.1) return; // allow slight upscaling
@@ -359,8 +354,7 @@ async function processImageUpload(
                     resizeAndUploadImage(
                         uploadData,
                         size,
-                        bucketS3Client,
-                        bucketName,
+                        bucketS3Service,
                         defaultImageQuality,
                         preset,
                         resultImageCollection,
@@ -401,8 +395,7 @@ async function processImageUpload(
 async function resizeAndUploadImage(
     uploadData: ImageUploadDto,
     size: number,
-    s3Client: Minio.Client,
-    bucketName: string,
+    s3Service: S3Service,
     imageQuality: number,
     preset: keyof sharp.PresetEnum,
     resultImageCollection: ImageFileCollectionDto,
@@ -421,17 +414,8 @@ async function resizeAndUploadImage(
         imageFile.height = resized.info.height;
         imageFile.filename = uuidv4();
 
-        // Save resized image to S3 using bucket-specific client
-        const metadata = {
-            "Content-Type": "image/webp",
-        };
-        await s3Client.putObject(
-            bucketName,
-            imageFile.filename,
-            resized.data,
-            resized.data.length,
-            metadata,
-        );
+        // Save resized image to S3
+        await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
 
         resultImageCollection.imageFiles.push(imageFile);
 

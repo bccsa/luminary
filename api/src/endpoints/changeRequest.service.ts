@@ -7,7 +7,6 @@ import { Logger } from "winston";
 import { processJwt } from "../jwt/processJwt";
 import configuration, { Configuration } from "../configuration";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
-import { S3Service } from "../s3/s3.service";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
 
@@ -21,7 +20,6 @@ export class ChangeRequestService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
-        private s3: S3Service,
     ) {
         // Create config object with environmental variables
         this.config = configuration();
@@ -36,7 +34,6 @@ export class ChangeRequestService {
             changeRequest,
             userDetails.groups,
             this.db,
-            this.s3,
         )
             .then(async (result) => {
                 const ack = await this.upsertDocAck(

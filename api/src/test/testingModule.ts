@@ -1,6 +1,5 @@
 import { Test } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
-import { S3Service } from "../s3/s3.service";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
 import * as nano from "nano";
@@ -47,7 +46,6 @@ export async function createTestingModule(testName: string) {
         providers: [
             DbService,
             Socketio,
-            S3Service,
             {
                 provide: ConfigService,
                 useValue: {
@@ -78,12 +76,8 @@ export async function createTestingModule(testName: string) {
 
     await PermissionSystem.init(dbService);
 
-    // Create S3 Service
-    const s3Service = testingModule.get<S3Service>(S3Service);
-
     return {
         dbService,
         testingModule,
-        s3Service,
     };
 }

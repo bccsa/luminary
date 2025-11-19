@@ -3,6 +3,7 @@ import { promisify } from "util";
 import { v4 as uuidv4 } from "uuid";
 import { CryptoDto } from "../dto/CryptoDto";
 import { DbService } from "../db/db.service";
+import { DocType } from "../enums";
 
 /**
  * Encryption utilities for sensitive data like S3 credentials.
@@ -134,6 +135,7 @@ export async function storeCryptoData<T>(db: DbService, data: T): Promise<string
 
     // Create encrypted storage document
     const storageDoc = new CryptoDto();
+    storageDoc.type = DocType.Crypto;
     storageDoc._id = uuidv4();
     storageDoc.data = {
         encrypted: encryptedData,

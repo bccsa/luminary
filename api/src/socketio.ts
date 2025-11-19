@@ -89,7 +89,6 @@ export class Socketio implements OnGatewayInit {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
-        private s3: S3Service,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
