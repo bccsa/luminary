@@ -21,6 +21,7 @@ export enum DocType {
     Change = "change",
     DeleteCmd = "deleteCmd",
     Storage = "storage",
+    Crypto = "crypto",
 }
 
 /**

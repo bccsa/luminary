@@ -9,6 +9,7 @@ import * as encryption from "../util/encryption";
 import * as jwtModule from "../jwt/processJwt";
 import * as permissionsService from "../permissions/permissions.service";
 
+// TODO: S3Service is no longer injectable. Update to instantiate S3Service directly with credentials.
 describe("StorageController", () => {
     let app: INestApplication;
     const mockCreateClient = jest.fn();
