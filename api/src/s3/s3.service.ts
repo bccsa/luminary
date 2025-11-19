@@ -1,33 +1,70 @@
-import { Injectable } from "@nestjs/common";
 import * as Minio from "minio";
 import { S3CredentialDto } from "../dto/S3CredentialDto";
+import { DbService } from "../db/db.service";
+import { retrieveCryptoData, decryptObject } from "../util/encryption";
+import { DocType } from "../enums";
 
-@Injectable()
 export class S3Service {
-    // Note: No default client or config - everything is bucket-specific now
+    private static instances: Map<string, S3Service> = new Map();
+    private static credentialIdToInstanceMap: Map<string, Set<string>> = new Map();
+    private static dbChangeListener: ((update: any) => void) | null = null;
+    private client: Minio.Client;
+    private credentialId: string;
+    private bucketName: string;
 
-    constructor() {
-        // No configuration needed - each bucket provides its own credentials
+    /**
+     * Initialize the database change listener for credential updates
+     * This should be called once when the application starts
+     */
+    static initializeChangeListener(db: DbService): void {
+        if (S3Service.dbChangeListener) {
+            return; // Already initialized
+        }
+
+        S3Service.dbChangeListener = async (doc: any) => {
+            if (doc && doc.type == DocType.Crypto && doc._id && doc.data && doc.data) {
+                const credentialId = doc._id;
+
+                // Check if any S3Service instances use this credential
+                const affectedBucketIds = S3Service.credentialIdToInstanceMap.get(credentialId);
+                if (affectedBucketIds && affectedBucketIds.size > 0) {
+                    try {
+                        // Decrypt the updated credentials
+                        const updatedCredentials = await decryptObject<S3CredentialDto>(doc.data);
+
+                        // Update all affected S3Service instances
+                        for (const bucketId of affectedBucketIds) {
+                            const instance = S3Service.instances.get(bucketId);
+                            if (instance) {
+                                await instance.init(updatedCredentials);
+                                console.log(
+                                    `Updated S3 credentials for bucket ${bucketId} (credential ${credentialId})`,
+                                );
+                            }
+                        }
+                    } catch (error) {
+                        console.error(
+                            `Failed to update S3 credentials for credential ${credentialId}:`,
+                            error,
+                        );
+                    }
+                }
+            }
+        };
+
+        // Subscribe to database changes
+        db.on("update", S3Service.dbChangeListener);
     }
 
     /**
-     * Creates a Minio client with specific credentials
+     * Initialize or update the S3 client with credentials
      */
-    public createClient(credentials: {
-        endpoint: string;
-        bucketName: string;
-        accessKey: string;
-        secretKey: string;
-        port?: number;
-        useSSL?: boolean;
-    }): Minio.Client {
+    private async init(credentials: S3CredentialDto): Promise<void> {
         // Parse endpoint to extract host and determine SSL/port defaults
         const url = new URL(credentials.endpoint);
         const host = url.hostname;
-        const port =
-            credentials.port || parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
-        const useSSL =
-            credentials.useSSL !== undefined ? credentials.useSSL : url.protocol === "https:";
+        const port = parseInt(url.port) || (url.protocol === "https:" ? 443 : 80);
+        const useSSL = url.protocol === "https:";
 
         const clientConfig: any = {
             endPoint: host,
@@ -38,146 +75,24 @@ export class S3Service {
             region: "auto",
         };
 
-        return new Minio.Client(clientConfig);
+        this.client = new Minio.Client(clientConfig);
+        this.bucketName = credentials.bucketName;
     }
 
     /**
-     * Uploads a file to an S3 bucket using specific credentials
+     * Gets or creates an S3Service instance for the specified bucket
+     * Uses singleton pattern to reuse existing instances
+     * @param bucketId The ID of the StorageDto document in the database
+     * @param db Database service to retrieve bucket configuration and credentials
      */
-    public async uploadFile(
-        client: Minio.Client,
-        bucket: string,
-        key: string,
-        file: Buffer,
-        mimetype: string,
-    ) {
-        const metadata = {
-            "Content-Type": mimetype,
-        };
-        return client.putObject(bucket, key, file, file.length, metadata);
-    }
-
-    /**
-     * Removes objects from a bucket using specific credentials
-     */
-    public async removeObjects(client: Minio.Client, bucket: string, keys: string[]) {
-        return client.removeObjects(bucket, keys);
-    }
-
-    /**
-     * Get an object from a bucket using specific credentials
-     */
-    public async getObject(client: Minio.Client, bucket: string, key: string) {
-        return client.getObject(bucket, key);
-    }
-
-    /**
-     * Checks if a bucket exists using specific credentials
-     */
-    public async bucketExists(client: Minio.Client, bucket: string) {
-        return client.bucketExists(bucket);
-    }
-
-    /**
-     * Creates a bucket using specific credentials
-     */
-    public async makeBucket(client: Minio.Client, bucket: string) {
-        return client.makeBucket(bucket);
-    }
-
-    /**
-     * Removes a bucket using specific credentials
-     */
-    public async removeBucket(client: Minio.Client, bucket: string) {
-        return client.removeBucket(bucket);
-    }
-
-    /**
-     * Lists objects in a bucket using specific credentials
-     */
-    public async listObjects(client: Minio.Client, bucket: string) {
-        return client.listObjects(bucket);
-    }
-
-    /**
-     * Check if an S3 service is reachable using specific credentials
-     */
-    public async checkConnection(client: Minio.Client): Promise<boolean> {
-        // Check if S3 service is reachable by attempting to list buckets
-        try {
-            await client.listBuckets();
-            return true;
-        } catch (_) {
-            return false;
-        }
-    }
-
-    /**
-     * Check if an object exists in a bucket using specific credentials
-     */
-    public async objectExists(client: Minio.Client, bucket: string, key: string): Promise<boolean> {
-        try {
-            await client.statObject(bucket, key);
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    /**
-     * Validate image upload and accessibility using specific credentials
-     */
-    public async validateImageUpload(
-        client: Minio.Client,
-        bucket: string,
-        key: string,
-    ): Promise<{ success: boolean; error?: string }> {
-        try {
-            // Check if bucket exists
-            const bucketExists = await client.bucketExists(bucket);
-            if (!bucketExists) {
-                return { success: false, error: `Bucket '${bucket}' does not exist` };
-            }
-
-            // Try to get object info to verify it was uploaded successfully
-            await client.statObject(bucket, key);
-
-            return { success: true };
-        } catch (error) {
-            return { success: false, error: `Image validation failed: ${error.message}` };
-        }
-    }
-
-    /**
-     * Check if uploaded images are accessible using specific credentials
-     */
-    public async checkImageAccessibility(
-        client: Minio.Client,
-        bucket: string,
-        keys: string[],
-    ): Promise<string[]> {
-        const inaccessibleImages: string[] = [];
-
-        for (const key of keys) {
-            try {
-                await client.statObject(bucket, key);
-            } catch (error) {
-                inaccessibleImages.push(key);
-            }
+    static async create(bucketId: string, db: DbService): Promise<S3Service> {
+        // Return existing instance if available
+        if (S3Service.instances.has(bucketId)) {
+            return S3Service.instances.get(bucketId)!;
         }
 
-        return inaccessibleImages;
-    }
-
-    /**
-     * Creates an S3 client from a bucket configuration stored in the database
-     * Handles both embedded credentials and encrypted credential references
-     */
-    public async createClientFromBucket(
-        bucketId: string,
-        db: any, // DbService type
-    ): Promise<{ client: Minio.Client; bucketName: string }> {
-        const { retrieveCryptoData } = await import("../util/encryption");
+        // Create new instance
+        const service = new S3Service();
 
         // Get bucket configuration
         const result = await db.getDoc(bucketId);
@@ -187,66 +102,200 @@ export class S3Service {
 
         const bucket = result.docs[0];
 
-        let credentials: {
-            endpoint: string;
-            bucketName: string;
-            accessKey: string;
-            secretKey: string;
-        };
-
-        if (bucket.credential) {
-            // Use embedded credentials
-            credentials = {
-                endpoint: bucket.credential.endpoint,
-                bucketName: bucket.credential.bucketName!,
-                accessKey: bucket.credential.accessKey!,
-                secretKey: bucket.credential.secretKey!,
-            };
-        } else if (bucket.credential_id) {
-            // Use reference to encrypted credentials
-            const decrypted = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
-            credentials = {
-                endpoint: decrypted.endpoint,
-                bucketName: decrypted.bucketName!,
-                accessKey: decrypted.accessKey!,
-                secretKey: decrypted.secretKey!,
-            };
-        } else {
+        // Credentials are stored encrypted via credential_id reference
+        if (!bucket.credential_id) {
             throw new Error("No credentials configured for bucket");
         }
 
-        return {
-            client: this.createClient(credentials),
-            bucketName: credentials.bucketName,
-        };
+        service.credentialId = bucket.credential_id;
+
+        // Retrieve encrypted credentials
+        const credentials = await retrieveCryptoData<S3CredentialDto>(db, bucket.credential_id);
+
+        // Initialize the service with credentials
+        await service.init(credentials);
+
+        // Store instance in cache
+        S3Service.instances.set(bucketId, service);
+
+        // Track credential ID to bucket ID mapping for change listener
+        if (!S3Service.credentialIdToInstanceMap.has(bucket.credential_id)) {
+            S3Service.credentialIdToInstanceMap.set(bucket.credential_id, new Set());
+        }
+        S3Service.credentialIdToInstanceMap.get(bucket.credential_id)!.add(bucketId);
+
+        return service;
     }
 
     /**
-     * Check bucket connectivity with specific credentials
+     * Clears the instance cache. Useful for testing or when credentials change.
+     * @param bucketId Optional bucket ID to clear a specific instance. If not provided, clears all.
      */
-    public async checkBucketConnectivity(credentials: {
-        endpoint: string;
-        bucketName: string;
-        accessKey: string;
-        secretKey: string;
-        port?: number;
-        useSSL?: boolean;
-    }): Promise<{
-        status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
+    static clearCache(bucketId?: string): void {
+        if (bucketId) {
+            const instance = S3Service.instances.get(bucketId);
+            if (instance) {
+                // Remove from credential mapping
+                const credentialSet = S3Service.credentialIdToInstanceMap.get(
+                    instance.credentialId,
+                );
+                if (credentialSet) {
+                    credentialSet.delete(bucketId);
+                    if (credentialSet.size === 0) {
+                        S3Service.credentialIdToInstanceMap.delete(instance.credentialId);
+                    }
+                }
+            }
+            S3Service.instances.delete(bucketId);
+        } else {
+            S3Service.instances.clear();
+            S3Service.credentialIdToInstanceMap.clear();
+        }
+    }
+
+    /**
+     * Get the Minio client instance
+     */
+    public getClient(): Minio.Client {
+        return this.client;
+    }
+
+    /**
+     * Get the bucket name
+     */
+    public getBucketName(): string {
+        return this.bucketName;
+    }
+
+    /**
+     * Uploads a file to an S3 bucket
+     */
+    public async uploadFile(key: string, file: Buffer, mimetype: string) {
+        const metadata = {
+            "Content-Type": mimetype,
+        };
+        return this.client.putObject(this.bucketName, key, file, file.length, metadata);
+    }
+
+    /**
+     * Removes objects from a bucket
+     */
+    public async removeObjects(keys: string[]) {
+        return this.client.removeObjects(this.bucketName, keys);
+    }
+
+    /**
+     * Get an object from a bucket
+     */
+    public async getObject(key: string) {
+        return this.client.getObject(this.bucketName, key);
+    }
+
+    /**
+     * Checks if a bucket exists
+     */
+    public async bucketExists() {
+        return this.client.bucketExists(this.bucketName);
+    }
+
+    /**
+     * Creates a bucket. We are not using this in production code, but it is useful for testing.
+     */
+    public async makeBucket() {
+        return this.client.makeBucket(this.bucketName);
+    }
+
+    /**
+     * Removes a bucket. We are not using this in production code, but it is useful for testing.
+     */
+    public async removeBucket() {
+        return this.client.removeBucket(this.bucketName);
+    }
+
+    /**
+     * Lists objects in a bucket
+     */
+    public async listObjects() {
+        return this.client.listObjects(this.bucketName);
+    }
+
+    /**
+     * Check if an S3 service is reachable
+     */
+    public async checkConnection(): Promise<boolean> {
+        // Check if S3 service is reachable by attempting to list buckets
+        try {
+            await this.client.listBuckets();
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if an object exists in a bucket
+     */
+    public async objectExists(key: string): Promise<boolean> {
+        try {
+            await this.client.statObject(this.bucketName, key);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Validate image upload and accessibility
+     */
+    public async validateImageUpload(key: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            // Check if bucket exists
+            const bucketExists = await this.client.bucketExists(this.bucketName);
+            if (!bucketExists) {
+                return { success: false, error: `Bucket '${this.bucketName}' does not exist` };
+            }
+
+            // Try to get object info to verify it was uploaded successfully
+            await this.client.statObject(this.bucketName, key);
+
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: `Image validation failed: ${error.message}` };
+        }
+    }
+
+    /**
+     * Check if uploaded images are accessible
+     */
+    public async checkImageAccessibility(keys: string[]): Promise<string[]> {
+        const inaccessibleImages: string[] = [];
+
+        for (const key of keys) {
+            try {
+                await this.client.statObject(this.bucketName, key);
+            } catch (error) {
+                inaccessibleImages.push(key);
+            }
+        }
+
+        return inaccessibleImages;
+    }
+
+    /**
+     * Check bucket connectivity using internal credentials
+     */
+    public async checkBucketConnectivity(): Promise<{
+        status: "connected" | "unreachable" | "unauthorized" | "not-found";
         message?: string;
     }> {
         try {
-            const testClient = this.createClient(credentials);
-
-            // Check if the specific bucket exists (works for all S3-compatible services)
-            const exists = await testClient.bucketExists(credentials.bucketName);
+            // Check if the bucket exists using the internal client
+            const exists = await this.client.bucketExists(this.bucketName);
             if (!exists) {
-                console.log(
-                    `Bucket '${credentials.bucketName}' does not exist on the storage provider.`,
-                );
+                console.log(`Bucket '${this.bucketName}' does not exist on the storage provider.`);
                 return {
                     status: "not-found",
-                    message: `Bucket '${credentials.bucketName}' does not exist`,
+                    message: `Bucket '${this.bucketName}' does not exist`,
                 };
             }
 

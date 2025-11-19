@@ -24,10 +24,7 @@ export type BucketStatusResponseDto = {
 
 @Controller("storage")
 export class StorageController {
-    constructor(
-        private readonly s3Service: S3Service,
-        private readonly dbService: DbService,
-    ) {}
+    constructor(private readonly dbService: DbService) {}
 
     @Get("storagestatus")
     @UseGuards(AuthGuard)
@@ -79,51 +76,19 @@ export class StorageController {
                 );
             }
 
-            // Get credentials - either embedded or from encrypted storage
-            let credentials: {
-                endpoint: string;
-                bucketName: string;
-                accessKey: string;
-                secretKey: string;
-            };
-
-            if (bucket.credential) {
-                // Embedded credentials
-                credentials = {
-                    endpoint: bucket.credential.endpoint,
-                    bucketName: bucket.credential.bucketName,
-                    accessKey: bucket.credential.accessKey,
-                    secretKey: bucket.credential.secretKey,
-                };
-            } else if (bucket.credential_id) {
-                // Encrypted credentials in separate document
-                try {
-                    const decrypted = await retrieveCryptoData<S3CredentialDto>(
-                        this.dbService,
-                        bucket.credential_id,
-                    );
-
-                    credentials = {
-                        endpoint: decrypted.endpoint,
-                        bucketName: decrypted.bucketName,
-                        accessKey: decrypted.accessKey,
-                        secretKey: decrypted.secretKey,
-                    };
-                } catch (err) {
-                    return {
-                        status: "not-found",
-                        message: `Credentials not found for bucket: ${bucket.name}`,
-                    };
-                }
-            } else {
+            // Verify bucket has credentials configured
+            if (!bucket.credential_id) {
                 return {
                     status: "no-credentials",
                     message: `No credentials configured for bucket: ${bucket.name}`,
                 };
             }
 
+            // Create S3Service instance for this bucket
+            const s3Service = await S3Service.create(bucketId, this.dbService);
+
             // Use S3Service method to check bucket connectivity
-            const result = await this.s3Service.checkBucketConnectivity(credentials);
+            const result = await s3Service.checkBucketConnectivity();
 
             return result;
         } catch (error) {

@@ -10,6 +10,7 @@ import { DbService } from "../db/db.service";
 import { v4 as uuidv4 } from "uuid";
 import { BucketType, DocType } from "../enums";
 
+// TODO: S3Service is no longer injectable. Update to instantiate S3Service directly with credentials.
 describe("S3ImageHandler", () => {
     let service: S3Service;
     let testClient: Minio.Client;

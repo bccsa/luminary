@@ -3,17 +3,14 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { S3Service } from "../s3/s3.service";
 import waitForExpect from "wait-for-expect";
 
 describe("processChangeRequest", () => {
     let db: DbService;
-    let s3: S3Service;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-change-request");
         db = testingModule.dbService;
-        s3 = testingModule.s3Service;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -23,13 +20,11 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3).catch(
-            (err) => {
-                expect(err.message).toBe(
-                    `Submitted "undefined" document validation failed:\nInvalid document type`,
-                );
-            },
-        );
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db).catch((err) => {
+            expect(err.message).toBe(
+                `Submitted "undefined" document validation failed:\nInvalid document type`,
+            );
+        });
     });
 
     // TODO: Reactivate change diffs in change requests - https://github.com/bccsa/luminary/issues/442
@@ -63,16 +58,17 @@ describe("processChangeRequest", () => {
                 },
             },
         };
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
         const processResult = await processChangeRequest(
             "",
             changeRequest2,
             ["group-super-admins"],
             db,
-            s3,
         );
         await waitForExpect(() => {
-            expect(processResult.result.message).toBe("Document is identical to the one in the database");
+            expect(processResult.result.message).toBe(
+                "Document is identical to the one in the database",
+            );
             expect(processResult.result.changes).toBeUndefined();
         });
     });

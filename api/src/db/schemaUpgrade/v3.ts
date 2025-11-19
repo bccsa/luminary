@@ -3,7 +3,6 @@ import { DbService } from "../db.service";
 import { TagDto } from "../../dto/TagDto";
 import { ImageDto } from "../../dto/ImageDto";
 import { ImageUploadDto } from "../../dto/ImageUploadDto";
-import { S3Service } from "../../s3/s3.service";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { GroupDto } from "../../dto/GroupDto";
@@ -13,7 +12,7 @@ import { DocType } from "../../enums";
  * Upgrade the database schema from version 2 to 3
  * Update image field to imageData field in PostDto and TagDto documents and upload images to S3
  */
-export default async function (db: DbService, s3: S3Service) {
+export default async function (db: DbService) {
     const schemaVersion = await db.getSchemaVersion();
     if (schemaVersion == 2) {
         console.info("Upgrading database schema from version 2 to 3");
@@ -60,7 +59,6 @@ export default async function (db: DbService, s3: S3Service) {
                         changeReq,
                         groupIds,
                         db,
-                        s3,
                     );
                 } catch (e) {
                     let message = e.message;
