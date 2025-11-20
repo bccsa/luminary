@@ -405,6 +405,15 @@ onMounted(async () => {
         const durationTime = player?.duration() || 0;
 
         if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
+
+        // For YouTube videos, check if we're at the end (within 0.5 seconds) and remove progress
+        // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
+        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 0.5) {
+            // Video has reached the end, remove progress
+            removeMediaProgress(props.content.video, props.content._id);
+            return;
+        }
+
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
     });
 
