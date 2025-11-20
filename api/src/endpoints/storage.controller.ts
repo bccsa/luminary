@@ -11,8 +11,6 @@ import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
-import { retrieveCryptoData } from "../util/encryption";
-import { S3CredentialDto } from "../dto/S3CredentialDto";
 import { processJwt } from "../jwt/processJwt";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AclPermission, DocType } from "../enums";

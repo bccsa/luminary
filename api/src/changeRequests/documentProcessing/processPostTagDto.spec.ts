@@ -1,5 +1,4 @@
 import { DbService } from "../../db/db.service";
-import { S3Service } from "../../s3/s3.service";
 import { PostDto } from "../../dto/PostDto";
 import { createTestingModule } from "../../test/testingModule";
 import { PermissionSystem } from "../../permissions/permissions.service";
