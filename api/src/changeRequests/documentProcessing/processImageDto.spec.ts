@@ -74,7 +74,7 @@ describe("S3ImageHandler", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -98,7 +98,7 @@ describe("S3ImageHandler", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -132,7 +132,7 @@ describe("S3ImageHandler", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -264,7 +264,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -410,7 +410,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -470,7 +470,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -593,7 +593,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -616,7 +616,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -644,7 +644,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
@@ -667,7 +667,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         image.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
                 ) as unknown as ArrayBuffer,
                 preset: "default",
             },
