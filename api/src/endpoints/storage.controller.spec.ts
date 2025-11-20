@@ -5,31 +5,23 @@ import { StorageController } from "./storage.controller";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
-import * as encryption from "../util/encryption";
 import * as jwtModule from "../jwt/processJwt";
 import * as permissionsService from "../permissions/permissions.service";
+import { DocType } from "../enums";
+import { v4 as uuidv4 } from "uuid";
 
-// TODO: S3Service is no longer injectable. Update to instantiate S3Service directly with credentials.
 describe("StorageController", () => {
     let app: INestApplication;
-    const mockCreateClient = jest.fn();
     const mockCheckBucketConnectivity = jest.fn();
     const mockGetDoc = jest.fn();
-    const mockRetrieve = jest.fn();
     const mockProcessJwt = jest.fn();
     const mockVerifyAccess = jest.fn();
+    const mockS3ServiceCreate = jest.fn();
 
     beforeAll(async () => {
-        const module: TestingModule = await Test.createTestingModule({
+        const testingModule: TestingModule = await Test.createTestingModule({
             controllers: [StorageController],
             providers: [
-                {
-                    provide: S3Service,
-                    useValue: {
-                        createClient: mockCreateClient,
-                        checkBucketConnectivity: mockCheckBucketConnectivity,
-                    },
-                },
                 {
                     provide: DbService,
                     useValue: {
@@ -42,23 +34,24 @@ describe("StorageController", () => {
             .useValue({ canActivate: () => true })
             .compile();
 
-        app = module.createNestApplication();
+        app = testingModule.createNestApplication();
         app.useGlobalPipes(new ValidationPipe());
         await app.init();
     });
 
     afterAll(async () => {
         await app.close();
+        S3Service.clearCache();
     });
 
     beforeEach(() => {
         // Reset mocks and re-establish spies so each test sets its own mock implementations
         jest.resetAllMocks();
-        jest.spyOn(encryption, "retrieveCryptoData").mockImplementation(mockRetrieve);
         jest.spyOn(jwtModule, "processJwt").mockImplementation(mockProcessJwt);
         jest.spyOn(permissionsService.PermissionSystem, "verifyAccess").mockImplementation(
             mockVerifyAccess,
         );
+        jest.spyOn(S3Service, "create").mockImplementation(mockS3ServiceCreate);
 
         // Default mocks
         mockProcessJwt.mockResolvedValue({
@@ -66,20 +59,24 @@ describe("StorageController", () => {
             userId: "user-123",
         });
         mockVerifyAccess.mockReturnValue(true);
+
+        // Default S3Service mock - returns a service instance with checkBucketConnectivity
+        mockS3ServiceCreate.mockResolvedValue({
+            checkBucketConnectivity: mockCheckBucketConnectivity,
+        });
     });
 
     describe("GET /storage/storagestatus", () => {
         it("should return connected status when bucket is accessible", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential: {
-                    endpoint: "http://localhost:9000",
-                    bucketName: "test-bucket",
-                    accessKey: "testAccessKey",
-                    secretKey: "testSecretKey",
-                },
+                credential_id: credentialId,
             };
 
             mockGetDoc.mockResolvedValueOnce({
@@ -92,7 +89,7 @@ describe("StorageController", () => {
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -100,52 +97,48 @@ describe("StorageController", () => {
                 status: "connected",
             });
 
-            expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
-            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
-                endpoint: "http://localhost:9000",
-                bucketName: "test-bucket",
-                accessKey: "testAccessKey",
-                secretKey: "testSecretKey",
-            });
+            expect(mockGetDoc).toHaveBeenCalledWith(bucketId);
+            expect(mockS3ServiceCreate).toHaveBeenCalledWith(bucketId, expect.any(Object));
+            expect(mockCheckBucketConnectivity).toHaveBeenCalled();
         });
 
         it("should return not-found when bucket document does not exist", async () => {
-            mockGetDoc.mockResolvedValue({
+            const nonExistentBucketId = `bucket-${uuidv4()}`;
+
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [],
             });
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId: nonExistentBucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
             expect(response.body).toEqual({
                 status: "not-found",
-                message: "Bucket configuration not found: bucket-123",
+                message: `Bucket configuration not found: ${nonExistentBucketId}`,
             });
 
-            expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
+            expect(mockGetDoc).toHaveBeenCalledWith(nonExistentBucketId);
+            expect(mockS3ServiceCreate).not.toHaveBeenCalled();
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
         it("should handle bucket with encrypted credentials", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential_id: "cred-456",
+                credential_id: credentialId,
             };
 
-            // Simulate bucket doc with credential_id
-            mockGetDoc.mockResolvedValueOnce({ docs: [mockBucket] });
-
-            // Mock retrieveCryptoData to return the decrypted credential object
-            mockRetrieve.mockResolvedValueOnce({
-                endpoint: "http://localhost:9000",
-                bucketName: "decryptedBucketName",
-                accessKey: "decryptedAccessKey",
-                secretKey: "decryptedSecretKey",
+            mockGetDoc.mockResolvedValueOnce({
+                docs: [mockBucket],
             });
 
             mockCheckBucketConnectivity.mockResolvedValue({
@@ -154,7 +147,7 @@ describe("StorageController", () => {
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -162,58 +155,58 @@ describe("StorageController", () => {
                 status: "connected",
             });
 
-            expect(mockGetDoc).toHaveBeenCalledTimes(1);
-            expect(mockGetDoc).toHaveBeenCalledWith("bucket-123");
-
-            // Check that the decrypted credentials were used
-            expect(mockCheckBucketConnectivity).toHaveBeenCalledWith({
-                endpoint: "http://localhost:9000",
-                bucketName: "decryptedBucketName",
-                accessKey: "decryptedAccessKey",
-                secretKey: "decryptedSecretKey",
-            });
+            expect(mockGetDoc).toHaveBeenCalledWith(bucketId);
+            expect(mockS3ServiceCreate).toHaveBeenCalledWith(bucketId, expect.any(Object));
+            expect(mockCheckBucketConnectivity).toHaveBeenCalled();
         });
 
         it("should return not-found when encrypted credentials are missing", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential_id: "cred-456",
+                credential_id: "non-existent-cred-id",
             };
 
-            mockGetDoc.mockResolvedValueOnce({ docs: [mockBucket] });
-            mockRetrieve.mockRejectedValueOnce(new Error("Credentials not found"));
+            mockGetDoc.mockResolvedValueOnce({
+                docs: [mockBucket],
+            });
+            // S3Service.create will fail when credentials can't be retrieved
+            mockS3ServiceCreate.mockRejectedValueOnce(new Error("Credentials not found"));
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
             expect(response.body).toEqual({
-                status: "not-found",
-                message: "Credentials not found for bucket: test-bucket",
+                status: "unreachable",
+                message: "Error checking bucket status: Credentials not found",
             });
 
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
         it("should return no-credentials when bucket has no credentials", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                // No credential or credential_id fields
+                // No credential_id field
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -224,19 +217,18 @@ describe("StorageController", () => {
         });
 
         it("should return unreachable status when bucket cannot be reached", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential: {
-                    endpoint: "http://invalid-endpoint:9000",
-                    bucketName: "test-bucket",
-                    accessKey: "testAccessKey",
-                    secretKey: "testSecretKey",
-                },
+                credential_id: credentialId,
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
@@ -247,7 +239,7 @@ describe("StorageController", () => {
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -258,19 +250,18 @@ describe("StorageController", () => {
         });
 
         it("should return unauthorized status when credentials are invalid", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential: {
-                    endpoint: "http://localhost:9000",
-                    bucketName: "test-bucket",
-                    accessKey: "wrongAccessKey",
-                    secretKey: "wrongSecretKey",
-                },
+                credential_id: credentialId,
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
@@ -281,7 +272,7 @@ describe("StorageController", () => {
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -292,19 +283,18 @@ describe("StorageController", () => {
         });
 
         it("should return connected when credentials are valid", async () => {
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-public-users"],
-                credential: {
-                    endpoint: "http://localhost:9000",
-                    bucketName: "test-bucket",
-                    accessKey: "testAccessKey",
-                    secretKey: "testSecretKey",
-                },
+                credential_id: credentialId,
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
@@ -315,7 +305,7 @@ describe("StorageController", () => {
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(200);
@@ -326,7 +316,7 @@ describe("StorageController", () => {
         });
 
         it("should handle errors gracefully", async () => {
-            mockGetDoc.mockRejectedValue(new Error("Database connection failed"));
+            mockGetDoc.mockRejectedValueOnce(new Error("Database connection failed"));
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
@@ -352,28 +342,28 @@ describe("StorageController", () => {
         it("should deny access when user lacks permissions", async () => {
             mockVerifyAccess.mockReturnValue(false);
 
+            const bucketId = `bucket-${uuidv4()}`;
+            const credentialId = `cred-${uuidv4()}`;
+
             const mockBucket = {
-                _id: "bucket-123",
+                _id: bucketId,
+                type: DocType.Storage,
                 name: "test-bucket",
                 memberOf: ["group-admin"],
-                credential: {
-                    endpoint: "http://localhost:9000",
-                    bucketName: "test-bucket",
-                    accessKey: "testAccessKey",
-                    secretKey: "testSecretKey",
-                },
+                credential_id: credentialId,
             };
 
-            mockGetDoc.mockResolvedValue({
+            mockGetDoc.mockResolvedValueOnce({
                 docs: [mockBucket],
             });
 
             const response = await request(app.getHttpServer())
                 .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" })
+                .query({ bucketId, apiVersion: "0.0.0" })
                 .set("Authorization", "Bearer fake-token");
 
             expect(response.status).toBe(403);
+            expect(mockS3ServiceCreate).not.toHaveBeenCalled();
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
