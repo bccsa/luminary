@@ -10,11 +10,10 @@ import { SearchController } from "./endpoints/search.controller";
 import { SearchService } from "./endpoints/search.service";
 import { ChangeRequestService } from "./endpoints/changeRequest.service";
 import { ChangeRequestController } from "./endpoints/changeRequest.controller";
-import { StorageController } from "./endpoints/storage.controller";
-import { StorageService } from "./endpoints/storage.service";
 import * as winston from "winston";
 import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
+import { StorageStatusController } from "./endpoints/storageStatus.controller";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -54,15 +53,8 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         SearchController,
         ChangeRequestController,
         QueryController,
-        StorageController,
+        StorageStatusController,
     ],
-    providers: [
-        DbService,
-        Socketio,
-        SearchService,
-        QueryService,
-        ChangeRequestService,
-        StorageService,
-    ],
+    providers: [DbService, Socketio, SearchService, QueryService, ChangeRequestService],
 })
 export class AppModule {}

@@ -21,7 +21,7 @@ export type BucketStatusResponseDto = {
 };
 
 @Controller("storage")
-export class StorageController {
+export class StorageStatusController {
     constructor(private readonly dbService: DbService) {}
 
     @Get("storagestatus")
