@@ -25,6 +25,7 @@ export class ChangeRequestController {
             const body: Record<string, any> = {};
             const files: Array<{ buffer: Buffer; fieldname: string }> = [];
 
+<<<<<<< HEAD
             // Parse Fastify multipart data into body fields and files
             for await (const part of parts) {
                 if (part.type === "file") {
@@ -33,6 +34,35 @@ export class ChangeRequestController {
                 } else {
                     body[part.fieldname] = part.value as string;
                 }
+=======
+        if (files?.length || jsonKey) {
+            const apiVersion = body["apiVersion"];
+            await validateApiVersion(apiVersion);
+
+            // Parse the main JSON payload
+            let parsedData = JSON.parse(body[jsonKey]);
+
+            // Clean prototype pollution keys before processing
+            parsedData = removeDangerousKeys(parsedData);
+
+            // Patch binary data (file buffers) back into placeholders
+            if (files.length > 0) {
+                const baseKey = jsonKey.replace("__json", "");
+
+                // Create a map of fileKey -> file buffer
+                // LFormData sends files as: ${baseKey}__file__${id}
+                // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
+                const fileMap = new Map<string, Buffer>();
+
+                files.forEach((file) => {
+                    // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
+                    // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
+                    const fileKey = file.fieldname;
+                    fileMap.set(fileKey, file.buffer);
+                });
+
+                patchFileData(parsedData, fileMap, baseKey);
+>>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
             }
 
             // Check if this is a multipart form data request (with potential binary data)
