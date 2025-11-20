@@ -87,7 +87,7 @@ const toggleOpen = (item: NavigationEntry) => {
 
 <template>
     <div
-        class="flex max-h-screen grow flex-col gap-y-5 border-r border-zinc-200 bg-zinc-100 px-6 pt-2"
+        class="flex max-h-screen grow flex-col gap-y-5 border-r border-zinc-200 bg-zinc-100 px-2 pt-2"
     >
         <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2">
             <img class="h-8" :src="logo" :alt="appName" />
@@ -105,7 +105,7 @@ const toggleOpen = (item: NavigationEntry) => {
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
                         active-class="bg-zinc-200 text-zinc-950"
-                        class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
+                        class="group flex gap-x-3 rounded-md px-2 py-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
                         v-slot="{ isActive }"
                         @click="$emit('close')"
                     >
@@ -120,7 +120,7 @@ const toggleOpen = (item: NavigationEntry) => {
                     <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
                         <DisclosureButton
                             :class="[
-                                'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
+                                'flex w-full items-center gap-x-3 rounded-md px-2 py-2 text-left text-sm font-semibold leading-6 text-zinc-700',
                             ]"
                             @click="toggleOpen(item)"
                         >
@@ -161,7 +161,7 @@ const toggleOpen = (item: NavigationEntry) => {
             </ul>
         </nav>
         <ul class="shrink-0">
-            <li class="flex w-full flex-col justify-between gap-2 rounded-md p-1 pb-2">
+            <li class="flex w-full flex-col justify-between gap-2 rounded-md px-2 pb-2 pt-1">
                 <OnlineIndicator />
                 <div class="flex w-full items-center">
                     <ProfileMenu />

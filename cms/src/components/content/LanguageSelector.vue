@@ -8,9 +8,12 @@ import LDropdown from "../common/LDropdown.vue";
 type Props = {
     parent?: ContentParentDto;
     content?: ContentDto[];
+    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
 };
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    placement: "bottom-end",
+});
 
 const emit = defineEmits(["createTranslation"]);
 
@@ -22,7 +25,12 @@ const languagePopup = ref();
 
 <template>
     <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
-        <LDropdown padding="none" data-test="languagePopup" :show="showSelector">
+        <LDropdown
+            padding="none"
+            data-test="languagePopup"
+            :show="showSelector"
+            :placement="props.placement"
+        >
             <ul>
                 <div class="py-1">
                     <li v-for="language in languages" :key="language.languageCode">

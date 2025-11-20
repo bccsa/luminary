@@ -626,7 +626,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                 data-test="no-content"
                                 class="mb-3 flex flex-col items-center justify-center"
                             >
-                                <div class="relative flex flex-col-reverse items-center">
+                                <div class="relative flex flex-col items-center">
                                     <LButton
                                         :icon="PlusIcon"
                                         class="h-max w-fit"
@@ -635,8 +635,9 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                         data-test="add-translation-button"
                                         aria-label="Add translation"
                                     ></LButton>
-
-                                    <div class="absolute bottom-10">
+                                    <div
+                                        class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2"
+                                    >
                                         <LanguageSelector
                                             data-test="placeholder-language-selector"
                                             :parent="editableParent"
@@ -644,6 +645,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                                             :languages="untranslatedLanguages"
                                             v-model:show-selector="showLanguageSelector"
                                             @create-translation="createTranslation"
+                                            placement="top-center"
                                         />
                                     </div>
                                 </div>
