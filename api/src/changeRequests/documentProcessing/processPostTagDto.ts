@@ -3,7 +3,7 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
-import { processImage } from "../../s3/s3.imagehandling";
+import { processImage } from "./processImageDto";
 
 /**
  * Process Post / Tag DTO
