@@ -14,7 +14,7 @@ import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
-import { ClockIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { ClockIcon, TagIcon, UserGroupIcon, UserIcon } from "@heroicons/vue/24/outline";
 import router from "@/router";
 import { cmsDefaultLanguage, isSmallScreen } from "@/globalConfig";
 
@@ -122,8 +122,11 @@ const navigateToLanguage = (language: LanguageDto) => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                <div class="mr-1 truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
+                    <span class="truncate text-sm">{{
+                        contentDoc.updatedBy ? ` - Last edited by ${contentDoc.updatedBy}` : ""
+                    }}</span>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
@@ -178,8 +181,8 @@ const navigateToLanguage = (language: LanguageDto) => {
             </RouterLink>
         </div>
 
-        <div class="flex w-full items-center gap-2 py-1 text-xs">
-            <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
+        <div class="flex w-full items-center justify-between gap-2 py-1 text-xs">
+            <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1">
                 <div>
                     <TagIcon class="h-4 w-4 text-zinc-400" />
                 </div>
@@ -189,7 +192,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                     </LBadge>
                 </div>
             </div>
-            <span class="flex w-1/2 items-center gap-1 text-xs text-zinc-400" v-else>
+            <span class="flex items-center gap-1 text-xs text-zinc-400" v-else>
                 <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
@@ -221,11 +224,9 @@ const navigateToLanguage = (language: LanguageDto) => {
                     {{ group.name }}
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="text-zinc-340 mr-[1px] h-4 w-4" />
-                <span title="Last Updated">{{
-                    renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
-                }}</span>
+
+            <div class="flex items-center gap-1 text-xs text-zinc-400">
+                <UserIcon class="h-4 w-4 text-zinc-400" />
             </div>
         </div>
     </div>
