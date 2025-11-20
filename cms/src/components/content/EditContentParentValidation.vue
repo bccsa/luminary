@@ -20,7 +20,7 @@ import {
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
-import { isSmallScreen, isMobileScreen } from "@/globalConfig";
+import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     languages: LanguageDto[];
@@ -45,84 +45,41 @@ const overallIsValid = ref(true);
 const showLanguageSelector = ref(false);
 const isLanguageSelectorCollapsed = ref(false);
 const languageSelector = ref<HTMLElement>();
-const isLanguageSelectorSticky = ref(false);
 
-// Scroll-based detection instead of intersection observer
-let scrollContainer: HTMLElement | null = null;
-let stickyThreshold = 0;
-let isTransitioning = false;
+// Check if card is close to topbar
+const checkTopbarCollision = () => {
+    if (!languageSelector.value) return;
 
-const checkStickyState = () => {
-    if (!scrollContainer || !languageSelector.value || isTransitioning) return;
+    // Only run on small screens or when testing
+    if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
-    const scrollTop = scrollContainer.scrollTop;
+    const topbar = document.querySelector('[class*="sticky top-0 z-40"]') as HTMLElement;
 
-    // Add hysteresis - different thresholds for collapsing vs expanding
-    const collapseThreshold = stickyThreshold;
-    const expandThreshold = stickyThreshold - 50; // 50px buffer
+    const topbarBottom = topbar.getBoundingClientRect().bottom;
+    const cardTop = languageSelector.value.getBoundingClientRect().top;
+    const distance = cardTop - topbarBottom;
 
-    const shouldBeSticky = isLanguageSelectorSticky.value
-        ? scrollTop > expandThreshold
-        : scrollTop > collapseThreshold;
-
-    if (shouldBeSticky !== isLanguageSelectorSticky.value) {
-        isLanguageSelectorSticky.value = shouldBeSticky;
-        isTransitioning = true;
-
-        // Update collapse state based on sticky state
-        if (isMobileScreen.value) {
-            if (shouldBeSticky) {
-                setTimeout(() => {
-                    if (isLanguageSelectorSticky.value) {
-                        isLanguageSelectorCollapsed.value = true;
-                        isTransitioning = false;
-                    }
-                }, 150);
-            } else {
-                isLanguageSelectorCollapsed.value = false;
-                setTimeout(() => {
-                    isTransitioning = false;
-                }, 150);
-            }
-        }
-    }
+    // Collapse if card is within 25px of topbar (give more buffer)
+    const shouldCollapse = distance <= 25;
+    isLanguageSelectorCollapsed.value = shouldCollapse;
 };
 
 onMounted(() => {
-    setTimeout(() => {
-        if (!isSmallScreen.value || import.meta.env.MODE == "test") return;
-        if (languageSelector.value) {
-            scrollContainer = document.querySelector(".max-h-screen.overflow-scroll");
-            if (!scrollContainer) return;
+    // Run on small screens or when testing
+    if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
-            // Find the element that's above this card to calculate where sticky should happen
-            const prevElement = languageSelector.value.previousElementSibling;
-            if (prevElement) {
-                const prevRect = prevElement.getBoundingClientRect();
-                const containerRect = scrollContainer.getBoundingClientRect();
+    // Add window scroll listener for topbar collision check
+    window.addEventListener("scroll", checkTopbarCollision, { passive: true });
 
-                stickyThreshold = prevRect.bottom - containerRect.top + scrollContainer.scrollTop;
-            } else {
-                const cardRect = languageSelector.value.getBoundingClientRect();
-                const containerRect = scrollContainer.getBoundingClientRect();
+    // Also listen to any scroll events that might affect positioning
+    document.addEventListener("scroll", checkTopbarCollision, { passive: true, capture: true });
 
-                stickyThreshold = cardRect.top - containerRect.top + scrollContainer.scrollTop;
-            }
-
-            // Add scroll listener
-            scrollContainer.addEventListener("scroll", checkStickyState, { passive: true });
-
-            // Initial check
-            checkStickyState();
-        }
-    }, 100);
+    // Initial check
+    setTimeout(() => checkTopbarCollision(), 100);
 });
 
 onUnmounted(() => {
-    if (scrollContainer) {
-        scrollContainer.removeEventListener("scroll", checkStickyState);
-        scrollContainer = null;
-    }
+    window.removeEventListener("scroll", checkTopbarCollision);
 });
 
 const router = useRouter();
@@ -244,7 +201,6 @@ watch(
                         @isValid="(val) => setOverallValidation(content._id, val)"
                         :existingContent="existingContent?.find((c) => c._id == content._id)"
                         :can-delete="canDelete"
-                        :isLanguageSelectorSticky="isLanguageSelectorSticky"
                         :isCardCollapsed="isLanguageSelectorCollapsed"
                     />
                 </div>

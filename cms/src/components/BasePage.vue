@@ -133,21 +133,20 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     <slot name="internalPageHeader" />
                 </div>
                 <div
-                    class="max-h-full"
+                    class="flex flex-1 flex-col overflow-hidden"
                     :class="isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8'"
                 >
                     <div
-                        class="relative z-0 h-full flex-1 overflow-y-auto scrollbar-hide"
+                        class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
                         <slot />
                     </div>
                 </div>
-
                 <div
                     v-if="$slots.footer"
-                    class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:ml-8 lg:pb-4 lg:pr-8"
+                    class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:pb-4 lg:pr-8"
                 >
                     <slot name="footer" />
                 </div>
