@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import * as request from "supertest";
-import { StorageController } from "./storage.controller";
+import { StorageStatusController } from "./storageStatus.controller";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
@@ -20,7 +20,7 @@ describe("StorageController", () => {
 
     beforeAll(async () => {
         const testingModule: TestingModule = await Test.createTestingModule({
-            controllers: [StorageController],
+            controllers: [StorageStatusController],
             providers: [
                 {
                     provide: DbService,
