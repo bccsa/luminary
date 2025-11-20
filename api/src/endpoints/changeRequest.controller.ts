@@ -12,6 +12,8 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
+import { removeDangerousKeys } from "../util/removeDangerousKeys";
+import { patchFileData } from "../util/patchFileData";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -33,36 +35,43 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
-            const apiVersion = body["changeRequestApiVersion"];
+        // Check if this is a multipart form data request (with potential binary data)
+        // LFormData uses __json suffix instead of -JSON
+        const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
+
+        if (files?.length || jsonKey) {
+            const apiVersion = body["apiVersion"];
             await validateApiVersion(apiVersion);
 
-            const changeReqId = JSON.parse(body["changeRequestId"]);
-            const parsedDoc = JSON.parse(body["changeRequestDoc-JSON"]);
+            // Parse the main JSON payload
+            let parsedData = JSON.parse(body[jsonKey]);
 
-            //Only parent documents (Posts and Tags) can have files uploaded,
-            //Child documents only have a reference to the parent document's fileCollection field
-            //without this check it could lead to unexpected behavior or critical errors
+            // Clean prototype pollution keys before processing
+            parsedData = removeDangerousKeys(parsedData);
+
+            // Patch binary data (file buffers) back into placeholders
             if (files.length > 0) {
-                const uploadData = [];
+                const baseKey = jsonKey.replace("__json", "");
 
-                files.forEach((file, index) => {
-                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                // Create a map of fileKey -> file buffer
+                // LFormData sends files as: ${baseKey}__file__${id}
+                // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
+                const fileMap = new Map<string, Buffer>();
 
-                    uploadData.push({
-                        fileData: file.buffer,
-                        filename: fileName,
-                        preset: filePreset,
-                    });
+                files.forEach((file) => {
+                    // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
+                    // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
+                    const fileKey = file.fieldname;
+                    fileMap.set(fileKey, file.buffer);
                 });
 
-                parsedDoc.imageData.uploadData = uploadData;
+                patchFileData(parsedData, fileMap, baseKey);
             }
 
+            // Extract the ChangeReqDto from the parsed data
             const changeRequest: ChangeReqDto = {
-                id: changeReqId,
-                doc: parsedDoc,
+                id: parsedData.id,
+                doc: parsedData.doc,
                 apiVersion,
             };
 
@@ -71,6 +80,8 @@ export class ChangeRequestController {
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
-        return this.changeRequestService.changeRequest(body, token);
+        // Clean prototype pollution from the body before processing
+        const cleanedBody = removeDangerousKeys(body);
+        return this.changeRequestService.changeRequest(cleanedBody, token);
     }
 }
