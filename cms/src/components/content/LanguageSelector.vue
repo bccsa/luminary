@@ -2,16 +2,18 @@
 import LBadge from "@/components/common/LBadge.vue";
 import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
-import { onClickOutside } from "@vueuse/core";
 import { ref } from "vue";
 import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     parent?: ContentParentDto;
     content?: ContentDto[];
+    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
 };
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    placement: "bottom-end",
+});
 
 const emit = defineEmits(["createTranslation"]);
 
@@ -19,15 +21,16 @@ const showSelector = defineModel<boolean>("showSelector", { required: true });
 const languages = defineModel<LanguageDto[]>("languages");
 
 const languagePopup = ref();
-
-onClickOutside(languagePopup, () => {
-    showSelector.value = false;
-});
 </script>
 
 <template>
     <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
-        <LDropdown padding="none" data-test="languagePopup" :show="showSelector">
+        <LDropdown
+            padding="none"
+            data-test="languagePopup"
+            :show="showSelector"
+            :placement="props.placement"
+        >
             <ul>
                 <div class="py-1">
                     <li v-for="language in languages" :key="language.languageCode">

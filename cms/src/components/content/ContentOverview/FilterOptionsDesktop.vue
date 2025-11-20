@@ -105,64 +105,69 @@ onClickOutside(sortOptionsMenu, () => {
                 <LButton @click="showSortOptions = !showSortOptions" data-test="sort-toggle-btn">
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
-
-                <LDropdown
-                    ref="sortOptionsMenu"
-                    :show="showSortOptions"
-                    data-test="sort-options-display"
-                    padding="medium"
-                >
-                    <div class="flex flex-col">
-                        <LRadio
-                            label="Title"
-                            value="title"
-                            v-model="queryOptions.orderBy"
-                            data-test="sort-option-title"
-                        />
-                        <LRadio
-                            label="Expiry Date"
-                            value="expiryDate"
-                            v-model="queryOptions.orderBy"
-                            data-test="sort-option-expiry-date"
-                        />
-                        <LRadio
-                            label="Publish Date"
-                            value="publishDate"
-                            v-model="queryOptions.orderBy"
-                            data-test="sort-option-publish-date"
-                        />
-                        <LRadio
-                            label="Last Updated"
-                            value="updatedTimeUtc"
-                            v-model="queryOptions.orderBy"
-                            data-test="sort-option-last-updated"
-                        />
-                    </div>
-                    <hr class="my-2" />
-                    <div class="flex flex-col gap-1">
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="ascending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'
-                            "
-                            :icon="ArrowUpIcon"
-                            @click="queryOptions.orderDirection = 'asc'"
-                            >Ascending</LButton
-                        >
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="descending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'desc' ? 'bg-zinc-100' : 'bg-white'
-                            "
-                            variant="secondary"
-                            :icon="ArrowDownIcon"
-                            @click="queryOptions.orderDirection = 'desc'"
-                            >Descending</LButton
-                        >
-                    </div>
-                </LDropdown>
+                <div class="absolute right-0 top-12">
+                    <LDropdown
+                        ref="sortOptionsMenu"
+                        :show="showSortOptions"
+                        data-test="sort-options-display"
+                        padding="medium"
+                    >
+                        <div class="flex flex-col">
+                            <LRadio
+                                label="Title"
+                                value="title"
+                                v-model="queryOptions.orderBy"
+                                data-test="sort-option-title"
+                            />
+                            <LRadio
+                                label="Expiry Date"
+                                value="expiryDate"
+                                v-model="queryOptions.orderBy"
+                                data-test="sort-option-expiry-date"
+                            />
+                            <LRadio
+                                label="Publish Date"
+                                value="publishDate"
+                                v-model="queryOptions.orderBy"
+                                data-test="sort-option-publish-date"
+                            />
+                            <LRadio
+                                label="Last Updated"
+                                value="updatedTimeUtc"
+                                v-model="queryOptions.orderBy"
+                                data-test="sort-option-last-updated"
+                            />
+                        </div>
+                        <hr class="my-2" />
+                        <div class="flex flex-col gap-1">
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="ascending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'asc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                :icon="ArrowUpIcon"
+                                @click="queryOptions.orderDirection = 'asc'"
+                                >Ascending</LButton
+                            >
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="descending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'desc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                variant="secondary"
+                                :icon="ArrowDownIcon"
+                                @click="queryOptions.orderDirection = 'desc'"
+                                >Descending</LButton
+                            >
+                        </div>
+                    </LDropdown>
+                </div>
                 <LButton @click="reset()" class="w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>

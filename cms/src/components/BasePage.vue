@@ -32,8 +32,8 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
-    <div class="flex h-full min-h-screen flex-col scrollbar-hide">
-        <div class="sticky top-0 z-20">
+    <div class="flex h-full flex-col overflow-hidden scrollbar-hide">
+        <div class="sticky top-0 z-20 flex-shrink-0">
             <div
                 class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"
                 :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
@@ -92,11 +92,11 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 </TopBar>
             </div>
         </div>
-        <div class="relative flex h-full min-h-0 flex-1 flex-col">
+        <div class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
             <div
                 v-if="!loading"
                 :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
-                class="flex-1 flex-col"
+                class="flex h-full flex-1 flex-col overflow-hidden"
             >
                 <RouterLink
                     v-if="backLinkLocation"
@@ -133,21 +133,20 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     <slot name="internalPageHeader" />
                 </div>
                 <div
-                    class="max-h-full"
+                    class="flex flex-1 flex-col overflow-hidden"
                     :class="isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8'"
                 >
                     <div
-                        class="relative z-0 h-screen flex-1 overflow-y-auto scrollbar-hide"
+                        class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
                         <slot />
                     </div>
                 </div>
-
                 <div
                     v-if="$slots.footer"
-                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:ml-8 lg:pb-4 lg:pr-8"
+                    class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:pb-4 lg:pr-8"
                 >
                     <slot name="footer" />
                 </div>

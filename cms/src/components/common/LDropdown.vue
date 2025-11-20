@@ -6,7 +6,7 @@ defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
     padding?: "small" | "medium" | "large" | "none";
-    placement?: "bottom-end" | "bottom-start";
+    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
 }>();
@@ -73,10 +73,17 @@ const onPanelKeydown = (e: KeyboardEvent) => {
 const placementClasses = computed(() => {
     switch (props.placement) {
         case "bottom-start":
-            return "left-0 top-full";
+            return "left-0 top-full mt-1";
         case "bottom-end":
+            return "right-0 top-full mt-1";
+        case "top-start":
+            return "left-0 bottom-full mb-1";
+        case "top-end":
+            return "right-0 bottom-full mb-1";
+        case "top-center":
+            return "left-1/2 -translate-x-1/2 bottom-full mb-1";
         default:
-            return "right-0 top-full";
+            return "right-0 top-full mt-1";
     }
 });
 
@@ -125,8 +132,12 @@ const widthClass = computed(() => {
             v-show="show"
             ref="panelRef"
             :id="panelId"
-            class="absolute z-[9999] mt-1 origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-            :class="[placementClasses, widthClass]"
+            class="absolute z-[9999] origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            :class="[
+                placementClasses,
+                widthClass,
+                props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
+            ]"
             role="menu"
             data-dropdown-panel
             @keydown="onPanelKeydown"

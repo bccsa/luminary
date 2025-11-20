@@ -54,6 +54,13 @@ vi.mock("vue-router", async (importOriginal) => {
                     },
                 },
             },
+            push: vi.fn(),
+            replace: vi.fn(),
+        }),
+        useRoute: () => ({
+            params: {
+                languageCode: "eng",
+            },
         }),
         onBeforeRouteLeave: vi.fn(),
     };
@@ -293,6 +300,24 @@ describe("EditContent.vue", () => {
             expect(html).toContain("English");
             expect(html).not.toContain("Français");
             expect(html).not.toContain("Swahili");
+        });
+    });
+
+    it("renders 2 language selectors", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: "Language-selector-id",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="placeholder-language-selector"]').exists()).toBe(true);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
         });
     });
 
