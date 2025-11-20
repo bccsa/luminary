@@ -15,6 +15,7 @@ import {
     queryParams,
 } from "@/globalConfig";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
+import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
 type Props = {
     content: ContentDto;
@@ -34,6 +35,18 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
+// YouTube detection
+const isYouTube = ref<boolean>(false);
+
+// Check if the current video is a YouTube video
+if (props.content.video) {
+    isYouTube.value = isYouTubeUrl(props.content.video);
+    if (isYouTube.value) {
+        // hides audio mode toggle for YouTube videos as it's not supported
+        showAudioModeToggle.value = false;
+    }
+}
+
 const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
 
 let timeout: any;
@@ -51,6 +64,10 @@ function playerPlayEventHandler() {
 }
 
 function playerUserActiveEventHandler() {
+    if (isYouTube.value) {
+        showAudioModeToggle.value = false;
+    }
+
     if (audioMode.value) {
         // Always show controls and toggle in audio-only mode
         showAudioModeToggle.value = true;
@@ -123,6 +140,11 @@ function stopKeepAudioAlive() {
 onMounted(async () => {
     const videojs = (await import("video.js")).default;
 
+    // Lazy load videojs-youtube only if we're playing a YouTube video
+    if (isYouTube.value) {
+        await import("videojs-youtube");
+    }
+
     let options = {
         fluid: false,
         html5: {
@@ -147,7 +169,7 @@ onMounted(async () => {
                 "progressControl",
                 "liveDisplay",
                 "fullscreenToggle",
-                "pictureInPictureToggle",
+                ...(isYouTube.value ? [] : ["pictureInPictureToggle"]), // Hide PiP for YouTube videos
                 "playbackRateMenuButton",
                 "volumePanel",
                 "skipBackwardButton",
@@ -168,7 +190,134 @@ onMounted(async () => {
     window.dispatchEvent(playerEvent);
 
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-    player.src({ type: "application/x-mpegURL", src: props.content.video });
+
+    // Set player source based on video type (YouTube vs regular)
+    if (isYouTube.value) {
+        // Hide VideoJS big play button and PiP button immediately for YouTube videos
+        const playerEl = player?.el();
+        if (playerEl) {
+            const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+            if (bigPlayButton instanceof HTMLElement) {
+                bigPlayButton.style.display = "none";
+                bigPlayButton.style.visibility = "hidden";
+                bigPlayButton.style.opacity = "0";
+            }
+
+            const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+            if (pipButton instanceof HTMLElement) {
+                pipButton.style.display = "none";
+                pipButton.style.visibility = "hidden";
+                pipButton.style.opacity = "0";
+            }
+        }
+
+        // Configure YouTube player with branding disabled
+        player.src({
+            type: "video/youtube",
+            src: convertToVideoJSYouTubeUrl(props.content.video!),
+        });
+        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
+        showAudioModeToggle.value = false;
+
+        // Force CSS classes to be properly applied after YouTube iframe loads
+        // YouTube creates an iframe asynchronously, so we need to ensure our CSS is applied after it's ready
+        player.on("ready", () => {
+            // Force repaint by toggling a class
+            const playerEl = player?.el();
+            if (playerEl) {
+                playerEl.classList.add("vjs-youtube-loaded");
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
+                }
+
+                // Hide Picture-in-Picture button for YouTube videos
+                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+                if (pipButton instanceof HTMLElement) {
+                    pipButton.style.display = "none";
+                    pipButton.style.visibility = "hidden";
+                    pipButton.style.opacity = "0";
+                }
+
+                // Use requestAnimationFrame to ensure DOM updates are applied
+                requestAnimationFrame(() => {
+                    playerEl.classList.remove("vjs-youtube-loaded");
+                });
+            }
+        });
+
+        // Also handle the loadedmetadata event for YouTube videos
+        player.on("loadedmetadata", () => {
+            const playerEl = player?.el();
+            if (playerEl) {
+                // Ensure the video-js class and our custom classes are properly applied
+                playerEl.classList.add("video-js");
+
+                // Find the tech element (YouTube iframe wrapper) and ensure it has proper styling
+                const techEl = playerEl.querySelector(".vjs-tech");
+                if (techEl) {
+                    (techEl as HTMLElement).classList.add("vjs-tech");
+                }
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
+                }
+
+                // Hide Picture-in-Picture button for YouTube videos
+                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+                if (pipButton instanceof HTMLElement) {
+                    pipButton.style.display = "none";
+                    pipButton.style.visibility = "hidden";
+                    pipButton.style.opacity = "0";
+                }
+
+                // Restore saved progress for YouTube videos (wait for metadata to be loaded)
+                if (isYouTube.value && props.content.video) {
+                    const progress = getMediaProgress(props.content.video, props.content._id);
+                    if (progress > 60) {
+                        // Use a small delay to ensure YouTube iframe is fully ready
+                        setTimeout(() => {
+                            player?.currentTime(progress - 30);
+                        }, 100);
+                    }
+                }
+            }
+        });
+
+        // Add a slight delay to ensure YouTube iframe is fully initialized
+        // This helps with the initial load issue where styles aren't applied properly
+        setTimeout(() => {
+            const playerEl = player?.el();
+            if (playerEl instanceof HTMLElement) {
+                // Force a style recalculation
+                void playerEl.offsetHeight;
+
+                // Ensure all parent containers have proper classes
+                const videoPlayerContainer = playerEl.closest(".video-player");
+                if (videoPlayerContainer) {
+                    videoPlayerContainer.classList.add("vjs-youtube-container");
+                }
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
+                }
+            }
+        }, 100);
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
@@ -256,21 +405,47 @@ onMounted(async () => {
         const durationTime = player?.duration() || 0;
 
         if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
+
+        // For YouTube videos, check if we're at the end (within 0.5 seconds) and remove progress
+        // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
+        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 0.5) {
+            // Video has reached the end, remove progress
+            removeMediaProgress(props.content.video, props.content._id);
+            return;
+        }
+
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
     player.on("ready", () => {
         if (!props.content.video) return;
-        const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player?.currentTime(progress - 30);
+
+        // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
+        if (!isYouTube.value) {
+            const progress = getMediaProgress(props.content.video, props.content._id);
+            if (progress > 60) player?.currentTime(progress - 30);
+        }
+
+        // For YouTube videos, ensure all CSS classes are properly applied after player is fully ready
+        if (isYouTube.value) {
+            const playerEl = player?.el();
+            if (playerEl instanceof HTMLElement) {
+                // Force a repaint to ensure all styles are applied
+                requestAnimationFrame(() => {
+                    playerEl.offsetHeight; // Trigger reflow
+                    playerEl.classList.add("vjs-youtube-ready");
+                });
+            }
+        }
     });
 
     player.on("ended", () => {
         if (!props.content.video) return;
         stopKeepAudioAlive();
 
-        // Remove player progress on ended
+        // Remove player progress when video fully completes (works for both regular and YouTube videos)
+        // The 'ended' event fires when the video reaches the end, regardless of video source
         removeMediaProgress(props.content.video, props.content._id);
 
         try {
@@ -318,6 +493,11 @@ onUnmounted(() => {
 });
 
 watch(audioMode, async (mode) => {
+    // Skip audio-only mode for YouTube videos as it's not supported
+    if (isYouTube.value) {
+        audioMode.value = false;
+    }
+
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
     player?.userActive(true);
@@ -456,7 +636,7 @@ watch(
             enter-from-class="opacity-0"
         >
             <AudioVideoToggle
-                v-if="showAudioModeToggle"
+                v-if="showAudioModeToggle && !isYouTube"
                 v-model="audioMode"
                 ref="audioModeToggle"
                 class="audio-mode-toggle"

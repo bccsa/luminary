@@ -42,7 +42,7 @@ watch(
             name="video"
             v-model="content.video"
             :icon="LinkIcon"
-            placeholder="https://..."
+            placeholder="https://... or https://youtube.com/..."
             :disabled="disabled"
             class="pb-1"
         />
