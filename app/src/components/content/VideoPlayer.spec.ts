@@ -6,23 +6,34 @@ import { mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 
 // Mock YouTube utilities
-vi.mock("@/util/youtubeUtils", () => ({
+vi.mock("@/util/youtube", () => ({
     isYouTubeUrl: vi.fn((url: string) => {
-        try {
-            const hostname = new URL(url).hostname;
-            const allowedHosts = ["youtube.com", "www.youtube.com"];
-            return allowedHosts.includes(hostname);
-        } catch (_) {
-            return false;
-        }
+        if (!url) return false;
+        const youtubeRegex =
+            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
+        return youtubeRegex.test(url);
     }),
-    convertToVideoJSYouTubeUrl: vi.fn((url: string) => url),
+    convertToVideoJSYouTubeUrl: vi.fn((url: string) => {
+        // Extract video ID and return in VideoJS format
+        const match = url.match(
+            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/,
+        );
+        if (match) {
+            return `https://www.youtube.com/watch?v=${match[1]}`;
+        }
+        return url;
+    }),
 }));
 
 const posterMock = vi.hoisted(() => vi.fn());
 const srcMock = vi.hoisted(() => vi.fn());
+const onMock = vi.hoisted(() => vi.fn());
 
 vi.mock("video.js", () => {
+    // Create a mock DOM element
+    const mockEl = document.createElement("div");
+    mockEl.className = "video-js";
+
     const defaultFunction = () => {
         return {
             browser: {
@@ -31,7 +42,25 @@ vi.mock("video.js", () => {
             poster: posterMock,
             src: srcMock,
             mobileUi: vi.fn(),
-            on: vi.fn(),
+            on: onMock,
+            el: vi.fn(() => mockEl),
+            userActive: vi.fn(),
+            paused: vi.fn(() => true),
+            currentTime: vi.fn(),
+            duration: vi.fn(() => 0),
+            play: vi.fn(),
+            pause: vi.fn(),
+            ready: vi.fn((callback) => {
+                if (callback) callback();
+                return { on: onMock };
+            }),
+            off: vi.fn(),
+            dispose: vi.fn(),
+            isFullscreen: vi.fn(() => false),
+            requestFullscreen: vi.fn(),
+            exitFullscreen: vi.fn(),
+            audioOnlyMode: vi.fn(),
+            audioPosterMode: vi.fn(),
         };
     };
     defaultFunction.browser = {
