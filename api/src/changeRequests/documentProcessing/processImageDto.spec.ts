@@ -1,14 +1,14 @@
-import { ImageDto } from "../dto/ImageDto";
-import { processImage } from "./s3.imagehandling";
-import { S3Service } from "./s3.service";
-import { createTestingModule } from "../test/testingModule";
+import { ImageDto } from "../../dto/ImageDto";
+import { processImage } from "./processImageDto";
+import { S3Service } from "../../s3/s3.service";
+import { createTestingModule } from "../../test/testingModule";
 import * as fs from "fs";
 import * as path from "path";
-import { StorageDto } from "../dto/StorageDto";
-import { DbService } from "../db/db.service";
+import { StorageDto } from "../../dto/StorageDto";
+import { DbService } from "../../db/db.service";
 import { v4 as uuidv4 } from "uuid";
-import { BucketType, DocType } from "../enums";
-import { storeCryptoData } from "../util/encryption";
+import { BucketType, DocType } from "../../enums";
+import { storeCryptoData } from "../../util/encryption";
 
 describe("S3ImageHandler", () => {
     let service: S3Service;

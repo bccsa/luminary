@@ -6,7 +6,7 @@ import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType } from "../../enums";
-import { processImage } from "../../s3/s3.imagehandling";
+import { processImage } from "./processImageDto";
 
 // Mock processImage from s3.imagehandling
 jest.mock("../../s3/s3.imagehandling", () => ({

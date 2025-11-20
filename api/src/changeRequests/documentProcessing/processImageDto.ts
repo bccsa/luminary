@@ -1,14 +1,14 @@
-import { ImageFileDto } from "../dto/ImageFileDto";
-import { ImageDto } from "../dto/ImageDto";
+import { ImageFileDto } from "../../dto/ImageFileDto";
+import { ImageDto } from "../../dto/ImageDto";
 import * as sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
-import { S3Service } from "./s3.service";
-import { ImageUploadDto } from "../dto/ImageUploadDto";
-import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
-import { DbService } from "../db/db.service";
-import { StorageDto } from "../dto/StorageDto";
-import { DocType } from "../enums";
-import configuration from "../configuration";
+import { S3Service } from "../../s3/s3.service";
+import { ImageUploadDto } from "../../dto/ImageUploadDto";
+import { ImageFileCollectionDto } from "../../dto/ImageFileCollectionDto";
+import { DbService } from "../../db/db.service";
+import { StorageDto } from "../../dto/StorageDto";
+import { DocType } from "../../enums";
+import configuration from "../../configuration";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
 
