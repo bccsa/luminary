@@ -54,6 +54,7 @@ const checkTopbarCollision = () => {
     if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
     const topbar = document.querySelector('[class*="sticky top-0 z-40"]') as HTMLElement;
+    if (!topbar) return;
 
     const topbarBottom = topbar.getBoundingClientRect().bottom;
     const cardTop = languageSelector.value.getBoundingClientRect().top;
