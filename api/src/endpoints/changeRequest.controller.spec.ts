@@ -50,82 +50,21 @@ describe("ChangeRequestController", () => {
     };
 
     /**
-     * Helper function to create a placeholder object (simulating what LFormData creates)
+     * Helper function to create a binary reference string (simulating what LFormData creates)
      */
-    const createPlaceholder = (fileId: string, path: string[] = []) => ({
-        __fileId: fileId,
-        __path: path,
-    });
+    const createBinaryRef = (fileId: string): string => {
+        return `BINARY_REF-${fileId}`;
+    };
 
     /**
      * Helper function to simulate LFormData format
-     * Expects changeRequest to already have placeholder objects where binaries should be
+     * Expects changeRequest to already have "BINARY_REF-{id}" strings where binaries should be
      * Creates form data in the format that LFormData generates
      */
     const createLFormDataRequest = (
         changeRequest: any,
-        files: Array<{ fieldname: string; buffer: Buffer; metadata?: Record<string, any> }>,
+        files: Array<{ id: string; buffer: Buffer }>,
     ) => {
-        // Extract placeholders and map them to files
-        const fileMap = new Map<string, { placeholder: any; file: (typeof files)[0] }>();
-        let fileIndex = 0;
-
-        const extractPlaceholders = (obj: any, currentPath: string[] = []): void => {
-            if (obj === null || typeof obj !== "object") return;
-
-            if (Array.isArray(obj)) {
-                obj.forEach((item, i) => {
-                    if (
-                        item &&
-                        typeof item === "object" &&
-                        "__fileId" in item &&
-                        "__path" in item &&
-                        Array.isArray((item as any).__path)
-                    ) {
-                        // This is a placeholder
-                        if (fileIndex < files.length) {
-                            const file = files[fileIndex];
-                            fileMap.set(`changeRequest__file__${fileIndex}`, {
-                                placeholder: item,
-                                file,
-                            });
-                            fileIndex++;
-                        }
-                    } else if (typeof item === "object" && item !== null) {
-                        extractPlaceholders(item, [...currentPath, `[${i}]`]);
-                    }
-                });
-            } else {
-                for (const [key, value] of Object.entries(obj)) {
-                    if (key === "__proto__" || key === "constructor" || key === "prototype") {
-                        continue;
-                    }
-
-                    if (
-                        value &&
-                        typeof value === "object" &&
-                        "__fileId" in value &&
-                        "__path" in value &&
-                        Array.isArray((value as any).__path)
-                    ) {
-                        // This is a placeholder
-                        if (fileIndex < files.length) {
-                            const file = files[fileIndex];
-                            fileMap.set(`changeRequest__file__${fileIndex}`, {
-                                placeholder: value,
-                                file,
-                            });
-                            fileIndex++;
-                        }
-                    } else if (typeof value === "object" && value !== null) {
-                        extractPlaceholders(value, [...currentPath, key]);
-                    }
-                }
-            }
-        };
-
-        extractPlaceholders(changeRequest);
-
         // Build the request
         const req = request(app.getHttpServer())
             .post("/changerequest")
@@ -133,17 +72,11 @@ describe("ChangeRequestController", () => {
             .field("apiVersion", changeRequest.apiVersion || "0.0.0")
             .field("changeRequest__json", JSON.stringify(changeRequest));
 
-        // Add files and metadata in order
-        for (let i = 0; i < files.length; i++) {
-            const fileKey = `changeRequest__file__${i}`;
-            const fileInfo = fileMap.get(fileKey);
-            if (fileInfo) {
-                const metaKey = `${fileKey}__meta`;
-                const metadata = fileInfo.file.metadata || {};
-                req.field(metaKey, JSON.stringify(metadata));
-                req.attach(fileKey, fileInfo.file.buffer, fileInfo.file.fieldname);
-            }
-        }
+        // Add files using their IDs
+        files.forEach((file) => {
+            const fileKey = `changeRequest__file__${file.id}`;
+            req.attach(fileKey, file.buffer, fileKey);
+        });
 
         return req;
     };
@@ -153,6 +86,7 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId = "file-0";
             const changeRequest = {
                 id: 123,
                 apiVersion: "0.0.0",
@@ -161,7 +95,10 @@ describe("ChangeRequestController", () => {
                     type: DocType.Post,
                     imageData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "imageData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId),
+                                preset: "photo",
+                            },
                         ],
                     },
                 },
@@ -170,9 +107,8 @@ describe("ChangeRequestController", () => {
             const imageBuffer = fs.readFileSync(testImagePath);
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId,
                     buffer: imageBuffer,
-                    metadata: { preset: "photo" }, // Metadata sent separately in __meta field
                 },
             ];
 
@@ -203,6 +139,7 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId = "file-0";
             const changeRequest = {
                 id: 456,
                 apiVersion: "0.0.0",
@@ -211,7 +148,11 @@ describe("ChangeRequestController", () => {
                     type: DocType.Content,
                     audioData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "audioData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId),
+                                format: "mp3",
+                                bitrate: 128,
+                            },
                         ],
                     },
                 },
@@ -220,9 +161,8 @@ describe("ChangeRequestController", () => {
             const audioBuffer = createTestFile("fake audio content");
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId,
                     buffer: audioBuffer,
-                    metadata: { format: "mp3", bitrate: 128 },
                 },
             ];
 
@@ -252,6 +192,7 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId = "file-0";
             const changeRequest = {
                 id: 789,
                 apiVersion: "0.0.0",
@@ -260,7 +201,11 @@ describe("ChangeRequestController", () => {
                     type: DocType.Content,
                     videoData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "videoData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId),
+                                format: "mp4",
+                                resolution: "1080p",
+                            },
                         ],
                     },
                 },
@@ -269,9 +214,8 @@ describe("ChangeRequestController", () => {
             const videoBuffer = createTestFile("fake video content");
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId,
                     buffer: videoBuffer,
-                    metadata: { format: "mp4", resolution: "1080p" },
                 },
             ];
 
@@ -301,6 +245,7 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId = "file-0";
             const changeRequest = {
                 id: 101,
                 apiVersion: "0.0.0",
@@ -309,12 +254,11 @@ describe("ChangeRequestController", () => {
                     type: DocType.Content,
                     documentData: {
                         uploadData: [
-                            createPlaceholder("file-0", [
-                                "doc",
-                                "documentData",
-                                "uploadData",
-                                "[0]",
-                            ]),
+                            {
+                                fileData: createBinaryRef(fileId),
+                                filename: "document.pdf",
+                                pages: 10,
+                            },
                         ],
                     },
                 },
@@ -323,9 +267,8 @@ describe("ChangeRequestController", () => {
             const pdfBuffer = createTestFile("%PDF-1.4 fake PDF content");
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId,
                     buffer: pdfBuffer,
-                    metadata: { filename: "document.pdf", pages: 10 },
                 },
             ];
 
@@ -355,6 +298,9 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId0 = "file-0";
+            const fileId1 = "file-1";
+            const fileId2 = "file-2";
             const changeRequest = {
                 id: 202,
                 apiVersion: "0.0.0",
@@ -363,9 +309,18 @@ describe("ChangeRequestController", () => {
                     type: DocType.Post,
                     imageData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "imageData", "uploadData", "[0]"]),
-                            createPlaceholder("file-1", ["doc", "imageData", "uploadData", "[1]"]),
-                            createPlaceholder("file-2", ["doc", "imageData", "uploadData", "[2]"]),
+                            {
+                                fileData: createBinaryRef(fileId0),
+                                preset: "thumbnail",
+                            },
+                            {
+                                fileData: createBinaryRef(fileId1),
+                                preset: "medium",
+                            },
+                            {
+                                fileData: createBinaryRef(fileId2),
+                                preset: "large",
+                            },
                         ],
                     },
                 },
@@ -373,19 +328,16 @@ describe("ChangeRequestController", () => {
 
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId0,
                     buffer: createTestFile("image1"),
-                    metadata: { preset: "thumbnail" },
                 },
                 {
-                    fieldname: "changeRequest__file__1",
+                    id: fileId1,
                     buffer: createTestFile("image2"),
-                    metadata: { preset: "medium" },
                 },
                 {
-                    fieldname: "changeRequest__file__2",
+                    id: fileId2,
                     buffer: createTestFile("image3"),
-                    metadata: { preset: "large" },
                 },
             ];
 
@@ -422,6 +374,8 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId0 = "file-0";
+            const fileId1 = "file-1";
             const changeRequest = {
                 id: 303,
                 apiVersion: "0.0.0",
@@ -431,24 +385,18 @@ describe("ChangeRequestController", () => {
                     media: {
                         images: {
                             uploadData: [
-                                createPlaceholder("file-0", [
-                                    "doc",
-                                    "media",
-                                    "images",
-                                    "uploadData",
-                                    "[0]",
-                                ]),
+                                {
+                                    fileData: createBinaryRef(fileId0),
+                                    preset: "photo",
+                                },
                             ],
                         },
                         audio: {
                             uploadData: [
-                                createPlaceholder("file-1", [
-                                    "doc",
-                                    "media",
-                                    "audio",
-                                    "uploadData",
-                                    "[0]",
-                                ]),
+                                {
+                                    fileData: createBinaryRef(fileId1),
+                                    format: "mp3",
+                                },
                             ],
                         },
                     },
@@ -457,14 +405,12 @@ describe("ChangeRequestController", () => {
 
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId0,
                     buffer: createTestFile("nested image"),
-                    metadata: { preset: "photo" },
                 },
                 {
-                    fieldname: "changeRequest__file__1",
+                    id: fileId1,
                     buffer: createTestFile("nested audio"),
-                    metadata: { format: "mp3" },
                 },
             ];
 
@@ -486,6 +432,8 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId0 = "file-0";
+            const fileId1 = "file-1";
             const changeRequest = {
                 id: 404,
                 apiVersion: "0.0.0",
@@ -494,28 +442,27 @@ describe("ChangeRequestController", () => {
                     type: DocType.Post,
                     level1: {
                         level2: {
-                            level3: createPlaceholder("file-0", [
-                                "doc",
-                                "level1",
-                                "level2",
-                                "level3",
-                            ]),
+                            level3: {
+                                fileData: createBinaryRef(fileId0),
+                                depth: 3,
+                            },
                         },
                     },
-                    topLevelFile: createPlaceholder("file-1", ["doc", "topLevelFile"]),
+                    topLevelFile: {
+                        fileData: createBinaryRef(fileId1),
+                        depth: 0,
+                    },
                 },
             };
 
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId0,
                     buffer: createTestFile("deep file"),
-                    metadata: { depth: 3 },
                 },
                 {
-                    fieldname: "changeRequest__file__1",
+                    id: fileId1,
                     buffer: createTestFile("top file"),
-                    metadata: { depth: 0 },
                 },
             ];
 
@@ -537,6 +484,10 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId0 = "file-0";
+            const fileId1 = "file-1";
+            const fileId2 = "file-2";
+            const fileId3 = "file-3";
             const changeRequest = {
                 id: 505,
                 apiVersion: "0.0.0",
@@ -545,27 +496,38 @@ describe("ChangeRequestController", () => {
                     type: DocType.Content,
                     imageData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "imageData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId0),
+                                type: "image",
+                                preset: "default",
+                            },
                         ],
                     },
                     audioData: {
                         uploadData: [
-                            createPlaceholder("file-1", ["doc", "audioData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId1),
+                                type: "audio",
+                                format: "mp3",
+                            },
                         ],
                     },
                     videoData: {
                         uploadData: [
-                            createPlaceholder("file-2", ["doc", "videoData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId2),
+                                type: "video",
+                                format: "mp4",
+                            },
                         ],
                     },
                     documentData: {
                         uploadData: [
-                            createPlaceholder("file-3", [
-                                "doc",
-                                "documentData",
-                                "uploadData",
-                                "[0]",
-                            ]),
+                            {
+                                fileData: createBinaryRef(fileId3),
+                                type: "document",
+                                format: "pdf",
+                            },
                         ],
                     },
                 },
@@ -573,24 +535,20 @@ describe("ChangeRequestController", () => {
 
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId0,
                     buffer: createTestFile("image"),
-                    metadata: { type: "image", preset: "default" },
                 },
                 {
-                    fieldname: "changeRequest__file__1",
+                    id: fileId1,
                     buffer: createTestFile("audio"),
-                    metadata: { type: "audio", format: "mp3" },
                 },
                 {
-                    fieldname: "changeRequest__file__2",
+                    id: fileId2,
                     buffer: createTestFile("video"),
-                    metadata: { type: "video", format: "mp4" },
                 },
                 {
-                    fieldname: "changeRequest__file__3",
+                    id: fileId3,
                     buffer: createTestFile("pdf"),
-                    metadata: { type: "document", format: "pdf" },
                 },
             ];
 
@@ -608,6 +566,7 @@ describe("ChangeRequestController", () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);
 
+            const fileId = "file-0";
             const changeRequest = {
                 id: 606,
                 apiVersion: "0.0.0",
@@ -616,7 +575,14 @@ describe("ChangeRequestController", () => {
                     type: DocType.Post,
                     imageData: {
                         uploadData: [
-                            createPlaceholder("file-0", ["doc", "imageData", "uploadData", "[0]"]),
+                            {
+                                fileData: createBinaryRef(fileId),
+                                preset: "photo",
+                                filename: "test.jpg",
+                                width: 1920,
+                                height: 1080,
+                                customField: "customValue",
+                            },
                         ],
                     },
                 },
@@ -624,15 +590,8 @@ describe("ChangeRequestController", () => {
 
             const files = [
                 {
-                    fieldname: "changeRequest__file__0",
+                    id: fileId,
                     buffer: createTestFile("image with metadata"),
-                    metadata: {
-                        preset: "photo",
-                        filename: "test.jpg",
-                        width: 1920,
-                        height: 1080,
-                        customField: "customValue",
-                    },
                 },
             ];
 

@@ -2,16 +2,10 @@ import { v4 as uuidv4 } from "uuid";
 
 type BinaryData = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
 
-const PLACEHOLDER_SYMBOL = Symbol("LFormDataPlaceholder");
-
-interface FilePlaceholder {
-    [PLACEHOLDER_SYMBOL]: true;
-    __fileId: string;
-    __path: string[];
-}
+const BINARY_REF_PREFIX = "BINARY_REF-";
 
 export class LFormData extends FormData {
-    private fileMap = new Map<string, { data: BinaryData; metadata: Record<string, any> }>();
+    private fileMap = new Map<string, BinaryData>();
 
     private isBinary(value: any): value is BinaryData {
         if (value instanceof Blob || value instanceof File || value instanceof ArrayBuffer) {
@@ -23,89 +17,35 @@ export class LFormData extends FormData {
         return false;
     }
 
-    private createPlaceholder(fileId: string, path: string[] = []): FilePlaceholder {
-        return {
-            [PLACEHOLDER_SYMBOL]: true,
-            __fileId: fileId,
-            __path: path,
-        };
+    private createBinaryRef(id: string): string {
+        return `${BINARY_REF_PREFIX}${id}`;
     }
 
-    private extractBinaries(
-        obj: any,
-        currentPath: string[] = [],
-        files: Array<{ id: string; data: BinaryData; metadata: Record<string, any> }> = [],
-    ): any {
+    private extractBinaries(obj: any): any {
         if (obj === null || typeof obj !== "object") return obj;
         if (this.isBinary(obj)) {
             const id = uuidv4();
-            files.push({ id, data: obj, metadata: {} });
-            this.fileMap.set(id, files[files.length - 1]);
-            return this.createPlaceholder(id, currentPath);
+            this.fileMap.set(id, obj);
+            return this.createBinaryRef(id);
         }
 
         if (Array.isArray(obj)) {
-            return obj.map((item, i) =>
+            return obj.map((item) =>
                 this.isBinary(item) || (typeof item === "object" && item !== null)
-                    ? this.extractBinaries(item, [...currentPath, `[${i}]`], files)
+                    ? this.extractBinaries(item)
                     : item,
             );
         }
 
-        // Check if this object contains a binary - if so, replace the entire object with a placeholder
-        // But only if we're not at the root level (currentPath.length > 0)
-        // At root level, only replace the binary property itself
-        // Also, only replace entire object if it has exactly one binary (multiple binaries need individual handling)
-        const binaryKeys: string[] = [];
-        for (const [key, value] of Object.entries(obj)) {
-            if (this.isBinary(value)) {
-                binaryKeys.push(key);
-            }
-        }
-
-        // If object contains exactly one binary and is nested (not at root), replace entire object with placeholder + other properties
-        if (binaryKeys.length === 1 && currentPath.length > 0) {
-            // Process the single binary
-            const binaryKey = binaryKeys[0];
-            const binaryValue = obj[binaryKey];
-            const id = uuidv4();
-            const metadata: Record<string, any> = { ...obj };
-            delete metadata[binaryKey]; // Remove binary field from metadata
-
-            files.push({ id, data: binaryValue, metadata });
-            this.fileMap.set(id, files[files.length - 1]);
-            const placeholder = this.createPlaceholder(id, currentPath);
-
-            // Merge placeholder properties with other non-binary properties
-            const result: any = {
-                __fileId: placeholder.__fileId,
-                __path: placeholder.__path,
-            };
-            for (const [key, value] of Object.entries(obj)) {
-                if (!this.isBinary(value)) {
-                    if (typeof value === "object" && value !== null) {
-                        result[key] = this.extractBinaries(value, [...currentPath, key], files);
-                    } else {
-                        result[key] = value;
-                    }
-                }
-            }
-            return result;
-        }
-
-        // No binary in this object, process normally
+        // Process object properties
         const result: any = {};
         for (const [key, value] of Object.entries(obj)) {
             if (this.isBinary(value)) {
                 const id = uuidv4();
-                const metadata: Record<string, any> = { ...obj };
-                delete metadata[key]; // Remove binary field from metadata
-
-                files.push({ id, data: value, metadata });
-                this.fileMap.set(id, files[files.length - 1]);
-                result[key] = this.createPlaceholder(id, [...currentPath, key]);
+                this.fileMap.set(id, value);
+                result[key] = this.createBinaryRef(id);
             } else if (typeof value === "object" && value !== null) {
-                result[key] = this.extractBinaries(value, [...currentPath, key], files);
+                result[key] = this.extractBinaries(value);
             } else {
                 result[key] = value;
             }
@@ -123,44 +63,35 @@ export class LFormData extends FormData {
         this.fileMap.clear();
 
         const cleanedJson = this.extractBinaries(value);
-        let fileIndex = 0;
 
-        // Append all files with predictable keys
-        this.fileMap.forEach((file) => {
-            const fileKey = `${key}__file__${fileIndex}`;
-            const metaKey = `${fileKey}__meta`;
+        // Append all binaries using their ID in the file key
+        // The fileId matches the ID used in the BINARY_REF-{id} string
+        this.fileMap.forEach((binary, fileId) => {
+            const fileKey = `${key}__file__${fileId}`;
 
-            // Append metadata (non-binary parts)
-            super.append(metaKey, JSON.stringify(file.metadata || {}));
-
-            // Append actual binary
+            // Convert binary to Blob
             let blob: Blob;
-            if (file.data instanceof Blob) {
-                blob = file.data;
-            } else if (file.data instanceof ArrayBuffer) {
-                blob = new Blob([file.data]);
+            if (binary instanceof Blob) {
+                blob = binary;
+            } else if (binary instanceof ArrayBuffer) {
+                blob = new Blob([binary]);
             } else if (
-                ArrayBuffer.isView(file.data) &&
-                !(file.data.buffer instanceof SharedArrayBuffer)
+                ArrayBuffer.isView(binary) &&
+                !(binary.buffer instanceof SharedArrayBuffer)
             ) {
-                blob = new Blob([file.data.buffer]);
+                blob = new Blob([binary.buffer]);
             } else {
-                blob = new Blob([file.data as any]);
+                blob = new Blob([binary as any]);
             }
+
             super.append(
                 fileKey,
                 blob,
-                filename || (file.data instanceof File ? file.data.name : "file"),
+                filename || (binary instanceof File ? binary.name : "file"),
             );
-
-            fileIndex++;
         });
 
-        // Append cleaned JSON with placeholders
+        // Append cleaned JSON with binary references
         super.append(`${key}__json`, JSON.stringify(cleanedJson));
-    }
-
-    getFiles() {
-        return Array.from(this.fileMap.values());
     }
 }
