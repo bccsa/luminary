@@ -27,6 +27,20 @@
     @apply !text-5xl;
 }
 
+/* Hide VideoJS big play button for YouTube videos since YouTube has its own */
+.video-player.vjs-youtube-container .vjs-big-play-button {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Hide Picture-in-Picture button for YouTube videos */
+.video-player.vjs-youtube-container .vjs-picture-in-picture-control {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
 /* Position skip buttons next to the big play button */
 .video-player .vjs-skip-forward-10,
 .video-player .vjs-skip-backward-10 {

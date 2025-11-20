@@ -169,7 +169,7 @@ onMounted(async () => {
                 "progressControl",
                 "liveDisplay",
                 "fullscreenToggle",
-                "pictureInPictureToggle",
+                ...(isYouTube.value ? [] : ["pictureInPictureToggle"]), // Hide PiP for YouTube videos
                 "playbackRateMenuButton",
                 "volumePanel",
                 "skipBackwardButton",
@@ -193,6 +193,24 @@ onMounted(async () => {
 
     // Set player source based on video type (YouTube vs regular)
     if (isYouTube.value) {
+        // Hide VideoJS big play button and PiP button immediately for YouTube videos
+        const playerEl = player?.el();
+        if (playerEl) {
+            const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+            if (bigPlayButton instanceof HTMLElement) {
+                bigPlayButton.style.display = "none";
+                bigPlayButton.style.visibility = "hidden";
+                bigPlayButton.style.opacity = "0";
+            }
+
+            const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+            if (pipButton instanceof HTMLElement) {
+                pipButton.style.display = "none";
+                pipButton.style.visibility = "hidden";
+                pipButton.style.opacity = "0";
+            }
+        }
+
         // Configure YouTube player with branding disabled
         player.src({
             type: "video/youtube",
@@ -208,6 +226,23 @@ onMounted(async () => {
             const playerEl = player?.el();
             if (playerEl) {
                 playerEl.classList.add("vjs-youtube-loaded");
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
+                }
+
+                // Hide Picture-in-Picture button for YouTube videos
+                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+                if (pipButton instanceof HTMLElement) {
+                    pipButton.style.display = "none";
+                    pipButton.style.visibility = "hidden";
+                    pipButton.style.opacity = "0";
+                }
+
                 // Use requestAnimationFrame to ensure DOM updates are applied
                 requestAnimationFrame(() => {
                     playerEl.classList.remove("vjs-youtube-loaded");
@@ -227,6 +262,33 @@ onMounted(async () => {
                 if (techEl) {
                     (techEl as HTMLElement).classList.add("vjs-tech");
                 }
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
+                }
+
+                // Hide Picture-in-Picture button for YouTube videos
+                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
+                if (pipButton instanceof HTMLElement) {
+                    pipButton.style.display = "none";
+                    pipButton.style.visibility = "hidden";
+                    pipButton.style.opacity = "0";
+                }
+
+                // Restore saved progress for YouTube videos (wait for metadata to be loaded)
+                if (isYouTube.value && props.content.video) {
+                    const progress = getMediaProgress(props.content.video, props.content._id);
+                    if (progress > 60) {
+                        // Use a small delay to ensure YouTube iframe is fully ready
+                        setTimeout(() => {
+                            player?.currentTime(progress - 30);
+                        }, 100);
+                    }
+                }
             }
         });
 
@@ -242,6 +304,14 @@ onMounted(async () => {
                 const videoPlayerContainer = playerEl.closest(".video-player");
                 if (videoPlayerContainer) {
                     videoPlayerContainer.classList.add("vjs-youtube-container");
+                }
+
+                // Hide VideoJS big play button for YouTube videos
+                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
+                if (bigPlayButton instanceof HTMLElement) {
+                    bigPlayButton.style.display = "none";
+                    bigPlayButton.style.visibility = "hidden";
+                    bigPlayButton.style.opacity = "0";
                 }
             }
         }, 100);
@@ -341,8 +411,12 @@ onMounted(async () => {
     // Get and apply the player saved progress (rewind 30 seconds)
     player.on("ready", () => {
         if (!props.content.video) return;
-        const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player?.currentTime(progress - 30);
+
+        // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
+        if (!isYouTube.value) {
+            const progress = getMediaProgress(props.content.video, props.content._id);
+            if (progress > 60) player?.currentTime(progress - 30);
+        }
 
         // For YouTube videos, ensure all CSS classes are properly applied after player is fully ready
         if (isYouTube.value) {
@@ -361,7 +435,8 @@ onMounted(async () => {
         if (!props.content.video) return;
         stopKeepAudioAlive();
 
-        // Remove player progress on ended
+        // Remove player progress when video fully completes (works for both regular and YouTube videos)
+        // The 'ended' event fires when the video reaches the end, regardless of video source
         removeMediaProgress(props.content.video, props.content._id);
 
         try {
