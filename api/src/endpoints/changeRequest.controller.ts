@@ -47,6 +47,7 @@ export class ChangeRequestController {
                 const uploadData = [];
 
                 files.forEach((file, index) => {
+                    // TODO: change after #1208 is implemented
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 

@@ -20,6 +20,8 @@ export enum DocType {
     Group = "group",
     Change = "change",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
+    Crypto = "crypto",
 }
 
 /**
@@ -105,4 +107,12 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+}
+
+/**
+ * Bucket Type used in S3Bucket documents
+ */
+export enum BucketType {
+    Image = "image",
+    Media = "media",
 }

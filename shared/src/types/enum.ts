@@ -7,6 +7,8 @@ export enum DocType {
     Tag = "tag",
     User = "user",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
+    Crypto = "crypto",
 }
 
 export enum PublishStatus {
@@ -34,4 +36,19 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+}
+
+export enum BucketType {
+    Image = "image",
+    Media = "media",
+}
+
+export enum BucketStatus {
+    Connected = "connected",
+    Unreachable = "unreachable",
+    Unauthorized = "unauthorized",
+    NotFound = "not-found",
+    NoCredential = "no-credentials",
+    Checking = "checking",
+    Unknown = "unknown",
 }

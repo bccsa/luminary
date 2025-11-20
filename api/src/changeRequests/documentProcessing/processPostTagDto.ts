@@ -3,22 +3,19 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
-import { processImage } from "../../s3/s3.imagehandling";
-import { S3Service } from "../../s3/s3.service";
+import { processImage } from "./processImageDto";
 
 /**
  * Process Post / Tag DTO
  * @param doc
  * @param prevDoc
  * @param db
- * @param s3
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
     prevDoc: PostDto | TagDto,
     db: DbService,
-    s3: S3Service,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -35,7 +32,9 @@ export default async function processPostTagDto(
             const imageWarnings = await processImage(
                 { fileCollections: [] },
                 prevDoc?.imageData,
-                s3,
+                db,
+                prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
+                undefined, // No migration needed for delete - pass undefined to avoid migration logic
             );
             if (imageWarnings && imageWarnings.length > 0) {
                 warnings.push(...imageWarnings);
@@ -47,7 +46,26 @@ export default async function processPostTagDto(
 
     // Process image uploads
     if (doc.imageData) {
-        const imageWarnings = await processImage(doc.imageData, prevDoc?.imageData, s3);
+        let imageWarnings: string[] = [];
+
+        // Check if bucket is specified for this upload
+        if (!doc.imageBucketId) {
+            throw new Error("Bucket is not specified for image processing.");
+        }
+
+        // Use the new bucket processing with db service for bucket lookup
+        try {
+            imageWarnings = await processImage(
+                doc.imageData,
+                prevDoc?.imageData,
+                db,
+                doc.imageBucketId,
+                prevDoc?.imageBucketId, // Pass previous bucket ID for migration
+            );
+        } catch (error) {
+            imageWarnings.push(`Bucket image processing failed: ${error.message}`);
+        }
+
         if (imageWarnings && imageWarnings.length > 0) {
             warnings.push(...imageWarnings);
         }
@@ -61,6 +79,7 @@ export default async function processPostTagDto(
         contentDoc.memberOf = doc.memberOf;
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
+        contentDoc.parentImageBucketId = doc.imageBucketId;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;

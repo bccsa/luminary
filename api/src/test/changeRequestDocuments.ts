@@ -1,5 +1,6 @@
 // This file generates the documents for the change request tests some random data
 
+import { StorageDto } from "../dto/StorageDto";
 import { ContentDto } from "../dto/ContentDto";
 
 function randomString() {
@@ -18,6 +19,7 @@ export const changeRequest_post = () => {
             publishDateVisible: true,
             postType: "blog",
             deleteReq: 0,
+            imageBucketId: "storage-bucket-1",
         },
     };
 };
@@ -57,6 +59,7 @@ export const changeRequest_content = () => {
             video: "",
             publishDate: 1704114000000,
             expiryDate: 1704114000000,
+            parentImageBucketId: "storage-bucket-1",
         } as ContentDto,
     };
 };
@@ -106,5 +109,26 @@ export const changeRequest_group = () => {
                 },
             ],
         },
+    };
+};
+
+export const changeRequest_storage = () => {
+    return {
+        id: 47,
+        doc: {
+            _id: "storage-bucket-1",
+            type: "storage",
+            memberOf: ["group-storage-admins"],
+            name: "testStorageBucket",
+            publicUrl: "https://s3.example.com/testStorageBucket/",
+            mimeTypes: ["image/*", "audio/*"],
+            credential: {
+                endpoint: "http://example.com",
+                bucketName: "testStorageBucket",
+                accessKey: "accessAdminKey",
+                secretKey: "secretAdminKey",
+            },
+            credential_id: undefined,
+        } as StorageDto,
     };
 };
