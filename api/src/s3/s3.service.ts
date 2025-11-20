@@ -7,13 +7,66 @@ import { DocType } from "../enums";
 export class S3Service {
     private static instances: Map<string, S3Service> = new Map();
     private static credentialIdToInstanceMap: Map<string, Set<string>> = new Map();
+    private static lastAccessTime: Map<string, number> = new Map();
     private static dbChangeListener: ((update: any) => void) | null = null;
+    private static cleanupInterval: NodeJS.Timeout | null = null;
+    private static readonly INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    private static readonly CLEANUP_INTERVAL_MS = 60 * 1000; // Check every minute
     private client: Minio.Client;
     private credentialId: string;
     private bucketName: string;
+    private bucketId: string;
 
     /**
-     * Initialize the database change listener for credential updates
+     * Update the last access time for an instance
+     */
+    private static updateLastAccessTime(bucketId: string): void {
+        S3Service.lastAccessTime.set(bucketId, Date.now());
+    }
+
+    /**
+     * Remove an instance from the cache and mappings
+     */
+    private static removeInstance(bucketId: string): void {
+        const instance = S3Service.instances.get(bucketId);
+        if (instance) {
+            // Remove from credential mapping
+            const credentialSet = S3Service.credentialIdToInstanceMap.get(instance.credentialId);
+            if (credentialSet) {
+                credentialSet.delete(bucketId);
+                if (credentialSet.size === 0) {
+                    S3Service.credentialIdToInstanceMap.delete(instance.credentialId);
+                }
+            }
+        }
+        S3Service.instances.delete(bucketId);
+        S3Service.lastAccessTime.delete(bucketId);
+    }
+
+    /**
+     * Clean up instances that haven't been accessed in the timeout period
+     */
+    private static cleanupStaleInstances(): void {
+        const now = Date.now();
+        const staleInstances: Array<{ bucketId: string; inactiveMinutes: number }> = [];
+
+        for (const [bucketId, lastAccess] of S3Service.lastAccessTime.entries()) {
+            if (now - lastAccess >= S3Service.INACTIVITY_TIMEOUT_MS) {
+                const inactiveMinutes = Math.round((now - lastAccess) / 1000 / 60);
+                staleInstances.push({ bucketId, inactiveMinutes });
+            }
+        }
+
+        for (const { bucketId, inactiveMinutes } of staleInstances) {
+            S3Service.removeInstance(bucketId);
+            console.log(
+                `Removed stale S3Service instance for bucket ${bucketId} (inactive for ${inactiveMinutes} minutes)`,
+            );
+        }
+    }
+
+    /**
+     * Initialize the database change listener for credential updates and cleanup interval
      * This should be called once when the application starts
      */
     static initializeChangeListener(db: DbService): void {
@@ -22,6 +75,7 @@ export class S3Service {
         }
 
         S3Service.dbChangeListener = async (doc: any) => {
+            // Handle credential updates
             if (doc && doc.type == DocType.Crypto && doc._id && doc.data && doc.data) {
                 const credentialId = doc._id;
 
@@ -50,10 +104,33 @@ export class S3Service {
                     }
                 }
             }
+
+            // Handle storage bucket deletions
+            if (
+                doc &&
+                doc.type == DocType.DeleteCmd &&
+                doc.docType == DocType.Storage &&
+                doc.docId
+            ) {
+                const bucketId = doc.docId;
+
+                // Check if an S3Service instance exists for this bucket
+                if (S3Service.instances.has(bucketId)) {
+                    S3Service.removeInstance(bucketId);
+                    console.log(`Removed S3Service instance for deleted bucket: ${bucketId}`);
+                }
+            }
         };
 
         // Subscribe to database changes
         db.on("update", S3Service.dbChangeListener);
+
+        // Start cleanup interval for stale instances
+        if (!S3Service.cleanupInterval) {
+            S3Service.cleanupInterval = setInterval(() => {
+                S3Service.cleanupStaleInstances();
+            }, S3Service.CLEANUP_INTERVAL_MS);
+        }
     }
 
     /**
@@ -88,11 +165,15 @@ export class S3Service {
     static async create(bucketId: string, db: DbService): Promise<S3Service> {
         // Return existing instance if available
         if (S3Service.instances.has(bucketId)) {
-            return S3Service.instances.get(bucketId)!;
+            const instance = S3Service.instances.get(bucketId)!;
+            // Update last access time
+            S3Service.updateLastAccessTime(bucketId);
+            return instance;
         }
 
         // Create new instance
         const service = new S3Service();
+        service.bucketId = bucketId;
 
         // Get bucket configuration
         const result = await db.getDoc(bucketId);
@@ -124,6 +205,9 @@ export class S3Service {
         }
         S3Service.credentialIdToInstanceMap.get(bucket.credential_id)!.add(bucketId);
 
+        // Set initial access time
+        S3Service.updateLastAccessTime(bucketId);
+
         return service;
     }
 
@@ -133,23 +217,44 @@ export class S3Service {
      */
     static clearCache(bucketId?: string): void {
         if (bucketId) {
-            const instance = S3Service.instances.get(bucketId);
-            if (instance) {
-                // Remove from credential mapping
-                const credentialSet = S3Service.credentialIdToInstanceMap.get(
-                    instance.credentialId,
-                );
-                if (credentialSet) {
-                    credentialSet.delete(bucketId);
-                    if (credentialSet.size === 0) {
-                        S3Service.credentialIdToInstanceMap.delete(instance.credentialId);
-                    }
-                }
-            }
-            S3Service.instances.delete(bucketId);
+            S3Service.removeInstance(bucketId);
         } else {
             S3Service.instances.clear();
             S3Service.credentialIdToInstanceMap.clear();
+            S3Service.lastAccessTime.clear();
+        }
+    }
+
+    /**
+     * Stops the cleanup interval. Useful for testing.
+     */
+    static stopCleanupInterval(): void {
+        if (S3Service.cleanupInterval) {
+            clearInterval(S3Service.cleanupInterval);
+            S3Service.cleanupInterval = null;
+        }
+    }
+
+    /**
+     * Check if an instance exists for a given bucket ID. Useful for testing.
+     */
+    static hasInstance(bucketId: string): boolean {
+        return S3Service.instances.has(bucketId);
+    }
+
+    /**
+     * Manually trigger cleanup of stale instances. Useful for testing.
+     */
+    static triggerCleanup(): void {
+        S3Service.cleanupStaleInstances();
+    }
+
+    /**
+     * Update last access time for this instance
+     */
+    private touch(): void {
+        if (this.bucketId) {
+            S3Service.updateLastAccessTime(this.bucketId);
         }
     }
 
@@ -157,6 +262,7 @@ export class S3Service {
      * Get the Minio client instance
      */
     public getClient(): Minio.Client {
+        this.touch();
         return this.client;
     }
 
@@ -171,6 +277,7 @@ export class S3Service {
      * Uploads a file to an S3 bucket
      */
     public async uploadFile(key: string, file: Buffer, mimetype: string) {
+        this.touch();
         const metadata = {
             "Content-Type": mimetype,
         };
@@ -181,6 +288,7 @@ export class S3Service {
      * Removes objects from a bucket
      */
     public async removeObjects(keys: string[]) {
+        this.touch();
         return this.client.removeObjects(this.bucketName, keys);
     }
 
@@ -188,6 +296,7 @@ export class S3Service {
      * Get an object from a bucket
      */
     public async getObject(key: string) {
+        this.touch();
         return this.client.getObject(this.bucketName, key);
     }
 
@@ -195,6 +304,7 @@ export class S3Service {
      * Checks if a bucket exists
      */
     public async bucketExists() {
+        this.touch();
         return this.client.bucketExists(this.bucketName);
     }
 
@@ -202,6 +312,7 @@ export class S3Service {
      * Creates a bucket. We are not using this in production code, but it is useful for testing.
      */
     public async makeBucket() {
+        this.touch();
         return this.client.makeBucket(this.bucketName);
     }
 
@@ -209,6 +320,7 @@ export class S3Service {
      * Removes a bucket. We are not using this in production code, but it is useful for testing.
      */
     public async removeBucket() {
+        this.touch();
         return this.client.removeBucket(this.bucketName);
     }
 
@@ -216,6 +328,7 @@ export class S3Service {
      * Lists objects in a bucket
      */
     public async listObjects() {
+        this.touch();
         return this.client.listObjects(this.bucketName);
     }
 
@@ -223,6 +336,7 @@ export class S3Service {
      * Check if an S3 service is reachable
      */
     public async checkConnection(): Promise<boolean> {
+        this.touch();
         // Check if S3 service is reachable by attempting to list buckets
         try {
             await this.client.listBuckets();
@@ -236,6 +350,7 @@ export class S3Service {
      * Check if an object exists in a bucket
      */
     public async objectExists(key: string): Promise<boolean> {
+        this.touch();
         try {
             await this.client.statObject(this.bucketName, key);
             return true;
@@ -248,6 +363,7 @@ export class S3Service {
      * Validate image upload and accessibility
      */
     public async validateImageUpload(key: string): Promise<{ success: boolean; error?: string }> {
+        this.touch();
         try {
             // Check if bucket exists
             const bucketExists = await this.client.bucketExists(this.bucketName);
@@ -268,6 +384,7 @@ export class S3Service {
      * Check if uploaded images are accessible
      */
     public async checkImageAccessibility(keys: string[]): Promise<string[]> {
+        this.touch();
         const inaccessibleImages: string[] = [];
 
         for (const key of keys) {
@@ -288,6 +405,7 @@ export class S3Service {
         status: "connected" | "unreachable" | "unauthorized" | "not-found";
         message?: string;
     }> {
+        this.touch();
         try {
             // Check if the bucket exists using the internal client
             const exists = await this.client.bucketExists(this.bucketName);
