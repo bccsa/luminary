@@ -53,29 +53,16 @@ export class ChangeRequestController {
             if (files.length > 0) {
                 const baseKey = jsonKey.replace("__json", "");
 
-                // Create a map of fileKey -> file data
-                // LFormData sends files as: ${baseKey}__file__${index} and metadata as ${baseKey}__file__${index}__meta
-                const fileMap = new Map<string, { data: Buffer; metadata: Record<string, any> }>();
+                // Create a map of fileKey -> file buffer
+                // LFormData sends files as: ${baseKey}__file__${id}
+                // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
+                const fileMap = new Map<string, Buffer>();
 
                 files.forEach((file) => {
-                    // Match files by their fieldname (e.g., "changeRequest__file__0")
+                    // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
+                    // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
                     const fileKey = file.fieldname;
-                    const metaKey = `${fileKey}__meta`;
-
-                    // Parse metadata if available
-                    let metadata: Record<string, any> = {};
-                    if (body[metaKey]) {
-                        try {
-                            const rawMetadata = JSON.parse(body[metaKey]);
-                            // Clean prototype pollution from metadata
-                            metadata = removeDangerousKeys(rawMetadata);
-                        } catch (e) {
-                            // If metadata parsing fails, use empty object
-                            metadata = {};
-                        }
-                    }
-
-                    fileMap.set(fileKey, { data: file.buffer, metadata });
+                    fileMap.set(fileKey, file.buffer);
                 });
 
                 patchFileData(parsedData, fileMap, baseKey);
