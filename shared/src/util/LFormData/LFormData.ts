@@ -31,10 +31,6 @@ export class LFormData extends FormData {
         };
     }
 
-    private isPlaceholder(value: any): value is FilePlaceholder {
-        return value && value[PLACEHOLDER_SYMBOL] === true;
-    }
-
     private extractBinaries(
         obj: any,
         currentPath: string[] = [],
@@ -56,20 +52,54 @@ export class LFormData extends FormData {
             );
         }
 
+        // Check if this object contains a binary - if so, replace the entire object with a placeholder
+        // But only if we're not at the root level (currentPath.length > 0)
+        // At root level, only replace the binary property itself
+        // Also, only replace entire object if it has exactly one binary (multiple binaries need individual handling)
+        const binaryKeys: string[] = [];
+        for (const [key, value] of Object.entries(obj)) {
+            if (this.isBinary(value)) {
+                binaryKeys.push(key);
+            }
+        }
+
+        // If object contains exactly one binary and is nested (not at root), replace entire object with placeholder + other properties
+        if (binaryKeys.length === 1 && currentPath.length > 0) {
+            // Process the single binary
+            const binaryKey = binaryKeys[0];
+            const binaryValue = obj[binaryKey];
+            const id = uuidv4();
+            const metadata: Record<string, any> = { ...obj };
+            delete metadata[binaryKey]; // Remove binary field from metadata
+
+            files.push({ id, data: binaryValue, metadata });
+            this.fileMap.set(id, files[files.length - 1]);
+            const placeholder = this.createPlaceholder(id, currentPath);
+
+            // Merge placeholder properties with other non-binary properties
+            const result: any = {
+                __fileId: placeholder.__fileId,
+                __path: placeholder.__path,
+            };
+            for (const [key, value] of Object.entries(obj)) {
+                if (!this.isBinary(value)) {
+                    if (typeof value === "object" && value !== null) {
+                        result[key] = this.extractBinaries(value, [...currentPath, key], files);
+                    } else {
+                        result[key] = value;
+                    }
+                }
+            }
+            return result;
+        }
+
+        // No binary in this object, process normally
         const result: any = {};
         for (const [key, value] of Object.entries(obj)) {
-            if (key === "__proto__" || key === "constructor" || key === "prototype") {
-                continue; // Prevent prototype pollution
-            }
-
             if (this.isBinary(value)) {
                 const id = uuidv4();
                 const metadata: Record<string, any> = { ...obj };
                 delete metadata[key]; // Remove binary field from metadata
-                Object.keys(metadata).forEach((k) => {
-                    if (k === "__proto__" || k === "constructor" || k === "prototype")
-                        delete metadata[k];
-                });
 
                 files.push({ id, data: value, metadata });
                 this.fileMap.set(id, files[files.length - 1]);
@@ -96,7 +126,7 @@ export class LFormData extends FormData {
         let fileIndex = 0;
 
         // Append all files with predictable keys
-        this.fileMap.forEach((file, fileId) => {
+        this.fileMap.forEach((file) => {
             const fileKey = `${key}__file__${fileIndex}`;
             const metaKey = `${fileKey}__meta`;
 
