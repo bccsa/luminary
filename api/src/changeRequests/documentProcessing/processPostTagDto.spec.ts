@@ -8,8 +8,8 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType } from "../../enums";
 import { processImage } from "./processImageDto";
 
-// Mock processImage from s3.imagehandling
-jest.mock("../../s3/s3.imagehandling", () => ({
+// Mock processImage from processImageDto
+jest.mock("./processImageDto", () => ({
     processImage: jest.fn(),
 }));
 
