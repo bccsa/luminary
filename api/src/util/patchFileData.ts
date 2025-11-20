@@ -1,57 +1,35 @@
 import { isDangerousKey } from "./removeDangerousKeys";
 
-/**
- * Recursively find placeholders and replace them with file objects using __fileId and __path
- * This function patches binary data back into the JSON structure where LFormData placeholders exist
- */
-export function patchFileData(
-    obj: any,
-    fileMap: Map<string, { data: Buffer; metadata: Record<string, any> }>,
-    baseKey: string,
-): void {
-    let fileIndex = 0;
+const BINARY_REF_PREFIX = "BINARY_REF-";
 
-    const isPlaceholder = (value: any): value is { __fileId: string; __path: string[] } => {
-        return value && typeof value === "object" && value.__fileId && Array.isArray(value.__path);
+/**
+ * Recursively find binary references and replace them with file buffers
+ * This function patches binary data back into the JSON structure where LFormData binary references exist
+ */
+export function patchFileData(obj: any, fileMap: Map<string, Buffer>, baseKey: string): void {
+    const isBinaryRef = (value: any): value is string => {
+        return typeof value === "string" && value.startsWith(BINARY_REF_PREFIX);
+    };
+
+    const extractId = (ref: string): string => {
+        return ref.substring(BINARY_REF_PREFIX.length);
     };
 
     const patch = (value: any): any => {
-        if (!value || typeof value !== "object") return value;
-
-        // Check if this value itself is a placeholder
-        if (isPlaceholder(value)) {
-            const fileKey = `${baseKey}__file__${fileIndex++}`;
-            const fileInfo = fileMap.get(fileKey);
-
-            if (fileInfo) {
-                // Combine metadata with binary data
-                return {
-                    ...fileInfo.metadata,
-                    fileData: fileInfo.data,
-                };
+        if (value === null || typeof value !== "object") {
+            // Check if it's a binary reference string
+            if (isBinaryRef(value)) {
+                // Extract the ID from "BINARY_REF-{id}" and use it to find the file
+                // The file key format is: ${baseKey}__file__{id}
+                const fileId = extractId(value);
+                const fileKey = `${baseKey}__file__${fileId}`;
+                return fileMap.get(fileKey) || null;
             }
-            // If file not found, return null as fallback
-            return null;
+            return value;
         }
 
         if (Array.isArray(value)) {
-            return value.map((item) => {
-                if (isPlaceholder(item)) {
-                    const fileKey = `${baseKey}__file__${fileIndex++}`;
-                    const fileInfo = fileMap.get(fileKey);
-
-                    if (fileInfo) {
-                        return {
-                            ...fileInfo.metadata,
-                            fileData: fileInfo.data,
-                        };
-                    }
-                    return null;
-                } else if (typeof item === "object" && item !== null) {
-                    return patch(item);
-                }
-                return item;
-            });
+            return value.map((item) => patch(item));
         }
 
         const result: any = {};
@@ -62,23 +40,7 @@ export function patchFileData(
             }
 
             const val = value[key];
-            if (isPlaceholder(val)) {
-                const fileKey = `${baseKey}__file__${fileIndex++}`;
-                const fileInfo = fileMap.get(fileKey);
-
-                if (fileInfo) {
-                    result[key] = {
-                        ...fileInfo.metadata,
-                        fileData: fileInfo.data,
-                    };
-                } else {
-                    result[key] = null;
-                }
-            } else if (typeof val === "object" && val !== null) {
-                result[key] = patch(val);
-            } else {
-                result[key] = val;
-            }
+            result[key] = patch(val);
         }
         return result;
     };
