@@ -26,6 +26,8 @@ const colors = {
     purple: "rgba(192, 132, 252, 0.5)",
 };
 
+// --- Selection Logic ---
+
 function getSelectionRect(): DOMRect | null {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
@@ -260,7 +262,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div ref="content" class="relative">
+    <div ref="content" class="relative" @contextmenu.prevent>
         <!-- Content Container -->
         <div class="prose max-w-none select-text">
             <slot />
@@ -343,5 +345,10 @@ onUnmounted(() => {
 .prose ::selection {
     background-color: rgba(59, 130, 246, 0.3);
     color: inherit;
+}
+
+.prose {
+    /* Hides native menu/magnifier on iOS */
+    -webkit-touch-callout: none;
 }
 </style>
