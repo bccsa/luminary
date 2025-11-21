@@ -5,11 +5,12 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { type Component, type StyleValue } from "vue";
+import { ref, type Component, type StyleValue } from "vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
+import LDropdown from "../common/LDropdown.vue";
 
 type Option = { label: string; value: string | number; disabled?: boolean };
 
@@ -40,6 +41,12 @@ const states = {
 const id = `l-select-${useId()}`;
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
+
+const showDropdown = ref(false);
+
+function toggleDropdown() {
+    showDropdown.value = !showDropdown.value;
+}
 </script>
 
 <template>
@@ -59,6 +66,25 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     class="h-5 w-5"
                 />
             </div>
+            <!-- 1. Create div
+                2 Show a label of what is currently selected inside button that looks and feels like <select>
+                 3. When user clicks on it, toggle dropdown visibility
+                 5. The user must be able to select an option from the dropdown
+                 It should work like a select field but with custom styling and dropdown
+                 (Look at LCombobox for reference)
+                 -->
+
+            <!-- Actual input element user will click to display dropdown -->
+
+            <!-- Dropdown (use LDropdown component for dropdown)-->
+            <!-- Display options to user in dropdown -->
+            <!-- <LDropdown
+                :show="showDropdown"
+                placement="bottom-start"
+                width="full"
+                @update:show="showDropdown = $event"
+            > Options here </LDropdown> -->
+
             <select
                 v-model="model"
                 class="block h-full w-full justify-items-center rounded-md border-0 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
