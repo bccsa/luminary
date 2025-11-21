@@ -10,7 +10,7 @@ import { calcChunk } from "./utils";
  * Perform an iterative vertical sync (for given type and memberOf groups), and merge chunks as they are fetched.
  * Finally perform horizontal merge if end of file is reached.
  */
-export async function runSync(options: SyncOptions): Promise<void> {
+export async function syncBatch(options: SyncOptions): Promise<void> {
     // Check if sync has been cancelled before proceeding
     if (cancelSync) {
         return;
@@ -98,7 +98,7 @@ export async function runSync(options: SyncOptions): Promise<void> {
         }
 
         // Continue syncing next chunk
-        await runSync({
+        await syncBatch({
             ...options,
             initialSync: false,
         });

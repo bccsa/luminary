@@ -1,7 +1,7 @@
 import { DocType } from "../../types";
 import { db } from "../../db/database";
 import { HttpReq } from "../http";
-import { runSync } from "./runSync";
+import { syncBatch } from "./syncBatch";
 import type { SyncRunnerOptions } from "./types";
 import { getGroups, getGroupSets, getLanguages } from "./utils";
 
@@ -98,7 +98,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     }
 
     // Start the iterative sync process
-    await runSync({
+    await syncBatch({
         ...options,
         docType,
         parentType,

@@ -180,7 +180,7 @@ When `sync()` is called for the first time with specific parameters:
 
 ### 2. Iterative Fetching
 
-The `runSync()` function performs these steps iteratively:
+The `syncBatch()` function performs these steps iteratively:
 
 1. Calculates the next chunk range using `calcChunk()`
 2. Builds a Mango query with appropriate selectors
