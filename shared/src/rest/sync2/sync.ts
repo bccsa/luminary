@@ -69,7 +69,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
         // Replace the languages for this runner with the existing languages, and start a new runner for any new languages
         options.languages = existingLanguages;
         if (newLanguages.length > 0) {
-            sync({ ...options, languages: newLanguages });
+            await sync({ ...options, languages: newLanguages });
         }
     }
 
@@ -85,7 +85,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (groupSets.length > 1 || newGroups.length > 0) {
         // Start new runners for any existing group sets
         for (const groupSet of groupSets) {
-            sync({ ...options, memberOf: groupSet });
+            await sync({ ...options, memberOf: groupSet });
         }
 
         // Use this runner for new groups only
