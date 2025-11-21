@@ -1,6 +1,6 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import { arraysEqual } from "./utils";
+import type { SyncListEntry } from "./types";
 
 /**
  * Merge adjacent chunks vertically (by updatedTimeUtc) for the same type, memberOf, and languages.
@@ -9,38 +9,58 @@ import { arraysEqual } from "./utils";
  * @param type - Document type or combined type and subtype (e.g., "content:post") to merge.
  */
 export function mergeVertical(type: string) {
-    const list = syncList.value
-        .filter((chunk) => chunk.type === type)
-        .sort((a, b) => a.blockStart - b.blockStart);
+    const filteredList = syncList.value.filter((chunk) => chunk.type === type);
+
+    // Group chunks by unique memberOf and languages combinations
+    const groups = new Map<string, SyncListEntry[]>();
+
+    for (const chunk of filteredList) {
+        const key = JSON.stringify({
+            memberOf: [...chunk.memberOf].sort(),
+            languages: [...(chunk.languages || [])].sort(),
+        });
+
+        if (!groups.has(key)) {
+            groups.set(key, []);
+        }
+        groups.get(key)!.push(chunk);
+    }
 
     let eof = false;
 
-    // Start from the newest chunk and move backwards (vertical merge for the same type, memberOf and languages)
-    for (let i = 0; i < list.length - 1; i++) {
-        const current = list[i];
-        const next = list[i + 1];
+    // Process each unique combination separately
+    groups.forEach((list) => {
+        // Sort in reverse order (newest first)
+        list.sort((a, b) => b.blockStart - a.blockStart);
 
-        if (
-            current.type === next.type &&
-            arraysEqual(current.memberOf, next.memberOf) &&
-            arraysEqual(current.languages || [], next.languages || []) &&
-            (current.blockEnd <= next.blockStart ||
+        // Start from the newest chunk and move backwards (vertical merge for the same type, memberOf and languages)
+        for (let i = 0; i < list.length - 1; i++) {
+            const current = list[i];
+            const next = list[i + 1];
+
+            if (
+                current.blockEnd <= next.blockStart ||
                 // handle responses which did not return any data
-                next.blockStart === 0)
-        ) {
-            // Merge chunks
-            current.blockEnd = next.blockEnd;
-            current.eof = next.eof;
-            if (next.eof) eof = true; // Set End of File flag
+                next.blockStart === 0
+            ) {
+                // Merge chunks
+                current.blockEnd = next.blockEnd;
+                current.eof = next.eof;
+                if (next.eof) eof = true; // Set End of File flag
 
-            // Remove next chunk
-            const index = syncList.value.indexOf(next);
-            if (index !== -1) {
-                syncList.value.splice(index, 1);
+                // Remove next chunk from syncList
+                const index = syncList.value.indexOf(next);
+                if (index !== -1) {
+                    syncList.value.splice(index, 1);
+
+                    // Remove merged chunk from local list
+                    list.splice(i + 1, 1);
+                }
+
+                i--; // Re-evaluate current index after merge
             }
-            i--; // Re-evaluate current index after merge
         }
-    }
+    });
 
     return { eof };
 }
@@ -53,21 +73,16 @@ export function mergeVertical(type: string) {
  * @param type - Document type or combined type and subtype (e.g., "content:post") to merge.
  */
 export function mergeHorizontal(type: string): void {
-    const list = syncList.value
-        .filter((chunk) => chunk.type === type)
-        .sort((a, b) => a.blockStart - b.blockStart);
+    const list = syncList.value.filter((chunk) => chunk.type === type && chunk.eof);
 
-    // Do horizontal merge for adjacent chunks with overlapping updatedTimeUtc ranges.
+    // Do horizontal merge for adjacent chunks.
     // Only columns that have reached eof can be merged.
     for (let i = 0; i < list.length; i++) {
         const base = list[i];
-        if (!base.eof) continue;
 
         for (let j = 0; j < list.length; j++) {
             if (i === j) continue;
             const compare = list[j];
-            if (base.type !== compare.type) continue;
-            if (!compare.eof) continue;
 
             // Merge memberOf groups
             const mergedGroups = Array.from(
@@ -91,7 +106,11 @@ export function mergeHorizontal(type: string): void {
             const index = syncList.value.indexOf(compare);
             if (index !== -1) {
                 syncList.value.splice(index, 1);
+
+                // Remove merged chunk from local list
+                list.splice(j, 1);
             }
+
             j--; // Re-evaluate j index after merge
         }
     }
