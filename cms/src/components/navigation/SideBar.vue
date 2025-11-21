@@ -10,7 +10,7 @@ import {
     ArrowUturnRightIcon,
     UsersIcon,
 } from "@heroicons/vue/20/solid";
-import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
+
 import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
 import { computed } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
@@ -98,65 +98,68 @@ const toggleOpen = (item: NavigationEntry) => {
                 DEV
             </span>
         </div>
-        <nav class="flex flex-1 flex-col overflow-y-auto">
-            <ul role="list" class="space-y-1">
-                <li v-for="item in navigation" :key="item.name">
-                    <RouterLink
-                        v-if="item.visible && !item.children && item.to"
-                        :to="item.to"
-                        active-class="bg-zinc-200 text-zinc-950"
-                        class="group flex gap-x-3 rounded-md px-2 py-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
-                        v-slot="{ isActive }"
-                        @click="$emit('close')"
-                    >
-                        <component
-                            :is="item.icon"
-                            :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
-                            class="h-6 w-6 shrink-0"
-                            aria-hidden="true"
-                        />
-                        {{ item.name }}
-                    </RouterLink>
-                    <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
-                        <DisclosureButton
-                            :class="[
-                                'flex w-full items-center gap-x-3 rounded-md px-2 py-2 text-left text-sm font-semibold leading-6 text-zinc-700',
-                            ]"
-                            @click="toggleOpen(item)"
-                        >
-                            <component
-                                :is="item.icon"
-                                class="h-6 w-6 shrink-0 text-zinc-600"
-                                aria-hidden="true"
-                            />
-                            {{ item.name }}
-                            <ChevronRightIcon
-                                :class="[
-                                    open || item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
-                                    'ml-auto h-5 w-5 shrink-0',
-                                ]"
-                                aria-hidden="true"
-                            />
-                        </DisclosureButton>
-                        <DisclosurePanel
-                            as="ul"
-                            class="mt-1 space-y-1 px-2"
-                            static
-                            v-show="item.open"
-                        >
-                            <li v-for="subItem in item.children" :key="subItem.name">
-                                <DisclosureButton
-                                    :as="RouterLink"
-                                    :to="subItem.to"
-                                    active-class="bg-zinc-200 text-zinc-900"
-                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
-                                    @click="$emit('close')"
+        <nav class="flex flex-1 flex-col">
+            <ul role="list" class="flex flex-1 flex-col justify-between gap-y-7">
+                <li>
+                    <ul role="list" class="-mx-2 space-y-1">
+                        <li v-for="item in navigation" :key="item.name">
+                            <RouterLink
+                                v-if="item.visible && !item.children && item.to"
+                                :to="item.to"
+                                active-class="bg-zinc-200 text-zinc-950"
+                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
+                                v-slot="{ isActive }"
+                                @click.prevent="$emit('close')"
+                            >
+                                <component
+                                    :is="item.icon"
+                                    :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
+                                    class="h-6 w-6 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                {{ item.name }}
+                            </RouterLink>
+                            <div v-else-if="item.visible && item.children">
+                                <button
+                                    @click="toggleOpen(item)"
+                                    class="flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700"
                                 >
-                                    {{ subItem.name }}
-                                </DisclosureButton>
-                            </li>
-                        </DisclosurePanel>
-                    </Disclosure>
+                                    <component
+                                        :is="item.icon"
+                                        class="h-6 w-6 shrink-0 text-zinc-600"
+                                        aria-hidden="true"
+                                    />
+                                    {{ item.name }}
+                                    <ChevronRightIcon
+                                        :class="[
+                                            item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                            'ml-auto h-5 w-5 shrink-0',
+                                        ]"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+
+                                <ul v-show="item.open" class="mt-1 space-y-1 px-2">
+                                    <li v-for="subItem in item.children" :key="subItem.name">
+                                        <RouterLink
+                                            :to="subItem.to"
+                                            active-class="bg-zinc-200 text-zinc-900"
+                                            class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
+                                            @click.prevent="$emit('close')"
+                                        >
+                                            {{ subItem.name }}
+                                        </RouterLink>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    </ul>
+                </li>
+                <li class="flex w-full flex-col justify-between gap-2 rounded-md p-1">
+                    <OnlineIndicator />
+                    <div class="flex w-full items-center">
+                        <ProfileMenu />
+                    </div>
                 </li>
             </ul>
         </nav>
