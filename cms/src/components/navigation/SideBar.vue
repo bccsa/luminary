@@ -87,6 +87,7 @@ const toggleOpen = (item: NavigationEntry) => {
 
 <template>
     <div
+        @scroll.stop
         class="flex max-h-screen grow flex-col gap-y-5 border-r border-zinc-200 bg-zinc-100 px-2 pt-2"
     >
         <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2">
@@ -163,13 +164,5 @@ const toggleOpen = (item: NavigationEntry) => {
                 </li>
             </ul>
         </nav>
-        <ul class="shrink-0">
-            <li class="flex w-full flex-col justify-between gap-2 rounded-md px-2 pb-2 pt-1">
-                <OnlineIndicator />
-                <div class="flex w-full items-center">
-                    <ProfileMenu />
-                </div>
-            </li>
-        </ul>
     </div>
 </template>
