@@ -26,7 +26,7 @@ export async function initSync(httpService: HttpReq<any>) {
 
 /**
  * Set the cancellation flag to stop all running sync operations.
- * @param value - true to cancel sync, false to allow sync
+ * @param value - true to cancel / block sync, false to allow sync
  *
  * @example
  * ```typescript
