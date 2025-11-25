@@ -107,7 +107,6 @@ const removeFromSelected = (id: string) => {
                             v-if="language._id !== appLanguageIdsAsRef[0]"
                             @click="
                                 handleLanguageChange({
-                                    mainSelector: true,
                                     languageId: language._id,
                                     options: { increasePriority: true },
                                 })
@@ -121,7 +120,6 @@ const removeFromSelected = (id: string) => {
                             class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
                             @click="
                                 handleLanguageChange({
-                                    mainSelector: true,
                                     languageId: language._id,
                                     options: { decreasePriority: true },
                                 })
@@ -140,7 +138,6 @@ const removeFromSelected = (id: string) => {
                 data-test="add-language-button"
                 @click="
                     handleLanguageChange({
-                        mainSelector: true,
                         languageId: language._id,
                         options: { add: true },
                     })
