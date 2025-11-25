@@ -611,6 +611,139 @@ describe("sync2 merge", () => {
             expect(syncList.value[0].blockStart).toBe(5000);
             expect(syncList.value[0].blockEnd).toBe(3000);
         });
+
+        it("should return eof=true when first chunk has eof=true", () => {
+            syncList.value = [
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: true,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical("post");
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].eof).toBe(false);
+            expect(result.eof).toBe(true);
+        });
+
+        it("should return eof=false when first chunk has eof=false and no merged chunks have eof=true", () => {
+            syncList.value = [
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical("post");
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].eof).toBe(false);
+            expect(result.eof).toBe(false);
+        });
+
+        it("should return eof=true when any merged chunk has eof=true regardless of first chunk", () => {
+            syncList.value = [
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeVertical("post");
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].eof).toBe(true);
+            expect(result.eof).toBe(true);
+        });
+
+        it("should handle eof flag correctly with multiple groups", () => {
+            syncList.value = [
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: true,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group2"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical("post");
+
+            // Should not merge different groups
+            expect(syncList.value).toHaveLength(2);
+            // eof should be true since first filtered chunk has eof=true
+            expect(result.eof).toBe(true);
+        });
+
+        it("should initialize eof from first filtered chunk when type filter excludes other chunks", () => {
+            syncList.value = [
+                {
+                    type: "tag",
+                    memberOf: ["group1"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeVertical("post");
+
+            // Should only process post type
+            expect(syncList.value).toHaveLength(2);
+            expect(result.eof).toBe(true);
+        });
     });
 
     describe("mergeHorizontal", () => {
