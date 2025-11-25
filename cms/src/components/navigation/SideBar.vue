@@ -88,9 +88,9 @@ const toggleOpen = (item: NavigationEntry) => {
 <template>
     <div
         @scroll.stop
-        class="static flex max-h-screen grow flex-col border-r border-zinc-200 bg-zinc-100 px-2"
+        class="static flex max-h-screen grow flex-col border-r border-zinc-200 bg-zinc-100"
     >
-        <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2 pt-2">
+        <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2 pl-5 pt-1">
             <img class="h-8" :src="logo" :alt="appName" />
             <span
                 v-if="isDevMode"
@@ -99,7 +99,7 @@ const toggleOpen = (item: NavigationEntry) => {
                 DEV
             </span>
         </div>
-        <nav class="flex flex-1 flex-col gap-y-5 overflow-hidden">
+        <nav class="mx-2 flex flex-1 flex-col gap-y-5 overflow-hidden">
             <div class="flex-1 overflow-y-auto">
                 <ul role="list" class="space-y-1 pt-3">
                     <li v-for="item in navigation" :key="item.name">
@@ -156,7 +156,7 @@ const toggleOpen = (item: NavigationEntry) => {
                 </ul>
             </div>
         </nav>
-        <div class="flex w-full flex-col justify-between gap-2 rounded-md p-1 pb-2">
+        <div class="flex w-full flex-col justify-between gap-2 rounded-md p-1 pb-4 pl-4">
             <OnlineIndicator />
             <div class="flex w-full items-center">
                 <ProfileMenu />
