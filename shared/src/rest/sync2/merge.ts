@@ -26,7 +26,8 @@ export function mergeVertical(type: string) {
         groups.get(key)!.push(chunk);
     }
 
-    let eof = false;
+    // Set the default eof value to the first chunk's eof status to handle cases with no merges (only 1 chunk)
+    let eof = filteredList.length ? filteredList[0].eof : false;
 
     // Process each unique combination separately
     groups.forEach((list) => {
