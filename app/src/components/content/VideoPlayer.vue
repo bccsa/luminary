@@ -138,11 +138,17 @@ function stopKeepAudioAlive() {
 }
 
 onMounted(async () => {
+    // Wait for next tick to ensure CSS is loaded and DOM is fully ready
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
     const videojs = (await import("video.js")).default;
 
     // Lazy load videojs-youtube only if we're playing a YouTube video
     if (isYouTube.value) {
         await import("videojs-youtube");
+        // Wait for the YouTube plugin to fully register with VideoJS
+        // This prevents sequencing issues where the source is set before the plugin is ready
+        await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     let options = {
@@ -193,128 +199,39 @@ onMounted(async () => {
 
     // Set player source based on video type (YouTube vs regular)
     if (isYouTube.value) {
-        // Hide VideoJS big play button and PiP button immediately for YouTube videos
-        const playerEl = player?.el();
-        if (playerEl) {
-            const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
-            if (bigPlayButton instanceof HTMLElement) {
-                bigPlayButton.style.display = "none";
-                bigPlayButton.style.visibility = "hidden";
-                bigPlayButton.style.opacity = "0";
-            }
+        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
+        showAudioModeToggle.value = false;
 
-            const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
-            if (pipButton instanceof HTMLElement) {
-                pipButton.style.display = "none";
-                pipButton.style.visibility = "hidden";
-                pipButton.style.opacity = "0";
-            }
-        }
+        // Wait for player to be fully initialized before setting YouTube source
+        // This ensures proper sequencing for the YouTube plugin
+        await new Promise((resolve) => requestAnimationFrame(resolve));
 
-        // Configure YouTube player with branding disabled
+        // Configure YouTube player
         player.src({
             type: "video/youtube",
             src: convertToVideoJSYouTubeUrl(props.content.video!),
         });
-        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
-        showAudioModeToggle.value = false;
 
-        // Force CSS classes to be properly applied after YouTube iframe loads
-        // YouTube creates an iframe asynchronously, so we need to ensure our CSS is applied after it's ready
-        player.on("ready", () => {
-            // Force repaint by toggling a class
-            const playerEl = player?.el();
-            if (playerEl) {
-                playerEl.classList.add("vjs-youtube-loaded");
-
-                // Hide VideoJS big play button for YouTube videos
-                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
-                if (bigPlayButton instanceof HTMLElement) {
-                    bigPlayButton.style.display = "none";
-                    bigPlayButton.style.visibility = "hidden";
-                    bigPlayButton.style.opacity = "0";
-                }
-
-                // Hide Picture-in-Picture button for YouTube videos
-                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
-                if (pipButton instanceof HTMLElement) {
-                    pipButton.style.display = "none";
-                    pipButton.style.visibility = "hidden";
-                    pipButton.style.opacity = "0";
-                }
-
-                // Use requestAnimationFrame to ensure DOM updates are applied
-                requestAnimationFrame(() => {
-                    playerEl.classList.remove("vjs-youtube-loaded");
-                });
-            }
-        });
-
-        // Also handle the loadedmetadata event for YouTube videos
+        // Handle YouTube-specific progress restoration
         player.on("loadedmetadata", () => {
-            const playerEl = player?.el();
-            if (playerEl) {
-                // Ensure the video-js class and our custom classes are properly applied
-                playerEl.classList.add("video-js");
-
-                // Find the tech element (YouTube iframe wrapper) and ensure it has proper styling
-                const techEl = playerEl.querySelector(".vjs-tech");
-                if (techEl) {
-                    (techEl as HTMLElement).classList.add("vjs-tech");
-                }
-
-                // Hide VideoJS big play button for YouTube videos
-                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
-                if (bigPlayButton instanceof HTMLElement) {
-                    bigPlayButton.style.display = "none";
-                    bigPlayButton.style.visibility = "hidden";
-                    bigPlayButton.style.opacity = "0";
-                }
-
-                // Hide Picture-in-Picture button for YouTube videos
-                const pipButton = playerEl.querySelector(".vjs-picture-in-picture-control");
-                if (pipButton instanceof HTMLElement) {
-                    pipButton.style.display = "none";
-                    pipButton.style.visibility = "hidden";
-                    pipButton.style.opacity = "0";
-                }
-
-                // Restore saved progress for YouTube videos (wait for metadata to be loaded)
-                if (isYouTube.value && props.content.video) {
-                    const progress = getMediaProgress(props.content.video, props.content._id);
-                    if (progress > 60) {
-                        // Use a small delay to ensure YouTube iframe is fully ready
-                        setTimeout(() => {
-                            player?.currentTime(progress - 30);
-                        }, 100);
-                    }
+            if (isYouTube.value && props.content.video) {
+                const progress = getMediaProgress(props.content.video, props.content._id);
+                if (progress > 60) {
+                    // Wait for YouTube iframe to be fully ready
+                    setTimeout(() => {
+                        player?.currentTime(progress - 30);
+                    }, 100);
                 }
             }
         });
 
-        // Add a slight delay to ensure YouTube iframe is fully initialized
-        // This helps with the initial load issue where styles aren't applied properly
-        setTimeout(() => {
-            const playerEl = player?.el();
-            if (playerEl instanceof HTMLElement) {
-                // Force a style recalculation
-                void playerEl.offsetHeight;
-
-                // Ensure all parent containers have proper classes
-                const videoPlayerContainer = playerEl.closest(".video-player");
-                if (videoPlayerContainer) {
-                    videoPlayerContainer.classList.add("vjs-youtube-container");
-                }
-
-                // Hide VideoJS big play button for YouTube videos
-                const bigPlayButton = playerEl.querySelector(".vjs-big-play-button");
-                if (bigPlayButton instanceof HTMLElement) {
-                    bigPlayButton.style.display = "none";
-                    bigPlayButton.style.visibility = "hidden";
-                    bigPlayButton.style.opacity = "0";
-                }
+        // Add explicit YouTube ended event listener
+        // YouTube fires its own events through the iframe
+        player.on("ended", () => {
+            if (props.content.video) {
+                removeMediaProgress(props.content.video, props.content._id);
             }
-        }, 100);
+        });
     } else {
         player.src({ type: "application/x-mpegURL", src: props.content.video });
     }
@@ -399,6 +316,9 @@ onMounted(async () => {
         );
     }
 
+    // Track if we've already removed progress to avoid multiple removals
+    let progressRemoved = false;
+
     // Save player progress if greater than 60 seconds
     player.on("timeupdate", () => {
         const currentTime = player?.currentTime() || 0;
@@ -406,12 +326,20 @@ onMounted(async () => {
 
         if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
 
-        // For YouTube videos, check if we're at the end (within 0.5 seconds) and remove progress
+        // For YouTube videos, aggressively check if we're at the end and remove progress
         // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
-        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 0.5) {
-            // Video has reached the end, remove progress
-            removeMediaProgress(props.content.video, props.content._id);
+        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 1) {
+            if (!progressRemoved) {
+                // Video has reached the end, remove progress
+                removeMediaProgress(props.content.video, props.content._id);
+                progressRemoved = true;
+            }
             return;
+        }
+
+        // Reset the flag if we're not near the end
+        if (isYouTube.value && currentTime < durationTime - 2) {
+            progressRemoved = false;
         }
 
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
@@ -427,17 +355,8 @@ onMounted(async () => {
             if (progress > 60) player?.currentTime(progress - 30);
         }
 
-        // For YouTube videos, ensure all CSS classes are properly applied after player is fully ready
-        if (isYouTube.value) {
-            const playerEl = player?.el();
-            if (playerEl instanceof HTMLElement) {
-                // Force a repaint to ensure all styles are applied
-                requestAnimationFrame(() => {
-                    playerEl.offsetHeight; // Trigger reflow
-                    playerEl.classList.add("vjs-youtube-ready");
-                });
-            }
-        }
+        // For non-YouTube videos, restore saved progress (rewind 30 seconds)
+        // (YouTube progress restore is handled after metadata in the YouTube flow)
     });
 
     player.on("ended", () => {
@@ -447,6 +366,7 @@ onMounted(async () => {
         // Remove player progress when video fully completes (works for both regular and YouTube videos)
         // The 'ended' event fires when the video reaches the end, regardless of video source
         removeMediaProgress(props.content.video, props.content._id);
+        progressRemoved = true;
 
         try {
             player?.exitFullscreen();
