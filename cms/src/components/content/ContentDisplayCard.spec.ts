@@ -12,9 +12,20 @@ import waitForExpect from "wait-for-expect";
 // Monkey patch the router to keep test accurate and avoid false positives
 // This also prevents vitest hoisting issues with the router
 import * as actualRouter from "@/router";
+const mockPush = vi.fn();
 Object.defineProperty(actualRouter, "default", {
-    value: { push: vi.fn() },
+    value: { push: mockPush },
     writable: true,
+});
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: mockPush,
+        }),
+    };
 });
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -69,12 +80,11 @@ describe("ContentDisplayCard", () => {
         await db.docs.clear();
         await db.localChanges.clear();
         vi.clearAllMocks();
+        mockPush.mockClear();
     });
 
     it("routes to default language translation", async () => {
         cmsDefaultLanguage.value = mockData.mockLanguageDtoSwa;
-
-        const push = (actualRouter.default as any).push;
 
         const wrapper = mount(ContentDisplayCard, {
             props: {
@@ -95,12 +105,19 @@ describe("ContentDisplayCard", () => {
             },
         });
 
-        const title = wrapper.find("[data-test='content-title']");
+        // Wait for component to render - the card should be visible
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockData.mockEnglishContentDto.title);
+        });
 
-        await title.trigger("click");
+        // Click on the card (the click handler is on the root DisplayCard element)
+        // We can click on the title element or the root card - both should work
+        const card = wrapper.find("[data-test='display-card']");
+        expect(card.exists()).toBe(true);
+        await card.trigger("click");
 
         await waitForExpect(() => {
-            expect(push).toHaveBeenCalledWith({
+            expect(mockPush).toHaveBeenCalledWith({
                 name: "edit",
                 params: {
                     docType: DocType.Post,
