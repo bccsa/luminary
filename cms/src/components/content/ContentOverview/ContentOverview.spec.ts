@@ -29,7 +29,6 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-import router from "@/router";
 import ContentOverview from "./ContentOverview.vue";
 import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
