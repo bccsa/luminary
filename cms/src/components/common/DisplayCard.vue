@@ -40,6 +40,7 @@ const handleClick = () => {
 
 <template>
     <div
+        data-test="display-card"
         class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
         :class="{ 'cursor-pointer': canNavigate && navigateTo }"
         @click="handleClick"

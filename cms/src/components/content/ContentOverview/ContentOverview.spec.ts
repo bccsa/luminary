@@ -2,25 +2,33 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
+import { ref } from "vue";
+
+// Create a shared mock push function using vi.hoisted() so it's available in hoisted mocks
+const { mockPush } = vi.hoisted(() => {
+    return { mockPush: vi.fn() };
+});
+
 // Mock the app router used inside ContentDisplayCard and ContentOverview
 vi.mock("@/router", () => {
-    const push = vi.fn();
     const router = {
-        push,
+        push: mockPush,
         currentRoute: { value: { meta: {} } },
     };
     return { default: router };
 });
 
-// Mock the app router used inside ContentDisplayCard and ContentOverview
-vi.mock("@/router", () => {
-    const push = vi.fn();
-    const router = {
-        push,
-        currentRoute: { value: { meta: {} } },
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: mockPush,
+            currentRoute: ref({ name: "edit" }),
+        }),
     };
-    return { default: router };
 });
+
 import router from "@/router";
 import ContentOverview from "./ContentOverview.vue";
 import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
@@ -30,18 +38,6 @@ import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import { ref } from "vue";
-
-vi.mock("vue-router", async (importOriginal) => {
-    const actual = await importOriginal();
-    return {
-        ...(actual as any),
-        useRouter: () => ({
-            push: vi.fn(),
-            currentRoute: ref({ name: "edit" }),
-        }),
-    };
-});
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
@@ -96,6 +92,7 @@ describe("ContentOverview.vue", () => {
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+        mockPush.mockClear();
     });
 
     it("should display content", async () => {
@@ -184,7 +181,7 @@ describe("ContentOverview.vue", () => {
                 expect(iconExists).toBe(true);
             } else {
                 await firstRow.trigger("click");
-                expect(router.push).toHaveBeenCalledWith(
+                expect(mockPush).toHaveBeenCalledWith(
                     expect.objectContaining({
                         name: "edit",
                         params: expect.objectContaining({
