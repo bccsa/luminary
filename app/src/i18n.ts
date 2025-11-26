@@ -59,7 +59,9 @@ export const initAppTitle = (i18n: I18n<{}, {}, {}, string, false>) => {
 
     // Update the document title based on the route
     let unwatch: WatchHandle | undefined;
-    router.afterEach((to) => {
+
+    // Helper function to set the title for a route
+    const setTitleForRoute = (to: any) => {
         // We handle content in SingleContent.vue
         if (to.name == "content") return;
 
@@ -74,6 +76,13 @@ export const initAppTitle = (i18n: I18n<{}, {}, {}, string, false>) => {
             },
             { immediate: true },
         );
+    };
+
+    // Set the initial title for the current route
+    setTitleForRoute(router.currentRoute.value);
+
+    router.afterEach((to) => {
+        setTitleForRoute(to);
     });
 
     router.beforeEach(() => {
