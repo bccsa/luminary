@@ -22,6 +22,7 @@ export type Configuration = {
     socketIo?: SocketIoConfig;
 };
 
+// S3 Configuration
 export type S3Config = {
     endpoint: string;
     port: number;
