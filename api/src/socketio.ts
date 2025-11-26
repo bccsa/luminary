@@ -142,7 +142,7 @@ export class Socketio implements OnGatewayInit {
             }
 
             // Get groups of reference document
-            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf;
+            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf || [];
 
             // Create room names to emit to
             const rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
