@@ -204,7 +204,7 @@ function handleDelete() {
                     </p>
                 </div>
 
-                <!-- Bucket Type -->
+                <!-- Storage Type -->
                 <LSelect
                     :model-value="bucket.storageType"
                     @update:model-value="
@@ -214,7 +214,7 @@ function handleDelete() {
                                 storageType: value as StorageType,
                             } as StorageDto)
                     "
-                    :label="'Bucket Type'"
+                    :label="'Storage Type'"
                     :options="
                         availableStorageType.map((StorageType: string) => ({
                             label: capitaliseFirstLetter(StorageType),

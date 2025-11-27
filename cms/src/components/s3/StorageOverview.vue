@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, toRaw } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
 import BucketFormModal from "./StorageFormModal.vue";
 import {
@@ -348,7 +348,7 @@ const saveBucket = async () => {
         savedBucketName.value = bucket.name;
 
         // Use toRaw to ensure all reactive proxies are removed before saving
-        await db.upsert({ doc: toRaw(bucket) });
+        await db.upsert({ doc: bucket });
 
         showModal.value = false;
 
