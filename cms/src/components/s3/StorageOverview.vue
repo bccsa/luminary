@@ -23,7 +23,6 @@ import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
 import { changeReqErrors } from "luminary-shared";
-import { changeReqWarnings } from "luminary-shared";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 
@@ -211,31 +210,6 @@ watch(changeReqErrors, (errors) => {
         // Clear the errors after handling
         changeReqErrors.value = [];
         isSavingBucket.value = false;
-    }
-});
-
-// Watch for successful bucket save (with optional warnings)
-watch(changeReqWarnings, (warnings) => {
-    if (warnings && warnings.length > 0 && isSavingBucket.value) {
-        // Show success notification
-        notification.addNotification({
-            title: `Bucket ${savedBucketName.value} ${isEditing.value ? "updated" : "created"}`,
-            description: warnings.join("; "),
-            state: "success",
-        });
-
-        // Close modal and reset
-        showModal.value = false;
-        if (isEditing.value) {
-            editableBucket.value = undefined;
-        } else {
-            resetNewBucket();
-        }
-        hasAttemptedSubmit.value = false;
-        isSavingBucket.value = false;
-
-        // Clear warnings
-        changeReqWarnings.value = [];
     }
 });
 
