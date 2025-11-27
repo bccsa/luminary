@@ -52,7 +52,7 @@ describe("StorageOverview", () => {
         await db.docs.clear();
 
         // Setup access permissions
-        accessMap.value = mockData.mockAccessMap;
+        accessMap.value = mockData.superAdminAccessMap;
 
         // Add mock groups
         await db.docs.add(mockData.mockGroup);
