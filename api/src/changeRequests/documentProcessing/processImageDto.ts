@@ -300,7 +300,7 @@ async function processImageUpload(
         }
 
         // Look up the bucket and create bucket-specific S3 client
-        let bucketDto: StorageDto;
+        let storage: StorageDto;
 
         try {
             const bucketDocs = await db.getDocsByType(DocType.Storage);
@@ -315,13 +315,13 @@ async function processImageUpload(
                 return { success: false, warnings };
             }
 
-            bucketDto = foundBucket;
+            storage = foundBucket;
 
             // Validate file type against bucket's allowed mimeTypes (if specified)
             // Use Sharp's detected format to determine mimetype
-            if (bucketDto.mimeTypes && bucketDto.mimeTypes.length > 0 && metadata.format) {
+            if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
                 const detectedMimetype = `image/${metadata.format}`;
-                const isAllowed = bucketDto.mimeTypes.some((allowedType) => {
+                const isAllowed = storage.mimeTypes.some((allowedType) => {
                     // Support wildcards like "image/*"
                     if (allowedType.endsWith("/*")) {
                         const prefix = allowedType.slice(0, -2);
@@ -334,15 +334,15 @@ async function processImageUpload(
                 if (!isAllowed) {
                     warnings.push(
                         `File type "${detectedMimetype}" is not allowed for bucket "${
-                            bucketDto.name
-                        }". Allowed types: ${bucketDto.mimeTypes.join(", ")}`,
+                            storage.name
+                        }". Allowed types: ${storage.mimeTypes.join(", ")}`,
                     );
                     return { success: false, warnings };
                 }
             }
 
             // Create bucket-specific S3 service with bucket's credentials
-            const bucketS3Service = await S3Service.create(bucketId, db);
+            const s3Service = await S3Service.create(bucketId, db);
 
             imageSizes.forEach(async (size) => {
                 if (metadata.width < size / 1.1) return; // allow slight upscaling
@@ -350,7 +350,7 @@ async function processImageUpload(
                     resizeAndUploadImage(
                         uploadData,
                         size,
-                        bucketS3Service,
+                        s3Service,
                         defaultImageQuality,
                         preset,
                         resultImageCollection,
