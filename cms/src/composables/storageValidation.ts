@@ -23,7 +23,7 @@ function validate<T>(
     validation.isValid = callback(value);
 }
 
-export function useBucketValidation(
+export function storageValidation(
     bucket: Ref<StorageDto | undefined>,
     localCredentials: Ref<S3CredentialDto>,
     isEditing: Ref<boolean>,

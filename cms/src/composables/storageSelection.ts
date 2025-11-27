@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { type StorageDto, db, useDexieLiveQuery, BucketType } from "luminary-shared";
 
-export function useBucketSelection() {
+export function storageSelection() {
     const selectedImageBucket = ref<string | undefined>(undefined);
     const selectedMediaBucket = ref<string | undefined>(undefined);
 
