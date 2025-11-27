@@ -40,14 +40,43 @@ export class ChangeRequestController {
         const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
 
         if (files?.length || jsonKey) {
-            const apiVersion = body["apiVersion"];
-            await validateApiVersion(apiVersion);
-
             // Parse the main JSON payload
-            let parsedData = JSON.parse(body[jsonKey]);
+            // Handle case where LFormData may have appended JSON multiple times (for merging)
+            // NestJS may return an array for duplicate keys - use the last value (the merged JSON)
+            const jsonValue = body[jsonKey];
+            const jsonString = Array.isArray(jsonValue)
+                ? jsonValue[jsonValue.length - 1]
+                : String(jsonValue);
+
+            let parsedData: any;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (error) {
+                // If parsing fails, it might be concatenated JSON strings
+                // Try to extract the last complete JSON object
+                const lastBrace = jsonString.lastIndexOf("}");
+                if (lastBrace > 0) {
+                    // Find the matching opening brace by counting braces
+                    let depth = 1;
+                    let start = lastBrace - 1;
+                    while (depth > 0 && start >= 0) {
+                        if (jsonString[start] === "}") depth++;
+                        if (jsonString[start] === "{") depth--;
+                        start--;
+                    }
+                    const lastJson = jsonString.substring(start + 1, lastBrace + 1);
+                    parsedData = JSON.parse(lastJson);
+                } else {
+                    throw error;
+                }
+            }
 
             // Clean prototype pollution keys before processing
             parsedData = removeDangerousKeys(parsedData);
+
+            // Get apiVersion from parsedData (LFormData merges separately appended fields)
+            const apiVersion = parsedData.apiVersion || body["apiVersion"];
+            await validateApiVersion(apiVersion);
 
             // Patch binary data (file buffers) back into placeholders
             if (files.length > 0) {
@@ -69,10 +98,11 @@ export class ChangeRequestController {
             }
 
             // Extract the ChangeReqDto from the parsed data
+            // Types are preserved by LFormData, so id should already be a number
             const changeRequest: ChangeReqDto = {
                 id: parsedData.id,
                 doc: parsedData.doc,
-                apiVersion,
+                apiVersion: parsedData.apiVersion || apiVersion,
             };
 
             return this.changeRequestService.changeRequest(changeRequest, token);
