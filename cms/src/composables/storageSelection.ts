@@ -1,6 +1,17 @@
 import { ref, computed } from "vue";
 import { type StorageDto, db, useDexieLiveQuery, BucketType } from "luminary-shared";
 
+/**
+ * Storage Selection Composable
+ *
+ * Provides functionality for selecting and managing S3 storage buckets in the CMS.
+ * This composable handles:
+ * - Querying available storage buckets from the database
+ * - Filtering buckets by type (Image, Media)
+ * - Managing selected bucket state for image and media uploads
+ * - Auto-selecting buckets when only one option is available
+ * - Determining when bucket selection UI is needed
+ */
 export function storageSelection() {
     const selectedImageBucket = ref<string | undefined>(undefined);
     const selectedMediaBucket = ref<string | undefined>(undefined);
