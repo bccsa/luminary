@@ -41,7 +41,7 @@ export function storageSelection() {
      * Get buckets suitable for media uploads
      */
     const mediaBuckets = computed(() => {
-        return buckets.value.filter((bucket) => bucket.StorageType === StorageType.Media);
+        return buckets.value.filter((bucket) => bucket.storageType === StorageType.Media);
     });
 
     /**
