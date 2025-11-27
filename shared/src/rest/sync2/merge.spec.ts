@@ -13,14 +13,14 @@ describe("sync2 merge", () => {
         it("should merge adjacent chunks with same type, memberOf, and languages", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -28,11 +28,11 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1"],
                 blockStart: 5000,
                 blockEnd: 3000,
@@ -44,21 +44,21 @@ describe("sync2 merge", () => {
         it("should merge multiple adjacent chunks into one", () => {
             syncList.value = [
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 7000,
                     blockEnd: 6000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -66,11 +66,11 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("tag", ["group1"]);
+            mergeVertical({ type: DocType.Tag, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
-                type: "tag",
+                chunkType: "tag",
                 memberOf: ["group1"],
                 blockStart: 7000,
                 blockEnd: 4000,
@@ -81,21 +81,21 @@ describe("sync2 merge", () => {
         it("should not be blocked by other groups while merging", () => {
             syncList.value = [
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 7000,
                     blockEnd: 6000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group2"],
                     blockStart: 6000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
@@ -103,11 +103,11 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("tag", ["group1"]);
+            mergeVertical({ type: DocType.Tag, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(2);
             expect(syncList.value[0]).toEqual({
-                type: "tag",
+                chunkType: "tag",
                 memberOf: ["group1"],
                 blockStart: 7000,
                 blockEnd: 5000,
@@ -118,7 +118,7 @@ describe("sync2 merge", () => {
         it("should not be blocked by other languages while merging", () => {
             syncList.value = [
                 {
-                    type: "content:tag",
+                    chunkType: "content:tag",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 7000,
@@ -126,7 +126,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:tag",
+                    chunkType: "content:tag",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 6000,
@@ -134,7 +134,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:tag",
+                    chunkType: "content:tag",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 6000,
@@ -143,11 +143,16 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:tag", ["group1"], ["en"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Tag,
+                memberOf: ["group1"],
+                languages: ["en"],
+            });
 
             expect(syncList.value).toHaveLength(2);
             expect(syncList.value[0]).toEqual({
-                type: "content:tag",
+                chunkType: "content:tag",
                 memberOf: ["group1"],
                 languages: ["en"],
                 blockStart: 7000,
@@ -159,14 +164,14 @@ describe("sync2 merge", () => {
         it("should set eof flag when merging chunks with eof=true", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 0,
@@ -174,7 +179,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(true);
@@ -184,14 +189,14 @@ describe("sync2 merge", () => {
         it("should not merge chunks with different memberOf groups", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -199,7 +204,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -207,7 +212,7 @@ describe("sync2 merge", () => {
         it("should not merge chunks with different languages", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -215,7 +220,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 4000,
@@ -224,7 +229,12 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post", ["group1"], ["en"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+            });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -232,7 +242,7 @@ describe("sync2 merge", () => {
         it("should merge chunks with same languages", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -240,7 +250,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 4000,
@@ -249,11 +259,16 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post", ["group1"], ["en", "es"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en", "es"],
+            });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["en", "es"],
                 blockStart: 5000,
@@ -265,14 +280,14 @@ describe("sync2 merge", () => {
         it("should not merge chunks with non-adjacent time ranges", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -280,7 +295,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -288,14 +303,14 @@ describe("sync2 merge", () => {
         it("should handle chunks with blockStart=0 (no data returned)", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 0,
                     blockEnd: 3000,
@@ -303,11 +318,11 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1"],
                 blockStart: 5000,
                 blockEnd: 3000,
@@ -318,21 +333,21 @@ describe("sync2 merge", () => {
         it("should only merge chunks of the specified type", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -340,15 +355,15 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(2);
-            expect(syncList.value.filter((c) => c.type === "post")).toHaveLength(1);
-            expect(syncList.value.filter((c) => c.type === "tag")).toHaveLength(1);
+            expect(syncList.value.filter((c) => c.chunkType === "post")).toHaveLength(1);
+            expect(syncList.value.filter((c) => c.chunkType === "tag")).toHaveLength(1);
         });
 
         it("should handle empty syncList", () => {
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(0);
             expect(result.eof).toBe(false);
@@ -357,7 +372,7 @@ describe("sync2 merge", () => {
         it("should handle single chunk in syncList", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -365,11 +380,11 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1"],
                 blockStart: 5000,
                 blockEnd: 4000,
@@ -380,14 +395,14 @@ describe("sync2 merge", () => {
         it("should merge chunks with undefined languages", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -395,7 +410,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
         });
@@ -403,7 +418,7 @@ describe("sync2 merge", () => {
         it("should not merge when one chunk has languages and the other doesn't", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -411,7 +426,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -419,7 +434,12 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post", ["group1"], ["en"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+            });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -430,14 +450,14 @@ describe("sync2 merge", () => {
             syncList.value = [
                 // Group 1 chunks (group1)
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 7000,
                     blockEnd: 6000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
@@ -445,14 +465,14 @@ describe("sync2 merge", () => {
                 },
                 // Group 2 chunks (group2) - interleaved
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 6500,
                     blockEnd: 5500,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 5500,
                     blockEnd: 4500,
@@ -460,8 +480,8 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1"]);
-            mergeVertical("post", ["group2"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+            mergeVertical({ type: DocType.Post, memberOf: ["group2"] });
 
             // Should result in 2 merged chunks (one per group)
             expect(syncList.value).toHaveLength(2);
@@ -474,7 +494,7 @@ describe("sync2 merge", () => {
             );
 
             expect(group1Chunk).toEqual({
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1"],
                 blockStart: 7000,
                 blockEnd: 5000,
@@ -482,7 +502,7 @@ describe("sync2 merge", () => {
             });
 
             expect(group2Chunk).toEqual({
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group2"],
                 blockStart: 6500,
                 blockEnd: 4500,
@@ -494,7 +514,7 @@ describe("sync2 merge", () => {
             syncList.value = [
                 // English chunks
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 8000,
@@ -502,7 +522,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 7000,
@@ -511,7 +531,7 @@ describe("sync2 merge", () => {
                 },
                 // Spanish chunks - interleaved
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 7500,
@@ -519,7 +539,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 6500,
@@ -528,8 +548,18 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post", ["group1"], ["en"]);
-            mergeVertical("content:post", ["group1"], ["es"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+            });
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["es"],
+            });
 
             // Should result in 2 merged chunks (one per language)
             expect(syncList.value).toHaveLength(2);
@@ -542,7 +572,7 @@ describe("sync2 merge", () => {
             );
 
             expect(enChunk).toEqual({
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["en"],
                 blockStart: 8000,
@@ -551,7 +581,7 @@ describe("sync2 merge", () => {
             });
 
             expect(esChunk).toEqual({
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["es"],
                 blockStart: 7500,
@@ -563,7 +593,7 @@ describe("sync2 merge", () => {
         it("should handle languages in different order as the same group", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -571,7 +601,7 @@ describe("sync2 merge", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es", "en"], // Different order, same content
                     blockStart: 4000,
@@ -580,7 +610,12 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post", ["group1"], ["en", "es"]);
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en", "es"],
+            });
 
             // Should merge because the languages are the same, just in different order
             expect(syncList.value).toHaveLength(1);
@@ -591,14 +626,14 @@ describe("sync2 merge", () => {
         it("should handle memberOf in different order as the same group", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2", "group1"], // Different order, same content
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -606,7 +641,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post", ["group1", "group2"]);
+            mergeVertical({ type: DocType.Post, memberOf: ["group1", "group2"] });
 
             // Should merge because the memberOf groups are the same, just in different order
             expect(syncList.value).toHaveLength(1);
@@ -617,14 +652,14 @@ describe("sync2 merge", () => {
         it("should return eof=true when first chunk has eof=true", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -632,7 +667,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(false);
@@ -642,14 +677,14 @@ describe("sync2 merge", () => {
         it("should return eof=false when first chunk has eof=false and no merged chunks have eof=true", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -657,7 +692,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(false);
@@ -667,21 +702,21 @@ describe("sync2 merge", () => {
         it("should return eof=true when any merged chunk has eof=true regardless of first chunk", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -689,7 +724,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(true);
@@ -699,14 +734,14 @@ describe("sync2 merge", () => {
         it("should handle eof flag correctly with multiple groups", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -714,7 +749,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             // Should not merge different groups
             expect(syncList.value).toHaveLength(2);
@@ -725,14 +760,14 @@ describe("sync2 merge", () => {
         it("should initialize eof from first filtered chunk when type filter excludes other chunks", () => {
             syncList.value = [
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -740,7 +775,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post", ["group1"]);
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
 
             // Should only process post type
             expect(syncList.value).toHaveLength(2);
@@ -752,14 +787,14 @@ describe("sync2 merge", () => {
         it("should merge chunks with different memberOf groups when both have eof=true", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -767,7 +802,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2"]);
@@ -778,14 +813,14 @@ describe("sync2 merge", () => {
         it("should not merge chunks when eof=false", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -793,7 +828,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -801,14 +836,14 @@ describe("sync2 merge", () => {
         it("should not merge when only one chunk has eof=true", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -816,7 +851,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -824,21 +859,21 @@ describe("sync2 merge", () => {
         it("should merge multiple chunks with different memberOf groups", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group3"],
                     blockStart: 4800,
                     blockEnd: 2800,
@@ -846,7 +881,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2", "group3"]);
@@ -857,7 +892,7 @@ describe("sync2 merge", () => {
         it("should merge languages for content type documents", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -865,7 +900,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 4500,
@@ -874,7 +909,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].languages).toEqual(["en", "es"]);
@@ -883,7 +918,7 @@ describe("sync2 merge", () => {
         it("should merge both memberOf and languages for content types", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -891,7 +926,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group2"],
                     languages: ["es"],
                     blockStart: 4500,
@@ -900,7 +935,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2"]);
@@ -910,14 +945,14 @@ describe("sync2 merge", () => {
         it("should handle duplicate memberOf groups", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2", "group3"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -925,7 +960,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2", "group3"]);
@@ -934,7 +969,7 @@ describe("sync2 merge", () => {
         it("should handle duplicate languages", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -942,7 +977,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es", "fr"],
                     blockStart: 4500,
@@ -951,7 +986,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].languages).toEqual(["en", "es", "fr"]);
@@ -960,21 +995,21 @@ describe("sync2 merge", () => {
         it("should only merge chunks of the specified type", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
                     eof: true,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group3"],
                     blockStart: 5000,
                     blockEnd: 3000,
@@ -982,15 +1017,15 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(2);
-            expect(syncList.value.filter((c) => c.type === "post")).toHaveLength(1);
-            expect(syncList.value.filter((c) => c.type === "tag")).toHaveLength(1);
+            expect(syncList.value.filter((c) => c.chunkType === "post")).toHaveLength(1);
+            expect(syncList.value.filter((c) => c.chunkType === "tag")).toHaveLength(1);
         });
 
         it("should handle empty syncList", () => {
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(0);
         });
@@ -998,7 +1033,7 @@ describe("sync2 merge", () => {
         it("should handle single chunk in syncList", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
@@ -1006,7 +1041,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1"]);
@@ -1015,21 +1050,21 @@ describe("sync2 merge", () => {
         it("should sort merged memberOf groups", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group3"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4500,
                     blockEnd: 2500,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4800,
                     blockEnd: 2800,
@@ -1037,7 +1072,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2", "group3"]);
@@ -1046,7 +1081,7 @@ describe("sync2 merge", () => {
         it("should sort merged languages", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["fr"],
                     blockStart: 5000,
@@ -1054,7 +1089,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 4500,
@@ -1062,7 +1097,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 4800,
@@ -1071,7 +1106,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].languages).toEqual(["en", "es", "fr"]);
@@ -1080,14 +1115,14 @@ describe("sync2 merge", () => {
         it("should handle content types with undefined languages", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -1095,7 +1130,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].languages).toEqual([]);
@@ -1104,7 +1139,7 @@ describe("sync2 merge", () => {
         it("should merge when one content chunk has languages and another doesn't", () => {
             syncList.value = [
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -1112,7 +1147,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: DocType.Content,
+                    chunkType: "content:post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 2500,
@@ -1120,7 +1155,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal(DocType.Content);
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].languages).toEqual(["en"]);
@@ -1129,21 +1164,21 @@ describe("sync2 merge", () => {
         it("should update blockStart to the maximum value", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 3000,
                     blockEnd: 1000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 5000,
                     blockEnd: 2000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group3"],
                     blockStart: 4000,
                     blockEnd: 1500,
@@ -1151,7 +1186,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].blockStart).toBe(5000);
@@ -1160,21 +1195,21 @@ describe("sync2 merge", () => {
         it("should update blockEnd to the minimum value", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4500,
                     blockEnd: 1000,
                     eof: true,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group3"],
                     blockStart: 4800,
                     blockEnd: 2000,
@@ -1182,7 +1217,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("post");
+            mergeHorizontal({ type: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].blockEnd).toBe(1000);
@@ -1191,7 +1226,7 @@ describe("sync2 merge", () => {
         it("should handle combined type strings like 'content:post'", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -1199,7 +1234,7 @@ describe("sync2 merge", () => {
                     eof: true,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group2"],
                     languages: ["es"],
                     blockStart: 4500,
@@ -1208,7 +1243,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeHorizontal("content:post");
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2"]);

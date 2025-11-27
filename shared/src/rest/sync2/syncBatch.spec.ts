@@ -29,8 +29,7 @@ describe("syncBatch", () => {
         setCancelSync(true);
         const http = { post: vi.fn() };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 10,
             initialSync: true,
@@ -52,9 +51,8 @@ describe("syncBatch", () => {
         };
         const languages = ["en", "es"];
         await syncBatch({
-            type: "content:post",
-            docType: DocType.Content,
-            parentType: DocType.Post,
+            type: DocType.Content,
+            subType: DocType.Post,
             memberOf: ["g1"],
             limit: 10,
             initialSync: true,
@@ -76,8 +74,7 @@ describe("syncBatch", () => {
             }),
         };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 10,
             initialSync: true,
@@ -92,8 +89,7 @@ describe("syncBatch", () => {
         const docs = makeDocs(3, 3000, 10); // limit will be 5
         const http = { post: vi.fn(async () => ({ docs })) };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 5,
             initialSync: true,
@@ -111,8 +107,7 @@ describe("syncBatch", () => {
             .mockImplementationOnce(async () => ({ docs: first }))
             .mockImplementationOnce(async () => ({ docs: second }));
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 5,
             initialSync: true,
@@ -133,8 +128,7 @@ describe("syncBatch", () => {
         const docsB = makeDocs(1, 1990, 10);
         const http = { post: vi.fn(async () => ({ docs: docsA })) };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 3,
             initialSync: true,
@@ -143,8 +137,7 @@ describe("syncBatch", () => {
         // Manually push second group's chunk then trigger vertical+horizontal via syncBatch call
         http.post.mockImplementation(async () => ({ docs: docsB }));
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g2"],
             limit: 3,
             initialSync: true,
@@ -159,8 +152,7 @@ describe("syncBatch", () => {
         const docs = makeDocs(2, 1000, 5);
         const http = { post: vi.fn(async () => ({ docs })) };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 10,
             initialSync: true,
@@ -174,8 +166,7 @@ describe("syncBatch", () => {
     it("handles empty docs response and sets blockStart/blockEnd to 0", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         await syncBatch({
-            type: "post",
-            docType: DocType.Post,
+            type: DocType.Post,
             memberOf: ["g1"],
             limit: 5,
             initialSync: true,
@@ -190,8 +181,7 @@ describe("syncBatch", () => {
         const http = { post: vi.fn(async () => ({ docs: "bad" })) };
         await expect(
             syncBatch({
-                type: "post",
-                docType: DocType.Post,
+                type: DocType.Post,
                 memberOf: ["g1"],
                 limit: 5,
                 initialSync: true,

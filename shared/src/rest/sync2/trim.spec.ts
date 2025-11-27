@@ -12,7 +12,9 @@ describe("sync2 trim", () => {
     });
 
     it("trims unused memberOf groups and sorts remaining", () => {
-        syncList.value = [{ type: "post", memberOf: ["g2", "g1"], blockStart: 1000, blockEnd: 0 }];
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g2", "g1"], blockStart: 1000, blockEnd: 0 },
+        ];
 
         trim({ memberOf: ["g1"] });
 
@@ -21,7 +23,7 @@ describe("sync2 trim", () => {
     });
 
     it("removes entry when all groups trimmed away", () => {
-        syncList.value = [{ type: "post", memberOf: ["g2"], blockStart: 1000, blockEnd: 0 }];
+        syncList.value = [{ chunkType: "post", memberOf: ["g2"], blockStart: 1000, blockEnd: 0 }];
 
         trim({ memberOf: ["g1"] });
 
@@ -31,7 +33,7 @@ describe("sync2 trim", () => {
     it("trims languages for content types", () => {
         syncList.value = [
             {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["g1"],
                 languages: ["en", "es"],
                 blockStart: 1000,
@@ -48,7 +50,7 @@ describe("sync2 trim", () => {
     it("removes content entry when all languages trimmed away", () => {
         syncList.value = [
             {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["g1"],
                 languages: ["en"],
                 blockStart: 1000,
@@ -64,9 +66,9 @@ describe("sync2 trim", () => {
     it("does not trim languages for non-content types", () => {
         syncList.value = [
             {
-                type: "post",
+                chunkType: "post",
                 memberOf: ["g1"],
-                // languages should be ignored since type != content*
+                // languages should be ignored since chunkType != content*
                 languages: ["en", "es"],
                 blockStart: 1000,
                 blockEnd: 0,
@@ -82,7 +84,7 @@ describe("sync2 trim", () => {
     it("retains languages when options.languages not provided", () => {
         syncList.value = [
             {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["g1"],
                 languages: ["en", "es"],
                 blockStart: 1000,
@@ -98,7 +100,7 @@ describe("sync2 trim", () => {
     it("sorts trimmed languages and groups", () => {
         syncList.value = [
             {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["g2", "g1", "g3"],
                 languages: ["es", "fr", "en"],
                 blockStart: 1000,

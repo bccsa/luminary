@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { DocType } from "../../types";
 import { syncList } from "./state";
 import {
     calcChunk,
@@ -18,7 +19,7 @@ describe("sync2 utils", () => {
     describe("calcChunk", () => {
         it("should return MAX_SAFE_INTEGER for initial sync with empty syncList", () => {
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: true,
             });
@@ -29,7 +30,7 @@ describe("sync2 utils", () => {
 
         it("should return MAX_SAFE_INTEGER for non-initial sync with empty syncList", () => {
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -41,7 +42,7 @@ describe("sync2 utils", () => {
         it("should calculate next chunk from existing entry blockEnd for non-initial sync", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -50,7 +51,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -62,7 +63,7 @@ describe("sync2 utils", () => {
         it("should apply tolerance for initial sync with existing data", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -71,7 +72,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: true,
             });
@@ -83,14 +84,14 @@ describe("sync2 utils", () => {
         it("should handle multiple entries and use the earliest blockEnd", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
@@ -99,7 +100,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -112,21 +113,21 @@ describe("sync2 utils", () => {
         it("should filter by type and memberOf", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                     eof: false,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group1"],
                     blockStart: 4500,
                     blockEnd: 3500,
                     eof: false,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2"],
                     blockStart: 4800,
                     blockEnd: 3800,
@@ -135,7 +136,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -147,7 +148,7 @@ describe("sync2 utils", () => {
         it("should handle single entry for non-initial sync with blockEnd of 0", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -156,7 +157,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -167,7 +168,7 @@ describe("sync2 utils", () => {
         it("should filter by languages when provided for content types", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 6000,
@@ -175,7 +176,7 @@ describe("sync2 utils", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 5500,
@@ -183,7 +184,7 @@ describe("sync2 utils", () => {
                     eof: false,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -193,7 +194,8 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en"],
                 initialSync: false,
@@ -208,7 +210,7 @@ describe("sync2 utils", () => {
         it("should handle empty languages array", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -217,7 +219,8 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: [],
                 initialSync: false,
@@ -230,7 +233,7 @@ describe("sync2 utils", () => {
         it("should ignore languages parameter when undefined", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     languages: ["en"],
                     blockStart: 5000,
@@ -240,7 +243,7 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 initialSync: false,
             });
@@ -252,7 +255,7 @@ describe("sync2 utils", () => {
         it("should match languages regardless of order", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -262,7 +265,8 @@ describe("sync2 utils", () => {
             ];
 
             const result = calcChunk({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["es", "en"],
                 initialSync: false,
@@ -274,21 +278,21 @@ describe("sync2 utils", () => {
 
     describe("getGroups", () => {
         it("should return empty array when syncList is empty", () => {
-            const groups = getGroups({ type: "post" });
+            const groups = getGroups({ type: DocType.Post });
             expect(groups).toEqual([]);
         });
 
         it("should return unique groups for a single entry", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
             ];
 
-            const groups = getGroups({ type: "post" });
+            const groups = getGroups({ type: DocType.Post });
             expect(groups).toHaveLength(2);
             expect(groups).toContain("group1");
             expect(groups).toContain("group2");
@@ -297,20 +301,20 @@ describe("sync2 utils", () => {
         it("should return unique groups across multiple entries", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2", "group3"],
                     blockStart: 4000,
                     blockEnd: 3000,
                 },
             ];
 
-            const groups = getGroups({ type: "post" });
+            const groups = getGroups({ type: DocType.Post });
             expect(groups).toHaveLength(3);
             expect(groups).toContain("group1");
             expect(groups).toContain("group2");
@@ -320,55 +324,58 @@ describe("sync2 utils", () => {
         it("should filter by type", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group2"],
                     blockStart: 4000,
                     blockEnd: 3000,
                 },
             ];
 
-            const groups = getGroups({ type: "post" });
+            const groups = getGroups({ type: DocType.Post });
             expect(groups).toEqual(["group1"]);
         });
 
         it("should handle duplicate groups in same entry", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
             ];
 
-            const groups = getGroups({ type: "post" });
+            const groups = getGroups({ type: DocType.Post });
             expect(groups).toEqual(["group1"]);
         });
     });
 
     describe("getGroupSets", () => {
         it("should return empty array when syncList is empty", () => {
-            const groupSets = getGroupSets({ type: "post" });
+            const groupSets = getGroupSets({ type: DocType.Post, memberOf: [] });
             expect(groupSets).toEqual([]);
         });
 
         it("should return single group set for single entry", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
             ];
 
-            const groupSets = getGroupSets({ type: "post" });
+            const groupSets = getGroupSets({
+                type: DocType.Post,
+                memberOf: ["group1", "group2", "group3"],
+            });
             expect(groupSets).toHaveLength(1);
             expect(groupSets[0].sort()).toEqual(["group1", "group2"]);
         });
@@ -376,26 +383,29 @@ describe("sync2 utils", () => {
         it("should return unique group sets", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2", "group1"], // Same set, different order
                     blockStart: 4000,
                     blockEnd: 3000,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group3"],
                     blockStart: 3000,
                     blockEnd: 2000,
                 },
             ];
 
-            const groupSets = getGroupSets({ type: "post" });
+            const groupSets = getGroupSets({
+                type: DocType.Post,
+                memberOf: ["group1", "group2", "group3"],
+            });
             expect(groupSets).toHaveLength(2);
 
             // Check that both unique sets are present
@@ -407,20 +417,20 @@ describe("sync2 utils", () => {
         it("should filter by type", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "tag",
+                    chunkType: "tag",
                     memberOf: ["group2"],
                     blockStart: 4000,
                     blockEnd: 3000,
                 },
             ];
 
-            const groupSets = getGroupSets({ type: "post" });
+            const groupSets = getGroupSets({ type: DocType.Post, memberOf: ["group1", "group2"] });
             expect(groupSets).toHaveLength(1);
             expect(groupSets[0]).toEqual(["group1"]);
         });
@@ -428,26 +438,29 @@ describe("sync2 utils", () => {
         it("should handle multiple different group sets", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 6000,
                     blockEnd: 5000,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1", "group2"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group2", "group3"],
                     blockStart: 4000,
                     blockEnd: 3000,
                 },
             ];
 
-            const groupSets = getGroupSets({ type: "post" });
+            const groupSets = getGroupSets({
+                type: DocType.Post,
+                memberOf: ["group1", "group2", "group3"],
+            });
             expect(groupSets).toHaveLength(3);
         });
     });
@@ -461,7 +474,7 @@ describe("sync2 utils", () => {
         it("should return empty array when no content entries exist", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -475,7 +488,7 @@ describe("sync2 utils", () => {
         it("should return languages from content entries", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -492,14 +505,14 @@ describe("sync2 utils", () => {
         it("should return unique languages across multiple entries", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "content:tag",
+                    chunkType: "content:tag",
                     memberOf: ["group1"],
                     languages: ["es", "fr"],
                     blockStart: 4000,
@@ -517,7 +530,7 @@ describe("sync2 utils", () => {
         it("should handle entries without languages property", () => {
             syncList.value = [
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -531,14 +544,14 @@ describe("sync2 utils", () => {
         it("should ignore non-content entries", () => {
             syncList.value = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     languages: ["en"], // This should be ignored
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "content:post",
+                    chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 4000,
@@ -554,25 +567,25 @@ describe("sync2 utils", () => {
     describe("filterByTypeMemberOf", () => {
         it("should filter entries by type and memberOf", () => {
             const entry1 = {
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
             const entry2 = {
-                type: "tag",
+                chunkType: "tag",
                 memberOf: ["group1"],
                 blockStart: 4000,
                 blockEnd: 3000,
             };
             const entry3 = {
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group2"],
                 blockStart: 3000,
                 blockEnd: 2000,
             };
 
-            const filter = filterByTypeMemberOf({ type: "post", memberOf: ["group1"] });
+            const filter = filterByTypeMemberOf({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(filter(entry1)).toBe(true);
             expect(filter(entry2)).toBe(false);
@@ -581,40 +594,43 @@ describe("sync2 utils", () => {
 
         it("should match memberOf arrays regardless of order", () => {
             const entry = {
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group2", "group1"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
 
-            const filter = filterByTypeMemberOf({ type: "post", memberOf: ["group1", "group2"] });
+            const filter = filterByTypeMemberOf({
+                type: DocType.Post,
+                memberOf: ["group1", "group2"],
+            });
 
             expect(filter(entry)).toBe(true);
         });
 
         it("should not match different memberOf arrays", () => {
             const entry = {
-                type: "post",
+                chunkType: "post",
                 memberOf: ["group1", "group2"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
 
-            const filter = filterByTypeMemberOf({ type: "post", memberOf: ["group1"] });
+            const filter = filterByTypeMemberOf({ type: DocType.Post, memberOf: ["group1"] });
 
             expect(filter(entry)).toBe(false);
         });
 
         it("should filter by languages when provided", () => {
             const entry1 = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["en"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
             const entry2 = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["es"],
                 blockStart: 4000,
@@ -622,7 +638,8 @@ describe("sync2 utils", () => {
             };
 
             const filter = filterByTypeMemberOf({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en"],
             });
@@ -633,7 +650,7 @@ describe("sync2 utils", () => {
 
         it("should match languages regardless of order", () => {
             const entry = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["es", "en"],
                 blockStart: 5000,
@@ -641,7 +658,8 @@ describe("sync2 utils", () => {
             };
 
             const filter = filterByTypeMemberOf({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en", "es"],
             });
@@ -651,14 +669,15 @@ describe("sync2 utils", () => {
 
         it("should match entries without languages when languages is empty array", () => {
             const entry = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
 
             const filter = filterByTypeMemberOf({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: [],
             });
@@ -668,21 +687,22 @@ describe("sync2 utils", () => {
 
         it("should not filter by languages when languages is undefined", () => {
             const entry1 = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 languages: ["en"],
                 blockStart: 5000,
                 blockEnd: 4000,
             };
             const entry2 = {
-                type: "content:post",
+                chunkType: "content:post",
                 memberOf: ["group1"],
                 blockStart: 4000,
                 blockEnd: 3000,
             };
 
             const filter = filterByTypeMemberOf({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
             });
 
