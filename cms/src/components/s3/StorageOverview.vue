@@ -18,7 +18,7 @@ import {
 import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
-import { useBucketValidation } from "@/composables/useBucketValidation";
+import { storageValidation } from "@/composables/storageValidation";
 
 // Reactive database queries
 const groups = useDexieLiveQuery(
@@ -107,7 +107,7 @@ const {
     hasFieldError,
     touchField,
     resetValidation,
-} = useBucketValidation(currentBucket, localCredentials, isEditing);
+} = storageValidation(currentBucket, localCredentials, isEditing);
 
 // Watch for modal visibility changes
 watch(

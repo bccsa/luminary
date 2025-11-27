@@ -9,7 +9,7 @@ import {
     maxUploadFileSize,
     type ContentParentDto,
 } from "luminary-shared";
-import { useBucketSelection } from "@/composables/useBucketSelection";
+import { storageSelection } from "@/composables/storageSelection";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
@@ -27,7 +27,7 @@ const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // Bucket selection (simplified approach using existing database data)
-const bucketSelection = useBucketSelection();
+const bucketSelection = storageSelection();
 
 // Get separate URLs for existing vs new content
 // This ensures existing images continue to display from their original bucket

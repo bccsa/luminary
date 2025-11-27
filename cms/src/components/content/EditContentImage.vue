@@ -6,7 +6,7 @@ import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/o
 import ImageEditor from "../images/ImageEditor.vue";
 import { ref, computed, watch } from "vue";
 import LButton from "../button/LButton.vue";
-import { useBucketSelection } from "@/composables/useBucketSelection";
+import { storageSelection } from "@/composables/storageSelection";
 
 type Props = {
     docType: DocType;
@@ -22,7 +22,7 @@ const showHelp = ref(false);
 const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
 
-const bucketSelection = useBucketSelection();
+const storage = storageSelection();
 
 // Track the existing images bucket ID to handle bucket changes properly
 const existingImagesBucketId = ref<string | undefined>(undefined);
@@ -58,7 +58,7 @@ const acceptedmimeTypes = computed(() => {
         return "image/jpeg, image/png, image/webp"; // default
     }
 
-    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    const bucket = storage.getBucketById(parent.value.imageBucketId);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*"; // accept all images if no restrictions
     }
