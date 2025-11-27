@@ -20,7 +20,7 @@ The system uses a bucket-based approach where:
 - The system can handle multiple storage providers simultaneously
 - Credentials are encrypted and stored securely
 
-## Bucket Types
+## Storage Types
 
 - **Image**: For image uploads and processing
 - **Media**: For audio, video, and other media files
@@ -35,7 +35,7 @@ Each bucket type can have multiple instances, allowing you to distribute content
 2. Click **Add Bucket**
 3. Fill in:
    - **Name**: Descriptive name for your bucket
-   - **Bucket Type**: Select Image or Media
+   - **Storage Type**: Select Image or Media
    - **Public URL**: The public base URL for accessing files
    - **Allowed File Types**: Specify which file types this bucket accepts (e.g., `image/*`, `video/mp4`)
    - **S3 Credentials**:
