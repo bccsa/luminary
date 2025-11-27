@@ -413,7 +413,7 @@ onUnmounted(() => {
 });
 
 watch(audioMode, async (mode) => {
-    // Skip audio-only mode for YouTube videos as it's not supported
+    // Force audio-only mode to false for YouTube videos as it's not supported by YouTube
     if (isYouTube.value) {
         audioMode.value = false;
     }
