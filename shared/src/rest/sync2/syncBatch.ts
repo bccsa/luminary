@@ -4,7 +4,7 @@ import { mergeHorizontal, mergeVertical } from "./merge";
 import { syncList } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
-import { calcChunk } from "./utils";
+import { calcChunk, getChunkTypeString } from "./utils";
 
 /**
  * Perform an iterative vertical sync (for given type and memberOf groups), and merge chunks as they are fetched.
@@ -15,16 +15,11 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
     if (cancelSync) {
         return;
     }
-    const chunk = calcChunk({
-        type: options.type,
-        memberOf: options.memberOf,
-        initialSync: options.initialSync,
-        languages: options.languages,
-    });
+    const chunk = calcChunk(options);
 
     const mangoQuery = {
         selector: {
-            type: options.docType,
+            type: options.type,
             updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
             memberOf: {
                 $elemMatch: { $in: options.memberOf },
@@ -33,16 +28,18 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
-            "sync-" +
-            (options.parentType ? options.parentType + "-" : "") +
-            options.docType +
-            "-index",
+            "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
     };
 
     // Add parentType and language selectors to content queries
-    if (options.docType === DocType.Content && options.parentType) {
-        mangoQuery.selector.parentType = options.parentType;
+    if (options.type === DocType.Content && options.subType) {
+        mangoQuery.selector.parentType = options.subType;
         mangoQuery.selector.language = { $in: options.languages || [] };
+    }
+
+    // Add docType selector for deleteCmd queries
+    if (options.type === DocType.DeleteCmd && options.subType) {
+        mangoQuery.selector.docType = options.subType;
     }
 
     // Add the CMS flag if present
@@ -78,7 +75,7 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
 
     // Push chunk to chunk list
     syncList.value.push({
-        type: options.type,
+        chunkType: getChunkTypeString(options.type, options.subType),
         memberOf: options.memberOf,
         languages: options.languages,
         blockStart,
@@ -87,11 +84,11 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
     });
 
     // Merge vertical chunks
-    const { eof } = mergeVertical(options.type, options.memberOf, options.languages);
+    const { eof } = mergeVertical(options);
 
     // If end of file, perform horizontal merge with any complete columns
     if (eof) {
-        mergeHorizontal(options.type);
+        mergeHorizontal(options);
     } else {
         // Check if sync has been cancelled before continuing to next chunk
         if (cancelSync) {
