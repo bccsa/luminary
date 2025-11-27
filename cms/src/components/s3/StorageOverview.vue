@@ -61,7 +61,7 @@ onMounted(() => {
 });
 
 const isLoading = ref(false);
-const errors = ref<string[] | null>(null);
+const errors = ref<string[] | undefined>(undefined);
 const isSavingBucket = ref(false);
 const savedBucketName = ref<string>("");
 
@@ -94,7 +94,7 @@ const hasAttemptedSubmit = ref(false); // Track if user has tried to submit
 const showModal = ref(false);
 const showCredentials = ref(false);
 const showDeleteModal = ref(false);
-const bucketToDelete = ref<StorageDto | null>(null);
+const bucketToDelete = ref<StorageDto | undefined>(undefined);
 const newFileType = ref<string>("");
 
 const notification = useNotificationStore();
@@ -116,7 +116,7 @@ const newBucket = ref<StorageDto>({
     mimeTypes: [],
 });
 
-const editableBucket = ref<StorageDto | null>(null);
+const editableBucket = ref<StorageDto | undefined>(undefined);
 const isEditing = computed(() => {
     if (!canEdit.value) return false;
     return !!editableBucket.value;
@@ -147,10 +147,10 @@ watch(
             touchedFields.value.clear(); // Clear touched fields
         } else {
             // Clear error when modal is closed
-            errors.value = null;
+            errors.value = undefined;
             // Clear editing state when modal is closed
             if (isEditing.value) {
-                editableBucket.value = null;
+                editableBucket.value = undefined;
             }
             hasAttemptedSubmit.value = false; // Reset on close too
             touchedFields.value.clear(); // Clear touched fields
@@ -201,7 +201,7 @@ watch(changeReqErrors, (errors) => {
         if (showModal.value) {
             showModal.value = false;
             if (isEditing.value) {
-                editableBucket.value = null;
+                editableBucket.value = undefined;
             } else {
                 resetNewBucket();
             }
@@ -227,7 +227,7 @@ watch(changeReqWarnings, (warnings) => {
         // Close modal and reset
         showModal.value = false;
         if (isEditing.value) {
-            editableBucket.value = null;
+            editableBucket.value = undefined;
         } else {
             resetNewBucket();
         }
@@ -261,7 +261,7 @@ function resetNewBucket() {
 
 function openCreateModal() {
     resetNewBucket();
-    editableBucket.value = null;
+    editableBucket.value = undefined;
     showModal.value = true;
 }
 
@@ -341,12 +341,12 @@ async function confirmDelete() {
         await db.upsert({ doc: bucketToDelete.value });
 
         showDeleteModal.value = false;
-        bucketToDelete.value = null;
+        bucketToDelete.value = undefined;
 
         // Close the edit modal if it's open
         if (showModal.value) {
             showModal.value = false;
-            editableBucket.value = null;
+            editableBucket.value = undefined;
         }
 
         notification.addNotification({
@@ -542,7 +542,7 @@ const hasFieldError = (fieldId: string) => {
 
 const saveBucket = async () => {
     isLoading.value = true;
-    errors.value = null;
+    errors.value = undefined;
     hasAttemptedSubmit.value = true; // Mark that user has attempted to submit
 
     try {
