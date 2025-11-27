@@ -15,7 +15,7 @@ import { processJwt } from "../jwt/processJwt";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AclPermission, DocType } from "../enums";
 
-export type BucketStatusResponseDto = {
+export type StorageStatusResponseDto = {
     status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
     message?: string;
 };
@@ -30,7 +30,7 @@ export class StorageStatusController {
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
         @Headers("Authorization") authHeader: string,
-    ): Promise<BucketStatusResponseDto> {
+    ): Promise<StorageStatusResponseDto> {
         await validateApiVersion(apiVersion);
 
         // Extract and process JWT token

@@ -13,13 +13,13 @@ import { ClockIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { SignalIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import { isSmallScreen } from "@/globalConfig";
 
-// Import BucketStatus type for props typing
-import type { BucketStatus } from "luminary-shared";
+// Import StorageStatus type for props typing
+import type { StorageStatus } from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     bucket: StorageDto & {
-        connectionStatus: BucketStatus;
+        connectionStatus: StorageStatus;
         statusMessage?: string;
     };
     groups: GroupDto[];

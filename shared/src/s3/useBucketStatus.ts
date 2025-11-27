@@ -1,69 +1,69 @@
 import { ref, computed, watch } from "vue";
 import type { StorageDto } from "../types";
-import { BucketStatus } from "../types/enum";
+import { StorageStatus } from "../types/enum";
 import { getRest } from "../rest/RestApi";
 
-export type BucketStatusInfo = {
-    connectionStatus: BucketStatus;
+export type StorageStatusInfo = {
+    connectionStatus: StorageStatus;
     statusMessage?: string;
 };
 
-export type BucketWithStatus = StorageDto & BucketStatusInfo;
+export type BucketWithStatus = StorageDto & StorageStatusInfo;
 
 /**
  * Reactive composable for checking bucket connectivity status
  * This function makes API calls to check bucket status and maintains reactive state
  */
-export function useBucketStatus(buckets: { value: StorageDto[] }) {
+export function useStorageStatus(buckets: { value: StorageDto[] }) {
     // Map to store bucket status by bucket ID
-    const statusMap = ref(new Map<string, BucketStatusInfo>());
+    const statusMap = ref(new Map<string, StorageStatusInfo>());
 
     /**
      * Fetch the status of a single bucket from the API
      */
-    async function fetchBucketStatus(bucket: StorageDto): Promise<void> {
+    async function fetchStorageStatus(bucket: StorageDto): Promise<void> {
         // Default when no credentials
         if (!bucket.credential && !bucket.credential_id) {
             statusMap.value.set(bucket._id as string, {
-                connectionStatus: BucketStatus.NoCredential,
+                connectionStatus: StorageStatus.NoCredential,
             });
             return;
         }
 
         // Mark as checking
         statusMap.value.set(bucket._id as string, {
-            connectionStatus: BucketStatus.Checking,
+            connectionStatus: StorageStatus.Checking,
         });
 
         try {
             // Use the RestApi singleton to make the request
             const rest = getRest();
-            const result = await rest.getBucketStatus(bucket._id as string);
+            const result = await rest.getStorageStatus(bucket._id as string);
 
             if (!result || !result.status) {
                 statusMap.value.set(bucket._id as string, {
-                    connectionStatus: BucketStatus.Unknown,
+                    connectionStatus: StorageStatus.Unknown,
                     statusMessage: result?.message,
                 });
                 return;
             }
 
-            // Map API response status to BucketStatus enum
-            const statusMap_temp: Record<string, BucketStatus> = {
-                connected: BucketStatus.Connected,
-                unreachable: BucketStatus.Unreachable,
-                unauthorized: BucketStatus.Unauthorized,
-                "not-found": BucketStatus.NotFound,
-                "no-credentials": BucketStatus.NoCredential,
+            // Map API response status to StorageStatus enum
+            const statusMap_temp: Record<string, StorageStatus> = {
+                connected: StorageStatus.Connected,
+                unreachable: StorageStatus.Unreachable,
+                unauthorized: StorageStatus.Unauthorized,
+                "not-found": StorageStatus.NotFound,
+                "no-credentials": StorageStatus.NoCredential,
             };
 
             statusMap.value.set(bucket._id as string, {
-                connectionStatus: statusMap_temp[result.status] || BucketStatus.Unknown,
+                connectionStatus: statusMap_temp[result.status] || StorageStatus.Unknown,
                 statusMessage: result.message,
             });
         } catch (err: any) {
             statusMap.value.set(bucket._id as string, {
-                connectionStatus: BucketStatus.Unreachable,
+                connectionStatus: StorageStatus.Unreachable,
                 statusMessage: err?.message ?? String(err),
             });
         }
@@ -74,13 +74,13 @@ export function useBucketStatus(buckets: { value: StorageDto[] }) {
      */
     async function refreshAllStatuses(): Promise<void> {
         const list = [...buckets.value];
-        await Promise.all(list.map((b) => fetchBucketStatus(b)));
+        await Promise.all(list.map((b) => fetchStorageStatus(b)));
     }
 
     /**
      * Get status for a specific bucket by ID
      */
-    function getBucketStatus(bucketId: string): BucketStatusInfo {
+    function getStorageStatus(bucketId: string): StorageStatusInfo {
         const entry = statusMap.value.get(bucketId);
         if (entry) {
             return entry;
@@ -93,8 +93,8 @@ export function useBucketStatus(buckets: { value: StorageDto[] }) {
         return {
             connectionStatus:
                 bucket && !bucket.credential && !bucket.credential_id
-                    ? BucketStatus.NoCredential
-                    : BucketStatus.Unknown,
+                    ? StorageStatus.NoCredential
+                    : StorageStatus.Unknown,
         };
     }
 
@@ -103,7 +103,7 @@ export function useBucketStatus(buckets: { value: StorageDto[] }) {
      */
     const bucketsWithStatus = computed<BucketWithStatus[]>(() => {
         return buckets.value.map((bucket): BucketWithStatus => {
-            const status = getBucketStatus(bucket._id as string);
+            const status = getStorageStatus(bucket._id as string);
             return {
                 ...bucket,
                 ...status,
@@ -122,9 +122,9 @@ export function useBucketStatus(buckets: { value: StorageDto[] }) {
 
     return {
         statusMap,
-        fetchBucketStatus,
+        fetchStorageStatus,
         refreshAllStatuses,
-        getBucketStatus,
+        getStorageStatus,
         bucketsWithStatus,
     };
 }
