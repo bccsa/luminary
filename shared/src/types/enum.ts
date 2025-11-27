@@ -43,7 +43,7 @@ export enum StorageType {
     Media = "media",
 }
 
-export enum BucketStatus {
+export enum StorageStatus {
     Connected = "connected",
     Unreachable = "unreachable",
     Unauthorized = "unauthorized",

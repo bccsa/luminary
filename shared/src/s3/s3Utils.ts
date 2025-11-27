@@ -11,7 +11,7 @@ export type S3TestCredentialsResult = {
 };
 
 // Re-export bucket status utilities
-export * from "./useBucketStatus";
+export * from "./useStorageStatus";
 
 /**
  * Test S3 credentials by attempting basic S3 operations without creating buckets

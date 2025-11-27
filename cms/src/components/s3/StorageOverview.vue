@@ -12,7 +12,7 @@ import {
     AclPermission,
     verifyAccess,
     StorageType,
-    useBucketStatus,
+    useStorageStatus,
     hasAnyPermission,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
@@ -46,7 +46,7 @@ const canDelete = computed(() => hasAnyPermission(DocType.Storage, AclPermission
 const canEdit = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Edit));
 
 // Use the shared bucket status composable
-const { fetchBucketStatus, refreshAllStatuses, bucketsWithStatus } = useBucketStatus(buckets);
+const { fetchStorageStatus, refreshAllStatuses, bucketsWithStatus } = useStorageStatus(buckets);
 
 // Ensure statuses are refreshed on mount
 onMounted(() => {
@@ -228,7 +228,7 @@ function deleteBucket() {
 }
 
 async function handleTestConnection(bucket: StorageDto) {
-    await fetchBucketStatus(bucket);
+    await fetchStorageStatus(bucket);
 }
 
 async function confirmDelete() {
