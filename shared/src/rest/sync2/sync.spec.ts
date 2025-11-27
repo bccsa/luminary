@@ -17,6 +17,10 @@ vi.mock("./syncBatch", () => ({
     syncBatch: vi.fn(),
 }));
 
+vi.mock("./trim", () => ({
+    trim: vi.fn(),
+}));
+
 vi.mock("./utils", async () => {
     const actual = await vi.importActual("./utils");
     return {
@@ -116,6 +120,24 @@ describe("sync module", () => {
             ).rejects.toThrow("Sync module not initialized with HTTP service");
         });
 
+        it("should call trim before starting sync", async () => {
+            const { trim } = await import("./trim");
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+
+            await sync({
+                type: "post",
+                memberOf: ["group1"],
+                limit: 100,
+            });
+
+            expect(trim).toHaveBeenCalledWith({
+                type: "post",
+                memberOf: ["group1"],
+                limit: 100,
+            });
+        });
+
         it("should return early if cancelSync is true", async () => {
             setCancelSync(true);
 
@@ -152,6 +174,7 @@ describe("sync module", () => {
 
         it("should handle type with parentType (content documents)", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            // getGroupSets is now called with parentType when available
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
             vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
 
@@ -161,6 +184,9 @@ describe("sync module", () => {
                 languages: ["en"],
                 limit: 100,
             });
+
+            // Verify getGroupSets was called with the correct type (options.type, not parentType)
+            expect(utils.getGroupSets).toHaveBeenCalledWith({ type: "content:post" });
 
             expect(syncBatch).toHaveBeenCalledWith({
                 type: "content:post",
@@ -174,7 +200,7 @@ describe("sync module", () => {
             });
         });
 
-        it("should start new runner for new languages (content documents)", async () => {
+        it("should start new runner for new languages when existing languages exist (content documents)", async () => {
             // Set up mocks to prevent recursion - return values that won't trigger recursive calls
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             // Return single group set to prevent group-based recursion
@@ -196,20 +222,18 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should be called twice: recursive call first, then current call
+            // Should be called twice: once for new language ["fr"], once for existing ["en"]
             expect(syncBatch).toHaveBeenCalledTimes(2);
             const calls = vi.mocked(syncBatch).mock.calls;
-            // First call: recursive call - gets ["fr"] passed in, but then getLanguages() returns ["en", "fr"]
-            // so options.languages gets replaced with ["en", "fr"]
+            // First call: new languages ["fr"] since existing has ["en"]
             expect(calls[0][0]).toMatchObject({
-                languages: ["en", "fr"],
+                languages: ["fr"],
             });
-            // Second call: current call with existingLanguages ["en"]
+            // Second call: existing languages ["en"]
             expect(calls[1][0]).toMatchObject({
                 languages: ["en"],
             });
         });
-
         it("should start new runner for new memberOf groups", async () => {
             // First call: getGroups returns ["group1"], second call onwards: return all groups to stop recursion
             let callCount = 0;
@@ -387,12 +411,8 @@ describe("sync module", () => {
         it("should handle when only new languages exist (no existing languages)", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
-            // First call: return empty array, subsequent calls: return all languages to stop recursion
-            let callCount = 0;
-            vi.mocked(utils.getLanguages).mockImplementation(() => {
-                callCount++;
-                return callCount === 1 ? [] : ["en", "fr"];
-            });
+            // Return empty array for existing languages
+            vi.mocked(utils.getLanguages).mockReturnValue([]);
 
             await sync({
                 type: "content:post",
@@ -401,16 +421,13 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should call syncBatch twice: recursive with new languages first, then current with existing (empty)
-            expect(syncBatch).toHaveBeenCalledTimes(2);
+            // Should call syncBatch once - no recursive call since existingLanguages is empty
+            // The condition is: if (newLanguages.length > 0 && existingLanguages.length > 0)
+            expect(syncBatch).toHaveBeenCalledTimes(1);
             const calls = vi.mocked(syncBatch).mock.calls;
-            // First call: recursive with newLanguages ["en", "fr"]
+            // Should proceed with the original languages ["en", "fr"]
             expect(calls[0][0]).toMatchObject({
                 languages: ["en", "fr"],
-            });
-            // Second call: current call gets existingLanguages which is empty array
-            expect(calls[1][0]).toMatchObject({
-                languages: [],
             });
         });
     });

@@ -1,67 +1,52 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import type { SyncListEntry } from "./types";
+import { filterByTypeMemberOf } from "./utils";
 
 /**
  * Merge adjacent chunks vertically (by updatedTimeUtc) for the same type, memberOf, and languages.
  * This combines consecutive time-based chunks that share the same filtering criteria.
  *
  * @param type - Document type or combined type and subtype (e.g., "content:post") to merge.
+ * @param memberOf - Array of memberOf groups to filter chunks by.
+ * @param languages - Optional array of languages to filter chunks by (for content types).
  */
-export function mergeVertical(type: string) {
-    const filteredList = syncList.value.filter((chunk) => chunk.type === type);
-
-    // Group chunks by unique memberOf and languages combinations
-    const groups = new Map<string, SyncListEntry[]>();
-
-    for (const chunk of filteredList) {
-        const key = JSON.stringify({
-            memberOf: [...chunk.memberOf].sort(),
-            languages: [...(chunk.languages || [])].sort(),
-        });
-
-        if (!groups.has(key)) {
-            groups.set(key, []);
-        }
-        groups.get(key)!.push(chunk);
-    }
+export function mergeVertical(type: string, memberOf: string[], languages?: string[]) {
+    // Filter chunks by type, memberOf, and languages (if provided)
+    const filteredList = syncList.value.filter(filterByTypeMemberOf({ type, memberOf, languages }));
 
     // Set the default eof value to the first chunk's eof status to handle cases with no merges (only 1 chunk)
     let eof = filteredList.length ? filteredList[0].eof : false;
 
-    // Process each unique combination separately
-    groups.forEach((list) => {
-        // Sort in reverse order (newest first)
-        list.sort((a, b) => b.blockStart - a.blockStart);
+    // Sort in reverse order (newest first)
+    filteredList.sort((a, b) => b.blockStart - a.blockStart);
 
-        // Start from the newest chunk and move backwards (vertical merge for the same type, memberOf and languages)
-        for (let i = 0; i < list.length - 1; i++) {
-            const current = list[i];
-            const next = list[i + 1];
+    // Start from the newest chunk and move backwards (vertical merge for the same type, memberOf and languages)
+    for (let i = 0; i < filteredList.length - 1; i++) {
+        const current = filteredList[i];
+        const next = filteredList[i + 1];
 
-            if (
-                current.blockEnd <= next.blockStart ||
-                // handle responses which did not return any data
-                next.blockStart === 0
-            ) {
-                // Merge chunks
-                current.blockEnd = next.blockEnd;
-                current.eof = next.eof;
-                if (next.eof) eof = true; // Set End of File flag
+        if (
+            current.blockEnd <= next.blockStart ||
+            // handle responses which did not return any data
+            next.blockStart === 0
+        ) {
+            // Merge chunks
+            current.blockEnd = next.blockEnd;
+            current.eof = next.eof;
+            if (next.eof) eof = true; // Set End of File flag
 
-                // Remove next chunk from syncList
-                const index = syncList.value.indexOf(next);
-                if (index !== -1) {
-                    syncList.value.splice(index, 1);
+            // Remove next chunk from syncList
+            const index = syncList.value.indexOf(next);
+            if (index !== -1) {
+                syncList.value.splice(index, 1);
 
-                    // Remove merged chunk from local list
-                    list.splice(i + 1, 1);
-                }
-
-                i--; // Re-evaluate current index after merge
+                // Remove merged chunk from local list
+                filteredList.splice(i + 1, 1);
             }
+
+            i--; // Re-evaluate current index after merge
         }
-    });
+    }
 
     return { eof };
 }

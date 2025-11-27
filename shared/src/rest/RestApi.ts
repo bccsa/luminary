@@ -1,5 +1,5 @@
 import { DocType, LocalChangeDto } from "../types";
-import { Sync, syncActive } from "./sync";
+import { syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
 import { LFormData } from "../util/LFormData";

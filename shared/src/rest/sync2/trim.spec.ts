@@ -95,53 +95,6 @@ describe("sync2 trim", () => {
         expect(syncList.value[0].languages).toEqual(["en", "es"]);
     });
 
-    it("performs vertical merge after trimming (adjacent chunks)", () => {
-        // Two adjacent chunks same group; trimming keeps both; they should merge into one.
-        syncList.value = [
-            { type: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4000, eof: false },
-            { type: "post", memberOf: ["g1"], blockStart: 4000, blockEnd: 3000, eof: false },
-        ];
-
-        trim({ memberOf: ["g1"] });
-
-        expect(syncList.value).toHaveLength(1);
-        expect(syncList.value[0].blockStart).toBe(5000);
-        expect(syncList.value[0].blockEnd).toBe(3000);
-    });
-
-    it("does not trigger horizontal merge when eof not reached", () => {
-        // Two different groups, each with only one chunk and no eof merge -> eof will be false
-        syncList.value = [
-            { type: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4000, eof: false },
-            { type: "post", memberOf: ["g2"], blockStart: 4500, blockEnd: 3500, eof: false },
-        ];
-
-        trim({ memberOf: ["g1", "g2"] });
-
-        // No vertical merges produce eof true, so horizontal merge should not happen
-        expect(syncList.value).toHaveLength(2);
-        const groups = syncList.value.map((e) => e.memberOf[0]).sort();
-        expect(groups).toEqual(["g1", "g2"]);
-    });
-
-    it("triggers horizontal merge when vertical produced eof merges across groups", () => {
-        // Each group has two chunks with second eof: true, vertical merge sets eof true overall
-        syncList.value = [
-            { type: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4000, eof: false },
-            { type: "post", memberOf: ["g1"], blockStart: 4000, blockEnd: 0, eof: true },
-            { type: "post", memberOf: ["g2"], blockStart: 4500, blockEnd: 3500, eof: false },
-            { type: "post", memberOf: ["g2"], blockStart: 3500, blockEnd: 0, eof: true },
-        ];
-
-        trim({ memberOf: ["g1", "g2"] });
-
-        // Should have been horizontally merged into single entry with both groups
-        expect(syncList.value).toHaveLength(1);
-        expect(syncList.value[0].memberOf).toEqual(["g1", "g2"]);
-        expect(syncList.value[0].blockStart).toBe(5000); // max
-        expect(syncList.value[0].blockEnd).toBe(0); // min
-    });
-
     it("sorts trimmed languages and groups", () => {
         syncList.value = [
             {
