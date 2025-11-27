@@ -36,7 +36,6 @@ export class ChangeRequestController {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
         // Check if this is a multipart form data request (with potential binary data)
-        // LFormData uses __json suffix instead of -JSON
         const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
 
         if (files?.length || jsonKey) {
