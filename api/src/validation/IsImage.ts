@@ -13,6 +13,7 @@ export function IsImage() {
 
                     return (
                         metadata.format === "jpeg" ||
+                        metadata.format === "jpg" ||
                         metadata.format === "png" ||
                         metadata.format === "webp"
                     );
