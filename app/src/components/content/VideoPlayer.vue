@@ -15,6 +15,7 @@ import {
     queryParams,
 } from "@/globalConfig";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
+import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
 type Props = {
     content: ContentDto;
@@ -34,6 +35,18 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
+// YouTube detection
+const isYouTube = ref<boolean>(false);
+
+// Check if the current video is a YouTube video
+if (props.content.video) {
+    isYouTube.value = isYouTubeUrl(props.content.video);
+    if (isYouTube.value) {
+        // hides audio mode toggle for YouTube videos as it's not supported
+        showAudioModeToggle.value = false;
+    }
+}
+
 const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
 
 let timeout: any;
@@ -51,6 +64,10 @@ function playerPlayEventHandler() {
 }
 
 function playerUserActiveEventHandler() {
+    if (isYouTube.value) {
+        showAudioModeToggle.value = false;
+    }
+
     if (audioMode.value) {
         // Always show controls and toggle in audio-only mode
         showAudioModeToggle.value = true;
@@ -121,7 +138,18 @@ function stopKeepAudioAlive() {
 }
 
 onMounted(async () => {
+    // Wait for next tick to ensure CSS is loaded and DOM is fully ready
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
     const videojs = (await import("video.js")).default;
+
+    // Lazy load videojs-youtube only if we're playing a YouTube video
+    if (isYouTube.value) {
+        await import("videojs-youtube");
+        // Wait for the YouTube plugin to fully register with VideoJS
+        // This prevents sequencing issues where the source is set before the plugin is ready
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 
     let options = {
         fluid: false,
@@ -147,7 +175,7 @@ onMounted(async () => {
                 "progressControl",
                 "liveDisplay",
                 "fullscreenToggle",
-                "pictureInPictureToggle",
+                ...(isYouTube.value ? [] : ["pictureInPictureToggle"]), // Hide PiP for YouTube videos
                 "playbackRateMenuButton",
                 "volumePanel",
                 "skipBackwardButton",
@@ -168,7 +196,45 @@ onMounted(async () => {
     window.dispatchEvent(playerEvent);
 
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-    player.src({ type: "application/x-mpegURL", src: props.content.video });
+
+    // Set player source based on video type (YouTube vs regular)
+    if (isYouTube.value) {
+        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
+        showAudioModeToggle.value = false;
+
+        // Wait for player to be fully initialized before setting YouTube source
+        // This ensures proper sequencing for the YouTube plugin
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        // Configure YouTube player
+        player.src({
+            type: "video/youtube",
+            src: convertToVideoJSYouTubeUrl(props.content.video!),
+        });
+
+        // Handle YouTube-specific progress restoration
+        player.on("loadedmetadata", () => {
+            if (isYouTube.value && props.content.video) {
+                const progress = getMediaProgress(props.content.video, props.content._id);
+                if (progress > 60) {
+                    // Wait for YouTube iframe to be fully ready
+                    setTimeout(() => {
+                        player?.currentTime(progress - 30);
+                    }, 100);
+                }
+            }
+        });
+
+        // Add explicit YouTube ended event listener
+        // YouTube fires its own events through the iframe
+        player.on("ended", () => {
+            if (props.content.video) {
+                removeMediaProgress(props.content.video, props.content._id);
+            }
+        });
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
@@ -250,28 +316,54 @@ onMounted(async () => {
         );
     }
 
+    // Track if we've already removed progress to avoid multiple removals
+    let progressRemoved = false;
+
     // Save player progress if greater than 60 seconds
     player.on("timeupdate", () => {
         const currentTime = player?.currentTime() || 0;
         const durationTime = player?.duration() || 0;
 
         if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
+
+        // For YouTube videos, aggressively check if we're at the end and remove progress
+        // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
+        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 1) {
+            if (!progressRemoved) {
+                // Video has reached the end, remove progress
+                removeMediaProgress(props.content.video, props.content._id);
+                progressRemoved = true;
+            }
+            return;
+        }
+
+        // Reset the flag if we're not near the end
+        if (isYouTube.value && currentTime < durationTime - 2) {
+            progressRemoved = false;
+        }
+
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
     player.on("ready", () => {
         if (!props.content.video) return;
-        const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player?.currentTime(progress - 30);
+
+        // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
+        if (!isYouTube.value) {
+            const progress = getMediaProgress(props.content.video, props.content._id);
+            if (progress > 60) player?.currentTime(progress - 30);
+        }
     });
 
     player.on("ended", () => {
         if (!props.content.video) return;
         stopKeepAudioAlive();
 
-        // Remove player progress on ended
+        // Remove player progress when video fully completes (works for both regular and YouTube videos)
+        // The 'ended' event fires when the video reaches the end, regardless of video source
         removeMediaProgress(props.content.video, props.content._id);
+        progressRemoved = true;
 
         try {
             player?.exitFullscreen();
@@ -318,6 +410,11 @@ onUnmounted(() => {
 });
 
 watch(audioMode, async (mode) => {
+    // Force audio-only mode to false for YouTube videos as it's not supported by YouTube
+    if (isYouTube.value) {
+        audioMode.value = false;
+    }
+
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
     player?.userActive(true);
@@ -456,7 +553,7 @@ watch(
             enter-from-class="opacity-0"
         >
             <AudioVideoToggle
-                v-if="showAudioModeToggle"
+                v-if="showAudioModeToggle && !isYouTube"
                 v-model="audioMode"
                 ref="audioModeToggle"
                 class="audio-mode-toggle"

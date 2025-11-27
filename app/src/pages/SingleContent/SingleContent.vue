@@ -16,7 +16,7 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -52,11 +52,7 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
-
-const VideoPlayer = defineAsyncComponent({
-    loader: () => import("@/components/content/VideoPlayer.vue"),
-    loadingComponent: LoadingSpinner,
-});
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
 
 const router = useRouter();
 
@@ -577,7 +573,8 @@ const quickLanguageSwitch = (languageId: string) => {
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div class="flex flex-grow justify-center">
-                <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
+                <LoadingSpinner v-if="isLoading" />
+                <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer
                             v-if="content.video"
