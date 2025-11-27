@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from "vue";
+import { ref, watch, computed, onMounted, toRaw } from "vue";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
 import BucketFormModal from "./StorageFormModal.vue";
 import {
@@ -348,7 +348,7 @@ const saveBucket = async () => {
         savedBucketName.value = bucket.name;
 
         // Use toRaw to ensure all reactive proxies are removed before saving
-        await db.upsert({ doc: bucket });
+        await db.upsert({ doc: toRaw(bucket) });
 
         showModal.value = false;
 
@@ -424,8 +424,10 @@ const saveBucket = async () => {
         :touchField="touchField"
         :localCredentials="localCredentials"
         :hasValidCredentials="hasValidCredentials"
-        @update:bucket="(value) => (isEditing ? (editableBucket = value) : (newBucket = value))"
-        @update:localCredentials="(value) => (localCredentials = value)"
+        @update:bucket="
+            (value: StorageDto) => (isEditing ? (editableBucket = value) : (newBucket = value))
+        "
+        @update:localCredentials="(value: S3CredentialDto) => (localCredentials = value)"
         @save="saveBucket"
         @delete="deleteBucket"
     />
