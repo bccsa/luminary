@@ -27,7 +27,7 @@ export class StorageDto extends _contentBaseDto {
     @IsString()
     @IsEnum(StorageType)
     @Expose()
-    StorageType: StorageType;
+    storageType: StorageType;
 
     @IsOptional()
     @ValidateNested()
