@@ -31,6 +31,7 @@ describe("LImageProvider", () => {
                 parentWidth: 50,
                 image: mockImage,
                 aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
             },
         });
         await wrapper.vm.$nextTick();
@@ -55,6 +56,7 @@ describe("LImageProvider", () => {
                 parentWidth: 600,
                 image: mockImage,
                 aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
             },
         });
         await wrapper.vm.$nextTick();
@@ -77,6 +79,7 @@ describe("LImageProvider", () => {
                 parentWidth: 600,
                 image: mockImage,
                 aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
             },
         });
         await wrapper.vm.$nextTick();
@@ -95,6 +98,7 @@ describe("LImageProvider", () => {
                 image: mockImage,
                 aspectRatio: "video",
                 isModal: true,
+                bucketPublicUrl: "https://bucket.example.com",
             },
         });
         await wrapper.vm.$nextTick();

@@ -4,6 +4,13 @@ import { mount } from "@vue/test-utils";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
+import { computed } from "vue";
+
+vi.mock("@/composables/useBucketInfo", () => ({
+    useBucketInfo: () => ({
+        bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
 
 const posterMock = vi.hoisted(() => vi.fn());
 const srcMock = vi.hoisted(() => vi.fn());

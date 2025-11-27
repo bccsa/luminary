@@ -1,9 +1,16 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import LImage from "./LImage.vue";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mockImageDto } from "../../tests/mockdata";
 import waitForExpect from "wait-for-expect";
+import { computed, ref } from "vue";
+
+vi.mock("@/composables/useBucketInfo", () => ({
+    useBucketInfo: () => ({
+        bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
 
 describe("LImage", () => {
     it("displays an image", async () => {
