@@ -163,6 +163,113 @@ describe("sync2 utils", () => {
 
             expect(result.blockEnd).toBe(0); // Only one entry, so blockEnd is 0
         });
+
+        it("should filter by languages when provided for content types", () => {
+            syncList.value = [
+                {
+                    type: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+                {
+                    type: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["es"],
+                    blockStart: 5500,
+                    blockEnd: 4500,
+                    eof: false,
+                },
+                {
+                    type: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = calcChunk({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+                initialSync: false,
+            });
+
+            // Should only consider entries with language "en"
+            // After sorting by blockStart: [5000->4000, 6000->5000]
+            expect(result.blockStart).toBe(4000); // blockEnd of first entry (after sorting)
+            expect(result.blockEnd).toBe(6000); // blockStart of second entry
+        });
+
+        it("should handle empty languages array", () => {
+            syncList.value = [
+                {
+                    type: "content:post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = calcChunk({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: [],
+                initialSync: false,
+            });
+
+            // Should match entries without languages property
+            expect(result.blockStart).toBe(4000);
+        });
+
+        it("should ignore languages parameter when undefined", () => {
+            syncList.value = [
+                {
+                    type: "post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = calcChunk({
+                type: "post",
+                memberOf: ["group1"],
+                initialSync: false,
+            });
+
+            // Should match entry even though it has languages, since we didn't filter by languages
+            expect(result.blockStart).toBe(4000);
+        });
+
+        it("should match languages regardless of order", () => {
+            syncList.value = [
+                {
+                    type: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en", "es"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = calcChunk({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["es", "en"],
+                initialSync: false,
+            });
+
+            expect(result.blockStart).toBe(4000);
+        });
     });
 
     describe("getGroups", () => {
@@ -368,7 +475,7 @@ describe("sync2 utils", () => {
         it("should return languages from content entries", () => {
             syncList.value = [
                 {
-                    type: "content",
+                    type: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
@@ -385,14 +492,14 @@ describe("sync2 utils", () => {
         it("should return unique languages across multiple entries", () => {
             syncList.value = [
                 {
-                    type: "content",
+                    type: "content:post",
                     memberOf: ["group1"],
                     languages: ["en", "es"],
                     blockStart: 5000,
                     blockEnd: 4000,
                 },
                 {
-                    type: "content",
+                    type: "content:tag",
                     memberOf: ["group1"],
                     languages: ["es", "fr"],
                     blockStart: 4000,
@@ -410,7 +517,7 @@ describe("sync2 utils", () => {
         it("should handle entries without languages property", () => {
             syncList.value = [
                 {
-                    type: "content",
+                    type: "content:post",
                     memberOf: ["group1"],
                     blockStart: 5000,
                     blockEnd: 4000,
@@ -431,7 +538,7 @@ describe("sync2 utils", () => {
                     blockEnd: 4000,
                 },
                 {
-                    type: "content",
+                    type: "content:post",
                     memberOf: ["group1"],
                     languages: ["es"],
                     blockStart: 4000,
@@ -496,6 +603,91 @@ describe("sync2 utils", () => {
             const filter = filterByTypeMemberOf({ type: "post", memberOf: ["group1"] });
 
             expect(filter(entry)).toBe(false);
+        });
+
+        it("should filter by languages when provided", () => {
+            const entry1 = {
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 4000,
+            };
+            const entry2 = {
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["es"],
+                blockStart: 4000,
+                blockEnd: 3000,
+            };
+
+            const filter = filterByTypeMemberOf({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+            });
+
+            expect(filter(entry1)).toBe(true);
+            expect(filter(entry2)).toBe(false);
+        });
+
+        it("should match languages regardless of order", () => {
+            const entry = {
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["es", "en"],
+                blockStart: 5000,
+                blockEnd: 4000,
+            };
+
+            const filter = filterByTypeMemberOf({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["en", "es"],
+            });
+
+            expect(filter(entry)).toBe(true);
+        });
+
+        it("should match entries without languages when languages is empty array", () => {
+            const entry = {
+                type: "content:post",
+                memberOf: ["group1"],
+                blockStart: 5000,
+                blockEnd: 4000,
+            };
+
+            const filter = filterByTypeMemberOf({
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: [],
+            });
+
+            expect(filter(entry)).toBe(true);
+        });
+
+        it("should not filter by languages when languages is undefined", () => {
+            const entry1 = {
+                type: "content:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 4000,
+            };
+            const entry2 = {
+                type: "content:post",
+                memberOf: ["group1"],
+                blockStart: 4000,
+                blockEnd: 3000,
+            };
+
+            const filter = filterByTypeMemberOf({
+                type: "content:post",
+                memberOf: ["group1"],
+            });
+
+            expect(filter(entry1)).toBe(true);
+            expect(filter(entry2)).toBe(true);
         });
     });
 

@@ -1,6 +1,5 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import { mergeHorizontal, mergeVertical } from "./merge";
 
 /**
  * Trim unused languages and memberOf groups from existing syncListEntries.
@@ -44,16 +43,4 @@ export function trim(options: { memberOf: string[]; languages?: string[] }): voi
             entry.languages = trimmedLanguages.sort();
         }
     }
-
-    // After trimming, merge entries for each type using existing merge functions
-    const types = new Set(syncList.value.map((entry) => entry.type));
-    types.forEach((type) => {
-        // Merge vertical chunks (by time)
-        const { eof } = mergeVertical(type);
-
-        // If end of file reached, perform horizontal merge (by memberOf and languages)
-        if (eof) {
-            mergeHorizontal(type);
-        }
-    });
 }

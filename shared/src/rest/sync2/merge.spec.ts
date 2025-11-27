@@ -28,7 +28,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
@@ -66,7 +66,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("tag");
+            mergeVertical("tag", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
@@ -103,7 +103,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("tag");
+            mergeVertical("tag", ["group1"]);
 
             expect(syncList.value).toHaveLength(2);
             expect(syncList.value[0]).toEqual({
@@ -143,7 +143,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:tag");
+            mergeVertical("content:tag", ["group1"], ["en"]);
 
             expect(syncList.value).toHaveLength(2);
             expect(syncList.value[0]).toEqual({
@@ -174,7 +174,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(true);
@@ -199,7 +199,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -224,7 +224,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post");
+            mergeVertical("content:post", ["group1"], ["en"]);
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -249,7 +249,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post");
+            mergeVertical("content:post", ["group1"], ["en", "es"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
@@ -280,7 +280,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -303,7 +303,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
@@ -340,7 +340,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(2);
             expect(syncList.value.filter((c) => c.type === "post")).toHaveLength(1);
@@ -348,7 +348,7 @@ describe("sync2 merge", () => {
         });
 
         it("should handle empty syncList", () => {
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(0);
             expect(result.eof).toBe(false);
@@ -365,7 +365,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0]).toEqual({
@@ -395,7 +395,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
         });
@@ -419,7 +419,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post");
+            mergeVertical("content:post", ["group1"], ["en"]);
 
             expect(syncList.value).toHaveLength(2);
         });
@@ -460,7 +460,8 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1"]);
+            mergeVertical("post", ["group2"]);
 
             // Should result in 2 merged chunks (one per group)
             expect(syncList.value).toHaveLength(2);
@@ -527,7 +528,8 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post");
+            mergeVertical("content:post", ["group1"], ["en"]);
+            mergeVertical("content:post", ["group1"], ["es"]);
 
             // Should result in 2 merged chunks (one per language)
             expect(syncList.value).toHaveLength(2);
@@ -578,7 +580,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("content:post");
+            mergeVertical("content:post", ["group1"], ["en", "es"]);
 
             // Should merge because the languages are the same, just in different order
             expect(syncList.value).toHaveLength(1);
@@ -604,7 +606,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            mergeVertical("post");
+            mergeVertical("post", ["group1", "group2"]);
 
             // Should merge because the memberOf groups are the same, just in different order
             expect(syncList.value).toHaveLength(1);
@@ -630,7 +632,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(false);
@@ -655,7 +657,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(false);
@@ -687,7 +689,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].eof).toBe(true);
@@ -712,7 +714,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             // Should not merge different groups
             expect(syncList.value).toHaveLength(2);
@@ -738,7 +740,7 @@ describe("sync2 merge", () => {
                 },
             ];
 
-            const result = mergeVertical("post");
+            const result = mergeVertical("post", ["group1"]);
 
             // Should only process post type
             expect(syncList.value).toHaveLength(2);

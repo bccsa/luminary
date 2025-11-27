@@ -19,6 +19,7 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
         type: options.type,
         memberOf: options.memberOf,
         initialSync: options.initialSync,
+        languages: options.languages,
     });
 
     const mangoQuery = {
@@ -86,7 +87,7 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
     });
 
     // Merge vertical chunks
-    const { eof } = mergeVertical(options.type);
+    const { eof } = mergeVertical(options.type, options.memberOf, options.languages);
 
     // If end of file, perform horizontal merge with any complete columns
     if (eof) {

@@ -6,7 +6,12 @@ import type { SyncListEntry } from "./types";
  * Calculate the blockStart and blockEnd values for the next API query for a give type and memberOf array.
  * Initial sync starts ahead of the latest known blockStart, while regular sync continues from the latest known blockEnd
  */
-export function calcChunk(options: { type: string; memberOf: string[]; initialSync: boolean }): {
+export function calcChunk(options: {
+    type: string;
+    memberOf: string[];
+    initialSync: boolean;
+    languages?: string[];
+}): {
     blockStart: number;
     blockEnd: number;
 } {
@@ -59,7 +64,11 @@ export function getGroupSets(options: { type: string }): string[][] {
 export function getLanguages(): string[] {
     const languages = new Set<string>();
     syncList.value
-        .filter((entry) => entry.type === DocType.Content)
+        .filter(
+            (entry) =>
+                entry.type === DocType.Content + ":" + DocType.Post ||
+                entry.type === DocType.Content + ":" + DocType.Tag,
+        )
         .forEach((entry) => {
             if (entry.languages) {
                 entry.languages.forEach((lang) => languages.add(lang));
@@ -69,11 +78,24 @@ export function getLanguages(): string[] {
 }
 
 /**
- * Filter function to filter syncList entries by type and memberOf
+ * Filter function to filter syncList entries by type and memberOf, and optionally by languages
  */
 export const filterByTypeMemberOf =
-    (options: { type: string; memberOf: string[] }) => (entry: SyncListEntry) =>
-        entry.type === options.type && arraysEqual(entry.memberOf, options.memberOf);
+    (options: { type: string; memberOf: string[]; languages?: string[] }) =>
+    (entry: SyncListEntry) => {
+        const typeMatch = entry.type === options.type;
+        const memberOfMatch = arraysEqual(entry.memberOf, options.memberOf);
+
+        // If languages are provided in options, also check languages match
+        if (options.languages !== undefined) {
+            const languagesMatch = entry.languages
+                ? arraysEqual(entry.languages, options.languages)
+                : options.languages.length === 0;
+            return typeMatch && memberOfMatch && languagesMatch;
+        }
+
+        return typeMatch && memberOfMatch;
+    };
 
 /**
  * Compares two string arrays for equality (same elements, regardless of order)
