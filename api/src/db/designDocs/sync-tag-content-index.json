@@ -9,7 +9,7 @@
                 },
                 "partial_filter_selector": {
                     "type": {
-                        "$eq": "group"
+                        "$eq": "content"
                     },
                     "parentType": {
                         "$eq": "tag"
