@@ -18,7 +18,7 @@ describe("BucketFormModal", () => {
         updatedTimeUtc: Date.now(),
         memberOf: [],
         name: "Test Bucket",
-        StorageType: StorageType.Image,
+        storageType: StorageType.Image,
         publicUrl: "http://localhost:9000/test",
         mimeTypes: ["image/*"],
     };
