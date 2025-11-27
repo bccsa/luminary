@@ -354,9 +354,6 @@ onMounted(async () => {
             const progress = getMediaProgress(props.content.video, props.content._id);
             if (progress > 60) player?.currentTime(progress - 30);
         }
-
-        // For non-YouTube videos, restore saved progress (rewind 30 seconds)
-        // (YouTube progress restore is handled after metadata in the YouTube flow)
     });
 
     player.on("ended", () => {
