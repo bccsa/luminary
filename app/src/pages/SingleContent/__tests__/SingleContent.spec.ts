@@ -19,7 +19,7 @@ import {
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
@@ -63,6 +63,12 @@ vi.mock("@auth0/auth0-vue");
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
+vi.mock("@/composables/useBucketInfo", () => ({
+    useBucketInfo: () => ({
+        bucketBaseUrl: computed(() => "https://bucket.example.com"),
     }),
 }));
 
