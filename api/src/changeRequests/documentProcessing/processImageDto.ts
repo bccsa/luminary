@@ -52,9 +52,6 @@ async function migrateImagesBetweenBuckets(
         const oldBucketName = oldS3Service.getBucketName();
         const newBucketName = newS3Service.getBucketName();
 
-        // Note: We can't easily determine endpoints from clients, but this is for logging only
-        console.log(`Initiating migration from bucket ${oldBucketName} to ${newBucketName}...`);
-
         let successfulMigrations = 0;
         let failedMigrations = 0;
 
