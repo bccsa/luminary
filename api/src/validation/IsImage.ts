@@ -12,6 +12,8 @@ export function IsImage() {
                     try {
                         const metadata = await sharp(value).metadata();
 
+                        if (metadata.format === "jpg") return true;
+
                         // Allow any format that Sharp can process as an image
                         // This includes: jpeg, png, webp, gif, tiff, avif, heif, etc.
                         return !!metadata.format && !!metadata.width && !!metadata.height;
