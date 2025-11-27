@@ -265,8 +265,8 @@ export async function processImage(
 async function processImageUpload(
     uploadData: ImageUploadDto,
     image: ImageDto,
-    db: DbService, // Required - no longer optional
-    bucketId: string, // Parent-level bucket ID
+    db: DbService,
+    bucketId: string,
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
