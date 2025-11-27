@@ -211,7 +211,7 @@ function handleDelete() {
                         (value) =>
                             emit('update:bucket', {
                                 ...bucket,
-                                StorageType: value as StorageType,
+                                storageType: value as StorageType,
                             } as StorageDto)
                     "
                     :label="'Bucket Type'"
