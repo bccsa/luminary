@@ -264,7 +264,6 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).imageData,
             db,
             "storage-bucket-1", // prevDoc?.imageBucketId - Delete from the bucket where files currently exist
-            undefined, // No migration needed for delete
         );
     });
 });
