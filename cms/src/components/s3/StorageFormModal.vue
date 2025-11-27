@@ -41,6 +41,19 @@ const showCredentials = ref(false);
 
 const availableStorageType = Object.values(StorageType);
 
+// Computed property to ensure storageType always has a valid value
+const storageTypeValue = computed({
+    get: () => props.bucket?.storageType ?? StorageType.Image,
+    set: (value: StorageType) => {
+        if (props.bucket) {
+            emit("update:bucket", {
+                ...props.bucket,
+                storageType: value,
+            } as StorageDto);
+        }
+    },
+});
+
 // Determine if we should show credentials section
 const shouldShowCredentialsSection = computed(() => {
     // Always show for new buckets
@@ -206,19 +219,12 @@ function handleDelete() {
 
                 <!-- Storage Type -->
                 <LSelect
-                    :model-value="bucket.storageType"
-                    @update:model-value="
-                        (value) =>
-                            emit('update:bucket', {
-                                ...bucket,
-                                storageType: value as StorageType,
-                            } as StorageDto)
-                    "
+                    v-model="storageTypeValue"
                     :label="'Storage Type'"
                     :options="
-                        availableStorageType.map((StorageType: string) => ({
-                            label: capitaliseFirstLetter(StorageType),
-                            value: StorageType,
+                        availableStorageType.map((type: string) => ({
+                            label: capitaliseFirstLetter(type),
+                            value: type,
                         }))
                     "
                     :disabled="isLoading"
