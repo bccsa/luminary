@@ -1,18 +1,15 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import { filterByTypeMemberOf } from "./utils";
+import { filterByTypeMemberOf, getChunkTypeString } from "./utils";
+import type { SyncBaseOptions } from "./types";
 
 /**
  * Merge adjacent chunks vertically (by updatedTimeUtc) for the same type, memberOf, and languages.
  * This combines consecutive time-based chunks that share the same filtering criteria.
- *
- * @param type - Document type or combined type and subtype (e.g., "content:post") to merge.
- * @param memberOf - Array of memberOf groups to filter chunks by.
- * @param languages - Optional array of languages to filter chunks by (for content types).
  */
-export function mergeVertical(type: string, memberOf: string[], languages?: string[]) {
+export function mergeVertical(options: SyncBaseOptions) {
     // Filter chunks by type, memberOf, and languages (if provided)
-    const filteredList = syncList.value.filter(filterByTypeMemberOf({ type, memberOf, languages }));
+    const filteredList = syncList.value.filter(filterByTypeMemberOf(options));
 
     // Set the default eof value to the first chunk's eof status to handle cases with no merges (only 1 chunk)
     let eof = filteredList.length ? filteredList[0].eof : false;
@@ -55,11 +52,12 @@ export function mergeVertical(type: string, memberOf: string[], languages?: stri
  * Merge chunks horizontally (by memberOf groups and languages) for the same type.
  * Only chunks that have reached EOF can be merged horizontally.
  * This combines different memberOf groups and languages that have complete data for overlapping time ranges.
- *
- * @param type - Document type or combined type and subtype (e.g., "content:post") to merge.
  */
-export function mergeHorizontal(type: string): void {
-    const list = syncList.value.filter((chunk) => chunk.type === type && chunk.eof);
+export function mergeHorizontal(options: { type: DocType; subType?: DocType }): void {
+    const list = syncList.value.filter(
+        (chunk) =>
+            chunk.chunkType === getChunkTypeString(options.type, options.subType) && chunk.eof,
+    );
 
     // Do horizontal merge for adjacent chunks.
     // Only columns that have reached eof can be merged.
@@ -77,7 +75,7 @@ export function mergeHorizontal(type: string): void {
             base.memberOf = mergedGroups;
 
             // Merge languages
-            if (base.type === DocType.Content) {
+            if (options.type === DocType.Content) {
                 const mergedLanguages = Array.from(
                     new Set([...(base.languages || []), ...(compare.languages || [])]),
                 ).sort();

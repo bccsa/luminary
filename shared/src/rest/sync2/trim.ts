@@ -1,5 +1,6 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
+import { splitChunkTypeString } from "./utils";
 
 /**
  * Trim unused languages and memberOf groups from existing syncListEntries.
@@ -27,8 +28,10 @@ export function trim(options: { memberOf: string[]; languages?: string[] }): voi
         // Update the entry with trimmed groups
         entry.memberOf = trimmedGroups.sort();
 
+        const { type } = splitChunkTypeString(entry.chunkType);
+
         // Trim languages for content document types
-        if (entry.type.startsWith(DocType.Content) && entry.languages && options.languages) {
+        if (type === DocType.Content && entry.languages && options.languages) {
             const trimmedLanguages = entry.languages.filter((lang) =>
                 options.languages!.includes(lang),
             );

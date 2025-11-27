@@ -1,13 +1,18 @@
+import { DocType } from "../../types";
 import { HttpReq } from "../http";
 
 /**
  * Options for sync operations
  */
-type SyncBaseOptions = {
+export type SyncBaseOptions = {
     /**
-     * Document type or combined type and subtype (e.g., "content:post")
+     * Document type
      */
-    type: string;
+    type: DocType;
+    /**
+     * Sub type (parentType for content documents or docType for delete commands)
+     */
+    subType?: DocType;
     /**
      * Array of memberOf groups this sync entry applies to
      */
@@ -16,24 +21,6 @@ type SyncBaseOptions = {
      * Array of languages this sync entry applies to (for content document types only)
      */
     languages?: string[];
-};
-
-/**
- * Sync list entry type
- */
-export type SyncListEntry = SyncBaseOptions & {
-    /**
-     * Starting block (updatedTimeUtc) number for the sync range
-     */
-    blockStart: number;
-    /**
-     * Ending block (updatedTimeUtc) number for the sync range
-     */
-    blockEnd: number;
-    /**
-     * Indicates that the end (oldest available data) of the sync data has been reached
-     */
-    eof?: boolean;
 };
 
 /**
@@ -55,14 +42,6 @@ export type SyncRunnerOptions = SyncBaseOptions & {
  */
 export type SyncOptions = SyncRunnerOptions & {
     /**
-     * Document type to sync
-     */
-    docType: string;
-    /**
-     * Parent type to filter by (only for content documents)
-     */
-    parentType?: string;
-    /**
      * If true, this is the initial sync
      */
     initialSync: boolean;
@@ -70,4 +49,34 @@ export type SyncOptions = SyncRunnerOptions & {
      * HTTP service to use for API requests
      */
     httpService: HttpReq<any>;
+};
+
+/**
+ * Sync list entry type
+ */
+export type SyncListEntry = {
+    /**
+     * Chunk type for the sync entry combining the type and parentType / docType fields (e.g. "content:post", "deleteCmd:group")
+     */
+    chunkType: string;
+    /**
+     * Array of memberOf groups this sync entry applies to
+     */
+    memberOf: string[];
+    /**
+     * Array of languages this sync entry applies to (for content document types only)
+     */
+    languages?: string[];
+    /**
+     * Starting block (updatedTimeUtc) number for the sync range
+     */
+    blockStart: number;
+    /**
+     * Ending block (updatedTimeUtc) number for the sync range
+     */
+    blockEnd: number;
+    /**
+     * Indicates that the end (oldest available data) of the sync data has been reached
+     */
+    eof?: boolean;
 };

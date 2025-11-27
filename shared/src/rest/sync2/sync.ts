@@ -3,7 +3,7 @@ import { db } from "../../db/database";
 import { HttpReq } from "../http";
 import { syncBatch } from "./syncBatch";
 import type { SyncRunnerOptions } from "./types";
-import { getGroups, getGroupSets, getLanguages } from "./utils";
+import { getGroups, getGroupSets, getLanguages, getLanguageSets } from "./utils";
 import { trim } from "./trim";
 
 let _httpService: HttpReq<any>;
@@ -45,7 +45,7 @@ export function setCancelSync(value: boolean): void {
 }
 
 /**
- * Autonomous sync runner per document type / type:parentType (content documents). The runner splits itself into multiple runners
+ * Autonomous sync runner per document type and optional subType. The runner splits itself into multiple runners
  * if new memberOf groups or languages are detected, and combines syncList entries with adjacent entries - vertically by
  * updatedTimeUtc (aka blockStart & blockEnd), and horizontally by memberOf groups and languages.
  * The synchronization runs backwards in time from the latest updatedTimeUtc to older data.
@@ -58,12 +58,6 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     await _sync(options);
 }
 
-/**
- * Autonomous sync runner per document type / type:parentType (content documents). The runner splits itself into multiple runners
- * if new memberOf groups or languages are detected, and combines syncList entries with adjacent entries - vertically by
- * updatedTimeUtc (aka blockStart & blockEnd), and horizontally by memberOf groups and languages.
- * The synchronization runs backwards in time from the latest updatedTimeUtc to older data.
- */
 export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Check if sync has been cancelled before starting
     if (cancelSync) {
@@ -72,37 +66,43 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     console.log("Starting sync for", options.type);
 
-    const [docType, parentType] = options.type.split(":");
-
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
-    if (docType === DocType.Content) {
+    if (options.type === DocType.Content && options.languages) {
         // Get list of languages already present in the syncList for the given type and list of languages
-        const existingLanguages = getLanguages().filter((lang) =>
-            options.languages?.includes(lang),
-        );
+        const existingLanguages = getLanguages();
 
         const newLanguages =
-            options.languages?.filter((lang) => !existingLanguages.includes(lang)) || [];
+            options.languages.filter((lang) => !existingLanguages.includes(lang)) || [];
 
-        // Start separate sync for new languages if there are existing languages to sync
-        // This ensures that new languages are synced before syncing existing languages
-        // (usually a new language will be added by the user after having completed a full sync in the existing languages)
-        if (newLanguages.length > 0 && existingLanguages.length > 0) {
-            await _sync({ ...options, languages: newLanguages });
-            options.languages = existingLanguages;
+        // Get the unique languages sets from the syncList for the passed language list. This is used to continue syncing
+        // partial language sets that has not yet been merged (e.g. if a new language was added and the sync was
+        // interrupted before merging could occur)
+        const languageSets = getLanguageSets(options);
+
+        if (languageSets.length > 1 || newLanguages.length > 0) {
+            // Start new runners for any existing language sets
+            for (const languageSet of languageSets) {
+                await _sync({ ...options, languages: languageSet });
+            }
+
+            // Use this runner for new languages only
+            if (newLanguages.length > 0) {
+                options.languages = newLanguages;
+            } else {
+                // No new languages, this runner is not needed
+                return;
+            }
         }
-
-        if (!options.languages?.length) return;
     }
 
     // Compare passed memberOf groups with existing groups in the syncList for the given type
-    const existingGroups = getGroups({ type: options.type });
+    const existingGroups = getGroups(options);
     const newGroups = options.memberOf.filter((g) => !existingGroups.includes(g));
 
     // Get the unique memberOf group sets from the syncList for the given type. This is used
     // to continue syncing partial group sets that has not yet been merged (e.g. if a new group
     // was added and the sync was interrupted before merging could occur)
-    const groupSets = getGroupSets({ type: options.type });
+    const groupSets = getGroupSets(options);
 
     if (groupSets.length > 1 || newGroups.length > 0) {
         // Start new runners for any existing group sets
@@ -122,8 +122,6 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Start the iterative sync process
     await syncBatch({
         ...options,
-        docType,
-        parentType,
         initialSync: true,
         httpService: _httpService,
     });
