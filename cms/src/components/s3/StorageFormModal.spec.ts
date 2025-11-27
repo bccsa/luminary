@@ -90,12 +90,13 @@ describe("BucketFormModal", () => {
         expect(urlInput.exists()).toBe(true);
     });
 
-    it("displays bucket type selector", () => {
+    it("displays storage type selector", () => {
         const wrapper = mount(StorageFormModal, {
             props: defaultProps,
         });
 
-        expect(wrapper.text()).toContain("Bucket Type");
+        expect(wrapper.text()).toContain("Storage Type");
+        expect(wrapper.text()).toContain("Image");
     });
 
     it("displays mime types section", () => {
