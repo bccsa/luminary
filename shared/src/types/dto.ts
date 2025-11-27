@@ -173,7 +173,7 @@ export type StorageDto = ContentBaseDto & {
     name: string;
     mimeTypes: string[];
     publicUrl: string;
-    StorageType: StorageType;
+    storageType: StorageType;
     credential?: S3CredentialDto;
     credential_id?: string;
 };
