@@ -1385,7 +1385,7 @@ export const mockStorageDtoWithEncryptedCredentials: StorageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     name: "Media Storage",
-    StorageType: StorageType.Media,
+    storageType: StorageType.Media,
     publicUrl: "http://localhost:9000/media",
     credential_id: "encrypted-cred-123",
     mimeTypes: ["video/*", "audio/*"],

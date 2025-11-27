@@ -206,7 +206,7 @@ function handleDelete() {
 
                 <!-- Bucket Type -->
                 <LSelect
-                    :model-value="bucket.StorageType"
+                    :model-value="bucket.storageType"
                     @update:model-value="
                         (value) =>
                             emit('update:bucket', {
