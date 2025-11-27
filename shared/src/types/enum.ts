@@ -38,7 +38,7 @@ export enum DeleteReason {
     StatusChange = "statusChange",
 }
 
-export enum BucketType {
+export enum StorageType {
     Image = "image",
     Media = "media",
 }

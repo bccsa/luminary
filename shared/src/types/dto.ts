@@ -5,7 +5,7 @@ import type {
     PostType,
     RedirectType,
     DeleteReason,
-    BucketType,
+    StorageType,
 } from "../types";
 
 export enum AckStatus {
@@ -173,7 +173,7 @@ export type StorageDto = ContentBaseDto & {
     name: string;
     mimeTypes: string[];
     publicUrl: string;
-    bucketType: BucketType;
+    StorageType: StorageType;
     credential?: S3CredentialDto;
     credential_id?: string;
 };

@@ -7,7 +7,7 @@ import * as path from "path";
 import { StorageDto } from "../../dto/StorageDto";
 import { DbService } from "../../db/db.service";
 import { v4 as uuidv4 } from "uuid";
-import { BucketType, DocType } from "../../enums";
+import { StorageType, DocType } from "../../enums";
 import { storeCryptoData } from "../../util/encryption";
 
 describe("S3ImageHandler", () => {
@@ -41,7 +41,7 @@ describe("S3ImageHandler", () => {
             name: "Test Bucket",
             mimeTypes: ["image/*"],
             publicUrl: `http://127.0.0.1:9000/${testBucket}`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             credential_id: encryptedCredId,
         };
 
@@ -206,7 +206,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Source Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `http://127.0.0.1:9000/${sourceBucket}`,
             mimeTypes: ["image/*"],
             credential_id: sourceCredId,
@@ -217,7 +217,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Target Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `http://127.0.0.1:9000/${targetBucket}`,
             mimeTypes: ["image/*"],
             credential_id: targetCredId,
@@ -396,7 +396,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Cross System Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `https://s3.amazonaws.com/${crossSystemBucketName}`,
             mimeTypes: ["image/*"],
             credential_id: crossSystemCredId,
@@ -456,7 +456,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Invalid Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `http://127.0.0.1:9000/${invalidBucketName}`,
             mimeTypes: ["image/*"],
             credential_id: invalidCredId,
@@ -547,7 +547,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Restricted Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `http://127.0.0.1:9000/${testBucket}/restricted`,
             mimeTypes: ["image/jpeg", "image/png"],
             credential_id: restrictedCredId,
@@ -560,7 +560,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             type: DocType.Storage,
             memberOf: ["group-public-content"],
             name: `Allow All Bucket`,
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: `http://127.0.0.1:9000/${testBucket}/allow-all`,
             mimeTypes: [],
             credential_id: allowAllCredId,

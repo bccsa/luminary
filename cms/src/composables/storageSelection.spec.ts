@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ref, type Ref } from "vue";
 import { storageValidation } from "./storageValidation";
 import type { StorageDto, S3CredentialDto } from "luminary-shared";
-import { DocType, BucketType } from "luminary-shared";
+import { DocType, StorageType } from "luminary-shared";
 
 describe("useBucketValidation", () => {
     let bucket: ReturnType<typeof ref<StorageDto | undefined>>;
@@ -16,7 +16,7 @@ describe("useBucketValidation", () => {
             updatedTimeUtc: Date.now(),
             memberOf: [],
             name: "",
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: "",
             mimeTypes: [],
         });

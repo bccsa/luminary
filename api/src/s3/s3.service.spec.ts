@@ -33,7 +33,7 @@ describe("S3Service", () => {
             name: "Test Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://localhost:9000/test-bucket",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: encryptedCredId,
         };
 
@@ -181,7 +181,7 @@ describe("S3Service", () => {
             name: "Non-existent Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://localhost:9000/non-existent",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: encryptedCredId,
         });
 
@@ -240,7 +240,7 @@ describe("S3Service", () => {
             name: "Temp Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://localhost:9000/temp-bucket",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: encryptedCredId,
         });
 
@@ -273,7 +273,7 @@ describe("S3Service", () => {
             name: "Invalid Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://localhost:9000/invalid-bucket",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: invalidCredId,
         };
 
@@ -301,7 +301,7 @@ describe("S3Service", () => {
             name: "Invalid Cred Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://localhost:9000/invalid-bucket",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: invalidCredId,
         };
 
@@ -331,7 +331,7 @@ describe("S3Service", () => {
             name: "Unreachable Bucket",
             mimeTypes: ["image/*"],
             publicUrl: "http://non-existent-host-12345.example.com:9000/test-bucket",
-            bucketType: "s3",
+            StorageType: "s3",
             credential_id: unreachableCredId,
         };
 
@@ -366,7 +366,7 @@ describe("S3Service", () => {
                 name: "Delete Test Bucket",
                 mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/delete-test-bucket",
-                bucketType: "s3",
+                StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
             };
@@ -439,7 +439,7 @@ describe("S3Service", () => {
                 name: "Timeout Test Bucket",
                 mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/timeout-test-bucket",
-                bucketType: "s3",
+                StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
             };
@@ -493,7 +493,7 @@ describe("S3Service", () => {
                 name: "Access Time Test Bucket",
                 mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/access-time-test-bucket",
-                bucketType: "s3",
+                StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
             };
@@ -553,7 +553,7 @@ describe("S3Service", () => {
                 name: "Active Test Bucket",
                 mimeTypes: ["image/*"],
                 publicUrl: "http://localhost:9000/active-test-bucket",
-                bucketType: "s3",
+                StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
             };

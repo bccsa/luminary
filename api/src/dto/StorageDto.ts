@@ -2,7 +2,7 @@ import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } fro
 import { Expose, Type } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { S3CredentialDto } from "./S3CredentialDto";
-import { BucketType, Uuid } from "../enums";
+import { StorageType, Uuid } from "../enums";
 
 /**
  * Description of an S3 bucket / storage location used by the application.
@@ -25,9 +25,9 @@ export class StorageDto extends _contentBaseDto {
 
     @IsNotEmpty()
     @IsString()
-    @IsEnum(BucketType)
+    @IsEnum(StorageType)
     @Expose()
-    bucketType: BucketType;
+    StorageType: StorageType;
 
     @IsOptional()
     @ValidateNested()

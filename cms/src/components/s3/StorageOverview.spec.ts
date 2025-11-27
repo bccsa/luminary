@@ -4,7 +4,7 @@ import { createTestingPinia } from "@pinia/testing";
 import StorageOverview from "./StorageOverview.vue";
 import BucketFormModal from "./StorageFormModal.vue";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
-import { db, DocType, type StorageDto, BucketType, accessMap } from "luminary-shared";
+import { db, DocType, type StorageDto, StorageType, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import waitForExpect from "wait-for-expect";
@@ -354,7 +354,7 @@ describe("StorageOverview", () => {
             updatedTimeUtc: Date.now(),
             memberOf: [mockData.mockGroup._id],
             name: "New Test Bucket",
-            bucketType: BucketType.Image,
+            StorageType: StorageType.Image,
             publicUrl: "http://localhost:9000/new-bucket",
             credential: mockData.mockS3Credentials,
             mimeTypes: ["image/*"],

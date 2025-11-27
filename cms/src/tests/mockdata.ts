@@ -17,7 +17,7 @@ import {
     type UserDto,
     type StorageDto,
     type S3CredentialDto,
-    BucketType,
+    StorageType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -1373,7 +1373,7 @@ export const mockStorageDto: StorageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     name: "Image Storage",
-    bucketType: BucketType.Image,
+    StorageType: StorageType.Image,
     publicUrl: "http://localhost:9000/images",
     credential: mockS3Credentials,
     mimeTypes: ["image/*"],
@@ -1385,7 +1385,7 @@ export const mockStorageDtoWithEncryptedCredentials: StorageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     name: "Media Storage",
-    bucketType: BucketType.Media,
+    StorageType: StorageType.Media,
     publicUrl: "http://localhost:9000/media",
     credential_id: "encrypted-cred-123",
     mimeTypes: ["video/*", "audio/*"],
@@ -1397,7 +1397,7 @@ export const mockStorageDtoGeneral: StorageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content", "group-super-admins"],
     name: "General Storage",
-    bucketType: BucketType.Media,
+    StorageType: StorageType.Media,
     publicUrl: "http://localhost:9000/general",
     credential: mockS3Credentials,
     mimeTypes: ["image/*", "video/mp4", "application/pdf"],
