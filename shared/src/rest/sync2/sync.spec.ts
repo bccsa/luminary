@@ -4,6 +4,7 @@ import { HttpReq } from "../http";
 import { db } from "../../db/database";
 import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
+import { DocType } from "../../types";
 import * as utils from "./utils";
 
 // Mock dependencies
@@ -28,6 +29,7 @@ vi.mock("./utils", async () => {
         getGroups: vi.fn(),
         getGroupSets: vi.fn(),
         getLanguages: vi.fn(),
+        getLanguageSets: vi.fn(),
     };
 });
 
@@ -59,7 +61,7 @@ describe("sync module", () => {
         it("should call db.getSyncList during initialization", async () => {
             const mockSyncListData = [
                 {
-                    type: "post",
+                    chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 1000,
                     blockEnd: 0,
@@ -112,7 +114,7 @@ describe("sync module", () => {
 
             await expect(
                 freshSync({
-                    type: "post",
+                    type: DocType.Post,
                     memberOf: ["group1"],
                     languages: [],
                     limit: 100,
@@ -126,13 +128,13 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
             });
 
             expect(trim).toHaveBeenCalledWith({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
             });
@@ -142,7 +144,7 @@ describe("sync module", () => {
             setCancelSync(true);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 languages: [],
                 limit: 100,
@@ -156,45 +158,49 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
             });
 
             expect(syncBatch).toHaveBeenCalledWith({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
-                docType: "post",
-                parentType: undefined,
                 initialSync: true,
                 httpService: mockHttpService,
             });
         });
 
-        it("should handle type with parentType (content documents)", async () => {
+        it("should handle type with subType (content documents)", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
-            // getGroupSets is now called with parentType when available
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
             vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
 
             await sync({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
             });
 
-            // Verify getGroupSets was called with the correct type (options.type, not parentType)
-            expect(utils.getGroupSets).toHaveBeenCalledWith({ type: "content:post" });
-
-            expect(syncBatch).toHaveBeenCalledWith({
-                type: "content:post",
+            // Verify getGroupSets was called with the full options object
+            expect(utils.getGroupSets).toHaveBeenCalledWith({
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
-                docType: "content",
-                parentType: "post",
+            });
+
+            expect(syncBatch).toHaveBeenCalledWith({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
                 initialSync: true,
                 httpService: mockHttpService,
             });
@@ -215,23 +221,33 @@ describe("sync module", () => {
                 return callCount === 1 ? ["en"] : ["en", "fr"];
             });
 
+            // Mock getLanguageSets to return existing language set on first call, then single set to stop recursion
+            let langSetCallCount = 0;
+            vi.mocked(utils.getLanguageSets).mockImplementation(() => {
+                langSetCallCount++;
+                // First call: return ["en"] as existing language set
+                // Subsequent calls: return combined set to stop recursion
+                return langSetCallCount === 1 ? [["en"]] : [["en", "fr"]];
+            });
+
             await sync({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
             });
 
-            // Should be called twice: once for new language ["fr"], once for existing ["en"]
+            // Should be called twice: once for existing language ["en"], once for new language ["fr"]
             expect(syncBatch).toHaveBeenCalledTimes(2);
             const calls = vi.mocked(syncBatch).mock.calls;
-            // First call: new languages ["fr"] since existing has ["en"]
+            // First call: existing languages ["en"]
             expect(calls[0][0]).toMatchObject({
-                languages: ["fr"],
-            });
-            // Second call: existing languages ["en"]
-            expect(calls[1][0]).toMatchObject({
                 languages: ["en"],
+            });
+            // Second call: new languages ["fr"] since existing has ["en"]
+            expect(calls[1][0]).toMatchObject({
+                languages: ["fr"],
             });
         });
         it("should start new runner for new memberOf groups", async () => {
@@ -244,7 +260,7 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1", "group2"],
                 limit: 100,
             });
@@ -272,7 +288,7 @@ describe("sync module", () => {
             });
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1", "group2", "group3"],
                 limit: 100,
             });
@@ -298,7 +314,7 @@ describe("sync module", () => {
             });
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1", "group2"],
                 limit: 100,
             });
@@ -322,7 +338,8 @@ describe("sync module", () => {
             });
 
             await sync({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1", "group2"],
                 languages: ["en", "fr"],
                 limit: 100,
@@ -338,7 +355,7 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
                 cms: true,
@@ -356,7 +373,7 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: [],
                 limit: 100,
             });
@@ -373,7 +390,7 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
 
             await sync({
-                type: "post",
+                type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
             });
@@ -381,7 +398,7 @@ describe("sync module", () => {
             // For non-content types, languages parameter is not passed in options
             expect(syncBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    type: "post",
+                    type: DocType.Post,
                     memberOf: ["group1"],
                 }),
             );
@@ -393,7 +410,8 @@ describe("sync module", () => {
             vi.mocked(utils.getLanguages).mockReturnValue(["en", "fr"]);
 
             await sync({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
@@ -413,16 +431,21 @@ describe("sync module", () => {
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
             // Return empty array for existing languages
             vi.mocked(utils.getLanguages).mockReturnValue([]);
+            // Return empty array for language sets (no existing language sets)
+            vi.mocked(utils.getLanguageSets).mockReturnValue([]);
 
             await sync({
-                type: "content:post",
+                type: DocType.Content,
+                subType: DocType.Post,
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
             });
 
             // Should call syncBatch once - no recursive call since existingLanguages is empty
-            // The condition is: if (newLanguages.length > 0 && existingLanguages.length > 0)
+            // The condition is: if (languageSets.length > 1 || newLanguages.length > 0)
+            // Since languageSets is empty and newLanguages.length is 2 (all languages are new),
+            // it will not enter the block to start new runners for language sets
             expect(syncBatch).toHaveBeenCalledTimes(1);
             const calls = vi.mocked(syncBatch).mock.calls;
             // Should proceed with the original languages ["en", "fr"]
