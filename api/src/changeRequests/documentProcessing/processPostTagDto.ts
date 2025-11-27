@@ -34,7 +34,6 @@ export default async function processPostTagDto(
                 prevDoc?.imageData,
                 db,
                 prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
-                undefined, // No migration needed for delete - pass undefined to avoid migration logic
             );
             if (imageWarnings && imageWarnings.length > 0) {
                 warnings.push(...imageWarnings);
