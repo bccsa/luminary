@@ -15,6 +15,9 @@ import {
     RedirectType,
     type AccessMap,
     type UserDto,
+    type StorageDto,
+    type S3CredentialDto,
+    BucketType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -1356,3 +1359,50 @@ export const translateAccessToAllContentMap = {
         language: { view: true, translate: true },
     },
 } as AccessMap;
+
+export const mockS3Credentials: S3CredentialDto = {
+    endpoint: "http://localhost:9000",
+    bucketName: "test-bucket",
+    accessKey: "testAccessKey123",
+    secretKey: "testSecretKey456",
+};
+
+export const mockStorageDto: StorageDto = {
+    _id: "storage-images",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    name: "Image Storage",
+    bucketType: BucketType.Image,
+    publicUrl: "http://localhost:9000/images",
+    credential: mockS3Credentials,
+    mimeTypes: ["image/*"],
+};
+
+export const mockStorageDtoWithEncryptedCredentials: StorageDto = {
+    _id: "storage-media",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    name: "Media Storage",
+    bucketType: BucketType.Media,
+    publicUrl: "http://localhost:9000/media",
+    credential_id: "encrypted-cred-123",
+    mimeTypes: ["video/*", "audio/*"],
+};
+
+export const mockStorageDtoGeneral: StorageDto = {
+    _id: "storage-general",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content", "group-super-admins"],
+    name: "General Storage",
+    bucketType: BucketType.Media,
+    publicUrl: "http://localhost:9000/general",
+    credential: mockS3Credentials,
+    mimeTypes: ["image/*", "video/mp4", "application/pdf"],
+};
+
+// Alias for backward compatibility
+export const mockGroup = mockGroupDtoPublicContent;
+export const mockAdminGroup = mockGroupDtoSuperAdmins;
