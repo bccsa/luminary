@@ -4,11 +4,10 @@ import { createTestingPinia } from "@pinia/testing";
 import StorageOverview from "./StorageOverview.vue";
 import BucketFormModal from "./StorageFormModal.vue";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
-import { db, DocType, type StorageDto, StorageType, accessMap } from "luminary-shared";
+import { db, type StorageDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import waitForExpect from "wait-for-expect";
-import { useNotificationStore } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -146,28 +145,6 @@ describe("StorageOverview", () => {
 
         const modal = wrapper.findComponent(BucketFormModal);
         expect(modal.exists()).toBe(true);
-    });
-
-    it("saves new bucket successfully", async () => {
-        const wrapper = mount(StorageOverview, {
-            global: {
-                plugins: [pinia],
-            },
-        });
-
-        const notificationStore = useNotificationStore();
-
-        (wrapper.vm as any).openCreateModal();
-        await wrapper.vm.$nextTick();
-
-        // Get the modal
-        const modal = wrapper.findComponent(BucketFormModal);
-
-        // Simulate form fill and save
-        await modal.vm.$emit("save");
-        await wait(100);
-
-        // Note: Full save logic requires valid bucket data and will be tested in integration
     });
 
     it("updates existing bucket successfully", async () => {
@@ -336,51 +313,6 @@ describe("StorageOverview", () => {
         // Modal should show validation props
         expect(modal.props("isFormValid")).toBeDefined();
         expect(modal.props("validations")).toBeDefined();
-    });
-
-    it("shows notification on successful bucket creation", async () => {
-        const wrapper = mount(StorageOverview, {
-            global: {
-                plugins: [pinia],
-            },
-        });
-
-        const notificationStore = useNotificationStore();
-
-        // Create bucket data
-        const newBucket: StorageDto = {
-            _id: db.uuid(),
-            type: DocType.Storage,
-            updatedTimeUtc: Date.now(),
-            memberOf: [mockData.mockGroup._id],
-            name: "New Test Bucket",
-            StorageType: StorageType.Image,
-            publicUrl: "http://localhost:9000/new-bucket",
-            credential: mockData.mockS3Credentials,
-            mimeTypes: ["image/*"],
-        };
-
-        await db.upsert({ doc: newBucket });
-        await wait(100);
-
-        // Notification would be triggered by successful save
-        // This is handled in the actual save logic
-    });
-
-    it("shows notification on error", async () => {
-        const wrapper = mount(StorageOverview, {
-            global: {
-                plugins: [pinia],
-            },
-        });
-
-        const notificationStore = useNotificationStore();
-
-        // Mock an error scenario by trying to save invalid data
-        (wrapper.vm as any).openCreateModal();
-        await wrapper.vm.$nextTick();
-
-        // Error handling is part of the save logic
     });
 
     it("loads bucket statuses on mount", async () => {

@@ -70,7 +70,7 @@ const newBucket = ref<StorageDto>({
     updatedTimeUtc: Date.now(),
     memberOf: [],
     name: "",
-    StorageType: StorageType.Image,
+    storageType: StorageType.Image,
     publicUrl: "",
     credential: {
         endpoint: "",

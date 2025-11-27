@@ -16,7 +16,7 @@ describe("useBucketValidation", () => {
             updatedTimeUtc: Date.now(),
             memberOf: [],
             name: "",
-            StorageType: StorageType.Image,
+            storageType: StorageType.Image,
             publicUrl: "",
             mimeTypes: [],
         });

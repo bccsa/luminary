@@ -34,7 +34,7 @@ export function storageSelection() {
      * Get buckets suitable for image uploads
      */
     const imageBuckets = computed(() => {
-        return buckets.value.filter((bucket) => bucket.StorageType === StorageType.Image);
+        return buckets.value.filter((bucket) => bucket.storageType === StorageType.Image);
     });
 
     /**
