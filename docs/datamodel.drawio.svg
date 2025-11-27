@@ -1417,7 +1417,7 @@
                                         + mimeTypes:[string]
                                     </p>
                                     <p style="margin:0px;margin-left:4px;">
-                                        + bucketType: "image" | "media"
+                                        + StorageType: "image" | "media"
                                     </p>
                                     <p style="margin:0px;margin-left:4px;">
                                         + publicUrl: string;

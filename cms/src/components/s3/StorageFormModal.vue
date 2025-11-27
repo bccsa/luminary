@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { PlusIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import { type StorageDto, type S3CredentialDto, type GroupDto, BucketType } from "luminary-shared";
+import { type StorageDto, type S3CredentialDto, type GroupDto, StorageType } from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -39,7 +39,7 @@ const emit = defineEmits<{
 const newFileType = ref<string>("");
 const showCredentials = ref(false);
 
-const availableBucketType = Object.values(BucketType);
+const availableStorageType = Object.values(StorageType);
 
 // Determine if we should show credentials section
 const shouldShowCredentialsSection = computed(() => {
@@ -206,19 +206,19 @@ function handleDelete() {
 
                 <!-- Bucket Type -->
                 <LSelect
-                    :model-value="bucket.bucketType"
+                    :model-value="bucket.StorageType"
                     @update:model-value="
                         (value) =>
                             emit('update:bucket', {
                                 ...bucket,
-                                bucketType: value as BucketType,
+                                StorageType: value as StorageType,
                             } as StorageDto)
                     "
                     :label="'Bucket Type'"
                     :options="
-                        availableBucketType.map((bucketType: string) => ({
-                            label: capitaliseFirstLetter(bucketType),
-                            value: bucketType,
+                        availableStorageType.map((StorageType: string) => ({
+                            label: capitaliseFirstLetter(StorageType),
+                            value: StorageType,
                         }))
                     "
                     :disabled="isLoading"

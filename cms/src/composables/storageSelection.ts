@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import { type StorageDto, db, useDexieLiveQuery, BucketType } from "luminary-shared";
+import { type StorageDto, db, useDexieLiveQuery, StorageType } from "luminary-shared";
 
 /**
  * Storage Selection Composable
@@ -34,14 +34,14 @@ export function storageSelection() {
      * Get buckets suitable for image uploads
      */
     const imageBuckets = computed(() => {
-        return buckets.value.filter((bucket) => bucket.bucketType === BucketType.Image);
+        return buckets.value.filter((bucket) => bucket.StorageType === StorageType.Image);
     });
 
     /**
      * Get buckets suitable for media uploads
      */
     const mediaBuckets = computed(() => {
-        return buckets.value.filter((bucket) => bucket.bucketType === BucketType.Media);
+        return buckets.value.filter((bucket) => bucket.StorageType === StorageType.Media);
     });
 
     /**

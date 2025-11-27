@@ -11,7 +11,7 @@ import {
     type GroupDto,
     AclPermission,
     verifyAccess,
-    BucketType,
+    StorageType,
     useBucketStatus,
     hasAnyPermission,
 } from "luminary-shared";
@@ -70,7 +70,7 @@ const newBucket = ref<StorageDto>({
     updatedTimeUtc: Date.now(),
     memberOf: [],
     name: "",
-    bucketType: BucketType.Image,
+    StorageType: StorageType.Image,
     publicUrl: "",
     credential: {
         endpoint: "",
@@ -188,7 +188,7 @@ function resetNewBucket() {
         updatedTimeUtc: Date.now(),
         memberOf: [],
         name: "",
-        bucketType: BucketType.Image,
+        StorageType: StorageType.Image,
         publicUrl: "",
         credential: {
             endpoint: "",

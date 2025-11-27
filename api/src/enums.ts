@@ -112,7 +112,7 @@ export enum DeleteReason {
 /**
  * Bucket Type used in S3Bucket documents
  */
-export enum BucketType {
+export enum StorageType {
     Image = "image",
     Media = "media",
 }

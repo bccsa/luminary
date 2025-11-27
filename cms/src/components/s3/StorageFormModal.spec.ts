@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import StorageFormModal from "./StorageFormModal.vue";
 import {
-    BucketType,
+    StorageType,
     DocType,
     type StorageDto,
     type S3CredentialDto,
@@ -18,7 +18,7 @@ describe("BucketFormModal", () => {
         updatedTimeUtc: Date.now(),
         memberOf: [],
         name: "Test Bucket",
-        bucketType: BucketType.Image,
+        StorageType: StorageType.Image,
         publicUrl: "http://localhost:9000/test",
         mimeTypes: ["image/*"],
     };

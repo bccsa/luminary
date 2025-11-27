@@ -160,7 +160,7 @@ Access MinIO console at: http://localhost:9001
 {
   _id: string;
   name: string;
-  bucketType: 'image' | 'media';
+  StorageType: 'image' | 'media';
   publicUrl: string;
   mimeTypes: string[];
   credential?: S3CredentialDto;
