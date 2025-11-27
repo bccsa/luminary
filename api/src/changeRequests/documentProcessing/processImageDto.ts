@@ -136,7 +136,6 @@ export async function processImage(
             prevParentBucketId &&
             parentBucketId &&
             prevParentBucketId !== parentBucketId &&
-            db &&
             image.fileCollections.length > 0
         ) {
             const migrationWarnings = await migrateImagesBetweenBuckets(
