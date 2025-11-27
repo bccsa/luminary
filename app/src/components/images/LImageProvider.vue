@@ -75,7 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
     isModal: false,
 });
 
-const baseUrl = computed(() => props.bucketPublicUrl || "");
+const baseUrl = computed(() => props.bucketPublicUrl);
 
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
@@ -154,7 +154,7 @@ const srcset1 = computed(() => {
         );
     }
 
-    if (!filteredFileCollections.value.length) return "";
+    if (!filteredFileCollections.value.length || !baseUrl.value) return "";
 
     // In modal mode, use all available images without aspect ratio filtering
     const collectionsToUse = props.isModal
@@ -175,7 +175,7 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections?.length) return "";
+    if (!props.image?.fileCollections?.length || !baseUrl.value) return "";
 
     // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
     // 400 is a conservative default that avoids excluding all images due to 0 width,
@@ -234,7 +234,7 @@ const modalSrc = computed(() => {
             }),
         );
     }
-    if (!props.isModal) return undefined;
+    if (!props.isModal || !baseUrl.value) return undefined;
     const allFiles = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) ||
         []) as ImageFileDto[];
     if (!allFiles.length) return fallbackImageUrl.value;
@@ -245,7 +245,7 @@ const modalSrc = computed(() => {
 
 // Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
 const modalSrcset = computed(() => {
-    if (!props.isModal) return "";
+    if (!props.isModal || !baseUrl.value) return "";
     // If using uploadData blob, we cannot build a srcset of different widths
     if (props.image?.uploadData?.length) return "";
     const files = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) || [])
