@@ -1,0 +1,27 @@
+{
+    "_id": "_design/sync-content-deleteCmd-index",
+    "language": "query",
+    "views": {
+        "sync-content-deleteCmd-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "deleteCmd"
+                    },
+                    "docType": {
+                        "$eq": "content"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}

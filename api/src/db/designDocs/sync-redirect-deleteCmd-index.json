@@ -1,0 +1,27 @@
+{
+    "_id": "_design/sync-redirect-deleteCmd-index",
+    "language": "query",
+    "views": {
+        "sync-redirect-deleteCmd-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "deleteCmd"
+                    },
+                    "docType": {
+                        "$eq": "redirect"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}
