@@ -28,16 +28,16 @@ const colors = {
 
 // --- Selection Logic ---
 
-function getSelectionRect(): DOMRect | null {
+function getSelectionRect(): DOMRect | undefined {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return undefined;
 
     const range = sel.getRangeAt(0);
     // Ensure selection is within our content
-    if (!content.value?.contains(range.commonAncestorContainer)) return null;
+    if (!content.value?.contains(range.commonAncestorContainer)) return undefined;
 
     const rect = range.getBoundingClientRect();
-    return rect.width > 0 ? rect : null;
+    return rect.width > 0 ? rect : undefined;
 }
 
 function onSelectionChange() {
@@ -81,7 +81,7 @@ function checkIfHighlighted() {
 
     const range = sel.getRangeAt(0);
     // Check if the start of the selection is inside a mark
-    let node: Node | null | undefined = range.startContainer;
+    let node: Node | undefined = range.startContainer;
     if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
     isHighlighted.value = !!(node as Element)?.closest("mark");
 }
