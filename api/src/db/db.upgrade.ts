@@ -7,6 +7,7 @@ import v5 from "./schemaUpgrade/v5";
 import v6 from "./schemaUpgrade/v6";
 import v7 from "./schemaUpgrade/v7";
 import v8 from "./schemaUpgrade/v8";
+import v9 from "./schemaUpgrade/v9";
 
 /**
  * Upgrade the database schema
@@ -39,4 +40,7 @@ export async function upgradeDbSchema(db: DbService) {
 
     // Upgrade from schema version 7 to 8
     await v8(db);
+
+    // Upgrade from schema version 8 to 9
+    await v9(db);
 }

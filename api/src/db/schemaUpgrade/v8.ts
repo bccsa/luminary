@@ -4,7 +4,7 @@ import { GroupDto } from "../../dto/GroupDto";
 
 /**
  * Upgrade the database schema from version 7 to 8
- * Update parentAvailableTranslations field to have all available translations for a parent
+ * Set special memberOf field for group documents to improve database query performance
  */
 export default async function (db: DbService) {
     const schemaVersion = await db.getSchemaVersion();
