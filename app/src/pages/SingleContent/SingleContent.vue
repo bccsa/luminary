@@ -53,6 +53,7 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import LHighlightable from "@/components/common/LHighlightable.vue";
 
 const router = useRouter();
 

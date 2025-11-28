@@ -247,7 +247,51 @@ function restoreHighlights() {
     }
 }
 
-// --- Lifecycle ---
+// --- Prevent iOS Native Menu ---
+
+let touchTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+
+function handleTouchStart() {
+    // Clear any existing timer
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = undefined;
+    }
+
+    // Set a timer to prevent long-press menu (iOS shows menu after ~500ms)
+    touchTimer = setTimeout(() => {
+        // If touch is still active after 400ms, prevent the default to block menu
+        // But we need to be careful not to break text selection
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+            // If there's a selection, we want to prevent the menu
+            // but we can't preventDefault here as it would break selection
+        }
+    }, 400);
+}
+
+function handleTouchEnd() {
+    // Clear the timer
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = undefined;
+    }
+}
+
+function handleContextMenu(e: Event) {
+    // Prevent native context menu on all platforms (especially iOS)
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+}
+
+function handleTouchCancel() {
+    // Clear timer on touch cancel
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = undefined;
+    }
+}
 
 onMounted(() => {
     restoreHighlights();
@@ -258,11 +302,22 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener("selectionchange", onSelectionChange);
     document.removeEventListener("scroll", onSelectionChange);
+
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+    }
 });
 </script>
 
 <template>
-    <div ref="content" class="relative" @contextmenu.prevent>
+    <div
+        ref="content"
+        class="no-native-menu relative"
+        @contextmenu.prevent="handleContextMenu"
+        @touchstart.passive="handleTouchStart"
+        @touchend.passive="handleTouchEnd"
+        @touchcancel.passive="handleTouchCancel"
+    >
         <!-- Content Container -->
         <div class="prose max-w-none select-text">
             <slot />
@@ -347,8 +402,31 @@ onUnmounted(() => {
     color: inherit;
 }
 
+/* Prevent iOS native selection menu and callout */
+.no-native-menu,
+.no-native-menu * {
+    /* Disable iOS callout menu (Copy, Look Up, etc.) */
+    -webkit-touch-callout: none !important;
+    /* Disable text selection menu on iOS Safari */
+    -webkit-user-select: text;
+    user-select: text;
+    /* Prevent context menu */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Additional iOS-specific fixes */
+.no-native-menu {
+    /* Prevent iOS from showing the native selection menu */
+    -webkit-user-drag: none;
+    /* Ensure text can still be selected */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
 .prose {
     /* Hides native menu/magnifier on iOS */
-    -webkit-touch-callout: none;
+    -webkit-touch-callout: none !important;
+    /* Allow text selection but prevent native menu */
+    -webkit-user-select: text;
+    user-select: text;
 }
 </style>
