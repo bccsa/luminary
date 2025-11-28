@@ -60,11 +60,14 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 
 export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Check if sync has been cancelled before starting
-    if (cancelSync) {
-        return;
-    }
+    if (cancelSync) return;
 
-    console.log("Starting sync for", options.type);
+    if (options.type === DocType.DeleteCmd)
+        throw new Error(
+            "Sync: Invalid type selection. Delete commands are included in other syncs.",
+        );
+
+    let newSync = false;
 
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
     if (options.type === DocType.Content && options.languages) {
@@ -88,6 +91,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             // Use this runner for new languages only
             if (newLanguages.length > 0) {
                 options.languages = newLanguages;
+                newSync = true;
             } else {
                 // No new languages, this runner is not needed
                 return;
@@ -113,6 +117,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         // Use this runner for new groups only
         if (newGroups.length > 0) {
             options.memberOf = newGroups;
+            newSync = true;
         } else {
             // No new groups, this runner is not needed
             return;
@@ -125,4 +130,15 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         initialSync: true,
         httpService: _httpService,
     });
+
+    // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
+    if (!newSync) {
+        await syncBatch({
+            ...options,
+            type: DocType.DeleteCmd,
+            subType: options.type,
+            initialSync: true,
+            httpService: _httpService,
+        });
+    }
 }
