@@ -53,6 +53,7 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import LHighlightable from "@/components/common/LHighlightable.vue";
 
 const router = useRouter();
 
@@ -329,6 +330,30 @@ const text = computed(() => {
     }
 });
 
+const parsedContent = computed(() => {
+    if (!content.value || !content.value.text) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(content.value.text);
+    } catch {
+        return null;
+    }
+});
+
+const contentBlocks = computed(() => {
+    if (!parsedContent.value || !parsedContent.value.content) {
+        return [];
+    }
+
+    return parsedContent.value.content.map((node: any, index: number) => {
+        const html = generateHTML({ type: "doc", content: [node] }, [StarterKit, Link]);
+        return { id: `block-${index}`, html, node };
+    });
+});
+
+// Select the first category in the content by category list on load
 watch(tags, () => {
     if (selectedCategoryId.value) return;
     const categories = tags.value.filter((t) => t.parentTagType == TagType.Category);
@@ -679,14 +704,20 @@ const quickLanguageSwitch = (languageId: string) => {
                         </span>
                     </div>
 
-                    <div
-                        v-if="content.text"
-                        v-html="text"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                        :class="{
-                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"
-                    ></div>
+                    <!-- Render content with highlighting support -->
+                    <LHighlightable v-if="content.text" :content-id="content._id">
+                        <div
+                            v-html="
+                                content.text && contentBlocks.length > 0
+                                    ? contentBlocks.map((block: any) => block.html).join('')
+                                    : text
+                            "
+                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                            :class="{
+                                'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                            }"
+                        ></div>
+                    </LHighlightable>
                 </article>
             </div>
 
