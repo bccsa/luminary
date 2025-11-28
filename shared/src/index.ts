@@ -5,4 +5,5 @@ export * from "./permissions/permissions";
 export * from "./socket/socketio";
 export * from "./util";
 export * from "./rest/RestApi";
+export * from "./rest/sync2";
 export * from "./config";

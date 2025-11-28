@@ -1,5 +1,5 @@
 import { DocType, LocalChangeDto } from "../types";
-import { Sync, syncActive } from "./sync";
+import { syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
 import { LFormData } from "../util/LFormData";
@@ -60,7 +60,7 @@ export type ChangeRequestQuery = {
 export { syncActive };
 
 class RestApi {
-    private _sync: Sync;
+    // private _sync: Sync;
     private http: HttpReq<any>;
     /**
      * Create a new REST API client instance
@@ -79,7 +79,7 @@ class RestApi {
             );
         }
 
-        this._sync = new Sync();
+        // this._sync = new Sync();
         this.http = new HttpReq(config.apiUrl || "", config.token);
 
         const localChanges = useDexieLiveQuery(
@@ -89,12 +89,12 @@ class RestApi {
         syncLocalChanges(localChanges);
     }
 
-    /**
-     * Returns the REST API Client's sync instance
-     */
-    get sync() {
-        return this._sync;
-    }
+    // /**
+    //  * Returns the REST API Client's sync instance
+    //  */
+    // get sync() {
+    //     return this._sync;
+    // }
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";

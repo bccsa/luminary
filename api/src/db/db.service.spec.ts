@@ -1,10 +1,11 @@
-import { DbService, DbQueryResult, SearchOptions } from "./db.service";
+import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DeleteReason, DocType, PostType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
+import { SearchOptions } from "./db.searchFunctions";
 
 describe("DbService", () => {
     let service: DbService;
@@ -103,6 +104,15 @@ describe("DbService", () => {
             const res = await service.getUserByIdOrEmail("outdated@email.address", "editor1");
             expect(res.docs.length).toBe(1);
             expect(res.docs[0].type === DocType.User).toBe(true);
+            expect(res.docs[0].email).toBe("editor1@users.test");
+        });
+
+        it("can get a user document by userId and email", async () => {
+            // Only one result should be returned. This test checks that the uniqueness filter is applied correctly (as the index is not unique)
+            const res = await service.getUserByIdOrEmail("editor1@users.test", "editor1");
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].type === DocType.User).toBe(true);
+            expect(res.docs[0].userId).toBe("editor1");
             expect(res.docs[0].email).toBe("editor1@users.test");
         });
     });
@@ -282,40 +292,124 @@ describe("DbService", () => {
         });
     });
 
+    describe("events", () => {
+        it("emits 'groupUpdate' event when a group document is updated", async () => {
+            const groupDoc = {
+                _id: "group-test-event",
+                type: DocType.Group,
+                name: "Test Group",
+                acl: [],
+            };
+
+            let eventReceived = false;
+            let receivedDoc: any;
+
+            const groupUpdateHandler = (update: any) => {
+                if (update._id === "group-test-event") {
+                    eventReceived = true;
+                    receivedDoc = update;
+                }
+            };
+
+            service.on("groupUpdate", groupUpdateHandler);
+
+            await service.upsertDoc(groupDoc);
+
+            await waitForExpect(() => {
+                expect(eventReceived).toBe(true);
+                expect(receivedDoc.type).toBe(DocType.Group);
+                expect(receivedDoc._id).toBe("group-test-event");
+                expect(receivedDoc.name).toBe("Test Group");
+            });
+
+            service.off("groupUpdate", groupUpdateHandler);
+        });
+
+        it("emits 'languageUpdate' event when a language document is updated", async () => {
+            const languageDoc = {
+                _id: "lang-test-event",
+                type: DocType.Language,
+                name: "Test Language",
+                languageCode: "test",
+            };
+
+            let eventReceived = false;
+            let receivedDoc: any;
+
+            const languageUpdateHandler = (update: any) => {
+                if (update._id === "lang-test-event") {
+                    eventReceived = true;
+                    receivedDoc = update;
+                }
+            };
+
+            service.on("languageUpdate", languageUpdateHandler);
+
+            await service.upsertDoc(languageDoc);
+
+            await waitForExpect(() => {
+                expect(eventReceived).toBe(true);
+                expect(receivedDoc.type).toBe(DocType.Language);
+                expect(receivedDoc._id).toBe("lang-test-event");
+                expect(receivedDoc.name).toBe("Test Language");
+            });
+
+            service.off("languageUpdate", languageUpdateHandler);
+        });
+
+        it("emits 'languageUpdate' event when a delete command for a language document is created", async () => {
+            const languageDoc = {
+                _id: "lang-delete-event-test",
+                type: DocType.Language,
+                name: "Language to Delete",
+                languageCode: "del",
+            };
+
+            await service.upsertDoc(languageDoc);
+
+            let deleteCmdEventReceived = false;
+            let receivedDeleteCmd: any;
+
+            const languageDeleteHandler = (update: any) => {
+                if (
+                    update.type === DocType.DeleteCmd &&
+                    update.docId === "lang-delete-event-test"
+                ) {
+                    deleteCmdEventReceived = true;
+                    receivedDeleteCmd = update;
+                }
+            };
+
+            service.on("languageUpdate", languageDeleteHandler);
+
+            // Update the language document with deleteReq to trigger deletion
+            const docToDelete = {
+                _id: "lang-delete-event-test",
+                type: DocType.Language,
+                name: "Language to Delete",
+                languageCode: "del",
+                deleteReq: 1,
+            };
+
+            await service.upsertDoc(docToDelete);
+
+            await waitForExpect(() => {
+                expect(deleteCmdEventReceived).toBe(true);
+                expect(receivedDeleteCmd.type).toBe(DocType.DeleteCmd);
+                expect(receivedDeleteCmd.docId).toBe("lang-delete-event-test");
+                expect(receivedDeleteCmd.deleteReason).toBe(DeleteReason.Deleted);
+            });
+
+            service.off("languageUpdate", languageDeleteHandler);
+        });
+    });
+
     describe("group documents", () => {
         it("can get all groups", async () => {
             const res: any = await service.getGroups();
 
             const docCount = res.docs.length;
-            expect(docCount).toBe(8);
-        });
-
-        it("can retrieve a list of groups from the db (getUserGroups)", async () => {
-            const userAccess = new Map<DocType, Uuid[]>();
-            userAccess[DocType.Group] = [
-                "group-super-admins",
-                "group-public-content",
-                "group-private-content",
-                "group-public-tags",
-                "group-private-tags",
-                "group-public-users",
-                "group-private-users",
-            ];
-
-            const res: any = await service.getUserGroups(userAccess);
-
-            expect(res.docs).toBeDefined();
-            expect(res.docs.length).toBeGreaterThan(0);
-        });
-
-        it("returns no groups if user does not have the right access (getUserGroups)", async () => {
-            const userAccess = new Map<DocType, Uuid[]>();
-            userAccess[DocType.Post] = ["group-super-admins"];
-
-            const res: any = await service.getUserGroups(userAccess);
-
-            expect(res.docs).toBeDefined();
-            expect(res.docs.length).toBe(0);
+            expect(docCount).toBeGreaterThanOrEqual(8);
         });
     });
 

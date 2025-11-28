@@ -1,0 +1,27 @@
+{
+    "_id": "_design/sync-tag-content-index",
+    "language": "query",
+    "views": {
+        "sync-tag-content-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    },
+                    "parentType": {
+                        "$eq": "tag"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}
