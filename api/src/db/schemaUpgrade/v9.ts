@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 /**
  * Upgrade the database schema from version 8 to 9
  * Create a StorageDto document with S3 credentials from environment variables
- * and update Post and Tag documents with imageBucketId field
+ * and update Post and Tag documents with imageBucketId field, propagating to content children
  */
 export default async function (db: DbService) {
     const schemaVersion = await db.getSchemaVersion();
@@ -20,14 +20,11 @@ export default async function (db: DbService) {
         const s3Port = process.env.S3_PORT;
         const s3AccessKey = process.env.S3_ACCESS_KEY;
         const s3SecretKey = process.env.S3_SECRET_KEY;
-        const s3BucketName = process.env.S3_BUCKET_NAME;
-        const s3PublicUrl = process.env.S3_PUBLIC_URL;
+        const s3BucketName = process.env.S3_IMG_BUCKET;
+        const s3UseSSL = process.env.S3_USE_SSL === "true";
 
         // Construct the full endpoint URL
-        const endpointUrl =
-            s3Endpoint && (s3Endpoint.startsWith("http://") || s3Endpoint.startsWith("https://"))
-                ? s3Endpoint
-                : `http://${s3Endpoint}:${s3Port}`;
+        const endpointUrl = s3UseSSL ? `https://${s3Endpoint}` : `http://${s3Endpoint}:${s3Port}`;
 
         // Check if a storage document already exists for images
         let imageStorageId: Uuid | undefined;
@@ -66,11 +63,11 @@ export default async function (db: DbService) {
             const storageDoc = new StorageDto();
             storageDoc._id = uuidv4();
             storageDoc.type = DocType.Storage;
-            storageDoc.name = "Default Image Storage";
+            storageDoc.name = "AC Staging Images";
             storageDoc.storageType = StorageType.Image;
-            storageDoc.publicUrl = s3PublicUrl;
+            storageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
             storageDoc.mimeTypes = ["image/*"];
-            storageDoc.memberOf = []; // Empty memberOf array - can be updated later via CMS
+            storageDoc.memberOf = ["group-super-admins"];
             storageDoc.credential_id = credentialId;
 
             // Save the storage document
@@ -79,12 +76,32 @@ export default async function (db: DbService) {
             console.info(`Created new image storage bucket: ${imageStorageId}`);
         }
 
-        // Update all Post and Tag documents with imageBucketId
+        // Update all Post and Tag documents with imageBucketId and propagate to their content children
         await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
-            if (doc) {
-                if (!doc.imageBucketId) {
-                    doc.imageBucketId = imageStorageId;
-                    await db.upsertDoc(doc);
+            if (!doc) return;
+
+            let parentUpdated = false;
+
+            // Only assign a bucket if the document actually contains image data
+            if (doc.imageData && !doc.imageBucketId && imageStorageId) {
+                doc.imageBucketId = imageStorageId;
+                parentUpdated = true;
+            }
+
+            if (parentUpdated) {
+                await db.upsertDoc(doc);
+            }
+
+            // Ensure child content documents point to the same bucket for their parent images
+            if (doc.imageData && doc.imageBucketId) {
+                const childContents = await db.getContentByParentId(doc._id);
+                if (childContents.docs?.length) {
+                    for (const contentDoc of childContents.docs) {
+                        if (contentDoc.parentImageBucketId !== doc.imageBucketId) {
+                            contentDoc.parentImageBucketId = doc.imageBucketId;
+                            await db.upsertDoc(contentDoc);
+                        }
+                    }
                 }
             }
         });
