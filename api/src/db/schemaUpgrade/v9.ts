@@ -36,12 +36,14 @@ export default async function (db: DbService) {
                 const imageStorage = existingResult.docs.find(
                     (doc: any) => doc.storageType === StorageType.Image,
                 );
+
                 if (imageStorage) {
                     imageStorageId = imageStorage._id;
                     console.info(`Using existing image storage bucket: ${imageStorageId}`);
                 }
             }
         } catch (error) {
+            console.error("Error getting existing image storage:", error);
             // If query fails, we'll create a new one
             console.info("No existing image storage found, creating new one");
         }
@@ -82,8 +84,13 @@ export default async function (db: DbService) {
 
             let parentUpdated = false;
 
-            // Only assign a bucket if the document actually contains image data
-            if (doc.imageData && !doc.imageBucketId && imageStorageId) {
+            // Only assign a bucket if the document has processed images (fileCollections)
+            if (
+                doc.imageData &&
+                doc.imageData?.fileCollections?.length > 0 &&
+                !doc.imageBucketId &&
+                imageStorageId
+            ) {
                 doc.imageBucketId = imageStorageId;
                 parentUpdated = true;
             }
@@ -93,7 +100,8 @@ export default async function (db: DbService) {
             }
 
             // Ensure child content documents point to the same bucket for their parent images
-            if (doc.imageData && doc.imageBucketId) {
+            // Only process if parent has processed images (fileCollections)
+            if (doc.imageData && doc.imageData?.fileCollections?.length > 0 && doc.imageBucketId) {
                 const childContents = await db.getContentByParentId(doc._id);
                 if (childContents.docs?.length) {
                     for (const contentDoc of childContents.docs) {
@@ -110,4 +118,3 @@ export default async function (db: DbService) {
         console.info("Database schema upgrade from version 8 to 9 completed");
     }
 }
-
