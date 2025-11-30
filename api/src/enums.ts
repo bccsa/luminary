@@ -20,6 +20,8 @@ export enum DocType {
     Group = "group",
     Change = "change",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
+    Crypto = "crypto",
 }
 
 /**
@@ -105,4 +107,12 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+}
+
+/**
+ * Storage Type used in Storage documents
+ */
+export enum StorageType {
+    Image = "image",
+    Media = "media",
 }

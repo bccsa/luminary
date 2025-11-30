@@ -525,6 +525,7 @@ watch(
             aspectRatio="video"
             size="post"
             :content-parent-id="content.parentId"
+            :parent-image-bucket-id="content.parentImageBucketId"
         />
 
         <div class="video-player absolute bottom-0 left-0 right-0 top-0">

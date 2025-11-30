@@ -41,6 +41,7 @@ type Props = {
     parentWidth: number;
     parentId: Uuid;
     isModal?: boolean;
+    bucketPublicUrl?: string;
 };
 
 const aspectRatiosCSS = {
@@ -74,7 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
     isModal: false,
 });
 
-const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
+const baseUrl = computed(() => props.bucketPublicUrl);
 
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
@@ -153,7 +154,7 @@ const srcset1 = computed(() => {
         );
     }
 
-    if (!filteredFileCollections.value.length) return "";
+    if (!filteredFileCollections.value.length || !baseUrl.value) return "";
 
     // In modal mode, use all available images without aspect ratio filtering
     const collectionsToUse = props.isModal
@@ -166,7 +167,7 @@ const srcset1 = computed(() => {
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
         .join(", ");
@@ -174,7 +175,7 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections?.length) return "";
+    if (!props.image?.fileCollections?.length || !baseUrl.value) return "";
 
     // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
     // 400 is a conservative default that avoids excluding all images due to 0 width,
@@ -189,7 +190,7 @@ const srcset2 = computed(() => {
             const files = images.length
                 ? images
                 : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+            return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
         })
         .join(", ");
 });
@@ -233,25 +234,25 @@ const modalSrc = computed(() => {
             }),
         );
     }
-    if (!props.isModal) return undefined;
+    if (!props.isModal || !baseUrl.value) return undefined;
     const allFiles = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) ||
         []) as ImageFileDto[];
     if (!allFiles.length) return fallbackImageUrl.value;
     // Pick the file with the largest area (width * height) to preserve detail for zooming
     const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
-    return `${baseUrl}/${largest.filename}`;
+    return `${baseUrl.value}/${largest.filename}`;
 });
 
 // Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
 const modalSrcset = computed(() => {
-    if (!props.isModal) return "";
+    if (!props.isModal || !baseUrl.value) return "";
     // If using uploadData blob, we cannot build a srcset of different widths
     if (props.image?.uploadData?.length) return "";
     const files = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) || [])
         .slice()
         .sort((a, b) => a.width - b.width);
     if (!files.length) return "";
-    return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+    return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
 });
 
 //Only load fallback when BOTH attempts really failed

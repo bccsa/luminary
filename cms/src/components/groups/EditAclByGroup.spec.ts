@@ -138,8 +138,7 @@ describe.skip("EditAclByGroup.vue", () => {
             ),
         ).toBeDefined();
 
-        // Click directly on the permission cell itself
-        await permissionCell!.trigger("click");
+        await wrapper.findAll('[data-test="permissionCell"]')[0].trigger("click");
 
         // Check if the view permission is removed
         expect(
