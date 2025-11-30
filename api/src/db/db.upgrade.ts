@@ -17,30 +17,35 @@ export async function upgradeDbSchema(db: DbService) {
     // If there are several instances of the API, they will all try to upgrade the database schema at the same time if they are all started at the same time.
     // It might be needed to add a lock mechanism to prevent this.
 
-    // Upgrade from schema version 0 to 1
-    await v1(db);
+    try {
+        // Upgrade from schema version 0 to 1
+        await v1(db);
 
-    // Upgrade from schema version 1 to 2
-    await v2(db);
+        // Upgrade from schema version 1 to 2
+        await v2(db);
 
-    // Upgrade from schema version 2 to 3
-    await v3(db);
+        // Upgrade from schema version 2 to 3
+        await v3(db);
 
-    // Upgrade from schema version 3 to 4
-    await v4(db);
+        // Upgrade from schema version 3 to 4
+        await v4(db);
 
-    // Upgrade from schema version 4 to 5
-    await v5(db);
+        // Upgrade from schema version 4 to 5
+        await v5(db);
 
-    // Upgrade from schema version 5 to 6
-    await v6(db);
+        // Upgrade from schema version 5 to 6
+        await v6(db);
 
-    // Upgrade from schema version 6 to 7
-    await v7(db);
+        // Upgrade from schema version 6 to 7
+        await v7(db);
 
-    // Upgrade from schema version 7 to 8
-    await v8(db);
+        // Upgrade from schema version 7 to 8
+        await v8(db);
 
-    // Upgrade from schema version 8 to 9
-    await v9(db);
+        // Upgrade from schema version 8 to 9
+        await v9(db);
+    } catch (error) {
+        console.error("Database schema upgrade failed:", error);
+        throw error; // Re-throw to prevent schema version from being updated
+    }
 }
