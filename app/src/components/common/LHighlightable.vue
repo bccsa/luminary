@@ -82,11 +82,10 @@ function checkIfHighlighted() {
     const range = sel.getRangeAt(0);
     // Check if the start of the selection is inside a mark
     let node: Node | undefined = range.startContainer;
-    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    isHighlighted.value = !!(node as Element)?.closest("mark");
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement ?? undefined;
+    isHighlighted.value = !!(node as Element | undefined)?.closest?.("mark");
 }
-
-// --- Highlighting (Recursive Safe Method) ---
+// Highlighting (Recursive Safe Method)
 
 function wrapTextNodes(range: Range, color: string) {
     // Capture range details before any DOM mutations
