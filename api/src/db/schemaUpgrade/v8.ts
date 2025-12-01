@@ -100,7 +100,7 @@ export default async function (db: DbService) {
                 const storageDoc = new StorageDto();
                 storageDoc._id = uuidv4();
                 storageDoc.type = DocType.Storage;
-                storageDoc.name = "AC Staging Images";
+                storageDoc.name = "Images";
                 storageDoc.storageType = StorageType.Image;
                 storageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
                 storageDoc.mimeTypes = ["image/*"];
