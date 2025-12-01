@@ -330,18 +330,35 @@ const text = computed(() => {
     }
 });
 
+/**
+ * Parses the content text as JSON if it's valid JSON format (TipTap editor format).
+ * Returns undefined if the content is missing, has no text, or is not valid JSON.
+ *
+ * @returns {Object|undefined} The parsed JSON content object, or undefined if parsing fails or content is missing
+ */
 const parsedContent = computed(() => {
     if (!content.value || !content.value.text) {
-        return null;
+        return undefined;
     }
 
     try {
         return JSON.parse(content.value.text);
     } catch {
-        return null;
+        return undefined;
     }
 });
 
+/**
+ * Converts the parsed TipTap content into individual HTML blocks.
+ * Each block contains the generated HTML, the original node data, and a unique ID.
+ * This is used for rendering content with highlighting support (via LHighlightable).
+ *
+ * @returns {Array<{id: string, html: string, node: any}>} Array of content blocks with:
+ *   - id: Unique identifier for the block (format: "block-{index}")
+ *   - html: Generated HTML string from the TipTap node
+ *   - node: Original TipTap node data
+ * @returns {Array} Empty array if parsedContent is undefined or has no content property
+ */
 const contentBlocks = computed(() => {
     if (!parsedContent.value || !parsedContent.value.content) {
         return [];
