@@ -4,7 +4,7 @@ import LImage from "./LImage.vue";
 import { describe, expect, it, vi } from "vitest";
 import { mockImageDto } from "../../tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
