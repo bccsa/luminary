@@ -130,28 +130,28 @@ function wrapTextNodes(range: Range, color: string) {
     };
 
     nodes.forEach((node) => {
-        // 1. Handle Start Node
+        //  Handle Start Node
         if (node === startNode) {
             if (node === endNode) {
-                // Case: Selection is within a single text node
+                // Selection is within a single text node
                 const part = node.splitText(startOffset);
                 part.splitText(endOffset - startOffset);
                 wrap(part, color);
             } else {
-                // Case: Start of multi-node selection
+                // Start of multi-node selection
                 // splitText returns the new node (the right part), which is the part selected
                 const part = node.splitText(startOffset);
                 wrap(part, color);
             }
         }
-        // 2. Handle End Node
+        // Handle End Node
         else if (node === endNode) {
-            // Case: End of multi-node selection
+            // End of multi-node selection
             // splitText at endOffset. The left part (original node) is what we want.
             node.splitText(endOffset);
             wrap(node, color);
         }
-        // 3. Handle Intermediate Nodes
+        // Handle Intermediate Nodes
         else {
             wrap(node, color);
         }
@@ -219,7 +219,7 @@ function copyText() {
     }
 }
 
-// --- Persistence ---
+// Persistence
 
 function saveHighlights() {
     const prose = content.value?.querySelector(".prose");
@@ -246,7 +246,7 @@ function restoreHighlights() {
     }
 }
 
-// --- Prevent iOS Native Menu ---
+// Prevent iOS Native Menu
 
 let touchTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
