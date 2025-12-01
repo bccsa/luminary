@@ -39,6 +39,8 @@ export default {
                     title.includes("touch-action") ||
                     title.includes("intrinsic & extrinsic sizing") ||
                     title.includes("lch and lab color values") ||
+                    title.includes("box-decoration") ||
+                    title.includes("selection") ||
                     !isCLI
                 ) {
                     return;

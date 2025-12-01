@@ -53,6 +53,7 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import LHighlightable from "@/components/common/LHighlightable.vue";
 
 const router = useRouter();
 
@@ -329,6 +330,47 @@ const text = computed(() => {
     }
 });
 
+/**
+ * Parses the content text as JSON if it's valid JSON format (TipTap editor format).
+ * Returns undefined if the content is missing, has no text, or is not valid JSON.
+ *
+ * @returns {Object|undefined} The parsed JSON content object, or undefined if parsing fails or content is missing
+ */
+const parsedContent = computed(() => {
+    if (!content.value || !content.value.text) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(content.value.text);
+    } catch {
+        return undefined;
+    }
+});
+
+/**
+ * Converts the parsed TipTap content into individual HTML blocks.
+ * Each block contains the generated HTML, the original node data, and a unique ID.
+ * This is used for rendering content with highlighting support (via LHighlightable).
+ *
+ * @returns {Array<{id: string, html: string, node: any}>} Array of content blocks with:
+ *   - id: Unique identifier for the block (format: "block-{index}")
+ *   - html: Generated HTML string from the TipTap node
+ *   - node: Original TipTap node data
+ * @returns {Array} Empty array if parsedContent is undefined or has no content property
+ */
+const contentBlocks = computed(() => {
+    if (!parsedContent.value || !parsedContent.value.content) {
+        return [];
+    }
+
+    return parsedContent.value.content.map((node: any, index: number) => {
+        const html = generateHTML({ type: "doc", content: [node] }, [StarterKit, Link]);
+        return { id: `block-${index}`, html, node };
+    });
+});
+
+// Select the first category in the content by category list on load
 watch(tags, () => {
     if (selectedCategoryId.value) return;
     const categories = tags.value.filter((t) => t.parentTagType == TagType.Category);
@@ -679,14 +721,20 @@ const quickLanguageSwitch = (languageId: string) => {
                         </span>
                     </div>
 
-                    <div
-                        v-if="content.text"
-                        v-html="text"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                        :class="{
-                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"
-                    ></div>
+                    <!-- Render content with highlighting support -->
+                    <LHighlightable v-if="content.text" :content-id="content._id">
+                        <div
+                            v-html="
+                                content.text && contentBlocks.length > 0
+                                    ? contentBlocks.map((block: any) => block.html).join('')
+                                    : text
+                            "
+                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                            :class="{
+                                'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                            }"
+                        ></div>
+                    </LHighlightable>
                 </article>
             </div>
 
