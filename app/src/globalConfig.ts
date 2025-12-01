@@ -289,13 +289,7 @@ type Bookmark = {
     ts: number;
 };
 
-type Highlight = {
-    html: string;
-    color: string;
-};
-
 export type UserPreferences = {
-    highlights?: { [contentId: string]: Array<Highlight> };
     bookmarks?: Array<Bookmark>;
     privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };

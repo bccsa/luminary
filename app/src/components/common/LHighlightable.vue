@@ -6,6 +6,7 @@ import {
     TrashIcon,
     ChevronLeftIcon,
 } from "@heroicons/vue/24/outline";
+import { db } from "luminary-shared";
 
 const props = defineProps<{ contentId: string }>();
 
@@ -163,7 +164,8 @@ function wrapTextNodes(range: Range, color: string) {
 function finalizeHighlight() {
     const sel = window.getSelection();
     sel?.removeAllRanges();
-    saveHighlights();
+    // Save highlights asynchronously (fire-and-forget)
+    void saveHighlights();
     showActions.value = false;
     showColorPicker.value = false;
 }
@@ -221,28 +223,49 @@ function copyText() {
 
 // Persistence
 
-function saveHighlights() {
+/**
+ * Saves highlights to IndexedDB using the luminaryInternals table.
+ * Stores the HTML content with highlights for the current content ID.
+ */
+async function saveHighlights() {
     const prose = content.value?.querySelector(".prose");
     if (!prose) return;
 
     const html = prose.innerHTML;
-    const data = JSON.parse(localStorage.getItem("highlights") || "{}");
 
-    if (html.includes("<mark")) {
-        data[props.contentId] = html;
-    } else {
-        delete data[props.contentId];
+    try {
+        // Get existing highlights data from IndexedDB
+        const existingData = (await db.getLuminaryInternals("highlights")) || {};
+        const data = typeof existingData === "object" && existingData !== null ? existingData : {};
+
+        if (html.includes("<mark")) {
+            data[props.contentId] = html;
+        } else {
+            delete data[props.contentId];
+        }
+
+        // Save to IndexedDB
+        await db.setLuminaryInternals("highlights", data);
+    } catch (error) {
+        console.error("Failed to save highlights to IndexedDB:", error);
     }
-
-    localStorage.setItem("highlights", JSON.stringify(data));
 }
 
-function restoreHighlights() {
-    const data = JSON.parse(localStorage.getItem("highlights") || "{}");
-    const saved = data[props.contentId];
-    if (saved && content.value) {
-        const prose = content.value.querySelector(".prose");
-        if (prose) prose.innerHTML = saved;
+/**
+ * Restores highlights from IndexedDB using the luminaryInternals table.
+ * Loads the saved HTML content with highlights for the current content ID.
+ */
+async function restoreHighlights() {
+    try {
+        const data = (await db.getLuminaryInternals("highlights")) || {};
+        const saved = typeof data === "object" && data !== null ? data[props.contentId] : undefined;
+
+        if (saved && content.value) {
+            const prose = content.value.querySelector(".prose");
+            if (prose) prose.innerHTML = saved;
+        }
+    } catch (error) {
+        console.error("Failed to restore highlights from IndexedDB:", error);
     }
 }
 
@@ -292,8 +315,8 @@ function handleTouchCancel() {
     }
 }
 
-onMounted(() => {
-    restoreHighlights();
+onMounted(async () => {
+    await restoreHighlights();
     document.addEventListener("selectionchange", onSelectionChange);
     document.addEventListener("scroll", onSelectionChange, { passive: true });
 });
