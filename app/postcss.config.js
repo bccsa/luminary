@@ -40,6 +40,7 @@ export default {
                     title.includes("intrinsic & extrinsic sizing") ||
                     title.includes("lch and lab color values") ||
                     title.includes("box-decoration") ||
+                    title.includes("selection") ||
                     !isCLI
                 ) {
                     return;
