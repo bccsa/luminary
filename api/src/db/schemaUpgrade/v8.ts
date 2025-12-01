@@ -6,14 +6,6 @@ import { storeCryptoData } from "../../util/encryption";
 import { v4 as uuidv4 } from "uuid";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { GroupDto } from "../../dto/GroupDto";
-
-/**
- * Helper function to format error messages consistently
- */
-function formatError(message: string, error: any): string {
-    return `${message}: ${error?.message || error}`;
-}
 
 /**
  * Upgrade the database schema from version 7 to 8
