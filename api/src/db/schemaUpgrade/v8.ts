@@ -120,6 +120,8 @@ export default async function (db: DbService) {
 
             // Update all Post and Tag documents with imageBucketId and propagate to their content children
             console.info("Updating Post and Tag documents with imageBucketId");
+            let updatedCount = 0;
+            let contentUpdatedCount = 0;
 
             try {
                 await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
@@ -136,12 +138,44 @@ export default async function (db: DbService) {
                     if (parentUpdated) {
                         try {
                             await db.upsertDoc(doc);
+                            updatedCount++;
                         } catch (error) {
                             console.error(`Failed to update document ${doc._id}:`, error);
                             // Continue with other documents even if one fails
                         }
                     }
+
+                    // Ensure child content documents point to the same bucket for their parent images
+                    if (doc.imageData && doc.imageBucketId) {
+                        try {
+                            const childContents = await db.getContentByParentId(doc._id);
+                            if (childContents.docs?.length) {
+                                for (const contentDoc of childContents.docs) {
+                                    if (contentDoc.parentImageBucketId !== doc.imageBucketId) {
+                                        contentDoc.parentImageBucketId = doc.imageBucketId;
+                                        try {
+                                            await db.upsertDoc(contentDoc);
+                                            contentUpdatedCount++;
+                                        } catch (error) {
+                                            console.error(
+                                                `Failed to update content document ${contentDoc._id}:`,
+                                                error,
+                                            );
+                                            // Continue with other documents even if one fails
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Failed to get content for parent ${doc._id}:`, error);
+                            // Continue with other documents even if one fails
+                        }
+                    }
                 });
+
+                console.info(
+                    `Updated ${updatedCount} Post/Tag documents and ${contentUpdatedCount} Content documents`,
+                );
             } catch (error) {
                 console.error("Failed to process Post and Tag documents:", error);
             }
@@ -156,5 +190,6 @@ export default async function (db: DbService) {
         }
     } catch (error) {
         console.error("Database schema upgrade from version 7 to 8 failed:", error);
+        throw new Error(formatError("Failed to process Post and Tag documents", error)); // Re-throw to prevent schema version from being updated
     }
 }
