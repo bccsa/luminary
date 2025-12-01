@@ -26,7 +26,7 @@ const colors = {
     purple: "rgba(192, 132, 252, 0.5)",
 };
 
-// --- Selection Logic ---
+// Selection Logic
 
 function getSelectionRect(): DOMRect | undefined {
     const sel = window.getSelection();
