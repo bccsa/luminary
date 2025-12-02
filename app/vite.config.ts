@@ -6,6 +6,8 @@ import util from "util";
 import child_process from "child_process";
 import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
+// @ts-expect-error - JavaScript module without type declarations
+import movePreloadScriptsToBody from "./src/assets/vite-plugins/movePreloadScriptsToBody.js";
 
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
@@ -47,6 +49,7 @@ export default defineConfig({
                 globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
             },
         }),
+        movePreloadScriptsToBody(),
     ],
     resolve: {
         alias: {
