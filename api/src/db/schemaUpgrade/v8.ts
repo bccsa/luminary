@@ -4,8 +4,6 @@ import { StorageDto } from "../../dto/StorageDto";
 import { S3CredentialDto } from "../../dto/S3CredentialDto";
 import { storeCryptoData } from "../../util/encryption";
 import { v4 as uuidv4 } from "uuid";
-import { processChangeRequest } from "../../changeRequests/processChangeRequest";
-import { ChangeReqDto } from "../../dto/ChangeReqDto";
 
 /**
  * Upgrade the database schema from version 7 to 8
@@ -28,12 +26,12 @@ export default async function (db: DbService) {
 
             // Validate required environment variables
             if (!s3Endpoint) {
-             console.error(
+                console.error(
                     "S3_ENDPOINT environment variable is required for schema upgrade v8",
                 );
             }
             if (!s3Port && !s3UseSSL) {
-               console.error(
+                console.error(
                     "S3_PORT environment variable is required when S3_USE_SSL is not true",
                 );
             }
@@ -70,7 +68,7 @@ export default async function (db: DbService) {
 
             // Create StorageDto if it doesn't exist
             if (!imageStorageId) {
-                console.info("Creating new storage document with S3 credentials");
+                console.info("Creating new storage document...");
 
                 // Create S3 credentials
                 const credentials: S3CredentialDto = {
@@ -108,43 +106,61 @@ export default async function (db: DbService) {
                 }
             }
 
-            // Update all Post and Tag documents with imageBucketId and propagate to their content children
+           
             let updatedCount = 0;
+            let contentUpdatedCount = 0;
 
             try {
                 await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
                     if (!doc) return;
 
+                    let parentUpdated = false;
+
                     // Only assign a bucket if the document actually contains image data
                     if (doc.imageData && !doc.imageBucketId && imageStorageId) {
                         doc.imageBucketId = imageStorageId;
+                        parentUpdated = true;
+                    }
 
-                        const changeReq = new ChangeReqDto();
-                        changeReq.id = 1;
-                        changeReq.doc = doc;
-
+                    if (parentUpdated) {
                         try {
-                            await processChangeRequest(
-                                "Database schema upgrade from version 7 to 8",
-                                changeReq,
-                                ["group-super-admins"],
-                                db,
-                            );
+                            await db.upsertDoc(doc);
                             updatedCount++;
                         } catch (error) {
-                            let message = error?.message || error;
-                            if (error?.errors && error.errors.length > 0) {
-                                message += "; " + error.errors.join("; ");
+                            console.error(`Failed to update document ${doc._id}:`, error);
+                            // Continue with other documents even if one fails
+                        }
+                    }
+
+                    // Ensure child content documents point to the same bucket for their parent images
+                    if (doc.imageData && doc.imageBucketId) {
+                        try {
+                            const childContents = await db.getContentByParentId(doc._id);
+                            if (childContents.docs?.length) {
+                                for (const contentDoc of childContents.docs) {
+                                    if (contentDoc.parentImageBucketId !== doc.imageBucketId) {
+                                        contentDoc.parentImageBucketId = doc.imageBucketId;
+                                        try {
+                                            await db.upsertDoc(contentDoc);
+                                            contentUpdatedCount++;
+                                        } catch (error) {
+                                            console.error(
+                                                `Failed to update content document ${contentDoc._id}:`,
+                                                error,
+                                            );
+                                            // Continue with other documents even if one fails
+                                        }
+                                    }
+                                }
                             }
-                            console.error(
-                                `Failed to process change request for document ${doc._id}: ${message}`,
-                            );
+                        } catch (error) {
+                            console.error(`Failed to get content for parent ${doc._id}:`, error);
                             // Continue with other documents even if one fails
                         }
                     }
                 });
 
-                console.info(`Updated ${updatedCount} Post/Tag documents (content children updated automatically)`);
+                
             } catch (error) {
                 console.error("Failed to process Post and Tag documents:", error);
             }
