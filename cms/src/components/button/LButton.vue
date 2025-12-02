@@ -137,27 +137,27 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             return;
         }
 
-        // If clicking the trigger button
+        // If a custom rightAction is provided, use it
         if (props.rightAction) {
             props.rightAction(event);
             event.preventDefault();
             event.stopPropagation();
-        } else {
-            // If no action, check if we need to forward the click to a dropdown trigger
-            const trigger =
-                rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-trigger]");
-
-            // Use composedPath to handle cases where the target might have been removed from DOM
-            if (trigger && !event.composedPath().includes(trigger)) {
-                trigger.click();
-                event.preventDefault();
-                event.stopPropagation();
-                return;
-            }
-
-            // If no action and not a forwarded click, still emit event
-            emit("right-click", event);
+            return;
         }
+
+        // Otherwise, always forward the click to the dropdown trigger
+        // This ensures clicking anywhere on the segment (including padding) toggles the dropdown
+        const trigger =
+            rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-trigger]");
+        if (trigger) {
+            trigger.click();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        // Fallback: emit event if trigger not found
+        emit("right-click", event);
         return;
     }
 
