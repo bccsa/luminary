@@ -66,24 +66,18 @@ export function initLanguageSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
-            const syncPromises = [];
-
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
-                syncPromises.push(
-                    sync({
-                        type: DocType.Language,
-                        memberOf: access[DocType.Language],
-                        limit: 100,
-                        cms: false,
-                    }).catch((err) => {
-                        console.error("Error during language sync:", err);
-                        Sentry?.captureException(err);
-                    }),
-                );
+                sync({
+                    type: DocType.Language,
+                    memberOf: access[DocType.Language],
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during language sync:", err);
+                    Sentry?.captureException(err);
+                });
             }
-
-            await Promise.all(syncPromises);
         },
         {
             immediate: true,
@@ -104,57 +98,48 @@ export function initSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
-            const syncPromises = [];
             // Sync post content docs
             if (access[DocType.Post] && access[DocType.Post].length) {
-                syncPromises.push(
-                    sync({
-                        type: DocType.Content,
-                        subType: DocType.Tag,
-                        memberOf: access[DocType.Tag],
-                        languages: appLanguageIdsAsRef.value,
-                        limit: 100,
-                        cms: false,
-                    }).catch((err) => {
-                        console.error("Error during sync:", err);
-                        Sentry?.captureException(err);
-                    }),
-                );
+                sync({
+                    type: DocType.Content,
+                    subType: DocType.Post,
+                    memberOf: access[DocType.Post],
+                    languages: appLanguageIdsAsRef.value,
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during sync:", err);
+                    Sentry?.captureException(err);
+                });
             }
 
             // Sync tag content docs
             if (access[DocType.Tag] && access[DocType.Tag].length) {
-                syncPromises.push(
-                    sync({
-                        type: DocType.Content,
-                        subType: DocType.Post,
-                        memberOf: access[DocType.Post],
-                        languages: appLanguageIdsAsRef.value,
-                        limit: 100,
-                        cms: false,
-                    }).catch((err) => {
-                        console.error("Error during tag content sync:", err);
-                        Sentry?.captureException(err);
-                    }),
-                );
+                sync({
+                    type: DocType.Content,
+                    subType: DocType.Tag,
+                    memberOf: access[DocType.Tag],
+                    languages: appLanguageIdsAsRef.value,
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during tag content sync:", err);
+                    Sentry?.captureException(err);
+                });
             }
 
             // Sync redirects
             if (access[DocType.Redirect] && access[DocType.Redirect].length) {
-                syncPromises.push(
-                    sync({
-                        type: DocType.Redirect,
-                        memberOf: access[DocType.Redirect],
-                        limit: 100,
-                        cms: false,
-                    }).catch((err) => {
-                        console.error("Error during redirect sync:", err);
-                        Sentry?.captureException(err);
-                    }),
-                );
+                sync({
+                    type: DocType.Redirect,
+                    memberOf: access[DocType.Redirect],
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during redirect sync:", err);
+                    Sentry?.captureException(err);
+                });
             }
-
-            await Promise.all(syncPromises);
 
             console.log(isConnected.value ? "Content sync complete" : "Content sync cancelled");
         },

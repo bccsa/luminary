@@ -131,12 +131,14 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             expect(trim).toHaveBeenCalledWith({
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
         });
 
@@ -148,6 +150,7 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: [],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             expect(syncBatch).not.toHaveBeenCalled();
@@ -161,15 +164,43 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             expect(syncBatch).toHaveBeenCalledWith({
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
+                includeDeleteCmds: false,
                 initialSync: true,
                 httpService: mockHttpService,
             });
+        });
+
+        it("should default includeDeleteCmds to true when not specified", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+            });
+
+            // Should be called twice: once for main sync, once for DeleteCmd (because includeDeleteCmds defaults to true)
+            expect(syncBatch).toHaveBeenCalledTimes(2);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Post,
+                    includeDeleteCmds: true,
+                }),
+            );
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.DeleteCmd,
+                    subType: DocType.Post,
+                }),
+            );
         });
 
         it("should handle type with subType (content documents)", async () => {
@@ -184,6 +215,7 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             // Verify getGroupSets was called with the full options object
@@ -193,6 +225,7 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             expect(syncBatch).toHaveBeenCalledWith({
@@ -201,6 +234,7 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
+                includeDeleteCmds: false,
                 initialSync: true,
                 httpService: mockHttpService,
             });
@@ -236,20 +270,22 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
+                includeDeleteCmds: true,
             });
 
-            // Should be called 3 times: once for existing language ["en"], once for DeleteCmd, once for new language ["fr"]
+            // Should be called 3 times: once for existing language ["en"] with DeleteCmd, once for new language ["fr"] without DeleteCmd
             expect(syncBatch).toHaveBeenCalledTimes(3);
             const calls = vi.mocked(syncBatch).mock.calls;
             // First call: existing languages ["en"]
             expect(calls[0][0]).toMatchObject({
                 languages: ["en"],
             });
-            // Second call: DeleteCmd for existing languages
+            // Second call: DeleteCmd for existing languages (only for non-new syncs)
             expect(calls[1][0]).toMatchObject({
                 type: DocType.DeleteCmd,
+                subType: DocType.Post,
             });
-            // Third call: new languages ["fr"] since existing has ["en"]
+            // Third call: new languages ["fr"] (newSync=true, so no DeleteCmd)
             expect(calls[2][0]).toMatchObject({
                 languages: ["fr"],
             });
@@ -267,18 +303,21 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1", "group2"],
                 limit: 100,
+                includeDeleteCmds: true,
             });
 
-            // Should be called 3 times: once for existing groups, once for DeleteCmd, once for new groups
+            // Should be called 3 times: once for existing groups with DeleteCmd, once for new groups without DeleteCmd
             expect(syncBatch).toHaveBeenCalledTimes(3);
             const calls = vi.mocked(syncBatch).mock.calls;
             expect(calls[0][0]).toMatchObject({
                 memberOf: ["group1"],
             });
-            // Second call: DeleteCmd for existing groups
+            // Second call: DeleteCmd for existing groups (only for non-new syncs)
             expect(calls[1][0]).toMatchObject({
                 type: DocType.DeleteCmd,
+                subType: DocType.Post,
             });
+            // Third call: new groups (newSync=true, so no DeleteCmd)
             expect(calls[2][0]).toMatchObject({
                 memberOf: ["group2"],
             });
@@ -299,6 +338,7 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1", "group2", "group3"],
                 limit: 100,
+                includeDeleteCmds: true,
             });
 
             // Should be called 4 times: 2 group sets + 2 DeleteCmd syncs
@@ -309,12 +349,14 @@ describe("sync module", () => {
             });
             expect(calls[1][0]).toMatchObject({
                 type: DocType.DeleteCmd,
+                subType: DocType.Post,
             });
             expect(calls[2][0]).toMatchObject({
                 memberOf: ["group2", "group3"],
             });
             expect(calls[3][0]).toMatchObject({
                 type: DocType.DeleteCmd,
+                subType: DocType.Post,
             });
         });
 
@@ -331,6 +373,7 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1", "group2"],
                 limit: 100,
+                includeDeleteCmds: true,
             });
 
             // Should be called 4 times: 2 group sets + 2 DeleteCmd syncs (no new groups)
@@ -357,6 +400,7 @@ describe("sync module", () => {
                 memberOf: ["group1", "group2"],
                 languages: ["en", "fr"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             // Should handle both new languages and new groups
@@ -373,11 +417,13 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 limit: 100,
                 cms: true,
+                includeDeleteCmds: false,
             });
 
             expect(syncBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     cms: true,
+                    includeDeleteCmds: false,
                 }),
             );
         });
@@ -390,11 +436,13 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: [],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             expect(syncBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     memberOf: [],
+                    includeDeleteCmds: false,
                 }),
             );
         });
@@ -407,6 +455,7 @@ describe("sync module", () => {
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
             // For non-content types, languages parameter is not passed in options
@@ -414,14 +463,16 @@ describe("sync module", () => {
                 expect.objectContaining({
                     type: DocType.Post,
                     memberOf: ["group1"],
+                    includeDeleteCmds: false,
                 }),
             );
         });
 
-        it("should only process new languages for content documents", async () => {
+        it("should only process languages for content documents when includeDeleteCmds is true", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
             vi.mocked(utils.getLanguages).mockReturnValue(["en", "fr"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en", "fr"]]);
 
             await sync({
                 type: DocType.Content,
@@ -429,13 +480,51 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
+                includeDeleteCmds: true,
             });
 
-            // Should call syncBatch twice: once for languages and once for DeleteCmd
+            // Should call syncBatch twice: once for languages and once for DeleteCmd (since includeDeleteCmds is true and no new languages)
             expect(syncBatch).toHaveBeenCalledTimes(2);
             expect(syncBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     languages: ["en", "fr"],
+                }),
+            );
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.DeleteCmd,
+                    subType: DocType.Post,
+                }),
+            );
+        });
+
+        it("should include DeleteCmd by default for content documents", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                // Not specifying includeDeleteCmds, should default to true
+            });
+
+            // Should call syncBatch twice: once for content and once for DeleteCmd
+            expect(syncBatch).toHaveBeenCalledTimes(2);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Content,
+                    includeDeleteCmds: true,
+                }),
+            );
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.DeleteCmd,
+                    subType: DocType.Post,
                 }),
             );
         });
@@ -454,18 +543,43 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 languages: ["en", "fr"],
                 limit: 100,
+                includeDeleteCmds: false,
             });
 
-            // Should call syncBatch once - no recursive call since existingLanguages is empty
-            // The condition is: if (languageSets.length > 1 || newLanguages.length > 0)
-            // Since languageSets is empty and newLanguages.length is 2 (all languages are new),
-            // it will not enter the block to start new runners for language sets
+            // Should call syncBatch once - new languages don't trigger DeleteCmd when includeDeleteCmds is false
             expect(syncBatch).toHaveBeenCalledTimes(1);
             const calls = vi.mocked(syncBatch).mock.calls;
             // Should proceed with the original languages ["en", "fr"]
             expect(calls[0][0]).toMatchObject({
                 languages: ["en", "fr"],
             });
+        });
+
+        it("should respect explicit includeDeleteCmds: false", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            // Should call syncBatch only once - no DeleteCmd when explicitly set to false
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Post,
+                    includeDeleteCmds: false,
+                }),
+            );
+            // Verify DeleteCmd was NOT called
+            expect(syncBatch).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.DeleteCmd,
+                }),
+            );
         });
     });
 });

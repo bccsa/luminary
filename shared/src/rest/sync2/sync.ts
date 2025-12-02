@@ -67,6 +67,9 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             "Sync: Invalid type selection. Delete commands are included in other syncs.",
         );
 
+    // Default includeDeleteCmds to true if not specified
+    options.includeDeleteCmds = options.includeDeleteCmds ?? true;
+
     let newSync = false;
 
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
@@ -132,11 +135,11 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     });
 
     // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
-    if (!newSync) {
+    if (!newSync && options.includeDeleteCmds) {
         await syncBatch({
             ...options,
             type: DocType.DeleteCmd,
-            subType: options.type,
+            subType: options.type === DocType.Content ? options.subType : options.type,
             initialSync: true,
             httpService: _httpService,
         });

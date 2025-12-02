@@ -252,7 +252,7 @@ describe("sync.ts", () => {
             expect(sync).not.toHaveBeenCalled();
         });
 
-        it("should sync tag content when only post access", async () => {
+        it("should sync post content when only post access", async () => {
             vi.mocked(getAccessibleGroups).mockReturnValue({
                 [DocType.Content]: [],
                 [DocType.Group]: [],
@@ -273,8 +273,8 @@ describe("sync.ts", () => {
             await waitForExpect(() => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Tag,
-                    memberOf: [],
+                    subType: DocType.Post,
+                    memberOf: ["group1"],
                     languages: ["en"],
                     limit: 100,
                     cms: false,
@@ -282,7 +282,7 @@ describe("sync.ts", () => {
             });
         });
 
-        it("should sync post content when only tag access", async () => {
+        it("should sync tag content when only tag access", async () => {
             vi.mocked(getAccessibleGroups).mockReturnValue({
                 [DocType.Content]: [],
                 [DocType.Group]: [],
@@ -303,8 +303,8 @@ describe("sync.ts", () => {
             await waitForExpect(() => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Post,
-                    memberOf: [],
+                    subType: DocType.Tag,
+                    memberOf: ["group1"],
                     languages: ["en"],
                     limit: 100,
                     cms: false,
@@ -331,21 +331,21 @@ describe("sync.ts", () => {
             await nextTick();
 
             await waitForExpect(() => {
-                // Post access syncs tag content
+                // Post access syncs post content
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Tag,
-                    memberOf: ["group2"],
+                    subType: DocType.Post,
+                    memberOf: ["group1"],
                     languages: ["en", "fr"],
                     limit: 100,
                     cms: false,
                 });
 
-                // Tag access syncs post content
+                // Tag access syncs tag content
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Post,
-                    memberOf: ["group1"],
+                    subType: DocType.Tag,
+                    memberOf: ["group2"],
                     languages: ["en", "fr"],
                     limit: 100,
                     cms: false,

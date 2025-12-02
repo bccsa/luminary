@@ -166,6 +166,7 @@ describe("sync.ts", () => {
                     memberOf: ["group1"],
                     limit: 100,
                     cms: true,
+                    includeDeleteCmds: true,
                 });
             });
         });
@@ -288,16 +289,6 @@ describe("sync.ts", () => {
                     cms: true,
                 });
 
-                // Should sync tag content
-                expect(sync).toHaveBeenCalledWith({
-                    type: DocType.Content,
-                    subType: DocType.Tag,
-                    memberOf: ["group2"],
-                    languages: ["lang1", "lang2"],
-                    limit: 100,
-                    cms: false,
-                });
-
                 // Should sync post content
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
@@ -305,7 +296,19 @@ describe("sync.ts", () => {
                     memberOf: ["group1"],
                     languages: ["lang1", "lang2"],
                     limit: 100,
-                    cms: false,
+                    cms: true,
+                    includeDeleteCmds: false,
+                });
+
+                // Should sync tag content
+                expect(sync).toHaveBeenCalledWith({
+                    type: DocType.Content,
+                    subType: DocType.Tag,
+                    memberOf: ["group2"],
+                    languages: ["lang1", "lang2"],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: false,
                 });
             });
         });
@@ -436,7 +439,13 @@ describe("sync.ts", () => {
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
 
-            // Changing accessMap should increment both
+            // Set languages so content iterator can increment
+            cmsLanguages.value = [
+                { _id: "lang1", languageCode: "en", name: "English", default: 1 },
+            ] as any;
+            await nextTick();
+
+            // Changing accessMap should increment both (language always, content only if languages exist)
             accessMap.value = {
                 group1: {
                     [DocType.Post]: { [AclPermission.View]: true },

@@ -35,6 +35,10 @@ export type SyncRunnerOptions = SyncBaseOptions & {
      * Flag indicating if this is a CMS sync
      */
     cms?: boolean;
+    /**
+     * If true, include deleteCmd documents in the sync (default is true)
+     */
+    includeDeleteCmds?: boolean;
 };
 
 /**
