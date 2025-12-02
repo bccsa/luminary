@@ -98,7 +98,6 @@ export function initSync() {
         () => syncIterators.value.content,
         async () => {
             if (!isConnected.value) return;
-            console.log("Content sync triggered");
             const access = getAccessibleGroups(AclPermission.View);
 
             // Sync posts and related content docs

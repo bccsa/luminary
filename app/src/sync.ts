@@ -140,8 +140,6 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
-
-            console.log(isConnected.value ? "Content sync complete" : "Content sync cancelled");
         },
     );
 }
