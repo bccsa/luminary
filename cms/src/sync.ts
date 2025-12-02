@@ -106,7 +106,7 @@ export function initSync() {
                 sync({
                     type: DocType.Post,
                     memberOf: access[DocType.Post],
-                    limit: 100,
+                    limit: 1000,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during post sync:", err);
@@ -132,7 +132,7 @@ export function initSync() {
                 sync({
                     type: DocType.Tag,
                     memberOf: access[DocType.Tag],
-                    limit: 100,
+                    limit: 1000,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during tag sync:", err);
@@ -144,7 +144,7 @@ export function initSync() {
                     subType: DocType.Tag,
                     memberOf: access[DocType.Tag],
                     languages: cmsLanguageIdsAsRef.value,
-                    limit: 100,
+                    limit: 1000,
                     cms: true,
                     includeDeleteCmds: false, // Delete commands use the parent type for permissions calculations, and are already handled by the tag sync
                 }).catch((err) => {
@@ -158,7 +158,7 @@ export function initSync() {
                 sync({
                     type: DocType.Redirect,
                     memberOf: access[DocType.Redirect],
-                    limit: 100,
+                    limit: 1000,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during redirect sync:", err);
@@ -171,7 +171,7 @@ export function initSync() {
                 sync({
                     type: DocType.Group,
                     memberOf: access[DocType.Group],
-                    limit: 100,
+                    limit: 1000,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during group sync:", err);
