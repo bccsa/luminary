@@ -64,7 +64,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
-                    trigger-class="flex h-full w-full items-center justify-center"
+                    trigger-class="flex flex-1 items-center justify-center"
                 >
                     <template #trigger>
                         <ChevronDownIcon v-if="!showContentActionsMenuMobile" class="size-5" />
