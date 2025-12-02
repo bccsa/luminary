@@ -1,0 +1,160 @@
+import { ref, watch } from "vue";
+import {
+    accessMap,
+    AclPermission,
+    DocType,
+    getAccessibleGroups,
+    isConnected,
+    setCancelSync,
+    sync,
+    type AccessMap,
+} from "luminary-shared";
+import { appLanguageIdsAsRef, Sentry } from "./globalConfig";
+import _ from "lodash";
+
+export const syncIterators = ref<{ language: number; content: number }>({
+    language: 0,
+    content: 0,
+});
+let accessMapPrev: AccessMap;
+let isConnectedPrev: boolean;
+let appLanguageIdsPrev: string[];
+
+// Increment sync iterators when access map, connection status, or app languages change
+watch(
+    [accessMap, isConnected, appLanguageIdsAsRef],
+    () => {
+        let accessMapChanged = false;
+        if (!_.isEqual(accessMapPrev, accessMap.value)) {
+            accessMapChanged = true;
+            accessMapPrev = _.cloneDeep(accessMap.value);
+        }
+
+        let connectedChanged = false;
+        if (isConnectedPrev !== isConnected.value) {
+            connectedChanged = true;
+            isConnectedPrev = isConnected.value;
+        }
+
+        let appLanguagesChanged = false;
+        const appLanguageIdsSorted = [...appLanguageIdsAsRef.value].sort();
+        if (!_.isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
+            appLanguagesChanged = true;
+            appLanguageIdsPrev = appLanguageIdsSorted;
+        }
+
+        if (accessMapChanged || connectedChanged) syncIterators.value.language++;
+        if (accessMapChanged || connectedChanged || appLanguagesChanged)
+            syncIterators.value.content++;
+    },
+    { deep: true },
+);
+
+/**
+ * Initialize language document sync watcher.
+ */
+export function initLanguageSync() {
+    // Sync language docs
+    watch(
+        () => syncIterators.value.language,
+        async () => {
+            console.log("step 1");
+            if (!isConnected.value) {
+                console.log("set cancel sync true");
+                setCancelSync(true);
+                return;
+            }
+
+            console.log("set cancel sync false");
+            setCancelSync(false);
+
+            console.log("step 2");
+            const access = getAccessibleGroups(AclPermission.View);
+
+            if (!access[DocType.Language] || !access[DocType.Language].length) return;
+
+            console.log("Connected to server, syncing language data...");
+
+            await sync({
+                type: DocType.Language,
+                memberOf: access[DocType.Language],
+                limit: 100,
+                cms: false,
+            }).catch((err) => {
+                console.error("Error during sync:", err);
+                Sentry?.captureException(err);
+            });
+
+            console.log(isConnected.value ? "Language sync complete" : "Language sync cancelled");
+        },
+        {
+            immediate: true,
+        },
+    );
+}
+
+/**
+ * Initialize the sync watcher for all other document types.
+ */
+export function initSync() {
+    // Sync all other docs
+    watch(
+        () => syncIterators.value.content,
+        async () => {
+            if (!isConnected.value) return;
+            if (!appLanguageIdsAsRef.value.length) return;
+
+            const access = getAccessibleGroups(AclPermission.View);
+
+            if (
+                !access[DocType.Post] ||
+                !access[DocType.Post].length ||
+                !access[DocType.Tag] ||
+                !access[DocType.Tag].length
+            )
+                return;
+            console.log("Connected to server, syncing content data...");
+
+            const pList = [];
+            pList.push(
+                sync({
+                    type: DocType.Content,
+                    subType: DocType.Post,
+                    memberOf: access[DocType.Post],
+                    languages: appLanguageIdsAsRef.value,
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during sync:", err);
+                    Sentry?.captureException(err);
+                }),
+            );
+
+            pList.push(
+                sync({
+                    type: DocType.Content,
+                    subType: DocType.Tag,
+                    memberOf: access[DocType.Tag],
+                    languages: appLanguageIdsAsRef.value,
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during sync:", err);
+                    Sentry?.captureException(err);
+                }),
+            );
+
+            await Promise.all(pList);
+
+            console.log(isConnected.value ? "Content sync complete" : "Content sync cancelled");
+        },
+    );
+}
+
+/**
+ * Manually trigger a sync cycle for both language and content syncs
+ */
+export function triggerSync() {
+    syncIterators.value.language++;
+    syncIterators.value.content++;
+}

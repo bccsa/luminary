@@ -238,15 +238,19 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should be called twice: once for existing language ["en"], once for new language ["fr"]
-            expect(syncBatch).toHaveBeenCalledTimes(2);
+            // Should be called 3 times: once for existing language ["en"], once for DeleteCmd, once for new language ["fr"]
+            expect(syncBatch).toHaveBeenCalledTimes(3);
             const calls = vi.mocked(syncBatch).mock.calls;
             // First call: existing languages ["en"]
             expect(calls[0][0]).toMatchObject({
                 languages: ["en"],
             });
-            // Second call: new languages ["fr"] since existing has ["en"]
+            // Second call: DeleteCmd for existing languages
             expect(calls[1][0]).toMatchObject({
+                type: DocType.DeleteCmd,
+            });
+            // Third call: new languages ["fr"] since existing has ["en"]
+            expect(calls[2][0]).toMatchObject({
                 languages: ["fr"],
             });
         });
@@ -265,13 +269,17 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should be called twice: once for existing groups, once for new groups
-            expect(syncBatch).toHaveBeenCalledTimes(2);
+            // Should be called 3 times: once for existing groups, once for DeleteCmd, once for new groups
+            expect(syncBatch).toHaveBeenCalledTimes(3);
             const calls = vi.mocked(syncBatch).mock.calls;
             expect(calls[0][0]).toMatchObject({
                 memberOf: ["group1"],
             });
+            // Second call: DeleteCmd for existing groups
             expect(calls[1][0]).toMatchObject({
+                type: DocType.DeleteCmd,
+            });
+            expect(calls[2][0]).toMatchObject({
                 memberOf: ["group2"],
             });
         });
@@ -293,14 +301,20 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should be called for each group set
-            expect(syncBatch).toHaveBeenCalledTimes(2);
+            // Should be called 4 times: 2 group sets + 2 DeleteCmd syncs
+            expect(syncBatch).toHaveBeenCalledTimes(4);
             const calls = vi.mocked(syncBatch).mock.calls;
             expect(calls[0][0]).toMatchObject({
                 memberOf: ["group1"],
             });
             expect(calls[1][0]).toMatchObject({
+                type: DocType.DeleteCmd,
+            });
+            expect(calls[2][0]).toMatchObject({
                 memberOf: ["group2", "group3"],
+            });
+            expect(calls[3][0]).toMatchObject({
+                type: DocType.DeleteCmd,
             });
         });
 
@@ -319,8 +333,8 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should be called for each existing group set, but not for new groups
-            expect(syncBatch).toHaveBeenCalledTimes(2);
+            // Should be called 4 times: 2 group sets + 2 DeleteCmd syncs (no new groups)
+            expect(syncBatch).toHaveBeenCalledTimes(4);
         });
 
         it("should handle combined new languages and new groups for content documents", async () => {
@@ -417,8 +431,8 @@ describe("sync module", () => {
                 limit: 100,
             });
 
-            // Should only call syncBatch once since all languages already exist
-            expect(syncBatch).toHaveBeenCalledTimes(1);
+            // Should call syncBatch twice: once for languages and once for DeleteCmd
+            expect(syncBatch).toHaveBeenCalledTimes(2);
             expect(syncBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     languages: ["en", "fr"],
