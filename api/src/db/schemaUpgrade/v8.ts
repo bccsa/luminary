@@ -107,9 +107,6 @@ export default async function (db: DbService) {
             }
 
            
-            let updatedCount = 0;
-            let contentUpdatedCount = 0;
-
             try {
                 await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
                     if (!doc) return;
@@ -125,7 +122,6 @@ export default async function (db: DbService) {
                     if (parentUpdated) {
                         try {
                             await db.upsertDoc(doc);
-                            updatedCount++;
                         } catch (error) {
                             console.error(`Failed to update document ${doc._id}:`, error);
                             // Continue with other documents even if one fails
@@ -142,7 +138,6 @@ export default async function (db: DbService) {
                                         contentDoc.parentImageBucketId = doc.imageBucketId;
                                         try {
                                             await db.upsertDoc(contentDoc);
-                                            contentUpdatedCount++;
                                         } catch (error) {
                                             console.error(
                                                 `Failed to update content document ${contentDoc._id}:`,
