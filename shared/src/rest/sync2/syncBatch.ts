@@ -29,6 +29,7 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
             "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
+        cms: options.cms,
     };
 
     // Add parentType and language selectors to content queries
@@ -40,11 +41,6 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
     // Add docType selector for deleteCmd queries
     if (options.type === DocType.DeleteCmd && options.subType) {
         mangoQuery.selector.docType = options.subType;
-    }
-
-    // Add the CMS flag if present
-    if (options.cms) {
-        mangoQuery.selector.cms = true;
     }
 
     // Check if sync has been cancelled before making API request
