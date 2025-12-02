@@ -1,4 +1,4 @@
-import { Expose } from "class-transformer";
+import { Expose, Type } from "class-transformer";
 import { IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
 
 /**
@@ -11,6 +11,7 @@ export class ChangeReqDto {
     apiVersion?: string;
 
     @IsNotEmpty()
+    @Type(() => Number)
     @IsNumber()
     @Expose()
     id: number;
