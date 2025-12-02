@@ -9,6 +9,18 @@ import {
 } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 
+export let Sentry: typeof import("@sentry/vue") | null = null;
+
+if (import.meta.env.PROD) {
+    import("@sentry/vue")
+        .then((sentryModule) => {
+            Sentry = sentryModule;
+        })
+        .catch((e) => {
+            console.error("Failed to initialize Sentry:", e);
+        });
+}
+
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const clientAppUrl = ref(import.meta.env.VITE_CLIENT_APP_URL);
@@ -36,6 +48,11 @@ watch(cmsLanguageIdAsRef, (newVal) => {
  * The list of CMS defined languages as Vue ref.
  */
 export const cmsLanguages = ref<LanguageDto[]>([]);
+
+/**
+ * Array of CMS language IDs as Vue ref.
+ */
+export const cmsLanguageIdsAsRef = computed(() => cmsLanguages.value.map((lang) => lang._id));
 
 /**
  * The default language document as Vue ref.
@@ -88,6 +105,8 @@ export async function initLanguage() {
     watch(_cmsLanguages, (languages) => {
         cmsLanguages.value.slice(0, cmsLanguages.value.length);
         cmsLanguages.value.push(...languages);
+        cmsLanguages.value = _.uniqBy(cmsLanguages.value, "_id");
+        cmsLanguages.value.sort((a, b) => (a._id > b._id ? 1 : -1));
 
         const defaultLang = languages.find((l) => l.default === 1);
 

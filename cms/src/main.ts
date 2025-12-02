@@ -9,6 +9,7 @@ import { apiUrl, initLanguage } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
+import { initLanguageSync, initSync } from "./sync";
 
 const app = createApp(App);
 
@@ -105,7 +106,9 @@ async function Startup() {
         }
     });
 
+    initLanguageSync();
     await initLanguage();
+    initSync();
 
     app.use(createPinia());
     app.use(router);
