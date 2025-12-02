@@ -8,7 +8,7 @@ import {
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
 } from "./isLangSwitch";
-import { appLanguageAsRef, appLanguageIdsAsRef, cmsLanguages, initLanguage } from "@/globalConfig";
+import { appLanguageIdsAsRef, cmsLanguages, initLanguage } from "@/globalConfig";
 import {
     mockEnglishContentDto,
     mockFrenchContentDto,
@@ -102,7 +102,7 @@ describe("isLangSwitch", () => {
 
         it("should warn if languageId is missing", () => {
             const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-            handleLanguageChange({ mainSelector: true });
+            handleLanguageChange({});
             expect(consoleWarnSpy).toHaveBeenCalledWith("Missing Argument: languageId");
             consoleWarnSpy.mockRestore();
         });
@@ -179,23 +179,6 @@ describe("isLangSwitch", () => {
                 previousLanguage: "lang-eng",
             });
             expect(appLanguageIdsAsRef.value).toEqual(["lang-eng", "lang-fra"]);
-        });
-
-        it("should update appLanguageAsRef if mainSelector is true", () => {
-            handleLanguageChange({
-                mainSelector: true,
-                languageId: "lang-eng",
-            });
-            expect(appLanguageAsRef.value).toEqual(mockLanguageDtoEng);
-        });
-
-        it("should not update appLanguageAsRef if mainSelector is false", () => {
-            handleLanguageChange({
-                mainSelector: false,
-                languageId: "lang-eng",
-                previousLanguage: "lang-fra",
-            });
-            expect(appLanguageAsRef.value).toEqual(mockLanguageDtoEng);
         });
 
         it("should handle multiple options correctly", () => {

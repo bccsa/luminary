@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from "vue";
 import type { ContentDto, Uuid } from "luminary-shared";
-import { appLanguageAsRef, appLanguageIdsAsRef, cmsLanguages } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 /** Reactive flag to detect language switch */
 export const isLanguageSwitchRef = ref(localStorage.getItem("isLanguageSwitch") === "true");
@@ -26,7 +26,6 @@ type LanguageSelectOptions = {
 };
 
 interface HandleLanguageChangeArgs {
-    mainSelector?: boolean;
     options?: LanguageSelectOptions;
     languageId?: Uuid;
     previousLanguage?: Uuid;
@@ -35,7 +34,6 @@ interface HandleLanguageChangeArgs {
 }
 
 export const handleLanguageChange = ({
-    mainSelector = false,
     options = {},
     languageId,
     availableTranslations,
@@ -48,7 +46,7 @@ export const handleLanguageChange = ({
         return;
     }
 
-    // --- Update content ---
+    // Update content
     if (availableTranslations && content) {
         const preferred = availableTranslations.find((c) => c.language === languageId);
         if (preferred && preferred.slug !== content.value.slug) {
@@ -56,7 +54,7 @@ export const handleLanguageChange = ({
         }
     }
 
-    // --- Update global language preferences ---
+    // Update global language preferences
     if (options.add) {
         if (!appLanguageIdsAsRef.value.includes(languageId)) {
             appLanguageIdsAsRef.value.push(languageId);
@@ -77,13 +75,5 @@ export const handleLanguageChange = ({
             appLanguageIdsAsRef.value[index],
             appLanguageIdsAsRef.value[index + 1],
         ];
-    }
-
-    // --- Update preferred language globally ---
-    if (mainSelector) {
-        const lang = cmsLanguages.value.find((c) => c._id === languageId);
-        if (lang) {
-            appLanguageAsRef.value = lang; // ← Always update!
-        }
     }
 };
