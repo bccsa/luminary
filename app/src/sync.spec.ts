@@ -216,7 +216,10 @@ describe("sync.ts", () => {
             await nextTick();
 
             await waitForExpect(() => {
-                expect(consoleErrorSpy).toHaveBeenCalledWith("Error during sync:", syncError);
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                    "Error during language sync:",
+                    syncError,
+                );
             });
 
             consoleErrorSpy.mockRestore();
@@ -249,28 +252,7 @@ describe("sync.ts", () => {
             expect(sync).not.toHaveBeenCalled();
         });
 
-        it("should not sync when no post access", async () => {
-            vi.mocked(getAccessibleGroups).mockReturnValue({
-                [DocType.Content]: [],
-                [DocType.Group]: [],
-                [DocType.Language]: [],
-                [DocType.Redirect]: [],
-                [DocType.Post]: [],
-                [DocType.Tag]: ["group1"],
-                [DocType.User]: [],
-                [DocType.DeleteCmd]: [],
-            });
-
-            initSync();
-            isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en"];
-            syncIterators.value.content++;
-            await nextTick();
-
-            expect(sync).not.toHaveBeenCalled();
-        });
-
-        it("should not sync when no tag access", async () => {
+        it("should sync tag content when only post access", async () => {
             vi.mocked(getAccessibleGroups).mockReturnValue({
                 [DocType.Content]: [],
                 [DocType.Group]: [],
@@ -288,7 +270,46 @@ describe("sync.ts", () => {
             syncIterators.value.content++;
             await nextTick();
 
-            expect(sync).not.toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalledWith({
+                    type: DocType.Content,
+                    subType: DocType.Tag,
+                    memberOf: [],
+                    languages: ["en"],
+                    limit: 100,
+                    cms: false,
+                });
+            });
+        });
+
+        it("should sync post content when only tag access", async () => {
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: [],
+                [DocType.Post]: [],
+                [DocType.Tag]: ["group1"],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalledWith({
+                    type: DocType.Content,
+                    subType: DocType.Post,
+                    memberOf: [],
+                    languages: ["en"],
+                    limit: 100,
+                    cms: false,
+                });
+            });
         });
 
         it("should sync both posts and tags when connected with access and languages", async () => {
@@ -310,19 +331,21 @@ describe("sync.ts", () => {
             await nextTick();
 
             await waitForExpect(() => {
+                // Post access syncs tag content
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Post,
-                    memberOf: ["group1"],
+                    subType: DocType.Tag,
+                    memberOf: ["group2"],
                     languages: ["en", "fr"],
                     limit: 100,
                     cms: false,
                 });
 
+                // Tag access syncs post content
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Content,
-                    subType: DocType.Tag,
-                    memberOf: ["group2"],
+                    subType: DocType.Post,
+                    memberOf: ["group1"],
                     languages: ["en", "fr"],
                     limit: 100,
                     cms: false,
@@ -352,12 +375,43 @@ describe("sync.ts", () => {
             await nextTick();
 
             await waitForExpect(() => {
+                // Should be called for both content types
                 expect(consoleErrorSpy).toHaveBeenCalledWith("Error during sync:", syncError);
-                // Should be called twice (once for each content type)
-                expect(consoleErrorSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                    "Error during tag content sync:",
+                    syncError,
+                );
             });
 
             consoleErrorSpy.mockRestore();
+        });
+
+        it("should sync redirects when redirect access is available", async () => {
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: ["group1"],
+                [DocType.Post]: [],
+                [DocType.Tag]: [],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalledWith({
+                    type: DocType.Redirect,
+                    memberOf: ["group1"],
+                    limit: 100,
+                    cms: false,
+                });
+            });
         });
     });
 
