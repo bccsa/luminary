@@ -52,6 +52,7 @@ type Props = {
     languageCode?: string;
     docType: DocType.Post | DocType.Tag;
     tagOrPostType: TagType | PostType;
+    onOpenMobileSidebar?: () => void;
 };
 const props = defineProps<Props>();
 
@@ -518,6 +519,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
             parentId: editableParent._id,
             languageCode: languageCode,
         }"
+        :onOpenMobileSidebar="onOpenMobileSidebar"
         v-if="editableParent"
         class="relative"
     >
