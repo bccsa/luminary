@@ -2,13 +2,14 @@
 import BasePage from "@/components/BasePage.vue";
 import LanguageDisplayCard from "@/components/languages/LanguageDisplayCard.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
+import { AclPermission, db, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
 import { computed } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });
@@ -35,7 +36,10 @@ const createNew = () => {
                 />
             </div>
         </template>
-
-        <LanguageDisplayCard />
+        <LanguageDisplayCard
+            v-for="language in languages"
+            :key="language._id"
+            :languagesDoc="language"
+        />
     </BasePage>
 </template>
