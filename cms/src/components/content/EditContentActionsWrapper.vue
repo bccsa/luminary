@@ -67,8 +67,10 @@ const showContentActionsMenuMobile = ref(false);
                     trigger-class="flex flex-1 items-center justify-center"
                 >
                     <template #trigger>
-                        <ChevronDownIcon v-if="!showContentActionsMenuMobile" class="size-5" />
-                        <ChevronUpIcon v-else class="size-5" />
+                        <button class="z-20 flex size-full items-center justify-center">
+                            <ChevronDownIcon v-if="!showContentActionsMenuMobile" class="size-5" />
+                            <ChevronUpIcon v-else class="size-5" />
+                        </button>
                     </template>
                     <ul>
                         <li
