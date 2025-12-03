@@ -1,20 +1,26 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import { splitChunkTypeString } from "./utils";
+import { SyncBaseOptions } from "./types";
+import { getChunkTypeString, splitChunkTypeString } from "./utils";
 
 /**
  * Trim unused languages and memberOf groups from existing syncListEntries.
  * This prevents unused group/language buildup by removing groups and languages
- * that are no longer actively being synced. Scans through all types in syncList.
+ * that are no longer actively being synced. Only trims entries matching the
+ * specified type and optional subType.
  *
- * @param options - Options specifying which groups and languages should be kept
- * @param options.memberOf - Array of memberOf groups that should be kept
- * @param options.languages - Array of languages that should be kept (for content document types only)
  */
-export function trim(options: { memberOf: string[]; languages?: string[] }): void {
+export function trim(options: SyncBaseOptions): void {
+    const targetChunkType = getChunkTypeString(options.type, options.subType);
+
     // Process entries in reverse to safely remove items during iteration
     for (let i = syncList.value.length - 1; i >= 0; i--) {
         const entry = syncList.value[i];
+
+        // Only trim entries that match the target chunkType
+        if (entry.chunkType !== targetChunkType) {
+            continue;
+        }
 
         // Trim memberOf groups - keep only groups that are in the options.memberOf array
         const trimmedGroups = entry.memberOf.filter((group) => options.memberOf.includes(group));
