@@ -129,39 +129,22 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
         return;
     }
 
-    // Handle dropdown anchor specific logic (Right segment)
     if (segment === "right" && props.dropdownAnchor) {
-        // If clicking inside the dropdown panel, do nothing (let events bubble)
-        const panel = rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-panel]");
-        if (panel && panel.contains(event.target as Node)) {
-            return;
-        }
-
-        // If a custom rightAction is provided, use it
         if (props.rightAction) {
             props.rightAction(event);
             event.preventDefault();
             event.stopPropagation();
-            return;
         }
-
-        // Otherwise, always forward the click to the dropdown trigger
-        // This ensures clicking anywhere on the segment (including padding) toggles the dropdown
-        const trigger =
-            rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-trigger]");
-        if (trigger) {
-            trigger.click();
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-        }
-
-        // Fallback: emit event if trigger not found
-        emit("right-click", event);
         return;
     }
 
-    // Standard segments
+    if (segment === "right" && props.dropdownAnchor) {
+        const panel = rightSegmentRef.value?.querySelector<HTMLElement>("[data-dropdown-panel]");
+        if (panel && panel.contains(event.target as Node)) {
+            return;
+        }
+    }
+
     if (segment === "left") emit("left-click", event);
     if (segment === "main") emit("main-click", event);
     if (segment === "right") emit("right-click", event);
@@ -172,18 +155,19 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             : segment === "main"
               ? props.mainAction
               : props.rightAction;
-
     if (action) {
         event.preventDefault();
         event.stopPropagation();
         action(event);
         return;
     }
+
+    event.stopPropagation();
 }
 </script>
 
 <template>
-    <!-- segmented button -->
+    <!-- ====================== SEGMENTED MODE ====================== -->
     <div
         v-if="isSegmented"
         role="group"
@@ -247,13 +231,13 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             :class="[segmentClass(buttonClasses({ variant, size, context }), 'right'), 'relative']"
             :role="dropdownAnchor ? 'button' : undefined"
             :tabindex="dropdownAnchor ? 0 : undefined"
-            @click="handleSegmentClick('right', $event as MouseEvent)"
+            @click.capture="handleSegmentClick('right', $event as MouseEvent)"
         >
             <slot name="right" />
         </component>
     </div>
 
-    <!--single button -->
+    <!-- ====================== NORMAL BUTTON ====================== -->
     <component
         v-else
         :is="is"
