@@ -862,5 +862,119 @@ describe("EditContent.vue", () => {
             },
             { timeout: 10000 },
         );
+
+        it("can edit content when the user has edit access to the content", async () => {
+            accessMap.value = { ...mockData.translateAccessToAllContentMap };
+            accessMap.value["group-public-content"].post = {
+                view: true,
+                translate: true,
+                edit: true,
+            };
+            accessMap.value["group-languages"] = {
+                ...accessMap.value["group-languages"],
+                language: {
+                    view: true,
+                    translate: true,
+                    edit: true,
+                },
+            };
+
+            // Set content status to Draft (not Published) so user can edit without publish access
+            await db.docs.put({
+                ...mockData.mockEnglishContentDto,
+                status: PublishStatus.Draft,
+            } as ContentDto);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(async () => {
+                expect(wrapper.findComponent(EditContentBasic).props().disabled).toBe(false);
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+            await titleInput.trigger("input");
+            await titleInput.trigger("change");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            expect(saveButton.exists()).toBe(true);
+            await saveButton.trigger("click");
+
+            // Wait for save to complete by checking for notification
+            const notificationStore = useNotificationStore();
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        state: "success",
+                    }),
+                );
+            });
+
+            await waitForExpect(async () => {
+                const res = await db.localChanges.toArray();
+                expect(res.length).toBeGreaterThan(0);
+                const contentChange = res.find(
+                    (change) => change.doc?._id === mockData.mockEnglishContentDto._id,
+                );
+                expect(contentChange).toBeDefined();
+                expect(contentChange?.doc).toMatchObject({
+                    _id: mockData.mockEnglishContentDto._id,
+                    title: "New Title",
+                });
+            });
+        });
+
+        it("can edit content a user has super-admin previliges", async () => {
+            accessMap.value = { ...mockData.superAdminAccessMap };
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(async () => {
+                expect(wrapper.findComponent(EditContentBasic).props().disabled).toBe(false);
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+            await titleInput.trigger("input");
+            await titleInput.trigger("change");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            expect(saveButton.exists()).toBe(true);
+            await saveButton.trigger("click");
+
+            await waitForExpect(async () => {
+                const res = await db.localChanges.toArray();
+                expect(res.length).toBeGreaterThan(0);
+                const contentChange = res.find(
+                    (change) => change.doc?._id === mockData.mockEnglishContentDto._id,
+                );
+                expect(contentChange).toBeDefined();
+                expect(contentChange?.doc).toMatchObject({
+                    _id: mockData.mockEnglishContentDto._id,
+                    title: "New Title",
+                });
+            });
+        });
     });
 });
