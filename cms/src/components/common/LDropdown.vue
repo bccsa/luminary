@@ -113,7 +113,7 @@ const widthClass = computed(() => {
 <template>
     <div ref="rootRef" class="inline-flex" v-bind="$attrs">
         <div
-            class="cursor-pointer select-none outline-none focus:outline-none"
+            class="size-full cursor-pointer select-none outline-none focus:outline-none"
             :class="props.triggerClass"
             role="button"
             tabindex="0"
@@ -121,7 +121,7 @@ const widthClass = computed(() => {
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click="onTriggerClick"
+            @click.capture="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >
