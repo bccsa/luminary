@@ -63,6 +63,12 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
             chunk.chunkType === getChunkTypeString(options.type, options.subType) && chunk.eof,
     );
 
+    // If no chunks, return default values
+    if (list.length === 0) return { blockStart: 0, blockEnd: 0 };
+
+    // If only one chunk, no merge needed
+    if (list.length === 1) return { blockStart: list[0].blockStart, blockEnd: list[0].blockEnd };
+
     // Do horizontal merge for adjacent chunks.
     // Only columns that have reached eof can be merged.
     for (let i = 0; i < list.length; i++) {
@@ -104,8 +110,8 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
     }
 
     // Calculate the final blockStart and blockEnd from the merged chunks
-    const blockStart = list.length ? list[0].blockStart : 0;
-    const blockEnd = list.length ? list[0].blockEnd : 0;
+    const blockStart = list[0].blockStart;
+    const blockEnd = list[0].blockEnd;
 
     return { blockStart, blockEnd };
 }

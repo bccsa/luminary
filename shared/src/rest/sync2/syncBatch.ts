@@ -80,7 +80,12 @@ export async function syncBatch(options: SyncOptions) {
     });
 
     // Merge vertical chunks
-    const mergeResult = mergeVertical(options);
+    let mergeResult: {
+        blockStart: number;
+        blockEnd: number;
+        eof: boolean | undefined;
+        firstSync?: boolean;
+    } = mergeVertical(options);
 
     // If end of file, perform horizontal merge with any complete columns
     if (mergeResult.eof) {
@@ -94,10 +99,11 @@ export async function syncBatch(options: SyncOptions) {
         }
 
         // Continue syncing next chunk
-        await syncBatch({
-            ...options,
-            initialSync: false,
-        });
+        mergeResult =
+            (await syncBatch({
+                ...options,
+                initialSync: false,
+            })) || mergeResult;
     }
 
     return { ...mergeResult, firstSync: chunk.blockEnd === 0 };

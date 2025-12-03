@@ -224,20 +224,20 @@ describe("syncBatch", () => {
         });
 
         expect(result).toBeDefined();
-        // First call returns eof: false since first batch is full (5 docs = limit)
-        // The recursive call handles the second batch and updates syncList
-        // But the return value is from the first call which has eof: false
-        expect(result?.eof).toBe(false);
+        // First call: eof: false since first batch is full (5 docs = limit)
+        // Recursive call returns the final merged result with eof: true
+        // Now the return value is from the recursive call which has eof: true (after merging)
+        expect(result?.eof).toBe(true);
         expect(result?.blockStart).toBe(first[0].updatedTimeUtc);
-        // blockEnd is from the first batch only since recursion doesn't return its result
-        expect(result?.blockEnd).toBe(first[first.length - 1].updatedTimeUtc);
+        // blockEnd is from the merged result (both batches merged)
+        expect(result?.blockEnd).toBe(second[second.length - 1].updatedTimeUtc);
     });
 
     it("updates blockStart and blockEnd from horizontal merge when eof=true", async () => {
         // First group reaches EOF
         const docsA = makeDocs(2, 2000, 10);
         const http = { post: vi.fn(async () => ({ docs: docsA })) };
-        const resultA = await syncBatch({
+        await syncBatch({
             type: DocType.Post,
             memberOf: ["g1"],
             limit: 3,
