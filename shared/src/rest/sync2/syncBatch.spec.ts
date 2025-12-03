@@ -82,7 +82,7 @@ describe("syncBatch", () => {
             httpService: http as any,
         });
         const body = capturedBodies[0];
-        expect(body.selector.cms).toBe(true);
+        expect(body.cms).toBe(true);
     });
 
     it("marks eof true when returned docs length < limit", async () => {
@@ -188,5 +188,207 @@ describe("syncBatch", () => {
                 httpService: http as any,
             }),
         ).rejects.toThrow("Invalid API response format");
+    });
+
+    it("returns mergeResult with eof, blockStart, and blockEnd", async () => {
+        const docs = makeDocs(3, 3000, 10);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+        expect(result?.blockStart).toBe(docs[0].updatedTimeUtc);
+        expect(result?.blockEnd).toBe(docs[docs.length - 1].updatedTimeUtc);
+    });
+
+    it("returns mergeResult after recursion with final eof state", async () => {
+        const first = makeDocs(5, 5000, 1);
+        const second = makeDocs(2, 4996, 1);
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: first }))
+            .mockImplementationOnce(async () => ({ docs: second }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        // First call returns eof: false since first batch is full (5 docs = limit)
+        // The recursive call handles the second batch and updates syncList
+        // But the return value is from the first call which has eof: false
+        expect(result?.eof).toBe(false);
+        expect(result?.blockStart).toBe(first[0].updatedTimeUtc);
+        // blockEnd is from the first batch only since recursion doesn't return its result
+        expect(result?.blockEnd).toBe(first[first.length - 1].updatedTimeUtc);
+    });
+
+    it("updates blockStart and blockEnd from horizontal merge when eof=true", async () => {
+        // First group reaches EOF
+        const docsA = makeDocs(2, 2000, 10);
+        const http = { post: vi.fn(async () => ({ docs: docsA })) };
+        const resultA = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 3,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Second group also reaches EOF - should trigger horizontal merge
+        const docsB = makeDocs(1, 1990, 10);
+        http.post.mockImplementation(async () => ({ docs: docsB }));
+        const resultB = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g2"],
+            limit: 3,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // After horizontal merge, blockStart should be max and blockEnd should be min
+        expect(resultB).toBeDefined();
+        expect(resultB?.eof).toBe(true);
+        // blockStart should be max of both groups
+        expect(resultB?.blockStart).toBe(
+            Math.max(docsA[0].updatedTimeUtc, docsB[0].updatedTimeUtc),
+        );
+        // blockEnd should be min of both groups
+        expect(resultB?.blockEnd).toBe(
+            Math.min(
+                docsA[docsA.length - 1].updatedTimeUtc,
+                docsB[docsB.length - 1].updatedTimeUtc,
+            ),
+        );
+    });
+
+    it("returns undefined when cancelSync is set before starting", async () => {
+        setCancelSync(true);
+        const http = { post: vi.fn() };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            httpService: http as any,
+        });
+        expect(result).toBeUndefined();
+        setCancelSync(false);
+    });
+
+    it("returns mergeResult with blockStart=0 and blockEnd=0 for empty docs", async () => {
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+        expect(result?.blockStart).toBe(0);
+        expect(result?.blockEnd).toBe(0);
+    });
+
+    it("returns mergeResult for content type with languages", async () => {
+        const docs = makeDocs(3, 3000, 10);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        const result = await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en", "es"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+        expect(result?.blockStart).toBe(docs[0].updatedTimeUtc);
+        expect(result?.blockEnd).toBe(docs[docs.length - 1].updatedTimeUtc);
+    });
+
+    it("returns firstSync=true when initialSync is true and no existing chunks", async () => {
+        const docs = makeDocs(3, 3000, 10);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.firstSync).toBe(true);
+    });
+
+    it("returns firstSync=false when blockEnd is not 0", async () => {
+        // Add two existing chunks so blockEnd won't be 0
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 4000,
+            eof: false,
+        });
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 4000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        const docs = makeDocs(3, 3999, 10);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: false,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.firstSync).toBe(false);
+    });
+
+    it("returns firstSync=true when blockEnd is 0 (reaching end of data)", async () => {
+        // Add existing chunks that will result in blockEnd=0
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 1000,
+            eof: false,
+        });
+
+        const docs = makeDocs(2, 999, 10);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: false,
+            httpService: http as any,
+        });
+
+        expect(result).toBeDefined();
+        // When there's only one chunk in syncList for this type/memberOf, blockEnd becomes 0
+        expect(result?.firstSync).toBe(true);
     });
 });

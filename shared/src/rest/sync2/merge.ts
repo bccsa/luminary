@@ -28,7 +28,7 @@ export function mergeVertical(options: SyncBaseOptions) {
             next.blockStart === 0
         ) {
             // Merge chunks
-            current.blockEnd = next.blockEnd;
+            current.blockEnd = next.blockEnd === 0 ? current.blockEnd : next.blockEnd; // If next blockEnd is 0 (no data), keep current blockEnd
             current.eof = next.eof;
             if (next.eof) eof = true; // Set End of File flag
 
@@ -45,7 +45,11 @@ export function mergeVertical(options: SyncBaseOptions) {
         }
     }
 
-    return { eof };
+    // Calculate the final blockStart and blockEnd from the merged chunks
+    const blockStart = filteredList.length ? filteredList[0].blockStart : 0;
+    const blockEnd = filteredList.length ? filteredList[0].blockEnd : 0;
+
+    return { eof, blockStart, blockEnd };
 }
 
 /**
@@ -53,7 +57,7 @@ export function mergeVertical(options: SyncBaseOptions) {
  * Only chunks that have reached EOF can be merged horizontally.
  * This combines different memberOf groups and languages that have complete data for overlapping time ranges.
  */
-export function mergeHorizontal(options: { type: DocType; subType?: DocType }): void {
+export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
     const list = syncList.value.filter(
         (chunk) =>
             chunk.chunkType === getChunkTypeString(options.type, options.subType) && chunk.eof,
@@ -98,4 +102,10 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }): 
             j--; // Re-evaluate j index after merge
         }
     }
+
+    // Calculate the final blockStart and blockEnd from the merged chunks
+    const blockStart = list.length ? list[0].blockStart : 0;
+    const blockEnd = list.length ? list[0].blockEnd : 0;
+
+    return { blockStart, blockEnd };
 }

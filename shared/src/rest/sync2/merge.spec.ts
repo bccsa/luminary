@@ -781,6 +781,119 @@ describe("sync2 merge", () => {
             expect(syncList.value).toHaveLength(2);
             expect(result.eof).toBe(true);
         });
+
+        it("should return correct blockStart and blockEnd after merge", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 7000,
+                    blockEnd: 6000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+            // Should return blockStart from newest (first) chunk and blockEnd from oldest (last) chunk
+            expect(result.blockStart).toBe(7000);
+            expect(result.blockEnd).toBe(4000);
+        });
+
+        it("should return blockStart=0 and blockEnd=0 for empty syncList", () => {
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+            expect(result.blockStart).toBe(0);
+            expect(result.blockEnd).toBe(0);
+        });
+
+        it("should return blockStart and blockEnd from single chunk when no merge occurs", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+            expect(result.blockStart).toBe(5000);
+            expect(result.blockEnd).toBe(4000);
+        });
+
+        it("should return correct blockStart and blockEnd when chunks are not merged", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+            // Non-adjacent chunks shouldn't merge, return values from first (newest) chunk
+            expect(result.blockStart).toBe(6000);
+            expect(result.blockEnd).toBe(5000);
+        });
+
+        it("should return correct blockStart and blockEnd from filtered chunks only", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 7000,
+                    blockEnd: 6000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group2"],
+                    blockStart: 9000,
+                    blockEnd: 8000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 6000,
+                    blockEnd: 5000,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+            // Should return values from group1 chunks only
+            expect(result.blockStart).toBe(7000);
+            expect(result.blockEnd).toBe(5000);
+        });
     });
 
     describe("mergeHorizontal", () => {
@@ -1247,6 +1360,145 @@ describe("sync2 merge", () => {
 
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].memberOf).toEqual(["group1", "group2"]);
+        });
+
+        it("should return correct blockStart and blockEnd after horizontal merge", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group2"],
+                    blockStart: 4500,
+                    blockEnd: 2500,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group3"],
+                    blockStart: 4800,
+                    blockEnd: 2800,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeHorizontal({ type: DocType.Post });
+
+            // blockStart should be max (5000), blockEnd should be min (2500)
+            expect(result.blockStart).toBe(5000);
+            expect(result.blockEnd).toBe(2500);
+        });
+
+        it("should return blockStart=0 and blockEnd=0 for empty syncList", () => {
+            const result = mergeHorizontal({ type: DocType.Post });
+
+            expect(result.blockStart).toBe(0);
+            expect(result.blockEnd).toBe(0);
+        });
+
+        it("should return blockStart and blockEnd from single chunk when no merge occurs", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeHorizontal({ type: DocType.Post });
+
+            expect(result.blockStart).toBe(5000);
+            expect(result.blockEnd).toBe(3000);
+        });
+
+        it("should return blockStart=0 and blockEnd=0 when no chunks have eof=true", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group2"],
+                    blockStart: 4500,
+                    blockEnd: 2500,
+                    eof: false,
+                },
+            ];
+
+            const result = mergeHorizontal({ type: DocType.Post });
+
+            // No chunks with eof=true means no merge, empty filtered list
+            expect(result.blockStart).toBe(0);
+            expect(result.blockEnd).toBe(0);
+        });
+
+        it("should return correct values for content types with languages", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 6000,
+                    blockEnd: 4000,
+                    eof: true,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group2"],
+                    languages: ["es"],
+                    blockStart: 5500,
+                    blockEnd: 3500,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
+
+            expect(result.blockStart).toBe(6000);
+            expect(result.blockEnd).toBe(3500);
+        });
+
+        it("should return values from filtered chunks only (ignoring non-eof chunks)", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group2"],
+                    blockStart: 9000,
+                    blockEnd: 1000,
+                    eof: false,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group3"],
+                    blockStart: 4500,
+                    blockEnd: 2500,
+                    eof: true,
+                },
+            ];
+
+            const result = mergeHorizontal({ type: DocType.Post });
+
+            // Should only consider chunks with eof=true
+            expect(result.blockStart).toBe(5000);
+            expect(result.blockEnd).toBe(2500);
         });
     });
 });

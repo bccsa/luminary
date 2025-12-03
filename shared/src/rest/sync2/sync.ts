@@ -3,8 +3,15 @@ import { db } from "../../db/database";
 import { HttpReq } from "../http";
 import { syncBatch } from "./syncBatch";
 import type { SyncRunnerOptions } from "./types";
-import { getGroups, getGroupSets, getLanguages, getLanguageSets } from "./utils";
+import {
+    getChunkTypeString,
+    getGroups,
+    getGroupSets,
+    getLanguages,
+    getLanguageSets,
+} from "./utils";
 import { trim } from "./trim";
+import { syncList } from "./state";
 
 let _httpService: HttpReq<any>;
 
@@ -70,8 +77,6 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Default includeDeleteCmds to true if not specified
     options.includeDeleteCmds = options.includeDeleteCmds ?? true;
 
-    let newSync = false;
-
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
     if (options.type === DocType.Content && options.languages) {
         // Get list of languages already present in the syncList for the given type and list of languages
@@ -94,7 +99,6 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             // Use this runner for new languages only
             if (newLanguages.length > 0) {
                 options.languages = newLanguages;
-                newSync = true;
             } else {
                 // No new languages, this runner is not needed
                 return;
@@ -120,7 +124,6 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         // Use this runner for new groups only
         if (newGroups.length > 0) {
             options.memberOf = newGroups;
-            newSync = true;
         } else {
             // No new groups, this runner is not needed
             return;
@@ -128,20 +131,37 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     }
 
     // Start the iterative sync process
-    await syncBatch({
+    const syncResult = await syncBatch({
         ...options,
         initialSync: true,
         httpService: _httpService,
     });
 
-    // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
-    if (!newSync && options.includeDeleteCmds) {
-        await syncBatch({
-            ...options,
-            type: DocType.DeleteCmd,
-            subType: options.type === DocType.Content ? options.subType : options.type,
-            initialSync: true,
-            httpService: _httpService,
-        });
+    if (options.includeDeleteCmds && syncResult) {
+        const subType = options.type === DocType.Content ? options.subType : options.type;
+        // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
+        if (!syncResult.firstSync) {
+            await syncBatch({
+                ...options,
+                type: DocType.DeleteCmd,
+                subType,
+                initialSync: true,
+                httpService: _httpService,
+            });
+        }
+        // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
+        // This will prevent fetching all deleteCmds from scratch, as the API already would filter out deleted documents when
+        // doing an initial sync.
+        else {
+            // Push chunk to chunk list
+            syncList.value.push({
+                chunkType: getChunkTypeString(DocType.DeleteCmd, subType),
+                memberOf: options.memberOf,
+                languages: options.languages,
+                blockStart: syncResult.blockStart,
+                blockEnd: syncResult.blockEnd,
+                eof: syncResult.eof,
+            });
+        }
     }
 }

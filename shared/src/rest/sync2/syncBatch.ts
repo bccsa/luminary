@@ -10,7 +10,7 @@ import { calcChunk, getChunkTypeString } from "./utils";
  * Perform an iterative vertical sync (for given type and memberOf groups), and merge chunks as they are fetched.
  * Finally perform horizontal merge if end of file is reached.
  */
-export async function syncBatch(options: SyncOptions): Promise<void> {
+export async function syncBatch(options: SyncOptions) {
     // Check if sync has been cancelled before proceeding
     if (cancelSync) {
         return;
@@ -80,11 +80,13 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
     });
 
     // Merge vertical chunks
-    const { eof } = mergeVertical(options);
+    const mergeResult = mergeVertical(options);
 
     // If end of file, perform horizontal merge with any complete columns
-    if (eof) {
-        mergeHorizontal(options);
+    if (mergeResult.eof) {
+        const r = mergeHorizontal(options);
+        mergeResult.blockStart = r.blockStart;
+        mergeResult.blockEnd = r.blockEnd;
     } else {
         // Check if sync has been cancelled before continuing to next chunk
         if (cancelSync) {
@@ -97,4 +99,6 @@ export async function syncBatch(options: SyncOptions): Promise<void> {
             initialSync: false,
         });
     }
+
+    return { ...mergeResult, firstSync: chunk.blockEnd === 0 };
 }
