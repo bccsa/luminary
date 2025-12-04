@@ -573,6 +573,17 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
             >
                 <div class="h-full overflow-x-hidden scrollbar-hide sm:pb-16">
                     <div class="flex flex-col gap-2 overflow-x-hidden pb-4">
+                        <EditContentParent
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :language="selectedLanguage"
+                            :existingParent="existingParent"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
                         <EditContentImage
                             v-if="editableParent"
                             :docType="props.docType"
