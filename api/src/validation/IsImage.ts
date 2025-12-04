@@ -9,13 +9,22 @@ export function IsImage() {
             propertyName: propertyName,
             validator: {
                 async validate(value: any) {
-                    const metadata = await sharp(value).metadata();
+                    try {
+                        const metadata = await sharp(value).metadata();
 
-                    return (
-                        metadata.format === "jpeg" ||
-                        metadata.format === "png" ||
-                        metadata.format === "webp"
-                    );
+                        // Sharp is not able to process jpg images, so we need to allow them.
+                        if (metadata.format === "jpg") return true;
+
+                        // Allow any format that Sharp can process as an image
+                        // This includes: jpeg, png, webp, gif, tiff, avif, heif, etc.
+                        return !!metadata.format && !!metadata.width && !!metadata.height;
+                    } catch (error) {
+                        // If Sharp can't process it, it's not a valid image
+                        return false;
+                    }
+                },
+                defaultMessage: () => {
+                    return "File must be a valid image format that can be processed by the image handler";
                 },
             },
         });

@@ -13,7 +13,6 @@ async function bootstrap() {
     });
 
     const dbService = app.get(DbService);
-    const s3Service = app.get(S3Service);
 
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
@@ -28,8 +27,11 @@ async function bootstrap() {
     // Initialize permission system
     await PermissionSystem.init(dbService);
 
+    // Initialize S3Service change feed listener for automatic credential updates
+    S3Service.initializeChangeListener(dbService);
+
     // Upgrade database schema if needed
-    await upgradeDbSchema(dbService, s3Service);
+    await upgradeDbSchema(dbService);
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),

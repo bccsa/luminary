@@ -1,0 +1,170 @@
+import { DbService } from "../db.service";
+import { DocType, StorageType, Uuid } from "../../enums";
+import { StorageDto } from "../../dto/StorageDto";
+import { S3CredentialDto } from "../../dto/S3CredentialDto";
+import { storeCryptoData } from "../../util/encryption";
+import { v4 as uuidv4 } from "uuid";
+
+/**
+ * Upgrade the database schema from version 7 to 8
+ * Create a StorageDto document with S3 credentials from environment variables
+ * and update Post and Tag documents with imageBucketId field
+ */
+export default async function (db: DbService) {
+    try {
+        const schemaVersion = await db.getSchemaVersion();
+        if (schemaVersion === 7) {
+            console.info("Upgrading database schema from version 7 to 8");
+
+            // Get S3 credentials from environment variables with defaults for local development
+            const s3Endpoint = process.env.S3_ENDPOINT;
+            const s3Port = process.env.S3_PORT;
+            const s3AccessKey = process.env.S3_ACCESS_KEY;
+            const s3SecretKey = process.env.S3_SECRET_KEY;
+            const s3BucketName = process.env.S3_IMG_BUCKET;
+            const s3UseSSL = process.env.S3_USE_SSL === "true";
+
+            // Validate required environment variables
+            if (!s3Endpoint) {
+                console.error(
+                    "S3_ENDPOINT environment variable is required for schema upgrade v8",
+                );
+            }
+            if (!s3Port && !s3UseSSL) {
+                console.error(
+                    "S3_PORT environment variable is required when S3_USE_SSL is not true",
+                );
+            }
+            if (!s3BucketName) {
+                console.error(
+                    "S3_IMG_BUCKET environment variable is required for schema upgrade v8",
+                );
+            }
+
+            // Construct the full endpoint URL
+            const endpointUrl = s3UseSSL
+                ? `https://${s3Endpoint}`
+                : `http://${s3Endpoint}:${s3Port}`;
+
+            // Check if a storage document already exists for images
+            let imageStorageId: Uuid | undefined;
+            try {
+                // Try to find existing image storage
+                const existingResult = await db.getDocsByType(DocType.Storage, 100);
+                if (existingResult.docs && existingResult.docs.length > 0) {
+                    // Find the first image storage type
+                    const imageStorage = existingResult.docs.find(
+                        (doc: any) => doc.storageType === StorageType.Image,
+                    );
+                    if (imageStorage) {
+                        imageStorageId = imageStorage._id;
+                        console.info(`Using existing image storage bucket...`);
+                    }
+                }
+            } catch (error) {
+                // If query fails, we'll create a new one
+                console.info("No existing image storage found, creating new one");
+            }
+
+            // Create StorageDto if it doesn't exist
+            if (!imageStorageId) {
+                console.info("Creating new storage document...");
+
+                // Create S3 credentials
+                const credentials: S3CredentialDto = {
+                    endpoint: endpointUrl,
+                    bucketName: s3BucketName,
+                    accessKey: s3AccessKey,
+                    secretKey: s3SecretKey,
+                };
+
+                // Encrypt and store credentials
+                let credentialId: string;
+                try {
+                    credentialId = await storeCryptoData<S3CredentialDto>(db, credentials);
+                } catch (error) {
+                    console.error("Failed to store encrypted S3 credentials:", error);
+                }
+
+                // Create StorageDto document
+                const storageDoc = new StorageDto();
+                storageDoc._id = uuidv4();
+                storageDoc.type = DocType.Storage;
+                storageDoc.name = "Images";
+                storageDoc.storageType = StorageType.Image;
+                storageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
+                storageDoc.mimeTypes = ["image/*"];
+                storageDoc.memberOf = ["group-super-admins"];
+                storageDoc.credential_id = credentialId;
+
+                // Save the storage document
+                try {
+                    await db.upsertDoc(storageDoc);
+                    imageStorageId = storageDoc._id;
+                } catch (error) {
+                    console.error("Failed to save storage document:", error);
+                }
+            }
+
+           
+            try {
+                await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
+                    if (!doc) return;
+
+                    let parentUpdated = false;
+
+                    // Only assign a bucket if the document actually contains image data
+                    if (doc.imageData && !doc.imageBucketId && imageStorageId) {
+                        doc.imageBucketId = imageStorageId;
+                        parentUpdated = true;
+                    }
+
+                    if (parentUpdated) {
+                        try {
+                            await db.upsertDoc(doc);
+                        } catch (error) {
+                            console.error(`Failed to update document ${doc._id}:`, error);
+                            // Continue with other documents even if one fails
+                        }
+                    }
+
+                    // Ensure child content documents point to the same bucket for their parent images
+                    if (doc.imageData && doc.imageBucketId) {
+                        try {
+                            const childContents = await db.getContentByParentId(doc._id);
+                            if (childContents.docs?.length) {
+                                for (const contentDoc of childContents.docs) {
+                                    if (contentDoc.parentImageBucketId !== doc.imageBucketId) {
+                                        contentDoc.parentImageBucketId = doc.imageBucketId;
+                                        try {
+                                            await db.upsertDoc(contentDoc);
+                                        } catch (error) {
+                                            console.error(
+                                                `Failed to update content document ${contentDoc._id}:`,
+                                                error,
+                                            );
+                                            // Continue with other documents even if one fails
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Failed to get content for parent ${doc._id}:`, error);
+                            // Continue with other documents even if one fails
+                        }
+                    }
+                });
+
+                
+            } catch (error) {
+                console.error("Failed to process Post and Tag documents:", error);
+            }
+
+            // Only set schema version to 8 if all operations succeeded
+            await db.setSchemaVersion(8);
+            console.info("Database schema upgrade from version 7 to 8 completed successfully");
+        } 
+    } catch (error) {
+        console.error("Database schema upgrade from version 7 to 8 failed:", error);
+    }
+}

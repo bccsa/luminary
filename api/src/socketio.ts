@@ -15,7 +15,6 @@ import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails, processJwt } from "./jwt/processJwt";
-import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 
@@ -89,7 +88,6 @@ export class Socketio implements OnGatewayInit {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
-        private s3: S3Service,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -144,7 +142,7 @@ export class Socketio implements OnGatewayInit {
             }
 
             // Get groups of reference document
-            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf;
+            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf || [];
 
             // Create room names to emit to
             const rooms = refGroups.map((group) => `${refDoc.type}-${group}`);

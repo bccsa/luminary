@@ -4,7 +4,6 @@ import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
 import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
-import { S3Service } from "./s3/s3.service";
 import configuration from "./configuration";
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
 import { SearchController } from "./endpoints/search.controller";
@@ -12,6 +11,7 @@ import { SearchService } from "./endpoints/search.service";
 import { ChangeRequestService } from "./endpoints/changeRequest.service";
 import { ChangeRequestController } from "./endpoints/changeRequest.controller";
 import * as winston from "winston";
+import { StorageStatusController } from "./endpoints/storageStatus.controller";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -46,7 +46,12 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
             global: true,
         }),
     ],
-    controllers: [AppController, SearchController, ChangeRequestController],
-    providers: [DbService, Socketio, S3Service, SearchService, ChangeRequestService],
+    controllers: [
+        AppController,
+        SearchController,
+        ChangeRequestController,
+        StorageStatusController,
+    ],
+    providers: [DbService, Socketio, SearchService, ChangeRequestService],
 })
 export class AppModule {}
