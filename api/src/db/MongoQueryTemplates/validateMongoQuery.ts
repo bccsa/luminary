@@ -7,7 +7,7 @@ const sanitize = require("sanitize-filename");
 
 type ValidationResult = {
     valid: boolean;
-    error: string | null;
+    error: string;
 };
 
 // Cache for validated templates, keyed by identifier
