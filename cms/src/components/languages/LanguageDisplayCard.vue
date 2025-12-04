@@ -4,6 +4,7 @@ import { db, type LanguageDto } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
+import { isMobileScreen } from "@/globalConfig";
 
 type Props = {
     languagesDoc: LanguageDto;
@@ -13,27 +14,29 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
 </script>
 
 <template>
-    <div class="flex flex-col pt-1">
+    <div class="mt-1 flex flex-col">
         <DisplayCard
             title=""
             :updatedTimeUtc="0"
-            class="!divide-y-0"
+            class="!divide-y-0 !py-0"
             @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
         >
             <template #content>
-                <div class="flex justify-between pb-2">
+                <div class="flex justify-between pb-3 min-[1500px]:pt-2">
                     <div>
                         <span>
                             <span class="font-medium text-zinc-700">
                                 <LBadge>{{ languagesDoc.languageCode.toLocaleUpperCase() }}</LBadge>
                             </span>
-                            <span class="text-l pl-1 font-medium text-zinc-900">{{
+                            <span class="text-l pl-1 font-medium text-zinc-900 max-lg:text-sm">{{
                                 languagesDoc.name
                             }}</span>
+                            <span class="ml-4 font-medium text-zinc-900">
+                                <LBadge v-if="languagesDoc.default" variant="success">
+                                    Default
+                                </LBadge>
+                            </span>
                         </span>
-                    </div>
-                    <div class="font-medium text-zinc-900">
-                        <LBadge v-if="languagesDoc.default" variant="success">Default</LBadge>
                     </div>
                     <div class="flex">
                         <span class="font-medium text-zinc-900">
@@ -41,12 +44,18 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
                                 Offline changes
                             </LBadge></span
                         >
-                        <div class="flex items-center justify-end text-zinc-500">
-                            <ClockIcon class="mr-[3px] h-5 w-5 text-zinc-400" />
+                        <div class="flex items-center justify-end text-zinc-500 max-lg:text-sm">
+                            <ClockIcon
+                                class="mr-[3px] h-5 w-5 text-zinc-400 max-lg:h-4 max-lg:w-4"
+                            />
                             <span title="Last Updated">{{
                                 db
                                     .toDateTime(languagesDoc.updatedTimeUtc)
-                                    .toLocaleString(DateTime.DATETIME_SHORT)
+                                    .toLocaleString(
+                                        isMobileScreen
+                                            ? DateTime.DATE_SHORT
+                                            : DateTime.DATETIME_SHORT,
+                                    )
                             }}</span>
                         </div>
                     </div>
