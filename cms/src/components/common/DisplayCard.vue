@@ -64,26 +64,29 @@ const handleClick = () => {
 
             <!-- Top badges slot (for language badges, etc.) -->
             <div class="flex items-center justify-end">
-                <div v-if="!isSmallScreen" class="flex gap-1">
+                <div v-if="!isSmallScreen && $slots.topBadges" class="flex gap-1">
                     <LBadge v-if="isLocalChange" variant="warning" class="flex whitespace-nowrap">
                         Offline changes
                     </LBadge>
-                    <slot name="top-badges" />
+                    <slot name="topBadges" />
                 </div>
             </div>
         </div>
 
         <!-- Mobile top badges slot -->
         <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
-            <slot name="mobile-top-badges" />
+            <slot name="mobileTopBadges" />
         </div>
 
         <!-- Main content slot -->
         <slot name="content" />
 
         <!-- Footer: Bottom metadata -->
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
-            <slot name="mobile-footer" />
+        <div
+            v-if="isSmallScreen && $slots.mobileFooter"
+            class="flex flex-wrap items-center gap-1 py-1"
+        >
+            <slot name="mobileFooter" />
             <div class="flex w-max items-start text-xs text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
@@ -92,8 +95,11 @@ const handleClick = () => {
             </div>
         </div>
 
-        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
-            <slot name="desktop-footer" />
+        <div
+            v-if="!isSmallScreen && $slots.desktopFooter"
+            class="flex items-center justify-between pt-1 text-xs sm:gap-4"
+        >
+            <slot name="desktopFooter" />
             <div class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{

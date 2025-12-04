@@ -110,7 +110,7 @@ const navigateTo = computed(() => {
         :navigate-to="navigateTo"
         :can-navigate="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
     >
-        <template #top-badges>
+        <template #topBadges>
             <RouterLink
                 v-for="language in accessibleLanguages"
                 :key="language._id"
@@ -131,7 +131,7 @@ const navigateTo = computed(() => {
             </RouterLink>
         </template>
 
-        <template #mobile-top-badges>
+        <template #mobileTopBadges>
             <RouterLink
                 v-for="language in accessibleLanguages"
                 :key="language._id"
@@ -171,7 +171,7 @@ const navigateTo = computed(() => {
             </div>
         </template>
 
-        <template #mobile-footer>
+        <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
                 <div>
                     <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -184,7 +184,7 @@ const navigateTo = computed(() => {
             </div>
         </template>
 
-        <template #desktop-footer>
+        <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
