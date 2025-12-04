@@ -136,4 +136,56 @@ describe("verifyMongoQuery", () => {
         expect(res3.valid).toBe(false);
         expect(res3.error).toMatch(/Missing key 'updatedTimeUtc'/);
     });
+
+    it("blocks path traversal attacks with ../", async () => {
+        const q: any = validBaseQuery();
+        q.identifier = "../../../etc/passwd";
+        const res = validateMongoQuery(q as any);
+        expect(res.valid).toBe(false);
+        // Should either fail to find template or block path separators
+        expect(res.error).toMatch(/Template not found|path separators not allowed/);
+    });
+
+    it("blocks path traversal attacks with encoded characters", async () => {
+        const q: any = validBaseQuery();
+        q.identifier = "..%2F..%2Fetc%2Fpasswd";
+        const res = validateMongoQuery(q as any);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Template not found|path separators not allowed/);
+    });
+
+    it("blocks absolute paths", async () => {
+        const q: any = validBaseQuery();
+        q.identifier = "/etc/passwd";
+        const res = validateMongoQuery(q as any);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Template not found|path separators not allowed/);
+    });
+
+    it("blocks Windows-style path traversal", async () => {
+        const q: any = validBaseQuery();
+        q.identifier = "..\\..\\windows\\system32\\config\\sam";
+        const res = validateMongoQuery(q as any);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Template not found|path separators not allowed/);
+    });
+
+    it("caches successfully validated templates for performance", async () => {
+        // First call - template should be loaded from file
+        const q1 = validBaseQuery();
+        const res1 = validateMongoQuery(q1 as any);
+        expect(res1.valid).toBe(true);
+
+        // Second call with same identifier - should use cached template
+        const q2 = validBaseQuery();
+        const res2 = validateMongoQuery(q2 as any);
+        expect(res2.valid).toBe(true);
+
+        // Verify validation still works correctly with cached template
+        const q3 = validBaseQuery();
+        q3.limit = 50; // Invalid limit
+        const res3 = validateMongoQuery(q3 as any);
+        expect(res3.valid).toBe(false);
+        expect(res3.error).toMatch(/Expected 100, got 50/);
+    });
 });

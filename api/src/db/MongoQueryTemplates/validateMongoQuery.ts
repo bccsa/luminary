@@ -10,6 +10,9 @@ type ValidationResult = {
     error: string | null;
 };
 
+// Cache for validated templates, keyed by identifier
+const templateCache = new Map<string, any>();
+
 /**
  * Verify a Mongo/Mango query against a template JSON identified by query.identifier.
  * - Template fields with function-string values (e.g. "(val) => typeof val === 'number'")
@@ -18,7 +21,8 @@ type ValidationResult = {
  * - All fields in the template must be present in the query.
  * - Extra fields not in the template are rejected to prevent unauthorized data mining.
  *
- * Note: Templates are looked up as <identifier>.json in the templatesDir.
+ * Note: Templates are looked up as <identifier>.js in the templatesDir.
+ * Successfully loaded and verified templates are cached for improved performance.
  */
 export function validateMongoQuery(
     query: any,
@@ -35,18 +39,49 @@ export function validateMongoQuery(
     // Sanitize the identifier to prevent directory traversal or code injection
     const safeIdentifier = sanitize(identifier);
 
+    // Ensure the identifier doesn't contain path separators after sanitization
+    if (
+        safeIdentifier.includes(path.sep) ||
+        safeIdentifier.includes("/") ||
+        safeIdentifier.includes("\\")
+    ) {
+        return {
+            valid: false,
+            error: `Invalid identifier '${identifier}': path separators not allowed`,
+        };
+    }
+
+    // Check cache first for already validated templates
+    if (templateCache.has(safeIdentifier)) {
+        const template = templateCache.get(safeIdentifier);
+        // Remove identifier field from query before validation
+        delete query.identifier;
+        return validate(query, template);
+    }
+
+    // Resolve the templates directory to get the absolute canonical path
+    const resolvedTemplatesDir = fs.realpathSync(templatesDir);
+
     // Try to resolve a JavaScript template first
     let template: any = undefined;
-    const jsCandidates = [
-        path.resolve(templatesDir, `${safeIdentifier}.js`),
-        path.resolve(templatesDir, `${safeIdentifier}.cjs`),
-        path.resolve(templatesDir, `${safeIdentifier}.mjs`),
-    ];
+    const jsCandidates = [path.resolve(resolvedTemplatesDir, `${safeIdentifier}.js`)];
     for (const p of jsCandidates) {
         try {
             if (fs.existsSync(p)) {
+                // Verify the resolved path is within the templates directory
+                const resolvedPath = fs.realpathSync(p);
+                if (
+                    !resolvedPath.startsWith(resolvedTemplatesDir + path.sep) &&
+                    resolvedPath !== resolvedTemplatesDir
+                ) {
+                    return {
+                        valid: false,
+                        error: `Security violation: template path outside templates directory`,
+                    };
+                }
+
                 // eslint-disable-next-line @typescript-eslint/no-var-requires
-                const mod = require(p);
+                const mod = require(resolvedPath);
                 template = mod?.default ?? mod;
                 break;
             }
@@ -62,6 +97,9 @@ export function validateMongoQuery(
             error: `Template not found for identifier '${identifier}'`,
         };
     }
+
+    // Cache the successfully loaded and verified template
+    templateCache.set(safeIdentifier, template);
 
     // Remove identifier field
     delete query.identifier;
