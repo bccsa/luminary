@@ -62,9 +62,13 @@ export function validateMongoQuery(
     // Resolve the templates directory to get the absolute canonical path
     const resolvedTemplatesDir = fs.realpathSync(templatesDir);
 
-    // Try to resolve a JavaScript template first
+    // Try to resolve a JavaScript/TypeScript template first
     let template: any = undefined;
-    const jsCandidates = [path.resolve(resolvedTemplatesDir, `${safeIdentifier}.js`)];
+    const jsCandidates = [
+        path.resolve(resolvedTemplatesDir, "validators", `${safeIdentifier}.ts`),
+        path.resolve(resolvedTemplatesDir, "validators", `${safeIdentifier}.js`),
+        path.resolve(resolvedTemplatesDir, `${safeIdentifier}.js`),
+    ];
     for (const p of jsCandidates) {
         try {
             if (fs.existsSync(p)) {

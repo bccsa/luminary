@@ -30,6 +30,7 @@ export async function syncBatch(options: SyncOptions) {
         use_index:
             "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
         cms: options.cms,
+        identifier: "sync", // Identifier for the API query validation template
     };
 
     // Add parentType and language selectors to content queries

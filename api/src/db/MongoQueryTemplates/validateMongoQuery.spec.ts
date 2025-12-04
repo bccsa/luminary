@@ -2,9 +2,9 @@ import { validateMongoQuery } from "./validateMongoQuery";
 
 describe("verifyMongoQuery", () => {
     const validBaseQuery = () => ({
-        identifier: "sync-language",
+        identifier: "sync",
         selector: {
-            updatedTimeUtc: { $lt: Date.now() - 1000 },
+            updatedTimeUtc: { $lte: Date.now() - 1000, $gte: Date.now() - 2000 },
             type: "post",
             memberOf: {
                 $elemMatch: {
@@ -14,8 +14,7 @@ describe("verifyMongoQuery", () => {
         },
         limit: 100,
         sort: [{ updatedTimeUtc: "desc" }],
-        execution_stats: true,
-        use_index: "sync-language-index",
+        use_index: "sync-post-index",
     });
 
     it("passes for a valid query matching the sync template", async () => {
@@ -44,18 +43,18 @@ describe("verifyMongoQuery", () => {
     it("fails when extra fields are present in query", async () => {
         const q: any = validBaseQuery();
         // Add extra fields that are not in the template to prevent data mining
-        q.selector.parentType = "post";
+        q.selector.unknownField = "invalid";
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Extra key 'parentType' found in object/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
-    it("fails when extra top-level fields are present", async () => {
+    it("passes when optional cms field is present", async () => {
         const q: any = validBaseQuery();
-        q.cms = false; // Not in template
+        q.cms = false; // Optional field - should be allowed
         const res = validateMongoQuery(q as any);
-        expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Extra key 'cms' found in object/);
+        expect(res.valid).toBe(true);
+        expect(res.error).toBe("");
     });
 
     it("fails when required field is missing", async () => {
@@ -63,7 +62,7 @@ describe("verifyMongoQuery", () => {
         delete q.selector.type;
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Missing key 'type'/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
     it("fails when type is not a string", async () => {
@@ -74,12 +73,20 @@ describe("verifyMongoQuery", () => {
         expect(res.error).toMatch(/Function validation failed/);
     });
 
+    it("fails when attempting to sync user documents", async () => {
+        const q: any = validBaseQuery();
+        q.selector.type = "user"; // User documents are not allowed to be synced
+        const res = validateMongoQuery(q as any);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Function validation failed/);
+    });
+
     it("fails when limit is not a positive number", async () => {
         const q: any = validBaseQuery();
         q.limit = -1;
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Expected 100, got -1/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
     it("fails when sort array has invalid structure", async () => {
@@ -87,23 +94,23 @@ describe("verifyMongoQuery", () => {
         q.sort = [{ updatedTimeUtc: "invalid" }]; // Should be "asc" or "desc"
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Expected "desc", got "invalid"/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
-    it("fails when primitive values are not an exact match for limit", async () => {
+    it("passes when limit is any positive number", async () => {
         const q: any = validBaseQuery();
-        q.limit = 50; // Template expects exactly 100
+        q.limit = 50; // Template accepts any positive number
         const res = validateMongoQuery(q as any);
-        expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Expected 100, got 50/);
+        expect(res.valid).toBe(true);
+        expect(res.error).toBe("");
     });
 
-    it("fails when primitive values are not an exact match for use_index", async () => {
+    it("fails when use_index does not match sync index pattern", async () => {
         const q: any = validBaseQuery();
-        q.use_index = "different-index"; // Template expects exactly "sync-language-index"
+        q.use_index = "different-index"; // Template expects sync-*-index pattern
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Expected "sync-language-index", got "different-index"/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
     it("fails when sort array structure does not match exactly", async () => {
@@ -111,30 +118,28 @@ describe("verifyMongoQuery", () => {
         q.sort = [{ updatedTimeUtc: "asc" }]; // Template expects "desc"
         const res = validateMongoQuery(q as any);
         expect(res.valid).toBe(false);
-        expect(res.error).toMatch(/Expected "desc", got "asc"/);
+        expect(res.error).toMatch(/Function validation failed/);
     });
 
-    it("validates that all primitive values in sync-language-index.js must match exactly", async () => {
-        // Test that limit must be exactly 100
+    it("validates sync.js template with flexible fields", async () => {
+        // Test that limit can be any positive number
         const q1 = validBaseQuery();
         q1.limit = 99;
         const res1 = validateMongoQuery(q1 as any);
-        expect(res1.valid).toBe(false);
-        expect(res1.error).toMatch(/Expected 100, got 99/);
+        expect(res1.valid).toBe(true);
 
-        // Test that use_index must be exactly "sync-language-index"
+        // Test that use_index must follow sync-*-index pattern
         const q2 = validBaseQuery();
-        q2.use_index = "sync-other";
+        q2.use_index = "sync-content-post-index";
         const res2 = validateMongoQuery(q2 as any);
-        expect(res2.valid).toBe(false);
-        expect(res2.error).toMatch(/Expected "sync-language-index", got "sync-other"/);
+        expect(res2.valid).toBe(true);
 
         // Test that sort field name must match exactly
         const q3 = validBaseQuery();
         (q3 as any).sort = [{ createdTimeUtc: "desc" }]; // Wrong field name
         const res3 = validateMongoQuery(q3 as any);
         expect(res3.valid).toBe(false);
-        expect(res3.error).toMatch(/Missing key 'updatedTimeUtc'/);
+        expect(res3.error).toMatch(/Function validation failed/);
     });
 
     it("blocks path traversal attacks with ../", async () => {
@@ -183,9 +188,9 @@ describe("verifyMongoQuery", () => {
 
         // Verify validation still works correctly with cached template
         const q3 = validBaseQuery();
-        q3.limit = 50; // Invalid limit
+        q3.limit = -5; // Invalid limit (must be positive)
         const res3 = validateMongoQuery(q3 as any);
         expect(res3.valid).toBe(false);
-        expect(res3.error).toMatch(/Expected 100, got 50/);
+        expect(res3.error).toMatch(/Function validation failed/);
     });
 });

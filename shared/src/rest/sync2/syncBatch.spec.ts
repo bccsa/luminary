@@ -63,6 +63,7 @@ describe("syncBatch", () => {
         const body = capturedBodies[0];
         expect(body.selector.parentType).toBe(DocType.Post);
         expect(body.selector.language.$in).toEqual(languages);
+        expect(body.identifier).toBe("sync");
     });
 
     it("adds cms flag when cms option set", async () => {
@@ -83,11 +84,17 @@ describe("syncBatch", () => {
         });
         const body = capturedBodies[0];
         expect(body.cms).toBe(true);
+        expect(body.identifier).toBe("sync");
     });
-
     it("marks eof true when returned docs length < limit", async () => {
         const docs = makeDocs(3, 3000, 10); // limit will be 5
-        const http = { post: vi.fn(async () => ({ docs })) };
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
         await syncBatch({
             type: DocType.Post,
             memberOf: ["g1"],
@@ -96,6 +103,7 @@ describe("syncBatch", () => {
             httpService: http as any,
         });
         expect(syncList.value[0].eof).toBe(true);
+        expect(capturedBodies[0].identifier).toBe("sync");
     });
 
     it("recurses when eof false then merges vertically on second batch", async () => {
