@@ -13,9 +13,9 @@ const content = defineModel<ContentDto>("content");
 
 <template>
     <div v-if="content">
-        <LCard class="h-max bg-white pt-2 sm:h-[calc(100vh-5rem)]">
+        <LCard class="h-max bg-white pt-0 sm:h-[calc(100vh-5rem)] lg:pt-2">
             <RichTextEditor
-                class="mb-16"
+                class="mb-0 lg:mb-16"
                 v-model:text="content.text"
                 v-model:text-language="content.language"
                 :disabled="disabled"

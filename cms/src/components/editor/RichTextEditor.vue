@@ -136,33 +136,6 @@ watch(
         }
     },
 );
-
-// Watch for external changes to text prop (e.g., when switching between mobile/desktop editor instances)
-watch(
-    () => text.value,
-    (newText) => {
-        if (!editor.value) return;
-
-        // Get current editor content as JSON string for comparison
-        const currentContent = JSON.stringify(editor.value.getJSON());
-
-        // Only update if the content actually changed (avoid infinite loops)
-        if (currentContent === newText) return;
-
-        // Update editor content when text prop changes externally
-        if (!newText) {
-            editor.value.commands.setContent("");
-            return;
-        }
-        try {
-            const parsed = JSON.parse(newText);
-            editor.value.commands.setContent(parsed);
-        } catch {
-            // If parsing fails just use the text as-is
-            editor.value.commands.setContent(newText);
-        }
-    },
-);
 </script>
 
 <template>
