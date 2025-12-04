@@ -28,7 +28,7 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
                             <span class="font-medium text-zinc-700">
                                 <LBadge>{{ languagesDoc.languageCode.toLocaleUpperCase() }}</LBadge>
                             </span>
-                            <span class="text-l pl-1 font-medium text-zinc-900 max-lg:text-sm">{{
+                            <span class="pl-1 text-sm font-medium text-zinc-900">{{
                                 languagesDoc.name
                             }}</span>
                             <span class="ml-4 font-medium text-zinc-900">
@@ -44,9 +44,9 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
                                 Offline changes
                             </LBadge></span
                         >
-                        <div class="flex items-center justify-end text-zinc-500 max-lg:text-sm">
+                        <div class="flex items-center justify-end text-sm text-zinc-500">
                             <ClockIcon
-                                class="mr-[3px] h-5 w-5 text-zinc-400 max-lg:h-4 max-lg:w-4"
+                                class="mr-[3px] h-4 w-4 text-zinc-400 max-lg:h-4 max-lg:w-4"
                             />
                             <span title="Last Updated">{{
                                 db
