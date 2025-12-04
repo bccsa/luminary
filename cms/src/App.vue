@@ -39,7 +39,10 @@ const routeKey = computed(() => {
                     <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                     routes (e.g. Post / Tag overviews) -->
                     <RouterView :key="routeKey" v-slot="{ Component }">
-                        <component :is="Component" @open-mobile-sidebar="sidebarOpen = true" />
+                        <component
+                            :is="Component"
+                            :onOpenMobileSidebar="() => (sidebarOpen = true)"
+                        />
                     </RouterView>
                 </div>
             </div>
