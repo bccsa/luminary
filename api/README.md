@@ -61,7 +61,7 @@ cp .env.example .env
 $ npm ci
 ```
 
-## Running the app
+## Running the API
 
 3. Seeding the database:
 
@@ -71,7 +71,7 @@ Before running Luminary against a clean CouchDB database it is recommended to se
 $ npm run seed
 ```
 
-By default the app will run at http://localhost:3000.
+By default the API will run at http://localhost:3000.
 
 4. Run the server:
 
@@ -118,3 +118,12 @@ $ npm run lint:fix
 ## Logging
 
 In production mode (`npm run start:prod`) the API logs are stored in a tailable api.log file. The log files are rotated when the size exceeds 1MB and only the latest 5 files are being kept. In development mode logs are printed to the console.
+
+## Load testing
+
+The load tester currently tests the API for Luminary Client app sync loads on the /query API endpoint.
+
+```sh
+# load tester help
+$ npx ts-node load_tester --help
+```

@@ -3,8 +3,9 @@ import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { triggerSync } from "@/sync";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
-import { db, getRest, isConnected } from "luminary-shared";
+import { db, isConnected } from "luminary-shared";
 
 const { addNotification } = useNotificationStore();
 
@@ -18,7 +19,7 @@ const deleteLocalData = async () => {
     }
 
     await db.purge();
-    getRest().sync.restart();
+    triggerSync();
 
     return addNotification({
         title: "Local cache cleared",

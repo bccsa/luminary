@@ -1,27 +1,20 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
-import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
+import { DbQueryResult, DbService } from "../db/db.service";
 import { AclPermission, DocType } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { processJwt } from "../jwt/processJwt";
-import configuration, { Configuration } from "../configuration";
 import { SearchReqDto } from "../dto/SearchReqDto";
+import { SearchOptions } from "../db/db.searchFunctions";
 
 @Injectable()
 export class SearchService {
-    private readonly test: any = [];
-    private permissionMap: any;
-    private config: Configuration;
-
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
-    ) {
-        // Create config object with environmental variables
-        this.config = configuration();
-    }
+    ) {}
 
     /**
      * Process api docs request

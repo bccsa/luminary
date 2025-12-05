@@ -1,5 +1,5 @@
 {
-    "_id": "_design/sync",
+    "_id": "_design/sync_deprecated",
     "views": {
         "updatedTimeUtc": {
             "map": "function (doc) {\n  if (doc.updatedTimeUtc) {\n    emit(doc.updatedTimeUtc, doc.updatedTimeUtc);\n  }\n}"

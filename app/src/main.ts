@@ -6,10 +6,11 @@ import router from "./router";
 import auth from "./auth";
 import { DocType, getSocket, init } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
+import { initSync, initLanguageSync } from "./sync";
 
 export const app = createApp(App);
 
@@ -20,21 +21,12 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
-let Sentry: typeof import("@sentry/vue") | null = null;
-
-if (import.meta.env.PROD) {
-    import("@sentry/vue")
-        .then((sentryModule) => {
-            Sentry = sentryModule;
-            Sentry.init({
-                app,
-                dsn: import.meta.env.VITE_SENTRY_DSN,
-                integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-            });
-        })
-        .catch((e) => {
-            console.error("Failed to initialize Sentry:", e);
-        });
+if (import.meta.env.PROD && Sentry) {
+    Sentry.init({
+        app,
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+    });
 }
 
 async function Startup() {
@@ -70,7 +62,10 @@ async function Startup() {
         await auth.loginRedirect(oauth);
     });
 
+    initLanguageSync();
     await initLanguage();
+    initSync();
+
     const i18n = await initI18n();
     await loadPlugins();
 

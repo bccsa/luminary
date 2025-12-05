@@ -2,6 +2,18 @@ import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "lum
 import { computed, ref, watch } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
+export let Sentry: typeof import("@sentry/vue") | null = null;
+
+if (import.meta.env.PROD) {
+    import("@sentry/vue")
+        .then((sentryModule) => {
+            Sentry = sentryModule;
+        })
+        .catch((e) => {
+            console.error("Failed to initialize Sentry:", e);
+        });
+}
+
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;

@@ -16,6 +16,7 @@ import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { RedirectDto } from "../dto/RedirectDto";
+import { calcGroups, type SearchOptions } from "./db.searchFunctions";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -34,23 +35,6 @@ export type GetDocsOptions = {
     contentOnly?: boolean;
 };
 
-export type SearchOptions = {
-    userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    types?: Array<DocType>;
-    groups?: Array<string>;
-    from?: number;
-    to?: number;
-    limit?: number;
-    sort?: Array<{ [key: string]: "asc" | "desc" }>;
-    offset?: number;
-    contentOnly?: boolean;
-    queryString?: string;
-    languages?: string[];
-    docId?: Uuid;
-    slug?: string;
-    parentId?: string;
-};
-
 /**
  * Standardized format for database query results
  * @param {Array<any>} docs - Array of database returned documents
@@ -60,12 +44,21 @@ export type SearchOptions = {
 export type DbQueryResult = {
     docs: Array<any>;
     warnings?: Array<string>;
+    warning?: string;
+    bookmark?: string;
     version?: number;
     blockStart?: number;
     blockEnd?: number;
     group?: string;
     type?: DocType;
     contentOnly?: boolean;
+    execution_stats?: {
+        total_keys_examined?: number;
+        total_docs_examined?: number;
+        total_quorum_docs_examined?: number;
+        results_returned?: number;
+        execution_time_ms?: number;
+    };
 };
 
 /**
@@ -80,6 +73,27 @@ export type DbUpsertResult = {
     changes?: any;
 };
 
+/**
+ * Database service for interacting with CouchDB.
+ * Provides methods for CRUD operations, document synchronization, and query execution.
+ *
+ * @extends EventEmitter
+ *
+ * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
+ * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ *
+ * @example
+ * // Listen for document updates
+ * dbService.on('update', (doc) => {
+ *   console.log('Document updated:', doc);
+ * });
+ *
+ * @example
+ * // Listen for group updates
+ * dbService.on('groupUpdate', (groupDoc) => {
+ *   console.log('Group updated:', groupDoc);
+ * });
+ */
 @Injectable()
 export class DbService extends EventEmitter {
     private db: any;
@@ -125,6 +139,18 @@ export class DbService extends EventEmitter {
                     // Emit specific group document update event (used by permission system to update access maps)
                     if (update.doc.type === "group") {
                         this.emit("groupUpdate", update.doc);
+                    }
+
+                    // Emit specific language document update event
+                    else if (update.doc.type === DocType.Language) {
+                        this.emit("languageUpdate", update.doc);
+                    }
+
+                    // Emit delete commands for language documents
+                    else if (update.doc.type === DocType.DeleteCmd) {
+                        const doc = update.doc as DeleteCmdDto;
+                        if (doc.deleteReason === DeleteReason.Deleted)
+                            this.emit("languageUpdate", doc);
                     }
                 }
             })
@@ -452,7 +478,7 @@ export class DbService extends EventEmitter {
     getLatestDocUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
-                .view("sync", "updatedTimeUtc", {
+                .view("sync_deprecated", "updatedTimeUtc", {
                     limit: 1,
                     descending: true,
                 })
@@ -501,17 +527,14 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the query result
      */
     async executeFindQuery(query: nano.MangoQuery): Promise<DbQueryResult> {
-        const res = await this.db.find(query);
+        const res: DbQueryResult = await this.db.find(query);
 
         // calculate the start and end of the block, used to pass back to the client for pagination
         const { blockStart, blockEnd } = this.calcBlockStartEnd(res.docs);
 
-        return {
-            docs: res.docs,
-            warnings: res.warnings,
-            blockStart: blockStart,
-            blockEnd: blockEnd,
-        };
+        res.blockStart = blockStart;
+        res.blockEnd = blockEnd;
+        return res;
     }
 
     /**
@@ -525,19 +548,6 @@ export class DbService extends EventEmitter {
 
         // TODO: move queries to separate functions similar to searchBySlug
         return new Promise(async (resolve, reject) => {
-            /**
-             * Calculate the list of group memberships. If a list of group memberships is passed, only include the group memberships requested (e.g. for incremental sync of newly added access). Else include all the user available group memberships.
-             * @param docType
-             * @returns
-             */
-            const calcGroups = (docType) => {
-                return options.groups && options.groups.length > 0
-                    ? options.groups.filter(
-                          (group) => options.userAccess[docType]?.indexOf(group) > -1,
-                      )
-                    : options.userAccess[docType];
-            };
-
             // Construct time selectors
             const selectors = [];
             if (options.from) {
@@ -581,7 +591,7 @@ export class DbService extends EventEmitter {
 
                 // reduce user requested groups to only the groups the user has access to
                 // default groups to user access groups if not provided
-                const groups = calcGroups(docType);
+                const groups = calcGroups(docType, options);
 
                 if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({
@@ -697,36 +707,6 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Get groups to which a user has access.
-     * @param {GetDocsOptions} options - Query configuration object.
-     * @returns - Promise containing the query result
-     */
-    getUserGroups(userAccess): Promise<DbQueryResult> {
-        return new Promise(async (resolve, reject) => {
-            if (!userAccess[DocType.Group]) resolve({ docs: [] });
-
-            // Include the (group) document itself if the "group" type is included in the options
-            const query = {
-                selector: {
-                    $and: [{ type: DocType.Group }, { _id: { $in: userAccess[DocType.Group] } }],
-                },
-                limit: Number.MAX_SAFE_INTEGER,
-            };
-
-            try {
-                const res = await this.db.find(query);
-                const docs = res.docs;
-                resolve({
-                    docs,
-                    warnings: res.warning,
-                });
-            } catch (err) {
-                reject(err);
-            }
-        });
-    }
-
-    /**
      * Get all group documents from database
      */
     getGroups(): Promise<DbQueryResult> {
@@ -735,7 +715,7 @@ export class DbService extends EventEmitter {
                 selector: {
                     type: "group",
                 },
-                use_index: "type-id-index",
+                use_index: "type-index",
                 limit: Number.MAX_SAFE_INTEGER,
             };
             this.db
@@ -754,28 +734,18 @@ export class DbService extends EventEmitter {
      * @param parentId - Single or array of parent IDs
      * @returns
      */
-    getContentByParentId(parentId: Uuid | Uuid[]): Promise<DbQueryResult> {
+    async getContentByParentId(parentId: Uuid | Uuid[]): Promise<DbQueryResult> {
         if (!Array.isArray(parentId)) parentId = [parentId];
 
-        return new Promise((resolve, reject) => {
-            const query = {
-                selector: {
-                    type: "content",
-                    parentId: {
-                        $in: parentId,
-                    },
-                },
-                limit: Number.MAX_SAFE_INTEGER,
-            };
-            this.db
-                .find(query)
-                .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
-                })
-                .catch((err) => {
-                    reject(err);
-                });
+        const queryRes = await this.db.view("parentId", "parentId", {
+            keys: parentId,
+            include_docs: true,
         });
+
+        return {
+            docs: queryRes.rows.map((row) => row.doc).filter((doc) => doc.type == DocType.Content),
+            warnings: queryRes.warnings,
+        } as DbQueryResult;
     }
 
     /**
@@ -846,46 +816,16 @@ export class DbService extends EventEmitter {
      * @returns
      */
     async getUserByIdOrEmail(email: string, userId?: string): Promise<DbQueryResult> {
-        // As CouchDB does not handle indexing on OR queries well, we need to do two separate queries and merge the results
+        const keys = [email];
+        if (userId) keys.push(userId);
 
-        let res1;
-        if (userId) {
-            const query1 = {
-                selector: {
-                    $and: [
-                        {
-                            type: DocType.User,
-                        },
-                        {
-                            userId,
-                        },
-                    ],
-                },
-            };
-            res1 = await this.db.find(query1);
-        }
-
-        const query2 = {
-            selector: {
-                $and: [
-                    {
-                        type: DocType.User,
-                    },
-                    {
-                        email,
-                    },
-                ],
-            },
-        };
-
-        const warnings = [];
-        if (res1 && res1.warning) warnings.push(res1.warning);
-
-        const res2 = await this.db.find(query2);
-        if (res2.warning) warnings.push(res2.warning);
+        const res = await this.db.view("view-user-email-userId", "view-user-email-userId", {
+            keys,
+            include_docs: true,
+        });
 
         // Merge docs and ensure uniqueness by _id
-        const allDocs = res1 ? [...res1.docs, ...res2.docs] : res2.docs;
+        const allDocs = res.rows.map((row) => row.doc);
         const uniqueDocsMap = new Map<string, any>();
         allDocs.forEach((doc) => {
             if (doc && doc._id && !uniqueDocsMap.has(doc._id)) {
@@ -894,7 +834,7 @@ export class DbService extends EventEmitter {
         });
         const docs = Array.from(uniqueDocsMap.values());
 
-        return { docs, warnings: warnings.length ? warnings : undefined };
+        return { docs, warnings: res.warnings } as DbQueryResult;
     }
 
     /**

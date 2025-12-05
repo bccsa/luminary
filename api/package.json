@@ -36,6 +36,7 @@
         "nest-winston": "^1.9.4",
         "reflect-metadata": "^0.1.13",
         "rxjs": "^7.8.1",
+        "sanitize-filename": "^1.6.3",
         "sharp": "^0.33.3",
         "transliteration": "^2.3.5",
         "winston": "^3.13.0"

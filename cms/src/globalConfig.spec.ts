@@ -102,4 +102,29 @@ describe("globalConfig.ts", () => {
             expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoSwa._id);
         });
     });
+
+    it("should contain only unique languages sorted by _id", async () => {
+        await db.docs.clear();
+
+        // Add languages in non-sorted order with some duplicates
+        await db.docs.bulkPut([mockLanguageDtoSwa, mockLanguageDtoEng, mockLanguageDtoFra]);
+
+        cmsLanguageIdAsRef.value = ""; // reset
+        cmsLanguages.value = []; // reset
+        await initLanguage();
+
+        await waitForExpect(() => {
+            // Check that we have all three languages
+            expect(cmsLanguages.value).toHaveLength(3);
+
+            // Check that all IDs are unique
+            const ids = cmsLanguages.value.map((lang) => lang._id);
+            const uniqueIds = [...new Set(ids)];
+            expect(ids).toEqual(uniqueIds);
+
+            // Check that languages are sorted by _id
+            const sortedIds = [...ids].sort();
+            expect(ids).toEqual(sortedIds);
+        });
+    });
 });
