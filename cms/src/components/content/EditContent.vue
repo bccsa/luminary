@@ -621,7 +621,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     </div>
                 </div>
             </div>
-            <!-- main content | Single editor instance for both mobile and desktop -->
+            <!-- main content -->
             <div class="mt-2 min-h-0 w-full scrollbar-hide lg:flex-1">
                 <EmptyState
                     v-if="!selectedContent"
