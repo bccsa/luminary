@@ -21,11 +21,7 @@ onClickOutside(sidebarRef, () => {
 </script>
 
 <template>
-    <div
-        v-if="open"
-        class="relative z-50 overflow-hidden lg:hidden"
-        @close="emit('update:open', false)"
-    >
+    <div v-if="open" class="relative z-50 overflow-hidden lg:hidden">
         <div class="fixed inset-0 bg-zinc-900/50" />
 
         <div class="fixed inset-0 flex">
