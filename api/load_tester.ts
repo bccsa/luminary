@@ -20,6 +20,8 @@ interface RequestStats {
     maxTime: number;
     statusCodes: Record<number, number>;
     queryTypeStats: Record<string, { count: number; totalTime: number; errors: number }>;
+    maxConcurrent: number;
+    concurrentSessions: number[];
 }
 
 class LoadTester {
@@ -28,6 +30,7 @@ class LoadTester {
     private startTime: number = 0;
     private requestTimes: number[] = [];
     private isRunning: boolean = false;
+    private activeSessions: number = 0;
 
     constructor(config: LoadTestConfig) {
         this.config = config;
@@ -39,11 +42,16 @@ class LoadTester {
             maxTime: Infinity,
             statusCodes: {},
             queryTypeStats: {},
+            maxConcurrent: 0,
+            concurrentSessions: [],
         };
     }
 
     private makeRequest(query: any, shouldAbort?: () => boolean): Promise<void> {
         return new Promise((resolve) => {
+            this.activeSessions++;
+            this.stats.maxConcurrent = Math.max(this.stats.maxConcurrent, this.activeSessions);
+            this.stats.concurrentSessions.push(this.activeSessions);
             const startTime = Date.now();
             const url = new URL(this.config.url);
             const isHttps = url.protocol === "https:";
@@ -69,6 +77,7 @@ class LoadTester {
             const safeResolve = () => {
                 if (!resolved) {
                     resolved = true;
+                    this.activeSessions--;
                     resolve();
                 }
             };
@@ -285,9 +294,11 @@ class LoadTester {
             process.stdout.write(
                 `\r[${elapsed.toFixed(0)}s] Req:${totalRequests} ✓:${this.stats.success} ✗:${
                     this.stats.errors
-                } | RPS:${rps.toFixed(1)} | Avg:${avgTime.toFixed(0)}ms Median:${p50.toFixed(
+                } | RPS:${rps.toFixed(1)} | Concurrent:${this.activeSessions}/${
+                    this.stats.maxConcurrent
+                } | Avg:${avgTime.toFixed(0)}ms Median:${p50.toFixed(0)}ms P95:${p95.toFixed(
                     0,
-                )}ms P95:${p95.toFixed(0)}ms 99th:${p99.toFixed(0)}ms`,
+                )}ms 99th:${p99.toFixed(0)}ms`,
             );
 
             // Print query breakdown on new line every 15 seconds
@@ -331,6 +342,13 @@ class LoadTester {
         const p95 = sortedTimes[Math.floor(sortedTimes.length * 0.95)] || 0;
         const p99 = sortedTimes[Math.floor(sortedTimes.length * 0.99)] || 0;
 
+        // Calculate concurrent sessions stats
+        const avgConcurrent =
+            this.stats.concurrentSessions.length > 0
+                ? this.stats.concurrentSessions.reduce((sum, val) => sum + val, 0) /
+                  this.stats.concurrentSessions.length
+                : 0;
+
         const actualDuration = (Date.now() - this.startTime) / 1000;
         const requestsPerSecond = totalRequests / actualDuration;
 
@@ -343,6 +361,10 @@ class LoadTester {
         console.log(`Errors: ${this.stats.errors}`);
         console.log(`Success Rate: ${((this.stats.success / totalRequests) * 100).toFixed(2)}%`);
         console.log(`Requests/sec: ${requestsPerSecond.toFixed(2)}`);
+        console.log("");
+        console.log(`Concurrent Sessions:`);
+        console.log(`  Max: ${this.stats.maxConcurrent}`);
+        console.log(`  Average: ${avgConcurrent.toFixed(2)}`);
         console.log("");
         console.log("Response Times (ms):");
         console.log(`  Min: ${this.stats.minTime === Infinity ? "N/A" : this.stats.minTime}`);
@@ -446,7 +468,7 @@ const queries = [
             updatedTimeUtc: { $lte: 9007199254740991, $gte: -1000 },
             memberOf: { $elemMatch: { $in: ["group-languages", "group-private-content"] } },
         },
-        limit: 100,
+        limit: 1000,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index: "sync-redirect-index",
         cms: false,
@@ -459,7 +481,7 @@ const queries = [
             memberOf: { $elemMatch: { $in: ["group-languages", "group-private-content"] } },
             docType: "redirect",
         },
-        limit: 100,
+        limit: 1000,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index: "sync-redirect-deleteCmd-index",
         cms: false,
@@ -472,7 +494,7 @@ const queries = [
             memberOf: { $elemMatch: { $in: ["group-public-content", "group-languages"] } },
             docType: "language",
         },
-        limit: 100,
+        limit: 1000,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index: "sync-language-deleteCmd-index",
         cms: false,
@@ -489,7 +511,7 @@ const queries = [
             },
             docType: "post",
         },
-        limit: 100,
+        limit: 1000,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index: "sync-post-deleteCmd-index",
         cms: false,
@@ -511,7 +533,7 @@ const queries = [
             },
             docType: "tag",
         },
-        limit: 100,
+        limit: 1000,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index: "sync-tag-deleteCmd-index",
         cms: false,
@@ -552,7 +574,7 @@ function parseArgs(): LoadTestConfig {
                 console.log(`
 Load Tester for Luminary API Query Endpoint
 
-Usage: ts-node load_tester.ts [options]
+Usage: npx ts-node load_tester.ts [options]
 
 Options:
   -u, --url <url>           API endpoint URL (default: http://localhost:3000/query)
@@ -562,9 +584,9 @@ Options:
   -h, --help                Show this help message
 
 Examples:
-  ts-node load_tester.ts
-  ts-node load_tester.ts --url http://localhost:3000/query --concurrency 20 --duration 120
-  ts-node load_tester.ts -u http://localhost:3000/query -c 50 -d 300 -r 100
+  npx ts-node load_tester.ts
+  npx ts-node load_tester.ts --url http://localhost:3000/query --concurrency 20 --duration 120
+  npx ts-node load_tester.ts -u http://localhost:3000/query -c 50 -d 300 -r 100
                 `);
                 process.exit(0);
                 break;
