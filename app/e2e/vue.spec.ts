@@ -41,43 +41,45 @@ const test = base.extend({
 test("it syncs correct document types to the app(non-cms) client", async ({ context }) => {
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for any post load navigation to prevent errors
-    await page.waitForTimeout(1000);
 
-    const result = await page.evaluate(async () => {
-        return new Promise((resolve, reject) => {
-            //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
-            if ("databases" in indexedDB) {
-                const dbRequest = indexedDB.open("luminary-db");
-                dbRequest.onerror = (event) => {
-                    console.error("Error opening database", event);
-                    reject("Error opening database");
-                };
-                dbRequest.onsuccess = () => {
-                    const db = dbRequest.result;
-                    const transaction = db.transaction("docs", "readonly");
-                    const objectStore = transaction.objectStore("docs");
-
-                    const request = objectStore.getAll();
-
-                    request.onerror = (event) => {
-                        console.error("Error getting all documents", event);
-                        reject("Error getting all documents");
+    await waitForExpect(async () => {
+        const result = await page.evaluate(async () => {
+            return new Promise((resolve, reject) => {
+                //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
+                if ("databases" in indexedDB) {
+                    const dbRequest = indexedDB.open("luminary-db");
+                    dbRequest.onerror = (event) => {
+                        console.error("Error opening database", event);
+                        reject("Error opening database");
                     };
+                    dbRequest.onsuccess = () => {
+                        const db = dbRequest.result;
+                        if (!db.objectStoreNames.contains("docs")) {
+                            resolve([]);
+                            return;
+                        }
+                        const transaction = db.transaction("docs", "readonly");
+                        const objectStore = transaction.objectStore("docs");
 
-                    request.onsuccess = () => {
-                        const documents = request.result;
-                        resolve(documents);
+                        const request = objectStore.getAll();
+
+                        request.onerror = (event) => {
+                            console.error("Error getting all documents", event);
+                            reject("Error getting all documents");
+                        };
+
+                        request.onsuccess = () => {
+                            const documents = request.result;
+                            resolve(documents);
+                        };
                     };
-                };
-            } else {
-                console.error("indexedDB.databases() not supported");
-                reject("indexedDB.databases() not supported");
-            }
-        }) as unknown as Promise<any[]>;
-    });
+                } else {
+                    console.error("indexedDB.databases() not supported");
+                    reject("indexedDB.databases() not supported");
+                }
+            }) as unknown as Promise<any[]>;
+        });
 
-    await waitForExpect(() => {
         expect(result).toBeDefined();
         const types = [...new Set(result.map((doc: any) => doc.type))];
         expect(types).toEqual(expect.arrayContaining(["language", "redirect", "content"]));
@@ -88,44 +90,46 @@ test("it does not sync drafted or expired docs to the app(non-cms) client", asyn
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for any post load navigation to prevent errors
-    await page.waitForTimeout(1000);
 
-    const result = await page.evaluate(async () => {
-        return new Promise((resolve, reject) => {
-            //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
-            if ("databases" in indexedDB) {
-                const dbRequest = indexedDB.open("luminary-db");
-                dbRequest.onerror = (event) => {
-                    console.error("Error opening database", event);
-                    reject("Error opening database");
-                };
-                dbRequest.onsuccess = () => {
-                    const db = dbRequest.result;
-                    const transaction = db.transaction("docs", "readonly");
-                    const objectStore = transaction.objectStore("docs");
-
-                    const request = objectStore.getAll();
-
-                    request.onerror = (event) => {
-                        console.error("Error getting all documents", event);
-                        reject("Error getting all documents");
+    await waitForExpect(async () => {
+        const result = await page.evaluate(async () => {
+            return new Promise((resolve, reject) => {
+                //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
+                if ("databases" in indexedDB) {
+                    const dbRequest = indexedDB.open("luminary-db");
+                    dbRequest.onerror = (event) => {
+                        console.error("Error opening database", event);
+                        reject("Error opening database");
                     };
+                    dbRequest.onsuccess = () => {
+                        const db = dbRequest.result;
+                        if (!db.objectStoreNames.contains("docs")) {
+                            resolve([]);
+                            return;
+                        }
+                        const transaction = db.transaction("docs", "readonly");
+                        const objectStore = transaction.objectStore("docs");
 
-                    request.onsuccess = () => {
-                        const documents = request.result;
-                        resolve(documents);
+                        const request = objectStore.getAll();
+
+                        request.onerror = (event) => {
+                            console.error("Error getting all documents", event);
+                            reject("Error getting all documents");
+                        };
+
+                        request.onsuccess = () => {
+                            const documents = request.result;
+                            resolve(documents);
+                        };
                     };
-                };
-            } else {
-                console.error("indexedDB.databases() not supported");
-                reject("indexedDB.databases() not supported");
-            }
-        }) as unknown as Promise<any[]>;
-    });
-    expect(result).toBeDefined();
+                } else {
+                    console.error("indexedDB.databases() not supported");
+                    reject("indexedDB.databases() not supported");
+                }
+            }) as unknown as Promise<any[]>;
+        });
 
-    await waitForExpect(() => {
+        expect(result).toBeDefined();
         const types = [...new Set(result.map((doc: any) => doc.status))];
         expect(types).not.toEqual(expect.arrayContaining(["draft", "expired"]));
         expect(types).toEqual(expect.arrayContaining(["published"]));
@@ -138,8 +142,6 @@ test("it can correctly add a preferred language to the the user's preferred lang
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for any post load navigation to prevent errors
-    await page.waitForTimeout(1000);
 
     // Get initial preferred languages from localStorage
     const initialLanguages = await page.evaluate(() => {
@@ -177,14 +179,12 @@ test("it can correctly add a preferred language to the the user's preferred lang
     if (count > 0) {
         // Click the first available language to add it
         await availableLanguageButtons.first().click();
-        await page.waitForTimeout(500); // Wait for language to be added
 
         // Verify the language was added to localStorage
-        const updatedLanguages = await page.evaluate(() => {
-            return JSON.parse(localStorage.getItem("languages") || "[]");
-        });
-
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            const updatedLanguages = await page.evaluate(() => {
+                return JSON.parse(localStorage.getItem("languages") || "[]");
+            });
             expect(updatedLanguages.length).toBeGreaterThan(initialLanguages.length);
             // Verify it's an array of strings
             expect(Array.isArray(updatedLanguages)).toBe(true);
@@ -199,8 +199,6 @@ test("it can correctly remove a preferred language from the user's preferred lan
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for any post load navigation to prevent errors
-    await page.waitForTimeout(1000);
 
     // First, ensure we have at least one language to remove (add one if needed)
     const initialLanguages = await page.evaluate(() => {
@@ -227,7 +225,14 @@ test("it can correctly remove a preferred language from the user's preferred lan
 
         if (count > 0) {
             await availableLanguageButtons.first().click();
-            await page.waitForTimeout(500);
+
+            // Wait for language to be added to localStorage
+            await waitForExpect(async () => {
+                const currentLanguages = await page.evaluate(() => {
+                    return JSON.parse(localStorage.getItem("languages") || "[]");
+                });
+                expect(currentLanguages.length).toBeGreaterThan(initialLanguages.length);
+            });
         }
 
         // Close modal
@@ -237,7 +242,6 @@ test("it can correctly remove a preferred language from the user's preferred lan
         if (await closeButton.isVisible()) {
             await closeButton.click();
         }
-        await page.waitForTimeout(500);
     }
 
     // Get languages before removal
@@ -257,13 +261,11 @@ test("it can correctly remove a preferred language from the user's preferred lan
         .filter({ hasText: /Menu|User/ })
         .first();
     await menuButton.click();
-    await page.waitForTimeout(500);
 
     // Open language modal
     const languageMenuItem = page.locator('button:has-text("Language")').first();
     await languageMenuItem.waitFor({ state: "visible" });
     await languageMenuItem.click();
-    await page.waitForTimeout(500);
 
     // Wait for the language modal content to be visible
     // The modal might be teleported, so we wait for actual content inside it
@@ -353,46 +355,64 @@ test("it can correctly switch languages using the quick language selector", asyn
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for any post load navigation to prevent errors
-    await page.waitForTimeout(1000);
 
     // Try to find a content page with multiple translations from IndexedDB
-    const contentWithTranslations = await page.evaluate(async () => {
-        return new Promise<string | null>((resolve) => {
-            const dbRequest = indexedDB.open("luminary-db");
-            dbRequest.onsuccess = () => {
-                const db = dbRequest.result;
-                const transaction = db.transaction("docs", "readonly");
-                const objectStore = transaction.objectStore("docs");
+    let contentWithTranslations: string | null = null;
 
-                // Get all content documents
-                const request = objectStore.getAll();
-                request.onsuccess = () => {
-                    const docs = request.result;
-                    // Group by parentId to find content with multiple translations
-                    const byParent: Record<string, any[]> = {};
-                    docs.forEach((doc: any) => {
-                        if (doc.type === "content" && doc.parentId) {
-                            if (!byParent[doc.parentId]) {
-                                byParent[doc.parentId] = [];
-                            }
-                            byParent[doc.parentId].push(doc);
-                        }
-                    });
-
-                    // Find first parent with multiple translations
-                    for (const parentId in byParent) {
-                        if (byParent[parentId].length > 1) {
-                            resolve(byParent[parentId][0].slug);
+    try {
+        await waitForExpect(async () => {
+            const result = await page.evaluate(async () => {
+                return new Promise<string | null>((resolve) => {
+                    if (!("databases" in indexedDB)) {
+                        resolve(null);
+                        return;
+                    }
+                    const dbRequest = indexedDB.open("luminary-db");
+                    dbRequest.onsuccess = () => {
+                        const db = dbRequest.result;
+                        if (!db.objectStoreNames.contains("docs")) {
+                            resolve(null);
                             return;
                         }
-                    }
-                    resolve(null);
-                };
-            };
-            dbRequest.onerror = () => resolve(null);
+                        const transaction = db.transaction("docs", "readonly");
+                        const objectStore = transaction.objectStore("docs");
+
+                        // Get all content documents
+                        const request = objectStore.getAll();
+                        request.onsuccess = () => {
+                            const docs = request.result;
+                            // Group by parentId to find content with multiple translations
+                            const byParent: Record<string, any[]> = {};
+                            docs.forEach((doc: any) => {
+                                if (doc.type === "content" && doc.parentId) {
+                                    if (!byParent[doc.parentId]) {
+                                        byParent[doc.parentId] = [];
+                                    }
+                                    byParent[doc.parentId].push(doc);
+                                }
+                            });
+
+                            // Find first parent with multiple translations
+                            for (const parentId in byParent) {
+                                if (byParent[parentId].length > 1) {
+                                    resolve(byParent[parentId][0].slug);
+                                    return;
+                                }
+                            }
+                            resolve(null);
+                        };
+                        request.onerror = () => resolve(null);
+                    };
+                    dbRequest.onerror = () => resolve(null);
+                });
+            });
+
+            if (!result) throw new Error("No content with translations found yet");
+            contentWithTranslations = result;
         });
-    });
+    } catch (e) {
+        // Continue if not found after timeout
+    }
 
     // If we found content with translations, navigate to it
     if (contentWithTranslations) {
