@@ -548,7 +548,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :actions="contentActions"
             />
         </template>
-        <!-- ==================== DESKTOP ACTIONS ==================== -->
+        <!-- desktop actions -->
         <template #topBarActionsDesktop>
             <EditContentActionsWrapper
                 :revert="revertChanges"
@@ -567,19 +567,23 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         </template>
         <div class="flex h-full flex-col gap-2 lg:flex-row lg:overflow-y-hidden">
             <!-- sidebar -->
-            <div class="h-full w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
-                <div class="h-full scrollbar-hide sm:pb-16">
-                    <div class="flex flex-col gap-2 pb-4">
+            <div
+                class="h-screen w-full flex-shrink-0 overflow-y-auto overflow-x-hidden lg:w-[336px]"
+                v-if="editableParent"
+            >
+                <div class="h-full overflow-x-hidden scrollbar-hide sm:pb-16">
+                    <div class="flex flex-col gap-2 overflow-x-hidden pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
                             :language="selectedLanguage"
-                            v-model:parent="editableParent"
-                            :disabled="!canEditParent"
                             :existingParent="existingParent"
+                            :disabled="!canEditParent"
                             :newDocument="newDocument"
+                            v-model:parent="editableParent"
                         />
+
                         <EditContentImage
                             v-if="editableParent"
                             :docType="props.docType"
@@ -618,7 +622,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             :disabled="!canTranslate"
                             :disable-publish="!canPublish"
                         />
-                        <!-- Mobile Content Editor -->
+                        <!-- MOBILE CONTENT EDITOR -->
                         <div class="block w-full scrollbar-hide lg:hidden">
                             <EmptyState
                                 v-if="!selectedContent"
@@ -708,7 +712,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         </div>
     </BasePage>
 
-    <!-- MODALS -->
+    <!-- modals -->
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
     <LDialog
         v-model:open="showDeleteModal"
