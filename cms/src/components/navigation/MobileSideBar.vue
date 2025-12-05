@@ -33,7 +33,7 @@ onClickOutside(sidebarRef, () => {
                     </button>
                 </div>
 
-                <SideBar @close="emit('update:open', false)" />
+                <SideBar />
             </div>
         </div>
     </div>
