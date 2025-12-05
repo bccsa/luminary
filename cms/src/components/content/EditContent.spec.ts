@@ -313,11 +313,13 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find('[data-test="placeholder-language-selector"]').exists()).toBe(true);
+            // Check for language selector in EmptyState (when no content is selected)
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
+            // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
+            expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true);
         });
     });
 

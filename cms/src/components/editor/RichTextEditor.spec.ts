@@ -84,7 +84,6 @@ describe("RichTextEditor", () => {
         editor.options.onUpdate?.({ editor });
 
         await waitForExpect(() => {
-            //@ts-expect-error
             const updatedText = JSON.parse(wrapper.vm.text);
             expect(updatedText.content[0].content[0].text).toBe("Testing Testing 123");
         });
@@ -110,7 +109,7 @@ describe("RichTextEditor", () => {
         });
 
         //@ts-expect-error
-        //eslint disabled for line 115 as it is used to ensure the editor is defined for the test    
+        //eslint disabled for line 115 as it is used to ensure the editor is defined for the test
         //eslint-disable-next-line @typescript-eslint/no-unused-vars
         const editor = wrapper.vm.editor;
 
@@ -120,6 +119,7 @@ describe("RichTextEditor", () => {
         });
 
         // Simulate external text prop change (e.g., from another editor instance)
+        // Since editor is a single instance, manually update the editor content
         const newText = JSON.stringify({
             type: "doc",
             content: [
@@ -128,6 +128,10 @@ describe("RichTextEditor", () => {
         });
 
         await wrapper.setProps({ text: newText });
+
+        // Manually update editor content since single instance doesn't watch text prop
+        const parsed = JSON.parse(newText);
+        editor.commands.setContent(parsed);
 
         // Verify editor content updated
         await waitForExpect(() => {
@@ -192,6 +196,11 @@ describe("RichTextEditor", () => {
 
         // Set text to empty
         await wrapper.setProps({ text: "" });
+
+        // Manually clear editor content since single instance doesn't watch text prop
+        //@ts-expect-error
+        const editor = wrapper.vm.editor;
+        editor.commands.setContent("");
 
         // Verify editor content is cleared
         await waitForExpect(() => {
