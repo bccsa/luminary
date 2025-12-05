@@ -25,7 +25,7 @@ export default defineConfig({
     /* Retry on CI only */
     retries: process.env.CI ? 2 : 0,
     /* Opt out of parallel tests on CI. Run sequentially locally to avoid multiple browser windows. */
-    workers: 5,
+    workers: 1,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
     reporter: [["html", { open: "never" }]],
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -57,12 +57,6 @@ export default defineConfig({
             },
         },
         {
-            name: "webkit",
-            use: {
-                ...devices["Desktop Safari"],
-            },
-        },
-        {
             name: "Mobile Chrome",
             use: {
                 ...devices["Pixel 5"],
@@ -72,12 +66,6 @@ export default defineConfig({
             name: "Mobile Safari",
             use: {
                 ...devices["iPhone 12"],
-            },
-        },
-        {
-            name: "Microsoft Edge",
-            use: {
-                channel: "msedge",
             },
         },
         {
