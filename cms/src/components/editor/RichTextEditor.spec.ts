@@ -84,7 +84,9 @@ describe("RichTextEditor", () => {
         editor.options.onUpdate?.({ editor });
 
         await waitForExpect(() => {
-            const updatedText = JSON.parse(wrapper.vm.text);
+            const textValue = wrapper.vm.text;
+            expect(textValue).toBeDefined();
+            const updatedText = JSON.parse(textValue!);
             expect(updatedText.content[0].content[0].text).toBe("Testing Testing 123");
         });
     });
