@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { db, DocType, type LanguageDto, useDexieLiveQuery } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
@@ -18,7 +18,10 @@ defineProps<Props>();
 
 const { t } = useI18n();
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Language }).toArray() as unknown as Promise<LanguageDto[]>,
+    { initialValue: [] },
+);
 
 const emit = defineEmits(["close"]);
 

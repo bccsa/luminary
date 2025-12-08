@@ -6,6 +6,7 @@ import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { createI18n } from "vue-i18n";
+import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -64,13 +65,12 @@ describe("LanguageModal.vue", () => {
             },
         });
 
-        //@ts-expect-error -- valid code
-        wrapper.vm.languages = await db.docs.toArray();
-
-        const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
-        await languageButtons[0].trigger("click");
-
-        expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        await waitForExpect(async () => {
+            const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
+            expect(languageButtons.length).toBeGreaterThan(0);
+            await languageButtons[0].trigger("click");
+            expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        });
     });
 
     it("emits the close event on close button click", async () => {
