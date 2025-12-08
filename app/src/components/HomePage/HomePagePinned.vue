@@ -17,8 +17,10 @@ import { isPublished } from "@/util/isPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
+    (appLanguageIds: Uuid[]) => {
+        if (!appLanguageIds.length) return [];
+
+        return db.docs
             .where({
                 type: DocType.Content,
                 parentPinned: 1, // 1 = true
@@ -26,7 +28,8 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
             .filter((c) => {
                 return isPublished(c as ContentDto, appLanguageIds);
             })
-            .toArray() as unknown as Promise<ContentDto[]>,
+            .toArray() as unknown as Promise<ContentDto[]>;
+    },
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
 
@@ -36,8 +39,10 @@ watch(pinnedCategories as any, async (value) => {
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) =>
-        db.docs
+    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
+        if (!appLanguageIds.length || !pinnedCategories.length) return [];
+
+        return db.docs
             .where({
                 type: DocType.Content,
                 status: PublishStatus.Published,
@@ -47,6 +52,8 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
+
+                if (!content.parentTags) return false;
 
                 for (const tagId of content.parentTags) {
                     if (
@@ -58,8 +65,9 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
 
                 return false;
             })
-            .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
+            .toArray() as unknown as Promise<ContentDto[]>;
+    },
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent"), deep: true },
 );
 
 watch(pinnedCategoryContent as any, async (value) => {
