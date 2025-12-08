@@ -7,6 +7,7 @@ import { accessMap, db } from "luminary-shared";
 import { ref } from "vue";
 import {
     mockCategoryContentDto,
+    mockCategoryDto,
     mockEnglishContentDto,
     mockFrenchContentDto,
     mockLanguageDtoEng,
@@ -57,8 +58,15 @@ describe("HomePage.vue", () => {
         it("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
             await db.docs.bulkPut([
-                { ...mockCategoryContentDto, parentPinned: 1 },
+                { ...mockCategoryDto, pinned: 1, tagType: "topic" as any },
+                { ...mockCategoryContentDto, parentPinned: 1, parentTagType: "topic" as any },
                 { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
+                {
+                    ...mockCategoryDto,
+                    _id: "tag-category1", // Ensure the ID matches
+                    pinned: 1,
+                    tagType: "topic" as any,
+                },
                 {
                     ...mockCategoryContentDto,
                     _id: "content-tag-category1-fr",
@@ -66,6 +74,7 @@ describe("HomePage.vue", () => {
                     title: "Catégorie 1",
                     summary: "Exemple de tag",
                     parentPinned: 1,
+                    parentTagType: "topic" as any,
                 },
                 { ...mockFrenchContentDto, title: "Poste 1" },
             ]);
@@ -90,7 +99,8 @@ describe("HomePage.vue", () => {
     describe("Content display tests", () => {
         it("renders pinned categories correctly", async () => {
             await db.docs.bulkPut([
-                { ...mockCategoryContentDto, parentPinned: 1 },
+                { ...mockCategoryDto, pinned: 1, tagType: "topic" as any },
+                { ...mockCategoryContentDto, parentPinned: 1, parentTagType: "topic" as any },
                 { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
             ]);
 
