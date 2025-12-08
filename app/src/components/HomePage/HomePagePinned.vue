@@ -30,7 +30,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
 
-watch(pinnedCategories, async (value) => {
+watch(pinnedCategories as any, async (value) => {
     db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
 });
 
@@ -62,12 +62,12 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
 );
 
-watch(pinnedCategoryContent, async (value) => {
+watch(pinnedCategoryContent as any, async (value) => {
     db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
 });
 
 // sort pinned content by category
-const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
+const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinnedCategories as any);
 </script>
 
 <template>

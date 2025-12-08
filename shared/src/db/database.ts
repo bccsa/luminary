@@ -133,7 +133,7 @@ class Database extends Dexie {
         this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
-            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+postType]",
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,parentPinned,[type+tagType],[type+postType]",
             docsIndex,
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
