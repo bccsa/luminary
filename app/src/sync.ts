@@ -24,6 +24,8 @@ let appLanguageIdsPrev: string[];
 watch(
     [accessMap, isConnected, appLanguageIdsAsRef],
     () => {
+        if (!accessMap.value || Object.keys(accessMap.value).length === 0) return;
+
         let accessMapChanged = false;
         if (!_.isEqual(accessMapPrev, accessMap.value)) {
             accessMapChanged = true;
@@ -90,7 +92,7 @@ export function initLanguageSync() {
  */
 export function initSync() {
     // Sync all other docs
-    watch(
+    (watch(
         () => syncIterators.value.content,
         async () => {
             if (!isConnected.value) return;
@@ -141,8 +143,8 @@ export function initSync() {
                 });
             }
         },
-        { immediate: true },
-    );
+    ),
+        { immediate: true });
 }
 
 /**
