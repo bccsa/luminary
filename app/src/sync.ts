@@ -47,7 +47,7 @@ watch(
         if (accessMapChanged || connectedChanged || appLanguagesChanged)
             syncIterators.value.content++;
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 /**
