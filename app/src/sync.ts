@@ -24,10 +24,8 @@ let appLanguageIdsPrev: string[];
 watch(
     [accessMap, isConnected, appLanguageIdsAsRef],
     () => {
-        if (!accessMap.value || Object.keys(accessMap.value).length === 0) return;
-
         let accessMapChanged = false;
-        if (!_.isEqual(accessMapPrev, accessMap.value)) {
+        if (!accessMap.value || !_.isEqual(accessMapPrev, accessMap.value)) {
             accessMapChanged = true;
             accessMapPrev = _.cloneDeep(accessMap.value);
         }
