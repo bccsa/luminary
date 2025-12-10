@@ -54,6 +54,12 @@ const createNew = () => {
                 />
             </div>
         </template>
+        <p class="mb-4 p-2 text-gray-500">
+            Users only need to be created when they require special permissions that are not already
+            automatically granted. It's possible to add multiple user objects with the same email
+            address. This allows different administrators to independently assign access to the same
+            individual for different groups they manage.
+        </p>
         <UserDisplayCard v-for="user in users" :key="user._id" :usersDoc="user" />
     </BasePage>
 </template>
