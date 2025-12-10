@@ -25,47 +25,40 @@ watch(groups, (newGroups) => {
     <div class="mt-1 flex flex-col">
         <DisplayCard
             :title="usersDoc.name"
-            :updatedTimeUtc="usersDoc.updatedTimeUtc || 0"
+            :updatedTimeUtc="0"
             class="!divide-y-0 !py-0"
             @click="$router.push({ name: 'user', params: { id: usersDoc._id } })"
         >
             <template #content>
-                <div class="flex justify-between min-[1500px]:pt-2">
+                <div class="flex justify-between pb-1 min-[1500px]:pt-2">
                     <div>
-                        <span>
-                            <span class="text-xs text-zinc-500 sm:text-sm">{{
-                                usersDoc.email
-                            }}</span>
-                        </span>
+                        <span class="text-xs text-zinc-500 sm:text-sm">{{ usersDoc.email }}</span>
                     </div>
-                    <div class="flex">
+                    <div class="flex items-center gap-2">
                         <span class="font-medium text-zinc-900">
                             <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
                                 Offline changes
                             </LBadge></span
                         >
-                        <div class="flex items-center justify-end text-sm text-zinc-500">
-                            <ClockIcon
-                                v-if="usersDoc.lastLogin"
-                                class="mr-[3px] h-4 w-4 text-zinc-400 max-lg:h-4 max-lg:w-4"
-                            />
-                            <span>
-                                <span v-if="usersDoc.lastLogin" class="mr-1 text-zinc-400"
-                                    >Last logged in:</span
-                                >
+                        <div
+                            v-if="usersDoc.lastLogin"
+                            class="flex items-center gap-1 text-xs text-zinc-400"
+                        >
+                            <ClockIcon class="h-4 w-4 text-zinc-400" />
+                            <span
+                                >Last logged in:
                                 {{
-                                    usersDoc.lastLogin
-                                        ? db
-                                              .toDateTime(usersDoc.lastLogin)
-                                              .toLocaleString(
-                                                  isMobileScreen
-                                                      ? DateTime.DATE_SHORT
-                                                      : DateTime.DATETIME_SHORT,
-                                              )
-                                        : "Has not logged in yet"
-                                }}
-                            </span>
+                                    db
+                                        .toDateTime(usersDoc.lastLogin)
+                                        .toLocaleString(
+                                            isMobileScreen
+                                                ? DateTime.DATE_SHORT
+                                                : DateTime.DATETIME_SHORT,
+                                        )
+                                }}</span
+                            >
                         </div>
+                        <div v-else class="text-xs text-zinc-400">Has not logged in yet</div>
                     </div>
                 </div>
             </template>
