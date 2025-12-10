@@ -90,7 +90,7 @@ export function initLanguageSync() {
  */
 export function initSync() {
     // Sync all other docs
-    (watch(
+    watch(
         () => syncIterators.value.content,
         async () => {
             if (!isConnected.value) return;
@@ -141,8 +141,8 @@ export function initSync() {
                 });
             }
         },
-    ),
-        { immediate: true });
+        { immediate: true },
+    );
 }
 
 /**
