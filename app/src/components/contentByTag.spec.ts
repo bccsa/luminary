@@ -107,24 +107,32 @@ describe("contentByTag", () => {
         const result = contentByTag(content, tags, { includeUntagged: true });
 
         // Initial state
-        expect(result.untagged.value).toEqual([{ _id: "2", publishDate: 2, parentTags: [] }]);
+        await waitForExpect(() => {
+            expect(result.untagged.value).toEqual([{ _id: "2", publishDate: 2, parentTags: [] }]);
+        });
 
         // Add untagged content
         content.value.push({ _id: "4", publishDate: 4, parentTags: [] } as unknown as ContentDto);
         await nextTick();
-        expect(result.untagged.value).toEqual([
-            { _id: "2", publishDate: 2, parentTags: [] },
-            { _id: "4", publishDate: 4, parentTags: [] },
-        ]);
+        await waitForExpect(() => {
+            expect(result.untagged.value).toEqual([
+                { _id: "2", publishDate: 2, parentTags: [] },
+                { _id: "4", publishDate: 4, parentTags: [] },
+            ]);
+        });
 
         // Remove untagged content
         content.value = content.value.filter((c) => c._id !== "2");
         await nextTick();
-        expect(result.untagged.value).toEqual([{ _id: "4", publishDate: 4, parentTags: [] }]);
+        await waitForExpect(() => {
+            expect(result.untagged.value).toEqual([{ _id: "4", publishDate: 4, parentTags: [] }]);
+        });
 
         // Disable includeUntagged option
         const resultWithoutUntagged = contentByTag(content, tags, { includeUntagged: false });
         await nextTick();
-        expect(resultWithoutUntagged.untagged.value).toEqual([]);
+        await waitForExpect(() => {
+            expect(resultWithoutUntagged.untagged.value).toEqual([]);
+        });
     });
 });
