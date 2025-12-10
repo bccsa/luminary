@@ -36,7 +36,7 @@ export const contentByTag = (
             // Add new tags to the result
             tags.value.forEach((tag) => {
                 const filtered = content.value.filter(
-                    (c) => c.publishDate && c.parentTags.includes(tag.parentId),
+                    (c) => c.publishDate && c.parentTags && c.parentTags.includes(tag.parentId),
                 );
 
                 const isPinned = tag.parentPinned && tag.parentPinned > 0;
@@ -81,11 +81,13 @@ export const contentByTag = (
             // get untagged content
             if (options.includeUntagged) {
                 result.untagged.value = content.value.filter(
-                    (c) => !c.parentTags.some((t) => tags.value.some((tag) => tag.parentId === t)),
+                    (c) =>
+                        !c.parentTags ||
+                        !c.parentTags.some((t) => tags.value.some((tag) => tag.parentId === t)),
                 );
             }
         },
-        { immediate: true },
+        { immediate: true, deep: true },
     );
 
     return result;

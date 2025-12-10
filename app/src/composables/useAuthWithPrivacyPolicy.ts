@@ -13,12 +13,24 @@ export const hasPendingLogin = ref(false);
  * Enhanced authentication composable that enforces privacy policy acceptance before login.
  */
 export function useAuthWithPrivacyPolicy() {
-    const {
-        isAuthenticated,
-        user,
-        loginWithRedirect: originalLoginWithRedirect,
-        logout,
-    } = useAuth0();
+    const auth0 = useAuth0();
+
+    // Guard against undefined auth0 (can happen in test environments)
+    if (!auth0) {
+        return {
+            isAuthenticated: computed(() => false),
+            user: computed(() => null),
+            logout: () => {},
+            loginWithRedirect: () => {},
+            isPrivacyPolicyAccepted: computed(() => false),
+            showPrivacyPolicyModal,
+            hasPendingLogin,
+            completePendingLogin: () => {},
+            cancelPendingLogin: () => {},
+        };
+    }
+
+    const { isAuthenticated, user, loginWithRedirect: originalLoginWithRedirect, logout } = auth0;
 
     // Check if privacy policy is accepted
     const isPrivacyPolicyAccepted = computed(() => {
