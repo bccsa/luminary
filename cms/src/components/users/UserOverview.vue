@@ -54,10 +54,6 @@ const createNew = () => {
                 />
             </div>
         </template>
-        <UserDisplayCard
-            v-for="user in users"
-            :key="user._id"
-            :usersDoc="user"
-        />
+        <UserDisplayCard v-for="user in users" :key="user._id" :usersDoc="user" />
     </BasePage>
 </template>
