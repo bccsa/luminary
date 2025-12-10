@@ -46,7 +46,7 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div class="relative flex cursor-pointer items-center justify-between py-1">
+        <div v-if="title || isLocalChange" class="relative flex cursor-pointer items-center justify-between py-1">
             <div
                 data-test="card-title"
                 class="w-full"
@@ -74,7 +74,7 @@ const handleClick = () => {
         </div>
 
         <!-- Mobile top badges slot -->
-        <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
+        <div v-if="isSmallScreen && $slots.mobileTopBadges" class="flex flex-wrap gap-1 py-1">
             <slot name="mobileTopBadges" />
         </div>
 
