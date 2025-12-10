@@ -63,10 +63,12 @@ describe("sync.ts", () => {
     });
 
     describe("initLanguageSync", () => {
-        it("should initialize language sync watcher", () => {
+        it("should initialize language sync watcher", async () => {
             initLanguageSync();
             // Watcher runs immediately, so iterator will be 1
-            expect(syncIterators.value.language).toBe(1);
+            await waitForExpect(() => {
+                expect(syncIterators.value.language).toBe(1);
+            });
         });
 
         it("should increment language iterator when accessMap changes", async () => {
@@ -227,10 +229,12 @@ describe("sync.ts", () => {
     });
 
     describe("initSync", () => {
-        it("should initialize content sync watcher", () => {
+        it("should initialize content sync watcher", async () => {
             const initialValue = syncIterators.value.content;
             initSync();
-            expect(syncIterators.value.content).toBe(initialValue);
+            await waitForExpect(() => {
+                expect(syncIterators.value.content).toBe(initialValue);
+            });
         });
 
         it("should not sync when not connected", async () => {

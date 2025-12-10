@@ -141,6 +141,7 @@ export function initSync() {
                 });
             }
         },
+        { immediate: true },
     );
 }
 
