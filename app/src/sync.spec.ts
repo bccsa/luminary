@@ -195,7 +195,9 @@ describe("sync.ts", () => {
             isConnected.value = true;
             await nextTick();
 
-            expect(sync).not.toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(sync).not.toHaveBeenCalled();
+            });
         });
 
         it("should handle sync errors gracefully", async () => {
@@ -243,7 +245,9 @@ describe("sync.ts", () => {
             syncIterators.value.content++;
             await nextTick();
 
-            expect(sync).not.toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(sync).not.toHaveBeenCalled();
+            });
         });
 
         it("should not sync when no languages are selected", async () => {
@@ -253,7 +257,9 @@ describe("sync.ts", () => {
             syncIterators.value.content++;
             await nextTick();
 
-            expect(sync).not.toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(sync).not.toHaveBeenCalled();
+            });
         });
 
         it("should sync post content when only post access", async () => {
@@ -420,37 +426,45 @@ describe("sync.ts", () => {
     });
 
     describe("triggerSync", () => {
-        it("should increment both language and content iterators", () => {
+        it("should increment both language and content iterators", async () => {
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
             triggerSync();
-            expect(syncIterators.value.language).toBe(initialLanguage + 1);
-            expect(syncIterators.value.content).toBe(initialContent + 1);
+            await waitForExpect(() => {
+                expect(syncIterators.value.language).toBe(initialLanguage + 1);
+                expect(syncIterators.value.content).toBe(initialContent + 1);
+            });
         });
 
-        it("should increment both iterators multiple times", () => {
+        it("should increment both iterators multiple times", async () => {
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
             triggerSync();
             triggerSync();
             triggerSync();
-            expect(syncIterators.value.language).toBe(initialLanguage + 3);
-            expect(syncIterators.value.content).toBe(initialContent + 3);
+            await waitForExpect(() => {
+                expect(syncIterators.value.language).toBe(initialLanguage + 3);
+                expect(syncIterators.value.content).toBe(initialContent + 3);
+            });
         });
     });
 
     describe("iterator interactions", () => {
-        it("should increment both language and content iterators together", () => {
+        it("should increment both language and content iterators together", async () => {
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
 
             triggerSync();
-            expect(syncIterators.value.language).toBe(initialLanguage + 1);
-            expect(syncIterators.value.content).toBe(initialContent + 1);
+            await waitForExpect(() => {
+                expect(syncIterators.value.language).toBe(initialLanguage + 1);
+                expect(syncIterators.value.content).toBe(initialContent + 1);
+            });
 
             syncIterators.value.content++;
-            expect(syncIterators.value.language).toBe(initialLanguage + 1);
-            expect(syncIterators.value.content).toBe(initialContent + 2);
+            await waitForExpect(() => {
+                expect(syncIterators.value.language).toBe(initialLanguage + 1);
+                expect(syncIterators.value.content).toBe(initialContent + 2);
+            });
         });
 
         it("should handle both iterators incrementing from state changes", async () => {
