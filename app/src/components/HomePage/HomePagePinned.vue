@@ -15,12 +15,12 @@ import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
 
-// Only load cache if dependencies are ready, otherwise use empty array to prevent overwriting cache
-const shouldLoadPinnedCategoriesCache = appLanguageIdsAsRef.value.length > 0;
-let cachedPinnedCategories: ContentDto[] | undefined = undefined;
-if (shouldLoadPinnedCategoriesCache) {
-    cachedPinnedCategories = await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories");
-}
+// Always load cache to have it available for restoration, but only use as initialValue if dependencies are ready
+const cachedPinnedCategories = await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories");
+const shouldUsePinnedCategoriesCache =
+    appLanguageIdsAsRef.value.length > 0 &&
+    cachedPinnedCategories &&
+    cachedPinnedCategories.length > 0;
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -39,7 +39,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
             .toArray() as unknown as Promise<ContentDto[]>;
     },
     {
-        initialValue: cachedPinnedCategories || [],
+        initialValue: shouldUsePinnedCategoriesCache ? cachedPinnedCategories : [],
         deep: true,
     },
 );
@@ -68,20 +68,21 @@ watch(
 
         // Only save if we have data AND dependencies are ready
         if (value && value.length > 0 && appLanguageIdsAsRef.value.length > 0) {
-            cachedPinnedCategories = value;
             db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
         }
     },
     { deep: true, immediate: true },
 );
 
-// Only load cache if appLanguageIds is ready (pinnedCategories will be checked in query)
-// We check appLanguageIds here because pinnedCategories might not be populated yet from cache
-const shouldLoadPinnedContentCache = appLanguageIdsAsRef.value.length > 0;
-let cachedPinnedContent: ContentDto[] | undefined = undefined;
-if (shouldLoadPinnedContentCache) {
-    cachedPinnedContent = await db.getQueryCache<ContentDto[]>("homepage_pinnedContent");
-}
+// Always load cache to have it available for restoration, but only use as initialValue if dependencies are ready
+const cachedPinnedContent = await db.getQueryCache<ContentDto[]>("homepage_pinnedContent");
+// Check appLanguageIds and if we have cached pinnedCategories data (either from cache or already loaded)
+const shouldUsePinnedContentCache =
+    appLanguageIdsAsRef.value.length > 0 &&
+    cachedPinnedContent &&
+    cachedPinnedContent.length > 0 &&
+    (pinnedCategories.value.length > 0 ||
+        (cachedPinnedCategories && cachedPinnedCategories.length > 0));
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
@@ -114,7 +115,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             .toArray() as unknown as Promise<ContentDto[]>;
     },
     {
-        initialValue: cachedPinnedContent || [],
+        initialValue: shouldUsePinnedContentCache ? cachedPinnedContent : [],
         deep: true,
     },
 );
@@ -146,7 +147,6 @@ watch(
             appLanguageIdsAsRef.value.length > 0 &&
             pinnedCategories.value.length > 0
         ) {
-            cachedPinnedContent = value;
             db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
         }
     },
