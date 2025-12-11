@@ -5,7 +5,6 @@ import {
     DocType,
     PostType,
     PublishStatus,
-    type TagDto,
     TagType,
     type Uuid,
     db,
@@ -72,9 +71,13 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent"), deep: true },
 );
 
-watch(pinnedCategoryContent as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
-});
+watch(
+    pinnedCategoryContent as any,
+    async (value) => {
+        db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
+    },
+    { deep: true, immediate: true },
+);
 
 // sort pinned content by category
 const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinnedCategories as any);
