@@ -25,7 +25,7 @@ watch(
     [accessMap, isConnected, appLanguageIdsAsRef],
     () => {
         let accessMapChanged = false;
-        if (!accessMap.value || !_.isEqual(accessMapPrev, accessMap.value)) {
+        if (_.isEqual(accessMapPrev, accessMap.value)) {
             accessMapChanged = true;
             accessMapPrev = _.cloneDeep(accessMap.value);
         }
@@ -47,7 +47,7 @@ watch(
         if (accessMapChanged || connectedChanged || appLanguagesChanged)
             syncIterators.value.content++;
     },
-    { deep: true, immediate: true },
+    { deep: true },
 );
 
 /**
