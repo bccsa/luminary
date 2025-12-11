@@ -21,32 +21,16 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
     (appLanguageIds: Uuid[]) => {
         if (!appLanguageIds.length) return [];
 
-        // First, find the actual Tag documents that are pinned
         return db.docs
             .where({
-                type: DocType.Tag,
-                pinned: 1,
-                tagType: TagType.Topic,
+                type: DocType.Content,
+                parentPinned: 1,
             })
-            .toArray()
-            .then((pinnedTags) => {
-                const pinnedTagIds = pinnedTags.map((t) => (t as TagDto)._id);
-
-                // Then, find the Content documents that describe these pinned tags
-                // This is what contentByTag expects (ContentDto with parentId == TagId)
-                return db.docs
-                    .where("parentId")
-                    .anyOf(pinnedTagIds)
-                    .filter((doc) => {
-                        const c = doc as ContentDto;
-                        return (
-                            c.type === DocType.Content &&
-                            c.parentType === DocType.Tag &&
-                            isPublished(c, appLanguageIds)
-                        );
-                    })
-                    .toArray();
-            }) as unknown as Promise<ContentDto[]>;
+            .filter((c) => {
+                const content = c as ContentDto;
+                return isPublished(content, appLanguageIds);
+            })
+            .toArray() as unknown as Promise<ContentDto[]>;
     },
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
