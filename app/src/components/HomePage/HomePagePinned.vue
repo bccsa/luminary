@@ -15,6 +15,13 @@ import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
 
+// Only load cache if dependencies are ready, otherwise use empty array to prevent overwriting cache
+const shouldLoadPinnedCategoriesCache = appLanguageIdsAsRef.value.length > 0;
+let cachedPinnedCategories: ContentDto[] | undefined = undefined;
+if (shouldLoadPinnedCategoriesCache) {
+    cachedPinnedCategories = await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories");
+}
+
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (appLanguageIds: Uuid[]) => {
@@ -31,19 +38,50 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
             })
             .toArray() as unknown as Promise<ContentDto[]>;
     },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
+    {
+        initialValue: cachedPinnedCategories || [],
+        deep: true,
+    },
 );
+
+let isRestoringPinnedCategories = false;
 
 watch(
     pinnedCategories as any,
     async (value) => {
+        // Prevent infinite loop
+        if (isRestoringPinnedCategories) return;
+
+        // If query returned empty but dependencies aren't ready, restore cache
+        if (!value || value.length === 0) {
+            if (
+                !appLanguageIdsAsRef.value.length &&
+                cachedPinnedCategories &&
+                cachedPinnedCategories.length > 0
+            ) {
+                isRestoringPinnedCategories = true;
+                pinnedCategories.value = cachedPinnedCategories as any;
+                isRestoringPinnedCategories = false;
+                return;
+            }
+        }
+
         // Only save if we have data AND dependencies are ready
         if (value && value.length > 0 && appLanguageIdsAsRef.value.length > 0) {
+            cachedPinnedCategories = value;
             db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
         }
     },
     { deep: true, immediate: true },
 );
+
+// Only load cache if appLanguageIds is ready (pinnedCategories will be checked in query)
+// We check appLanguageIds here because pinnedCategories might not be populated yet from cache
+const shouldLoadPinnedContentCache = appLanguageIdsAsRef.value.length > 0;
+let cachedPinnedContent: ContentDto[] | undefined = undefined;
+if (shouldLoadPinnedContentCache) {
+    cachedPinnedContent = await db.getQueryCache<ContentDto[]>("homepage_pinnedContent");
+}
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
@@ -75,12 +113,32 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             })
             .toArray() as unknown as Promise<ContentDto[]>;
     },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent"), deep: true },
+    {
+        initialValue: cachedPinnedContent || [],
+        deep: true,
+    },
 );
+
+let isRestoringPinnedContent = false;
 
 watch(
     pinnedCategoryContent as any,
     async (value) => {
+        // Prevent infinite loop
+        if (isRestoringPinnedContent) return;
+
+        // If query returned empty but dependencies aren't ready, restore cache
+        if (!value || value.length === 0) {
+            const depsNotReady =
+                !appLanguageIdsAsRef.value.length || !pinnedCategories.value.length;
+            if (depsNotReady && cachedPinnedContent && cachedPinnedContent.length > 0) {
+                isRestoringPinnedContent = true;
+                pinnedCategoryContent.value = cachedPinnedContent as any;
+                isRestoringPinnedContent = false;
+                return;
+            }
+        }
+
         // Only save if we have data AND dependencies are ready
         if (
             value &&
@@ -88,6 +146,7 @@ watch(
             appLanguageIdsAsRef.value.length > 0 &&
             pinnedCategories.value.length > 0
         ) {
+            cachedPinnedContent = value;
             db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
         }
     },
