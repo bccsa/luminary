@@ -34,9 +34,14 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
 
-watch(pinnedCategories as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
-});
+watch(
+    pinnedCategories as any,
+    async (value) => {
+        if (!value || !value.length) return;
+        db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
+    },
+    { deep: true, immediate: true },
+);
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
@@ -74,6 +79,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
 watch(
     pinnedCategoryContent as any,
     async (value) => {
+        if (!value || !value.length) return;
         db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
     },
     { deep: true, immediate: true },
