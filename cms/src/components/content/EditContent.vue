@@ -215,11 +215,11 @@ const canTranslate = computed(() => {
     return true;
 });
 
-const canPublish = computed(
-    () =>
-        verifyAccess(editableParent.value?.memberOf || [], props.docType, AclPermission.Publish) ||
-        false,
-);
+const canPublish = computed(() => {
+    if (!editableParent.value) return false;
+    if (editableParent.value.memberOf.length === 0) return true;
+    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish);
+});
 
 const canEditParent = computed(() => {
     if (editableParent.value) {
@@ -236,6 +236,7 @@ const canEditParent = computed(() => {
 
 const canDelete = computed(() => {
     if (!editableParent.value) return false;
+    if (editableParent.value.memberOf.length === 0) return true;
     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
