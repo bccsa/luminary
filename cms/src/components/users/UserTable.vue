@@ -11,7 +11,21 @@ import UserRow from "../users/UserRow.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import LoadingBar from "../LoadingBar.vue";
+import { type UserOverviewQueryOptions } from "./UserFilterOptions.vue";
 
+type Props = {
+    queryOptions?: UserOverviewQueryOptions;
+};
+
+const props = withDefaults(defineProps<Props>(), {
+    queryOptions: () => ({ groups: [], search: "" }),
+});
+
+const emit = defineEmits<{
+    "update:total": [value: number];
+}>();
+
+// Note: ApiLiveQuery doesn't support groups or queryString, so we do client-side filtering
 const usersQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
 });
@@ -20,22 +34,69 @@ const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
 const users = apiLiveQuery.toArrayAsRef();
 const isLoading = apiLiveQuery.isLoadingAsRef();
 
+// Apply client-side filtering (ApiLiveQuery doesn't support groups or queryString)
+const filteredUsers = computed(() => {
+    let result = users.value || [];
+
+    // Apply search filter
+    if (props.queryOptions.search) {
+        const searchLower = props.queryOptions.search.toLowerCase();
+        result = result.filter(
+            (user) =>
+                user.name?.toLowerCase().includes(searchLower) ||
+                user.email?.toLowerCase().includes(searchLower),
+        );
+    }
+
+    // Apply group filter
+    if (props.queryOptions.groups && props.queryOptions.groups.length > 0) {
+        result = result.filter((user) =>
+            props.queryOptions.groups?.some((groupId) => user.memberOf?.includes(groupId)),
+        );
+    }
+
+    return result;
+});
+
+// Total count for paginator
+const totalUsers = computed(() => filteredUsers.value.length);
+
+// Emit total count for paginator
+watch(
+    totalUsers,
+    (newTotal) => {
+        emit("update:total", newTotal);
+    },
+    { immediate: true },
+);
+
 const newUsers = ref<UserDto[]>([]);
 
+// Apply pagination
+const paginatedUsers = computed(() => {
+    const pageSize = props.queryOptions.pageSize || 20;
+    const pageIndex = props.queryOptions.pageIndex || 0;
+    const start = pageIndex * pageSize;
+    const end = start + pageSize;
+    return filteredUsers.value.slice(start, end);
+});
+
 const combinedUsers = computed(() => {
-    if (users.value && users.value.length && newUsers.value)
-        return newUsers.value.concat(users.value);
-    if (newUsers.value) return newUsers.value;
-    return [];
+    // Combine newUsers with paginated filtered users
+    // Note: newUsers are shown first, then paginated results
+    if (newUsers.value && newUsers.value.length) {
+        return newUsers.value.concat(paginatedUsers.value);
+    }
+    return paginatedUsers.value || [];
 });
 
 // Remove duplicates from newUsers
 watch(
-    [newUsers, users],
+    [newUsers, filteredUsers],
     async () => {
-        if (!users.value || !newUsers.value) return;
+        if (!filteredUsers.value || !newUsers.value) return;
         const duplicates = newUsers.value.filter((u) =>
-            users.value?.some((user) => user._id === u._id),
+            filteredUsers.value?.some((user) => user._id === u._id),
         );
         for (const duplicate of duplicates) {
             newUsers.value.splice(newUsers.value.indexOf(duplicate), 1);
