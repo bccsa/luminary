@@ -60,6 +60,8 @@ describe("sync.ts", () => {
             [DocType.Tag]: [],
             [DocType.User]: [],
             [DocType.DeleteCmd]: [],
+            [DocType.Storage]: [],
+            [DocType.Crypto]: [],
         });
     });
 
