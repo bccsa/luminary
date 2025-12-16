@@ -123,31 +123,31 @@ describe("processChangeRequest", () => {
                 status: "draft",
             },
         };
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processContentDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a post change request", async () => {
         const changeRequest = changeRequest_post();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a tag change request", async () => {
         const changeRequest = changeRequest_tag();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processLanguageDto when processing a language change request", async () => {
         const changeRequest = changeRequest_language();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processLanguageDto).toHaveBeenCalled();
     });
 
     it("calls processGroupDto when processing a group change request", async () => {
         const changeRequest = changeRequest_group();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processGroupDto).toHaveBeenCalled();
     });
 });
