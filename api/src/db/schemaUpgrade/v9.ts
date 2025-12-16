@@ -54,15 +54,12 @@ export default async function (db: DbService) {
                 ? `https://${s3Endpoint}`
                 : `http://${s3Endpoint}:${s3Port}`;
 
-            // Check if a storage document already exists for images
+            // Try to find an existing storage document for images
             let imageStorageId: Uuid | undefined;
-            let existingStorageDoc: any = null;
             try {
-                // Try to find existing image storage
                 const existingResult = await db.getDocsByType(DocType.Storage, 100);
                 if (existingResult.docs && existingResult.docs.length > 0) {
-                    // Find the first image storage type
-                    existingStorageDoc = existingResult.docs.find(
+                    const existingStorageDoc = existingResult.docs.find(
                         (doc: any) => doc.storageType === StorageType.Image,
                     );
                     if (existingStorageDoc) {
@@ -71,28 +68,28 @@ export default async function (db: DbService) {
                     }
                 }
             } catch (error) {
-                // If query fails, we'll create a new one
-                console.info("No existing image storage found, creating new one");
+                // Query failed, but that's okay - we'll try to create a new one
+                console.info("Could not query for existing storage documents, will create new one");
             }
 
-            // Validate S3 credentials from environment variables
-            if (!s3AccessKey || !s3SecretKey) {
-                throw new Error(
-                    "S3_ACCESS_KEY and S3_SECRET_KEY environment variables are required for schema upgrade v9",
-                );
-            }
-
-            // Create S3 credentials from current environment variables
-            const credentials: S3CredentialDto = {
-                endpoint: endpointUrl,
-                bucketName: s3BucketName,
-                accessKey: s3AccessKey,
-                secretKey: s3SecretKey,
-            };
-
-            // Create StorageDto if it doesn't exist, or update existing one with fresh credentials
+            // Only create a new storage document if none exists
             if (!imageStorageId) {
+                // Validate S3 credentials - only required when creating new storage
+                if (!s3AccessKey || !s3SecretKey) {
+                    throw new Error(
+                        "S3_ACCESS_KEY and S3_SECRET_KEY environment variables are required to create a new storage bucket",
+                    );
+                }
+
                 console.info("Creating new storage document with S3 credentials");
+
+                // Create S3 credentials from environment variables
+                const credentials: S3CredentialDto = {
+                    endpoint: endpointUrl,
+                    bucketName: s3BucketName,
+                    accessKey: s3AccessKey,
+                    secretKey: s3SecretKey,
+                };
 
                 // Encrypt and store credentials
                 let credentialId: string;
@@ -107,7 +104,7 @@ export default async function (db: DbService) {
                 const storageDoc = new StorageDto();
                 storageDoc._id = uuidv4();
                 storageDoc.type = DocType.Storage;
-                storageDoc.name = "images";
+                storageDoc.name = "Images";
                 storageDoc.storageType = StorageType.Image;
                 storageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
                 storageDoc.mimeTypes = ["image/*"];
@@ -123,44 +120,8 @@ export default async function (db: DbService) {
                     console.error("Failed to save storage document:", error);
                     throw new Error(formatError("Failed to save storage document", error));
                 }
-            } else {
-                // Update existing storage document with fresh credentials from environment
-                console.info("Updating existing storage document with fresh credentials");
 
-                // Delete old credential document if it exists
-                if (existingStorageDoc.credential_id) {
-                    try {
-                        await db.deleteDoc(existingStorageDoc.credential_id);
-                    } catch (error) {
-                        console.warn(`Could not delete old credentials: ${error}`);
-                    }
-                }
-
-                // Store new credentials
-                let credentialId: string;
-                try {
-                    credentialId = await storeCryptoData<S3CredentialDto>(db, credentials);
-                } catch (error) {
-                    console.error("Failed to store encrypted S3 credentials:", error);
-                    throw new Error(formatError("Failed to store encrypted S3 credentials", error));
-                }
-
-                // Update the storage document
-                existingStorageDoc.credential_id = credentialId;
-                existingStorageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
-                try {
-                    await db.upsertDoc(existingStorageDoc);
-                    // Clear S3Service cache so it picks up new credentials
-                    S3Service.clearCache(imageStorageId);
-                } catch (error) {
-                    console.error("Failed to update storage document:", error);
-                    console.error(error);
-                    throw new Error(formatError("Failed to update storage document", error));
-                }
-            }
-
-            // Ensure the actual bucket exists in MinIO/S3 (for both new and existing storage documents)
-            if (imageStorageId) {
+                // Create the bucket in MinIO/S3 only for newly created storage documents
                 try {
                     const s3Service = await S3Service.create(imageStorageId, db);
 
@@ -168,9 +129,10 @@ export default async function (db: DbService) {
                     const bucketExists = await s3Service.bucketExists();
                     if (!bucketExists) {
                         await s3Service.makeBucket();
+                        console.info(`Created bucket '${s3BucketName}' in MinIO`);
                     }
 
-                    // Always set public read policy (ensures it's set even for existing buckets)
+                    // Set public read policy
                     const bucketPolicy = {
                         Version: "2012-10-17",
                         Statement: [
@@ -186,9 +148,10 @@ export default async function (db: DbService) {
                     await s3Service
                         .getClient()
                         .setBucketPolicy(s3BucketName, JSON.stringify(bucketPolicy));
+                    console.info(`Set public read policy for bucket '${s3BucketName}'`);
                 } catch (error) {
-                    console.error("Failed to verify/create bucket in MinIO:", error);
-                    throw new Error(formatError("Failed to verify/create bucket in MinIO", error));
+                    console.error("Failed to create bucket in MinIO:", error);
+                    throw new Error(formatError("Failed to create bucket in MinIO", error));
                 }
             }
 
