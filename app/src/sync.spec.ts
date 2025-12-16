@@ -55,6 +55,8 @@ describe("sync.ts", () => {
             [DocType.Tag]: [],
             [DocType.User]: [],
             [DocType.DeleteCmd]: [],
+            [DocType.Storage]: [],
+            [DocType.Crypto]: [],
         });
     });
 
@@ -121,6 +123,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initLanguageSync();
@@ -142,6 +146,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initLanguageSync();
@@ -163,6 +169,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initLanguageSync();
@@ -189,6 +197,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initLanguageSync();
@@ -213,6 +223,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
@@ -272,6 +284,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
@@ -302,6 +316,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: ["group1"],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
@@ -332,6 +348,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: ["group2"],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
@@ -376,6 +394,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: ["group2"],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
@@ -406,6 +426,8 @@ describe("sync.ts", () => {
                 [DocType.Tag]: [],
                 [DocType.User]: [],
                 [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
             });
 
             initSync();
