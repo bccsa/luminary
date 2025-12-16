@@ -1,6 +1,6 @@
 // Validation template for general sync queries
 // Handles all sync query types including:
-// - Basic document sync (Post, Tag, Group, User, Redirect, Language)
+// - Basic document sync (Post, Tag, Group, User, Redirect, Language, Storage)
 // - Content document sync (with parentType and language fields)
 // - DeleteCmd document sync (with docType field)
 
