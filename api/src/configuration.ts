@@ -23,14 +23,8 @@ export type ValidationConfig = {
     bypassTemplateValidation: boolean;
 };
 
-export type Configuration = {
-    permissionMap: string;
-    s3?: S3Config;
-    auth?: AuthConfig;
-    database?: DatabaseConfig;
-    sync?: SyncConfig;
-    socketIo?: SocketIoConfig;
-    validation?: ValidationConfig;
+export type ImageProcessingConfig = {
+    imageQuality: number;
 };
 
 export type S3Config = {
@@ -49,11 +43,13 @@ export type SocketIoConfig = {
 
 export type Configuration = {
     permissionMap: string;
+    s3?: S3Config;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
+    validation?: ValidationConfig;
 };
 
 export default () =>
