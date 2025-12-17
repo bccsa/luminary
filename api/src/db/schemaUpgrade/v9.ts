@@ -31,6 +31,7 @@ export default async function (db: DbService) {
             const s3SecretKey = process.env.S3_SECRET_KEY;
             const s3BucketName = process.env.S3_IMG_BUCKET;
             const s3UseSSL = process.env.S3_USE_SSL === "true";
+            const s3PublicUrl = process.env.S3_PUBLIC_ACCESS_URL;
 
             // Validate required environment variables
             if (!s3Endpoint) {
@@ -106,7 +107,14 @@ export default async function (db: DbService) {
                 storageDoc.type = DocType.Storage;
                 storageDoc.name = "Images";
                 storageDoc.storageType = StorageType.Image;
-                storageDoc.publicUrl = `${endpointUrl}/${s3BucketName}`;
+
+                if (!s3PublicUrl) {
+                    throw new Error(
+                        "S3_PUBLIC_ACCESS_URL environment variable is required for schema upgrade v9",
+                    );
+                }
+
+                storageDoc.publicUrl = `${s3PublicUrl}/${s3BucketName}`;
                 storageDoc.mimeTypes = ["image/*"];
                 storageDoc.memberOf = ["group-super-admins"];
                 storageDoc.credential_id = credentialId;
