@@ -34,6 +34,11 @@ export enum AclPermission {
     View = "view",
 
     /**
+     * Access to create new documents
+     */
+    Create = "create",
+
+    /**
      * Access to edit documents
      */
     Edit = "edit",

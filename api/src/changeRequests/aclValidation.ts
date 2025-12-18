@@ -5,12 +5,14 @@ import { AclPermission, DocType } from "../enums";
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
+        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
     ],
     [DocType.Language]: [
         AclPermission.View,
+        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
@@ -18,6 +20,7 @@ const availablePermissionsPerDocType = {
     ],
     [DocType.Post]: [
         AclPermission.View,
+        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Translate,
@@ -25,16 +28,18 @@ const availablePermissionsPerDocType = {
     ],
     [DocType.Tag]: [
         AclPermission.View,
+        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
     ],
-    [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
-    [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
+    [DocType.User]: [AclPermission.View, AclPermission.Create, AclPermission.Edit, AclPermission.Delete],
+    [DocType.Redirect]: [AclPermission.View, AclPermission.Create, AclPermission.Edit, AclPermission.Delete],
     [DocType.Storage]: [
         AclPermission.View,
+        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Assign,
         AclPermission.Delete,
