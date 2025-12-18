@@ -5,7 +5,6 @@ import { S3CredentialDto } from "../../dto/S3CredentialDto";
 import { storeCryptoData } from "../../util/encryption";
 import { v4 as uuidv4 } from "uuid";
 import { S3Service } from "../../s3/s3.service";
-import { backfillGroupAclDocType } from "./aclUpgradeHelper";
 
 /**
  * Helper function to format error messages consistently
@@ -24,8 +23,6 @@ export default async function (db: DbService) {
         const schemaVersion = await db.getSchemaVersion();
         if (schemaVersion === 8) {
             console.info("Upgrading database schema from version 8 to 9");
-
-            await backfillGroupAclDocType(db, DocType.Storage); // This is needed because our group json files are only updated when seeding the database, so if the database is already deployed, the group-super-admins group will not have the Storage permissions.
 
             // Get S3 credentials from environment variables with defaults for local development
             const s3Endpoint = process.env.S3_ENDPOINT;
