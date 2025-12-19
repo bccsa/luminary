@@ -16,6 +16,6 @@ export default defineConfig({
             fileName: "index",
         },
         copyPublicDir: false,
-        minify: true,
+        minify: false,
     },
 });
