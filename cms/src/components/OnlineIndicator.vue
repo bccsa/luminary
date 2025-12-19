@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { SignalIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import { ref } from "vue";
-import LDropdown from "./common/LDropdown.vue";
+import LDropdown from "@/components/common/LDropdown.vue";
 import { isConnected } from "luminary-shared";
 
 const open = ref(false);
