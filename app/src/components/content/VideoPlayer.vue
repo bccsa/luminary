@@ -462,7 +462,7 @@ watch(audioMode, async (mode) => {
 
     // Set flag to prevent automatic language setting from overwriting user's selection
     // Set it before source change to ensure global loadeddata handler skips
-    if (selectedTrackInfo && mode) {
+    if (selectedTrackInfo) {
         isRestoringTrack.value = true;
     }
 
@@ -499,16 +499,17 @@ watch(audioMode, async (mode) => {
         return false;
     };
 
-    if (selectedTrackInfo && mode) {
-        player?.one("loadedmetadata", () => {
-            player?.currentTime(adjustedTime);
+    // Restore track when switching modes (both directions)
+    player?.one("loadedmetadata", () => {
+        player?.currentTime(adjustedTime);
+        if (selectedTrackInfo) {
             restoreTrack();
-        });
-    }
+        }
+    });
 
     // Start playback as soon as data is available
     player?.one("loadeddata", () => {
-        if (selectedTrackInfo && mode) {
+        if (selectedTrackInfo) {
             // Try to restore track again in case it wasn't ready in loadedmetadata
             restoreTrack();
             // Clear the flag after restoring track
