@@ -34,6 +34,7 @@ const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
+const isRestoringTrack = ref<boolean>(false);
 
 // YouTube detection
 const isYouTube = ref<boolean>(false);
@@ -251,8 +252,15 @@ onMounted(async () => {
     });
 
     // Ensure audio tracks are ready when metadata is loaded
+    // Skip if we're restoring a track from a mode switch
     player.on("loadeddata", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        console.log("[VideoPlayer] loadeddata event - isRestoringTrack:", isRestoringTrack.value);
+        if (!isRestoringTrack.value) {
+            console.log("[VideoPlayer] Setting audio track to preferred language");
+            setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        } else {
+            console.log("[VideoPlayer] Skipping auto-selection, restoring user's track");
+        }
     });
 
     // Ensure the audio track language is updated when entering fullscreen mode.
@@ -281,8 +289,10 @@ onMounted(async () => {
                 // Slightly adjust the current time to refresh the buffer
                 player?.currentTime(currentTime + 0.001);
 
-                // Reapply the preferred audio track language
-                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                // Reapply the preferred audio track language only if not restoring
+                if (!isRestoringTrack.value) {
+                    setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                }
             }
         }, 2000);
     });
@@ -437,6 +447,12 @@ watch(audioMode, async (mode) => {
         }
     }
 
+    // Set flag to prevent automatic language setting from overwriting user's selection
+    if (selectedTrackInfo) {
+        console.log("[VideoPlayer] Saving selected track:", selectedTrackInfo);
+        isRestoringTrack.value = true;
+    }
+
     // Extract and build an audio-only master playlist from the original HLS manifest
     const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
 
@@ -470,11 +486,19 @@ watch(audioMode, async (mode) => {
 
         player?.play();
 
-        // Wait for tracks to be available
-        player?.on("loadedmetadata", () => {
+        // Wait for tracks to be available - use one to ensure it only fires once per source change
+        player?.one("loadedmetadata", () => {
+            console.log("[VideoPlayer] loadedmetadata event - restoring track:", selectedTrackInfo);
             const newTracks = (player as any).audioTracks?.();
 
-            if (!newTracks || !selectedTrackInfo) return;
+            if (!newTracks || !selectedTrackInfo) {
+                console.log("[VideoPlayer] No tracks or no saved track info");
+                // Clear the flag after a delay to allow loadeddata to skip as well
+                setTimeout(() => {
+                    isRestoringTrack.value = false;
+                }, 100);
+                return;
+            }
 
             for (let i = 0; i < newTracks.length; i++) {
                 const t = newTracks[i];
@@ -482,11 +506,19 @@ watch(audioMode, async (mode) => {
                 const labelMatch = t.label === selectedTrackInfo.label;
 
                 if (langMatch || labelMatch) {
+                    console.log("[VideoPlayer] Enabling track:", t.label, t.language);
                     t.enabled = true;
                 } else {
                     t.enabled = false;
                 }
             }
+
+            // Clear the flag after a delay to ensure loadeddata event also skips the auto-selection
+            // loadeddata fires after loadedmetadata, so we need to wait
+            setTimeout(() => {
+                console.log("[VideoPlayer] Clearing isRestoringTrack flag");
+                isRestoringTrack.value = false;
+            }, 100);
         });
     });
 
