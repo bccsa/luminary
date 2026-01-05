@@ -51,10 +51,12 @@ const props = withDefaults(defineProps<Props>(), {
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
-const inputElement = ref<HTMLElement>();
+// Reference to the combobox input element    
+const inputElement = ref<HTMLInputElement | null>(null)
 const comboboxParent = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
+
 
 const optionsList = computed(() =>
     props.options.map((o) => ({
@@ -121,6 +123,11 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener("keydown", handleGlobalEscape);
 });
+
+// Focus the combobox input when clicking anywhere on the component
+const focusInput = () => {
+  inputElement.value?.focus()
+}
 </script>
 
 <template>
@@ -129,6 +136,7 @@ onUnmounted(() => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
+        @click.self="focusInput"
     >
         <div class="flex justify-between">
             <div class="flex items-center gap-1">
@@ -181,7 +189,8 @@ onUnmounted(() => {
                         />
                     </div>
                     <input
-                        @click.stop="toggleDropdown"
+                        @click="() => { focusInput(); toggleDropdown() }"
+
                         v-model="query"
                         ref="inputElement"
                         class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
