@@ -395,8 +395,10 @@ onMounted(async () => {
     });
 
     // Preload audio-only playlist in the background for faster mode switching
+    // Note: We don't pass selected track here for preloading, as the user might switch tracks before entering audio mode
+    // The audio master will be regenerated with the correct track when actually switching to audio mode
     if (!isYouTube.value && props.content.video) {
-        extractAndBuildAudioMaster(props.content.video)
+        extractAndBuildAudioMaster(props.content.video, null)
             .then((audioMaster) => {
                 const base64 = btoa(
                     String.fromCharCode(
@@ -466,9 +468,13 @@ watch(audioMode, async (mode) => {
         isRestoringTrack.value = true;
     }
 
-    // Use cached audio playlist if available, otherwise generate it
-    if (!cachedAudioPlaylistUrl && mode) {
-        const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+    // Always regenerate the audio playlist with the currently selected track as default
+    // This ensures the player loads the correct track immediately without needing to switch
+    if (mode) {
+        const audioMaster = await extractAndBuildAudioMaster(
+            props.content.video!,
+            selectedTrackInfo,
+        );
         const base64 = btoa(
             String.fromCharCode(
                 ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
@@ -483,9 +489,9 @@ watch(audioMode, async (mode) => {
      */
     const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
 
-    // Set up track restoration listener before changing source
+    // Helper function to restore the selected audio track
     const restoreTrack = () => {
-        if (!selectedTrackInfo) return false;
+        if (!selectedTrackInfo) return;
         const newTracks = (player as any).audioTracks?.();
         if (newTracks && newTracks.length > 0) {
             for (let i = 0; i < newTracks.length; i++) {
@@ -494,33 +500,25 @@ watch(audioMode, async (mode) => {
                 const labelMatch = t.label === selectedTrackInfo.label;
                 t.enabled = langMatch || labelMatch;
             }
-            return true;
         }
-        return false;
     };
 
-    // Restore track when switching modes (both directions)
+    // Set the adjusted time when metadata is loaded
     player?.one("loadedmetadata", () => {
         player?.currentTime(adjustedTime);
-        if (selectedTrackInfo) {
+        // When switching back to video mode, restore the selected track
+        if (!mode && selectedTrackInfo) {
             restoreTrack();
         }
     });
 
-    // Start playback as soon as data is available
-    player?.one("loadeddata", () => {
-        if (selectedTrackInfo) {
-            // Try to restore track again in case it wasn't ready in loadedmetadata
+    // Clear the restoration flag once ready
+    player?.one("canplay", () => {
+        // For video mode, try restoring track again if it wasn't ready in loadedmetadata
+        if (!mode && selectedTrackInfo) {
             restoreTrack();
-            // Clear the flag after restoring track
-            setTimeout(() => {
-                isRestoringTrack.value = false;
-            }, 100);
-        } else {
-            player?.currentTime(adjustedTime);
-            isRestoringTrack.value = false;
         }
-        player?.play();
+        isRestoringTrack.value = false;
     });
 
     // Set the player source - this triggers the listeners above
@@ -528,6 +526,16 @@ watch(audioMode, async (mode) => {
         type: "application/x-mpegURL",
         src: mode ? cachedAudioPlaylistUrl! : props.content.video,
     });
+
+    // Immediately call play() to start loading and playing as soon as possible
+    // The player will handle buffering internally
+    const playPromise = player?.play();
+    if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+            // Play was interrupted or failed, which is handled by our event listeners
+            console.debug("Initial play() interrupted:", error.message);
+        });
+    }
 
     if (mode) {
         syncKeepAudioStateAlive();
