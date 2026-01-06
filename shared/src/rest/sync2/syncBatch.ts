@@ -71,20 +71,14 @@ export async function syncBatch(options: SyncOptions) {
     if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
 
     // Push chunk to chunk list
-    let eof = blockLength < options.limit; // If less than limit, we reached the end
-    // Don't push an empty chunk to the sync list
-    if (blockStart !== 0 || blockEnd !== 0) {
-        syncList.value.push({
-            chunkType: getChunkTypeString(options.type, options.subType),
-            memberOf: options.memberOf,
-            languages: options.languages,
-            blockStart,
-            blockEnd,
-            eof,
-        });
-    } else {
-        eof = true;
-    }
+    syncList.value.push({
+        memberOf: options.memberOf,
+        chunkType: getChunkTypeString(options.type, options.subType),
+        languages: options.languages,
+        blockStart,
+        blockEnd,
+        eof: blockLength < options.limit, // If less than limit, we reached the end
+    });
 
     // Merge vertical chunks
     let mergeResult: {
@@ -93,15 +87,6 @@ export async function syncBatch(options: SyncOptions) {
         eof: boolean | undefined;
         firstSync?: boolean;
     } = mergeVertical(options);
-
-    if (
-        blockStart === 0 &&
-        blockEnd === 0 &&
-        mergeResult.blockStart === 0 &&
-        mergeResult.blockEnd === 0
-    ) {
-        mergeResult.eof = true;
-    }
 
     // If end of file, perform horizontal merge with any complete columns
     if (mergeResult.eof) {

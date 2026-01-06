@@ -72,7 +72,15 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) accessMap.value = c.accessMap;
+            if (c.accessMap) {
+                const hasExistingPermissions =
+                    accessMap.value && Object.keys(accessMap.value).length > 0;
+                const newAccessMapIsEmpty = !c.accessMap || Object.keys(c.accessMap).length === 0;
+
+                if (!hasExistingPermissions && !newAccessMapIsEmpty) {
+                    accessMap.value = c.accessMap;
+                }
+            }
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }
