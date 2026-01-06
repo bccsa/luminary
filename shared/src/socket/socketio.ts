@@ -26,7 +26,7 @@ export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 
 class SocketIO {
     private socket: Socket;
-    private isFirstClientConfigAfterConnect = true;
+
     /**
      * Create a new SocketIO instance
      * @param {SharedConfig} config - Configuration object
@@ -72,26 +72,8 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) {
-                const existingGroups = accessMap.value ? Object.keys(accessMap.value).length : 0;
-                const newGroups = c.accessMap ? Object.keys(c.accessMap).length : 0;
-
-                // On first clientConfig after connect, don't downgrade permissions
-                // This prevents replacing real permissions with public/empty during refresh
-                // After first config, allow all updates (including legitimate downgrades)
-                if (
-                    this.isFirstClientConfigAfterConnect &&
-                    existingGroups > 0 &&
-                    newGroups < existingGroups
-                ) {
-                    // Skip this update - it's likely the bug case (public/empty before token ready)
-                } else {
-                    accessMap.value = c.accessMap;
-                }
-
-                this.isFirstClientConfigAfterConnect = false;
-            }
-            isConnected.value = true;
+            if (c.accessMap) accessMap.value = c.accessMap;
+            isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }
 

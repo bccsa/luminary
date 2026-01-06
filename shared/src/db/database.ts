@@ -25,6 +25,7 @@ import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/per
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
+import _ from "lodash";
 
 const dbName: string = "luminary-db";
 
@@ -878,11 +879,18 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
+    let previousAccessMapGroups: string[] = [];
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
         accessMap,
         () => {
-            db.deleteRevoked();
+            const currentGroups = Object.keys(accessMap.value || {}).sort();
+            const groupsChanged = !_.isEqual(previousAccessMapGroups, currentGroups);
+
+            if (groupsChanged) {
+                previousAccessMapGroups = currentGroups;
+                db.deleteRevoked();
+            }
         },
         { immediate: true },
     );
