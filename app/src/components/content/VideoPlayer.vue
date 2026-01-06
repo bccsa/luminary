@@ -35,7 +35,6 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 const isRestoringTrack = ref<boolean>(false);
-let cachedAudioPlaylistUrl: string | null = null;
 
 // YouTube detection
 const isYouTube = ref<boolean>(false);
@@ -378,24 +377,6 @@ onMounted(async () => {
                 }
             }, 500);
     });
-
-    // Preload audio-only playlist in the background for faster mode switching
-    // Note: We don't pass selected track here for preloading, as the user might switch tracks before entering audio mode
-    // The audio master will be regenerated with the correct track when actually switching to audio mode
-    if (!isYouTube.value && props.content.video) {
-        extractAndBuildAudioMaster(props.content.video, null)
-            .then((audioMaster) => {
-                const base64 = btoa(
-                    String.fromCharCode(
-                        ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
-                    ),
-                );
-                cachedAudioPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
-            })
-            .catch(() => {
-                // Silently fail - will generate on-demand if needed
-            });
-    }
 });
 
 onUnmounted(() => {
@@ -453,8 +434,9 @@ watch(audioMode, async (mode) => {
         isRestoringTrack.value = true;
     }
 
-    // Always regenerate the audio playlist with the currently selected track as default
+    // Generate the audio playlist with the currently selected track as default
     // This ensures the player loads the correct track immediately without needing to switch
+    let audioPlaylistUrl: string | null = null;
     if (mode) {
         const audioMaster = await extractAndBuildAudioMaster(
             props.content.video!,
@@ -465,7 +447,7 @@ watch(audioMode, async (mode) => {
                 ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
             ),
         );
-        cachedAudioPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
+        audioPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
     }
 
     /**
@@ -474,7 +456,7 @@ watch(audioMode, async (mode) => {
      */
     const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
 
-    // Helper function to restore the selected audio track
+    // Helper function to restore the selected audio track when switching back to video mode
     const restoreTrack = () => {
         if (!selectedTrackInfo) return;
         const newTracks = (player as any).audioTracks?.();
@@ -509,7 +491,7 @@ watch(audioMode, async (mode) => {
     // Set the player source - this triggers the listeners above
     player?.src({
         type: "application/x-mpegURL",
-        src: mode ? cachedAudioPlaylistUrl! : props.content.video,
+        src: mode ? audioPlaylistUrl! : props.content.video,
     });
 
     // Immediately call play() to start loading and playing as soon as possible
