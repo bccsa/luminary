@@ -71,14 +71,17 @@ export async function syncBatch(options: SyncOptions) {
     if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
 
     // Push chunk to chunk list
-    syncList.value.push({
-        chunkType: getChunkTypeString(options.type, options.subType),
-        memberOf: options.memberOf,
-        languages: options.languages,
-        blockStart,
-        blockEnd,
-        eof: blockLength < options.limit, // If less than limit, we reached the end
-    });
+    // Don't push an empty chunk to the sync list
+    if (blockStart !== 0 || blockEnd !== 0) {
+        syncList.value.push({
+            chunkType: getChunkTypeString(options.type, options.subType),
+            memberOf: options.memberOf,
+            languages: options.languages,
+            blockStart,
+            blockEnd,
+            eof: blockLength < options.limit, // If less than limit, we reached the end
+        });
+    }
 
     // Merge vertical chunks
     let mergeResult: {
