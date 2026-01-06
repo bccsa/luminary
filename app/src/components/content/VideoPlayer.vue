@@ -260,21 +260,6 @@ onMounted(async () => {
         }
     });
 
-    // Ensure the audio track language is updated when entering fullscreen mode.
-    // This checks if the current language has changed since the last time it was set,
-    // and updates the audio track language accordingly.
-    let lastLanguageSet: string | null = null;
-
-    player.on("fullscreenchange", () => {
-        if (player?.isFullscreen()) {
-            const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
-            if (lastLanguageSet !== currentLanguage) {
-                setAudioTrackLanguage(currentLanguage);
-                lastLanguageSet = currentLanguage;
-            }
-        }
-    });
-
     // Handle the "waiting" event, which occurs when the player is buffering
     player.on("waiting", () => {
         const currentTime = player?.currentTime() || 0; // Get the current playback time
