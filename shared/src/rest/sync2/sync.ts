@@ -61,9 +61,8 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
     // Trim syncList before starting sync
-    if (options.memberOf && options.memberOf.length > 0) {
-        trim(options);
-    }
+    trim(options);
+
     await _sync(options);
 }
 
