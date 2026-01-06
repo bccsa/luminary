@@ -818,7 +818,12 @@ class Database extends Dexie {
                 let groups = groupsPerDocType[docType as DocType];
                 if (groups === undefined) groups = [];
 
+                console.info("groups", groups);
+
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+
+                console.info("revokedDocs", revokedDocs);
+                console.info("revokedDocs count", await revokedDocs.count());
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
