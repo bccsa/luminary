@@ -12,7 +12,6 @@ import {
 } from "./utils";
 import { trim } from "./trim";
 import { syncList } from "./state";
-import { accessMap } from "../..";
 
 let _httpService: HttpReq<any>;
 
