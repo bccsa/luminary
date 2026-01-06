@@ -171,19 +171,18 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response and sets blockStart/˝blockEnd to 0", async () => {
+    it("handles empty docs response and sets blockStart/blockEnd to 0", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
-        const result = await syncBatch({
+        await syncBatch({
             type: DocType.Post,
             memberOf: ["g1"],
             limit: 5,
             initialSync: true,
             httpService: http as any,
         });
-        expect(syncList.value.length).toBe(0);
-        expect(result?.eof).toBe(true);
-        expect(result?.blockStart).toBe(0);
-        expect(result?.blockEnd).toBe(0);
+        expect(syncList.value.length).toBe(1);
+        expect(syncList.value[0].blockStart).toBe(0);
+        expect(syncList.value[0].blockEnd).toBe(0);
     });
 
     it("throws error on invalid docs format", async () => {

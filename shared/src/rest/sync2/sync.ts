@@ -62,7 +62,6 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 
     // Trim syncList before starting sync
     trim(options);
-
     await _sync(options);
 }
 
