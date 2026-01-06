@@ -829,6 +829,7 @@ class Database extends Dexie {
 
                 // Clear the query cache if any documents are to be deleted
                 if ((await revokedDocs.count()) > 0) {
+                    console.log("clearing query cache");
                     await this.queryCache.clear();
                 }
 
@@ -1002,6 +1003,7 @@ export async function initDatabase() {
     watch(
         accessMap,
         () => {
+            console.log("deleteRevoked");
             db.deleteRevoked();
         },
         { immediate: true },
