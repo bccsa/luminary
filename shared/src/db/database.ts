@@ -892,9 +892,12 @@ export async function initDatabase() {
 
     console.log("count of access map changes", count);
 
+    let syncMapCount = 0;
     watch(
         syncMap,
         () => {
+            syncMapCount++;
+            console.log("syncMapCount", syncMapCount);
             db.setSyncMap();
         },
         { deep: true },
