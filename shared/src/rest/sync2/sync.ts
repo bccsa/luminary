@@ -12,6 +12,7 @@ import {
 } from "./utils";
 import { trim } from "./trim";
 import { syncList } from "./state";
+import { accessMap } from "../..";
 
 let _httpService: HttpReq<any>;
 
@@ -61,7 +62,10 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
     // Trim syncList before starting sync
-    trim(options);
+    const hasAccessMap = accessMap && Object.keys(accessMap.value).length > 0;
+    if (hasAccessMap) {
+        trim(options);
+    }
     await _sync(options);
 }
 
