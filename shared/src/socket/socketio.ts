@@ -72,17 +72,7 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) {
-                const existingHasPermissions =
-                    accessMap.value && Object.keys(accessMap.value).length > 0;
-                const newIsEmpty = !c.accessMap || Object.keys(c.accessMap).length === 0;
-
-                // Prevent replacing real permissions with empty access during Auth0 login,
-                // but allow legitimate permission removals (new accessMap has some permissions, even if fewer)
-                if (!(existingHasPermissions && newIsEmpty)) {
-                    accessMap.value = c.accessMap;
-                }
-            }
+            if (c.accessMap) accessMap.value = c.accessMap;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }

@@ -168,6 +168,14 @@ export class Socketio implements OnGatewayInit {
         @MessageBody() reqData: ClientDataReq,
         @ConnectedSocket() socket: ClientSocket,
     ) {
+        const accessMap = socket.data.userDetails.accessMap;
+        const hasValidAccessMap = accessMap && Object.keys(accessMap).length > 0;
+        const tokenWasProvided = socket.handshake.auth.token;
+
+        if (!hasValidAccessMap && tokenWasProvided) {
+            return;
+        }
+
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
