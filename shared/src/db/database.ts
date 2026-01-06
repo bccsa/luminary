@@ -25,7 +25,6 @@ import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/per
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
-import _ from "lodash";
 
 const dbName: string = "luminary-db";
 
