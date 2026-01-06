@@ -879,16 +879,22 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
-    let previousAccessMapGroups: string[] = [];
     // Listen for changes to the access map and delete documents that the user no longer has access to
+    let previousAccessibleGroups: Record<DocType, string[]> | null = null;
     watch(
         accessMap,
         () => {
-            const currentGroups = Object.keys(accessMap.value || {}).sort();
-            const groupsChanged = !_.isEqual(previousAccessMapGroups, currentGroups);
+            // Compare the actual accessible groups per docType, not just group keys
+            // This catches permission changes within the same groups
+            const currentAccessibleGroups = getAccessibleGroups(AclPermission.View);
+            const currentGroupsStr = JSON.stringify(currentAccessibleGroups);
+            const previousGroupsStr = previousAccessibleGroups
+                ? JSON.stringify(previousAccessibleGroups)
+                : null;
 
-            if (groupsChanged) {
-                previousAccessMapGroups = currentGroups;
+            // Only delete if accessible groups actually changed
+            if (currentGroupsStr !== previousGroupsStr) {
+                previousAccessibleGroups = cloneDeep(currentAccessibleGroups);
                 db.deleteRevoked();
             }
         },
