@@ -72,8 +72,8 @@ export async function syncBatch(options: SyncOptions) {
 
     // Push chunk to chunk list
     syncList.value.push({
-        memberOf: options.memberOf,
         chunkType: getChunkTypeString(options.type, options.subType),
+        memberOf: options.memberOf,
         languages: options.languages,
         blockStart,
         blockEnd,
