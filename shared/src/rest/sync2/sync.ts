@@ -62,8 +62,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
     // Trim syncList before starting sync
-    const hasAccessMap = accessMap && Object.keys(accessMap.value).length > 0;
-    if (hasAccessMap) {
+    if (options.memberOf && options.memberOf.length > 0) {
         trim(options);
     }
     await _sync(options);
