@@ -884,6 +884,7 @@ export async function initDatabase() {
         accessMap,
         () => {
             count++;
+            console.log(count);
             db.deleteRevoked();
         },
         { immediate: true },
