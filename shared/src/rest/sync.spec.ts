@@ -344,7 +344,7 @@ describe("rest", () => {
     });
 
     describe("syncMap", () => {
-        it.skip("can re-calculate syncMap when accessMap is updated", async () => {
+        it("can re-calculate syncMap when accessMap is updated", async () => {
             await db.luminaryInternals.clear(); // Clear database to give predictable results
             await db.getSyncMap();
 
@@ -368,7 +368,7 @@ describe("rest", () => {
             });
         });
 
-        it.skip("can remove a group entry from the syncMap when the user's access has changed", async () => {
+        it("can remove a group entry from the syncMap when the user's access has changed", async () => {
             await sync.calcSyncMap();
 
             accessMap.value["group-public-users"] = {
