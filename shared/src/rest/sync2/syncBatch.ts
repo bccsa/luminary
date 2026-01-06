@@ -68,7 +68,15 @@ export async function syncBatch(options: SyncOptions) {
     const blockLength = fetchedDocs.length;
 
     // Upsert to IndexedDB
-    if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
+    if (fetchedDocs.length) {
+        // #region agent log
+        const deleteCmds = fetchedDocs.filter(d => d.type === DocType.DeleteCmd);
+        if (deleteCmds.length > 0) {
+            fetch('http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'syncBatch.ts:71',message:'Fetched deleteCmds in batch',data:{deleteCmdCount:deleteCmds.length,type:options.type,subType:options.subType,deleteCmdDocIds:deleteCmds.map((d:any) => ({docId:d.docId,docType:d.docType,deleteReason:d.deleteReason})),memberOf:options.memberOf,languages:options.languages},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        }
+        // #endregion
+        await db.bulkPut(fetchedDocs);
+    }
 
     // Push chunk to chunk list
     syncList.value.push({

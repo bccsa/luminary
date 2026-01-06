@@ -279,6 +279,33 @@ class Database extends Dexie {
      */
     bulkPut(docs: BaseDocumentDto[]) {
         // Delete documents that are marked for deletion
+        const deleteCmds = docs.filter((doc) => doc.type === DocType.DeleteCmd) as DeleteCmdDto[];
+        // #region agent log
+        if (deleteCmds.length > 0) {
+            deleteCmds.forEach((cmd) => {
+                const shouldDelete = this.validateDeleteCommand(cmd);
+                fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        location: "database.ts:282",
+                        message: "Processing deleteCmd",
+                        data: {
+                            docId: cmd.docId,
+                            docType: cmd.docType,
+                            deleteReason: cmd.deleteReason,
+                            shouldDelete,
+                            newMemberOf: cmd.newMemberOf,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "run1",
+                        hypothesisId: "C",
+                    }),
+                }).catch(() => {});
+            });
+        }
+        // #endregion
         const toDeleteIds = docs
             .filter((doc) => {
                 if (doc.type !== DocType.DeleteCmd) return false;
@@ -288,6 +315,21 @@ class Database extends Dexie {
             .map((doc) => (doc as DeleteCmdDto).docId);
 
         if (toDeleteIds.length > 0) {
+            // #region agent log
+            fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: "database.ts:291",
+                    message: "Bulk deleting documents",
+                    data: { toDeleteIds, count: toDeleteIds.length },
+                    timestamp: Date.now(),
+                    sessionId: "debug-session",
+                    runId: "run1",
+                    hypothesisId: "E",
+                }),
+            }).catch(() => {});
+            // #endregion
             this.docs.bulkDelete(toDeleteIds);
         }
 
@@ -776,7 +818,12 @@ class Database extends Dexie {
                 let groups = groupsPerDocType[docType as DocType];
                 if (groups === undefined) groups = [];
 
+                console.info("groups", groups);
+
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+
+                console.info("revokedDocs", revokedDocs);
+                console.info("revokedDocs count", await revokedDocs.count());
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
@@ -787,6 +834,7 @@ class Database extends Dexie {
 
                 // Clear the query cache if any documents are to be deleted
                 if ((await revokedDocs.count()) > 0) {
+                    console.log("clearing query cache");
                     await this.queryCache.clear();
                 }
 
@@ -810,13 +858,56 @@ class Database extends Dexie {
      * Validates a delete command and returns true if the document referred to in the delete command should be deleted
      */
     validateDeleteCommand(cmd: DeleteCmdDto) {
+        // #region agent log
+        const logData: any = {
+            docId: cmd.docId,
+            docType: cmd.docType,
+            deleteReason: cmd.deleteReason,
+        };
+        // #endregion
         if (cmd.deleteReason == DeleteReason.Deleted) {
+            // #region agent log
+            logData.result = true;
+            logData.reason = "Deleted";
+            fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: "database.ts:813",
+                    message: "validateDeleteCommand result",
+                    data: logData,
+                    timestamp: Date.now(),
+                    sessionId: "debug-session",
+                    runId: "run1",
+                    hypothesisId: "C",
+                }),
+            }).catch(() => {});
+            // #endregion
             return true;
         }
 
         if (cmd.deleteReason == DeleteReason.StatusChange) {
             // Only delete the document if the client is not a CMS client
-            if (!config.cms) return true;
+            const result = !config.cms;
+            // #region agent log
+            logData.result = result;
+            logData.reason = "StatusChange";
+            logData.cms = config.cms;
+            fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: "database.ts:817",
+                    message: "validateDeleteCommand result",
+                    data: logData,
+                    timestamp: Date.now(),
+                    sessionId: "debug-session",
+                    runId: "run1",
+                    hypothesisId: "C",
+                }),
+            }).catch(() => {});
+            // #endregion
+            return result;
         }
 
         if (
@@ -825,9 +916,44 @@ class Database extends Dexie {
             cmd.newMemberOf &&
             !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
         ) {
+            // #region agent log
+            logData.result = true;
+            logData.reason = "PermissionChange";
+            logData.newMemberOf = cmd.newMemberOf;
+            fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: "database.ts:822",
+                    message: "validateDeleteCommand result",
+                    data: logData,
+                    timestamp: Date.now(),
+                    sessionId: "debug-session",
+                    runId: "run1",
+                    hypothesisId: "C",
+                }),
+            }).catch(() => {});
+            // #endregion
             return true;
         }
 
+        // #region agent log
+        logData.result = false;
+        logData.reason = "No match";
+        fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                location: "database.ts:831",
+                message: "validateDeleteCommand result",
+                data: logData,
+                timestamp: Date.now(),
+                sessionId: "debug-session",
+                runId: "run1",
+                hypothesisId: "C",
+            }),
+        }).catch(() => {});
+        // #endregion
         return false;
     }
 
@@ -882,6 +1008,7 @@ export async function initDatabase() {
     watch(
         accessMap,
         () => {
+            console.log("deleteRevoked");
             db.deleteRevoked();
         },
         { immediate: true },

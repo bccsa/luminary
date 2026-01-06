@@ -76,6 +76,27 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     // Default includeDeleteCmds to true if not specified
     options.includeDeleteCmds = options.includeDeleteCmds ?? true;
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            location: "sync.ts:78",
+            message: "Sync called with includeDeleteCmds",
+            data: {
+                type: options.type,
+                subType: options.subType,
+                includeDeleteCmds: options.includeDeleteCmds,
+                memberOf: options.memberOf,
+                languages: options.languages,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "A",
+        }),
+    }).catch(() => {});
+    // #endregion
 
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
     if (options.type === DocType.Content && options.languages) {
@@ -139,8 +160,48 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     if (options.includeDeleteCmds && syncResult) {
         const subType = options.type === DocType.Content ? options.subType : options.type;
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                location: "sync.ts:140",
+                message: "About to sync deleteCmds",
+                data: {
+                    type: options.type,
+                    subType,
+                    firstSync: syncResult.firstSync,
+                    includeDeleteCmds: options.includeDeleteCmds,
+                },
+                timestamp: Date.now(),
+                sessionId: "debug-session",
+                runId: "run1",
+                hypothesisId: "A",
+            }),
+        }).catch(() => {});
+        // #endregion
         // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
         if (!syncResult.firstSync) {
+            // #region agent log
+            fetch("http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: "sync.ts:144",
+                    message: "Syncing deleteCmds batch",
+                    data: {
+                        type: DocType.DeleteCmd,
+                        subType,
+                        memberOf: options.memberOf,
+                        languages: options.languages,
+                    },
+                    timestamp: Date.now(),
+                    sessionId: "debug-session",
+                    runId: "run1",
+                    hypothesisId: "A",
+                }),
+            }).catch(() => {});
+            // #endregion
             await syncBatch({
                 ...options,
                 type: DocType.DeleteCmd,
