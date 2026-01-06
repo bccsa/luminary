@@ -171,7 +171,7 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response and sets blockStart/blockEnd to 0", async () => {
+    it("handles empty docs response and sets blockStart/˝blockEnd to 0", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         const result = await syncBatch({
             type: DocType.Post,
