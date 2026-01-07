@@ -52,7 +52,7 @@ const selectedOptions = defineModel<Array<string | number>>("selectedOptions", {
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
 // Reference to the combobox input element    
-const inputElement = ref<HTMLInputElement | null>(null)
+const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
