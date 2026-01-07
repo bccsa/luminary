@@ -35,7 +35,9 @@ class SocketIO {
         const token = config.token;
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
+        console.log("socket initialized");
         this.socket.on("connect", () => {
+            console.log("socket connected");
             this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
         });
 
@@ -73,6 +75,7 @@ class SocketIO {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            console.log("clientConfig received");
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }
