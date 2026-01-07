@@ -566,14 +566,11 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :actions="contentActions"
             />
         </template>
-        <div class="flex h-full flex-col gap-2 lg:flex-row lg:overflow-y-hidden">
+        <div class="flex h-full flex-col gap-0 lg:flex-row lg:gap-2 lg:overflow-y-hidden">
             <!-- sidebar -->
-            <div
-                class="h-screen w-full flex-shrink-0 overflow-y-auto overflow-x-hidden lg:w-[336px]"
-                v-if="editableParent"
-            >
-                <div class="h-full overflow-x-hidden scrollbar-hide sm:pb-16">
-                    <div class="flex flex-col gap-2 overflow-x-hidden pb-4">
+            <div class="w-full flex-shrink-0 lg:h-full lg:w-[336px]" v-if="editableParent">
+                <div class="scrollbar-hide lg:h-full lg:pb-2">
+                    <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
@@ -623,65 +620,23 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             :disabled="!canTranslate"
                             :disable-publish="!canPublish"
                         />
-                        <!-- MOBILE CONTENT EDITOR -->
-                        <div class="block w-full scrollbar-hide lg:hidden">
-                            <EmptyState
-                                v-if="!selectedContent"
-                                :icon="icon"
-                                title=""
-                                :description="`Please select a language to start editing`"
-                                data-test="no-content"
-                                class="mb-3 flex flex-col items-center justify-center"
-                            >
-                                <div class="relative flex flex-col items-center">
-                                    <LButton
-                                        :icon="PlusIcon"
-                                        class="h-max w-fit"
-                                        variant="muted"
-                                        @click.stop="showLanguageSelector = !showLanguageSelector"
-                                        data-test="add-translation-button"
-                                        aria-label="Add translation"
-                                    ></LButton>
-                                    <div
-                                        class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2"
-                                    >
-                                        <LanguageSelector
-                                            data-test="placeholder-language-selector"
-                                            :parent="editableParent"
-                                            :content="editableContent"
-                                            :languages="untranslatedLanguages"
-                                            v-model:show-selector="showLanguageSelector"
-                                            @create-translation="createTranslation"
-                                            placement="top-center"
-                                        />
-                                    </div>
-                                </div>
-                            </EmptyState>
-                            <div v-else>
-                                <EditContentText
-                                    v-model:content="selectedContent"
-                                    :selectedLanguage="selectedLanguage!"
-                                    :disabled="!canTranslate"
-                                    :disablePublish="!canPublish"
-                                />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
-            <!-- main content | This is for desktop-->
-            <div class="hidden w-full scrollbar-hide lg:block">
+            <!-- main content instance -->
+            <div class="mt-2 min-h-0 w-full scrollbar-hide lg:flex-1">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
                     :description="`Please select a language to start editing`"
                     data-test="no-content"
+                    class="mb-3 flex flex-col items-center justify-center lg:mb-0"
                 >
-                    <div class="relative inline-block w-fit">
+                    <div class="relative flex flex-col items-center lg:inline-block">
                         <LButton
                             :icon="PlusIcon"
-                            class="w-fit"
+                            class="h-max w-fit"
                             variant="muted"
                             @click.stop="showLanguageSelector = !showLanguageSelector"
                             data-test="add-translation-button"
@@ -689,24 +644,27 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                         >
                             <template #tooltip>Add a new translation</template>
                         </LButton>
-
-                        <LanguageSelector
-                            data-test="language-selector"
-                            :parent="editableParent"
-                            :content="editableContent"
-                            :languages="untranslatedLanguages"
-                            v-model:show-selector="showLanguageSelector"
-                            @create-translation="createTranslation"
-                        />
+                        <div
+                            class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 lg:static lg:left-auto lg:mb-0 lg:ml-2 lg:inline-block lg:translate-x-0"
+                        >
+                            <LanguageSelector
+                                data-test="language-selector"
+                                :parent="editableParent"
+                                :content="editableContent"
+                                :languages="untranslatedLanguages"
+                                v-model:show-selector="showLanguageSelector"
+                                @create-translation="createTranslation"
+                                placement="top-center"
+                            />
+                        </div>
                     </div>
                 </EmptyState>
-                <div v-else class="">
+                <div v-else class="h-full">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
-                        class="hidden lg:block"
                     />
                 </div>
             </div>
