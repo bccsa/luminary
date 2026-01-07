@@ -91,8 +91,8 @@ export async function syncBatch(options: SyncOptions) {
     // If end of file, perform horizontal merge with any complete columns
     if (mergeResult.eof) {
         const r = mergeHorizontal(options);
-        mergeResult.blockStart = r?.blockStart || 0;
-        mergeResult.blockEnd = r?.blockEnd || 0;
+        mergeResult.blockStart = r.blockStart;
+        mergeResult.blockEnd = r.blockEnd;
     } else {
         // Check if sync has been cancelled before continuing to next chunk
         if (cancelSync) {

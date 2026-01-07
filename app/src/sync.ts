@@ -23,7 +23,10 @@ let appLanguageIdsPrev: string[];
 // Increment sync iterators when access map, connection status, or app languages change
 watch(
     [accessMap, isConnected, appLanguageIdsAsRef],
-    () => {
+    ([newAccessMap, newIsConnected, newAppLanguageIdsAsRef]) => {
+        console.info("accessMap", _.isEqual(accessMap.value, newAccessMap));
+        console.info("isConnected", _.isEqual(isConnected.value, newIsConnected));
+
         let accessMapChanged = false;
         if (!_.isEqual(accessMapPrev, accessMap.value)) {
             accessMapChanged = true;
