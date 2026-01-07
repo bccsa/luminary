@@ -80,7 +80,7 @@ const statusChanged = computed(
         statusBadge.value(props.existingContent).title !=
         statusBadge.value(editableContent.value).title,
 );
-
+console.log("Status changed:", statusChanged.value);
 const validations = ref([] as Validation[]);
 
 const isValid = ref(true);
