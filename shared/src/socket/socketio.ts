@@ -74,9 +74,27 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) accessMap.value = c.accessMap;
-            console.log("clientConfig received");
-            isConnected.value = true; // Only set isConnected after configuration has been received from the API
+            if (c.accessMap) {
+                const existingGroups = accessMap.value ? Object.keys(accessMap.value) : [];
+                const newGroups = c.accessMap ? Object.keys(c.accessMap) : [];
+
+                // Check if new accessMap is a subset of existing (downgrade)
+                const isDowngrade =
+                    existingGroups.length > 0 &&
+                    newGroups.length < existingGroups.length &&
+                    newGroups.every((group) => existingGroups.includes(group));
+
+                // Only update if:
+                // 1. No existing permissions (initial load), OR
+                // 2. Not a downgrade (upgrade or same), OR
+                // 3. New accessMap has groups not in existing (different permissions, not just fewer)
+                const hasNewGroups = newGroups.some((group) => !existingGroups.includes(group));
+
+                if (existingGroups.length === 0 || !isDowngrade || hasNewGroups) {
+                    accessMap.value = c.accessMap;
+                }
+            }
+            isConnected.value = true;
         });
     }
 
