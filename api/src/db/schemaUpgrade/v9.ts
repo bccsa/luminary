@@ -114,7 +114,7 @@ export default async function (db: DbService) {
                     );
                 }
 
-                storageDoc.publicUrl = `${s3PublicUrl}/${s3BucketName}`;
+                storageDoc.publicUrl = `${s3PublicUrl}`;
                 storageDoc.mimeTypes = ["image/*"];
                 storageDoc.memberOf = ["group-super-admins"];
                 storageDoc.credential_id = credentialId;
