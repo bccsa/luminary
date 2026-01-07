@@ -64,7 +64,13 @@ export function getAccessibleGroups(permission: AclPermission): Record<DocType, 
                 .filter((p) => p === permission)
                 .forEach((_permission) => {
                     if (docTypePermissions[_permission as AclPermission]) {
-                        if (!groups[docType as DocType]) groups[docType as DocType] = [];
+                        if (!groups[docType as DocType]) {
+                            groups[docType as DocType] = [];
+                            console.log("docType", docType);
+                            console.log("groupId", groupId);
+                            console.log("docTypePermissions", docTypePermissions);
+                            console.log("groups", groups);
+                        }
                         groups[docType as DocType]?.push(groupId as Uuid);
                     }
                 });
