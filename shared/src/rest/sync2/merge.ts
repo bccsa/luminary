@@ -93,8 +93,8 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
             }
 
             // Update blockStart and blockEnd
-            base.blockStart = Math.max(base.blockStart, compare.blockStart);
-            base.blockEnd = Math.min(base.blockEnd, compare.blockEnd);
+            base.blockStart = Math.min(base.blockStart, compare.blockStart);
+            base.blockEnd = Math.max(base.blockEnd, compare.blockEnd);
 
             // Remove compare chunk
             const index = syncList.value.indexOf(compare);
