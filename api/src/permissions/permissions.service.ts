@@ -170,13 +170,51 @@ export class PermissionSystem extends EventEmitter {
         return this._id;
     }
 
+    // /**
+    //  * Extract an access map for the passed group ID's
+    //  * @param groupIds - Group IDs for which the access map should be extracted
+    //  * @returns - Access Map for the passed group IDs
+    //  */
+    // static getAccessMap(groupIds: Array<Uuid>): AccessMap {
+    //     const resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+
+    //     if (groupIds) {
+    //         groupIds.forEach((id: Uuid) => {
+    //             const g = groupMap[id] as PermissionSystem;
+    //             if (!g) return;
+
+    //             // Add the access map of the group to the result map
+    //             Object.keys(g._accessMap).forEach((key: Uuid) => {
+    //                 const value = g._accessMap[key];
+    //                 if (!resultMap[key]) resultMap[key] = {};
+
+    //                 Object.keys(value).forEach((docType: DocType) => {
+    //                     if (!resultMap[key][docType]) resultMap[key][docType] = {};
+    //                     Object.keys(value[docType]).forEach((permission: AclPermission) => {
+    //                         if (!resultMap[key][docType][permission]) {
+    //                             resultMap[key][docType][permission] = true;
+    //                         }
+    //                     });
+    //                 });
+    //             });
+    //         });
+    //     }
+
+    //     return resultMap;
+    // }
+
     /**
      * Extract an access map for the passed group ID's
      * @param groupIds - Group IDs for which the access map should be extracted
      * @returns - Access Map for the passed group IDs
      */
     static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        const resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        /*
+         * By default, JSON.stringify(new Map()) returns {} (empty object) or [] depending on the environment,
+         * because it ignores properties added via map[key] = val. It only looks for entries added via map.set(key, val)
+         * So we use a plain object instead of a map to ensure JSON.stringify works in the client
+         */
+        const resultMap: any = {};
 
         if (groupIds) {
             groupIds.forEach((id: Uuid) => {
@@ -186,11 +224,16 @@ export class PermissionSystem extends EventEmitter {
                 // Add the access map of the group to the result map
                 Object.keys(g._accessMap).forEach((key: Uuid) => {
                     const value = g._accessMap[key];
+
                     if (!resultMap[key]) resultMap[key] = {};
 
                     Object.keys(value).forEach((docType: DocType) => {
+                        // Initialize document type object if missing
                         if (!resultMap[key][docType]) resultMap[key][docType] = {};
+
                         Object.keys(value[docType]).forEach((permission: AclPermission) => {
+                            // Merge permissions (Union)
+                            // If it's already true from another group, leave it true.
                             if (!resultMap[key][docType][permission]) {
                                 resultMap[key][docType][permission] = true;
                             }
@@ -200,7 +243,7 @@ export class PermissionSystem extends EventEmitter {
             });
         }
 
-        return resultMap;
+        return resultMap as AccessMap;
     }
 
     /**
