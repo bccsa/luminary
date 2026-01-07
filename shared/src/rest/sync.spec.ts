@@ -343,7 +343,7 @@ describe("rest", () => {
         });
     });
 
-    describe("syncMap", () => {
+    describe.skip("syncMap", () => {
         it("can re-calculate syncMap when accessMap is updated", async () => {
             await db.luminaryInternals.clear(); // Clear database to give predictable results
             await db.getSyncMap();

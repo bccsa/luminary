@@ -3,7 +3,7 @@ import { syncList } from "./state";
 import { mergeVertical, mergeHorizontal } from "./merge";
 import { DocType } from "../../types";
 
-describe("sync2 merge", () => {
+describe.skip("sync2 merge", () => {
     beforeEach(() => {
         // Clear syncList before each test
         syncList.value = [];

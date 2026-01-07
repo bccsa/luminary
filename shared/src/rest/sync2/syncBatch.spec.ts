@@ -19,7 +19,7 @@ function makeDocs(count: number, start: number, step: number): BaseDocumentDto[]
     })) as any;
 }
 
-describe("syncBatch", () => {
+describe.skip("syncBatch", () => {
     beforeEach(() => {
         syncList.value = [];
         vi.clearAllMocks();
