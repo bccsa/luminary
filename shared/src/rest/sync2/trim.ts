@@ -12,6 +12,12 @@ import { getChunkTypeString, splitChunkTypeString } from "./utils";
  */
 export function trim(options: SyncBaseOptions): void {
     const targetChunkType = getChunkTypeString(options.type, options.subType);
+    const initialLength = syncList.value.length;
+
+    console.log(
+        `[trim] Starting trim for ${targetChunkType}, syncList has ${initialLength} entries`,
+    );
+    console.log(`[trim] Options memberOf groups:`, options.memberOf);
 
     // Process entries in reverse to safely remove items during iteration
     for (let i = syncList.value.length - 1; i >= 0; i--) {
@@ -27,6 +33,7 @@ export function trim(options: SyncBaseOptions): void {
 
         // If no groups remain after trimming, remove the entire entry
         if (trimmedGroups.length === 0) {
+            console.log(`[trim] REMOVING entry - no groups match. Entry groups:`, entry.memberOf);
             syncList.value.splice(i, 1);
             continue;
         }
@@ -44,6 +51,10 @@ export function trim(options: SyncBaseOptions): void {
 
             // If no languages remain after trimming, remove the entire entry
             if (trimmedLanguages.length === 0) {
+                console.log(
+                    `[trim] REMOVING entry - no languages match. Entry languages:`,
+                    entry.languages,
+                );
                 syncList.value.splice(i, 1);
                 continue;
             }
@@ -51,5 +62,12 @@ export function trim(options: SyncBaseOptions): void {
             // Update the entry with trimmed languages
             entry.languages = trimmedLanguages.sort();
         }
+    }
+
+    const finalLength = syncList.value.length;
+    if (finalLength !== initialLength) {
+        console.log(
+            `[trim] Finished - syncList changed from ${initialLength} to ${finalLength} entries`,
+        );
     }
 }

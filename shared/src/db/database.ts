@@ -769,6 +769,7 @@ class Database extends Dexie {
      */
     deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
+        console.log("[deleteRevoked] Accessible groups per docType:", groupsPerDocType);
 
         Object.values(DocType)
             .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
@@ -777,16 +778,30 @@ class Database extends Dexie {
                 if (groups === undefined) groups = [];
 
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+                const revokedCount = await revokedDocs.count();
+
+                if (revokedCount > 0) {
+                    console.log(
+                        `[deleteRevoked] Will delete ${revokedCount} ${docType} documents not in groups:`,
+                        groups,
+                    );
+                }
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                    if (revokedlanguageIds.length > 0) {
+                        console.log(
+                            `[deleteRevoked] Deleting content for revoked languages:`,
+                            revokedlanguageIds,
+                        );
+                    }
                     await this.docs.where("language").anyOf(revokedlanguageIds).delete();
                 }
 
                 // Clear the query cache if any documents are to be deleted
-                if ((await revokedDocs.count()) > 0) {
+                if (revokedCount > 0) {
                     await this.queryCache.clear();
                 }
 
@@ -882,6 +897,16 @@ export async function initDatabase() {
     watch(
         accessMap,
         () => {
+            const accessMapKeys = Object.keys(accessMap.value || {});
+            console.log("[deleteRevoked watcher] accessMap has", accessMapKeys.length, "groups");
+
+            // Don't delete anything if accessMap is empty - this prevents deleting all content
+            // when the app first loads before the server sends the real accessMap
+            if (accessMapKeys.length === 0) {
+                console.log("[deleteRevoked watcher] Skipping - accessMap is empty");
+                return;
+            }
+
             db.deleteRevoked();
         },
         { immediate: true },
