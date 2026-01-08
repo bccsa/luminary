@@ -292,7 +292,12 @@ class Database extends Dexie {
      * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
     async bulkPut(docs: BaseDocumentDto[]) {
-        // Delete documents that are marked for deletion
+        // IMPORTANT: Insert documents FIRST, then process delete commands
+        // This ensures that freshly synced content isn't immediately deleted by old deleteCmds
+        const nonDeleteCmds = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
+        const insertResult = await this.docs.bulkPut(nonDeleteCmds);
+
+        // Now process delete commands
         const deleteCmds = docs.filter((doc) => doc.type === DocType.DeleteCmd) as DeleteCmdDto[];
 
         if (deleteCmds.length > 0) {
@@ -319,24 +324,49 @@ class Database extends Dexie {
                 console.log(`[bulkPut] Processing ${newDeleteCmds.length} NEW delete commands`);
             }
 
-            const toDeleteIds = newDeleteCmds
-                .filter((cmd) => {
-                    const shouldDelete = this.validateDeleteCommand(cmd);
-                    if (shouldDelete) {
+            // Validate and collect documents to delete
+            const validatedCmds = newDeleteCmds.filter((cmd) => this.validateDeleteCommand(cmd));
+
+            // Only delete documents that:
+            // 1. Actually exist locally
+            // 2. Haven't been updated MORE RECENTLY than the deleteCmd
+            // This prevents old deleteCmds from deleting freshly synced/updated content
+            const existingDocIds: string[] = [];
+            for (const cmd of validatedCmds) {
+                const existingDoc = await this.docs.get(cmd.docId);
+                if (existingDoc) {
+                    const docTime = existingDoc.updatedTimeUtc || 0;
+                    const cmdTime = cmd.updatedTimeUtc || 0;
+
+                    // Only delete if the deleteCmd is newer than or same age as the document
+                    if (cmdTime >= docTime) {
                         console.log(
-                            `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}, newMemberOf: ${cmd.newMemberOf}`,
+                            `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}`,
+                        );
+                        existingDocIds.push(cmd.docId);
+                    } else {
+                        console.log(
+                            `[bulkPut] SKIPPING delete of ${cmd.docId} - doc is newer (doc: ${docTime}, cmd: ${cmdTime})`,
                         );
                     }
-                    return shouldDelete;
-                })
-                .map((cmd) => cmd.docId);
-
-            if (toDeleteIds.length > 0) {
-                console.log(`[bulkPut] Deleting ${toDeleteIds.length} documents:`, toDeleteIds);
-                await this.docs.bulkDelete(toDeleteIds);
+                }
             }
 
-            // Mark all deleteCmds as processed (even those we didn't execute due to validation)
+            if (existingDocIds.length > 0) {
+                // Deduplicate IDs before deleting without using ES6 spread for Set
+                const uniqueIdsObj: { [key: string]: boolean } = {};
+                const uniqueIds: string[] = [];
+                for (const id of existingDocIds) {
+                    if (!uniqueIdsObj[id]) {
+                        uniqueIdsObj[id] = true;
+                        uniqueIds.push(id);
+                    }
+                }
+                console.log(`[bulkPut] Deleting ${uniqueIds.length} documents`);
+                await this.docs.bulkDelete(uniqueIds);
+            }
+
+            // Mark all deleteCmds as processed (even those we didn't execute)
             try {
                 newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
 
@@ -351,8 +381,7 @@ class Database extends Dexie {
             }
         }
 
-        // Insert all documents except delete commands
-        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
+        return insertResult;
     }
 
     /**
