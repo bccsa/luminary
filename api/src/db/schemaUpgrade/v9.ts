@@ -129,37 +129,6 @@ export default async function (db: DbService) {
                     throw new Error(formatError("Failed to save storage document", error));
                 }
 
-                // Ensure super admins group has storage ACL entry for immediate access
-                try {
-                    const superAdminsGroupResult = await db.getDoc("group-super-admins");
-                    const superAdminsGroup = superAdminsGroupResult?.docs?.[0];
-                    if (superAdminsGroup) {
-                        const hasStorageAcl = superAdminsGroup.acl?.some(
-                            (entry: any) =>
-                                entry.type === DocType.Storage &&
-                                entry.groupId === "group-super-admins",
-                        );
-
-                        if (!hasStorageAcl) {
-                            if (!superAdminsGroup.acl) {
-                                superAdminsGroup.acl = [];
-                            }
-                            superAdminsGroup.acl.push({
-                                type: DocType.Storage,
-                                groupId: "group-super-admins",
-                                permission: ["view", "edit", "delete", "assign"],
-                            });
-                            await db.upsertDoc(superAdminsGroup);
-                            console.info(
-                                "Added storage ACL entry to group-super-admins for immediate access",
-                            );
-                        }
-                    }
-                } catch (error) {
-                    console.warn("Could not update super admins group ACL (non-critical):", error);
-                    // Non-critical - the ACL entry should exist in seeding docs, but continue anyway
-                }
-
                 // Create the bucket in MinIO/S3 only for newly created storage documents
                 try {
                     const s3Service = await S3Service.create(imageStorageId, db);
