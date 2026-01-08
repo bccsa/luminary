@@ -4,9 +4,13 @@ import { Parser } from "m3u8-parser";
  * Extracts and builds an audio master playlist from a given HLS manifest URL.
  *
  * @param {string} originalUrl - The URL of the original HLS manifest file.
+ * @param {Object} selectedTrack - Optional object with label and/or language of the track to mark as default
  * @returns {Promise<string>} - A Promise that resolves to the generated audio master playlist as a string.
  */
-export const extractAndBuildAudioMaster = async (originalUrl: string): Promise<string> => {
+export const extractAndBuildAudioMaster = async (
+    originalUrl: string,
+    selectedTrack?: { label?: string; language?: string } | null,
+): Promise<string> => {
     // Fetch the original HLS manifest
     const response = await fetch(originalUrl);
 
@@ -82,6 +86,26 @@ export const extractAndBuildAudioMaster = async (originalUrl: string): Promise<s
                     track.channels = matchedChannel[1];
                 }
 
+                // Determine if this track should be the default based on selectedTrack parameter
+                let isDefault = track.default;
+                let isAutoSelect = track.autoselect;
+
+                if (selectedTrack) {
+                    const langMatch = track.language === selectedTrack.language;
+                    const labelMatch =
+                        track.label === selectedTrack.label || name === selectedTrack.label;
+
+                    if (langMatch || labelMatch) {
+                        // This is the selected track - mark it as default
+                        isDefault = true;
+                        isAutoSelect = true;
+                    } else {
+                        // Not the selected track - ensure it's not default
+                        isDefault = false;
+                        isAutoSelect = false;
+                    }
+                }
+
                 // Add an EXT-X-MEDIA tag for the audio track to the playlist.
                 const mediaAttributes = [
                     `TYPE=AUDIO`,
@@ -91,8 +115,8 @@ export const extractAndBuildAudioMaster = async (originalUrl: string): Promise<s
                         : null,
                     `NAME="${name}"`,
                     `LANGUAGE="${track.language}"`,
-                    `DEFAULT=${track.default ? "YES" : "NO"}`,
-                    `AUTOSELECT=${track.autoselect ? "YES" : "NO"}`,
+                    `DEFAULT=${isDefault ? "YES" : "NO"}`,
+                    `AUTOSELECT=${isAutoSelect ? "YES" : "NO"}`,
                     `URI="${absoluteTrackUri}"`,
                 ].filter(Boolean); // Remove nulls
 

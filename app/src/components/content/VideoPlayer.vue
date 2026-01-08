@@ -34,6 +34,7 @@ const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
+const isRestoringTrack = ref<boolean>(false);
 
 // YouTube detection
 const isYouTube = ref<boolean>(false);
@@ -251,22 +252,10 @@ onMounted(async () => {
     });
 
     // Ensure audio tracks are ready when metadata is loaded
+    // Skip if we're restoring a track from a mode switch
     player.on("loadeddata", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
-    });
-
-    // Ensure the audio track language is updated when entering fullscreen mode.
-    // This checks if the current language has changed since the last time it was set,
-    // and updates the audio track language accordingly.
-    let lastLanguageSet: string | null = null;
-
-    player.on("fullscreenchange", () => {
-        if (player?.isFullscreen()) {
-            const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
-            if (lastLanguageSet !== currentLanguage) {
-                setAudioTrackLanguage(currentLanguage);
-                lastLanguageSet = currentLanguage;
-            }
+        if (!isRestoringTrack.value) {
+            setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
         }
     });
 
@@ -281,8 +270,10 @@ onMounted(async () => {
                 // Slightly adjust the current time to refresh the buffer
                 player?.currentTime(currentTime + 0.001);
 
-                // Reapply the preferred audio track language
-                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                // Reapply the preferred audio track language only if not restoring
+                if (!isRestoringTrack.value) {
+                    setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                }
             }
         }, 2000);
     });
@@ -437,58 +428,81 @@ watch(audioMode, async (mode) => {
         }
     }
 
-    // Extract and build an audio-only master playlist from the original HLS manifest
-    const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+    // Set flag to prevent automatic language setting from overwriting user's selection
+    // Set it before source change to ensure global loadeddata handler skips
+    if (selectedTrackInfo) {
+        isRestoringTrack.value = true;
+    }
 
-    // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
-    let audioOnlyPlaylistUrl: string;
+    // Generate the audio playlist with the currently selected track as default
+    // This ensures the player loads the correct track immediately without needing to switch
+    let audioPlaylistUrl: string | null = null;
+    if (mode) {
+        const audioMaster = await extractAndBuildAudioMaster(
+            props.content.video!,
+            selectedTrackInfo,
+        );
+        const base64 = btoa(
+            String.fromCharCode(
+                ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
+            ),
+        );
+        audioPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
+    }
 
-    /** We use base64-encode here because Videojs doesn't support HLS via blob
-     * Because it is also videojs expect a direct HTTP(S) URL that the player
-     * or native decoder can request as a standalone resource.
+    /**
+     * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
+     * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
      */
-    // base64-encoded data: URL for audio-only master
-    const base64 = btoa(
-        String.fromCharCode(...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster)))),
-    );
-    // Construct a data URL for the playlist
-    audioOnlyPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
+    const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
 
-    // Set the player source based on the mode status
-    player?.src({
-        type: "application/x-mpegURL",
-        src: mode ? audioOnlyPlaylistUrl : props.content.video,
-    });
-
-    player?.ready(() => {
-        /**
-         * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
-         * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
-         */
-        const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
-        player?.currentTime(adjustedTime);
-
-        player?.play();
-
-        // Wait for tracks to be available
-        player?.on("loadedmetadata", () => {
-            const newTracks = (player as any).audioTracks?.();
-
-            if (!newTracks || !selectedTrackInfo) return;
-
+    // Helper function to restore the selected audio track when switching back to video mode
+    const restoreTrack = () => {
+        if (!selectedTrackInfo) return;
+        const newTracks = (player as any).audioTracks?.();
+        if (newTracks && newTracks.length > 0) {
             for (let i = 0; i < newTracks.length; i++) {
                 const t = newTracks[i];
                 const langMatch = t.language === selectedTrackInfo.language;
                 const labelMatch = t.label === selectedTrackInfo.label;
-
-                if (langMatch || labelMatch) {
-                    t.enabled = true;
-                } else {
-                    t.enabled = false;
-                }
+                t.enabled = langMatch || labelMatch;
             }
-        });
+        }
+    };
+
+    // Set the adjusted time when metadata is loaded
+    player?.one("loadedmetadata", () => {
+        player?.currentTime(adjustedTime);
+        // When switching back to video mode, restore the selected track
+        if (!mode && selectedTrackInfo) {
+            restoreTrack();
+        }
     });
+
+    // Clear the restoration flag once ready
+    player?.one("canplay", () => {
+        // For video mode, try restoring track again if it wasn't ready in loadedmetadata
+        if (!mode && selectedTrackInfo) {
+            restoreTrack();
+        }
+        isRestoringTrack.value = false;
+    });
+
+    // Set the player source - this triggers the listeners above
+    player?.src({
+        type: "application/x-mpegURL",
+        src: mode ? audioPlaylistUrl! : props.content.video,
+    });
+
+    // Immediately call play() to start loading and playing as soon as possible
+    // The player will handle buffering internally
+    const playPromise = player?.play();
+    if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+            // Play was interrupted or failed, which is handled by our event listeners
+            console.debug("Initial play() interrupted:", error.message);
+        });
+    }
 
     if (mode) {
         syncKeepAudioStateAlive();
