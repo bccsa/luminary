@@ -5,6 +5,7 @@ import {
     db,
     DocType,
     type ContentDto,
+    type PostDto,
     accessMap,
     PostType,
     PublishStatus,
@@ -976,6 +977,160 @@ describe("EditContent.vue", () => {
                     _id: mockData.mockEnglishContentDto._id,
                     title: "New Title",
                 });
+            });
+        });
+    });
+
+    describe("Image bucket validation", () => {
+        it("should allow saving when bucket is selected and images exist", async () => {
+            const notificationStore = useNotificationStore();
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change and save
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
+            });
+        });
+
+        it("should allow saving when no bucket is selected and no images exist", async () => {
+            const notificationStore = useNotificationStore();
+
+            // Create a post without images or bucket
+            const postWithoutBucket: PostDto = {
+                ...mockData.mockPostDto,
+                _id: "post-no-bucket",
+                imageBucketId: undefined,
+                imageData: undefined,
+            };
+
+            // Create corresponding content document
+            const contentForPostWithoutBucket: ContentDto = {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post-no-bucket-eng",
+                parentId: postWithoutBucket._id,
+            };
+
+            await db.docs.put(postWithoutBucket);
+            await db.docs.put(contentForPostWithoutBucket);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: postWithoutBucket._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            // Click save
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
+            });
+        });
+
+        it("should allow saving when bucket is selected and upload data exists", async () => {
+            const notificationStore = useNotificationStore();
+
+            // Create a post with bucket and upload data but no file collections
+            const postWithUploadData: PostDto = {
+                ...mockData.mockPostDto,
+                _id: "post-with-uploads",
+                imageBucketId: "bucket-test-123",
+                imageData: {
+                    fileCollections: [],
+                    uploadData: [
+                        {
+                            filename: "new-image.jpg",
+                            preset: "photo",
+                            fileData: new ArrayBuffer(100),
+                        },
+                    ],
+                },
+            };
+
+            // Create corresponding content document
+            const contentForPostWithUploadData: ContentDto = {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post-with-uploads-eng",
+                parentId: postWithUploadData._id,
+            };
+
+            await db.docs.put(postWithUploadData);
+            await db.docs.put(contentForPostWithUploadData);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: postWithUploadData._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for the component to load
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Make a change
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            // Click save
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            // Should save successfully
+            await waitForExpect(async () => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Blog saved",
+                        state: "success",
+                    }),
+                );
             });
         });
     });

@@ -9,8 +9,14 @@ import {
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+
+vi.mock("@/composables/useBucketInfo", () => ({
+    useBucketInfo: () => ({
+        bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {

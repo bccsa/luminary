@@ -32,6 +32,11 @@
             "type": "redirect",
             "groupId": "group-super-admins",
             "permission": ["view", "edit"]
+        },
+        {
+            "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
         }
     ]
 }

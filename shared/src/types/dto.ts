@@ -5,6 +5,7 @@ import type {
     PostType,
     RedirectType,
     DeleteReason,
+    StorageType,
 } from "../types";
 
 export enum AckStatus {
@@ -42,6 +43,7 @@ export type BaseDocumentDto = {
 
 export enum AclPermission {
     View = "view",
+    Create = "create",
     Edit = "edit",
     Delete = "delete",
     Assign = "assign",
@@ -107,12 +109,14 @@ export type ContentDto = ContentBaseDto & {
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
+    parentImageBucketId?: Uuid;
 };
 
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    imageBucketId?: Uuid;
 };
 
 export type PostDto = ContentParentDto & {
@@ -157,6 +161,26 @@ export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;
     filename?: string;
+};
+
+export type S3CredentialDto = {
+    endpoint: string;
+    bucketName: string;
+    accessKey: string;
+    secretKey: string;
+};
+
+export type StorageDto = ContentBaseDto & {
+    name: string;
+    mimeTypes: string[];
+    publicUrl: string;
+    storageType: StorageType;
+    credential?: S3CredentialDto;
+    credential_id?: string;
+};
+
+export type CryptoDto = BaseDocumentDto & {
+    data: any;
 };
 
 export type ChangeReqDto = {

@@ -15,6 +15,9 @@ import {
     RedirectType,
     type AccessMap,
     type UserDto,
+    type StorageDto,
+    type S3CredentialDto,
+    StorageType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -502,6 +505,11 @@ export const mockGroupDtoPrivateContent: GroupDto = {
             groupId: "group-private-editors",
             permission: [AclPermission.View, AclPermission.Assign],
         },
+        {
+            type: DocType.Storage,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
+        },
     ],
 };
 
@@ -548,6 +556,11 @@ export const mockGroupDtoPublicContent: GroupDto = {
         },
         {
             type: DocType.User,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
+        },
+        {
+            type: DocType.Storage,
             groupId: "group-public-editors",
             permission: [AclPermission.View, AclPermission.Edit],
         },
@@ -677,6 +690,17 @@ export const mockGroupDtoPublicEditors: GroupDto = {
                 AclPermission.Publish,
             ],
         },
+        {
+            type: DocType.Storage,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
     ],
 };
 export const mockGroupDtoSuperAdmins: GroupDto = {
@@ -794,6 +818,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
+            delete: true,
+        },
     },
     "group-private-content": {
         post: {
@@ -842,6 +872,12 @@ export const superAdminAccessMap = {
         user: {
             view: true,
             edit: true,
+            delete: true,
+        },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
             delete: true,
         },
     },
@@ -893,6 +929,13 @@ export const superAdminAccessMap = {
             view: true,
             create: true,
             edit: true,
+            delete: true,
+        },
+        storage: {
+            view: true,
+            edit: true,
+            assign: true,
+
             delete: true,
         },
     },
@@ -1316,3 +1359,50 @@ export const translateAccessToAllContentMap = {
         language: { view: true, translate: true },
     },
 } as AccessMap;
+
+export const mockS3Credentials: S3CredentialDto = {
+    endpoint: "http://localhost:9000",
+    bucketName: "test-bucket",
+    accessKey: "testAccessKey123",
+    secretKey: "testSecretKey456",
+};
+
+export const mockStorageDto: StorageDto = {
+    _id: "storage-images",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    name: "Image Storage",
+    storageType: StorageType.Image,
+    publicUrl: "http://localhost:9000/images",
+    credential: mockS3Credentials,
+    mimeTypes: ["image/*"],
+};
+
+export const mockStorageDtoWithEncryptedCredentials: StorageDto = {
+    _id: "storage-media",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    name: "Media Storage",
+    storageType: StorageType.Media,
+    publicUrl: "http://localhost:9000/media",
+    credential_id: "encrypted-cred-123",
+    mimeTypes: ["video/*", "audio/*"],
+};
+
+export const mockStorageDtoGeneral: StorageDto = {
+    _id: "storage-general",
+    type: DocType.Storage,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content", "group-super-admins"],
+    name: "General Storage",
+    storageType: StorageType.Media,
+    publicUrl: "http://localhost:9000/general",
+    credential: mockS3Credentials,
+    mimeTypes: ["image/*", "video/mp4", "application/pdf"],
+};
+
+// Alias for backward compatibility
+export const mockGroup = mockGroupDtoPublicContent;
+export const mockAdminGroup = mockGroupDtoSuperAdmins;

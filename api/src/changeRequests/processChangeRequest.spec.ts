@@ -3,7 +3,6 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { S3Service } from "../s3/s3.service";
 import waitForExpect from "wait-for-expect";
 import processContentDto from "./documentProcessing/processContentDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
@@ -38,7 +37,6 @@ jest.mock("./documentProcessing/processGroupDto", () => ({
 
 describe("processChangeRequest", () => {
     let db: DbService;
-    let s3: S3Service;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -47,7 +45,6 @@ describe("processChangeRequest", () => {
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-change-request");
         db = testingModule.dbService;
-        s3 = testingModule.s3Service;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -57,13 +54,11 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3).catch(
-            (err) => {
-                expect(err.message).toBe(
-                    `Submitted "undefined" document validation failed:\nInvalid document type`,
-                );
-            },
-        );
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db).catch((err) => {
+            expect(err.message).toBe(
+                `Submitted "undefined" document validation failed:\nInvalid document type`,
+            );
+        });
     });
 
     // TODO: Reactivate change diffs in change requests - https://github.com/bccsa/luminary/issues/442
@@ -97,13 +92,12 @@ describe("processChangeRequest", () => {
                 },
             },
         };
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
         const processResult = await processChangeRequest(
             "",
             changeRequest2,
             ["group-super-admins"],
             db,
-            s3,
         );
         await waitForExpect(() => {
             expect(processResult.result.message).toBe(
@@ -129,31 +123,31 @@ describe("processChangeRequest", () => {
                 status: "draft",
             },
         };
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processContentDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a post change request", async () => {
         const changeRequest = changeRequest_post();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a tag change request", async () => {
         const changeRequest = changeRequest_tag();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processLanguageDto when processing a language change request", async () => {
         const changeRequest = changeRequest_language();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processLanguageDto).toHaveBeenCalled();
     });
 
     it("calls processGroupDto when processing a group change request", async () => {
         const changeRequest = changeRequest_group();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processGroupDto).toHaveBeenCalled();
     });
 });

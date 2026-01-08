@@ -20,6 +20,8 @@ export enum DocType {
     Group = "group",
     Change = "change",
     DeleteCmd = "deleteCmd",
+    Storage = "storage",
+    Crypto = "crypto",
 }
 
 /**
@@ -30,6 +32,11 @@ export enum AclPermission {
      * Access to view documents
      */
     View = "view",
+
+    /**
+     * Access to create new documents
+     */
+    Create = "create",
 
     /**
      * Access to edit documents
@@ -105,4 +112,12 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+}
+
+/**
+ * Storage Type used in Storage documents
+ */
+export enum StorageType {
+    Image = "image",
+    Media = "media",
 }

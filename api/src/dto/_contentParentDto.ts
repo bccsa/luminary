@@ -22,4 +22,9 @@ export class _contentParentDto extends _contentBaseDto {
     @IsBoolean()
     @Expose()
     publishDateVisible: boolean;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    imageBucketId?: string; // S3 bucket ID for image storage
 }

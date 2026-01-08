@@ -177,6 +177,19 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
+
+            // Sync storages
+            if (access[DocType.Storage] && access[DocType.Storage].length) {
+                sync({
+                    type: DocType.Storage,
+                    memberOf: access[DocType.Storage],
+                    limit: 1000,
+                    cms: true,
+                }).catch((err) => {
+                    console.error("Error during storage sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
         },
     );
 }

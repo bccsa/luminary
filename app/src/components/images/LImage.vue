@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch, toRef } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import LImageProvider from "./LImageProvider.vue";
+import { useBucketInfo } from "@/composables/useBucketInfo";
 
 type Props = {
     image?: ImageDto;
     contentParentId: Uuid;
+    parentImageBucketId?: Uuid;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
@@ -17,6 +19,10 @@ const props = withDefaults(defineProps<Props>(), {
     rounded: true,
     isModal: false,
 });
+
+// Get bucket information for constructing image URLs
+const bucketIdRef = toRef(props, "parentImageBucketId");
+const { bucketBaseUrl } = useBucketInfo(bucketIdRef);
 
 const aspectRatiosCSS = {
     original: "aspect-auto",
@@ -71,6 +77,7 @@ onMounted(() => {
                 :rounded="props.rounded"
                 :size="props.size"
                 :is-modal="props.isModal"
+                :bucketPublicUrl="bucketBaseUrl"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
@@ -86,6 +93,7 @@ onMounted(() => {
             :rounded="props.rounded"
             :size="props.size"
             :is-modal="props.isModal"
+            :bucketPublicUrl="bucketBaseUrl"
         />
 
         <slot></slot>

@@ -7,6 +7,13 @@ import { mockEnglishContentDto } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress } from "@/globalConfig";
+import { computed } from "vue";
+
+vi.mock("@/composables/useBucketInfo", () => ({
+    useBucketInfo: () => ({
+        bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
 
 const routePushMock = vi.fn();
 

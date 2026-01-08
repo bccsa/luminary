@@ -329,6 +329,13 @@ const saveChanges = async () => {
         });
         return;
     }
+
+    /**
+     * Create a redirect if neccessary
+     * This is done if the content document is currently published,
+     * was already published, the slug has changed
+     * and the user has edit access to redirect documents.
+     */
     await createRedirect();
     await save();
     addNotification({

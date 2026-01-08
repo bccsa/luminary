@@ -49,6 +49,7 @@ async function Startup() {
                 skipWaitForLanguageSync: true,
             },
             { type: DocType.Redirect, contentOnly: false, syncPriority: 3 },
+            { type: DocType.Storage, contentOnly: false, syncPriority: 3 },
         ],
     }).catch((err) => {
         console.error(err);

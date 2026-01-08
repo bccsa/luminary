@@ -44,7 +44,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel :for="id" class="block text-sm font-medium leading-6 text-zinc-900">
+        <FormLabel :for="id" class="mb-1.5 block text-sm font-medium leading-6 text-zinc-900">
             {{ label }}
         </FormLabel>
         <div class="relative">

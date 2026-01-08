@@ -29,11 +29,6 @@
             "permission": ["view", "edit", "delete", "assign", "translate"]
         },
         {
-            "type": "image",
-            "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
-        },
-        {
             "type": "redirect",
             "groupId": "group-super-admins",
             "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
@@ -42,6 +37,11 @@
             "type": "user",
             "groupId": "group-super-admins",
             "permission": ["view", "edit", "delete"]
+        },
+        {
+            "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
         }
     ]
 }

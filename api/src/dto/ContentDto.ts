@@ -148,4 +148,9 @@ export class ContentDto extends _contentBaseDto {
     @IsArray()
     @Expose()
     availableTranslations?: Uuid[];
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    parentImageBucketId?: string; // Inherited from parent Post/Tag for image storage
 }

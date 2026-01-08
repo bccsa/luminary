@@ -5,6 +5,14 @@ import { beforeAll } from "vitest";
 
 config.global.stubs["RouterLink"] = RouterLinkStub;
 
+// Mock URL.createObjectURL and revokeObjectURL for browser APIs in tests
+global.URL.createObjectURL = () => {
+    return `blob:mock-url-${Math.random().toString(36).substring(2, 9)}`;
+};
+global.URL.revokeObjectURL = () => {
+    // No-op for tests
+};
+
 beforeAll(async () => {
     initConfig({
         cms: true,

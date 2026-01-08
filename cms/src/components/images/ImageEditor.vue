@@ -1,21 +1,101 @@
 <script setup lang="ts">
-import { ref, computed, toRaw } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import { ref, computed, toRaw, watchEffect } from "vue";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
+import LSelect from "../forms/LSelect.vue";
 import {
     type ImageUploadDto,
     type ImageFileCollectionDto,
     maxUploadFileSize,
     type ContentParentDto,
 } from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     disabled: boolean;
+    /** The bucket ID where existing images are currently stored (before any migration) */
+    existingImagesBucketId?: string;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+    bucketSelected: [bucketId: string];
+}>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// Bucket selection (simplified approach using existing database data)
+const bucketSelection = storageSelection();
+
+// Get separate URLs for existing vs new content
+// This ensures existing images continue to display from their original bucket
+// even when the user changes bucket selection, preventing fallback images
+const existingImagesBucketUrl = computed(() => {
+    if (props.existingImagesBucketId) {
+        const bucket = bucketSelection.getBucketById(props.existingImagesBucketId);
+        return bucket ? bucket.publicUrl : bucketBaseUrl.value;
+    }
+    return bucketBaseUrl.value;
+});
+
+const newUploadsBucketUrl = computed(() => {
+    return bucketBaseUrl.value;
+});
+const bucketBaseUrl = computed(() => {
+    // If parent or imageBucketId is not set, pass null to getBucketById (it accepts string | null)
+    const bucketId = parent.value?.imageBucketId ?? null;
+    const bucket = bucketSelection.getBucketById(bucketId);
+    return bucket ? bucket.publicUrl : undefined;
+});
+
+// Get accepted file types based on selected bucket
+const acceptedmimeTypes = computed(() => {
+    if (!parent.value?.imageBucketId) {
+        return "image/*"; // default to all images
+    }
+
+    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
+        return "image/*"; // accept all images if no restrictions
+    }
+
+    // Convert mimeTypes array to accept attribute format
+    return bucket.mimeTypes.join(", ");
+});
+
+// Get file type description for user
+const fileTypeDescription = computed(() => {
+    if (!parent.value?.imageBucketId) {
+        return "";
+    }
+
+    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
+        return "All image types";
+    }
+
+    // Format for display
+    return `Accepts: ${bucket.mimeTypes.join(", ")}`;
+});
+
+// Bucket dropdown options
+const bucketOptions = computed(() => {
+    return bucketSelection.imageBuckets.value.map((bucket) => ({
+        id: bucket._id,
+        label: capitaliseFirstLetter(bucket.name),
+        value: bucket._id,
+    }));
+});
+
+// Handle bucket selection change
+const handleBucketChange = (bucketId: string) => {
+    if (parent.value) {
+        parent.value.imageBucketId = bucketId;
+        emit("bucketSelected", bucketId);
+    }
+};
 
 // HTML element refs
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
@@ -24,10 +104,99 @@ const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
 
+// Validate that selected bucket still exists and auto-select if only one available
+watchEffect(() => {
+    // Check if the currently selected bucket still exists in the database
+    if (parent.value?.imageBucketId) {
+        // Only validate if buckets have loaded (array is not empty)
+        // This prevents clearing imageBucketId while buckets are still loading from IndexedDB
+        if (bucketSelection.imageBuckets.value.length > 0) {
+            const currentBucketExists = bucketSelection.imageBuckets.value.some(
+                (b) => b._id === parent.value?.imageBucketId,
+            );
+
+            // If the bucket no longer exists, clear it
+            if (!currentBucketExists) {
+                parent.value.imageBucketId = undefined;
+            }
+        }
+    }
+
+    // Auto-select if only one bucket available and none is selected
+    if (bucketSelection.autoSelectImageBucket.value && !parent.value?.imageBucketId) {
+        parent.value!.imageBucketId = bucketSelection.autoSelectImageBucket.value;
+        emit("bucketSelected", bucketSelection.autoSelectImageBucket.value);
+    }
+
+    // Proactively show error messages for bucket configuration issues
+    // This ensures users see the error immediately, not just when they try to upload
+    if (!bucketSelection.hasImageBuckets.value) {
+        // No buckets configured at all
+        failureMessage.value =
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        showFailureMessage.value = true;
+    } else if (!parent.value?.imageBucketId && bucketSelection.imageBuckets.value.length > 1) {
+        // Multiple buckets available but none selected
+        failureMessage.value = "Please select a storage bucket before uploading images.";
+        showFailureMessage.value = true;
+    } else if (parent.value?.imageBucketId) {
+        // Bucket is selected, clear any bucket-related errors
+        // Only clear if the current error is about bucket selection/configuration
+        const bucketRelatedErrors = [
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
+            "Please select a storage bucket before uploading images.",
+            "The selected storage bucket no longer exists. Please select another bucket.",
+        ];
+        if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
+            failureMessage.value = undefined;
+            showFailureMessage.value = false;
+        }
+    }
+});
+
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
+    const fileArray = Array.from(files);
+
+    // Check if a bucket is selected
+    if (!parent.value?.imageBucketId) {
+        failureMessage.value = "Please select a storage bucket before uploading images.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Check if the currently selected bucket still exists in the database
+    const currentBucketExists = bucketSelection.imageBuckets.value.some(
+        (b) => b._id === parent.value?.imageBucketId,
+    );
+
+    if (!currentBucketExists) {
+        parent.value.imageBucketId = undefined;
+        failureMessage.value =
+            "The selected storage bucket no longer exists. Please select another bucket.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Check if buckets are configured
+    if (!bucketSelection.hasImageBuckets.value) {
+        failureMessage.value =
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Process files with the selected bucket
+    processFiles(fileArray);
+
+    // Reset the file input
+    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
+    uploadInput.value!.value = "";
+};
+
+const processFiles = (files: File[]) => {
+    files.forEach((file) => {
         const reader = new FileReader();
 
         reader.onload = (e) => {
@@ -35,6 +204,7 @@ const handleFiles = (files: FileList | null) => {
 
             if (fileData.byteLength > maxUploadFileSize.value) {
                 failureMessage.value = `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+                showFailureMessage.value = true;
                 return;
             }
 
@@ -44,19 +214,17 @@ const handleFiles = (files: FileList | null) => {
 
             failureMessage.value = "";
 
-            parent.value.imageData.uploadData.push({
+            const uploadData: ImageUploadDto = {
                 filename: file.name,
                 preset: "photo",
                 fileData,
-            });
+            } as ImageUploadDto;
+
+            parent.value.imageData.uploadData.push(uploadData);
         };
 
         reader.readAsArrayBuffer(file);
     });
-
-    // Reset the file input
-    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
-    uploadInput.value!.value = "";
 };
 
 const upload = () => {
@@ -67,7 +235,6 @@ const upload = () => {
 
 const removeFileCollection = (collection: ImageFileCollectionDto) => {
     if (!parent.value?.imageData?.fileCollections) return;
-
     parent.value.imageData.fileCollections = parent.value.imageData.fileCollections
         .filter((f) => f !== collection)
         .map((f) => toRaw(f));
@@ -117,9 +284,28 @@ defineExpose({
 
 <template>
     <div class="flex flex-col overflow-x-auto">
+        <!-- Bucket Selection Dropdown (always show if multiple buckets, or show if none selected) -->
+        <div v-if="bucketSelection.imageBuckets.value.length > 1" class="mb-2 px-0.5 pt-1">
+            <LSelect
+                v-model="parent!.imageBucketId"
+                :options="bucketOptions"
+                label="Bucket"
+                placeholder="Select storage bucket"
+                :disabled="disabled"
+                @update:modelValue="handleBucketChange"
+                class="text-sm"
+            />
+            <p
+                v-if="fileTypeDescription && parent?.imageBucketId"
+                class="mt-1 text-xs text-gray-500"
+            >
+                {{ fileTypeDescription }}
+            </p>
+        </div>
+
         <!-- Header with error message toggle -->
-        <div :disabled="disabled" class="flex justify-between px-4">
-            <div class="flex">
+        <div :disabled="disabled" class="flex justify-between">
+            <div class="flex gap-1">
                 <button
                     v-if="failureMessage"
                     class="flex cursor-pointer items-center gap-1 rounded-md"
@@ -128,14 +314,14 @@ defineExpose({
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
                 </button>
-            </div>
-        </div>
 
-        <!-- Error Message -->
-        <div v-if="showFailureMessage" class="px-4">
-            <p class="my-2 text-xs text-red-600">
-                {{ failureMessage }}
-            </p>
+                <!-- Error Message -->
+                <div v-if="showFailureMessage" class="">
+                    <p class="my-2 text-xs text-red-600">
+                        {{ failureMessage }}
+                    </p>
+                </div>
+            </div>
         </div>
 
         <!-- Full-width Drag and Drop Area -->
@@ -157,7 +343,7 @@ defineExpose({
                         ref="uploadInput"
                         type="file"
                         class="mb-4 hidden"
-                        accept="image/jpeg, image/png, image/webp"
+                        :accept="acceptedmimeTypes"
                         @change="upload"
                         data-test="image-upload"
                         multiple
@@ -180,7 +366,7 @@ defineExpose({
                         (parent.imageData.fileCollections.length > 0 ||
                             (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
                     "
-                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide sm:ml-0"
                     data-test="thumbnail-area"
                 >
                     <!-- File Collections -->
@@ -191,6 +377,7 @@ defineExpose({
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"
+                            :bucketHttpPath="existingImagesBucketUrl"
                             @deleteFileCollection="removeFileCollection"
                             :disabled="!disabled"
                         />
@@ -204,6 +391,7 @@ defineExpose({
                     >
                         <ImageEditorThumbnail
                             :imageUploadData="u"
+                            :bucketHttpPath="newUploadsBucketUrl"
                             @deleteUploadData="removeFileUploadData"
                             :disabled="!disabled"
                         />

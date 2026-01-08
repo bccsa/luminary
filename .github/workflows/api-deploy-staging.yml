@@ -39,15 +39,17 @@ jobs:
           echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
           echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
           echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
+          echo "ENCRYPTION_KEY='$( echo '${{ secrets.ENCRYPTION_KEY }}' )'" >> .env
           echo "S3_ENDPOINT='$( echo '${{ secrets.S3_ENDPOINT }}' )'" >> .env
           echo "S3_PORT='$( echo '${{ secrets.S3_PORT }}' )'" >> .env
-          echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
           echo "S3_ACCESS_KEY='$( echo '${{ secrets.S3_ACCESS_KEY }}' )'" >> .env
           echo "S3_SECRET_KEY='$( echo '${{ secrets.S3_SECRET_KEY }}' )'" >> .env
           echo "S3_IMG_BUCKET='$( echo '${{ secrets.S3_IMG_BUCKET }}' )'" >> .env
+          echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
+          echo "S3_PUBLIC_ACCESS_URL='$( echo '${{ vars.S3_PUBLIC_ACCESS_URL }}' )'" >> .env
           echo "CORS_ORIGIN='$( echo '${{ vars.CORS_ORIGIN }}' )'" >> .env
           echo "JWT_MAPPINGS='$( echo '${{ vars.JWT_MAPPINGS }}' )'" >> .env
-          echo "MAX_HTTP_BUFFER_SIZE='$( echo '${{ vars.MAX_HTTP_BUFFER_SIZE }}' )'" >> .env
+          echo "MAX_BUFFER_SIZE='$( echo '${{ vars.MAX_BUFFER_SIZE }}' )'" >> .env
 
         working-directory: api
 
