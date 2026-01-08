@@ -277,29 +277,52 @@ class Database extends Dexie {
     /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
-    bulkPut(docs: BaseDocumentDto[]) {
+    async bulkPut(docs: BaseDocumentDto[]) {
         // Delete documents that are marked for deletion
         const deleteCmds = docs.filter((doc) => doc.type === DocType.DeleteCmd) as DeleteCmdDto[];
 
         if (deleteCmds.length > 0) {
-            console.log(`[bulkPut] Processing ${deleteCmds.length} delete commands`);
-        }
+            // Get already processed deleteCmd IDs from storage
+            const processedKey = "luminary-processed-deleteCmds";
+            const processedStr = localStorage.getItem(processedKey) || "[]";
+            const processedIds = new Set<string>(JSON.parse(processedStr));
 
-        const toDeleteIds = deleteCmds
-            .filter((cmd) => {
-                const shouldDelete = this.validateDeleteCommand(cmd);
-                if (shouldDelete) {
-                    console.log(
-                        `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}, newMemberOf: ${cmd.newMemberOf}`,
-                    );
-                }
-                return shouldDelete;
-            })
-            .map((cmd) => cmd.docId);
+            // Filter to only new deleteCmds we haven't processed before
+            const newDeleteCmds = deleteCmds.filter((cmd) => !processedIds.has(cmd._id));
 
-        if (toDeleteIds.length > 0) {
-            console.log(`[bulkPut] Deleting ${toDeleteIds.length} documents:`, toDeleteIds);
-            this.docs.bulkDelete(toDeleteIds);
+            if (newDeleteCmds.length < deleteCmds.length) {
+                console.log(
+                    `[bulkPut] Skipping ${deleteCmds.length - newDeleteCmds.length} already processed delete commands`,
+                );
+            }
+
+            if (newDeleteCmds.length > 0) {
+                console.log(`[bulkPut] Processing ${newDeleteCmds.length} NEW delete commands`);
+            }
+
+            const toDeleteIds = newDeleteCmds
+                .filter((cmd) => {
+                    const shouldDelete = this.validateDeleteCommand(cmd);
+                    if (shouldDelete) {
+                        console.log(
+                            `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}, newMemberOf: ${cmd.newMemberOf}`,
+                        );
+                    }
+                    return shouldDelete;
+                })
+                .map((cmd) => cmd.docId);
+
+            if (toDeleteIds.length > 0) {
+                console.log(`[bulkPut] Deleting ${toDeleteIds.length} documents:`, toDeleteIds);
+                await this.docs.bulkDelete(toDeleteIds);
+            }
+
+            // Mark all deleteCmds as processed (even those we didn't execute due to validation)
+            newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
+
+            // Persist processed IDs (limit to last 10000 to prevent unlimited growth)
+            const processedArray = Array.from(processedIds).slice(-10000);
+            localStorage.setItem(processedKey, JSON.stringify(processedArray));
         }
 
         // Insert all documents except delete commands
