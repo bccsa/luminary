@@ -279,15 +279,26 @@ class Database extends Dexie {
      */
     bulkPut(docs: BaseDocumentDto[]) {
         // Delete documents that are marked for deletion
-        const toDeleteIds = docs
-            .filter((doc) => {
-                if (doc.type !== DocType.DeleteCmd) return false;
+        const deleteCmds = docs.filter((doc) => doc.type === DocType.DeleteCmd) as DeleteCmdDto[];
 
-                return this.validateDeleteCommand(doc as DeleteCmdDto);
+        if (deleteCmds.length > 0) {
+            console.log(`[bulkPut] Processing ${deleteCmds.length} delete commands`);
+        }
+
+        const toDeleteIds = deleteCmds
+            .filter((cmd) => {
+                const shouldDelete = this.validateDeleteCommand(cmd);
+                if (shouldDelete) {
+                    console.log(
+                        `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}, newMemberOf: ${cmd.newMemberOf}`,
+                    );
+                }
+                return shouldDelete;
             })
-            .map((doc) => (doc as DeleteCmdDto).docId);
+            .map((cmd) => cmd.docId);
 
         if (toDeleteIds.length > 0) {
+            console.log(`[bulkPut] Deleting ${toDeleteIds.length} documents:`, toDeleteIds);
             this.docs.bulkDelete(toDeleteIds);
         }
 
