@@ -705,19 +705,18 @@ describe("sync module", () => {
             // 3. For new group2 main sync (firstSync=true, no DeleteCmd syncBatch, chunk pushed instead)
             expect(syncBatch).toHaveBeenCalledTimes(3);
 
-            // Verify a DeleteCmd chunk was pushed to syncList for the new sync column (group2)
-            // Note: group1 may also have a chunk if there were no existing deleteCmd entries
-            const deleteCmdChunkForGroup2 = syncList.value.find(
+            // Verify a DeleteCmd chunk was pushed to syncList for the new sync column
+            const deleteCmdChunk = syncList.value.find(
                 (chunk) =>
                     chunk.chunkType === "deleteCmd:post" &&
                     chunk.memberOf.length === 1 &&
                     chunk.memberOf[0] === "group2",
             );
-            expect(deleteCmdChunkForGroup2).toBeDefined();
-            expect(deleteCmdChunkForGroup2?.memberOf).toEqual(["group2"]);
-            expect(deleteCmdChunkForGroup2?.blockStart).toBe(5000);
-            expect(deleteCmdChunkForGroup2?.blockEnd).toBe(3000);
-            expect(deleteCmdChunkForGroup2?.eof).toBe(true);
+            expect(deleteCmdChunk).toBeDefined();
+            expect(deleteCmdChunk?.memberOf).toEqual(["group2"]);
+            expect(deleteCmdChunk?.blockStart).toBe(5000);
+            expect(deleteCmdChunk?.blockEnd).toBe(3000);
+            expect(deleteCmdChunk?.eof).toBe(true);
         });
 
         it("should push DeleteCmd chunk to syncList for new language sync columns", async () => {
