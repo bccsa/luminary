@@ -51,7 +51,8 @@ const props = withDefaults(defineProps<Props>(), {
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
-const inputElement = ref<HTMLElement>();
+// Reference to the combobox input element
+const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
@@ -167,7 +168,7 @@ onUnmounted(() => {
                 class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
-                @click="showDropdown = !showDropdown"
+                @click="toggleDropdown()"
             >
                 <div class="flex items-center justify-center gap-2">
                     <div v-if="icon" class="flex items-center">
@@ -181,7 +182,6 @@ onUnmounted(() => {
                         />
                     </div>
                     <input
-                        @click.stop="toggleDropdown"
                         v-model="query"
                         ref="inputElement"
                         class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
