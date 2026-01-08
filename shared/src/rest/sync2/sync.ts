@@ -139,8 +139,31 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     if (options.includeDeleteCmds && syncResult) {
         const subType = options.type === DocType.Content ? options.subType : options.type;
-        // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
+        const deleteCmdChunkType = getChunkTypeString(DocType.DeleteCmd, subType);
+
+        // Check if there are existing deleteCmd entries for this memberOf combination
+        const hasExistingDeleteCmdEntries = syncList.value.some(
+            (entry) =>
+                entry.chunkType === deleteCmdChunkType &&
+                entry.memberOf.length === options.memberOf.length &&
+                entry.memberOf.every((g) => options.memberOf.includes(g)),
+        );
+
         if (!syncResult.firstSync) {
+            // For subsequent syncs, we need to fetch deleteCmds to catch any deletions since last sync.
+            // If there are no existing deleteCmd entries, push a marker entry first so calcChunk
+            // doesn't sync from the beginning of time.
+            if (!hasExistingDeleteCmdEntries) {
+                syncList.value.push({
+                    chunkType: deleteCmdChunkType,
+                    memberOf: options.memberOf,
+                    languages: options.languages,
+                    blockStart: syncResult.blockStart,
+                    blockEnd: syncResult.blockEnd,
+                    eof: syncResult.eof,
+                });
+            }
+
             await syncBatch({
                 ...options,
                 type: DocType.DeleteCmd,
@@ -148,14 +171,11 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
                 initialSync: true,
                 httpService: _httpService,
             });
-        }
-        // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
-        // This will prevent fetching all deleteCmds from scratch, as the API already would filter out deleted documents when
-        // doing an initial sync.
-        else {
-            // Push chunk to chunk list
+        } else {
+            // For first syncs, the content sync already excludes deleted docs.
+            // Just push an entry to track progress for future syncs.
             syncList.value.push({
-                chunkType: getChunkTypeString(DocType.DeleteCmd, subType),
+                chunkType: deleteCmdChunkType,
                 memberOf: options.memberOf,
                 languages: options.languages,
                 blockStart: syncResult.blockStart,

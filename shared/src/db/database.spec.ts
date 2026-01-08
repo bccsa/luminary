@@ -24,7 +24,7 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db, getDbVersion, initDatabase, clearProcessedDeleteCmds } from "../db/database";
+import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
@@ -43,9 +43,6 @@ describe("Database", async () => {
     });
 
     beforeEach(async () => {
-        // Clear processed delete commands tracking for test isolation
-        clearProcessedDeleteCmds();
-
         // seed the fake indexDB with mock datas
         await db.docs.bulkPut([mockPostDto]);
         await db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);

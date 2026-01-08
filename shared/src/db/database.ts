@@ -274,109 +274,25 @@ class Database extends Dexie {
         );
     }
 
-    // Storage key for tracking processed delete commands
-    private static readonly PROCESSED_DELETE_CMDS_KEY = "luminary-processed-deleteCmds";
-
-    /**
-     * Clear the list of processed delete commands (useful for testing)
-     */
-    static clearProcessedDeleteCmds() {
-        try {
-            localStorage.removeItem(Database.PROCESSED_DELETE_CMDS_KEY);
-        } catch {
-            // localStorage might not be available in some environments
-        }
-    }
-
     /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
-    async bulkPut(docs: BaseDocumentDto[]) {
-        // IMPORTANT: Insert documents FIRST, then process delete commands
-        // This ensures that freshly synced content isn't immediately deleted by old deleteCmds
-        const nonDeleteCmds = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
-        const insertResult = await this.docs.bulkPut(nonDeleteCmds);
+    bulkPut(docs: BaseDocumentDto[]) {
+        // Delete documents that are marked for deletion
+        const toDeleteIds = docs
+            .filter((doc) => {
+                if (doc.type !== DocType.DeleteCmd) return false;
 
-        // Now process delete commands
-        const deleteCmds = docs.filter((doc) => doc.type === DocType.DeleteCmd) as DeleteCmdDto[];
+                return this.validateDeleteCommand(doc as DeleteCmdDto);
+            })
+            .map((doc) => (doc as DeleteCmdDto).docId);
 
-        if (deleteCmds.length > 0) {
-            // Get already processed deleteCmd IDs from storage
-            let processedIds = new Set<string>();
-            try {
-                const processedStr =
-                    localStorage.getItem(Database.PROCESSED_DELETE_CMDS_KEY) || "[]";
-                processedIds = new Set<string>(JSON.parse(processedStr));
-            } catch {
-                // localStorage might not be available in some environments
-            }
-
-            // Filter to only new deleteCmds we haven't processed before
-            const newDeleteCmds = deleteCmds.filter((cmd) => !processedIds.has(cmd._id));
-
-            if (newDeleteCmds.length < deleteCmds.length) {
-                console.log(
-                    `[bulkPut] Skipping ${deleteCmds.length - newDeleteCmds.length} already processed delete commands`,
-                );
-            }
-
-            if (newDeleteCmds.length > 0) {
-                console.log(`[bulkPut] Processing ${newDeleteCmds.length} NEW delete commands`);
-            }
-
-            // Validate and collect documents to delete
-            const validatedCmds = newDeleteCmds.filter((cmd) => this.validateDeleteCommand(cmd));
-
-            // Only delete documents that:
-            // 1. Actually exist locally
-            // 2. Haven't been updated MORE RECENTLY than the deleteCmd (if both have timestamps)
-            // This prevents old deleteCmds from deleting freshly synced/updated content
-            const existingDocIds: string[] = [];
-            for (const cmd of validatedCmds) {
-                const existingDoc = await this.docs.get(cmd.docId);
-                if (existingDoc) {
-                    const docTime = existingDoc.updatedTimeUtc;
-                    const cmdTime = cmd.updatedTimeUtc;
-
-                    // Only skip if BOTH have timestamps AND the doc is strictly newer
-                    // If either is missing a timestamp, proceed with deletion
-                    if (docTime && cmdTime && docTime > cmdTime) {
-                        console.log(
-                            `[bulkPut] SKIPPING delete of ${cmd.docId} - doc is newer (doc: ${docTime}, cmd: ${cmdTime})`,
-                        );
-                    } else {
-                        console.log(
-                            `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}`,
-                        );
-                        existingDocIds.push(cmd.docId);
-                    }
-                }
-            }
-
-            if (existingDocIds.length > 0) {
-                // Deduplicate IDs before deleting
-                const uniqueIds = Array.from(new Set(existingDocIds));
-                console.log(`[bulkPut] Deleting ${uniqueIds.length} documents`);
-                await this.docs.bulkDelete(uniqueIds);
-            }
-
-            // Mark all deleteCmds as processed (even those we didn't execute)
-            try {
-                newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
-
-                // Persist processed IDs (limit to last 10000 to prevent unlimited growth)
-                // Fix: Don't use spread on Set (ES5 compatibility), use Array.from for safe conversion
-                const processedArray = Array.from(processedIds).slice(-10000);
-                localStorage.setItem(
-                    Database.PROCESSED_DELETE_CMDS_KEY,
-                    JSON.stringify(processedArray),
-                );
-            } catch {
-                // localStorage might not be available in some environments
-            }
+        if (toDeleteIds.length > 0) {
+            this.docs.bulkDelete(toDeleteIds);
         }
 
-        return insertResult;
+        // Insert all documents except delete commands
+        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
     }
 
     /**
@@ -853,7 +769,6 @@ class Database extends Dexie {
      */
     deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
-        console.log("[deleteRevoked] Accessible groups per docType:", groupsPerDocType);
 
         Object.values(DocType)
             .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
@@ -862,30 +777,16 @@ class Database extends Dexie {
                 if (groups === undefined) groups = [];
 
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
-                const revokedCount = await revokedDocs.count();
-
-                if (revokedCount > 0) {
-                    console.log(
-                        `[deleteRevoked] Will delete ${revokedCount} ${docType} documents not in groups:`,
-                        groups,
-                    );
-                }
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                    if (revokedlanguageIds.length > 0) {
-                        console.log(
-                            `[deleteRevoked] Deleting content for revoked languages:`,
-                            revokedlanguageIds,
-                        );
-                    }
                     await this.docs.where("language").anyOf(revokedlanguageIds).delete();
                 }
 
                 // Clear the query cache if any documents are to be deleted
-                if (revokedCount > 0) {
+                if ((await revokedDocs.count()) > 0) {
                     await this.queryCache.clear();
                 }
 
@@ -948,14 +849,6 @@ class Database extends Dexie {
 
 export let db: Database;
 
-/**
- * Clear the list of processed delete commands.
- * This is primarily used in tests to ensure test isolation.
- */
-export function clearProcessedDeleteCmds() {
-    Database.clearProcessedDeleteCmds();
-}
-
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
@@ -986,52 +879,10 @@ export async function initDatabase() {
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
-    // Use debouncing to wait for the accessMap to stabilize before deleting
-    // This prevents deleting content when we briefly see public-only access during auth refresh
-    let deleteRevokedTimeout: ReturnType<typeof setTimeout> | null = null;
-    const DEBOUNCE_MS = 3000; // Wait 3 seconds for accessMap to stabilize
-
     watch(
         accessMap,
         () => {
-            const accessMapKeys = Object.keys(accessMap.value || {});
-            const currentGroupCount = accessMapKeys.length;
-            console.log("=== [deleteRevoked watcher] accessMap changed ===");
-            console.log("[deleteRevoked watcher] Current group count:", currentGroupCount);
-            console.log("[deleteRevoked watcher] Has pending timeout:", !!deleteRevokedTimeout);
-
-            // Don't delete anything if accessMap is empty
-            if (currentGroupCount === 0) {
-                console.log("[deleteRevoked watcher] SKIP - accessMap is empty");
-                if (deleteRevokedTimeout) {
-                    clearTimeout(deleteRevokedTimeout);
-                    deleteRevokedTimeout = null;
-                }
-                return;
-            }
-
-            // Clear any pending deleteRevoked call - we got a new accessMap
-            if (deleteRevokedTimeout) {
-                console.log(
-                    "[deleteRevoked watcher] CANCELLED pending deleteRevoked - accessMap changed again",
-                );
-                clearTimeout(deleteRevokedTimeout);
-            }
-
-            // Debounce: wait for accessMap to stabilize before deleting
-            // This gives time for the JWT auth to complete on page refresh
-            console.log("[deleteRevoked watcher] SCHEDULING deleteRevoked in", DEBOUNCE_MS, "ms");
-            deleteRevokedTimeout = setTimeout(() => {
-                const finalGroupCount = Object.keys(accessMap.value || {}).length;
-                console.log("=== [deleteRevoked watcher] TIMEOUT FIRED ===");
-                console.log(
-                    "[deleteRevoked watcher] Running deleteRevoked with",
-                    finalGroupCount,
-                    "groups",
-                );
-                db.deleteRevoked();
-                deleteRevokedTimeout = null;
-            }, DEBOUNCE_MS);
+            db.deleteRevoked();
         },
         { immediate: true },
     );
