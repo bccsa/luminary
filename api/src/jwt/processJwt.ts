@@ -90,28 +90,40 @@ export async function processJwt(
         logger?.error(`Unable to verify JWT`, err);
     }
 
-    // Get JWT mapped groups and user details
-    try {
-        if (jwtMap["groups"]) {
-            Object.keys(jwtMap["groups"]).forEach((groupId) => {
+    // Get JWT mapped groups - wrap each mapping in try-catch so one failure doesn't break all
+    if (jwtMap["groups"]) {
+        Object.keys(jwtMap["groups"]).forEach((groupId) => {
+            try {
                 if (jwtMap["groups"][groupId](jwtPayload)) groupSet.add(groupId);
-            });
-        }
+            } catch (err) {
+                logger?.warn(`JWT mapping failed for group ${groupId}:`, err);
+            }
+        });
+    }
 
+    // Extract user details with individual error handling
+    try {
         if (jwtMap["userId"]) {
             userId = jwtMap["userId"](jwtPayload);
         }
+    } catch (err) {
+        logger?.warn(`JWT mapping failed for userId:`, err);
+    }
 
+    try {
         if (jwtMap["email"]) {
             email = jwtMap["email"](jwtPayload);
         }
+    } catch (err) {
+        logger?.warn(`JWT mapping failed for email:`, err);
+    }
 
+    try {
         if (jwtMap["name"]) {
             name = jwtMap["name"](jwtPayload);
         }
     } catch (err) {
-        logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
+        logger?.warn(`JWT mapping failed for name:`, err);
     }
 
     // If userId is set, get the user details from the database using the userId

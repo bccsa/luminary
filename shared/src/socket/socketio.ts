@@ -35,9 +35,7 @@ class SocketIO {
         const token = config.token;
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
-        console.log("socket initialized");
         this.socket.on("connect", () => {
-            console.log("socket connected");
             this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
         });
 
@@ -74,27 +72,8 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) {
-                const existingGroups = accessMap.value ? Object.keys(accessMap.value) : [];
-                const newGroups = c.accessMap ? Object.keys(c.accessMap) : [];
-
-                // Check if new accessMap is a subset of existing (downgrade)
-                const isDowngrade =
-                    existingGroups.length > 0 &&
-                    newGroups.length < existingGroups.length &&
-                    newGroups.every((group) => existingGroups.includes(group));
-
-                // Only update if:
-                // 1. No existing permissions (initial load), OR
-                // 2. Not a downgrade (upgrade or same), OR
-                // 3. New accessMap has groups not in existing (different permissions, not just fewer)
-                const hasNewGroups = newGroups.some((group) => !existingGroups.includes(group));
-
-                if (existingGroups.length === 0 || !isDowngrade || hasNewGroups) {
-                    accessMap.value = c.accessMap;
-                }
-            }
-            isConnected.value = true;
+            if (c.accessMap) accessMap.value = c.accessMap;
+            isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }
 

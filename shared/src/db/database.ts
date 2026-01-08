@@ -878,26 +878,18 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
-    let count = 0;
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
         accessMap,
         () => {
-            count++;
-            console.log(count);
             db.deleteRevoked();
         },
         { immediate: true },
     );
 
-    console.log("count of access map changes", count);
-
-    let syncMapCount = 0;
     watch(
         syncMap,
         () => {
-            syncMapCount++;
-            console.log("syncMapCount", syncMapCount);
             db.setSyncMap();
         },
         { deep: true },
