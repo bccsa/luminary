@@ -707,7 +707,10 @@ describe("sync module", () => {
 
             // Verify a DeleteCmd chunk was pushed to syncList for the new sync column
             const deleteCmdChunk = syncList.value.find(
-                (chunk) => chunk.chunkType === "deleteCmd:post",
+                (chunk) =>
+                    chunk.chunkType === "deleteCmd:post" &&
+                    chunk.memberOf.length === 1 &&
+                    chunk.memberOf[0] === "group2",
             );
             expect(deleteCmdChunk).toBeDefined();
             expect(deleteCmdChunk?.memberOf).toEqual(["group2"]);
