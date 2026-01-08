@@ -329,39 +329,33 @@ class Database extends Dexie {
 
             // Only delete documents that:
             // 1. Actually exist locally
-            // 2. Haven't been updated MORE RECENTLY than the deleteCmd
+            // 2. Haven't been updated MORE RECENTLY than the deleteCmd (if both have timestamps)
             // This prevents old deleteCmds from deleting freshly synced/updated content
             const existingDocIds: string[] = [];
             for (const cmd of validatedCmds) {
                 const existingDoc = await this.docs.get(cmd.docId);
                 if (existingDoc) {
-                    const docTime = existingDoc.updatedTimeUtc || 0;
-                    const cmdTime = cmd.updatedTimeUtc || 0;
+                    const docTime = existingDoc.updatedTimeUtc;
+                    const cmdTime = cmd.updatedTimeUtc;
 
-                    // Only delete if the deleteCmd is newer than or same age as the document
-                    if (cmdTime >= docTime) {
+                    // Only skip if BOTH have timestamps AND the doc is strictly newer
+                    // If either is missing a timestamp, proceed with deletion
+                    if (docTime && cmdTime && docTime > cmdTime) {
+                        console.log(
+                            `[bulkPut] SKIPPING delete of ${cmd.docId} - doc is newer (doc: ${docTime}, cmd: ${cmdTime})`,
+                        );
+                    } else {
                         console.log(
                             `[bulkPut] Will delete doc ${cmd.docId} - reason: ${cmd.deleteReason}`,
                         );
                         existingDocIds.push(cmd.docId);
-                    } else {
-                        console.log(
-                            `[bulkPut] SKIPPING delete of ${cmd.docId} - doc is newer (doc: ${docTime}, cmd: ${cmdTime})`,
-                        );
                     }
                 }
             }
 
             if (existingDocIds.length > 0) {
-                // Deduplicate IDs before deleting without using ES6 spread for Set
-                const uniqueIdsObj: { [key: string]: boolean } = {};
-                const uniqueIds: string[] = [];
-                for (const id of existingDocIds) {
-                    if (!uniqueIdsObj[id]) {
-                        uniqueIdsObj[id] = true;
-                        uniqueIds.push(id);
-                    }
-                }
+                // Deduplicate IDs before deleting
+                const uniqueIds = Array.from(new Set(existingDocIds));
                 console.log(`[bulkPut] Deleting ${uniqueIds.length} documents`);
                 await this.docs.bulkDelete(uniqueIds);
             }
@@ -371,6 +365,7 @@ class Database extends Dexie {
                 newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
 
                 // Persist processed IDs (limit to last 10000 to prevent unlimited growth)
+                // Fix: Don't use spread on Set (ES5 compatibility), use Array.from for safe conversion
                 const processedArray = Array.from(processedIds).slice(-10000);
                 localStorage.setItem(
                     Database.PROCESSED_DELETE_CMDS_KEY,
