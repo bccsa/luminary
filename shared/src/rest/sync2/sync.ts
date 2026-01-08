@@ -141,7 +141,9 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         const subType = options.type === DocType.Content ? options.subType : options.type;
         const deleteCmdChunkType = getChunkTypeString(DocType.DeleteCmd, subType);
 
-        // Check if there are existing deleteCmd entries for this memberOf combination
+        // We need to detect if a DeleteCmd sync chunk for this exact memberOf group combination
+        // already exists in the syncList. If so, we avoid creating a duplicate progress entry.
+        // This ensures correct incremental syncing and prevents reprocessing from the start.
         const hasExistingDeleteCmdEntries = syncList.value.some(
             (entry) =>
                 entry.chunkType === deleteCmdChunkType &&
