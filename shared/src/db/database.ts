@@ -894,20 +894,43 @@ export async function initDatabase() {
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
+    // Use debouncing to wait for the accessMap to stabilize before deleting
+    // This prevents deleting content when we briefly see public-only access during auth refresh
+    let deleteRevokedTimeout: ReturnType<typeof setTimeout> | null = null;
+    const DEBOUNCE_MS = 1000; // Wait 1 second for accessMap to stabilize
+
     watch(
         accessMap,
         () => {
             const accessMapKeys = Object.keys(accessMap.value || {});
-            console.log("[deleteRevoked watcher] accessMap has", accessMapKeys.length, "groups");
+            const currentGroupCount = accessMapKeys.length;
+            console.log("[deleteRevoked watcher] accessMap has", currentGroupCount, "groups");
 
-            // Don't delete anything if accessMap is empty - this prevents deleting all content
-            // when the app first loads before the server sends the real accessMap
-            if (accessMapKeys.length === 0) {
+            // Don't delete anything if accessMap is empty
+            if (currentGroupCount === 0) {
                 console.log("[deleteRevoked watcher] Skipping - accessMap is empty");
+                if (deleteRevokedTimeout) {
+                    clearTimeout(deleteRevokedTimeout);
+                    deleteRevokedTimeout = null;
+                }
                 return;
             }
 
-            db.deleteRevoked();
+            // Clear any pending deleteRevoked call - we got a new accessMap
+            if (deleteRevokedTimeout) {
+                console.log(
+                    "[deleteRevoked watcher] Clearing pending deleteRevoked - accessMap changed",
+                );
+                clearTimeout(deleteRevokedTimeout);
+            }
+
+            // Debounce: wait for accessMap to stabilize before deleting
+            // This gives time for the JWT auth to complete on page refresh
+            deleteRevokedTimeout = setTimeout(() => {
+                console.log("[deleteRevoked watcher] AccessMap stabilized, running deleteRevoked");
+                db.deleteRevoked();
+                deleteRevokedTimeout = null;
+            }, DEBOUNCE_MS);
         },
         { immediate: true },
     );
