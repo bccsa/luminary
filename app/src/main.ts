@@ -33,7 +33,6 @@ async function Startup() {
     const oauth = await auth.setupAuth(app, router);
     const token = await auth.getToken(oauth);
 
-    console.log("token", token);
     await init({
         cms: false,
         docsIndex:
