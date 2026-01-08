@@ -897,18 +897,20 @@ export async function initDatabase() {
     // Use debouncing to wait for the accessMap to stabilize before deleting
     // This prevents deleting content when we briefly see public-only access during auth refresh
     let deleteRevokedTimeout: ReturnType<typeof setTimeout> | null = null;
-    const DEBOUNCE_MS = 1000; // Wait 1 second for accessMap to stabilize
+    const DEBOUNCE_MS = 3000; // Wait 3 seconds for accessMap to stabilize
 
     watch(
         accessMap,
         () => {
             const accessMapKeys = Object.keys(accessMap.value || {});
             const currentGroupCount = accessMapKeys.length;
-            console.log("[deleteRevoked watcher] accessMap has", currentGroupCount, "groups");
+            console.log("=== [deleteRevoked watcher] accessMap changed ===");
+            console.log("[deleteRevoked watcher] Current group count:", currentGroupCount);
+            console.log("[deleteRevoked watcher] Has pending timeout:", !!deleteRevokedTimeout);
 
             // Don't delete anything if accessMap is empty
             if (currentGroupCount === 0) {
-                console.log("[deleteRevoked watcher] Skipping - accessMap is empty");
+                console.log("[deleteRevoked watcher] SKIP - accessMap is empty");
                 if (deleteRevokedTimeout) {
                     clearTimeout(deleteRevokedTimeout);
                     deleteRevokedTimeout = null;
@@ -919,15 +921,22 @@ export async function initDatabase() {
             // Clear any pending deleteRevoked call - we got a new accessMap
             if (deleteRevokedTimeout) {
                 console.log(
-                    "[deleteRevoked watcher] Clearing pending deleteRevoked - accessMap changed",
+                    "[deleteRevoked watcher] CANCELLED pending deleteRevoked - accessMap changed again",
                 );
                 clearTimeout(deleteRevokedTimeout);
             }
 
             // Debounce: wait for accessMap to stabilize before deleting
             // This gives time for the JWT auth to complete on page refresh
+            console.log("[deleteRevoked watcher] SCHEDULING deleteRevoked in", DEBOUNCE_MS, "ms");
             deleteRevokedTimeout = setTimeout(() => {
-                console.log("[deleteRevoked watcher] AccessMap stabilized, running deleteRevoked");
+                const finalGroupCount = Object.keys(accessMap.value || {}).length;
+                console.log("=== [deleteRevoked watcher] TIMEOUT FIRED ===");
+                console.log(
+                    "[deleteRevoked watcher] Running deleteRevoked with",
+                    finalGroupCount,
+                    "groups",
+                );
                 db.deleteRevoked();
                 deleteRevokedTimeout = null;
             }, DEBOUNCE_MS);
