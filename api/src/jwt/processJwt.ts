@@ -126,6 +126,8 @@ export async function processJwt(
         logger?.warn(`JWT mapping failed for name:`, err);
     }
 
+    groupSet.add("group-public-users");
+
     // If userId is set, get the user details from the database using the userId
     if (userId) {
         userId = userId.toString();
