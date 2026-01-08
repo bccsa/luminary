@@ -72,7 +72,27 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.accessMap) accessMap.value = c.accessMap;
+            if (c.accessMap) {
+                // Detailed debug logging to diagnose permission issues
+                console.log("=== [clientConfig] RECEIVED FROM SERVER ===");
+                console.log(
+                    "[clientConfig] All accessMap keys (content groups user can access):",
+                    Object.keys(c.accessMap),
+                );
+                console.log("[clientConfig] Full accessMap:", JSON.stringify(c.accessMap, null, 2));
+
+                // Check specific groups
+                if (c.accessMap["group-public-content"]) {
+                    console.log(
+                        "[clientConfig] group-public-content access:",
+                        c.accessMap["group-public-content"],
+                    );
+                } else {
+                    console.warn("[clientConfig] WARNING: group-public-content NOT in accessMap!");
+                }
+
+                accessMap.value = c.accessMap;
+            }
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }

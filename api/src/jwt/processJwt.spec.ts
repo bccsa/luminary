@@ -124,7 +124,7 @@ describe("processJwt", () => {
         expect(userDocs[0].email).toBe("updated@email.address");
     });
 
-    it.skip("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
+    it("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
         const actual = jest.requireActual("../configuration");
         jest.spyOn(actual, "default").mockReturnValue({
             auth: {
