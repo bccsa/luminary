@@ -51,12 +51,11 @@ const props = withDefaults(defineProps<Props>(), {
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
-// Reference to the combobox input element    
+// Reference to the combobox input element
 const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
-
 
 const optionsList = computed(() =>
     props.options.map((o) => ({
@@ -163,7 +162,7 @@ onUnmounted(() => {
             primaryButtonText="Close"
             title="Edit Selection"
             v-model:open="showEditModal"
-            :heading="label"            
+            :heading="label"
         >
             <div
                 class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
@@ -306,14 +305,11 @@ onUnmounted(() => {
                 </LTag>
             </div>
             <div
-                
-            
                 v-if="showSelectedLabels && selectedLabels.length === 0"
                 class="pt-4 text-center text-xs italic text-zinc-500"
             >
                 No options selected yet.
             </div>
-            
         </component>
     </div>
 </template>
