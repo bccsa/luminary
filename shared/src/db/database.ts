@@ -274,6 +274,20 @@ class Database extends Dexie {
         );
     }
 
+    // Storage key for tracking processed delete commands
+    private static readonly PROCESSED_DELETE_CMDS_KEY = "luminary-processed-deleteCmds";
+
+    /**
+     * Clear the list of processed delete commands (useful for testing)
+     */
+    static clearProcessedDeleteCmds() {
+        try {
+            localStorage.removeItem(Database.PROCESSED_DELETE_CMDS_KEY);
+        } catch {
+            // localStorage might not be available in some environments
+        }
+    }
+
     /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
@@ -283,9 +297,14 @@ class Database extends Dexie {
 
         if (deleteCmds.length > 0) {
             // Get already processed deleteCmd IDs from storage
-            const processedKey = "luminary-processed-deleteCmds";
-            const processedStr = localStorage.getItem(processedKey) || "[]";
-            const processedIds = new Set<string>(JSON.parse(processedStr));
+            let processedIds = new Set<string>();
+            try {
+                const processedStr =
+                    localStorage.getItem(Database.PROCESSED_DELETE_CMDS_KEY) || "[]";
+                processedIds = new Set<string>(JSON.parse(processedStr));
+            } catch {
+                // localStorage might not be available in some environments
+            }
 
             // Filter to only new deleteCmds we haven't processed before
             const newDeleteCmds = deleteCmds.filter((cmd) => !processedIds.has(cmd._id));
@@ -318,11 +337,18 @@ class Database extends Dexie {
             }
 
             // Mark all deleteCmds as processed (even those we didn't execute due to validation)
-            newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
+            try {
+                newDeleteCmds.forEach((cmd) => processedIds.add(cmd._id));
 
-            // Persist processed IDs (limit to last 10000 to prevent unlimited growth)
-            const processedArray = Array.from(processedIds).slice(-10000);
-            localStorage.setItem(processedKey, JSON.stringify(processedArray));
+                // Persist processed IDs (limit to last 10000 to prevent unlimited growth)
+                const processedArray = Array.from(processedIds).slice(-10000);
+                localStorage.setItem(
+                    Database.PROCESSED_DELETE_CMDS_KEY,
+                    JSON.stringify(processedArray),
+                );
+            } catch {
+                // localStorage might not be available in some environments
+            }
         }
 
         // Insert all documents except delete commands
@@ -897,6 +923,14 @@ class Database extends Dexie {
 }
 
 export let db: Database;
+
+/**
+ * Clear the list of processed delete commands.
+ * This is primarily used in tests to ensure test isolation.
+ */
+export function clearProcessedDeleteCmds() {
+    Database.clearProcessedDeleteCmds();
+}
 
 export async function initDatabase() {
     const _v: number = await getDbVersion();
