@@ -320,15 +320,21 @@ async function processImageUpload(
             // Validate file type against bucket's allowed mimeTypes (if specified)
             // Use Sharp's detected format to determine mimetype
             if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
-                const detectedMimetype = `image/${metadata.format}`;
+                const detectedFormat = metadata.format === "jpeg" ? "jpg" : metadata.format;
+                const detectedMimetype = `image/${detectedFormat}`;
+                const detectedMimetypeAlt = `image/${metadata.format}`;
+
                 const isAllowed = storage.mimeTypes.some((allowedType) => {
                     // Support wildcards like "image/*"
                     if (allowedType.endsWith("/*")) {
                         const prefix = allowedType.slice(0, -2);
-                        return detectedMimetype.startsWith(prefix + "/");
+                        return (
+                            detectedMimetype.startsWith(prefix + "/") ||
+                            detectedMimetypeAlt.startsWith(prefix + "/")
+                        );
                     }
-                    // Exact match
-                    return detectedMimetype === allowedType;
+                    // Exact match (check both variants for jpg/jpeg)
+                    return detectedMimetype === allowedType || detectedMimetypeAlt === allowedType;
                 });
 
                 if (!isAllowed) {
