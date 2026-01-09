@@ -1,0 +1,17 @@
+{
+  "name": "Luminary Dev Container",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "api",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "Vue.volar",
+        "editorconfig.editorconfig"
+      ]
+    }
+  },
+  "remoteUser": "node"
+}

@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  couchdb:
+    image: couchdb:3.3
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - api_node_modules:/workspace/api/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_CONNECTION_STRING=${DB_CONNECTION_STRING:-http://admin:password@couchdb:5984}
+      - DB_DATABASE=${DB_DATABASE:-luminary-local}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio}
+      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-luminary}
+      - JWT_MAPPINGS=${JWT_MAPPINGS}
+    working_dir: /workspace/api
+    command: sh -c "npm install && npm run start:dev"
+    depends_on:
+      - couchdb
+      - minio
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - app_node_modules:/workspace/app/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "4174:4174"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+      - VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN:-your.auth0.domain}
+      - VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE:-https://your.audience/api}
+      - VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID:-FILL_IN}
+    working_dir: /workspace/app
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - api
+
+  cms:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - cms_node_modules:/workspace/cms/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "4175:4175"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+      - VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN:-your.auth0.domain}
+      - VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE:-https://your.audience/api}
+      - VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID:-FILL_IN}
+    working_dir: /workspace/cms
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - api
+
+volumes:
+  couchdb_data:
+  minio_data:
+  api_node_modules:
+  app_node_modules:
+  cms_node_modules:
+  shared_node_modules:
