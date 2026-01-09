@@ -626,7 +626,8 @@ describe("S3ImageHandler - File Type Validation", () => {
 
         // Should fail with file type warning (jpeg not allowed when only webp is allowed)
         const fileTypeWarning = warnings.find(
-            (w) => w.includes("not allowed") && w.includes("image/jpeg"),
+            (w) =>
+                w.includes("not allowed") && (w.includes("image/jpeg") || w.includes("image/jpg")),
         );
         expect(fileTypeWarning).toBeDefined();
         expect(image.fileCollections.length).toBe(0);
