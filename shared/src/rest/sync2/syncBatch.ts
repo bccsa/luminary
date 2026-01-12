@@ -85,6 +85,15 @@ export async function syncBatch(options: SyncOptions) {
         eof: blockLength < options.limit, // If less than limit, we reached the end
     });
 
+    console.log("Pushed to sync list:", {
+        chunkType: getChunkTypeString(options.type, options.subType),
+        memberOf: options.memberOf,
+        languages: options.languages,
+        blockStart,
+        blockEnd,
+        eof: blockLength < options.limit, // If less than limit, we reached the end
+    });
+
     // Merge vertical chunks
     let mergeResult: {
         blockStart: number;
