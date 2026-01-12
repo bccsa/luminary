@@ -281,7 +281,10 @@ export class S3Service {
         const metadata = {
             "Content-Type": mimetype,
         };
-        return this.client.putObject(this.bucketName, key, file, file.length, metadata);
+        throw new Error(
+            `DEBUG: S3 Service attempting upload. Bucket: "${this.bucketName}", Key: "${key}", Size: ${file.length}, Mime: "${mimetype}"`,
+        );
+        // return this.client.putObject(this.bucketName, key, file, file.length, metadata);
     }
 
     /**

@@ -129,136 +129,128 @@ export async function processImage(
 ): Promise<string[]> {
     const warnings: string[] = [];
 
-    try {
-        // Detect bucket change and migrate images if needed
-        if (
-            prevImage &&
-            prevParentBucketId &&
-            parentBucketId &&
-            prevParentBucketId !== parentBucketId &&
-            image.fileCollections.length > 0
-        ) {
-            const migrationWarnings = await migrateImagesBetweenBuckets(
-                image,
-                prevParentBucketId,
-                parentBucketId,
-                db,
-            );
-            warnings.push(...migrationWarnings);
-        }
-
-        if (prevImage) {
-            // Remove files that were removed from the image
-            const removedFiles = prevImage.fileCollections.flatMap((collection) => {
-                return collection.imageFiles.filter(
-                    (file) =>
-                        !image.fileCollections.some((f) =>
-                            f.imageFiles.some((i) => i.filename === file.filename),
-                        ),
-                );
-            });
-
-            if (removedFiles.length > 0 && db && parentBucketId) {
-                // Delete files from the parent's bucketId
-                try {
-                    const result = await db.getDoc(parentBucketId);
-                    if (!result.docs || result.docs.length === 0) {
-                        warnings.push(
-                            `Bucket ${parentBucketId} not found. Cannot delete ${
-                                removedFiles.length
-                            } files. Manual cleanup required for: ${removedFiles
-                                .map((f) => f.filename)
-                                .join(", ")}`,
-                        );
-                    } else {
-                        const bucketS3Service = await S3Service.create(parentBucketId, db);
-
-                        // Delete files from the bucket
-                        for (const file of removedFiles) {
-                            try {
-                                await bucketS3Service
-                                    .getClient()
-                                    .removeObject(bucketS3Service.getBucketName(), file.filename);
-                            } catch (error) {
-                                warnings.push(
-                                    `Failed to delete ${
-                                        file.filename
-                                    } from bucket ${bucketS3Service.getBucketName()}: ${
-                                        error.message
-                                    }`,
-                                );
-                            }
-                        }
-                    }
-                } catch (error) {
-                    warnings.push(
-                        `Failed to connect to bucket ${parentBucketId}: ${error.message}. Cannot delete ${removedFiles.length} files.`,
-                    );
-                }
-            } else if (removedFiles.length > 0 && (!db || !parentBucketId)) {
-                warnings.push(
-                    `Warning: ${
-                        removedFiles.length
-                    } old image files cannot be automatically deleted without ${
-                        !db ? "database access" : "parent bucket ID"
-                    }. ` + `Please manually clean up files on the storage provider`,
-                );
-            }
-
-            // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
-            // but this usually will happen if an offline client saved changes to an image which had file objects removed by another client.
-            // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
-            // as such need to be ignored.
-            image.fileCollections = prevImage.fileCollections.filter((collection) =>
-                // Only include collections from the previous document
-                image.fileCollections.some((c) =>
-                    c.imageFiles.some((f) => collection.imageFiles[0]?.filename === f.filename),
-                ),
-            );
-        }
-
-        // Upload new files
-        if (image.uploadData) {
-            if (!db) {
-                warnings.push("Unable to upload images - system configuration error.");
-                return warnings;
-            }
-
-            if (!parentBucketId) {
-                warnings.push("Parent bucket ID is required for image uploads.");
-                return warnings;
-            }
-
-            const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
-            image.uploadData?.forEach((uploadData) => {
-                promises.push(processImageUpload(uploadData, image, db, parentBucketId));
-            });
-
-            const results = await Promise.all(promises);
-
-            // Collect all warnings from uploads
-            results.forEach((result) => {
-                warnings.push(...result.warnings);
-            });
-
-            // If any uploads failed completely, we should clean up any successful uploads
-            const successfulUploads = results.filter((r) => r.success).length;
-            const failedUploads = results.filter((r) => !r.success).length;
-
-            if (failedUploads > 0) {
-                warnings.push(`${failedUploads} of ${results.length} image uploads failed`);
-
-                if (successfulUploads === 0) {
-                    warnings.push("All image uploads failed - no images were processed");
-                }
-            }
-
-            delete image.uploadData; // Remove upload data after processing
-        }
-    } catch (error) {
-        warnings.push(`Image processing failed: ${error.message}`);
+    // Detect bucket change and migrate images if needed
+    if (
+        prevImage &&
+        prevParentBucketId &&
+        parentBucketId &&
+        prevParentBucketId !== parentBucketId &&
+        image.fileCollections.length > 0
+    ) {
+        const migrationWarnings = await migrateImagesBetweenBuckets(
+            image,
+            prevParentBucketId,
+            parentBucketId,
+            db,
+        );
+        warnings.push(...migrationWarnings);
     }
 
+    if (prevImage) {
+        // Remove files that were removed from the image
+        const removedFiles = prevImage.fileCollections.flatMap((collection) => {
+            return collection.imageFiles.filter(
+                (file) =>
+                    !image.fileCollections.some((f) =>
+                        f.imageFiles.some((i) => i.filename === file.filename),
+                    ),
+            );
+        });
+
+        if (removedFiles.length > 0 && db && parentBucketId) {
+            // Delete files from the parent's bucketId
+            try {
+                const result = await db.getDoc(parentBucketId);
+                if (!result.docs || result.docs.length === 0) {
+                    warnings.push(
+                        `Bucket ${parentBucketId} not found. Cannot delete ${
+                            removedFiles.length
+                        } files. Manual cleanup required for: ${removedFiles
+                            .map((f) => f.filename)
+                            .join(", ")}`,
+                    );
+                } else {
+                    const bucketS3Service = await S3Service.create(parentBucketId, db);
+
+                    // Delete files from the bucket
+                    for (const file of removedFiles) {
+                        try {
+                            await bucketS3Service
+                                .getClient()
+                                .removeObject(bucketS3Service.getBucketName(), file.filename);
+                        } catch (error) {
+                            warnings.push(
+                                `Failed to delete ${
+                                    file.filename
+                                } from bucket ${bucketS3Service.getBucketName()}: ${error.message}`,
+                            );
+                        }
+                    }
+                }
+            } catch (error) {
+                warnings.push(
+                    `Failed to connect to bucket ${parentBucketId}: ${error.message}. Cannot delete ${removedFiles.length} files.`,
+                );
+            }
+        } else if (removedFiles.length > 0 && (!db || !parentBucketId)) {
+            warnings.push(
+                `Warning: ${
+                    removedFiles.length
+                } old image files cannot be automatically deleted without ${
+                    !db ? "database access" : "parent bucket ID"
+                }. ` + `Please manually clean up files on the storage provider`,
+            );
+        }
+
+        // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
+        // but this usually will happen if an offline client saved changes to an image which had file objects removed by another client.
+        // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
+        // as such need to be ignored.
+        image.fileCollections = prevImage.fileCollections.filter((collection) =>
+            // Only include collections from the previous document
+            image.fileCollections.some((c) =>
+                c.imageFiles.some((f) => collection.imageFiles[0]?.filename === f.filename),
+            ),
+        );
+    }
+
+    // Upload new files
+    if (image.uploadData) {
+        if (!db) {
+            throw new Error("Unable to upload images - system configuration error.");
+        }
+
+        if (!parentBucketId) {
+            throw new Error("Parent bucket ID is required for image uploads.");
+        }
+
+        const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
+        image.uploadData?.forEach((uploadData) => {
+            promises.push(processImageUpload(uploadData, image, db, parentBucketId));
+        });
+
+        const results = await Promise.all(promises);
+
+        // Collect all warnings from uploads
+        results.forEach((result) => {
+            warnings.push(...result.warnings);
+        });
+
+        // If any uploads failed completely, we should clean up any successful uploads
+        const successfulUploads = results.filter((r) => r.success).length;
+        const failedUploads = results.filter((r) => !r.success).length;
+
+        if (failedUploads > 0) {
+            warnings.push(`${failedUploads} of ${results.length} image uploads failed`);
+
+            if (successfulUploads === 0) {
+                throw new Error("All image uploads failed - no images were processed"); // Throw error if ALL failed
+            }
+        }
+
+        delete image.uploadData; // Remove upload data after processing
+    }
+    // catch removed to allow hard errors to propagate
     return warnings;
 }
 
@@ -270,127 +262,113 @@ async function processImageUpload(
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
+    // try block removed
+    let preset = uploadData?.preset || "default";
+    if (
+        preset != "default" &&
+        preset != "photo" &&
+        preset != "picture" &&
+        preset != "drawing" &&
+        preset != "icon" &&
+        preset != "text"
+    ) {
+        preset = "default";
+    }
+
+    const promises: Promise<any>[] = [];
+
+    const metadata = await sharp(uploadData.fileData).metadata();
+
+    const resultImageCollection = new ImageFileCollectionDto();
+    resultImageCollection.aspectRatio = Math.round((metadata.width / metadata.height) * 100) / 100;
+
+    // Bucket ID is required
+    if (!bucketId) {
+        throw new Error(
+            "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
+        );
+    }
+
+    // Look up the bucket and create bucket-specific S3 client
+    let storage: StorageDto;
+
     try {
-        let preset = uploadData?.preset || "default";
-        if (
-            preset != "default" &&
-            preset != "photo" &&
-            preset != "picture" &&
-            preset != "drawing" &&
-            preset != "icon" &&
-            preset != "text"
-        ) {
-            preset = "default";
-        }
+        const bucketDocs = await db.getDocsByType(DocType.Storage);
+        const foundBucket = bucketDocs.docs.find((doc: any) => doc._id === bucketId) as StorageDto;
 
-        const promises: Promise<any>[] = [];
-
-        const metadata = await sharp(uploadData.fileData).metadata();
-
-        const resultImageCollection = new ImageFileCollectionDto();
-        resultImageCollection.aspectRatio =
-            Math.round((metadata.width / metadata.height) * 100) / 100;
-
-        // Bucket ID is required
-        if (!bucketId) {
-            warnings.push(
-                "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
+        if (!foundBucket || !foundBucket.name) {
+            throw new Error(
+                `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
             );
-            return { success: false, warnings };
         }
 
-        // Look up the bucket and create bucket-specific S3 client
-        let storage: StorageDto;
+        storage = foundBucket;
 
-        try {
-            const bucketDocs = await db.getDocsByType(DocType.Storage);
-            const foundBucket = bucketDocs.docs.find(
-                (doc: any) => doc._id === bucketId,
-            ) as StorageDto;
+        // Validate file type against bucket's allowed mimeTypes (if specified)
+        // Use Sharp's detected format to determine mimetype
+        if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
+            const detectedFormat = metadata.format === "jpeg" ? "jpg" : metadata.format;
+            const detectedMimetype = `image/${detectedFormat}`;
+            const detectedMimetypeAlt = `image/${metadata.format}`;
 
-            if (!foundBucket || !foundBucket.name) {
-                warnings.push(
-                    `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
-                );
-                return { success: false, warnings };
-            }
-
-            storage = foundBucket;
-
-            // Validate file type against bucket's allowed mimeTypes (if specified)
-            // Use Sharp's detected format to determine mimetype
-            if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
-                const detectedFormat = metadata.format === "jpeg" ? "jpg" : metadata.format;
-                const detectedMimetype = `image/${detectedFormat}`;
-                const detectedMimetypeAlt = `image/${metadata.format}`;
-
-                const isAllowed = storage.mimeTypes.some((allowedType) => {
-                    // Support wildcards like "image/*"
-                    if (allowedType.endsWith("/*")) {
-                        const prefix = allowedType.slice(0, -2);
-                        return (
-                            detectedMimetype.startsWith(prefix + "/") ||
-                            detectedMimetypeAlt.startsWith(prefix + "/")
-                        );
-                    }
-                    // Exact match (check both variants for jpg/jpeg)
-                    return detectedMimetype === allowedType || detectedMimetypeAlt === allowedType;
-                });
-
-                if (!isAllowed) {
-                    warnings.push(
-                        `File type "${detectedMimetype}" is not allowed for bucket "${
-                            storage.name
-                        }". Allowed types: ${storage.mimeTypes.join(", ")}`,
+            const isAllowed = storage.mimeTypes.some((allowedType) => {
+                // Support wildcards like "image/*"
+                if (allowedType.endsWith("/*")) {
+                    const prefix = allowedType.slice(0, -2);
+                    return (
+                        detectedMimetype.startsWith(prefix + "/") ||
+                        detectedMimetypeAlt.startsWith(prefix + "/")
                     );
-                    return { success: false, warnings };
                 }
-            }
-
-            // Create bucket-specific S3 service with bucket's credentials
-            const s3Service = await S3Service.create(bucketId, db);
-
-            imageSizes.forEach(async (size) => {
-                if (metadata.width < size / 1.1) return; // allow slight upscaling
-                promises.push(
-                    resizeAndUploadImage(
-                        uploadData,
-                        size,
-                        s3Service,
-                        defaultImageQuality,
-                        preset,
-                        resultImageCollection,
-                    ),
-                );
+                // Exact match (check both variants for jpg/jpeg)
+                return detectedMimetype === allowedType || detectedMimetypeAlt === allowedType;
             });
-        } catch (error) {
-            warnings.push(
-                `Failed to connect to bucket ${bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
+
+            if (!isAllowed) {
+                throw new Error(
+                    `File type "${detectedMimetype}" is not allowed for bucket "${
+                        storage.name
+                    }". Allowed types: ${storage.mimeTypes.join(", ")}`,
+                );
+            }
+        }
+
+        // Create bucket-specific S3 service with bucket's credentials
+        const s3Service = await S3Service.create(bucketId, db);
+
+        imageSizes.forEach(async (size) => {
+            if (metadata.width < size / 1.1) return; // allow slight upscaling
+            promises.push(
+                resizeAndUploadImage(
+                    uploadData,
+                    size,
+                    s3Service,
+                    defaultImageQuality,
+                    preset,
+                    resultImageCollection,
+                ),
             );
-            return { success: false, warnings };
-        }
-
-        const results = await Promise.all(promises);
-
-        // Check if any quality processing failed
-        const failedResults = results.filter((r) => !r.success);
-        if (failedResults.length > 0) {
-            warnings.push(`${failedResults.length} image sizes failed to process`);
-            failedResults.forEach((r) => warnings.push(...r.warnings));
-        }
-
-        // Only add the image collection if at least some sizes were processed successfully
-        const successfulResults = results.filter((r) => r.success);
-        if (successfulResults.length > 0) {
-            image.fileCollections.push(resultImageCollection);
-            return { success: true, warnings };
-        } else {
-            warnings.push("No image sizes could be processed successfully");
-            return { success: false, warnings };
-        }
+        });
     } catch (error) {
-        warnings.push(`Image upload failed: ${error.message}`);
-        return { success: false, warnings };
+        throw error; // Rethrow connection/lookup errors
+    }
+
+    const results = await Promise.all(promises);
+
+    // Check if any quality processing failed
+    const failedResults = results.filter((r) => !r.success);
+    if (failedResults.length > 0) {
+        warnings.push(`${failedResults.length} image sizes failed to process`);
+        failedResults.forEach((r) => warnings.push(...r.warnings));
+    }
+
+    // Only add the image collection if at least some sizes were processed successfully
+    const successfulResults = results.filter((r) => r.success);
+    if (successfulResults.length > 0) {
+        image.fileCollections.push(resultImageCollection);
+        return { success: true, warnings };
+    } else {
+        throw new Error("No image sizes could be processed successfully"); // Throw if all sizes failed
     }
 }
 
@@ -402,30 +380,24 @@ async function resizeAndUploadImage(
     preset: keyof sharp.PresetEnum,
     resultImageCollection: ImageFileCollectionDto,
 ): Promise<{ success: boolean; warnings: string[] }> {
-    try {
-        const resized = await sharp(uploadData.fileData)
-            .resize(size)
-            .webp({
-                quality: imageQuality,
-                preset: preset,
-            })
-            .toBuffer({ resolveWithObject: true });
+    // try block removed to allow errors (like S3 DEBUG) to propagate
+    const resized = await sharp(uploadData.fileData)
+        .resize(size)
+        .webp({
+            quality: imageQuality,
+            preset: preset,
+        })
+        .toBuffer({ resolveWithObject: true });
 
-        const imageFile = new ImageFileDto();
-        imageFile.width = resized.info.width;
-        imageFile.height = resized.info.height;
-        imageFile.filename = uuidv4();
+    const imageFile = new ImageFileDto();
+    imageFile.width = resized.info.width;
+    imageFile.height = resized.info.height;
+    imageFile.filename = uuidv4();
 
-        // Save resized image to S3
-        await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
+    // Save resized image to S3
+    await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
 
-        resultImageCollection.imageFiles.push(imageFile);
+    resultImageCollection.imageFiles.push(imageFile);
 
-        return { success: true, warnings: [] };
-    } catch (error) {
-        return {
-            success: false,
-            warnings: [`Failed to process image size ${size}px: ${error.message}\n`],
-        };
-    }
+    return { success: true, warnings: [] };
 }
