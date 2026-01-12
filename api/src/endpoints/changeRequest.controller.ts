@@ -93,35 +93,7 @@ export class ChangeRequestController {
                     fileMap.set(fileKey, file.buffer);
                 });
 
-                const stats = patchFileData(parsedData, fileMap, baseKey);
-
-                if (stats.missingIds.length > 0) {
-                    throw new Error(
-                        `DEBUG: Failed to patch files. Missing IDs: ${stats.missingIds.join(
-                            ", ",
-                        )}. Available keys: ${Array.from(fileMap.keys()).join(", ")}`,
-                    );
-                }
-
-                if (stats.patched === 0) {
-                    throw new Error(
-                        `DEBUG: Received ${
-                            files.length
-                        } files but found NO binary references in JSON to patch. Keys: ${Array.from(
-                            fileMap.keys(),
-                        ).join(", ")}`,
-                    );
-                }
-            } else if (jsonKey) {
-                // We have a JSON key for multipart but no files?
-                // This might be valid if the user is just sending data without files, but using LFormData
-                // But if they THOUGHT they sent an image, this is where we catch it.
-                // However, valid requests might use LFormData without files.
-                // We'll throw only if we strongly suspect an image was intended but lost?
-                // For now, let's just log it if we could. Since we can't log, we pass.
-                // Actually, if the USER says "image disappearing", maybe we should check if they sent any image metadata
-                // inside parsedData that implies a file SHOULD be there?
-                // For safety in this debug session, let's NOT throw here unless we are sure, to avoid breaking valid non-file updates.
+                patchFileData(parsedData, fileMap, baseKey);
             }
 
             // Extract the ChangeReqDto from the parsed data
