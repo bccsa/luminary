@@ -111,9 +111,9 @@ const widthClass = computed(() => {
 </script>
 
 <template>
-    <div ref="rootRef" class="inline-flex" v-bind="$attrs">
+    <div ref="rootRef" class="inline-flex w-full" v-bind="$attrs">
         <div
-            class="size-full cursor-pointer select-none outline-none focus:outline-none"
+            class="w-full cursor-pointer select-none outline-none focus:outline-none"
             :class="props.triggerClass"
             role="button"
             tabindex="0"
