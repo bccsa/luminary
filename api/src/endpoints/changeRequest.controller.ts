@@ -12,6 +12,8 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
+import { removeDangerousKeys } from "../util/removeDangerousKeys";
+import { patchFileData } from "../util/patchFileData";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -33,38 +35,101 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
-            const apiVersion = body["changeRequestApiVersion"];
-            await validateApiVersion(apiVersion);
+        // Check if this is a multipart form data request (with potential binary data)
+        const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
 
-            const changeReqId = JSON.parse(body["changeRequestId"]);
-            const parsedDoc = JSON.parse(body["changeRequestDoc-JSON"]);
+        if (files?.length || jsonKey) {
+            // Parse the main JSON payload
+            // Handle case where LFormData may have appended JSON multiple times (for merging)
+            // NestJS may return an array for duplicate keys - use the last value (the merged JSON)
+            const jsonValue = body[jsonKey];
+            const jsonString = Array.isArray(jsonValue)
+                ? jsonValue[jsonValue.length - 1]
+                : String(jsonValue);
 
-            //Only parent documents (Posts and Tags) can have files uploaded,
-            //Child documents only have a reference to the parent document's fileCollection field
-            //without this check it could lead to unexpected behavior or critical errors
-            if (files.length > 0) {
-                const uploadData = [];
-
-                files.forEach((file, index) => {
-                    // TODO: change after #1208 is implemented
-                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
-
-                    uploadData.push({
-                        fileData: file.buffer,
-                        filename: fileName,
-                        preset: filePreset,
-                    });
-                });
-
-                parsedDoc.imageData.uploadData = uploadData;
+            let parsedData: any;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (error) {
+                // If parsing fails, it might be concatenated JSON strings
+                // Try to extract the last complete JSON object
+                const lastBrace = jsonString.lastIndexOf("}");
+                if (lastBrace > 0) {
+                    // Find the matching opening brace by counting braces
+                    let depth = 1;
+                    let start = lastBrace - 1;
+                    while (depth > 0 && start >= 0) {
+                        if (jsonString[start] === "}") depth++;
+                        if (jsonString[start] === "{") depth--;
+                        start--;
+                    }
+                    const lastJson = jsonString.substring(start + 1, lastBrace + 1);
+                    parsedData = JSON.parse(lastJson);
+                } else {
+                    throw error;
+                }
             }
 
+            // Clean prototype pollution keys before processing
+            parsedData = removeDangerousKeys(parsedData);
+
+            // Get apiVersion from parsedData (LFormData merges separately appended fields)
+            const apiVersion = parsedData.apiVersion || body["apiVersion"];
+            await validateApiVersion(apiVersion);
+
+            // Patch binary data (file buffers) back into placeholders
+            if (files.length > 0) {
+                const baseKey = jsonKey.replace("__json", "");
+
+                // Create a map of fileKey -> file buffer
+                // LFormData sends files as: ${baseKey}__file__${id}
+                // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
+                const fileMap = new Map<string, Buffer>();
+
+                files.forEach((file) => {
+                    // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
+                    // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
+                    const fileKey = file.fieldname;
+                    fileMap.set(fileKey, file.buffer);
+                });
+
+                const stats = patchFileData(parsedData, fileMap, baseKey);
+
+                if (stats.missingIds.length > 0) {
+                    throw new Error(
+                        `DEBUG: Failed to patch files. Missing IDs: ${stats.missingIds.join(
+                            ", ",
+                        )}. Available keys: ${Array.from(fileMap.keys()).join(", ")}`,
+                    );
+                }
+
+                if (stats.patched === 0) {
+                    throw new Error(
+                        `DEBUG: Received ${
+                            files.length
+                        } files but found NO binary references in JSON to patch. Keys: ${Array.from(
+                            fileMap.keys(),
+                        ).join(", ")}`,
+                    );
+                }
+            } else if (jsonKey) {
+                // We have a JSON key for multipart but no files?
+                // This might be valid if the user is just sending data without files, but using LFormData
+                // But if they THOUGHT they sent an image, this is where we catch it.
+                // However, valid requests might use LFormData without files.
+                // We'll throw only if we strongly suspect an image was intended but lost?
+                // For now, let's just log it if we could. Since we can't log, we pass.
+                // Actually, if the USER says "image disappearing", maybe we should check if they sent any image metadata
+                // inside parsedData that implies a file SHOULD be there?
+                // For safety in this debug session, let's NOT throw here unless we are sure, to avoid breaking valid non-file updates.
+            }
+
+            // Extract the ChangeReqDto from the parsed data
+            // Types are preserved by LFormData, so id should already be a number
             const changeRequest: ChangeReqDto = {
-                id: changeReqId,
-                doc: parsedDoc,
-                apiVersion,
+                id: parsedData.id,
+                doc: parsedData.doc,
+                apiVersion: parsedData.apiVersion || apiVersion,
             };
 
             return this.changeRequestService.changeRequest(changeRequest, token);
@@ -72,6 +137,8 @@ export class ChangeRequestController {
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
-        return this.changeRequestService.changeRequest(body, token);
+        // Clean prototype pollution from the body before processing
+        const cleanedBody = removeDangerousKeys(body);
+        return this.changeRequestService.changeRequest(cleanedBody, token);
     }
 }

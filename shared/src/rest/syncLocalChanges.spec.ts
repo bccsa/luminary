@@ -122,10 +122,12 @@ describe("localChanges", () => {
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
-                    ["changeRequestId", "1234"],
                     [
-                        "changeRequestDoc-JSON",
-                        JSON.stringify({ _id: "test-doc", type: "post", updatedTimeUtc: 1234 }),
+                        "changeRequest__json",
+                        JSON.stringify({
+                            id: 1234,
+                            doc: { _id: "test-doc", type: "post", updatedTimeUtc: 1234 },
+                        }),
                     ],
                 ]),
             );
@@ -187,10 +189,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
-                ]),
+                expect.arrayContaining([["changeRequest__json", JSON.stringify(localChange)]]),
             );
         });
     });
@@ -225,10 +224,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
-                ]),
+                expect.arrayContaining([["changeRequest__json", JSON.stringify(localChange)]]),
             );
             expect(await db.localChanges.count()).toBe(0);
         });
@@ -284,10 +280,7 @@ describe("localChanges", () => {
             const formData = changeRequestMock.mock.calls[0][0] as FormData;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
-                expect.arrayContaining([
-                    ["changeRequestId", localChange.id.toString()],
-                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
-                ]),
+                expect.arrayContaining([["changeRequest__json", JSON.stringify(localChange)]]),
             );
             expect(await db.localChanges.count()).toBe(0);
         });
