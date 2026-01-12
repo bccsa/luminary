@@ -278,9 +278,9 @@ export class S3Service {
      */
     public async uploadFile(key: string, file: Buffer, mimetype: string) {
         this.touch();
-        const metadata = {
-            "Content-Type": mimetype,
-        };
+        // const metadata = {
+        //     "Content-Type": mimetype,
+        // };
         throw new Error(
             `DEBUG: S3 Service attempting upload. Bucket: "${this.bucketName}", Key: "${key}", Size: ${file.length}, Mime: "${mimetype}"`,
         );
