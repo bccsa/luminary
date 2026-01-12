@@ -17,6 +17,7 @@ import { onClickOutside } from "@vueuse/core";
 import LBadge, { type variants } from "../common/LBadge.vue";
 import LDialog from "../common/LDialog.vue";
 import { isSmallScreen } from "@/globalConfig";
+import LDropdown from "../common/LDropdown.vue";
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
@@ -54,7 +55,7 @@ const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 // Reference to the combobox input element
 const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
-const dropdown = ref<HTMLElement>();
+//const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
 const optionsList = computed(() =>
@@ -66,6 +67,7 @@ const optionsList = computed(() =>
 );
 
 const query = ref("");
+
 const filtered = computed(() =>
     optionsList.value.filter((o) => {
         if (!props.showSelectedInDropdown && o.selected) return false;
@@ -73,9 +75,9 @@ const filtered = computed(() =>
     }),
 );
 
-onClickOutside(comboboxParent.value, () => {
-    showDropdown.value = false;
-});
+//onClickOutside(comboboxParent, () => {
+//   showDropdown.value = false;
+//});
 
 const highlightedIndex = ref(-1);
 
@@ -90,12 +92,12 @@ const selectedLabels = computed(() => {
     return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
-const toggleDropdown = () => {
+/*const toggleDropdown = () => {
     showDropdown.value = !showDropdown.value;
     nextTick(() => {
         inputElement.value?.focus();
     });
-};
+};*/
 
 // focus input when modal opens
 watch(showEditModal, (newVal) => {
@@ -164,130 +166,146 @@ onUnmounted(() => {
             v-model:open="showEditModal"
             :heading="label"
         >
-            <div
-                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
-                tabindex="0"
-                v-bind="attrsWithoutStyles"
-                @click="toggleDropdown()"
+            <LDropdown
+                v-model:show="showDropdown"
+                placement="bottom-start"
+                :width="'full'"
+                padding="none"
             >
-                <div class="flex items-center justify-center gap-2">
-                    <div v-if="icon" class="flex items-center">
-                        <component
-                            :is="icon"
-                            :class="{
-                                'text-zinc-400': !disabled,
-                                'text-zinc-300': disabled,
-                            }"
-                            class="h-5 w-5"
-                        />
+                <template #trigger>
+                    <div
+                        class="relative flex w-full justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                        tabindex="0"
+                        v-bind="attrsWithoutStyles"
+                    >
+                        <div class="flex items-center justify-center gap-2">
+                            <div v-if="icon" class="flex items-center">
+                                <component
+                                    :is="icon"
+                                    :class="{
+                                        'text-zinc-400': !disabled,
+                                        'text-zinc-300': disabled,
+                                    }"
+                                    class="h-5 w-5"
+                                />
+                            </div>
+                            <input
+                                v-model="query"
+                                ref="inputElement"
+                                class="z-0 h-[38px] w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                                :class="{
+                                    'w-96': $slots.actions && !isSmallScreen,
+                                }"
+                                placeholder="Type to select..."
+                                name="option-search"
+                                autocomplete="off"
+                                @keydown.enter="
+                                    () => {
+                                        if (showDropdown) {
+                                            // Add the highlighted option to the selected options on enter
+                                            if (highlightedIndex > -1) {
+                                                selectedOptions.push(
+                                                    filtered[highlightedIndex].value,
+                                                );
+                                                query = '';
+                                                showDropdown = false;
+                                                return;
+                                            }
+                                            // If no option is highlighted, add the first option to the selected options
+                                            if (filtered.length > 0) {
+                                                selectedOptions.push(filtered[0].id);
+                                                query = '';
+                                                showDropdown = false;
+                                            }
+                                        }
+                                    }
+                                "
+                                @keydown.escape="
+                                    () => {
+                                        query = '';
+                                        showDropdown = false;
+                                    }
+                                "
+                                @keydown.down="
+                                    () => {
+                                        if (!showDropdown) showDropdown = true;
+                                        if (highlightedIndex < filtered.length - 1)
+                                            highlightedIndex++;
+                                        /*dropdown?.children[highlightedIndex].scrollIntoView({
+                                        block: 'nearest',
+                                        behavior: 'smooth',
+                                    });*/
+                                    }
+                                "
+                                @keydown.up="
+                                    () => {
+                                        if (highlightedIndex > 0) highlightedIndex--;
+                                        /*dropdown?.children[highlightedIndex].scrollIntoView({
+                                        block: 'nearest',
+                                        behavior: 'smooth',
+                                    });*/
+                                    }
+                                "
+                            />
+                            <button
+                                class="absolute right-2 flex items-center"
+                                name="options-open-btn"
+                            >
+                                <ChevronUpDownIcon
+                                    class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                                />
+                            </button>
+                        </div>
                     </div>
-                    <input
-                        v-model="query"
-                        ref="inputElement"
-                        class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                        :class="{
-                            'w-96': $slots.actions && !isSmallScreen,
-                        }"
-                        placeholder="Type to select..."
-                        name="option-search"
-                        autocomplete="off"
-                        @keydown.enter="
+                </template>
+
+                <div
+                    ref="dropdown"
+                    class="max-h-48 w-11/12 overflow-y-auto"
+                    :class="{ 'w-96': $slots.actions && !isSmallScreen }"
+                    data-test="options"
+                    @wheel.stop
+                    @touchmove.stop
+                >
+                    <li
+                        name="list-item"
+                        v-for="option in filtered"
+                        :key="option.id"
+                        :disabled="option.selected"
+                        role="menuitem"
+                        class="w-full list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100"
+                        :class="[
+                            'relative cursor-default select-none py-2 pl-3 pr-9',
+                            {
+                                'bg-white text-black hover:bg-zinc-100': !option.selected,
+                                'text-zinc-300 hover:bg-white': option.selected,
+                                'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
+                            },
+                        ]"
+                        @click="
                             () => {
-                                if (showDropdown) {
-                                    // Add the highlighted option to the selected options on enter
-                                    if (highlightedIndex > -1) {
-                                        selectedOptions.push(filtered[highlightedIndex].value);
-                                        query = '';
-                                        showDropdown = false;
-                                        return;
-                                    }
-                                    // If no option is highlighted, add the first option to the selected options
-                                    if (filtered.length > 0) {
-                                        selectedOptions.push(filtered[0].id);
-                                        query = '';
-                                        showDropdown = false;
-                                    }
+                                if (!option.selected) {
+                                    selectedOptions.push(option.value);
                                 }
-                            }
-                        "
-                        @keydown.escape="
-                            () => {
                                 query = '';
                                 showDropdown = false;
                             }
                         "
-                        @keydown.down="
-                            () => {
-                                if (!showDropdown) showDropdown = true;
-                                if (highlightedIndex < filtered.length - 1) highlightedIndex++;
-                                dropdown?.children[highlightedIndex].scrollIntoView({
-                                    block: 'nearest',
-                                    behavior: 'smooth',
-                                });
-                            }
-                        "
-                        @keydown.up="
-                            () => {
-                                if (highlightedIndex > 0) highlightedIndex--;
-                                dropdown?.children[highlightedIndex].scrollIntoView({
-                                    block: 'nearest',
-                                    behavior: 'smooth',
-                                });
-                            }
-                        "
-                    />
-                    <button
-                        class="absolute right-2 flex items-center"
-                        @click.stop="toggleDropdown"
-                        name="options-open-btn"
                     >
-                        <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
-                    </button>
+                        <span
+                            class="block truncate"
+                            data-test="group-selector"
+                            :title="option.label"
+                        >
+                            {{ option.label }}
+                        </span>
+                    </li>
                 </div>
-            </div>
-
-            <div
-                ref="dropdown"
-                v-if="showDropdown || query.trim().length > 0"
-                class="absolute z-10 mt-1 max-h-48 w-11/12 overflow-y-auto rounded-md bg-white shadow-md"
-                :class="{ 'w-96': $slots.actions && !isSmallScreen }"
-                data-test="options"
-                @wheel.stop
-                @touchmove.stop
-            >
-                <li
-                    name="list-item"
-                    v-for="option in filtered"
-                    :key="option.id"
-                    :disabled="option.selected"
-                    class="w-full list-none text-start text-sm hover:bg-zinc-100"
-                    :class="[
-                        'relative cursor-default select-none py-2 pl-3 pr-9',
-                        {
-                            'bg-white text-black hover:bg-zinc-100': !option.selected,
-                            'text-zinc-300 hover:bg-white': option.selected,
-                            'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
-                        },
-                    ]"
-                    @click="
-                        () => {
-                            if (!option.selected) {
-                                selectedOptions.push(option.value);
-                            }
-                            query = '';
-                            showDropdown = false;
-                        }
-                    "
-                >
-                    <span class="block truncate" data-test="group-selector" :title="option.label">
-                        {{ option.label }}
-                    </span>
-                </li>
-            </div>
+            </LDropdown>
             <div
                 data-test="selected-labels"
                 v-if="showSelectedLabels"
-                class="flex flex-wrap gap-1 pt-1"
+                class="flex w-full flex-wrap gap-1 pt-1"
             >
                 <LTag
                     v-for="option in selectedLabels"
