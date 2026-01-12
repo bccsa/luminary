@@ -15,6 +15,11 @@ export async function syncBatch(options: SyncOptions) {
     if (cancelSync) {
         return;
     }
+
+    // Merge vertical chunks to ensure adjacent chunks are merged before attempting to fetch new chunk
+    // to handle cases where sync was canceled or terminated before merging could occur.
+    mergeVertical(options);
+
     const chunk = calcChunk(options);
 
     const mangoQuery = {
