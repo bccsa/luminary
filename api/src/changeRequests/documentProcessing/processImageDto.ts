@@ -220,11 +220,13 @@ export async function processImage(
         // Upload new files
         if (image.uploadData) {
             if (!db) {
-                throw new Error("Unable to upload images - system configuration error.");
+                warnings.push("Unable to upload images - system configuration error.");
+                return warnings;
             }
 
             if (!parentBucketId) {
-                throw new Error("Parent bucket ID is required for image uploads.");
+                warnings.push("Parent bucket ID is required for image uploads.");
+                return warnings;
             }
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
@@ -247,7 +249,7 @@ export async function processImage(
                 warnings.push(`${failedUploads} of ${results.length} image uploads failed`);
 
                 if (successfulUploads === 0) {
-                    throw new Error("All image uploads failed - no images were processed"); // Throw error if ALL failed
+                    warnings.push("All image uploads failed - no images were processed"); // Throw error if ALL failed
                 }
             }
 
@@ -290,9 +292,12 @@ async function processImageUpload(
 
         // Bucket ID is required
         if (!bucketId) {
-            throw new Error(
-                "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
-            );
+            return {
+                success: false,
+                warnings: [
+                    "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
+                ],
+            };
         }
 
         // Look up the bucket and create bucket-specific S3 client
@@ -305,9 +310,12 @@ async function processImageUpload(
             ) as StorageDto;
 
             if (!foundBucket || !foundBucket.name) {
-                throw new Error(
-                    `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
-                );
+                return {
+                    success: false,
+                    warnings: [
+                        `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
+                    ],
+                };
             }
 
             storage = foundBucket;
@@ -333,11 +341,14 @@ async function processImageUpload(
                 });
 
                 if (!isAllowed) {
-                    throw new Error(
-                        `File type "${detectedMimetype}" is not allowed for bucket "${
-                            storage.name
-                        }". Allowed types: ${storage.mimeTypes.join(", ")}`,
-                    );
+                    return {
+                        success: false,
+                        warnings: [
+                            `File type "${detectedMimetype}" is not allowed for bucket "${
+                                storage.name
+                            }". Allowed types: ${storage.mimeTypes.join(", ")}`,
+                        ],
+                    };
                 }
             }
 
@@ -376,7 +387,10 @@ async function processImageUpload(
             image.fileCollections.push(resultImageCollection);
             return { success: true, warnings };
         } else {
-            throw new Error("No image sizes could be processed successfully"); // Throw if all sizes failed
+            return {
+                success: false,
+                warnings: ["No image sizes could be processed successfully"],
+            };
         }
     } catch (error) {
         return { success: false, warnings: [`Image upload failed: ${error.message}`] };
