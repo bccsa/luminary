@@ -75,9 +75,9 @@ const filtered = computed(() =>
     }),
 );
 
-//onClickOutside(comboboxParent, () => {
-//   showDropdown.value = false;
-//});
+onClickOutside(comboboxParent.value, () => {
+    showDropdown.value = false;
+});
 
 const highlightedIndex = ref(-1);
 
@@ -92,12 +92,12 @@ const selectedLabels = computed(() => {
     return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
-/*const toggleDropdown = () => {
+const toggleDropdown = () => {
     showDropdown.value = !showDropdown.value;
     nextTick(() => {
         inputElement.value?.focus();
     });
-};*/
+};
 
 // focus input when modal opens
 watch(showEditModal, (newVal) => {
@@ -124,6 +124,10 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener("keydown", handleGlobalEscape);
 });
+
+const focusInput = () => {
+    inputElement.value?.focus();
+};
 </script>
 
 <template>
@@ -132,6 +136,7 @@ onUnmounted(() => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
+        @click="focusInput"
     >
         <div class="flex justify-between">
             <div class="flex items-center gap-1">
