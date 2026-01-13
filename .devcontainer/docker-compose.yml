@@ -26,7 +26,7 @@ services:
   shared:
     build:
       context: ..
-      dockerfile: local-dev/Dockerfile.dev
+      dockerfile: .devcontainer/Dockerfile.dev
     volumes:
       - ..:/workspace
       - shared_node_modules:/workspace/shared/node_modules
@@ -41,7 +41,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: local-dev/Dockerfile.dev
+      dockerfile: .devcontainer/Dockerfile.dev
     volumes:
       - ..:/workspace
       - api_node_modules:/workspace/api/node_modules
@@ -63,7 +63,7 @@ services:
   app:
     build:
       context: ..
-      dockerfile: local-dev/Dockerfile.dev
+      dockerfile: .devcontainer/Dockerfile.dev
     volumes:
       - ..:/workspace
       - app_node_modules:/workspace/app/node_modules
@@ -83,7 +83,7 @@ services:
   cms:
     build:
       context: ..
-      dockerfile: local-dev/Dockerfile.dev
+      dockerfile: .devcontainer/Dockerfile.dev
     volumes:
       - ..:/workspace
       - cms_node_modules:/workspace/cms/node_modules
