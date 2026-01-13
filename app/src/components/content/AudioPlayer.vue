@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { type ContentDto, db, type LanguageDto } from "luminary-shared";
+import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
 import {
     PlayIcon,
     PauseIcon,
@@ -52,23 +52,36 @@ const isVolumeSliding = ref(false);
 const volumeSlideValue = ref(1);
 const showVolumeSlider = ref(false);
 
-type Props = {
-    content: ContentDto;
-};
+const content = defineModel<ContentDto>("content", { required: true });
 
-const props = defineProps<Props>();
+// Create a live query to keep the content up-to-date with database changes
+// This ensures the image and other data stay fresh even if the parent post/tag is updated
+// We watch the content ID so the query updates when switching tracks AND when content is updated
+const liveContent = useDexieLiveQueryWithDeps(
+    () => content.value._id,
+    (contentId: string) => db.get<ContentDto>(contentId),
+    {
+        initialValue: content.value,
+    },
+);
+
+// Use live content if available, otherwise fall back to model
+// This ensures we always have the latest data from the database
+const currentContent = computed(() => liveContent.value || content.value);
 
 // Language switcher state
 const showLanguageDropdown = ref(false);
-const selectedLanguageId = ref(props.content.language);
+const selectedLanguageId = ref(currentContent.value.language);
 const isLanguageSwitching = ref(false);
 
 // Available languages for this content
 const availableLanguages = ref<LanguageDto[]>([]);
 const availableAudioLanguages = computed(() => {
-    if (!props.content.parentMedia?.fileCollections) return [];
+    if (!currentContent.value?.parentMedia?.fileCollections) return [];
 
-    const audioLanguageIds = props.content.parentMedia.fileCollections.map((fc) => fc.languageId);
+    const audioLanguageIds = currentContent.value.parentMedia.fileCollections.map(
+        (fc) => fc.languageId,
+    );
     return availableLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
 });
 
@@ -447,7 +460,7 @@ const switchLanguage = (languageId: string) => {
     if (!audioElement.value || selectedLanguageId.value === languageId) return;
 
     // Validate that the target language has audio
-    const targetAudioFile = props.content.parentMedia?.fileCollections?.find(
+    const targetAudioFile = currentContent.value.parentMedia?.fileCollections?.find(
         (file) => file.languageId === languageId,
     );
     if (!targetAudioFile) {
@@ -718,18 +731,26 @@ onUnmounted(() => {
     }
 });
 
-// Auto-play when content changes
+// Auto-play when content changes (watch both model and live query)
 watch(
-    () => props.content,
-    async (newContent, oldContent) => {
-        if (newContent && (!oldContent || newContent._id !== oldContent._id)) {
+    [() => content.value._id, () => currentContent.value],
+    async ([newId, newContent], [oldId, oldContent]) => {
+        // Only reset if it's a different content (new track)
+        if (newId && oldId && newId !== oldId) {
             // Reset states when content changes
             currentTime.value = 0;
             duration.value = 0;
             audioError.value = null;
             retryCount.value = 0;
             connectionError.value = false;
+        }
 
+        // Update selectedLanguageId when content language changes
+        if (newContent?.language && newContent.language !== selectedLanguageId.value) {
+            selectedLanguageId.value = newContent.language;
+        }
+
+        if (newContent && (!oldContent || newContent._id !== oldContent?._id)) {
             // Wait for the audio element to load the new source, then auto-start playing
             if (audioElement.value) {
                 const tryToPlay = async () => {
@@ -813,16 +834,16 @@ const onPointerLeave = () => {
 // write a computed function that will assign the file url of the file collection where the languageId matches the selected language
 const matchAudioFileUrl = computed(() => {
     if (
-        props.content.parentMedia &&
-        props.content.parentMedia.fileCollections &&
+        currentContent.value.parentMedia &&
+        currentContent.value.parentMedia.fileCollections &&
         selectedLanguageId.value
     ) {
-        const matchedFile = props.content.parentMedia.fileCollections.find(
+        const matchedFile = currentContent.value.parentMedia.fileCollections.find(
             (file) => file.languageId === selectedLanguageId.value,
         );
         return matchedFile?.fileUrl;
     }
-    return props.content.parentMedia?.fileCollections?.[0]?.fileUrl;
+    return currentContent.value.parentMedia?.fileCollections?.[0]?.fileUrl;
 });
 
 // Also watch for audio URL changes and auto-play (but not during manual language switching)
@@ -849,7 +870,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
         <!-- Screen reader status announcements -->
         <div class="sr-only" aria-live="polite" aria-atomic="true">
-            {{ isPlaying ? "Playing" : "Paused" }}: {{ content.title }} by {{ content.author }}
+            {{ isPlaying ? "Playing" : "Paused" }}: {{ currentContent.title }} by
+            {{ currentContent.author }}
             <span v-if="audioError">Error: {{ audioError }}</span>
             <span v-if="isLoading">Loading audio...</span>
             <span v-if="connectionError">Connection issues detected</span>
@@ -945,10 +967,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         class="flex justify-center opacity-100 transition-opacity duration-500 ease-out"
                     >
                         <LImage
-                            v-if="content.parentImageData"
-                            :image="content.parentImageData"
-                            :contentParentId="content.parentId"
-                            :parentImageBucketId="content.parentImageBucketId"
+                            v-if="currentContent.parentImageData"
+                            :image="currentContent.parentImageData"
+                            :contentParentId="currentContent.parentId"
+                            :parentImageBucketId="currentContent.parentImageBucketId"
                             :rounded="true"
                             size="thumbnail"
                             aspectRatio="square"
@@ -959,23 +981,23 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <!-- Title and Author -->
                         <div class="space-y-1 text-center">
                             <span
-                                v-if="content.author"
+                                v-if="currentContent.author"
                                 class="block min-w-0 truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
                             >
-                                {{ content.author }}
+                                {{ currentContent.author }}
                             </span>
                             <span
                                 class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300"
                             >
-                                {{ content.title }}
+                                {{ currentContent.title }}
                             </span>
                             <span
                                 class="block min-w-0 truncate text-xs font-semibold text-zinc-400"
                             >
                                 {{
-                                    content.publishDate
+                                    currentContent.publishDate
                                         ? db
-                                              .toDateTime(content.publishDate)
+                                              .toDateTime(currentContent.publishDate)
                                               .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
@@ -1248,31 +1270,32 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
-                    v-if="content.parentImageData"
-                    :image="content.parentImageData"
-                    :contentParentId="content.parentId"
+                    v-if="currentContent.parentImageData"
+                    :image="currentContent.parentImageData"
+                    :contentParentId="currentContent.parentId"
+                    :parentImageBucketId="currentContent.parentImageBucketId"
                     size="smallSquare"
                     aspectRatio="square"
                 />
 
                 <div class="flex min-w-0 flex-col">
                     <span class="block min-w-0 truncate text-sm font-semibold">
-                        {{ content.title }}
+                        {{ currentContent.title }}
                     </span>
                     <span
-                        v-if="content.author || content.summary"
+                        v-if="currentContent.author || currentContent.summary"
                         class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400"
                     >
-                        {{ content.author || content.summary }}
+                        {{ currentContent.author || currentContent.summary }}
                     </span>
                     <span
                         v-else
                         class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300"
                     >
                         {{
-                            content.publishDate
+                            currentContent.publishDate
                                 ? db
-                                      .toDateTime(content.publishDate)
+                                      .toDateTime(currentContent.publishDate)
                                       .toLocaleString(DateTime.DATETIME_MED)
                                 : ""
                         }}
