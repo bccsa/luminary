@@ -327,10 +327,8 @@ async function processMediaUpload(
                 let detectedMimetype = "audio/mpeg"; // default
 
                 try {
-                    // @ts-expect-error - music-metadata may not be installed in all environments
-                    const mm = await import("music-metadata");
-                    const mmEsm = await (mm as any).parserBuffer();
-                    const metadata = await mmEsm.parseBuffer(new Uint8Array(uploadData.fileData));
+                    const { parseBuffer } = await import("music-metadata");
+                    const metadata = await parseBuffer(new Uint8Array(uploadData.fileData));
                     const formatInfo = getAudioFormatInfo(metadata);
                     detectedMimetype = formatInfo.mime;
                 } catch (_err) {
@@ -396,10 +394,8 @@ async function uploadMediaFile(
         const u8 = new Uint8Array(uploadData.fileData);
 
         try {
-            // @ts-expect-error - music-metadata may not be installed in all environments
-            const mm = await import("music-metadata");
-            const mmEsm = await (mm as any).parserBuffer();
-            const metadata = await mmEsm.parseBuffer(u8);
+            const { parseBuffer } = await import("music-metadata");
+            const metadata = await parseBuffer(u8);
 
             // Use robust format detection
             formatInfo = getAudioFormatInfo(metadata);
