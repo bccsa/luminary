@@ -15,14 +15,11 @@ import {
     RedirectType,
     type AccessMap,
     type UserDto,
-<<<<<<< ours
     type StorageDto,
     type S3CredentialDto,
     StorageType,
-=======
     MediaType,
     type MediaFileDto,
->>>>>>> theirs
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
