@@ -96,7 +96,13 @@ describe("VideoPlayer", () => {
 
         await waitForExpect(() => {
             // Check that the default poster image is set to a transparent pixel
-            expect(posterMock).toHaveBeenCalledWith("/src/components/content/px.png");
+            // In Vite, image imports resolve to paths starting with '/' or as data URLs
+            expect(posterMock).toHaveBeenCalled();
+            const posterArg = posterMock.mock.calls[0]?.[0];
+            expect(posterArg).toBeTruthy();
+            // The px.png import should resolve to a string path containing 'px' and '.png'
+            expect(typeof posterArg).toBe("string");
+            expect(posterArg).toMatch(/px.*\.png|\.png.*px/i);
         });
 
         await waitForExpect(() => {
