@@ -1,4 +1,5 @@
-import { IsArray, IsOptional, IsString } from "class-validator";
+import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
+import { IsArray, IsOptional, IsString, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { MediaFileDto } from "./MediaFileDto";
 import { MediaUploadDataDto } from "./MediaUploadDataDto";
@@ -13,13 +14,15 @@ export class MediaDto {
     hlsUrl?: string;
 
     @IsArray()
-    @Type(() => MediaFileDto)
+    @ValidateNested({ each: true })
+    @Type(() => MediaFileDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
-    fileCollections: MediaFileDto[];
+    fileCollections: MediaFileDto[] = [];
 
     @IsOptional()
     @IsArray()
-    @Type(() => MediaUploadDataDto)
+    @ValidateNested({ each: true })
+    @Type(() => MediaUploadDataDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
     uploadData?: MediaUploadDataDto[];
 }

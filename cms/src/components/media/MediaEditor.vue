@@ -10,7 +10,7 @@ import {
     db,
     DocType,
 } from "luminary-shared";
-import { computed, ref, toRaw } from "vue";
+import { computed, ref, toRaw, watchEffect } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -134,6 +134,56 @@ const showReplaceConfirmation = ref(false);
 const pendingFile = ref<File | null>(null);
 const selectedLanguageForUpload = ref<string | undefined>(undefined);
 
+// Validate that selected bucket still exists and auto-select if only one available
+watchEffect(() => {
+    // Check if the currently selected bucket still exists in the database
+    if (parent.value?.mediaBucketId) {
+        // Only validate if buckets have loaded (array is not empty)
+        // This prevents clearing mediaBucketId while buckets are still loading from IndexedDB
+        if (bucketSelection.mediaBuckets.value.length > 0) {
+            const currentBucketExists = bucketSelection.mediaBuckets.value.some(
+                (b) => b._id === parent.value?.mediaBucketId,
+            );
+
+            // If the bucket no longer exists, clear it
+            if (!currentBucketExists) {
+                parent.value.mediaBucketId = undefined;
+            }
+        }
+    }
+
+    // Auto-select if only one bucket available and none is selected
+    if (bucketSelection.autoSelectMediaBucket.value && !parent.value?.mediaBucketId) {
+        parent.value!.mediaBucketId = bucketSelection.autoSelectMediaBucket.value;
+        emit("bucketSelected", bucketSelection.autoSelectMediaBucket.value);
+    }
+
+    // Proactively show error messages for bucket configuration issues
+    // This ensures users see the error immediately, not just when they try to upload
+    if (!bucketSelection.hasMediaBuckets.value) {
+        // No buckets configured at all
+        failureMessage.value =
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading media.";
+        showFailureMessage.value = true;
+    } else if (!parent.value?.mediaBucketId && bucketSelection.mediaBuckets.value.length > 1) {
+        // Multiple buckets available but none selected
+        failureMessage.value = "Please select a storage bucket before uploading media.";
+        showFailureMessage.value = true;
+    } else if (parent.value?.mediaBucketId) {
+        // Bucket is selected, clear any bucket-related errors
+        // Only clear if the current error is about bucket selection/configuration
+        const bucketRelatedErrors = [
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading media.",
+            "Please select a storage bucket before uploading media.",
+            "The selected storage bucket no longer exists. Please select another bucket.",
+        ];
+        if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
+            failureMessage.value = undefined;
+            showFailureMessage.value = false;
+        }
+    }
+});
+
 const confirmLanguageAndUpload = () => {
     if (!pendingFile.value || !selectedLanguageForUpload.value) return;
 
@@ -182,6 +232,34 @@ const handleFiles = (files: FileList | null) => {
 
     // Only process the first file
     const file = files[0];
+
+    // Check if a bucket is selected
+    if (!parent.value?.mediaBucketId) {
+        failureMessage.value = "Please select a storage bucket before uploading media.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Check if the currently selected bucket still exists in the database
+    const currentBucketExists = bucketSelection.mediaBuckets.value.some(
+        (b) => b._id === parent.value?.mediaBucketId,
+    );
+
+    if (!currentBucketExists) {
+        parent.value.mediaBucketId = undefined;
+        failureMessage.value =
+            "The selected storage bucket no longer exists. Please select another bucket.";
+        showFailureMessage.value = true;
+        return;
+    }
+
+    // Check if buckets are configured
+    if (!bucketSelection.hasMediaBuckets.value) {
+        failureMessage.value =
+            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading media.";
+        showFailureMessage.value = true;
+        return;
+    }
 
     // Store the pending file and show language selector
     pendingFile.value = file;
@@ -307,15 +385,28 @@ defineExpose({
 
 <template>
     <div class="flex flex-col overflow-x-auto">
-        <!-- Header with bucket selector and error message -->
-        <div
-            :disabled="disabled"
-            :class="{
-                'mb-0': parent?.media?.fileCollections?.length || parent?.media?.uploadData?.length,
-            }"
-            class="flex justify-between"
-        >
-            <div class="flex justify-center gap-2">
+        <!-- Bucket Selection Dropdown (always show if multiple buckets, or show if none selected) -->
+        <div v-if="bucketSelection.mediaBuckets.value.length > 1" class="mb-2 px-0.5 pt-1">
+            <LSelect
+                v-model="parent!.mediaBucketId"
+                :options="bucketOptions"
+                label="Bucket"
+                placeholder="Select storage bucket"
+                :disabled="disabled"
+                @update:modelValue="handleBucketChange"
+                class="text-sm"
+            />
+            <p
+                v-if="fileTypeDescription && parent?.mediaBucketId"
+                class="mt-1 text-xs text-gray-500"
+            >
+                {{ fileTypeDescription }}
+            </p>
+        </div>
+
+        <!-- Header with error message toggle -->
+        <div :disabled="disabled" class="flex justify-between">
+            <div class="flex gap-1">
                 <button
                     v-if="failureMessage"
                     class="flex cursor-pointer items-center gap-1 rounded-md"
@@ -326,26 +417,11 @@ defineExpose({
                 </button>
 
                 <!-- Error Message -->
-                <div v-if="showFailureMessage">
-                    <p class="text-xs text-red-600">
+                <div v-if="showFailureMessage" class="">
+                    <p class="my-2 text-xs text-red-600">
                         {{ failureMessage }}
                     </p>
                 </div>
-            </div>
-
-            <!-- Bucket Selection -->
-            <div v-if="bucketOptions.length > 0" class="flex items-center gap-2">
-                <LSelect
-                    :options="bucketOptions"
-                    :model-value="parent?.mediaBucketId"
-                    @update:model-value="handleBucketChange"
-                    :disabled="disabled"
-                    placeholder="Select Media Bucket"
-                    class="w-48"
-                />
-                <span v-if="fileTypeDescription" class="text-xs text-gray-500">
-                    {{ fileTypeDescription }}
-                </span>
             </div>
         </div>
 
@@ -362,7 +438,7 @@ defineExpose({
         >
             <!-- Drop instructions -->
             <div class="hidden flex-col items-center justify-center md:flex">
-                <p v-if="isDragging" class="text-sm">Drop your file here</p>
+                <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
                     <input
                         ref="uploadInput"

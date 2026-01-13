@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { type ContentDto, db, type LanguageDto } from "luminary-shared";
+import { type ContentDto, db, type LanguageDto, useDexieLiveQuery } from "luminary-shared";
 import {
     PlayIcon,
     PauseIcon,
@@ -32,17 +32,28 @@ type Props = {
 
 const props = defineProps<Props>();
 
+// Create a live query to keep the content up-to-date with database changes
+// This ensures the image and other data stay fresh even if the parent post/tag is updated
+const liveContent = useDexieLiveQuery(() => db.get<ContentDto>(props.content._id), {
+    initialValue: props.content,
+});
+
+// Use live content if available, otherwise fall back to props
+const currentContent = computed(() => liveContent.value || props.content);
+
 // Language switcher state
 const showLanguageDropdown = ref(false);
-const selectedLanguageId = ref(props.content.language);
+const selectedLanguageId = ref(currentContent.value.language);
 const isLanguageSwitching = ref(false);
 
 // Available languages for this content
 const availableLanguages = ref<LanguageDto[]>([]);
 const availableAudioLanguages = computed(() => {
-    if (!props.content.parentMedia?.fileCollections) return [];
+    if (!currentContent.value.parentMedia?.fileCollections) return [];
 
-    const audioLanguageIds = props.content.parentMedia.fileCollections.map((fc) => fc.languageId);
+    const audioLanguageIds = currentContent.value.parentMedia.fileCollections.map(
+        (fc) => fc.languageId,
+    );
     return availableLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
 });
 
@@ -152,7 +163,7 @@ const switchLanguage = (languageId: string) => {
     if (!audioElement.value || selectedLanguageId.value === languageId) return;
 
     // Validate that the target language has audio
-    const targetAudioFile = props.content.parentMedia?.fileCollections?.find(
+    const targetAudioFile = currentContent.value.parentMedia?.fileCollections?.find(
         (file) => file.languageId === languageId,
     );
     if (!targetAudioFile) {
@@ -464,16 +475,16 @@ const onPointerLeave = () => {
 // write a computed function that will assign the file url of the file collection where the languageId matches the selected language
 const matchAudioFileUrl = computed(() => {
     if (
-        props.content.parentMedia &&
-        props.content.parentMedia.fileCollections &&
+        currentContent.value.parentMedia &&
+        currentContent.value.parentMedia.fileCollections &&
         selectedLanguageId.value
     ) {
-        const matchedFile = props.content.parentMedia.fileCollections.find(
+        const matchedFile = currentContent.value.parentMedia.fileCollections.find(
             (file) => file.languageId === selectedLanguageId.value,
         );
         return matchedFile?.fileUrl;
     }
-    return props.content.parentMedia?.fileCollections?.[0]?.fileUrl;
+    return currentContent.value.parentMedia?.fileCollections?.[0]?.fileUrl;
 });
 
 // Also watch for audio URL changes and auto-play (but not during manual language switching)
@@ -585,9 +596,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         class="flex justify-center opacity-100 transition-opacity duration-500 ease-out"
                     >
                         <LImage
-                            v-if="content.parentImageData"
-                            :image="content.parentImageData"
-                            :contentParentId="content.parentId"
+                            v-if="currentContent.parentImageData"
+                            :image="currentContent.parentImageData"
+                            :contentParentId="currentContent.parentId"
+                            :parentImageBucketId="currentContent.parentImageBucketId"
                             :rounded="true"
                             size="thumbnail"
                             aspectRatio="square"
@@ -598,23 +610,23 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <!-- Title and Author -->
                         <div class="space-y-1 text-center">
                             <span
-                                v-if="content.author"
+                                v-if="currentContent.author"
                                 class="block min-w-0 truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
                             >
-                                {{ content.author }}
+                                {{ currentContent.author }}
                             </span>
                             <span
                                 class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300"
                             >
-                                {{ content.title }}
+                                {{ currentContent.title }}
                             </span>
                             <span
                                 class="block min-w-0 truncate text-xs font-semibold text-zinc-400"
                             >
                                 {{
-                                    content.publishDate
+                                    currentContent.publishDate
                                         ? db
-                                              .toDateTime(content.publishDate)
+                                              .toDateTime(currentContent.publishDate)
                                               .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
@@ -695,31 +707,31 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
-                    v-if="content.parentImageData"
-                    :image="content.parentImageData"
-                    :contentParentId="content.parentId"
+                    v-if="currentContent.parentImageData"
+                    :image="currentContent.parentImageData"
+                    :contentParentId="currentContent.parentId"
                     size="smallSquare"
                     aspectRatio="square"
                 />
 
                 <div class="flex min-w-0 flex-col">
                     <span class="block min-w-0 truncate text-sm font-semibold">
-                        {{ content.title }}
+                        {{ currentContent.title }}
                     </span>
                     <span
-                        v-if="content.author || content.summary"
+                        v-if="currentContent.author || currentContent.summary"
                         class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400"
                     >
-                        {{ content.author || content.summary }}
+                        {{ currentContent.author || currentContent.summary }}
                     </span>
                     <span
                         v-else
                         class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300"
                     >
                         {{
-                            content.publishDate
+                            currentContent.publishDate
                                 ? db
-                                      .toDateTime(content.publishDate)
+                                      .toDateTime(currentContent.publishDate)
                                       .toLocaleString(DateTime.DATETIME_MED)
                                 : ""
                         }}
