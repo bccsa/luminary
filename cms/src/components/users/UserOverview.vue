@@ -15,8 +15,6 @@ import { computed, ref, onBeforeUnmount } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
-import UserFilterOptions, { type UserOverviewQueryOptions } from "./UserFilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
@@ -34,50 +32,6 @@ onBeforeUnmount(() => {
 const createNew = () => {
     router.push({ name: "user", params: { id: db.uuid() } });
 };
-
-const defaultQueryOptions: UserOverviewQueryOptions = {
-    groups: [],
-    search: "",
-    pageSize: 20,
-    pageIndex: 0,
-};
-
-const savedQueryOptions = () => sessionStorage.getItem("userOverviewQueryOptions");
-
-function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
-    const parsed = saved ? JSON.parse(saved) : {};
-    return {
-        ...defaultQueryOptions,
-        ...parsed,
-        groups: parsed.groups ?? [],
-        pageSize: parsed.pageSize ?? 20,
-        pageIndex: parsed.pageIndex ?? 0,
-    };
-}
-
-const queryOptions = ref<UserOverviewQueryOptions>(
-    mergeNewFields(savedQueryOptions()) as UserOverviewQueryOptions,
-);
-
-watch(
-    queryOptions,
-    () => {
-        sessionStorage.setItem("userOverviewQueryOptions", JSON.stringify(queryOptions.value));
-    },
-    { deep: true },
-);
-
-// Reset to first page when search or groups change
-watch([() => queryOptions.value.search, () => queryOptions.value.groups], () => {
-    queryOptions.value.pageIndex = 0;
-});
-
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
-
-const totalUsers = ref(0);
 </script>
 
 <template>
@@ -88,7 +42,7 @@ const totalUsers = ref(0);
                     v-if="canCreateNew && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="$router.push({ name: 'user', params: { id: db.uuid() } })"
+                    @click="createNew"
                     name="createUserBtn"
                 >
                     Create user

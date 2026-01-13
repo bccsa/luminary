@@ -26,13 +26,14 @@ watch(groups, (newGroups) => {
         <DisplayCard
             :title="usersDoc.name"
             :updatedTimeUtc="0"
-            class="!divide-y-0 !py-0"
             @click="$router.push({ name: 'user', params: { id: usersDoc._id } })"
         >
             <template #content>
-                <div class="flex justify-between pb-1 min-[1500px]:pt-2">
+                <div class="flex justify-between pb-1 min-[1500px]:pt-0">
                     <div>
-                        <span class="text-xs text-zinc-500 sm:text-sm">{{ usersDoc.email }}</span>
+                        <span class="text-xs text-zinc-500 sm:text-sm">{{
+                            usersDoc.email
+                        }}</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="font-medium text-zinc-900">
