@@ -6,23 +6,27 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Mock music-metadata for tests to avoid ESM import issues
-jest.mock("music-metadata", () => ({
-    parseBuffer: jest.fn((buffer: Uint8Array) => {
-        // Simple heuristic: real audio files are larger than 100 bytes
-        // and will have RIFF/WAVE headers for WAV files
-        if (buffer.byteLength < 100) {
-            return Promise.reject(new Error("Invalid audio file"));
-        }
-        return Promise.resolve({
-            format: {
-                codec: "pcm",
-                container: "WAVE/wave",
-                numberOfChannels: 1,
-                bitrate: 128000,
-            },
-        });
+jest.mock(
+    "music-metadata",
+    () => ({
+        parseBuffer: jest.fn((buffer: Uint8Array) => {
+            // Simple heuristic: real audio files are larger than 100 bytes
+            // and will have RIFF/WAVE headers for WAV files
+            if (buffer.byteLength < 100) {
+                return Promise.reject(new Error("Invalid audio file"));
+            }
+            return Promise.resolve({
+                format: {
+                    codec: "pcm",
+                    container: "WAVE/wave",
+                    numberOfChannels: 1,
+                    bitrate: 128000,
+                },
+            });
+        }),
     }),
-}), { virtual: true });
+    { virtual: true },
+);
 
 describe("validateChangeRequest", () => {
     let db: DbService;
