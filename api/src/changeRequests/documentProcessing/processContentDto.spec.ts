@@ -33,7 +33,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
@@ -47,14 +46,13 @@ describe("processContentDto", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio); // ensure that the slug is already in use
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3); // ensure that the slug is already in use
         const res = await processChangeRequest(
             "",
             changeRequest,
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
@@ -68,7 +66,7 @@ describe("processContentDto", () => {
         changeRequest1.doc.parentId = "post-blog1";
         changeRequest1.doc._id = "test-slug-1";
         changeRequest1.doc.slug = "this-is-a-test-slug";
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
 
         // Create a new change request with the same slug
         const changeRequest2 = changeRequest_content();
@@ -82,7 +80,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         const dbDoc = await db.getDoc(changeRequest2.doc._id);
 
@@ -102,7 +99,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
@@ -119,7 +115,7 @@ describe("processContentDto", () => {
         delete changeRequest.doc.parentPostType;
         delete changeRequest.doc.parentPublishDateVisible;
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
@@ -149,7 +145,7 @@ describe("processContentDto", () => {
         delete changeRequest.doc.parentPublishDateVisible;
         delete changeRequest.doc.parentTaggedDocs;
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
@@ -175,7 +171,7 @@ describe("processContentDto", () => {
         };
 
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
 
         const res = await db.getContentByParentId(changeRequest.doc._id);
         const docsCount = res.docs.length;
@@ -212,7 +208,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Add a new translation for the same parent
@@ -226,7 +221,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Fetch the documents from the database
@@ -256,7 +250,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Add a new translation for the same parent
@@ -271,7 +264,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Fetch the documents from the database
@@ -295,7 +287,6 @@ describe("processContentDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Fetch the documents from the database
