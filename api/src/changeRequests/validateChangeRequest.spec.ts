@@ -5,6 +5,25 @@ import { createTestingModule } from "../test/testingModule";
 import * as fs from "fs";
 import * as path from "path";
 
+// Mock music-metadata for tests to avoid ESM import issues
+jest.mock("music-metadata", () => ({
+    parseBuffer: jest.fn((buffer: Uint8Array) => {
+        // Simple heuristic: real audio files are larger than 100 bytes
+        // and will have RIFF/WAVE headers for WAV files
+        if (buffer.byteLength < 100) {
+            return Promise.reject(new Error("Invalid audio file"));
+        }
+        return Promise.resolve({
+            format: {
+                codec: "pcm",
+                container: "WAVE/wave",
+                numberOfChannels: 1,
+                bitrate: 128000,
+            },
+        });
+    }),
+}), { virtual: true });
+
 describe("validateChangeRequest", () => {
     let db: DbService;
 
@@ -265,5 +284,79 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain(
             "acl[1].permission has failed the following constraints: isEnum",
         );
+    });
+
+    it("validates a post with valid audio upload data for multiple languages", async () => {
+        const audioFile = fs.readFileSync(path.resolve(__dirname + "/../test/" + "silence.wav"));
+
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "post-test",
+                type: "post",
+                memberOf: ["group-super-admins"],
+                postType: "blog",
+                tags: [],
+                publishDateVisible: true,
+                media: {
+                    fileCollections: [],
+                    uploadData: [
+                        {
+                            fileData: audioFile,
+                            preset: "default",
+                            mediaType: "audio",
+                            languageId: "lang-eng",
+                        },
+                        {
+                            fileData: audioFile,
+                            preset: "default",
+                            mediaType: "audio",
+                            languageId: "lang-spa",
+                        },
+                        {
+                            fileData: audioFile,
+                            preset: "default",
+                            mediaType: "audio",
+                            languageId: "lang-fra",
+                        },
+                    ],
+                },
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(true);
+        expect(result.error).toBe(undefined);
+    });
+
+    it("fails validation for post with invalid audio upload data", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "post-test",
+                type: "post",
+                memberOf: ["group-super-admins"],
+                postType: "blog",
+                tags: [],
+                publishDateVisible: true,
+                media: {
+                    fileCollections: [],
+                    uploadData: [
+                        {
+                            fileData: Buffer.from("not an audio file"),
+                            preset: "default",
+                            mediaType: "audio",
+                            languageId: "lang-eng",
+                        },
+                    ],
+                },
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toContain("isAudio");
     });
 });
