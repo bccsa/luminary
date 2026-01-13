@@ -43,6 +43,7 @@ import {
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
@@ -598,6 +599,15 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                         />
 
                         <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
+                        <EditContentMedia
                             v-if="editableParent"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"

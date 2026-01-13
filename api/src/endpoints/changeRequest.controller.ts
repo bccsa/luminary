@@ -72,7 +72,12 @@ export class ChangeRequestController {
                             });
                         } else if (isVideo || isAudio) {
                             const hlsUrl = fields[`${index}-changeRequestDoc-hlsUrl`];
-                            if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
+                            if (hlsUrl) {
+                                if (!parsedDoc.media) {
+                                    parsedDoc.media = { fileCollections: [], uploadData: [] };
+                                }
+                                parsedDoc.media.hlsUrl = hlsUrl;
+                            }
                             
                             uploadData.push({
                                 fileData: file.buffer,

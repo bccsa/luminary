@@ -7,17 +7,17 @@ import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType, MediaType } from "../../enums";
-import { processImage } from "../../s3/s3.imagehandling";
+import { processImage } from "./processImageDto";
+import { processMedia } from "./processMediaDto";
 import { S3AudioService } from "../../s3-audio/s3Audio.service";
-import { processMedia } from "../../s3-audio/s3.audiohandling";
 
-// Mock processImage from s3.imagehandling
-jest.mock("../../s3/s3.imagehandling", () => ({
+// Mock processImage
+jest.mock("./processImageDto", () => ({
     processImage: jest.fn(),
 }));
 
-// Mock processMedia from s3.audiohandling
-jest.mock("../../s3-audio/s3.audiohandling", () => ({
+// Mock processMedia
+jest.mock("./processMediaDto", () => ({
     processMedia: jest.fn(),
 }));
 
@@ -255,7 +255,9 @@ describe("processPostTagDto", () => {
         expect(processImage).toHaveBeenCalledWith(
             (changeRequest.doc as PostDto).imageData,
             undefined,
-            s3,
+            db,
+            (changeRequest.doc as PostDto).imageBucketId,
+            undefined,
         );
     });
 
@@ -295,13 +297,15 @@ describe("processPostTagDto", () => {
         expect(processImage).toHaveBeenCalledWith(
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
-            s3,
+            db,
+            (changeRequest.doc as PostDto).imageBucketId,
         );
     });
 
     it("can handle media field when creating a new post without previous document", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog6";
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
             fileCollections: [
                 {
@@ -330,6 +334,7 @@ describe("processPostTagDto", () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog7";
         changeRequest.doc.deleteReq = 1;
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
             fileCollections: [
                 {
@@ -357,6 +362,7 @@ describe("processPostTagDto", () => {
     it("can remove media from S3 when a post/tag document is marked for deletion", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog8";
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
             fileCollections: [
                 {
@@ -392,7 +398,8 @@ describe("processPostTagDto", () => {
         expect(processMedia).toHaveBeenCalledWith(
             { fileCollections: [] }, // Empty fileCollections to remove the media from S3
             (changeRequest.doc as PostDto).media,
-            s3Audio,
+            db,
+            (changeRequest.doc as PostDto).mediaBucketId,
         );
     });
 });

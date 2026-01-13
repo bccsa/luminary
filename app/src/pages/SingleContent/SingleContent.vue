@@ -16,22 +16,8 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-<<<<<<< ours
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
-=======
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
-<<<<<<< ours
-import {
-    BookmarkIcon as BookmarkIconSolid,
-    TagIcon,
-    SunIcon,
-    PlayIcon,
-} from "@heroicons/vue/24/solid";
->>>>>>> theirs
-=======
-import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
->>>>>>> theirs
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -62,26 +48,13 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-<<<<<<< ours
-import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { markLanguageSwitch } from "@/util/isLangSwitch";
-=======
 import { CheckCircleIcon, DocumentDuplicateIcon, SpeakerWaveIcon } from "@heroicons/vue/20/solid";
-import {
-    markLanguageSwitch,
-    consumeLanguageSwitchFlag,
-    isLanguageSwitchRef,
-} from "@/util/isLangSwitch";
->>>>>>> theirs
+import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-<<<<<<< ours
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
-import AudioPlayer from "@/components/content/AudioPlayer.vue";
-=======
->>>>>>> theirs
 
 const router = useRouter();
 
@@ -568,7 +541,6 @@ const selectedLanguageCode = computed(() => {
     return selectedLang?.languageCode || null;
 });
 
-<<<<<<< ours
 watch(
     content,
     (newContent) => {
@@ -584,7 +556,8 @@ const quickLanguageSwitch = (languageId: string) => {
     markLanguageSwitch();
     selectedLanguageId.value = languageId;
     showDropdown.value = false;
-=======
+};
+
 // Check if the current content has audio files
 const hasAudioFiles = computed(() => {
     return !!(
@@ -598,7 +571,6 @@ const playAudio = () => {
     if (content.value && hasAudioFiles.value) {
         addToMediaQueue(content.value);
     }
->>>>>>> theirs
 };
 </script>
 
