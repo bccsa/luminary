@@ -5,7 +5,6 @@ import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
-import { S3Service } from "../../s3/s3.service";
 
 /**
  * Process Post / Tag DTO
@@ -19,7 +18,6 @@ export default async function processPostTagDto(
     doc: PostDto | TagDto,
     prevDoc: PostDto | TagDto,
     db: DbService,
-    s3: S3Service,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
