@@ -100,6 +100,9 @@ export function initSync() {
 
             // Sync post content docs
             if (access[DocType.Post] && access[DocType.Post].length) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/fbd0d65a-cda8-4de4-aab5-519c4de28ff2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/src/sync.ts:103',message:'Syncing posts - includeDeleteCmds not specified',data:{type:DocType.Content,subType:DocType.Post,memberOf:access[DocType.Post],languages:appLanguageIdsAsRef.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
                 sync({
                     type: DocType.Content,
                     subType: DocType.Post,
