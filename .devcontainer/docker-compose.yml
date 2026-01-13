@@ -76,7 +76,7 @@ services:
       - path: ../app/.env
         required: false
     working_dir: /workspace/app
-    command: sh -c "npm install && npm run dev -- --host"
+    command: sh -c "npm ci && npm run dev -- --host"
     depends_on:
       - api
 
@@ -96,7 +96,7 @@ services:
       - path: ../cms/.env
         required: false
     working_dir: /workspace/cms
-    command: sh -c "npm install && npm run dev -- --host"
+    command: sh -c "npm ci && npm run dev -- --host"
     depends_on:
       - api
 
