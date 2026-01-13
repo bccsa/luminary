@@ -13,7 +13,7 @@ import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "@/components/forms/FormLabel.vue";
-import { onClickOutside, useElementBounding, useWindowSize } from "@vueuse/core";
+import { onClickOutside } from "@vueuse/core";
 import LBadge, { type variants } from "../common/LBadge.vue";
 import LDialog from "../common/LDialog.vue";
 import { isSmallScreen } from "@/globalConfig";

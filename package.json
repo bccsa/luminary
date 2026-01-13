@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "music-metadata": "^11.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0"
+  }
+}
