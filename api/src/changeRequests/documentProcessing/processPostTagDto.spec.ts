@@ -9,7 +9,6 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType, MediaType } from "../../enums";
 import { processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
-import { S3AudioService } from "../../s3-audio/s3Audio.service";
 
 // Mock processImage
 jest.mock("./processImageDto", () => ({
@@ -24,13 +23,11 @@ jest.mock("./processMediaDto", () => ({
 describe("processPostTagDto", () => {
     let db: DbService;
     let s3: S3Service;
-    let s3Audio: S3AudioService;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-post-tag-dto");
         db = testingModule.dbService;
         s3 = testingModule.s3Service;
-        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 

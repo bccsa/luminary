@@ -9,18 +9,15 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
-import { S3AudioService } from "../../s3-audio/s3Audio.service";
 
 describe("processContentDto", () => {
     let db: DbService;
     let s3: S3Service;
-    let s3Audio: S3AudioService;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-content-dto");
         db = testingModule.dbService;
         s3 = testingModule.s3Service;
-        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 

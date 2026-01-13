@@ -16,7 +16,6 @@ import processGroupDto from "./documentProcessing/processGroupDto";
 import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
 import { S3Service } from "../s3/s3.service";
-import { S3AudioService } from "../s3-audio/s3Audio.service";
 
 export async function processChangeRequest(
     userId: string,
@@ -24,7 +23,6 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
-    s3Audio: S3AudioService,
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
@@ -54,8 +52,8 @@ export async function processChangeRequest(
 
     const docProcessMap = {
         [DocType.Post]: () =>
-            processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3, s3Audio),
-        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3, s3Audio),
+            processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3),
+        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, s3),
         [DocType.Content]: () => processContentDto(doc as ContentDto, db),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
