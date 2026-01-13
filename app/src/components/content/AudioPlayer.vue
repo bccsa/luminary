@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
 import {
     PlayIcon,
@@ -38,6 +38,7 @@ const volume = ref(1);
 const isMuted = ref(false);
 const playbackRate = ref(1);
 const showHelpModal = ref(false);
+const showSpeedMenu = ref(false);
 
 // progress states
 const currentTime = ref(0);
@@ -241,13 +242,48 @@ const toggleVolumeSlider = () => {
     showVolumeSlider.value = !showVolumeSlider.value;
     resetAutoHideTimer();
 }; // Playback speed controls
+const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
 const changePlaybackSpeed = (newRate: number) => {
     if (!audioElement.value) return;
 
     playbackRate.value = newRate;
     audioElement.value.playbackRate = newRate;
+    showSpeedMenu.value = false;
     resetAutoHideTimer();
 };
+
+const toggleSpeedMenu = () => {
+    showSpeedMenu.value = !showSpeedMenu.value;
+    resetAutoHideTimer();
+};
+
+// Handle click outside to close speed menu
+const speedMenuRef = ref<HTMLElement | null>(null);
+const speedButtonRef = ref<HTMLElement | null>(null);
+const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as Node;
+    const isClickInsideMenu = speedMenuRef.value?.contains(target);
+    const isClickInsideButton = speedButtonRef.value?.contains(target);
+
+    if (!isClickInsideMenu && !isClickInsideButton) {
+        showSpeedMenu.value = false;
+    }
+};
+
+watch(showSpeedMenu, (isOpen) => {
+    if (isOpen) {
+        nextTick(() => {
+            document.addEventListener("click", handleClickOutside);
+        });
+    } else {
+        document.removeEventListener("click", handleClickOutside);
+    }
+});
+
+onUnmounted(() => {
+    document.removeEventListener("click", handleClickOutside);
+});
 
 const togglePlay = async () => {
     if (!audioElement.value) return;
@@ -1227,23 +1263,55 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     </div>
                                 </div>
 
-                                <!-- Playback speed -->
-                                <div class="flex items-center space-x-1">
-                                    <span class="text-zinc-600 dark:text-zinc-400">Speed:</span>
-                                    <select
-                                        v-model="playbackRate"
-                                        @change="changePlaybackSpeed(playbackRate)"
-                                        class="rounded border-none bg-transparent text-xs text-zinc-600 focus:ring-1 focus:ring-yellow-500 dark:text-zinc-400"
+                                <!-- Playback speed dropdown (Video.js style) -->
+                                <div class="relative">
+                                    <button
+                                        ref="speedButtonRef"
+                                        @click.stop="toggleSpeedMenu"
+                                        class="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-600 hover:bg-black/10 dark:text-zinc-400 dark:hover:bg-white/10"
                                         title="Playback speed (1-5 keys)"
+                                        aria-label="Change playback speed"
                                     >
-                                        <option value="0.5">0.5x</option>
-                                        <option value="0.75">0.75x</option>
-                                        <option value="1">1x</option>
-                                        <option value="1.25">1.25x</option>
-                                        <option value="1.5">1.5x</option>
-                                        <option value="1.75">1.75x</option>
-                                        <option value="2">2x</option>
-                                    </select>
+                                        <span>{{ playbackRate }}x</span>
+                                        <ChevronDownIcon
+                                            class="h-3 w-3 transition-transform duration-200"
+                                            :class="{ 'rotate-180': showSpeedMenu }"
+                                        />
+                                    </button>
+
+                                    <!-- Speed menu dropdown -->
+                                    <transition
+                                        enter-active-class="transition ease-out duration-100"
+                                        enter-from-class="opacity-0 scale-95"
+                                        enter-to-class="opacity-100 scale-100"
+                                        leave-active-class="transition ease-in duration-75"
+                                        leave-from-class="opacity-100 scale-100"
+                                        leave-to-class="opacity-0 scale-95"
+                                    >
+                                        <div
+                                            v-if="showSpeedMenu"
+                                            ref="speedMenuRef"
+                                            class="absolute bottom-full left-0 z-50 mb-1 min-w-[80px] rounded-md bg-zinc-50 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-600 dark:text-slate-100"
+                                            @click.stop
+                                        >
+                                            <div class="py-1">
+                                                <button
+                                                    v-for="speed in speedOptions"
+                                                    :key="speed"
+                                                    @click="changePlaybackSpeed(speed)"
+                                                    class="w-full px-3 py-2.5 text-left text-sm text-zinc-900 outline-none transition-colors dark:text-slate-100"
+                                                    :class="{
+                                                        'bg-zinc-300 font-semibold focus:bg-zinc-300 dark:bg-zinc-500 focus:dark:bg-zinc-500':
+                                                            playbackRate === speed,
+                                                        'hover:bg-zinc-200 focus:bg-transparent dark:hover:bg-zinc-500 focus:dark:bg-transparent':
+                                                            playbackRate !== speed,
+                                                    }"
+                                                >
+                                                    {{ speed }}x
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </transition>
                                 </div>
 
                                 <!-- Help button -->
