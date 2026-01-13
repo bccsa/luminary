@@ -1,6 +1,6 @@
 {
   "name": "Luminary Dev Container",
-  "dockerComposeFile": ["../docker-compose.yml"],
+  "dockerComposeFile": ["../local-dev/docker-compose.yml"],
   "service": "api",
   "workspaceFolder": "/workspace",
   "customizations": {
@@ -12,6 +12,5 @@
         "editorconfig.editorconfig"
       ]
     }
-  },
-  "remoteUser": "node"
+  }
 }

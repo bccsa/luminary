@@ -15,9 +15,10 @@ ENV PATH="/usr/local/share/npm-global/bin:${PATH}"
 ENV NPM_CONFIG_PREFIX="/usr/local/share/npm-global"
 
 # Set workspace permissions
-RUN mkdir -p /workspace && chown node:node /workspace
+# RUN mkdir -p /workspace && chown node:node /workspace
+RUN mkdir -p /workspace
 
-USER node
+# USER node
 WORKDIR /workspace
 
 # Keep container alive
