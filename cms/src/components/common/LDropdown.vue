@@ -24,7 +24,7 @@ const onTriggerClick = (event: MouseEvent) => {
     toggle();
 };
 
-onClickOutside(rootRef, () => {
+onClickOutside(rootRef.value, () => {
     if (show.value) close();
 });
 

@@ -73,7 +73,7 @@ const filtered = computed(() =>
     }),
 );
 
-onClickOutside(comboboxParent, () => {
+onClickOutside(comboboxParent.value, () => {
     showDropdown.value = false;
 });
 
