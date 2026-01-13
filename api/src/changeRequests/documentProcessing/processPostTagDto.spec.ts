@@ -48,7 +48,7 @@ describe("processPostTagDto", () => {
         expect(contentRes1.docs.length).toBe(1);
 
         postChangeRequest.doc.deleteReq = 1;
-        await processChangeRequest("", postChangeRequest, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", postChangeRequest, ["group-super-admins"], db, s3);
 
         const postRes2 = await db.getDoc(postChangeRequest.doc._id);
         const contentRes2 = await db.getDoc(contentChangeRequest.doc._id);
@@ -77,7 +77,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -103,7 +102,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -112,12 +110,12 @@ describe("processPostTagDto", () => {
     it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
         // Ensure that the test doc is in it's original state (as an existing document)
         const changeRequest1 = changeRequest_post();
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
 
         const changeRequest = changeRequest_post();
         changeRequest.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
 
         const category1 = await db.getDoc("tag-category1");
         const category2 = await db.getDoc("tag-category2");
@@ -142,7 +140,7 @@ describe("processPostTagDto", () => {
         changeRequest2.doc._id = "post-blog3";
         changeRequest2.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
 
-        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3, s3Audio);
+        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
 
         const category1_2 = await db.getDoc("tag-category1");
         const category2_2 = await db.getDoc("tag-category2");
@@ -181,7 +179,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Create the initial content document
@@ -195,7 +192,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Mark the post document for deletion
@@ -208,7 +204,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Fetch the documents from the database
@@ -247,7 +242,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
         expect(processImage).toHaveBeenCalledWith(
             (changeRequest.doc as PostDto).imageData,
@@ -276,7 +270,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Mark the post document for deletion
@@ -288,7 +281,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processImage).toHaveBeenCalledWith(
@@ -321,7 +313,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -350,7 +341,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -377,7 +367,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         // Mark the post document for deletion
@@ -389,7 +378,6 @@ describe("processPostTagDto", () => {
             ["group-super-admins"],
             db,
             s3,
-            s3Audio,
         );
 
         expect(processMedia).toHaveBeenCalledWith(
