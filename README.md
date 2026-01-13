@@ -35,10 +35,10 @@ adr new Branching strategy
 > This is the easiest way to get started, especially on Windows.
 
 1. **Install Docker**: Make sure [Docker Desktop](https://www.docker.com/products/docker-desktop) is running.
-2. **Start**: Run `docker compose up` in your terminal.
+2. **Start**: Run `docker compose -f local-dev/docker-compose.yml up --build -d` in your terminal.
 3. **Develop**: Open this folder in VS Code and click "Reopen in Container" when prompted.
 
-See [Docker Setup Guide](./docs/docker-setup.md) for full details.
+See [Docker Setup Guide](./local-dev/docker-setup.md) for full details.
 
 ### Manual Setup
 
