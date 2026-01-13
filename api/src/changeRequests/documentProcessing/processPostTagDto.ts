@@ -6,7 +6,6 @@ import { DocType, Uuid } from "../../enums";
 import { processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { S3Service } from "../../s3/s3.service";
-import { S3AudioService } from "../../s3-audio/s3Audio.service";
 
 /**
  * Process Post / Tag DTO
@@ -14,7 +13,6 @@ import { S3AudioService } from "../../s3-audio/s3Audio.service";
  * @param prevDoc
  * @param db
  * @param s3
- * @param s3Audio
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
@@ -22,7 +20,6 @@ export default async function processPostTagDto(
     prevDoc: PostDto | TagDto,
     db: DbService,
     s3: S3Service,
-    s3Audio: S3AudioService,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
