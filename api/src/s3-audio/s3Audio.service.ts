@@ -9,15 +9,39 @@ export class S3AudioService {
     audioS3Config: AudioS3Config;
 
     constructor(private configService: ConfigService) {
-        this.audioS3Config = this.configService.get<AudioS3Config>("s3Audio");
+        this.audioS3Config = this.configService.get<AudioS3Config>("s3Audio") || {
+            endpoint: "localhost",
+            port: 9000,
+            useSSL: false,
+            accessKey: "",
+            secretKey: "",
+            audioBucket: "",
+        };
 
-        this.client = new Minio.Client({
-            endPoint: this.audioS3Config.endpoint,
-            port: this.audioS3Config.port,
-            useSSL: this.audioS3Config.useSSL,
-            accessKey: this.audioS3Config.accessKey,
-            secretKey: this.audioS3Config.secretKey,
-        });
+        // Only initialize client if we have valid configuration
+        if (
+            this.audioS3Config.endpoint &&
+            this.audioS3Config.accessKey &&
+            this.audioS3Config.secretKey
+        ) {
+            this.client = new Minio.Client({
+                endPoint: this.audioS3Config.endpoint,
+                port: this.audioS3Config.port,
+                useSSL: this.audioS3Config.useSSL,
+                accessKey: this.audioS3Config.accessKey,
+                secretKey: this.audioS3Config.secretKey,
+            });
+        } else {
+            // Create a dummy client that will fail gracefully when used
+            // This allows the service to be instantiated even without S3 config
+            this.client = new Minio.Client({
+                endPoint: "localhost",
+                port: 9000,
+                useSSL: false,
+                accessKey: "",
+                secretKey: "",
+            });
+        }
     }
 
     /**
@@ -27,6 +51,16 @@ export class S3AudioService {
         if (!this.audioBucket) {
             throw new Error("Audio bucket is not configured");
         }
+        
+        // Use S3_PUBLIC_ACCESS_URL if available, otherwise construct from endpoint
+        const publicAccessUrl = process.env.S3_PUBLIC_ACCESS_URL;
+        if (publicAccessUrl) {
+            // Remove trailing slash if present
+            const baseUrl = publicAccessUrl.replace(/\/$/, "");
+            return `${baseUrl}/${this.audioBucket}/${key}`;
+        }
+        
+        // Fallback to constructing URL from endpoint
         const schema = this.audioS3Config.useSSL ? "https" : "http";
         return `${schema}://${this.audioS3Config.endpoint}:${this.audioS3Config.port}/${this.audioBucket}/${key}`;
     }
@@ -46,9 +80,28 @@ export class S3AudioService {
     }
 
     /**
+     * Check if the service is properly configured
+     */
+    private isConfigured(): boolean {
+        return !!(
+            this.audioS3Config &&
+            this.audioS3Config.endpoint &&
+            this.audioS3Config.endpoint !== "localhost" &&
+            this.audioS3Config.accessKey &&
+            this.audioS3Config.secretKey &&
+            this.audioS3Config.audioBucket
+        );
+    }
+
+    /**
      * Uploads a file to Audio S3 bucket
      */
     public async uploadFile(bucket: string, key: string, file: Buffer, mimetype: string) {
+        if (!this.isConfigured()) {
+            throw new Error(
+                "S3 Audio service is not properly configured. Please set S3_MEDIA_ENDPOINT, S3_MEDIA_ACCESS_KEY, S3_MEDIA_SECRET_KEY, and S3_MEDIA_BUCKET (or use S3_* fallback variables).",
+            );
+        }
         const metadata = {
             "Content-Type": mimetype,
         };
@@ -101,9 +154,8 @@ export class S3AudioService {
      * Check if the S3/Minio service is available
      */
     public async checkConnection(): Promise<boolean> {
-        // Treat connection as healthy only if the configured image bucket exists.
-        // If the bucket is missing or any error occurs, return false so the caller can react.
-        if (!this.audioBucket) return false;
+        // Treat connection as healthy only if the service is properly configured and the bucket exists.
+        if (!this.isConfigured() || !this.audioBucket) return false;
         try {
             return await this.client.bucketExists(this.audioBucket);
         } catch (_) {

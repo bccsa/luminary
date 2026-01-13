@@ -14,14 +14,80 @@ import { computed, ref, toRaw } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
+import LSelect from "../forms/LSelect.vue";
+import { storageSelection } from "@/composables/storageSelection";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     disabled: boolean;
+    /** The bucket ID where existing media are currently stored (before any migration) */
+    existingMediaBucketId?: string;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+    bucketSelected: [bucketId: string];
+}>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1000000);
+
+// Bucket selection (simplified approach using existing database data)
+const bucketSelection = storageSelection();
+
+const bucketBaseUrl = computed(() => {
+    // If parent or mediaBucketId is not set, pass null to getBucketById (it accepts string | null)
+    const bucketId = parent.value?.mediaBucketId ?? null;
+    const bucket = bucketSelection.getBucketById(bucketId);
+    return bucket ? bucket.publicUrl : undefined;
+});
+
+// Get accepted file types based on selected bucket
+const acceptedMimeTypes = computed(() => {
+    if (!parent.value?.mediaBucketId) {
+        return "audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"; // default to common audio formats
+    }
+
+    const bucket = bucketSelection.getBucketById(parent.value.mediaBucketId);
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
+        return "audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"; // default if no restrictions
+    }
+
+    // Convert mimeTypes array to accept attribute format
+    return bucket.mimeTypes.join(", ");
+});
+
+// Get file type description for user
+const fileTypeDescription = computed(() => {
+    if (!parent.value?.mediaBucketId) {
+        return "";
+    }
+
+    const bucket = bucketSelection.getBucketById(parent.value.mediaBucketId);
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
+        return "All audio types";
+    }
+
+    // Format for display
+    return `Accepts: ${bucket.mimeTypes.join(", ")}`;
+});
+
+// Bucket dropdown options
+const bucketOptions = computed(() => {
+    return bucketSelection.mediaBuckets.value.map((bucket) => ({
+        id: bucket._id,
+        label: capitaliseFirstLetter(bucket.name),
+        value: bucket._id,
+    }));
+});
+
+// Handle bucket selection change
+const handleBucketChange = (bucketId: string) => {
+    if (parent.value) {
+        parent.value.mediaBucketId = bucketId;
+        emit("bucketSelected", bucketId);
+    }
+};
 
 // Get all available languages
 const availableLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
@@ -32,7 +98,8 @@ const usedLanguageIds = computed(() => {
         parent.value?.media?.fileCollections?.map((f) => f.languageId) || [];
     const uploadDataLanguages =
         parent.value?.media?.uploadData?.map((f) => f.languageId).filter(Boolean) || [];
-    return [...new Set([...fileCollectionLanguages, ...uploadDataLanguages])];
+    const allLanguageIds = [...fileCollectionLanguages, ...uploadDataLanguages];
+    return Array.from(new Set(allLanguageIds));
 });
 
 // Check if a language already has audio
@@ -163,12 +230,16 @@ const processFileUpload = (file: File, languageId: string) => {
         //     (f) => f.languageId !== languageId,
         // );
 
-        parent.value.media.uploadData.push({
+        // Create upload data with filename for proper file handling
+        const uploadData: any = {
             fileData: fileData,
             preset: MediaPreset.Default,
             mediaType: MediaType.Audio,
             languageId: languageId,
-        });
+            filename: file.name, // Add filename for LFormData extraction
+        };
+
+        parent.value.media.uploadData.push(uploadData);
     };
 
     reader.readAsArrayBuffer(file);
@@ -236,7 +307,7 @@ defineExpose({
 
 <template>
     <div class="flex flex-col overflow-x-auto">
-        <!-- Header with error message toggle -->
+        <!-- Header with bucket selector and error message -->
         <div
             :disabled="disabled"
             :class="{
@@ -261,6 +332,21 @@ defineExpose({
                     </p>
                 </div>
             </div>
+
+            <!-- Bucket Selection -->
+            <div v-if="bucketOptions.length > 0" class="flex items-center gap-2">
+                <LSelect
+                    :options="bucketOptions"
+                    :model-value="parent?.mediaBucketId"
+                    @update:model-value="handleBucketChange"
+                    :disabled="disabled"
+                    placeholder="Select Media Bucket"
+                    class="w-48"
+                />
+                <span v-if="fileTypeDescription" class="text-xs text-gray-500">
+                    {{ fileTypeDescription }}
+                </span>
+            </div>
         </div>
 
         <!-- Full-width Drag and Drop Area -->
@@ -282,7 +368,7 @@ defineExpose({
                         ref="uploadInput"
                         type="file"
                         class="mb-4 hidden"
-                        accept="audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"
+                        :accept="acceptedMimeTypes"
                         @change="upload"
                         data-test="audio-upload"
                     />

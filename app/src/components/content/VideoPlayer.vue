@@ -190,85 +190,6 @@ onMounted(async () => {
         },
     };
 
-<<<<<<< ours
-<<<<<<< ours
-=======
->>>>>>> theirs
-    player = videojs(playerElement.value!, options);
-
-    // emit event with player on mount
-    const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
-    window.dispatchEvent(playerEvent);
-
-    player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-<<<<<<< ours
-
-    // Set player source based on video type (YouTube vs regular)
-    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
-    if (isYouTube.value && props.content.video) {
-        // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
-        showAudioModeToggle.value = false;
-
-        // Wait for player to be fully initialized before setting YouTube source
-        // This ensures proper sequencing for the YouTube plugin
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-
-        // Configure YouTube player
-        player.src({
-            type: "video/youtube",
-            src: convertToVideoJSYouTubeUrl(props.content.video!),
-        });
-
-        // Handle YouTube-specific progress restoration
-        player.on("loadedmetadata", () => {
-            if (isYouTube.value && props.content.video) {
-                const progress = getMediaProgress(props.content.video, props.content._id);
-                if (progress > 60) {
-                    // Wait for YouTube iframe to be fully ready
-                    setTimeout(() => {
-                        player?.currentTime(progress - 30);
-                    }, 100);
-                }
-            }
-        });
-
-        // Add explicit YouTube ended event listener
-        // YouTube fires its own events through the iframe
-        player.on("ended", () => {
-            if (props.content.video) {
-                removeMediaProgress(props.content.video, props.content._id);
-            }
-        });
-    } else if (videoSource) {
-        player.src({ type: "application/x-mpegURL", src: videoSource });
-    }
-=======
-    player.src({ type: "application/x-mpegURL", src: props.content.video });
->>>>>>> theirs
-
-    // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
-    player.mobileUi({
-        fullscreen: {
-            enterOnRotate: true,
-            exitOnRotate: true,
-            lockOnRotate: true,
-            lockToLandscapeOnEnter: true,
-            disabled: false,
-        },
-        touchControls: {
-            disabled: true,
-        },
-    });
-<<<<<<< ours
-
-    // Ensure audio tracks are ready when metadata is loaded
-    // Skip if we're restoring a track from a mode switch
-    player.on("loadeddata", () => {
-        if (!isRestoringTrack.value) {
-            setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
-        }
-    });
-=======
     // If statement is to protect from SSR issues
     if (typeof window !== "undefined" && window.document) {
         player = videojs(playerElement.value!, options);
@@ -278,7 +199,46 @@ onMounted(async () => {
         window.dispatchEvent(playerEvent);
 
         player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
-        player.src({ type: "application/x-mpegURL", src: props.content.parentMedia?.hlsUrl });
+
+        // Set player source based on video type (YouTube vs regular)
+        const videoSource = props.content.video || props.content.video;
+        if (isYouTube.value && props.content.video) {
+            // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
+            showAudioModeToggle.value = false;
+
+            // Wait for player to be fully initialized before setting YouTube source
+            // This ensures proper sequencing for the YouTube plugin
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+
+            // Configure YouTube player
+            player.src({
+                type: "video/youtube",
+                src: convertToVideoJSYouTubeUrl(props.content.video!),
+            });
+
+            // Handle YouTube-specific progress restoration
+            player.on("loadedmetadata", () => {
+                if (isYouTube.value && props.content.video) {
+                    const progress = getMediaProgress(props.content.video, props.content._id);
+                    if (progress > 60) {
+                        // Wait for YouTube iframe to be fully ready
+                        setTimeout(() => {
+                            player?.currentTime(progress - 30);
+                        }, 100);
+                    }
+                }
+            });
+
+            // Add explicit YouTube ended event listener
+            // YouTube fires its own events through the iframe
+            player.on("ended", () => {
+                if (props.content.video) {
+                    removeMediaProgress(props.content.video, props.content._id);
+                }
+            });
+        } else if (videoSource) {
+            player.src({ type: "application/x-mpegURL", src: videoSource });
+        }
 
         // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
         player.mobileUi({
@@ -293,232 +253,155 @@ onMounted(async () => {
                 disabled: true,
             },
         });
-=======
->>>>>>> theirs
 
-    // Ensure audio tracks are ready when metadata is loaded
-    player.on("loadeddata", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
-    });
-
-    // Ensure the audio track language is updated when entering fullscreen mode.
-    // This checks if the current language has changed since the last time it was set,
-    // and updates the audio track language accordingly.
-    let lastLanguageSet: string | null = null;
-
-    player.on("fullscreenchange", () => {
-        if (player?.isFullscreen()) {
-            const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
-            if (lastLanguageSet !== currentLanguage) {
-                setAudioTrackLanguage(currentLanguage);
-                lastLanguageSet = currentLanguage;
+        // Ensure audio tracks are ready when metadata is loaded
+        // Skip if we're restoring a track from a mode switch
+        player.on("loadeddata", () => {
+            if (!isRestoringTrack.value) {
+                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
             }
-<<<<<<< ours
         });
->>>>>>> theirs
-=======
-        }
-    });
->>>>>>> theirs
 
-    // Handle the "waiting" event, which occurs when the player is buffering
-    player.on("waiting", () => {
-        const currentTime = player?.currentTime() || 0; // Get the current playback time
-        setTimeout(() => {
-            // Check if the player is still stalled after 2 seconds
-            if (player?.currentTime() === currentTime && !player?.paused()) {
-                console.warn("Player stalled, attempting to refresh buffer");
+        // Ensure the audio track language is updated when entering fullscreen mode.
+        // This checks if the current language has changed since the last time it was set,
+        // and updates the audio track language accordingly.
+        let lastLanguageSet: string | null = null;
 
-                // Slightly adjust the current time to refresh the buffer
-                player?.currentTime(currentTime + 0.001);
-
-<<<<<<< ours
-<<<<<<< ours
-                // Reapply the preferred audio track language only if not restoring
-                if (!isRestoringTrack.value) {
-                    setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        player.on("fullscreenchange", () => {
+            if (player?.isFullscreen()) {
+                const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
+                if (lastLanguageSet !== currentLanguage) {
+                    setAudioTrackLanguage(currentLanguage);
+                    lastLanguageSet = currentLanguage;
                 }
             }
-        }, 2000);
-    });
-=======
-                    // Reapply the preferred audio track language
-                    setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        });
+
+        // Handle the "waiting" event, which occurs when the player is buffering
+        player.on("waiting", () => {
+            const currentTime = player?.currentTime() || 0; // Get the current playback time
+            setTimeout(() => {
+                // Check if the player is still stalled after 2 seconds
+                if (player?.currentTime() === currentTime && !player?.paused()) {
+                    console.warn("Player stalled, attempting to refresh buffer");
+
+                    // Slightly adjust the current time to refresh the buffer
+                    player?.currentTime(currentTime + 0.001);
+
+                    // Reapply the preferred audio track language only if not restoring
+                    if (!isRestoringTrack.value) {
+                        setAudioTrackLanguage(
+                            appLanguagesPreferredAsRef.value[0].languageCode || null,
+                        );
+                    }
                 }
             }, 2000);
         });
->>>>>>> theirs
-=======
-                // Reapply the preferred audio track language
-                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+
+        // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
+        player.on(["mousemove", "click"], autoHidePlayerControls);
+
+        // Get player playing state
+        player.on("play", () => {
+            playerPlayEventHandler();
+
+            // If audio mode is enabled, sync the keep-alive audio state
+            if (audioMode.value) {
+                // Ensures user interaction already happened
+                requestAnimationFrame(() => {
+                    syncKeepAudioStateAlive();
+                });
             }
-        }, 2000);
-    });
->>>>>>> theirs
+        });
 
-    // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
-    player.on(["mousemove", "click"], autoHidePlayerControls);
+        // Get player user active states
+        player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
 
-    // Get player playing state
-    player.on("play", () => {
-        playerPlayEventHandler();
-
-        // If audio mode is enabled, sync the keep-alive audio state
-        if (audioMode.value) {
-            // Ensures user interaction already happened
-            requestAnimationFrame(() => {
-                syncKeepAudioStateAlive();
-            });
-        }
-    });
-
-    // Get player user active states
-    player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
-
-    // start video player analytics on mounted
-    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    if (window._paq) {
+        // start video player analytics on mounted
         // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-        window._paq.push(
-            ["MediaAnalytics::enableMediaAnalytics"],
-            ["MediaAnalytics::scanForMedia", window.document],
-        );
-    }
-
-<<<<<<< ours
-<<<<<<< ours
-    // Track if we've already removed progress to avoid multiple removals
-    let progressRemoved = false;
-
-=======
->>>>>>> theirs
-    // Save player progress if greater than 60 seconds
-    player.on("timeupdate", () => {
-        const currentTime = player?.currentTime() || 0;
-        const durationTime = player?.duration() || 0;
-<<<<<<< ours
-
-        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
-        if (durationTime == Infinity || !videoSource || currentTime < 60) return;
-
-        // For YouTube videos, aggressively check if we're at the end and remove progress
-        // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
-        if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 1) {
-            if (!progressRemoved) {
-                // Video has reached the end, remove progress
-                removeMediaProgress(props.content.video!, props.content._id);
-                progressRemoved = true;
-            }
-            return;
+        if (window._paq) {
+            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+            window._paq.push(
+                ["MediaAnalytics::enableMediaAnalytics"],
+                ["MediaAnalytics::scanForMedia", window.document],
+            );
         }
 
-        // Reset the flag if we're not near the end
-        if (isYouTube.value && currentTime < durationTime - 2) {
-            progressRemoved = false;
-        }
+        // Track if we've already removed progress to avoid multiple removals
+        let progressRemoved = false;
 
-        setMediaProgress(videoSource, props.content._id, currentTime, durationTime);
-    });
-
-    // Get and apply the player saved progress (rewind 30 seconds)
-    player.on("ready", () => {
-        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
-        if (!videoSource) return;
-
-        // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
-        if (!isYouTube.value) {
-            const progress = getMediaProgress(videoSource, props.content._id);
-            if (progress > 60) player?.currentTime(progress - 30);
-        }
-    });
-
-    player.on("ended", () => {
-        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
-        if (!videoSource) return;
-        stopKeepAudioAlive();
-
-        // Remove player progress when video fully completes (works for both regular and YouTube videos)
-        // The 'ended' event fires when the video reaches the end, regardless of video source
-        removeMediaProgress(videoSource, props.content._id);
-        progressRemoved = true;
-
-        try {
-            player?.exitFullscreen();
-        } catch {
-            // Do nothing
-        }
-    });
-
-    player.on("pause", () => {
-        const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
-        if (!videoSource) return;
-=======
         // Save player progress if greater than 60 seconds
         player.on("timeupdate", () => {
             const currentTime = player?.currentTime() || 0;
             const durationTime = player?.duration() || 0;
 
-            if (durationTime == Infinity || !props.content.parentMedia?.hlsUrl || currentTime < 60)
+            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            if (durationTime == Infinity || !videoSource || currentTime < 60) return;
+
+            // For YouTube videos, aggressively check if we're at the end and remove progress
+            // This is a fallback in case the 'ended' event doesn't fire reliably for YouTube videos
+            if (isYouTube.value && durationTime > 0 && currentTime >= durationTime - 1) {
+                if (!progressRemoved) {
+                    // Video has reached the end, remove progress
+                    removeMediaProgress(props.content.video!, props.content._id);
+                    progressRemoved = true;
+                }
                 return;
-            setMediaProgress(
-                props.content.parentMedia?.hlsUrl,
-                props.content._id,
-                currentTime,
-                durationTime,
-            );
+            }
+
+            // Reset the flag if we're not near the end
+            if (isYouTube.value && currentTime < durationTime - 2) {
+                progressRemoved = false;
+            }
+
+            setMediaProgress(videoSource, props.content._id, currentTime, durationTime);
         });
-=======
->>>>>>> theirs
 
-        if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
-        setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
-    });
+        // Get and apply the player saved progress (rewind 30 seconds)
+        player.on("ready", () => {
+            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            if (!videoSource) return;
 
-    // Get and apply the player saved progress (rewind 30 seconds)
-    player.on("ready", () => {
-        if (!props.content.video) return;
-        const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player?.currentTime(progress - 30);
-    });
+            // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
+            if (!isYouTube.value) {
+                const progress = getMediaProgress(videoSource, props.content._id);
+                if (progress > 60) player?.currentTime(progress - 30);
+            }
+        });
 
-    player.on("ended", () => {
-        if (!props.content.video) return;
-        stopKeepAudioAlive();
+        player.on("ended", () => {
+            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            if (!videoSource) return;
+            stopKeepAudioAlive();
 
-<<<<<<< ours
+            // Remove player progress when video fully completes (works for both regular and YouTube videos)
+            // The 'ended' event fires when the video reaches the end, regardless of video source
+            removeMediaProgress(videoSource, props.content._id);
+            progressRemoved = true;
+
             try {
                 player?.exitFullscreen();
             } catch {
                 // Do nothing
             }
         });
->>>>>>> theirs
-=======
-        // Remove player progress on ended
-        removeMediaProgress(props.content.video, props.content._id);
->>>>>>> theirs
 
-        try {
-            player?.exitFullscreen();
-        } catch {
-            // Do nothing
-        }
-    });
+        player.on("pause", () => {
+            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            if (!videoSource) return;
 
-    player.on("pause", () => {
-        if (!props.content.video) return;
-
-        if (audioMode.value) syncKeepAudioStateAlive();
-        if (autoFullscreen)
-            setTimeout(() => {
-                if (!player?.paused()) return;
-                try {
-                    player?.exitFullscreen();
-                } catch {
-                    // Do nothing
-                }
-            }, 500);
-    });
+            if (audioMode.value) syncKeepAudioStateAlive();
+            if (autoFullscreen)
+                setTimeout(() => {
+                    if (!player?.paused()) return;
+                    try {
+                        player?.exitFullscreen();
+                    } catch {
+                        // Do nothing
+                    }
+                }, 500);
+        });
+    }
 });
 
 onUnmounted(() => {
@@ -570,26 +453,18 @@ watch(audioMode, async (mode) => {
         }
     }
 
-<<<<<<< ours
     // Set flag to prevent automatic language setting from overwriting user's selection
     // Set it before source change to ensure global loadeddata handler skips
     if (selectedTrackInfo) {
         isRestoringTrack.value = true;
     }
-=======
-    // Extract and build an audio-only master playlist from the original HLS manifest
-    const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
->>>>>>> theirs
 
     // Generate the audio playlist with the currently selected track as default
     // This ensures the player loads the correct track immediately without needing to switch
     const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
     let audioPlaylistUrl: string | null = null;
     if (mode && videoSource) {
-        const audioMaster = await extractAndBuildAudioMaster(
-            videoSource,
-            selectedTrackInfo,
-        );
+        const audioMaster = await extractAndBuildAudioMaster(videoSource, selectedTrackInfo);
         const base64 = btoa(
             String.fromCharCode(
                 ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
@@ -602,38 +477,7 @@ watch(audioMode, async (mode) => {
      * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
      * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
      */
-<<<<<<< HEAD
     const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
-=======
-    // base64-encoded data: URL for audio-only master
-    const base64 = btoa(
-        String.fromCharCode(...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster)))),
-    );
-    // Construct a data URL for the playlist
-    audioOnlyPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
-
-    // Set the player source based on the mode status
-    player?.src({
-        type: "application/x-mpegURL",
-        src: mode ? audioOnlyPlaylistUrl : props.content.video,
-    });
-
-    player?.ready(() => {
-        /**
-         * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
-         * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
-         */
-        const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
-        player?.currentTime(adjustedTime);
-
-        player?.play();
-
-        // Wait for tracks to be available
-        player?.on("loadedmetadata", () => {
-            const newTracks = (player as any).audioTracks?.();
-
-            if (!newTracks || !selectedTrackInfo) return;
->>>>>>> 6fae5a4c (refactor: update VideoPlayer component to use parentMedia for video source and progress tracking)
 
     // Helper function to restore the selected audio track when switching back to video mode
     const restoreTrack = () => {
@@ -668,7 +512,6 @@ watch(audioMode, async (mode) => {
     });
 
     // Set the player source - this triggers the listeners above
-    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
     if (videoSource) {
         player?.src({
             type: "application/x-mpegURL",

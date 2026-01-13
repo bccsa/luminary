@@ -34,4 +34,9 @@ export class _contentParentDto extends _contentBaseDto {
     @Type(() => MediaDto)
     @Expose()
     media?: MediaDto;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    mediaBucketId?: string; // S3 bucket ID for media storage
 }

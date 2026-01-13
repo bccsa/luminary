@@ -1,7 +1,3 @@
-<<<<<<< ours
-import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, watch } from "vue";
-=======
 import {
     db,
     DocType,
@@ -10,9 +6,7 @@ import {
     type Uuid,
     type ContentDto,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
-import { isEqual } from "lodash-es";
->>>>>>> theirs
+import { computed, ref, watch } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export let Sentry: typeof import("@sentry/vue") | null = null;

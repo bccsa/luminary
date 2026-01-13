@@ -83,12 +83,12 @@ export default () =>
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
         s3Audio: {
-            endpoint: process.env.S3_MEDIA_ENDPOINT,
-            port: parseInt(process.env.S3_MEDIA_PORT, 10),
-            useSSL: process.env.S3_MEDIA_USE_SSL === "true",
-            accessKey: process.env.S3_MEDIA_ACCESS_KEY,
-            secretKey: process.env.S3_MEDIA_SECRET_KEY,
-            audioBucket: process.env.S3_MEDIA_BUCKET,
+            endpoint: process.env.S3_MEDIA_ENDPOINT || process.env.S3_ENDPOINT || "localhost",
+            port: parseInt(process.env.S3_MEDIA_PORT || process.env.S3_PORT || "9000", 10),
+            useSSL: process.env.S3_MEDIA_USE_SSL === "true" || process.env.S3_USE_SSL === "true",
+            accessKey: process.env.S3_MEDIA_ACCESS_KEY || process.env.S3_ACCESS_KEY,
+            secretKey: process.env.S3_MEDIA_SECRET_KEY || process.env.S3_SECRET_KEY,
+            audioBucket: process.env.S3_MEDIA_BUCKET || process.env.S3_AUDIO_BUCKET,
         } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,

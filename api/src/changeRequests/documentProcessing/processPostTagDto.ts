@@ -4,9 +4,9 @@ import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "./processImageDto";
+import { processMedia } from "./processMediaDto";
 import { S3Service } from "../../s3/s3.service";
 import { S3AudioService } from "../../s3-audio/s3Audio.service";
-import { processMedia } from "../../s3-audio/s3.audiohandling";
 
 /**
  * Process Post / Tag DTO
@@ -52,11 +52,11 @@ export default async function processPostTagDto(
             const mediaWarnings = await processMedia(
                 { fileCollections: [] },
                 prevDoc?.media,
-                s3Audio,
+                db,
+                prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
             );
             if (mediaWarnings && mediaWarnings.length > 0) {
                 warnings.push(...mediaWarnings);
-                console.log(mediaWarnings);
             }
         }
 
@@ -91,11 +91,30 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process medias uploads
+    // Process media uploads
     if (doc.media) {
-        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3Audio);
-        if (audioWarnings && audioWarnings.length > 0) {
-            warnings.push(...audioWarnings);
+        let mediaWarnings: string[] = [];
+
+        // Check if bucket is specified for this upload
+        if (!doc.mediaBucketId) {
+            throw new Error("Bucket is not specified for media processing.");
+        }
+
+        // Use the new bucket processing with db service for bucket lookup
+        try {
+            mediaWarnings = await processMedia(
+                doc.media,
+                prevDoc?.media,
+                db,
+                doc.mediaBucketId,
+                prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
+            );
+        } catch (error) {
+            mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
+        }
+
+        if (mediaWarnings && mediaWarnings.length > 0) {
+            warnings.push(...mediaWarnings);
         }
     }
 
@@ -108,6 +127,7 @@ export default async function processPostTagDto(
         contentDoc.parentImageData = doc.imageData;
         contentDoc.parentImageBucketId = doc.imageBucketId;
         contentDoc.parentMedia = doc.media;
+        contentDoc.parentMediaBucketId = doc.mediaBucketId;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;

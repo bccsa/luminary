@@ -158,4 +158,9 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @Expose()
     parentMedia?: MediaDto;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    parentMediaBucketId?: string; // Inherited from parent Post/Tag for media storage
 }
