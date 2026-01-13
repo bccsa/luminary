@@ -1,7 +1,6 @@
 import { PostDto } from "../../dto/PostDto";
 import { DbService } from "../db.service";
 import { TagDto } from "../../dto/TagDto";
-import { S3Service } from "../../s3/s3.service";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { GroupDto } from "../../dto/GroupDto";
@@ -14,7 +13,7 @@ import { MediaFileDto } from "../../dto/MediaFileDto";
  * - Set special memberOf field for group documents to improve database query performance
  * - Update media field in PostDto and TagDto documents and upload medias to S3
  */
-export default async function (db: DbService, s3: S3Service) {
+export default async function (db: DbService) {
     try {
         const schemaVersion = await db.getSchemaVersion();
         if (schemaVersion === 7) {
@@ -61,7 +60,6 @@ export default async function (db: DbService, s3: S3Service) {
                         changeReq,
                         groupIds,
                         db,
-                        s3,
                     );
                 } catch (e) {
                     let message = e.message;
