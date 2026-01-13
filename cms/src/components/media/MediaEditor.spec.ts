@@ -158,8 +158,13 @@ describe("MediaEditor.vue", () => {
         await wrapper.vm.$nextTick();
 
         // Now the replacement confirmation modal should appear
-        const replacementModal = modals.find((m) => m.props("title") === "Replace Existing Audio?");
+        // Need to find modals again after state change
+        const updatedModals = wrapper.findAllComponents(LDialog);
+        const replacementModal = updatedModals.find(
+            (m) => m.props("title") === "Replace Existing Audio?",
+        );
         expect(replacementModal).toBeDefined();
+        expect(replacementModal?.props("open")).toBe(true);
         expect(replacementModal?.props("primaryButtonText")).toBe("Replace");
         expect(replacementModal?.props("secondaryButtonText")).toBe("Cancel");
         expect(replacementModal?.props("context")).toBe("danger");
