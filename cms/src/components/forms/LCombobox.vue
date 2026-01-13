@@ -75,9 +75,9 @@ const filtered = computed(() =>
     }),
 );
 
-//onClickOutside(comboboxParent, () => {
-//   showDropdown.value = false;
-//});
+onClickOutside(comboboxParent.value, () => {
+    showDropdown.value = false;
+});
 
 const highlightedIndex = ref(-1);
 
@@ -98,12 +98,12 @@ const selectedLabels = computed(() => {
     return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
-/*const toggleDropdown = () => {
+const toggleDropdown = () => {
     showDropdown.value = !showDropdown.value;
     nextTick(() => {
         inputElement.value?.focus();
     });
-};*/
+};
 
 const open = () => {
     if (!showDropdown.value) {
@@ -139,37 +139,9 @@ onUnmounted(() => {
     window.removeEventListener("keydown", handleGlobalEscape);
 });
 
-const positionData = computed(() => {
-    if (!showDropdown.value) return undefined;
-
-    const spaceBelow = windowHeight.value - bottom.value;
-    const spaceAbove = top.value;
-
-    const flip = spaceBelow < 200 && spaceAbove > 200 && spaceAbove > spaceBelow;
-
-    return { flip };
-});
-
-const dropdownStyle = computed(() => {
-    if (!positionData.value) return {};
-    const { flip } = positionData.value;
-
-    let styleTop = flip ? top.value : bottom.value;
-    let styleLeft = left.value;
-
-    return {
-        top: `${styleTop}px`,
-        left: `${styleLeft}px`,
-        width: `${width.value}px`,
-        position: "fixed" as const,
-        zIndex: 9999,
-    };
-});
-
-const placementClass = computed(() => {
-    if (!positionData.value) return "";
-    return positionData.value.flip ? "-translate-y-full mt-[-2px]" : "mt-1";
-});
+const focusInput = () => {
+    inputElement.value?.focus();
+};
 </script>
 
 <template>
@@ -178,6 +150,7 @@ const placementClass = computed(() => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
+        @click="focusInput"
     >
         <div class="mb-2 flex justify-between">
             <div class="flex items-center gap-1">
