@@ -13,17 +13,34 @@ export function IsAudio() {
             validator: {
                 async validate(value: any) {
                     try {
-                        // Dynamically import music-metadata to avoid loading it if not needed
-                        // @ts-expect-error - music-metadata may not be installed in all environments
-                        const mm = await import("music-metadata");
-                        const mmEsm = await (mm as any).parserBuffer();
-                        // value should be a Buffer or readable stream
-                        const metadata = await mmEsm.parseBuffer(new Uint8Array(value));
+                        // Check if value exists and has data
+                        if (!value || (value.byteLength !== undefined && value.byteLength === 0)) {
+                            console.error("IsAudio validation failed: Empty or null file data");
+                            return false;
+                        }
+
+                        // Lazy load music-metadata to avoid module resolution issues in tests
+                        const { parseBuffer } = await import("music-metadata");
+
+                        // Convert value to Uint8Array if it's a Buffer
+                        const uint8Array =
+                            value instanceof Buffer ? new Uint8Array(value) : new Uint8Array(value);
+
+                        // Parse the audio metadata
+                        const metadata = await parseBuffer(uint8Array);
 
                         // Use robust format detection instead of hardcoded checks
                         const formatInfo = getAudioFormatInfo(metadata);
+
+                        if (!formatInfo.isValidAudio) {
+                            console.error(
+                                `IsAudio validation failed: Detected format ${formatInfo.mime} is not valid audio`,
+                            );
+                        }
+
                         return formatInfo.isValidAudio;
-                    } catch {
+                    } catch (error) {
+                        console.error(`IsAudio validation failed with error: ${error.message}`);
                         return false;
                     }
                 },
