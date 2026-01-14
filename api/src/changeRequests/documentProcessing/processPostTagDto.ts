@@ -44,14 +44,14 @@ export default async function processPostTagDto(
 
         // Remove medias from S3
         if (doc.media) {
-            const mediaWarnings = await processMedia(
+            const mediaResult = await processMedia(
                 { fileCollections: [] },
                 prevDoc?.media,
                 db,
                 prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
             );
-            if (mediaWarnings && mediaWarnings.length > 0) {
-                warnings.push(...mediaWarnings);
+            if (mediaResult && mediaResult.warnings && mediaResult.warnings.length > 0) {
+                warnings.push(...mediaResult.warnings);
             }
         }
 
@@ -97,14 +97,27 @@ export default async function processPostTagDto(
 
         // Use the new bucket processing with db service for bucket lookup
         try {
-            mediaWarnings = await processMedia(
+            const result = await processMedia(
                 doc.media,
                 prevDoc?.media,
                 db,
                 doc.mediaBucketId,
                 prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
             );
+            mediaWarnings = result.warnings;
+
+            // If migration failed, revert to the old bucket ID to keep files accessible
+            if (result.migrationFailed && prevDoc?.mediaBucketId) {
+                doc.mediaBucketId = prevDoc.mediaBucketId;
+                warnings.push(
+                    "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
+                );
+            }
         } catch (error) {
+            // If processing throws an error, also revert bucket ID
+            if (prevDoc?.mediaBucketId && doc.mediaBucketId !== prevDoc.mediaBucketId) {
+                doc.mediaBucketId = prevDoc.mediaBucketId;
+            }
             mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
         }
 

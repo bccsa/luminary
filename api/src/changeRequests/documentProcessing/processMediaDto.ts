@@ -18,14 +18,14 @@ import { getAudioFormatInfo } from "../../s3-audio/audioFormatDetection";
  * @param oldBucketId - The ID of the source bucket
  * @param newBucketId - The ID of the destination bucket
  * @param db - Database service to retrieve bucket configurations
- * @returns Array of warnings about migration status
+ * @returns Object with migration failure status and warnings
  */
 async function migrateMediaBetweenBuckets(
     media: MediaDto,
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-): Promise<string[]> {
+): Promise<{ failed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
     try {
@@ -38,7 +38,7 @@ async function migrateMediaBetweenBuckets(
 
         if (allFiles.length === 0) {
             warnings.push("No media files to migrate.");
-            return warnings;
+            return { failed: false, warnings };
         }
 
         const oldBucketName = oldS3Service.getBucketName();
@@ -101,18 +101,20 @@ async function migrateMediaBetweenBuckets(
                 `Failed to migrate ${failedMigrations} media file(s). These files remain in the old bucket.`,
             );
         }
+
+        // Migration is considered failed if ANY files failed to migrate
+        return { failed: failedMigrations > 0, warnings };
     } catch (error) {
         warnings.push(`Media migration failed: ${error.message}`);
+        return { failed: true, warnings };
     }
-
-    return warnings;
 }
 
 /**
  * Processes an embedded media upload by uploading to S3
  * Requires bucket-specific credentials configured at the post/tag level
  * Bucket ID is passed from the parent post/tag document for consistency
- * Returns warnings for any issues encountered but doesn't throw errors
+ * Returns object with migration failure status and warnings
  */
 export async function processMedia(
     media: MediaDto,
@@ -120,8 +122,9 @@ export async function processMedia(
     db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
-): Promise<string[]> {
+): Promise<{ migrationFailed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
+    let migrationFailed = false;
 
     try {
         // Detect bucket change and migrate media if needed
@@ -132,13 +135,14 @@ export async function processMedia(
             prevParentBucketId !== parentBucketId &&
             media.fileCollections.length > 0
         ) {
-            const migrationWarnings = await migrateMediaBetweenBuckets(
+            const migrationResult = await migrateMediaBetweenBuckets(
                 media,
                 prevParentBucketId,
                 parentBucketId,
                 db,
             );
-            warnings.push(...migrationWarnings);
+            warnings.push(...migrationResult.warnings);
+            migrationFailed = migrationResult.failed;
         }
 
         if (prevMedia) {
@@ -239,12 +243,12 @@ export async function processMedia(
         if (media.uploadData) {
             if (!db) {
                 warnings.push("Unable to upload media - system configuration error.");
-                return warnings;
+                return { migrationFailed, warnings };
             }
 
             if (!parentBucketId) {
                 warnings.push("Parent bucket ID is required for media uploads.");
-                return warnings;
+                return { migrationFailed, warnings };
             }
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
@@ -277,7 +281,7 @@ export async function processMedia(
         warnings.push(`Media processing failed: ${error.message}`);
     }
 
-    return warnings;
+    return { migrationFailed, warnings };
 }
 
 async function processMediaUpload(
