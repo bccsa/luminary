@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  couchdb:
+    image: couchdb:3.3
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  shared:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - shared_node_modules:/workspace/shared/node_modules
+    env_file:
+      - path: .env
+        required: false
+      - path: ../shared/.env
+        required: false
+    working_dir: /workspace/shared
+    command: sleep infinity
+
+  api:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - api_node_modules:/workspace/api/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    env_file:
+      - path: .env
+        required: false
+      - path: ../api/.env
+        required: false
+    working_dir: /workspace/api
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - couchdb
+      - minio
+
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - app_node_modules:/workspace/app/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "4174:4174"
+    env_file:
+      - path: .env
+        required: false
+      - path: ../app/.env
+        required: false
+    working_dir: /workspace/app
+    command: sh -c "npm ci && npm run dev -- --host"
+    depends_on:
+      - api
+
+  cms:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - cms_node_modules:/workspace/cms/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    ports:
+      - "4175:4175"
+    env_file:
+      - path: .env
+        required: false
+      - path: ../cms/.env
+        required: false
+    working_dir: /workspace/cms
+    command: sh -c "npm ci && npm run dev -- --host"
+    depends_on:
+      - api
+
+volumes:
+  couchdb_data:
+  minio_data:
+  api_node_modules:
+  app_node_modules:
+  cms_node_modules:
+  shared_node_modules:
