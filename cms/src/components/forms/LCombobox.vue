@@ -55,7 +55,6 @@ const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 // Reference to the combobox input element
 const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
-//const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
 const optionsList = computed(() =>
@@ -124,10 +123,6 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener("keydown", handleGlobalEscape);
 });
-
-const focusInput = () => {
-    inputElement.value?.focus();
-};
 </script>
 
 <template>
@@ -136,7 +131,7 @@ const focusInput = () => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
-        @click="focusInput"
+        @click="() => inputElement?.focus()"
     >
         <div class="flex justify-between">
             <div class="flex items-center gap-1">
