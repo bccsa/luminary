@@ -1,4 +1,12 @@
-import { Controller, Headers, Post, Body, BadRequestException, Inject } from "@nestjs/common";
+import {
+    Controller,
+    Headers,
+    Post,
+    Body,
+    BadRequestException,
+    Inject,
+    HttpCode,
+} from "@nestjs/common";
 // import { validateApiVersion } from "../validation/apiVersion";
 import { QueryService } from "./query.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
@@ -20,6 +28,7 @@ export class QueryController {
     ) {}
 
     @Post()
+    @HttpCode(200) // override the default 201 created status code to enable gzip compression by downstream reverse proxy servers
     async processPostReq(@Body() body: any, @Headers("Authorization") auth: string): Promise<any> {
         // TODO: add api version validation
 
