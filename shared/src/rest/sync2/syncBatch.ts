@@ -1,6 +1,6 @@
 import { db } from "../../db/database";
 import { BaseDocumentDto, DocType } from "../../types";
-import { mergeHorizontal, mergeVertical } from "./merge";
+import { merge } from "./merge";
 import { syncList } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
@@ -16,6 +16,10 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
     const chunk = calcChunk(options);
+
+    // If the blockEnd is calculated at 0, it means that there are no existing syncList entries, indicating
+    // that this is the first sync for this type and memberOf groups.
+    const firstSync = chunk.blockEnd === 0;
 
     const mangoQuery = {
         selector: {
@@ -80,26 +84,11 @@ export async function syncBatch(options: SyncOptions) {
         eof: blockLength < options.limit, // If less than limit, we reached the end
     });
 
-    // Merge vertical chunks
-    let mergeResult: {
-        blockStart: number;
-        blockEnd: number;
-        eof: boolean | undefined;
-        firstSync?: boolean;
-    } = mergeVertical(options);
+    // Merge chunks
+    let mergeResult = merge(options);
 
-    // If end of file, perform horizontal merge with any complete columns
-    if (mergeResult.eof) {
-        const r = mergeHorizontal(options);
-        mergeResult.blockStart = r.blockStart;
-        mergeResult.blockEnd = r.blockEnd;
-    } else {
-        // Check if sync has been cancelled before continuing to next chunk
-        if (cancelSync) {
-            return;
-        }
-
-        // Continue syncing next chunk
+    // If not end of file (we have not yet received all documents from the API), continue to sync iteratively
+    if (!mergeResult.eof) {
         mergeResult =
             (await syncBatch({
                 ...options,
@@ -107,5 +96,5 @@ export async function syncBatch(options: SyncOptions) {
             })) || mergeResult;
     }
 
-    return { ...mergeResult, firstSync: chunk.blockEnd === 0 };
+    return { ...mergeResult, firstSync };
 }

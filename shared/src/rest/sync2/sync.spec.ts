@@ -6,6 +6,7 @@ import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
 import { DocType } from "../../types";
 import * as utils from "./utils";
+import { merge } from "./merge";
 
 // Mock dependencies
 vi.mock("../../db/database", () => ({
@@ -20,6 +21,10 @@ vi.mock("./syncBatch", () => ({
 
 vi.mock("./trim", () => ({
     trim: vi.fn(),
+}));
+
+vi.mock("./merge", () => ({
+    merge: vi.fn(),
 }));
 
 vi.mock("./utils", async () => {
@@ -664,105 +669,138 @@ describe("sync module", () => {
             );
         });
 
-        it("should push DeleteCmd chunk to syncList for new sync columns instead of calling syncBatch", async () => {
-            // Setup for new group scenario
+        it("should push DeleteCmd chunk to syncList when no existing deleteCmd entries found", async () => {
+            // Setup for new group scenario where no deleteCmd entries exist yet
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
-            // First call (existing group): firstSync=false so DeleteCmd is called
-            // Second call (DeleteCmd for existing group)
-            // Third call (new group): firstSync=true so DeleteCmd chunk is pushed
-            vi.mocked(syncBatch)
-                .mockResolvedValueOnce({
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    // DeleteCmd call
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: true,
-                });
+            // syncList starts empty, so no deleteCmd entries exist
+            syncList.value = [];
+
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: true,
+            });
 
             await sync({
                 type: DocType.Post,
-                memberOf: ["group1", "group2"], // group2 is new
+                memberOf: ["group1"],
                 limit: 100,
                 includeDeleteCmds: true,
             });
 
-            // Should call syncBatch three times:
-            // 1. For existing group1 main sync (firstSync=false)
-            // 2. For existing group1 DeleteCmd sync
-            // 3. For new group2 main sync (firstSync=true, no DeleteCmd syncBatch, chunk pushed instead)
-            expect(syncBatch).toHaveBeenCalledTimes(3);
+            // Should call syncBatch once for main sync
+            // No DeleteCmd syncBatch call because no existing deleteCmd entries were found
+            expect(syncBatch).toHaveBeenCalledTimes(1);
 
             // Verify a DeleteCmd chunk was pushed to syncList for the new sync column
             const deleteCmdChunk = syncList.value.find(
                 (chunk) => chunk.chunkType === "deleteCmd:post",
             );
             expect(deleteCmdChunk).toBeDefined();
-            expect(deleteCmdChunk?.memberOf).toEqual(["group2"]);
+            expect(deleteCmdChunk?.memberOf).toEqual(["group1"]);
             expect(deleteCmdChunk?.blockStart).toBe(5000);
             expect(deleteCmdChunk?.blockEnd).toBe(3000);
             expect(deleteCmdChunk?.eof).toBe(true);
         });
 
-        it("should push DeleteCmd chunk to syncList for new language sync columns", async () => {
+        it("should call merge after pushing DeleteCmd chunk for new sync column", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
-            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
-            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
-            // First call (existing language): firstSync=false
-            // Second call (DeleteCmd for existing language)
-            // Third call (new language): firstSync=true so chunk is pushed
-            vi.mocked(syncBatch)
-                .mockResolvedValueOnce({
-                    eof: false,
-                    blockStart: 6000,
-                    blockEnd: 4000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    // DeleteCmd call
-                    eof: false,
-                    blockStart: 6000,
-                    blockEnd: 4000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    eof: false,
-                    blockStart: 6000,
-                    blockEnd: 4000,
-                    firstSync: true,
-                });
+            syncList.value = [];
+
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: true,
+            });
+
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
+
+            // Verify merge was called with correct parameters after pushing DeleteCmd chunk
+            expect(merge).toHaveBeenCalledWith({
+                type: DocType.DeleteCmd,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
+        });
+
+        it("should push DeleteCmd chunk to syncList for new language when no existing deleteCmd entries", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue([]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([]);
+            // syncList starts empty, so no deleteCmd entries exist
+            syncList.value = [];
+
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: false,
+                blockStart: 6000,
+                blockEnd: 4000,
+                firstSync: true,
+            });
 
             await sync({
                 type: DocType.Content,
                 subType: DocType.Post,
                 memberOf: ["group1"],
-                languages: ["en", "fr"], // fr is new
+                languages: ["en"],
                 limit: 100,
                 includeDeleteCmds: true,
             });
 
             // Verify a DeleteCmd chunk was pushed to syncList for the new language column
             const deleteCmdChunk = syncList.value.find(
-                (chunk) => chunk.chunkType === "deleteCmd:post" && chunk.languages?.includes("fr"),
+                (chunk) => chunk.chunkType === "deleteCmd:post" && chunk.languages?.includes("en"),
             );
             expect(deleteCmdChunk).toBeDefined();
-            expect(deleteCmdChunk?.languages).toEqual(["fr"]);
+            expect(deleteCmdChunk?.languages).toEqual(["en"]);
             expect(deleteCmdChunk?.blockStart).toBe(6000);
             expect(deleteCmdChunk?.blockEnd).toBe(4000);
             expect(deleteCmdChunk?.eof).toBe(false);
+        });
+
+        it("should call merge with languages for content type after pushing DeleteCmd chunk", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue([]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([]);
+            syncList.value = [];
+
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: false,
+                blockStart: 6000,
+                blockEnd: 4000,
+                firstSync: true,
+            });
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
+
+            // Verify merge was called with correct parameters including languages
+            expect(merge).toHaveBeenCalledWith({
+                type: DocType.DeleteCmd,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
         });
 
         it("should not push DeleteCmd chunk when syncResult is undefined", async () => {
@@ -788,37 +826,22 @@ describe("sync module", () => {
         it("should use correct subType for DeleteCmd chunks based on document type", async () => {
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
-            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
-            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
-            // First call (existing group): firstSync=false
-            // Second call (DeleteCmd for existing group)
-            // Third call (new group): firstSync=true so chunk is pushed
-            vi.mocked(syncBatch)
-                .mockResolvedValueOnce({
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    // DeleteCmd call
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: true,
-                });
+            vi.mocked(utils.getLanguages).mockReturnValue([]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([]);
+            syncList.value = [];
+
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: true,
+            });
 
             // Test with Content type - should use subType
             await sync({
                 type: DocType.Content,
                 subType: DocType.Tag,
-                memberOf: ["group1", "group2"], // group2 is new
+                memberOf: ["group1"],
                 languages: ["en"],
                 limit: 100,
                 includeDeleteCmds: true,
@@ -835,32 +858,16 @@ describe("sync module", () => {
             // Test with non-Content type - should use type as subType
             vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
             vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
-            vi.mocked(syncBatch)
-                .mockResolvedValueOnce({
-                    // First call for existing group1
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    // DeleteCmd call for group1
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: false,
-                })
-                .mockResolvedValueOnce({
-                    // Second call for new group2
-                    eof: true,
-                    blockStart: 5000,
-                    blockEnd: 3000,
-                    firstSync: true,
-                });
+            vi.mocked(syncBatch).mockResolvedValueOnce({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: true,
+            });
 
             await sync({
                 type: DocType.Post,
-                memberOf: ["group1", "group2"], // group2 is new
+                memberOf: ["group1"],
                 limit: 100,
                 includeDeleteCmds: true,
             });
@@ -869,6 +876,46 @@ describe("sync module", () => {
                 (chunk) => chunk.chunkType === "deleteCmd:post",
             );
             expect(postDeleteCmdChunk).toBeDefined();
+        });
+
+        it("should not push DeleteCmd chunk when existing deleteCmd entries are found", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+
+            // Pre-populate syncList with existing deleteCmd entry
+            syncList.value = [
+                {
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["group1"],
+                    blockStart: 4000,
+                    blockEnd: 2000,
+                    eof: false,
+                },
+            ];
+
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: false,
+            });
+
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
+
+            // Should call syncBatch twice: once for main sync, once for DeleteCmd
+            expect(syncBatch).toHaveBeenCalledTimes(2);
+
+            // Should still only have 1 deleteCmd chunk (the original one, not a new one)
+            const deleteCmdChunks = syncList.value.filter(
+                (chunk) => chunk.chunkType === "deleteCmd:post",
+            );
+            expect(deleteCmdChunks).toHaveLength(1);
+            expect(deleteCmdChunks[0].blockStart).toBe(4000); // Original value unchanged
         });
 
         it("should call syncBatch for DeleteCmd when not a new sync column", async () => {

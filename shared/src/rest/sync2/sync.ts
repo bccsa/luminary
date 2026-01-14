@@ -4,6 +4,7 @@ import { HttpReq } from "../http";
 import { syncBatch } from "./syncBatch";
 import type { SyncRunnerOptions } from "./types";
 import {
+    filterByTypeMemberOf,
     getChunkTypeString,
     getGroups,
     getGroupSets,
@@ -12,6 +13,7 @@ import {
 } from "./utils";
 import { trim } from "./trim";
 import { syncList } from "./state";
+import { merge } from "./merge";
 
 let _httpService: HttpReq<any>;
 
@@ -60,8 +62,23 @@ export function setCancelSync(value: boolean): void {
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
-    // Trim syncList before starting sync
+    const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+
+    // Trim and merge syncList before starting sync. We are merging before starting the sync to help
+    // prevent issues with the syncList not being properly merged due to e.g. disconnection / app closure
+    // while syncing.
     trim(options);
+    trim({
+        ...options,
+        type: DocType.DeleteCmd,
+        subType: deleteCmdSubType,
+    });
+    merge(options);
+    merge({
+        ...options,
+        type: DocType.DeleteCmd,
+        subType: deleteCmdSubType,
+    });
     await _sync(options);
 }
 
@@ -138,29 +155,43 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     });
 
     if (options.includeDeleteCmds && syncResult) {
-        const subType = options.type === DocType.Content ? options.subType : options.type;
-        // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
-        if (!syncResult.firstSync) {
-            await syncBatch({
+        const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+
+        // Check if there are deleteCmd entries in the syncList for the given type and memberOf groups.
+        const hasDeleteCmdEntries = syncList.value.some(
+            filterByTypeMemberOf({
                 ...options,
                 type: DocType.DeleteCmd,
-                subType,
-                initialSync: true,
-                httpService: _httpService,
-            });
-        }
-        // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
-        // This will prevent fetching all deleteCmds from scratch, as the API already would filter out deleted documents when
-        // doing an initial sync.
-        else {
-            // Push chunk to chunk list
+                subType: deleteCmdSubType,
+            }),
+        );
+
+        if (!hasDeleteCmdEntries) {
+            // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
+            // This will prevent fetching all deleteCmds from scratch, as the API already would filter out deleted documents when
+            // doing an initial sync.
+            // To prevent issues due to disconnection / app closure while syncing, we are checking if there are deleteCmd entries
+            // on every sync run.
             syncList.value.push({
-                chunkType: getChunkTypeString(DocType.DeleteCmd, subType),
+                chunkType: getChunkTypeString(DocType.DeleteCmd, deleteCmdSubType),
                 memberOf: options.memberOf,
                 languages: options.languages,
                 blockStart: syncResult.blockStart,
                 blockEnd: syncResult.blockEnd,
                 eof: syncResult.eof,
+            });
+
+            merge({ ...options, type: DocType.DeleteCmd, subType: deleteCmdSubType });
+        }
+
+        // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
+        if (!syncResult.firstSync) {
+            await syncBatch({
+                ...options,
+                type: DocType.DeleteCmd,
+                subType: deleteCmdSubType,
+                initialSync: true,
+                httpService: _httpService,
             });
         }
     }
