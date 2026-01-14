@@ -3,7 +3,7 @@ import DisplayCard from "@/components/common/DisplayCard.vue";
 import { db, type UserDto, type GroupDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
-import { ClockIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
 import { isMobileScreen } from "@/globalConfig";
 import { ref, watch } from "vue";
 
@@ -45,9 +45,8 @@ watch(groups, (newGroups) => {
                             v-if="usersDoc.lastLogin"
                             class="flex items-center gap-1 text-xs text-zinc-400"
                         >
-                            <ClockIcon class="h-4 w-4 text-zinc-400" />
-                            <span
-                                >Last logged in:
+                            <KeyIcon class="h-4 w-4 text-zinc-400" />
+                            <span title="Last logged in"><span v-if="!isMobileScreen">Last logged in:</span>
                                 {{
                                     db
                                         .toDateTime(usersDoc.lastLogin)
