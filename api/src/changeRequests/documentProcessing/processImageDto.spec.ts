@@ -330,7 +330,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         const prevImage = new ImageDto();
         prevImage.fileCollections = [];
 
-        const warnings = await processImage(
+        const result = await processImage(
             emptyImage,
             prevImage,
             dbService,
@@ -339,11 +339,11 @@ describe("S3ImageHandler - Bucket Migration", () => {
         );
 
         // Should complete without errors when there are no files to migrate
-        expect(warnings).toBeDefined();
-        expect(Array.isArray(warnings)).toBe(true);
+        expect(result).toBeDefined();
+        expect(result.migrationFailed).toBe(false);
 
         // No migration happens when there are no files, so no warnings are generated
-        expect(warnings.warnings.length).toBe(0);
+        expect(result.warnings.length).toBe(0);
     });
 
     it("should warn when attempting migration with no image files", async () => {
