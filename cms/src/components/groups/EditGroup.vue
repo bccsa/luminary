@@ -206,8 +206,6 @@ const saveChanges = async () => {
         state: res.value && res.value.ack == AckStatus.Accepted ? "success" : "error",
     });
 };
-
-watch(res, () => console.log(res.value));
 </script>
 
 <template>
