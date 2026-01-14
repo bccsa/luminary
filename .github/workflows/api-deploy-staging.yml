@@ -39,6 +39,7 @@ jobs:
           echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
           echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
           echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
+          echo "ENCRYPTION_KEY='$( echo '${{ secrets.ENCRYPTION_KEY }}')'" >> .env
           echo "S3_ENDPOINT='$( echo '${{ secrets.S3_ENDPOINT }}' )'" >> .env
           echo "S3_PORT='$( echo '${{ secrets.S3_PORT }}' )'" >> .env
           echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
