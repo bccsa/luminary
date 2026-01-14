@@ -31,14 +31,14 @@ export default async function processPostTagDto(
 
         // Remove images from S3
         if (doc.imageData) {
-            const imageWarnings = await processImage(
+            const imageResult = await processImage(
                 { fileCollections: [] },
                 prevDoc?.imageData,
                 db,
                 prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
             );
-            if (imageWarnings && imageWarnings.length > 0) {
-                warnings.push(...imageWarnings);
+            if (imageResult && imageResult.warnings && imageResult.warnings.length > 0) {
+                warnings.push(...imageResult.warnings);
             }
         }
 
@@ -68,15 +68,27 @@ export default async function processPostTagDto(
 
         // Use the new bucket processing with db service for bucket lookup
         try {
-            const warnings = await processImage(
+            const result = await processImage(
                 doc.imageData,
                 prevDoc?.imageData,
                 db,
                 doc.imageBucketId,
                 prevDoc?.imageBucketId, // Pass previous bucket ID for migration
             );
-            imageWarnings.push(...warnings);
+            imageWarnings = result.warnings;
+
+            // If migration failed, revert to the old bucket ID to keep files accessible
+            if (result.migrationFailed && prevDoc?.imageBucketId) {
+                doc.imageBucketId = prevDoc.imageBucketId;
+                warnings.push(
+                    "Image migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
+                );
+            }
         } catch (error) {
+            // If processing throws an error, also revert bucket ID
+            if (prevDoc?.imageBucketId && doc.imageBucketId !== prevDoc.imageBucketId) {
+                doc.imageBucketId = prevDoc.imageBucketId;
+            }
             imageWarnings.push(`Bucket image processing failed: ${error.message}`);
         }
 
