@@ -115,3 +115,20 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
 
     return { blockStart, blockEnd };
 }
+
+/**
+ * Merge vertical and horizontal chunks
+ */
+export function merge(options: SyncBaseOptions) {
+    // Merge vertical chunks
+    const mergeResult = mergeVertical(options);
+
+    // If end of file, perform horizontal merge with any complete columns
+    if (mergeResult.eof) {
+        const r = mergeHorizontal(options);
+        mergeResult.blockStart = r.blockStart;
+        mergeResult.blockEnd = r.blockEnd;
+    }
+
+    return mergeResult;
+}
