@@ -106,7 +106,7 @@ describe("processMediaDto", () => {
             },
         ];
         const warnings = await processMedia(media, undefined, db, testBucketId);
-        expect(warnings.length).toBe(0);
+        expect(warnings.warnings.length).toBe(0);
 
         // Check if files are uploaded (allow informational warnings like S3_PUBLIC_ACCESS_URL not configured)
         const files = media.fileCollections.map((f) => f.fileUrl.split("/").pop()!);

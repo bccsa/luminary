@@ -297,8 +297,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
         );
 
         // Check migration warnings
-        expect(migrationWarnings.length).toBeGreaterThan(0);
-        const successMessage = migrationWarnings.find((w) => w.includes("Successfully migrated"));
+        expect(migrationWarnings.warnings.length).toBeGreaterThan(0);
+        const successMessage = migrationWarnings.warnings.find((w) =>
+            w.includes("Successfully migrated"),
+        );
         expect(successMessage).toBeDefined();
 
         // Verify files now exist in target bucket
@@ -341,7 +343,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         expect(Array.isArray(warnings)).toBe(true);
 
         // No migration happens when there are no files, so no warnings are generated
-        expect(warnings.length).toBe(0);
+        expect(warnings.warnings.length).toBe(0);
     });
 
     it("should warn when attempting migration with no image files", async () => {
@@ -371,8 +373,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
 
         // Should get warning about no files to migrate
         expect(warnings).toBeDefined();
-        expect(warnings.length).toBeGreaterThan(0);
-        const noFilesMessage = warnings.find((w) => w.includes("No image files to migrate"));
+        expect(warnings.warnings.length).toBeGreaterThan(0);
+        const noFilesMessage = warnings.warnings.find((w) =>
+            w.includes("No image files to migrate"),
+        );
         expect(noFilesMessage).toBeDefined();
     });
 
@@ -431,12 +435,12 @@ describe("S3ImageHandler - Bucket Migration", () => {
         );
 
         // Should have migration failures (because AWS credentials are invalid)
-        expect(warnings.length).toBeGreaterThan(0);
+        expect(warnings.warnings.length).toBeGreaterThan(0);
         // The migration might fail at different stages, so check for any failure-related message
         const hasFailureMessage =
-            warnings.some((w) => w.includes("Failed to migrate")) ||
-            warnings.some((w) => w.includes("Image migration failed")) ||
-            warnings.some((w) => w.includes("remain in the old bucket"));
+            warnings.warnings.some((w) => w.includes("Failed to migrate")) ||
+            warnings.warnings.some((w) => w.includes("Image migration failed")) ||
+            warnings.warnings.some((w) => w.includes("remain in the old bucket"));
         expect(hasFailureMessage).toBe(true);
     }, 30000); // 30 second timeout for this test
 
@@ -491,7 +495,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
         );
 
         // Check for failure warnings
-        const failureMessage = warnings.find((w) => w.includes("Failed to migrate"));
+        const failureMessage = warnings.warnings.find((w) => w.includes("Failed to migrate"));
         expect(failureMessage).toBeDefined();
 
         // Verify files still exist in source bucket
@@ -602,7 +606,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         const warnings = await processImage(image, undefined, dbService, restrictedBucketId);
 
         // Should succeed without file type warnings
-        const fileTypeWarning = warnings.find((w) => w.includes("not allowed"));
+        const fileTypeWarning = warnings.warnings.find((w) => w.includes("not allowed"));
         expect(fileTypeWarning).toBeUndefined();
         expect(image.fileCollections.length).toBeGreaterThan(0);
     });
@@ -625,9 +629,8 @@ describe("S3ImageHandler - File Type Validation", () => {
         const warnings = await processImage(image, undefined, dbService, restrictedBucketId);
 
         // Should fail with file type warning (jpeg not allowed when only webp is allowed)
-        const fileTypeWarning = warnings.find(
-            (w) =>
-                w.includes("not allowed") && (w.includes("image/jpeg") || w.includes("image/jpg")),
+        const fileTypeWarning = warnings.warnings.find(
+            (w) => w.includes("not allowed") && w.includes("image/jpeg"),
         );
         expect(fileTypeWarning).toBeDefined();
         expect(image.fileCollections.length).toBe(0);
@@ -654,7 +657,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         const warnings = await processImage(image, undefined, dbService, allowAllBucketId);
 
         // Should succeed with any format when mimeTypes is empty
-        const fileTypeWarning = warnings.find((w) => w.includes("not allowed"));
+        const fileTypeWarning = warnings.warnings.find((w) => w.includes("not allowed"));
         expect(fileTypeWarning).toBeUndefined();
         expect(image.fileCollections.length).toBeGreaterThan(0);
     });
@@ -677,7 +680,7 @@ describe("S3ImageHandler - File Type Validation", () => {
         const warnings = await processImage(image, undefined, dbService, restrictedBucketId);
 
         // Should succeed with wildcard match (jpeg matches image/*)
-        const fileTypeWarning = warnings.find((w) => w.includes("not allowed"));
+        const fileTypeWarning = warnings.warnings.find((w) => w.includes("not allowed"));
         expect(fileTypeWarning).toBeUndefined();
         expect(image.fileCollections.length).toBeGreaterThan(0);
     });
