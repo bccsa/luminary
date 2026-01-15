@@ -286,7 +286,7 @@ const createRedirect = async () => {
         updatedTimeUtc: Date.now(),
         memberOf: [...selectedContent.value.memberOf],
         slug: selectedContent_Existing.value.slug,
-        redirectType: RedirectType.Temporary,
+        redirectType: RedirectType.Permanent,
         toSlug: selectedContent.value.slug,
     };
     addNotification({
