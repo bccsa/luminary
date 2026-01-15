@@ -12,11 +12,13 @@ type Props = {
     isLocalChange?: boolean;
     navigateTo?: RouteLocationRaw | (() => void);
     canNavigate?: boolean;
+    showDate?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     isLocalChange: false,
     canNavigate: true,
+    showDate: true,
 });
 
 const router = useRouter();
@@ -87,7 +89,7 @@ const handleClick = () => {
             class="flex flex-wrap items-center gap-1 py-1"
         >
             <slot name="mobileFooter" />
-            <div class="flex w-max items-start text-xs text-zinc-400">
+            <div v-if="showDate" class="flex w-max items-start text-xs text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", updatedTimeUtc)
@@ -100,7 +102,7 @@ const handleClick = () => {
             class="flex items-center justify-between pt-1 text-xs sm:gap-4"
         >
             <slot name="desktopFooter" />
-            <div class="flex items-center justify-end text-zinc-400">
+            <div v-if="showDate" class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", updatedTimeUtc)
