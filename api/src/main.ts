@@ -1,4 +1,5 @@
 import { NestFactory } from "@nestjs/core";
+import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
@@ -6,10 +7,24 @@ import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { S3Service } from "./s3/s3.service";
 import { ValidationPipe } from "@nestjs/common";
+import compress from "@fastify/compress";
+import multipart from "@fastify/multipart";
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule, {
+    const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
         bufferLogs: true,
+    });
+
+    // Register multipart plugin for file uploads
+    await app.register(multipart, {
+        limits: {
+            fileSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+        },
+    });
+
+    // Register compression plugin (Brotli/gzip) for the query endpoint
+    await app.register(compress, {
+        encodings: ["br", "gzip", "deflate"],
     });
 
     const dbService = app.get(DbService);
@@ -40,6 +55,6 @@ async function bootstrap() {
 
     app.useGlobalPipes(new ValidationPipe());
 
-    await app.listen(process.env.PORT);
+    await app.listen(process.env.PORT, "0.0.0.0");
 }
 bootstrap();
