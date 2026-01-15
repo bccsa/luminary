@@ -74,9 +74,9 @@ const filtered = computed(() =>
     }),
 );
 
-/*onClickOutside(comboboxParent.value, () => {
+onClickOutside(comboboxParent.value, () => {
     showDropdown.value = false;
-});*/
+});
 
 const highlightedIndex = ref(-1);
 
