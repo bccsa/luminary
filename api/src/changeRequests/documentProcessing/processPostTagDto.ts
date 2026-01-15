@@ -45,22 +45,22 @@ export default async function processPostTagDto(
 
     // Process image uploads
     if (doc.imageData) {
-        let imageWarnings: string[] = [];
+        const imageWarnings: string[] = [];
 
-        // Check if bucket is specified for this upload
         if (!doc.imageBucketId) {
-            throw new Error("Bucket is not specified for image processing.");
+            imageWarnings.push("Bucket is not specified for image processing.");
         }
 
         // Use the new bucket processing with db service for bucket lookup
         try {
-            imageWarnings = await processImage(
+            const warnings = await processImage(
                 doc.imageData,
                 prevDoc?.imageData,
                 db,
                 doc.imageBucketId,
                 prevDoc?.imageBucketId, // Pass previous bucket ID for migration
             );
+            imageWarnings.push(...warnings);
         } catch (error) {
             imageWarnings.push(`Bucket image processing failed: ${error.message}`);
         }
