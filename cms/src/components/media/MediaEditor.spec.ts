@@ -98,10 +98,7 @@ describe("MediaEditor.vue", () => {
         expect(fileInput.attributes("multiple")).toBeUndefined();
 
         // Should have correct accept types
-        expect(fileInput.attributes("accept")).toContain("audio/mp3");
-        expect(fileInput.attributes("accept")).toContain("audio/aac");
-        expect(fileInput.attributes("accept")).toContain("audio/opus");
-        expect(fileInput.attributes("accept")).toContain("audio/wav");
+        expect(fileInput.attributes("accept")).toContain("audio/*");
     });
 
     it.skip("shows confirmation modal when uploading to a language that already has audio", async () => {
