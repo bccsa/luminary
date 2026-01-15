@@ -573,10 +573,10 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :actions="contentActions"
             />
         </template>
-        <div class="flex h-full flex-col gap-0 lg:flex-row lg:gap-2 lg:overflow-y-hidden">
+        <div class="flex flex-col gap-0 lg:h-full lg:flex-row lg:gap-2 lg:overflow-y-hidden">
             <!-- sidebar -->
             <div class="w-full flex-shrink-0 lg:h-full lg:w-[336px]" v-if="editableParent">
-                <div class="scrollbar-hide lg:h-full lg:pb-2">
+                <div class="overflow-y-auto scrollbar-hide lg:h-full lg:pb-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -631,7 +631,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 </div>
             </div>
             <!-- main content instance -->
-            <div class="mt-2 min-h-0 w-full scrollbar-hide lg:flex-1">
+            <div class="mt-2 min-h-0 w-full overflow-y-auto scrollbar-hide lg:mt-0 lg:flex-1">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -666,7 +666,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                         </div>
                     </div>
                 </EmptyState>
-                <div v-else class="h-full">
+                <div v-else class="h-full lg:overflow-hidden">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
