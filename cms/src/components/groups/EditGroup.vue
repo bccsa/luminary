@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { computed, nextTick, ref, toRaw } from "vue";
 import {
     AclPermission,
     DocType,
@@ -206,8 +206,6 @@ const saveChanges = async () => {
         state: res.value && res.value.ack == AckStatus.Accepted ? "success" : "error",
     });
 };
-
-watch(res, () => console.log(res.value));
 </script>
 
 <template>
