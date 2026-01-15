@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { computed, nextTick, ref, toRaw } from "vue";
 import {
     AclPermission,
     DocType,
