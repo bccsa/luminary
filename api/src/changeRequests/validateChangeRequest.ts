@@ -43,21 +43,6 @@ export async function validateChangeRequest(
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, { excludeExtraneousValues: true });
 
-    // Debugging: log types to help diagnose validation issues coming from multipart/form-data
-    try {
-        // eslint-disable-next-line no-console
-        console.log("validateChangeRequest - incoming types:", {
-            idType: typeof (changeRequest as any).id,
-            idValue: (changeRequest as any).id,
-            docType: typeof (changeRequest as any).doc,
-            docKeys: (changeRequest as any).doc
-                ? Object.keys((changeRequest as any).doc)
-                : undefined,
-        });
-    } catch (err) {
-        void err;
-    }
-
     // Validate main change request document
     let message = "Change request validation failed for the following constraints:\n";
     let validationResult = await dtoValidate(changeRequest, message);
