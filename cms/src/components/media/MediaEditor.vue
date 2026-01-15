@@ -35,22 +35,15 @@ const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
 
-const bucketBaseUrl = computed(() => {
-    // If parent or mediaBucketId is not set, pass null to getBucketById (it accepts string | null)
-    const bucketId = parent.value?.mediaBucketId ?? null;
-    const bucket = bucketSelection.getBucketById(bucketId);
-    return bucket ? bucket.publicUrl : undefined;
-});
-
 // Get accepted file types based on selected bucket
 const acceptedMimeTypes = computed(() => {
     if (!parent.value?.mediaBucketId) {
-        return "audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"; // default to common audio formats
+        return "audio/*"; // default to common audio formats
     }
 
     const bucket = bucketSelection.getBucketById(parent.value.mediaBucketId);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
-        return "audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"; // default if no restrictions
+        return "audio/*"; // default if no restrictions
     }
 
     // Convert mimeTypes array to accept attribute format
@@ -280,15 +273,8 @@ const processFileUpload = (file: File, languageId: string) => {
         }
 
         if (!parent.value) return;
-        if (!parent.value.media || parent.value.media === null) {
-            parent.value.media = { fileCollections: [], uploadData: [] };
-        }
-        if (!parent.value.media.fileCollections) {
-            parent.value.media.fileCollections = [];
-        }
-        if (!parent.value.media.uploadData) {
-            parent.value.media.uploadData = [];
-        }
+        if (!parent.value.media) parent.value.media = { fileCollections: [] };
+        if (!parent.value.media.uploadData) parent.value.media.uploadData = [];
 
         failureMessage.value = "";
         showFailureMessage.value = false;
@@ -298,23 +284,12 @@ const processFileUpload = (file: File, languageId: string) => {
             (f) => f.languageId !== languageId,
         );
 
-        // DO NOT DELETE THIS COMMENT
-        /**
-         * This throws an error when uncommented:
-         * It seems that at this point in time, parent.value.media.fileCollections doesn't contain the expected file.
-         */
-        // Remove any existing file collections for this language
-        // parent.value.media.fileCollections = parent.value.media.fileCollections.filter(
-        //     (f) => f.languageId !== languageId,
-        // );
-
         // Create upload data with filename for proper file handling
-        const uploadData: any = {
+        const uploadData: MediaUploadDataDto = {
             fileData: fileData,
             preset: MediaPreset.Default,
             mediaType: MediaType.Audio,
             languageId: languageId,
-            filename: file.name, // Add filename for LFormData extraction
         };
 
         parent.value.media.uploadData.push(uploadData);
