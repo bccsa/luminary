@@ -4,7 +4,7 @@ import { db, type UserDto, type GroupDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
-import { isMobileScreen } from "@/globalConfig";
+import { isMobileScreen, isPhoneScreen } from "@/globalConfig";
 import { ref, watch } from "vue";
 
 type Props = {
@@ -25,7 +25,8 @@ watch(groups, (newGroups) => {
     <div class="mt-1 flex flex-col">
         <DisplayCard
             :title="usersDoc.name"
-            :updatedTimeUtc="0"
+            :updatedTimeUtc="usersDoc.updatedTimeUtc"
+            :showDate="!isPhoneScreen"
             @click="$router.push({ name: 'user', params: { id: usersDoc._id } })"
         >
             <template #content>
@@ -46,7 +47,7 @@ watch(groups, (newGroups) => {
                             class="flex items-center gap-1 text-xs text-zinc-400"
                         >
                             <KeyIcon class="h-4 w-4 text-zinc-400" />
-                            <span title="Last logged in"><span v-if="!isMobileScreen">Last logged in:</span>
+                            <span title="Last logged in">
                                 {{
                                     db
                                         .toDateTime(usersDoc.lastLogin)
