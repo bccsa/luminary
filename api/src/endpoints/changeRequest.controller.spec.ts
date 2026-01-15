@@ -1,21 +1,20 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { ValidationPipe } from "@nestjs/common";
-import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import { Test as NestTest, TestingModule } from "@nestjs/testing";
+import { INestApplication, ValidationPipe } from "@nestjs/common";
 import * as request from "supertest";
-import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AuthGuard } from "../auth/auth.guard";
 import { DocType } from "../enums";
 import * as path from "path";
+import * as fs from "fs";
 
 describe("ChangeRequestController", () => {
-    let app: NestFastifyApplication;
+    let app: INestApplication;
     const mockChangeRequest = jest.fn();
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
-        const module: TestingModule = await Test.createTestingModule({
+        const module: TestingModule = await NestTest.createTestingModule({
             controllers: [ChangeRequestController],
             providers: [
                 {
@@ -30,36 +29,19 @@ describe("ChangeRequestController", () => {
             .useValue({ canActivate: () => true })
             .compile();
 
-        app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-
-        // Register multipart plugin for file uploads
-        await app.register(multipart);
-
+        app = module.createNestApplication();
         app.useGlobalPipes(new ValidationPipe());
         await app.init();
-        await app.getHttpAdapter().getInstance().ready();
     });
 
     afterAll(async () => {
         await app.close();
     });
 
-    it("should handle a multipart change request with valid image", async () => {
-        const responseData = { success: true };
-        mockChangeRequest.mockResolvedValue(responseData);
+    beforeEach(() => {
+        mockChangeRequest.mockClear();
+    });
 
-<<<<<<< HEAD
-        const changeRequest = {
-            id: 123,
-            doc: {
-                _id: "post-test",
-                type: DocType.Post,
-                imageData: { uploadData: [null] }, // null placeholder for binary data
-            },
-        };
-
-        const response = await request(app.getHttpServer())
-=======
     /**
      * Helper function to create a test file buffer
      */
@@ -85,23 +67,11 @@ describe("ChangeRequestController", () => {
     ) => {
         // Build the request
         const req = request(app.getHttpServer())
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
             .post("/changerequest")
             .set("Authorization", "Bearer fake-token")
-            .field("apiVersion", "0.0.0")
-            .field("changeRequest-JSON", JSON.stringify(changeRequest))
-            .field("0-changeRequest-files-filename", "test-image.jpg")
-            .field("0-changeRequest-files-preset", "photo")
-            .attach("0-changeRequest-files-fileData", testImagePath);
+            .field("apiVersion", changeRequest.apiVersion || "0.0.0")
+            .field("changeRequest__json", JSON.stringify(changeRequest));
 
-<<<<<<< HEAD
-        expect(response.status).toBe(201); // or whatever your route returns
-        expect(response.body).toEqual(responseData);
-
-        // Also verify that the service was called with parsed values
-        expect(mockChangeRequest).toHaveBeenCalledWith(
-            expect.objectContaining({
-=======
         // Add files using their IDs
         files.forEach((file) => {
             const fileKey = `changeRequest__file__${file.id}`;
@@ -118,26 +88,13 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
                 id: 123,
                 apiVersion: "0.0.0",
-                doc: expect.objectContaining({
+                doc: {
                     _id: "post-test",
-                    imageData: expect.objectContaining({
+                    type: DocType.Post,
+                    imageData: {
                         uploadData: [
-<<<<<<< HEAD
-                            expect.objectContaining({
-                                filename: "test-image.jpg",
-                                preset: "photo",
-                                fileData: expect.any(Buffer),
-                            }),
-                        ],
-                    }),
-                }),
-            }),
-            "fake-token",
-        );
-=======
                             {
                                 fileData: createBinaryRef(fileId),
                                 preset: "photo",
@@ -685,6 +642,59 @@ describe("ChangeRequestController", () => {
                 "fake-token",
             );
         });
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
+        it("should handle request where key is the ID", async () => {
+            const responseData = { success: true };
+            mockChangeRequest.mockResolvedValue(responseData);
+
+            const fileId = "file-fallback";
+            const changeRequest = {
+                id: 808,
+                apiVersion: "0.0.0",
+                doc: {
+                    _id: "post-fallback",
+                    type: DocType.Post,
+                    imageData: {
+                        uploadData: [
+                            {
+                                fileData: createBinaryRef(fileId),
+                                preset: "photo",
+                            },
+                        ],
+                    },
+                },
+            };
+
+            const imageBuffer = createTestFile("fallback image");
+            
+            // Simulate the production issue where the key is the ID "808" instead of "changeRequest"
+            // And file key uses "808" as prefix
+            const req = request(app.getHttpServer())
+                .post("/changerequest")
+                .set("Authorization", "Bearer fake-token")
+                .field("apiVersion", "0.0.0")
+                .field("808", JSON.stringify(changeRequest));
+
+            req.attach(`808__file__${fileId}`, imageBuffer, "test.jpg");
+
+            const response = await req;
+
+            expect(response.status).toBe(201);
+            expect(mockChangeRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 808,
+                    doc: expect.objectContaining({
+                        imageData: expect.objectContaining({
+                            uploadData: [
+                                expect.objectContaining({
+                                    preset: "photo",
+                                    fileData: expect.any(Buffer),
+                                }),
+                            ],
+                        }),
+                    }),
+                }),
+                "fake-token",
+            );
+        });
     });
 });
