@@ -54,13 +54,13 @@ export default async function processPostTagDto(
 
         // Use the new bucket processing with db service for bucket lookup
         try {
-        imageWarnings = await processImage(
-            doc.imageData,
-            prevDoc?.imageData,
-            db,
-            doc.imageBucketId,
-            prevDoc?.imageBucketId, // Pass previous bucket ID for migration
-        );
+            imageWarnings = await processImage(
+                doc.imageData,
+                prevDoc?.imageData,
+                db,
+                doc.imageBucketId,
+                prevDoc?.imageBucketId, // Pass previous bucket ID for migration
+            );
         } catch (error) {
             imageWarnings.push(`Bucket image processing failed: ${error.message}`);
         }
