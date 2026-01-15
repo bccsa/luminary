@@ -21,6 +21,11 @@ describe("AddGroupAclButton", () => {
                     mockGroupDtoPublicUsers,
                 ],
             },
+            global: {
+                stubs: {
+                    Teleport: true,
+                },
+            },
         });
 
         await wrapper.find(addGroupButton).trigger("click");
@@ -38,6 +43,11 @@ describe("AddGroupAclButton", () => {
                     mockGroupDtoPublicEditors,
                     mockGroupDtoPublicUsers,
                 ],
+            },
+            global: {
+                stubs: {
+                    Teleport: true,
+                },
             },
         });
 
