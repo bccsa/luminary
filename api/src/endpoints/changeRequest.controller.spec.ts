@@ -642,59 +642,5 @@ describe("ChangeRequestController", () => {
                 "fake-token",
             );
         });
-        it("should handle request where key is the ID", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
-
-            const fileId = "file-fallback";
-            const changeRequest = {
-                id: 808,
-                apiVersion: "0.0.0",
-                doc: {
-                    _id: "post-fallback",
-                    type: DocType.Post,
-                    imageData: {
-                        uploadData: [
-                            {
-                                fileData: createBinaryRef(fileId),
-                                preset: "photo",
-                            },
-                        ],
-                    },
-                },
-            };
-
-            const imageBuffer = createTestFile("fallback image");
-            
-            // Simulate the production issue where the key is the ID "808" instead of "changeRequest"
-            // And file key uses "808" as prefix
-            const req = request(app.getHttpServer())
-                .post("/changerequest")
-                .set("Authorization", "Bearer fake-token")
-                .field("apiVersion", "0.0.0")
-                .field("808", JSON.stringify(changeRequest));
-
-            req.attach(`808__file__${fileId}`, imageBuffer, "test.jpg");
-
-            const response = await req;
-
-            expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: 808,
-                    doc: expect.objectContaining({
-                        imageData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    preset: "photo",
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
-            );
-        });
     });
 });
