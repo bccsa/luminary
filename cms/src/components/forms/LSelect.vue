@@ -66,24 +66,6 @@ function toggleDropdown() {
                     class="h-5 w-5"
                 />
             </div>
-            <!-- 1. Create div
-                2 Show a label of what is currently selected inside button that looks and feels like <select>
-                 3. When user clicks on it, toggle dropdown visibility
-                 5. The user must be able to select an option from the dropdown
-                 It should work like a select field but with custom styling and dropdown
-                 (Look at LCombobox for reference)
-                 -->
-
-            <!-- Actual input element user will click to display dropdown -->
-
-            <!-- Dropdown (use LDropdown component for dropdown)-->
-            <!-- Display options to user in dropdown -->
-            <!-- <LDropdown
-                :show="showDropdown"
-                placement="bottom-start"
-                width="full"
-                @update:show="showDropdown = $event"
-            > Options here </LDropdown> -->
 
             <select
                 v-model="model"
