@@ -39,12 +39,9 @@ describe("LFormData (images)", () => {
         expect(entries["1-galleryDoc-files-width"]).toBe("200");
         expect(entries["1-galleryDoc-files-height"]).toBe("160");
 
-<<<<<<< HEAD
-        // The JSON has null placeholders where binary data was extracted
-        expect(entries["galleryDoc-JSON"]).toBe(
-            JSON.stringify({ images: [null, null], label: "gallery" }),
-        );
-=======
+        expect(entries["galleryDoc__json"]).toBeDefined();
+        const jsonData = JSON.parse(entries["galleryDoc__json"]);
+
         // Check that binary references are created as strings
         expect(jsonData.images).toHaveLength(2);
         expect(typeof jsonData.images[0].fileData).toBe("string");
@@ -71,7 +68,6 @@ describe("LFormData (images)", () => {
         expect(entries[`galleryDoc__file__${id1}`]).toBeDefined();
         expect(entries[`galleryDoc__file__${id1}`]).toHaveProperty("size");
         expect(entries[`galleryDoc__file__${id1}`]).toHaveProperty("type");
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
     });
 
     it("handles nested image files and preserves other fields", () => {
@@ -92,12 +88,9 @@ describe("LFormData (images)", () => {
         expect(entries["0-coverDoc-files-width"]).toBe("300");
         expect(entries["0-coverDoc-files-height"]).toBe("200");
 
-<<<<<<< HEAD
-        // The JSON has null placeholder where image was, but preserves other fields
-        expect(entries["coverDoc-JSON"]).toBe(
-            JSON.stringify({ meta: { author: "Jane" }, image: null, tag: "cover" }),
-        );
-=======
+        expect(entries["coverDoc__json"]).toBeDefined();
+        const jsonData = JSON.parse(entries["coverDoc__json"]);
+
         // Check that binary reference is created as a string
         expect(typeof jsonData.image.fileData).toBe("string");
         expect(jsonData.image.fileData).toMatch(/^BINARY_REF-/);
@@ -114,7 +107,6 @@ describe("LFormData (images)", () => {
         expect(entries[`coverDoc__file__${id}`]).toBeDefined();
         expect(entries[`coverDoc__file__${id}`]).toHaveProperty("size");
         expect(entries[`coverDoc__file__${id}`]).toHaveProperty("type");
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
     });
 
     it("does not mutate the original object", () => {
@@ -125,9 +117,6 @@ describe("LFormData (images)", () => {
         form.append("imgDoc", obj);
         expect(obj).toEqual(objCopy);
     });
-<<<<<<< HEAD
-=======
-
     it("handles binary data at root level", () => {
         const img = new File(["root"], "root.webp", { type: "image/webp" });
         const form = new LFormData();
@@ -181,5 +170,4 @@ describe("LFormData (images)", () => {
         expect(entries[`bufferDoc__file__${id}`]).toBeDefined();
         expect(entries[`bufferDoc__file__${id}`]).toHaveProperty("size");
     });
->>>>>>> 81f582e5 (refactor: Update ChangeRequestController and LFormData to use binary references for file handling)
 });
