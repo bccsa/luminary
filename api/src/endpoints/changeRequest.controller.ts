@@ -7,6 +7,7 @@ import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
 import { MediaType } from "../enums";
+import { detectFileType } from "../util/fileTypeDetection";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -21,19 +22,11 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        // Dynamic import (ESM module inside CJS project)
-        const fileTypeModule = await import("file-type");
-        const { fileTypeFromBuffer } = fileTypeModule;
-
-        // Check if the request is multipart
-        const isMultipartRequest =
-            typeof request.isMultipart === "function" ? request.isMultipart() : false;
-
         let body: Record<string, any> = {};
         const files: Array<{ buffer: Buffer; fieldname: string }> = [];
 
-        if (isMultipartRequest && typeof request.parts === "function") {
-            // Parse Fastify multipart data
+        // Check if this is a multipart request
+        if (request.isMultipart()) {
             const parts = request.parts();
 
             for await (const part of parts) {

@@ -10,6 +10,23 @@ import { DocType } from "../enums";
 import * as path from "path";
 import * as fs from "fs";
 
+// Mock file type detection helper
+jest.mock("../util/fileTypeDetection", () => ({
+    detectFileType: jest.fn(async (buffer: Uint8Array) => {
+        // Simple detection based on file signature
+        if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+            return { mime: "image/jpeg", ext: "jpg" };
+        }
+        if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+            return { mime: "audio/wav", ext: "wav" };
+        }
+        if (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) {
+            return { mime: "audio/mpeg", ext: "mp3" };
+        }
+        return null;
+    }),
+}));
+
 describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
