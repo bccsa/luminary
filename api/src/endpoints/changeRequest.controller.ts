@@ -5,6 +5,7 @@ import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { MediaType } from "../enums";
+import { detectFileType } from "../util/fileTypeDetection";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -17,10 +18,6 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
-
-        // Dynamic import (ESM module inside CJS project)
-        const fileTypeModule = await import("file-type");
-        const { fileTypeFromBuffer } = fileTypeModule;
 
         // Check if this is a multipart request
         if (request.isMultipart()) {
@@ -47,17 +44,25 @@ export class ChangeRequestController {
                 //Only parent documents (Posts and Tags) can have files uploaded,
                 //Child documents only have a reference to the parent document's fileCollection field
                 //without this check it could lead to unexpected behavior or critical errors
+
+                // Clear any existing uploadData (it's only for new uploads, not for editing)
+                if (parsedDoc.imageData?.uploadData) {
+                    parsedDoc.imageData.uploadData = [];
+                }
+                if (parsedDoc.media?.uploadData) {
+                    parsedDoc.media.uploadData = [];
+                }
+
                 if (files.length > 0) {
-                    const uploadData = [];
+                    const imageUploadData = [];
+                    const mediaUploadData = [];
 
                     // Better: use for..of with entries() instead of indexOf to await properly
                     for (const [index, file] of files.entries()) {
-                        // TODO: change after #1208 is implemented
-                        const fileName = fields[`${index}-changeRequestDoc-files-filename`];
                         const filePreset = fields[`${index}-changeRequestDoc-files-preset`];
                         const languageId = fields[`${index}-changeRequestDoc-files-languageId`];
 
-                        const fileType = await fileTypeFromBuffer(new Uint8Array(file.buffer));
+                        const fileType = await detectFileType(new Uint8Array(file.buffer));
 
                         if (!fileType) continue;
 
@@ -65,9 +70,9 @@ export class ChangeRequestController {
                         const isAudio = fileType.mime.startsWith(`${MediaType.Audio}/`);
 
                         if (fileType.mime.startsWith("image/")) {
-                            uploadData.push({
+                            // ImageUploadDto: fileData and preset only (no filename!)
+                            imageUploadData.push({
                                 fileData: file.buffer,
-                                filename: fileName,
                                 preset: filePreset,
                             });
                         } else if (isVideo || isAudio) {
@@ -78,8 +83,9 @@ export class ChangeRequestController {
                                 }
                                 parsedDoc.media.hlsUrl = hlsUrl;
                             }
-                            
-                            uploadData.push({
+
+                            // MediaUploadDataDto: fileData, preset, mediaType, languageId
+                            mediaUploadData.push({
                                 fileData: file.buffer,
                                 preset: filePreset,
                                 mediaType: isVideo ? MediaType.Video : MediaType.Audio,
@@ -88,7 +94,21 @@ export class ChangeRequestController {
                         }
                     }
 
-                    parsedDoc.imageData.uploadData = uploadData;
+                    // Assign image uploads to imageData.uploadData
+                    if (imageUploadData.length > 0) {
+                        if (!parsedDoc.imageData) {
+                            parsedDoc.imageData = { fileCollections: [], uploadData: [] };
+                        }
+                        parsedDoc.imageData.uploadData = imageUploadData;
+                    }
+
+                    // Assign media uploads to media.uploadData
+                    if (mediaUploadData.length > 0) {
+                        if (!parsedDoc.media) {
+                            parsedDoc.media = { fileCollections: [], uploadData: [] };
+                        }
+                        parsedDoc.media.uploadData = mediaUploadData;
+                    }
                 }
 
                 const changeRequest: ChangeReqDto = {
