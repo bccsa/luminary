@@ -108,7 +108,7 @@ describe("LImageProvider", () => {
         expect(img1.attributes("srcset")).toContain("video-600.webp");
     });
 
-    it("renders fallback image in modal mode when primary image fails (reproduction)", async () => {
+    it("renders fallback image in modal mode when primary image fails", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id-modal-fallback",
