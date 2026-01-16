@@ -20,6 +20,7 @@ import {
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
 import { clearMediaQueue, mediaQueue } from "@/globalConfig";
+import LDialog from "@/components/common/LDialog.vue";
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
@@ -330,15 +331,22 @@ const closePlayer = () => {
     clearMediaQueue();
 };
 
+// Modal state for close confirmation
+const showCloseConfirmationModal = ref(false);
+
 // Enhanced close with confirmation for multiple tracks
 const closePlayerWithConfirmation = () => {
     if (mediaQueue.value.length > 1) {
-        // Show confirmation if multiple tracks in queue
-        const confirmed = confirm(
-            `Close player? This will clear ${mediaQueue.value.length} tracks from your queue.`,
-        );
-        if (!confirmed) return;
+        // Show confirmation modal if multiple tracks in queue
+        showCloseConfirmationModal.value = true;
+    } else {
+        closePlayer();
     }
+};
+
+// Confirm close player
+const confirmClosePlayer = () => {
+    showCloseConfirmationModal.value = false;
     closePlayer();
 };
 
@@ -1579,6 +1587,18 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
             </div>
         </div>
     </div>
+
+    <!-- Close confirmation modal -->
+    <LDialog
+        v-model:open="showCloseConfirmationModal"
+        title="Close player?"
+        :description="`This will clear ${mediaQueue.length} tracks from your queue.`"
+        :primaryAction="confirmClosePlayer"
+        primaryButtonText="Close Player"
+        :secondaryAction="() => (showCloseConfirmationModal = false)"
+        secondaryButtonText="Cancel"
+        context="danger"
+    />
 </template>
 
 <style scoped>
