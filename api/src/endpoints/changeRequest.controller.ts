@@ -1,4 +1,4 @@
-import { Controller, Headers, Post, Req, UseGuards } from "@nestjs/common";
+import { Controller, Headers, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
@@ -13,6 +13,7 @@ export class ChangeRequestController {
 
     @Post()
     @UseGuards(AuthGuard)
+    @UsePipes()
     async handleChangeRequest(
         @Req() request: FastifyRequest,
         @Headers("Authorization") authHeader: string,
