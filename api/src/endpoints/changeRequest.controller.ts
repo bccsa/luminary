@@ -25,7 +25,7 @@ export class ChangeRequestController {
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
 
         let body: Record<string, any> = {};
-        let files: Array<{ buffer: Buffer; fieldname: string }> = [];
+        const files: Array<{ buffer: Buffer; fieldname: string }> = [];
 
         if (isMultipartRequest && typeof request.parts === "function") {
             // Production path: parse Fastify multipart data
