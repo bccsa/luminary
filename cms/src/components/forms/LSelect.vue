@@ -5,11 +5,12 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { type Component, type StyleValue } from "vue";
+import { ref, type Component, type StyleValue } from "vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
+import LDropdown from "../common/LDropdown.vue";
 
 type Option = { label: string; value: string | number; disabled?: boolean };
 
@@ -40,6 +41,12 @@ const states = {
 const id = `l-select-${useId()}`;
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
+
+const showDropdown = ref(false);
+
+function toggleDropdown() {
+    showDropdown.value = !showDropdown.value;
+}
 </script>
 
 <template>
@@ -59,6 +66,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     class="h-5 w-5"
                 />
             </div>
+
             <select
                 v-model="model"
                 class="block h-full w-full justify-items-center rounded-md border-0 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
