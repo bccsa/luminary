@@ -1,111 +1,150 @@
+import { v4 as uuidv4 } from "uuid";
+
 type BinaryData = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
 
-/**
- * LFormData extends the FormData class to handle binary data and JSON objects.
- * It allows appending binary data (Blob, File, ArrayBuffer) and JSON objects
- * while extracting any binary files from the JSON object and appending them
- * to the FormData instance.
- * This allows us to easily make use of multipart/form-data requests
- * while still being able to send complex JSON objects with binary data.
- */
+const BINARY_REF_PREFIX = "BINARY_REF-";
+
 export class LFormData extends FormData {
-    /**
-     * This method check if a value is binary data that is compatible with a BlobPart/Blob and FormData
-     * @param value the value to check if it is binary data or not
-     * @returns
-     */
+    private fileMap = new Map<string, BinaryData>();
+    // Track the last appended object so we can merge subsequent primitive fields into it
+    private lastAppendedObject:
+        | {
+              baseKey: string;
+              json: any;
+              fileMap: Map<string, BinaryData>;
+          }
+        | undefined = undefined;
+
     private isBinary(value: any): value is BinaryData {
         if (value instanceof Blob || value instanceof File || value instanceof ArrayBuffer) {
             return true;
         }
         if (ArrayBuffer.isView(value)) {
-            // Exclude SharedArrayBuffer-backed views as it is not compatible with BlobPart
-            // and cannot be used in FormData
             return !(value.buffer instanceof SharedArrayBuffer);
         }
         return false;
     }
-    /**
-     * This method extracts any file(and it's metadata) from a JSON object.
-     * It searches through the object recursively and returns an array of file data objects.
-     * A file data object is any object that contains a field with binary data
-     * @param json object to search inside of for files
-     * @returns
-     */
-    private extractAnyFile(json: Object) {
-        if (!json || typeof json !== "object") {
-            throw new Error("Input must be an object");
-        }
 
-        const results: any[] = [];
-        const seen = new WeakSet();
-        const pathsToDelete: Array<{ parent: any; key: string | number }> = [];
-
-        const find = (value: any, parentObj?: any, parentKey?: string | number) => {
-            if (!value || typeof value !== "object") return;
-            if (seen.has(value)) return;
-            seen.add(value);
-
-            if (Array.isArray(value)) {
-                for (let i = 0; i < value.length; i++) {
-                    find(value[i], value, i);
-                }
-            } else {
-                for (const [key, val] of Object.entries(value)) {
-                    if (this.isBinary(val)) {
-                        results.push(value);
-                        if (parentObj && parentKey !== undefined) {
-                            pathsToDelete.push({ parent: parentObj, key: parentKey });
-                        } else {
-                            pathsToDelete.push({ parent: value, key });
-                        }
-                    } else if (typeof val === "object" && val !== null) {
-                        find(val, value, key);
-                    }
-                }
-            }
-        };
-
-        find(json);
-        // Remove all found binary fields after collecting
-        for (const { parent, key } of pathsToDelete) {
-            delete parent[key];
-        }
-        return results;
+    private createBinaryRef(id: string): string {
+        return `${BINARY_REF_PREFIX}${id}`;
     }
 
-    append(key: string, value: any) {
-        if (typeof value === "object") {
-            let fileKey: string;
-            // Work on a deep clone to avoid mutating the original
-            const valueClone = { ...value };
-            const files = this.extractAnyFile(valueClone);
-            if (files.length > 0) {
-                let fileName: string;
-                files.forEach((file, index) => {
-                    fileKey = `${index}-${key}-files`;
-                    Object.entries(file).forEach(([k, v]) => {
-                        if (k == "filename") fileName = v as string;
-                        const valueKey = `${fileKey}-${k}`;
-                        if (
-                            typeof v === "string" ||
-                            typeof v === "boolean" ||
-                            typeof v === "number"
-                        ) {
-                            super.append(valueKey, String(v));
-                        } else if (k === "fileData" && this.isBinary(v)) {
-                            const blob = new Blob([v as BlobPart], {
-                                type: "application/octet-stream",
-                            });
-                            super.append(valueKey, blob, fileName);
-                        }
-                    });
-                });
-            }
-            super.append(`${key}-JSON`, JSON.stringify(valueClone));
-        } else {
-            super.append(key, String(value));
+    private extractBinaries(obj: any): any {
+        if (obj === null || typeof obj !== "object") return obj;
+        if (this.isBinary(obj)) {
+            const id = uuidv4();
+            this.fileMap.set(id, obj);
+            return this.createBinaryRef(id);
         }
-        return this;
+
+        if (Array.isArray(obj)) {
+            return obj.map((item) =>
+                this.isBinary(item) || (typeof item === "object" && item !== null)
+                    ? this.extractBinaries(item)
+                    : item,
+            );
+        }
+
+        // Process object properties - preserve all types (numbers, booleans, etc.)
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (key === "__proto__" || key === "constructor" || key === "prototype") {
+                continue; // Prevent prototype pollution
+            }
+
+            if (this.isBinary(value)) {
+                const id = uuidv4();
+                this.fileMap.set(id, value);
+                result[key] = this.createBinaryRef(id);
+            } else if (typeof value === "object" && value !== null) {
+                result[key] = this.extractBinaries(value);
+            } else {
+                // Preserve types: numbers stay as numbers, booleans as booleans, strings as strings
+                result[key] = value;
+            }
+        }
+        return result;
+    }
+
+    append(key: string, value: any, filename?: string): void {
+        // If appending a primitive value and we have a recently appended object,
+        // merge it into that object's JSON and update the stored reference
+        if ((typeof value !== "object" || value === null) && this.lastAppendedObject) {
+            // Merge the primitive value into the last appended object's JSON
+            this.lastAppendedObject.json[key] = value;
+
+            // Re-append the updated JSON as the LAST entry for this key
+            // This ensures the server gets the complete, merged JSON
+            // Note: FormData allows duplicate keys, and most parsers use the last value
+            const jsonKey = `${this.lastAppendedObject.baseKey}__json`;
+
+            // Use set if available to avoid duplicates, otherwise append
+            // @ts-ignore - set is available in newer TypeScript versions / environments
+            if (typeof super.set === "function") {
+                // @ts-ignore
+                super.set(jsonKey, JSON.stringify(this.lastAppendedObject.json));
+            } else {
+                // @ts-ignore - delete is available in newer TypeScript versions / environments
+                if (typeof super.delete === "function") {
+                    // @ts-ignore
+                    super.delete(jsonKey);
+                }
+                super.append(jsonKey, JSON.stringify(this.lastAppendedObject.json));
+            }
+
+            // Don't append the primitive separately - it's now in the JSON
+            // This prevents duplicate/conflicting values
+            return;
+        }
+
+        // If appending a primitive without a previous object, append normally
+        if (typeof value !== "object" || value === null) {
+            super.append(key, String(value));
+            return;
+        }
+
+        // Reset file map for this append
+        this.fileMap.clear();
+
+        const cleanedJson = this.extractBinaries(value);
+
+        // Store this object as the last appended object for potential merging
+        const fileMapCopy = new Map(this.fileMap);
+        this.lastAppendedObject = {
+            baseKey: key,
+            json: cleanedJson,
+            fileMap: fileMapCopy,
+        };
+
+        // Append all binaries using their ID in the file key
+        // The fileId matches the ID used in the BINARY_REF-{id} string
+        this.fileMap.forEach((binary, fileId) => {
+            const fileKey = `${key}__file__${fileId}`;
+
+            // Convert binary to Blob
+            let blob: Blob;
+            if (binary instanceof Blob) {
+                blob = binary;
+            } else if (binary instanceof ArrayBuffer) {
+                blob = new Blob([binary]);
+            } else if (
+                ArrayBuffer.isView(binary) &&
+                !(binary.buffer instanceof SharedArrayBuffer)
+            ) {
+                blob = new Blob([binary.buffer]);
+            } else {
+                blob = new Blob([binary as any]);
+            }
+
+            super.append(
+                fileKey,
+                blob,
+                filename || (binary instanceof File ? binary.name : "file"),
+            );
+        });
+
+        // Append cleaned JSON with binary references
+        // JSON.stringify preserves number, boolean, and null types
+        super.append(`${key}__json`, JSON.stringify(cleanedJson));
     }
 }

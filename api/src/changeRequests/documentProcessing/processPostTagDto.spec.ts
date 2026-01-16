@@ -9,8 +9,9 @@ import { DocType } from "../../enums";
 import { processImage } from "./processImageDto";
 
 // Mock processImage from processImageDto
+// Mock processImage from processImageDto
 jest.mock("./processImageDto", () => ({
-    processImage: jest.fn(),
+    processImage: jest.fn().mockResolvedValue([]),
 }));
 
 describe("processPostTagDto", () => {
@@ -217,7 +218,7 @@ describe("processPostTagDto", () => {
         );
     });
 
-    it("throws error when no imageBucketId is provided for image processing", async () => {
+    it("returns warning when no imageBucketId is provided for image processing", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog4";
         (changeRequest.doc as PostDto).imageData = {
@@ -233,11 +234,16 @@ describe("processPostTagDto", () => {
         // Ensure previous tests' calls to the mocked processImage do not affect this assertion
         (processImage as jest.Mock).mockClear();
 
-        await expect(
-            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
-        ).rejects.toThrow("Bucket is not specified for image processing.");
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
 
-        expect(processImage).not.toHaveBeenCalled();
+        expect(processResult.result.ok).toBe(true);
+        expect(processResult.warnings).toContain("Bucket is not specified for image processing.");
+        expect(processImage).toHaveBeenCalled();
     });
 
     it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
