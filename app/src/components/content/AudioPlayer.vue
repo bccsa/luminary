@@ -19,7 +19,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-import { clearMediaQueue, mediaQueue } from "@/globalConfig";
+import { clearMediaQueue, isMobileScreen, mediaQueue } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
@@ -491,7 +491,10 @@ const handleKeyDown = (event: KeyboardEvent) => {
         case "?":
         case "/":
             event.preventDefault();
-            showHelpModal.value = !showHelpModal.value;
+            // Only show help modal on desktop
+            if (isMobileScreen.value) {
+                showHelpModal.value = false;
+            }
             break;
 
         default:
@@ -1325,7 +1328,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 <!-- Help button -->
                                 <button
                                     @click="showHelpModal = true"
-                                    class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
+                                    class="hidden rounded p-1 hover:bg-black/10 dark:hover:bg-white/10 lg:block"
                                     title="Keyboard shortcuts (?)"
                                     aria-label="Show keyboard shortcuts help"
                                 >
@@ -1455,7 +1458,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <!-- Keyboard Shortcuts Help Modal -->
         <div
             v-if="showHelpModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 lg:flex"
             @click="showHelpModal = false"
         >
             <div
@@ -1476,106 +1479,163 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 </div>
 
                 <div class="space-y-2.5 text-sm">
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
-                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">Playback</h4>
+                    <div
+                        class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50"
+                    >
+                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                            Playback
+                        </h4>
                         <div class="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Play/Pause</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                     >Space, K</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Skip ±10s</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                     >←→, J/L</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Skip ±30s</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                     >Ctrl + ←→</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Skip ±5s</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                     >Shift + ←→</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Restart</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">0</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >0</code
+                                >
                             </div>
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
-                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">Volume</h4>
+                    <div
+                        class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50"
+                    >
+                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                            Volume
+                        </h4>
                         <div class="grid grid-cols-1 gap-y-1.5 text-xs">
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Volume ±10%</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">↑↓</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >↑↓</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Mute/Unmute</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">M</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >M</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400"
                                     >Volume Slider (Mobile)</span
                                 >
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                     >Tap Speaker</code
                                 >
                             </div>
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
-                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">Speed</h4>
+                    <div
+                        class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50"
+                    >
+                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                            Speed
+                        </h4>
                         <div class="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">1x Speed</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">1</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >1</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">1.25x Speed</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">2</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >2</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">1.5x Speed</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">3</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >3</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">1.75x Speed</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">4</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >4</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">2x Speed</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">5</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >5</code
+                                >
                             </div>
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
-                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">Other</h4>
+                    <div
+                        class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50"
+                    >
+                        <h4 class="mb-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                            Other
+                        </h4>
                         <div class="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Toggle Size</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">F</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >F</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Retry</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">R</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >R</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Close Player</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">Esc</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >Esc</code
+                                >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Show Help</span>
-                                <code class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">?</code>
+                                <code
+                                    class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    >?</code
+                                >
                             </div>
                         </div>
                     </div>
