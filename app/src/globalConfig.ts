@@ -27,6 +27,13 @@ export const isDevMode = import.meta.env.DEV;
 
 const isTestEnv = import.meta.env.MODE === "test";
 
+const windowWidth = ref(window.innerWidth);
+window.addEventListener("resize", () => {
+    windowWidth.value = window.innerWidth;
+});
+export const isMobileScreen = computed(() => windowWidth.value < 1024);
+export const isSmallScreen = computed(() => windowWidth.value < 1500);
+
 /**
  * We want to only show one privacy policy modal per session.
  * This is used to track one singular instance of the modal being shown.
