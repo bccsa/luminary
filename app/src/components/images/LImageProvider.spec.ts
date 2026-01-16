@@ -107,4 +107,40 @@ describe("LImageProvider", () => {
         expect(img1.attributes("srcset")).toContain("video-300.webp");
         expect(img1.attributes("srcset")).toContain("video-600.webp");
     });
+
+    it("renders fallback image in modal mode when primary image fails", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-modal-fallback",
+                parentWidth: 1000,
+                isModal: true,
+                bucketPublicUrl: "https://bucket.example.com",
+                image: {
+                    fileCollections: [
+                        {
+                            aspectRatio: 1.78,
+                            imageFiles: [{ filename: "img.jpg", width: 100, height: 100 }],
+                        },
+                    ],
+                } as any,
+            },
+        });
+
+        const img = wrapper.find('img[data-test="image-element1"]');
+        expect(img.exists()).toBe(true);
+        expect(img.attributes("src")).toBe("https://bucket.example.com/img.jpg");
+
+        await img.trigger("error");
+        await wrapper.vm.$nextTick();
+
+        // Check if fallback image is displayed
+        // We look for an image that is NOT the broken one
+        const images = wrapper.findAll("img");
+        const fallback = images.find((i) => {
+            const src = i.attributes("src");
+            return src && src !== "https://bucket.example.com/img.jpg" && src.length > 0;
+        });
+
+        expect(fallback).toBeDefined();
+    });
 });
