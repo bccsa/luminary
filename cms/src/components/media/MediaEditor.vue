@@ -17,6 +17,7 @@ import LDialog from "@/components/common/LDialog.vue";
 import LSelect from "../forms/LSelect.vue";
 import { storageSelection } from "@/composables/storageSelection";
 import { capitaliseFirstLetter } from "@/util/string";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 type Props = {
     disabled: boolean;
@@ -83,7 +84,7 @@ const handleBucketChange = (bucketId: string) => {
 };
 
 // Get all available languages
-const availableLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 // Get languages that already have audio files
 const usedLanguageIds = computed(() => {
@@ -99,6 +100,33 @@ const usedLanguageIds = computed(() => {
 const languageHasAudio = (languageId: string) => {
     return usedLanguageIds.value.includes(languageId);
 };
+
+// Order languages like the Language Modal: sorted by name (same as CMS Language Modal)
+const availableLanguages = computed(() => {
+    return [...allLanguages.value].sort((a, b) => {
+        if (a.name < b.name) return -1;
+        if (a.name > b.name) return 1;
+        return 0;
+    });
+});
+
+// Get the preferred language (if it doesn't have audio) or the first language without audio
+const preferredLanguageForUpload = computed(() => {
+    const preferredLanguageId = cmsLanguageIdAsRef.value;
+
+    // First, check if preferred language exists and doesn't have audio
+    if (preferredLanguageId) {
+        const preferredLang = availableLanguages.value.find(
+            (lang) => lang._id === preferredLanguageId && !languageHasAudio(lang._id),
+        );
+        if (preferredLang) {
+            return preferredLang;
+        }
+    }
+
+    // Fall back to first language without audio
+    return availableLanguages.value.find((lang) => !languageHasAudio(lang._id));
+});
 
 // All media files (not filtered by language anymore)
 const allFileCollections = computed(() => {
@@ -256,7 +284,9 @@ const handleFiles = (files: FileList | null) => {
 
     // Store the pending file and show language selector
     pendingFile.value = file;
-    selectedLanguageForUpload.value = availableLanguages.value[0]?._id;
+    // Auto-select preferred language if it doesn't have audio, otherwise first language without audio, or first language if all have audio
+    selectedLanguageForUpload.value =
+        preferredLanguageForUpload.value?._id || availableLanguages.value[0]?._id;
     showLanguageSelector.value = true;
 };
 
