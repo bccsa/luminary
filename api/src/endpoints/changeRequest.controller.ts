@@ -19,13 +19,18 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        // Check if this is a multipart request (with potential binary data)
-        if (request.isMultipart()) {
-            const parts = request.parts();
-            const body: Record<string, any> = {};
-            const files: Array<{ buffer: Buffer; fieldname: string }> = [];
+        // Try to parse multipart data if it exists
+        // In production, Fastify provides isMultipart(), but in tests it might not be available
+        const isMultipartRequest =
+            typeof request.isMultipart === "function" ? request.isMultipart() : false;
 
-            // Parse Fastify multipart data into body fields and files
+        let body: Record<string, any> = {};
+        let files: Array<{ buffer: Buffer; fieldname: string }> = [];
+
+        if (isMultipartRequest && typeof request.parts === "function") {
+            // Production path: parse Fastify multipart data
+            const parts = request.parts();
+
             for await (const part of parts) {
                 if (part.type === "file") {
                     const buffer = await part.toBuffer();
@@ -34,86 +39,98 @@ export class ChangeRequestController {
                     body[part.fieldname] = part.value as string;
                 }
             }
+        } else {
+            // Fallback: check if body is already parsed (test environment)
+            body = (request.body as any) || {};
 
-            // Check if this is a multipart form data request (with potential binary data)
-            const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
-
-            if (files?.length || jsonKey) {
-                // Parse the main JSON payload
-                // Handle case where LFormData may have appended JSON multiple times (for merging)
-                // NestJS may return an array for duplicate keys - use the last value (the merged JSON)
-                const jsonValue = body[jsonKey];
-                const jsonString = Array.isArray(jsonValue)
-                    ? jsonValue[jsonValue.length - 1]
-                    : String(jsonValue);
-
-                let parsedData: any;
-                try {
-                    parsedData = JSON.parse(jsonString);
-                } catch (error) {
-                    // If parsing fails, it might be concatenated JSON strings
-                    // Try to extract the last complete JSON object
-                    const lastBrace = jsonString.lastIndexOf("}");
-                    if (lastBrace > 0) {
-                        // Find the matching opening brace by counting braces
-                        let depth = 1;
-                        let start = lastBrace - 1;
-                        while (depth > 0 && start >= 0) {
-                            if (jsonString[start] === "}") depth++;
-                            if (jsonString[start] === "{") depth--;
-                            start--;
-                        }
-                        const lastJson = jsonString.substring(start + 1, lastBrace + 1);
-                        parsedData = JSON.parse(lastJson);
-                    } else {
-                        throw error;
-                    }
-                }
-
-                // Clean prototype pollution keys before processing
-                parsedData = removeDangerousKeys(parsedData);
-
-                // Get apiVersion from parsedData (LFormData merges separately appended fields)
-                const apiVersion = parsedData.apiVersion || body["apiVersion"];
-                await validateApiVersion(apiVersion);
-
-                // Patch binary data (file buffers) back into placeholders
-                if (files.length > 0) {
-                    const baseKey = jsonKey.replace("__json", "");
-
-                    // Create a map of fileKey -> file buffer
-                    // LFormData sends files as: ${baseKey}__file__${id}
-                    // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
-                    const fileMap = new Map<string, Buffer>();
-
-                    files.forEach((file) => {
-                        // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
-                        // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
-                        const fileKey = file.fieldname;
-                        fileMap.set(fileKey, file.buffer);
+            // In test environment, files might be in the body as Buffer objects
+            // Extract them based on the __file__ naming pattern
+            Object.keys(body).forEach((key) => {
+                if (key.includes("__file__") && Buffer.isBuffer(body[key])) {
+                    files.push({
+                        buffer: body[key],
+                        fieldname: key,
                     });
-
-                    patchFileData(parsedData, fileMap, baseKey);
                 }
+            });
+        }
 
-                // Extract the ChangeReqDto from the parsed data
-                // Types are preserved by LFormData, so id should already be a number
-                const changeRequest: ChangeReqDto = {
-                    id: parsedData.id,
-                    doc: parsedData.doc,
-                    apiVersion: parsedData.apiVersion || apiVersion,
-                };
+        // Check if this is a multipart form data request (with potential binary data)
+        const jsonKey = Object.keys(body).find((key) => key.endsWith("__json"));
 
-                return this.changeRequestService.changeRequest(changeRequest, token);
+        if (jsonKey) {
+            // Parse the main JSON payload
+            // Handle case where LFormData may have appended JSON multiple times (for merging)
+            const jsonValue = body[jsonKey];
+            const jsonString = Array.isArray(jsonValue)
+                ? jsonValue[jsonValue.length - 1]
+                : String(jsonValue);
+
+            let parsedData: any;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (error) {
+                // If parsing fails, it might be concatenated JSON strings
+                // Try to extract the last complete JSON object
+                const lastBrace = jsonString.lastIndexOf("}");
+                if (lastBrace > 0) {
+                    // Find the matching opening brace by counting braces
+                    let depth = 1;
+                    let start = lastBrace - 1;
+                    while (depth > 0 && start >= 0) {
+                        if (jsonString[start] === "}") depth++;
+                        if (jsonString[start] === "{") depth--;
+                        start--;
+                    }
+                    const lastJson = jsonString.substring(start + 1, lastBrace + 1);
+                    parsedData = JSON.parse(lastJson);
+                } else {
+                    throw error;
+                }
             }
+
+            // Clean prototype pollution keys before processing
+            parsedData = removeDangerousKeys(parsedData);
+
+            // Get apiVersion from parsedData (LFormData merges separately appended fields)
+            const apiVersion = parsedData.apiVersion || body["apiVersion"];
+            await validateApiVersion(apiVersion);
+
+            // Patch binary data (file buffers) back into placeholders
+            if (files.length > 0) {
+                const baseKey = jsonKey.replace("__json", "");
+
+                // Create a map of fileKey -> file buffer
+                // LFormData sends files as: ${baseKey}__file__${id}
+                // The ${id} matches the ID in the BINARY_REF-{id} string in the JSON
+                const fileMap = new Map<string, Buffer>();
+
+                files.forEach((file) => {
+                    // Match files by their fieldname (e.g., "changeRequest__file__{uuid}")
+                    // The UUID in the fieldname matches the ID in "BINARY_REF-{uuid}" in the JSON
+                    const fileKey = file.fieldname;
+                    fileMap.set(fileKey, file.buffer);
+                });
+
+                patchFileData(parsedData, fileMap, baseKey);
+            }
+
+            // Extract the ChangeReqDto from the parsed data
+            // The parsed JSON IS already the ChangeReqDto structure
+            const changeRequest: ChangeReqDto = parsedData;
+
+            // Ensure apiVersion is set
+            if (!changeRequest.apiVersion) {
+                changeRequest.apiVersion = apiVersion;
+            }
+
+            return this.changeRequestService.changeRequest(changeRequest, token);
         }
 
         // If it is just a JSON object (not multipart), validate it correctly
-        const body = request.body as any;
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
         return this.changeRequestService.changeRequest(cleanedBody, token);
     }
 }
-

@@ -1,6 +1,8 @@
-import { Test as NestTest, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { ValidationPipe } from "@nestjs/common";
+import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import * as request from "supertest";
+import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AuthGuard } from "../auth/auth.guard";
@@ -9,12 +11,12 @@ import * as path from "path";
 import * as fs from "fs";
 
 describe("ChangeRequestController", () => {
-    let app: INestApplication;
+    let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
-        const module: TestingModule = await NestTest.createTestingModule({
+        const module: TestingModule = await Test.createTestingModule({
             controllers: [ChangeRequestController],
             providers: [
                 {
@@ -29,9 +31,14 @@ describe("ChangeRequestController", () => {
             .useValue({ canActivate: () => true })
             .compile();
 
-        app = module.createNestApplication();
+        app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+
+        // Register multipart plugin for file uploads
+        await app.register(multipart);
+
         app.useGlobalPipes(new ValidationPipe());
         await app.init();
+        await app.getHttpAdapter().getInstance().ready();
     });
 
     afterAll(async () => {
