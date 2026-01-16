@@ -14,6 +14,13 @@ import waitForExpect from "wait-for-expect";
 import LTag from "../content/LTag.vue";
 import { ref } from "vue";
 
+// Mock ResizeObserver for VueUse
+global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+};
+
 describe("LCombobox", () => {
     accessMap.value = superAdminAccessMap;
 
@@ -35,7 +42,6 @@ describe("LCombobox", () => {
     });
 
     it("displays selected options", async () => {
-        // Selected option labels are controlled externally, so we only need to pass the selected values
         const options = ref([]);
         const selectedLabels = ref([
             { id: 0, label: "Test Label", value: "test-value" } as ComboboxOption,
@@ -44,9 +50,10 @@ describe("LCombobox", () => {
         const wrapper = mount(LCombobox, {
             props: {
                 options: selectedLabels.value,
-                selectedOptions: options.value, // used to inform the parent of the selected options, but not used to display the labels directly, so we can pass an empty array
+                selectedOptions: options.value,
                 selectedLabels: selectedLabels.value,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         const lTag = wrapper.findComponent(LTag);
@@ -63,6 +70,7 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: [],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.find("[name='options-open-btn']").trigger("click");
@@ -90,6 +98,7 @@ describe("LCombobox", () => {
                     },
                 ],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         const tag = wrapper.findComponent(LTag);
@@ -113,6 +122,7 @@ describe("LCombobox", () => {
                     },
                 ],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.findComponent(LTag).find("button").trigger("click");
@@ -137,6 +147,7 @@ describe("LCombobox", () => {
                     },
                 ],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         expect(wrapper.text()).toContain("hidden-uuid");
@@ -154,6 +165,7 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: selected.value,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.find("[name='options-open-btn']").trigger("click");
@@ -179,6 +191,7 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: selected.value,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.find("[name='options-open-btn']").trigger("click");
@@ -187,10 +200,13 @@ describe("LCombobox", () => {
 
         const searchElement = wrapper.find("[name='option-search']");
         searchElement.setValue("Test Label 3");
+
+        await wrapper.vm.$nextTick();
+
         await searchElement.trigger("keydown.enter");
 
         await waitForExpect(() => {
-            expect(selected.value).toContain(2);
+            expect(selected.value).toContain("test-3");
         });
     });
 
@@ -205,13 +221,13 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: [],
             },
+            global: { stubs: { Teleport: true } },
         });
         await wrapper.find("[name='options-open-btn']").trigger("click");
 
         await wrapper.vm.$nextTick();
 
         const searchElement = wrapper.find("[name='option-search']");
-
         const options = wrapper.find("[data-test='options']");
 
         await waitForExpect(() => {
@@ -222,12 +238,12 @@ describe("LCombobox", () => {
         await wrapper.vm.$nextTick();
 
         await waitForExpect(async () => {
+            // Re-find because it might be destroyed
             expect(wrapper.find("[data-test='options']").exists()).toBe(false);
         });
     });
 
     it("highlights correctly when navigating with down arrow key", async () => {
-        // Mock scrollIntoView to prevent errors
         Element.prototype.scrollIntoView = vi.fn();
 
         const wrapper = mount(LCombobox, {
@@ -240,14 +256,13 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: [],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.find("[name='options-open-btn']").trigger("click");
-
         await wrapper.vm.$nextTick();
 
         const searchElement = wrapper.find("[name='option-search']");
-
         await searchElement.trigger("keydown.down");
 
         await waitForExpect(() => {
@@ -256,7 +271,6 @@ describe("LCombobox", () => {
     });
 
     it("highlights correctly when navigating with up arrow key", async () => {
-        // Mock scrollIntoView to prevent errors
         Element.prototype.scrollIntoView = vi.fn();
 
         const wrapper = mount(LCombobox, {
@@ -269,16 +283,15 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: [],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await wrapper.find("[name='options-open-btn']").trigger("click");
-
         await wrapper.vm.$nextTick();
 
         const searchElement = wrapper.find("[name='option-search']");
 
         await searchElement.trigger("keydown.down");
-
         await searchElement.trigger("keydown.down");
 
         await waitForExpect(() => {
@@ -307,6 +320,7 @@ describe("LCombobox", () => {
             slots: {
                 actions: "<button>Action</button>",
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
@@ -325,6 +339,7 @@ describe("LCombobox", () => {
                 docType: DocType.Post,
                 selectedOptions: [],
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(() => {
