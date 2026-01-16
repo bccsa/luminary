@@ -23,7 +23,7 @@ type Props = {
     /** The bucket ID where existing media are currently stored (before any migration) */
     existingMediaBucketId?: string;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits<{
     bucketSelected: [bucketId: string];
@@ -365,7 +365,7 @@ defineExpose({
             <LSelect
                 v-model="parent!.mediaBucketId"
                 :options="bucketOptions"
-                label="Bucket"
+                label="Storage"
                 placeholder="Select storage bucket"
                 :disabled="disabled"
                 @update:modelValue="handleBucketChange"
