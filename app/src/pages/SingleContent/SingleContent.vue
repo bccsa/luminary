@@ -558,12 +558,13 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
-// Check if the current content has audio files
+// Check if the current content has audio files - fully reactive to data changes
+// Check both content and idbContent to ensure we always have the latest data
 const hasAudioFiles = computed(() => {
-    return !!(
-        content.value?.parentMedia?.fileCollections &&
-        content.value.parentMedia.fileCollections.length > 0
-    );
+    // Check the live query result first (most up-to-date), then fall back to content ref
+    const dataSource = idbContent.value || content.value;
+    const fileCollections = dataSource?.parentMedia?.fileCollections;
+    return !!(fileCollections && Array.isArray(fileCollections) && fileCollections.length > 0);
 });
 
 // Function to start playing audio
