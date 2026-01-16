@@ -6,6 +6,7 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { AckStatus } from "../enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -194,14 +195,30 @@ export class ChangeRequestController {
                     apiVersion: changeRequest.apiVersion,
                 };
 
-                return this.changeRequestService.changeRequest(changeRequest, token);
+                const result = await this.changeRequestService.changeRequest(changeRequest, token);
+                if (result.ack === AckStatus.Rejected) {
+                    result.message = `${result.message}\n\nDEBUG INFO:\n${JSON.stringify(
+                        debug,
+                        null,
+                        2,
+                    )}`;
+                }
+                return result;
             }
 
             // If it is just a JSON object (not multipart), validate it correctly
             await validateApiVersion(body.apiVersion);
             // Clean prototype pollution from the body before processing
             const cleanedBody = removeDangerousKeys(body);
-            return this.changeRequestService.changeRequest(cleanedBody, token);
+            const result = await this.changeRequestService.changeRequest(cleanedBody, token);
+            if (result.ack === AckStatus.Rejected) {
+                result.message = `${result.message}\n\nDEBUG INFO:\n${JSON.stringify(
+                    debug,
+                    null,
+                    2,
+                )}`;
+            }
+            return result;
         } catch (error) {
             // Capture error details
             debug.error = {
