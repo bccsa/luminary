@@ -22,7 +22,7 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
             @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
         >
             <template #content>
-                <div class="flex justify-between pb-3 min-[1500px]:pt-2">
+                <div class="flex justify-between py-2 min-[1500px]:pt-2">
                     <div>
                         <span>
                             <span class="font-medium text-zinc-700">
