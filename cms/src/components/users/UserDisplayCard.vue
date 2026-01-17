@@ -16,6 +16,14 @@ const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
 const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
 const userGroups = ref<GroupDto[]>([]);
 
+const emit = defineEmits<{ (e: "edit", id: string): void }>();
+const showEditModal = defineModel<boolean>();
+
+function editModalVisible () {
+    showEditModal.value = true;
+    emit("edit", props.usersDoc._id);
+}
+
 watch(groups, (newGroups) => {
     userGroups.value = newGroups.filter((g) => props.usersDoc.memberOf.includes(g._id));
 });
@@ -27,7 +35,7 @@ watch(groups, (newGroups) => {
             :title="usersDoc.name"
             :updatedTimeUtc="usersDoc.updatedTimeUtc"
             :showDate="!isPhoneScreen"
-            @click="$router.push({ name: 'user', params: { id: usersDoc._id } })"
+            @click="editModalVisible"
         >
             <template #content>
                 <div class="flex justify-between pb-1 min-[1500px]:pt-0">
