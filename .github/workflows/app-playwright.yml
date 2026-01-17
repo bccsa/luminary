@@ -62,9 +62,5 @@ jobs:
         working-directory: app
 
       - name: Run Playwright Tests
-        run: |
-          cd api
-          npm run start & # Start your API in the background
-          sleep 20         # Wait for the API to be ready
-          cd ../app
-          npm run test:e2e  # Run Playwright E2E tests
+        run: npm run test:e2e
+        working-directory: app
