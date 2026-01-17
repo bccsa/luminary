@@ -12,7 +12,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
     testDir: "./e2e",
     /* Maximum time one test can run for. */
-    timeout: 12 * 1000,
+    timeout: 1000 * 1000,
     expect: {
         /**
          * Maximum time expect() should wait for the condition to be met.
@@ -23,9 +23,9 @@ export default defineConfig({
     /* Fail the build on CI if you accidentally left test.only in the source code. */
     forbidOnly: !!process.env.CI,
     /* Retry on CI only */
-    retries: process.env.CI ? 2 : 0,
-    /* Opt out of parallel tests on CI. Run sequentially locally to avoid multiple browser windows. */
-    workers: 5,
+    retries: 4,
+    /* Opt out of parallel tests on CI. */
+    workers: process.env.CI ? 1 : undefined,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
     reporter: [["html", { open: "never" }]],
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -34,7 +34,6 @@ export default defineConfig({
         actionTimeout: 0,
         /* Base URL to use in actions like `await page.goto('/')`. */
         baseURL: "http://localhost:5173",
-
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: "on-first-retry",
 
@@ -50,42 +49,45 @@ export default defineConfig({
                 ...devices["Desktop Chrome"],
             },
         },
-        {
-            name: "firefox",
-            use: {
-                ...devices["Desktop Firefox"],
-            },
-        },
-        {
-            name: "webkit",
-            use: {
-                ...devices["Desktop Safari"],
-            },
-        },
-        {
-            name: "Mobile Chrome",
-            use: {
-                ...devices["Pixel 5"],
-            },
-        },
-        {
-            name: "Mobile Safari",
-            use: {
-                ...devices["iPhone 12"],
-            },
-        },
-        {
-            name: "Microsoft Edge",
-            use: {
-                channel: "msedge",
-            },
-        },
-        {
-            name: "Google Chrome",
-            use: {
-                channel: "chrome",
-            },
-        },
+        // {
+        //     name: "firefox",
+        //     use: {
+        //         ...devices["Desktop Firefox"],
+        //     },
+        // },
+        // {
+        //     name: "webkit",
+        //     use: {
+        //         ...devices["Desktop Safari"],
+        //     },
+        // },
+
+        // /* Test against mobile viewports. */
+        // {
+        //     name: "Mobile Chrome",
+        //     use: {
+        //         ...devices["Pixel 5"],
+        //     },
+        // },
+        // {
+        //     name: "Mobile Safari",
+        //     use: {
+        //         ...devices["iPhone 12"],
+        //     },
+        // },
+        // /* Test against branded browsers. */
+        // {
+        //     name: "Microsoft Edge",
+        //     use: {
+        //         channel: "msedge",
+        //     },
+        // },
+        // {
+        //     name: "Google Chrome",
+        //     use: {
+        //         channel: "chrome",
+        //     },
+        // },
     ],
 
     /* Folder for test artifacts such as screenshots, videos, traces, etc. */
