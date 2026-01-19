@@ -1208,16 +1208,16 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     <!-- Volume toggle button -->
                                     <button
                                         @click="toggleVolumeSlider"
-                                        class="flex items-center space-x-1 rounded px-2 py-1 hover:bg-black/10 dark:hover:bg-white/10"
+                                        class="touch-manipulation flex min-h-[44px] min-w-[44px] items-center justify-center space-x-1 rounded-lg px-3 py-2 active:bg-black/10 dark:active:bg-white/10"
                                         :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
                                         aria-label="Toggle volume controls"
                                     >
                                         <SpeakerXMarkIcon
                                             v-if="isMuted"
-                                            class="h-4 w-4 text-zinc-500"
+                                            class="h-5 w-5 text-zinc-500"
                                         />
-                                        <SpeakerWaveIcon v-else class="h-4 w-4 text-zinc-500" />
-                                        <span class="text-zinc-600 dark:text-zinc-400">
+                                        <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
+                                        <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                                             {{
                                                 Math.round(
                                                     (isVolumeSliding ? volumeSlideValue : volume) *
@@ -1230,59 +1230,76 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     <!-- Volume slider (expanded controls) -->
                                     <div
                                         v-if="showVolumeSlider"
-                                        class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform items-center space-x-2 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
+                                        class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform items-center space-x-3 rounded-lg bg-white p-3 shadow-lg dark:bg-slate-700"
                                     >
                                         <!-- Volume down button -->
                                         <button
                                             @click="changeVolume(-0.1)"
-                                            class="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-600"
+                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             title="Volume down"
                                             aria-label="Decrease volume"
                                         >
-                                            <MinusIcon class="h-3 w-3 text-zinc-500" />
+                                            <MinusIcon class="h-5 w-5 text-zinc-500" />
                                         </button>
 
                                         <!-- Volume slider -->
                                         <div
-                                            class="relative h-2 w-20 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                            class="relative flex h-6 w-32 touch-manipulation items-center"
                                             @mousedown="startVolumeSliding"
                                             @touchstart="startVolumeSliding"
                                         >
                                             <div
-                                                class="h-full rounded-full bg-yellow-500 transition-all duration-75"
-                                                :style="{
-                                                    width:
-                                                        (isVolumeSliding
-                                                            ? volumeSlideValue
-                                                            : volume) *
-                                                            100 +
-                                                        '%',
-                                                }"
-                                            ></div>
+                                                class="relative h-2 w-full cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                            >
+                                                <div
+                                                    class="absolute h-full rounded-full bg-yellow-500 transition-all duration-75"
+                                                    :style="{
+                                                        width:
+                                                            (isVolumeSliding
+                                                                ? volumeSlideValue
+                                                                : volume) *
+                                                                100 +
+                                                            '%',
+                                                    }"
+                                                ></div>
+                                                <!-- Thumb handle for better touch feedback -->
+                                                <div
+                                                    class="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                                    :style="{
+                                                        left:
+                                                            (isVolumeSliding
+                                                                ? volumeSlideValue
+                                                                : volume) *
+                                                                100 +
+                                                            '%',
+                                                        transform: 'translate(-50%, -50%)',
+                                                    }"
+                                                ></div>
+                                            </div>
                                         </div>
 
                                         <!-- Volume up button -->
                                         <button
                                             @click="changeVolume(0.1)"
-                                            class="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-600"
+                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             title="Volume up"
                                             aria-label="Increase volume"
                                         >
-                                            <PlusIcon class="h-3 w-3 text-zinc-500" />
+                                            <PlusIcon class="h-5 w-5 text-zinc-500" />
                                         </button>
 
                                         <!-- Mute toggle -->
                                         <button
                                             @click="toggleMute"
-                                            class="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-600"
+                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             :title="isMuted ? 'Unmute' : 'Mute'"
                                             aria-label="Toggle mute"
                                         >
                                             <SpeakerXMarkIcon
                                                 v-if="isMuted"
-                                                class="h-3 w-3 text-red-500"
+                                                class="h-5 w-5 text-red-500"
                                             />
-                                            <SpeakerWaveIcon v-else class="h-3 w-3 text-zinc-500" />
+                                            <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
                                         </button>
                                     </div>
                                 </div>
@@ -1400,53 +1417,68 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 <div class="volume-control-container relative">
                     <button
                         @click.stop="toggleVolumeSlider"
-                        class="flex-shrink-0 rounded-full bg-transparent p-1 hover:bg-black/10 dark:hover:bg-white/10"
+                        class="touch-manipulation flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                         title="Volume controls"
                         aria-label="Toggle volume controls"
                     >
                         <SpeakerXMarkIcon
                             v-if="isMuted"
-                            class="h-5 w-5 text-zinc-500 dark:text-slate-400"
+                            class="h-6 w-6 text-zinc-500 dark:text-slate-400"
                         />
-                        <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500 dark:text-slate-400" />
+                        <SpeakerWaveIcon v-else class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
                     </button>
 
                     <!-- Mini volume slider for minimal player -->
                     <div
                         v-if="showVolumeSlider"
-                        class="absolute bottom-full right-0 mb-2 flex items-center space-x-2 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
+                        class="absolute bottom-full right-0 mb-2 flex items-center space-x-3 rounded-lg bg-white p-3 shadow-lg dark:bg-slate-700"
                     >
                         <button
                             @click.stop="changeVolume(-0.1)"
-                            class="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-600"
+                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Decrease volume"
                         >
-                            <MinusIcon class="h-3 w-3 text-zinc-500" />
+                            <MinusIcon class="h-5 w-5 text-zinc-500" />
                         </button>
 
                         <div
-                            class="relative h-2 w-16 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                            class="relative flex h-6 w-28 touch-manipulation items-center"
                             @mousedown="startVolumeSliding"
                             @touchstart="startVolumeSliding"
                         >
                             <div
-                                class="h-full rounded-full bg-yellow-500 transition-all duration-75"
-                                :style="{
-                                    width:
-                                        (isVolumeSliding ? volumeSlideValue : volume) * 100 + '%',
-                                }"
-                            ></div>
+                                class="relative h-2 w-full cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                            >
+                                <div
+                                    class="absolute h-full rounded-full bg-yellow-500 transition-all duration-75"
+                                    :style="{
+                                        width:
+                                            (isVolumeSliding ? volumeSlideValue : volume) * 100 +
+                                            '%',
+                                    }"
+                                ></div>
+                                <!-- Thumb handle for better touch feedback -->
+                                <div
+                                    class="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                    :style="{
+                                        left:
+                                            (isVolumeSliding ? volumeSlideValue : volume) * 100 +
+                                            '%',
+                                        transform: 'translate(-50%, -50%)',
+                                    }"
+                                ></div>
+                            </div>
                         </div>
 
                         <button
                             @click.stop="changeVolume(0.1)"
-                            class="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-600"
+                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Increase volume"
                         >
-                            <PlusIcon class="h-3 w-3 text-zinc-500" />
+                            <PlusIcon class="h-5 w-5 text-zinc-500" />
                         </button>
 
-                        <span class="text-xs text-zinc-600 dark:text-zinc-400">
+                        <span class="min-w-[3rem] text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
                             {{ Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100) }}%
                         </span>
                     </div>
