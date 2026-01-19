@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
 import {
     PlayIcon,
@@ -21,6 +22,8 @@ import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
 import { clearMediaQueue, isMobileScreen, mediaQueue } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
+
+const router = useRouter();
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
@@ -837,6 +840,16 @@ onUnmounted(() => {
         audioElement.value.pause();
     }
 });
+
+// Auto-collapse player when navigating between pages
+watch(
+    () => router.currentRoute.value.fullPath,
+    () => {
+        if (isExpanded.value) {
+            isExpanded.value = false;
+        }
+    },
+);
 
 // Drag functionality for mobile swipe-to-collapse
 const startY = ref(0);
