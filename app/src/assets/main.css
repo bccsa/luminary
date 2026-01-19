@@ -9,3 +9,9 @@
     font-display: swap;
     src: url("./InterVariable.woff2") format("woff2");
 }
+
+html,
+body {
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+}

@@ -650,7 +650,13 @@ const quickLanguageSwitch = (languageId: string) => {
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
-                        <div class="mt-3 flex flex-col gap-3">
+                        <div
+                            class="mt-3 flex flex-col"
+                            :class="{
+                                'gap-1': !content.publishDate || !content.parentPublishDateVisible,
+                                'gap-3': content.publishDate && content.parentPublishDateVisible,
+                            }"
+                        >
                             <h1
                                 class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
                             >
@@ -658,12 +664,12 @@ const quickLanguageSwitch = (languageId: string) => {
                             </h1>
                             <div
                                 v-if="content.author"
-                                class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 By {{ content.author }}
                             </div>
                             <div
-                                class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
+                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                             >
                                 {{
