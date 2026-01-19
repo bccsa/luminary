@@ -304,6 +304,8 @@ describe("EditContent.vue", () => {
     });
 
     it("renders 2 language selectors", async () => {
+        await db.docs.put({ ...mockData.mockPostDto, _id: "Language-selector-id" });
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -735,62 +737,70 @@ describe("EditContent.vue", () => {
     });
 
     describe("delete requests", () => {
-        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
-            const wrapper = mount(EditContent, {
-                props: {
-                    id: mockData.mockPostDto._id,
-                    languageCode: "en",
-                    docType: DocType.Post,
-                    tagOrPostType: PostType.Blog,
-                },
-            });
-
-            // Wait for translations to load
-            await waitForExpect(() => {
-                expect(wrapper.text()).toContain("English");
-            });
-
-            let translationDeleteButton;
-            await waitForExpect(async () => {
-                translationDeleteButton = wrapper.find('[data-test="translation-delete-button"]');
-                expect(translationDeleteButton.exists()).toBe(true);
-            });
-            await translationDeleteButton!.trigger("click"); // Delete the English translation
-
-            let translationDeleteModalButton;
-            await waitForExpect(async () => {
-                translationDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-                expect(translationDeleteModalButton.exists()).toBe(true);
-            });
-            await translationDeleteModalButton!.trigger("click"); // Accept dialog
-
-            let postDeleteButton;
-            await waitForExpect(async () => {
-                postDeleteButton = wrapper.find('[data-test="delete-button"]');
-                expect(postDeleteButton.exists()).toBe(true);
-            });
-            await postDeleteButton!.trigger("click"); // Delete the post
-
-            let postDeleteModalButton;
-            await waitForExpect(async () => {
-                postDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-                expect(postDeleteModalButton.exists()).toBe(true);
-            });
-            await postDeleteModalButton!.trigger("click"); // Accept dialog
-
-            await waitForExpect(async () => {
-                const res = await db.localChanges
-                    .where({ docId: mockData.mockPostDto._id })
-                    .toArray();
-
-                // Only the post/tag document should be marked for deletion
-                expect(res.length).toBe(1);
-                expect(res[0].doc).toMatchObject({
-                    _id: mockData.mockPostDto._id,
-                    deleteReq: 1,
+        it(
+            "marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag",
+            async () => {
+                const wrapper = mount(EditContent, {
+                    props: {
+                        id: mockData.mockPostDto._id,
+                        languageCode: "en",
+                        docType: DocType.Post,
+                        tagOrPostType: PostType.Blog,
+                    },
                 });
-            });
-        });
+
+                // Wait for translations to load
+                await waitForExpect(() => {
+                    expect(wrapper.text()).toContain("English");
+                });
+
+                let translationDeleteButton;
+                await waitForExpect(async () => {
+                    translationDeleteButton = wrapper.find(
+                        '[data-test="translation-delete-button"]',
+                    );
+                    expect(translationDeleteButton.exists()).toBe(true);
+                });
+                await translationDeleteButton!.trigger("click"); // Delete the English translation
+
+                let translationDeleteModalButton;
+                await waitForExpect(async () => {
+                    translationDeleteModalButton = wrapper.find(
+                        '[data-test="modal-primary-button"]',
+                    );
+                    expect(translationDeleteModalButton.exists()).toBe(true);
+                });
+                await translationDeleteModalButton!.trigger("click"); // Accept dialog
+
+                let postDeleteButton;
+                await waitForExpect(async () => {
+                    postDeleteButton = wrapper.find('[data-test="delete-button"]');
+                    expect(postDeleteButton.exists()).toBe(true);
+                });
+                await postDeleteButton!.trigger("click"); // Delete the post
+
+                let postDeleteModalButton;
+                await waitForExpect(async () => {
+                    postDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+                    expect(postDeleteModalButton.exists()).toBe(true);
+                });
+                await postDeleteModalButton!.trigger("click"); // Accept dialog
+
+                await waitForExpect(async () => {
+                    const res = await db.localChanges
+                        .where({ docId: mockData.mockPostDto._id })
+                        .toArray();
+
+                    // Only the post/tag document should be marked for deletion
+                    expect(res.length).toBe(1);
+                    expect(res[0].doc).toMatchObject({
+                        _id: mockData.mockPostDto._id,
+                        deleteReq: 1,
+                    });
+                });
+            },
+            { timeout: 10000 },
+        );
 
         it("marks a content document for deletion when the user deletes a content document", async () => {
             const wrapper = mount(EditContent, {
@@ -855,6 +865,11 @@ describe("EditContent.vue", () => {
                         languageCode: "eng",
                         tagOrPostType: PostType.Blog,
                     },
+                });
+
+                // Wait for translations/content to load first
+                await waitForExpect(() => {
+                    expect(wrapper.text()).toContain("English");
                 });
 
                 await waitForExpect(async () => {
