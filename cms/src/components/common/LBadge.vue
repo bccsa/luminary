@@ -19,6 +19,7 @@ import {
     ExclamationCircleIcon,
     XCircleIcon,
     NoSymbolIcon,
+    XMarkIcon,
 } from "@heroicons/vue/16/solid";
 import { computed, type Component } from "vue";
 
@@ -27,14 +28,19 @@ type Props = {
     type?: "default" | "language";
     icon?: Component | null;
     withIcon?: boolean;
+    removable?: boolean;
+    customColor?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     variant: "default",
     type: "default",
     withIcon: false,
+    removable: false,
     customColor: "",
 });
+
+const emit = defineEmits(["remove"]);
 
 const defaultIcon = computed(() => {
     switch (props.variant) {
@@ -60,7 +66,7 @@ const defaultIcon = computed(() => {
     <span
         :class="[
             variants[variant],
-            'inline-flex items-center rounded-md px-2 py-1 text-xs',
+            'inline-flex items-center rounded-md px-2 py-1 text-xs ring-1 ring-inset',
             {
                 'flex justify-center font-medium uppercase tracking-widest ring ring-inset':
                     type == 'language',
@@ -71,5 +77,14 @@ const defaultIcon = computed(() => {
     >
         <component :is="icon || defaultIcon" class="-ml-0.5 mr-1 h-3 w-3" v-if="withIcon" />
         <slot />
+        <button
+            v-if="removable"
+            type="button"
+            class="group relative -mr-1 ml-1 h-3.5 w-3.5 rounded-sm hover:bg-zinc-500/20"
+            @click.stop="emit('remove')"
+        >
+            <span class="sr-only">Remove</span>
+            <XMarkIcon class="h-3.5 w-3.5" />
+        </button>
     </span>
 </template>

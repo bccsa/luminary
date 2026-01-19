@@ -28,15 +28,16 @@ export type GenericFilterConfig<T> = {
     pageSize?: number;
 };
 
-// Output query structure
-export type GenericQueryOptions<T> = {
+// Output query structure with optional typed custom filters
+export type GenericQueryOptions<T, TCustomFilters = Record<string, unknown>> = {
     search?: string;
     orderBy?: keyof T;
     orderDirection?: "asc" | "desc";
     pageSize?: number;
     pageIndex?: number;
     count?: boolean;
-    [key: string]: unknown; // For custom select filters
+    customFilters?: TCustomFilters;
+    [key: string]: unknown;
 };
 
 // Convert camelCase to Title Case

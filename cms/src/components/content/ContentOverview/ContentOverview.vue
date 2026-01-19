@@ -20,11 +20,21 @@ import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { contentOverviewQuery, type ContentOverviewQueryOptions } from "../query";
 import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
-import FilterOptions from "./FilterOptions.vue";
+import LGenericFilterBar from "@/components/common/GenericFilter/LGenericFilterBar.vue";
+import type { GenericFilterConfig } from "@/components/common/GenericFilter/types";
 import LPaginator from "@/components/common/LPaginator.vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import {
+    PlusIcon,
+    LanguageIcon,
+    CloudArrowUpIcon,
+    TagIcon,
+    UserGroupIcon,
+} from "@heroicons/vue/24/outline";
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
+import LSelect from "@/components/forms/LSelect.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
+import LBadge from "@/components/common/LBadge.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -36,6 +46,7 @@ const props = defineProps<Props>();
 const defaultQueryOptions: ContentOverviewQueryOptions = {
     languageId: "",
     parentType: props.docType,
+
     tagOrPostType: props.tagOrPostType,
     translationStatus: "all",
     orderBy: "updatedTimeUtc",
@@ -110,6 +121,34 @@ const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermissio
 
 const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: true });
 
+// Filter configuration for LGenericFilterBar
+const filterConfig: GenericFilterConfig<ContentDto> = {
+    fields: [
+        { key: "title", label: "Title", searchable: true, sortable: true },
+        { key: "slug", label: "Slug", searchable: true, sortable: true },
+        { key: "publishDate", label: "Publish Date", searchable: false, sortable: true },
+        { key: "expiryDate", label: "Expiry Date", searchable: false, sortable: true },
+        { key: "updatedTimeUtc", label: "Last Updated", searchable: false, sortable: true },
+    ],
+    defaultOrderBy: "updatedTimeUtc",
+    defaultOrderDirection: "desc",
+    pageSize: 20,
+};
+
+const statusOptions = [
+    { value: "all", label: "All" },
+    { value: "published", label: "Published" },
+    { value: "scheduled", label: "Scheduled" },
+    { value: "expired", label: "Expired" },
+    { value: "draft", label: "Draft" },
+];
+
+const translationOptions = [
+    { value: "all", label: "All" },
+    { value: "translated", label: "Translated" },
+    { value: "untranslated", label: "Untranslated" },
+];
+
 const createNew = () => {
     router.push({
         name: `edit`,
@@ -156,12 +195,94 @@ const createNew = () => {
         </template>
 
         <template #internalPageHeader>
-            <FilterOptions
+            <LGenericFilterBar
+                :config="filterConfig"
                 :is-small-screen="isSmallScreen"
-                :groups="groups"
-                :tagContentDocs="tagContentDocs"
                 v-model:query-options="queryOptions"
-            />
+                :default-options="defaultQueryOptions"
+            >
+                <template #filters>
+                    <div class="flex flex-col gap-1">
+                        <label v-if="isSmallScreen" class="text-sm font-medium text-zinc-900"
+                            >Translation Status</label
+                        >
+                        <LSelect
+                            v-model="queryOptions.translationStatus"
+                            :options="translationOptions"
+                            :icon="LanguageIcon"
+                            class="min-w-[10rem] flex-1"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label v-if="isSmallScreen" class="text-sm font-medium text-zinc-900"
+                            >Publish Status</label
+                        >
+                        <LSelect
+                            v-model="queryOptions.publishStatus"
+                            :options="statusOptions"
+                            :icon="CloudArrowUpIcon"
+                            class="min-w-[10rem] flex-1"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label v-if="isSmallScreen" class="text-sm font-medium text-zinc-900"
+                            >Tags</label
+                        >
+                        <LCombobox
+                            :options="
+                                tagContentDocs.map((tag) => ({
+                                    id: tag.parentId,
+                                    label: tag.title,
+                                    value: tag.parentId,
+                                }))
+                            "
+                            v-model:selected-options="queryOptions.tags as string[]"
+                            :show-selected-in-dropdown="false"
+                            :showSelectedLabels="false"
+                            :icon="TagIcon"
+                            placeholder="Tags"
+                            class="min-w-[10rem] flex-1"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label v-if="isSmallScreen" class="text-sm font-medium text-zinc-900"
+                            >Group Memberships</label
+                        >
+                        <LCombobox
+                            class="min-w-[10rem] flex-1"
+                            :options="
+                                groups.map((group: GroupDto) => ({
+                                    id: group._id,
+                                    label: group.name,
+                                    value: group._id,
+                                }))
+                            "
+                            v-model:selected-options="queryOptions.groups as string[]"
+                            :show-selected-in-dropdown="true"
+                            :showSelectedLabels="false"
+                            :icon="UserGroupIcon"
+                            placeholder="Groups"
+                        />
+                    </div>
+                </template>
+                <template #active-filters>
+                    <LBadge
+                        v-for="groupId in queryOptions.groups as string[]"
+                        :key="groupId"
+                        variant="default"
+                        :with-icon="true"
+                        :icon="UserGroupIcon"
+                        removable
+                        @remove="
+                            queryOptions.groups = (queryOptions.groups as string[]).filter(
+                                (g) => g !== groupId,
+                            )
+                        "
+                    >
+                        {{ groups.find((g) => g._id === groupId)?.name }}
+                    </LBadge>
+                </template>
+            </LGenericFilterBar>
         </template>
         <div>
             <div class="mt-1">

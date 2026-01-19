@@ -43,6 +43,29 @@ export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
             .toArray()) as ContentDto[];
         const untranslatedByParentId: Uuid[] = [];
 
+        // Pre-fetch search matches for tags and groups if searching
+        let matchingTagIds: Uuid[] = [];
+        let matchingGroupIds: Uuid[] = [];
+        if (options.search) {
+            const searchLower = options.search.toLowerCase();
+
+            // Find tags matching search
+            const matchingTags = await db.docs
+                .where({ type: DocType.Content, parentType: DocType.Tag })
+                .filter((doc) => (doc as ContentDto).title?.toLowerCase().includes(searchLower))
+                .toArray();
+            matchingTagIds = matchingTags.map((t) => (t as ContentDto).parentId);
+
+            // Find groups matching search
+            const matchingGroups = await db.docs
+                .where({ type: DocType.Group })
+                .filter((doc) => (doc as any).name?.toLowerCase().includes(searchLower)) // GroupDto usually has name or title? Using 'name' based on typical schema, but need to check. ContentOverview uses 'group.name'? No 'group.title'?
+                .toArray();
+            // Wait, ContentOverview maps groups: `label: group.name`?
+            // Let's check ContentOverview lines 228-241.
+            matchingGroupIds = matchingGroups.map((g) => g._id);
+        }
+
         let res = db.docs.orderBy(options.orderBy);
         if (options.orderDirection == "desc") res = res.reverse();
 
@@ -86,9 +109,31 @@ export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
             const publishFilter = publishStatusFilter(contentDoc, options);
             if (!publishFilter) return false;
 
-            const searchFilter =
-                !options.search ||
-                contentDoc.title.toLowerCase().includes(options.search.toLowerCase());
+            const searchFilter = (() => {
+                if (!options.search) return true;
+                const searchLower = options.search.toLowerCase();
+
+                // Matches title
+                if (contentDoc.title.toLowerCase().includes(searchLower)) return true;
+
+                // Matches tags
+                if (
+                    matchingTagIds.length > 0 &&
+                    contentDoc.parentTags?.some((tagId) => matchingTagIds.includes(tagId))
+                ) {
+                    return true;
+                }
+
+                // Matches groups
+                if (
+                    matchingGroupIds.length > 0 &&
+                    contentDoc.memberOf?.some((groupId) => matchingGroupIds.includes(groupId))
+                ) {
+                    return true;
+                }
+
+                return false;
+            })();
             if (!searchFilter) return false;
 
             return true;

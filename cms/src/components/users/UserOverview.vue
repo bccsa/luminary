@@ -2,18 +2,20 @@
 import BasePage from "@/components/BasePage.vue";
 import UserTable from "@/components/users/UserTable.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
+import {
+    AclPermission,
+    db,
+    DocType,
+    hasAnyPermission,
+    type GroupDto,
+    useDexieLiveQuery,
+} from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
+import UserFilterOptions, { type UserOverviewQueryOptions } from "./UserFilterOptions.vue";
 import LPaginator from "@/components/common/LPaginator.vue";
-import GenericFilterBar from "@/components/common/GenericFilter/GenericFilterBar.vue";
-import type {
-    GenericFilterConfig,
-    GenericQueryOptions,
-} from "@/components/common/GenericFilter/types";
-import type { UserDto } from "luminary-shared";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
@@ -21,30 +23,16 @@ const createNew = () => {
     router.push({ name: "user", params: { id: db.uuid() } });
 };
 
-// User Filter Configuration - Shorthand Mode!
-const userFilterConfig: GenericFilterConfig<UserDto> = {
-    fields: ["name", "email"], // Auto-searchable and sortable
-    defaultOrderBy: "name",
-    defaultOrderDirection: "asc",
-    pageSize: 20,
-};
-
-type UserQueryOptions = GenericQueryOptions<UserDto> & {
-    groups?: string[];
-};
-
-const defaultQueryOptions: UserQueryOptions = {
+const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
     search: "",
-    orderBy: "name",
-    orderDirection: "asc",
     pageSize: 20,
     pageIndex: 0,
 };
 
 const savedQueryOptions = () => sessionStorage.getItem("userOverviewQueryOptions");
 
-function mergeNewFields(saved: string | null): UserQueryOptions {
+function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
     const parsed = saved ? JSON.parse(saved) : {};
     return {
         ...defaultQueryOptions,
@@ -55,7 +43,9 @@ function mergeNewFields(saved: string | null): UserQueryOptions {
     };
 }
 
-const queryOptions = ref<UserQueryOptions>(mergeNewFields(savedQueryOptions()) as UserQueryOptions);
+const queryOptions = ref<UserOverviewQueryOptions>(
+    mergeNewFields(savedQueryOptions()) as UserOverviewQueryOptions,
+);
 
 watch(
     queryOptions,
@@ -65,10 +55,15 @@ watch(
     { deep: true },
 );
 
-// Reset to first page when search changes
-watch([() => queryOptions.value.search], () => {
+// Reset to first page when search or groups change
+watch([() => queryOptions.value.search, () => queryOptions.value.groups], () => {
     queryOptions.value.pageIndex = 0;
 });
+
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
 
 const totalUsers = ref(0);
 </script>
@@ -94,9 +89,9 @@ const totalUsers = ref(0);
             </div>
         </template>
         <template #internalPageHeader>
-            <GenericFilterBar
-                :config="userFilterConfig"
+            <UserFilterOptions
                 :is-small-screen="isSmallScreen"
+                :groups="groups"
                 v-model:query-options="queryOptions"
             />
         </template>

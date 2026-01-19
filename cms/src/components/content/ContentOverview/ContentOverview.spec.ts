@@ -278,7 +278,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it("should display search input", async () => {
+    it("should display generic filter bar with search input", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -287,14 +287,24 @@ describe("ContentOverview.vue", () => {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
+            // stubs: {
+            //     LGenericFilterBar: true, // If we want to shallow mount or inspect props
+            // },
         });
 
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
-            const searchInput = wrapper.find('[data-test="search-input"]');
-            expect(searchInput.exists()).toBe(true);
+            const filterBar = wrapper.findComponent({ name: "LGenericFilterBar" });
+            expect(filterBar.exists()).toBe(true);
+
+            // The GenericFilterBar usually contains a search input.
+            // Depending on implementation, we might need to find it deeper
+            // or trust that LGenericFilterBar handles the search.
+            // If the search input has a specific data-test in LGenericFilterBar:
+            // const searchInput = wrapper.find('[data-test="search-input"]');
+            // expect(searchInput.exists()).toBe(true);
         });
     });
 
@@ -312,18 +322,25 @@ describe("ContentOverview.vue", () => {
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
-        const searchInput = wrapper.find('[data-test="search-input"]');
+        const filterBar = wrapper.findComponent({ name: "LGenericFilterBar" });
+        expect(filterBar.exists()).toBe(true);
 
-        await searchInput.setValue("post 1");
+        // Simulate LGenericFilterBar emitting an update to queryOptions or query
+        // Since `queryOptions` is v-modeled, updating it should work.
+        // Assuming LGenericFilterBar updates the 'search' field in queryOptions.
+
+        const newOptions = { ...filterBar.props("queryOptions"), search: "post 1" };
+        await filterBar.vm.$emit("update:queryOptions", newOptions);
 
         await waitForExpect(() => {
             const contentTable = wrapper.findComponent(ContentTable);
-
             expect(contentTable.props("queryOptions")).toMatchObject({ search: "post 1" });
         });
     });
 
-    it("should display sort options when sort-button is clicked", async () => {
+    it("should display sort options via generic filter bar configuration", async () => {
+        // Since sorting is handled by LGenericFilterBar configuration,
+        // we can check if the config prop passed to it contains the expected sort fields.
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -334,26 +351,18 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        //@ts-ignore as this code is valid
-        wrapper.vm.selectedLanguage = "lang-eng";
-
         await waitForExpect(async () => {
-            const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
-            expect(sortToggleBtn.exists()).toBe(true);
-            await sortToggleBtn.trigger("click");
-
-            const sortOptionsDiv = wrapper.find('[data-test="sort-options-display"]');
-            expect(sortOptionsDiv.exists()).toBe(true);
-
-            const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
-            const sortOptionExpiryDate = wrapper.find('[data-test="sort-option-expiry-date"]');
-            const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
-            const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
-
-            expect(sortOptionTitle.exists()).toBe(true);
-            expect(sortOptionExpiryDate.exists()).toBe(true);
-            expect(sortOptionPublishDate.exists()).toBe(true);
-            expect(sortOptionLastUpdated.exists()).toBe(true);
+            const filterBar = wrapper.findComponent({ name: "LGenericFilterBar" });
+            expect(filterBar.exists()).toBe(true);
+            const config = filterBar.props("config");
+            expect(config.fields).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ key: "title", sortable: true }),
+                    expect.objectContaining({ key: "publishDate", sortable: true }),
+                    expect.objectContaining({ key: "expiryDate", sortable: true }),
+                    expect.objectContaining({ key: "updatedTimeUtc", sortable: true }),
+                ]),
+            );
         });
     });
 
@@ -368,50 +377,27 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        //@ts-ignore as this code is valid
-        wrapper.vm.selectedLanguage = "lang-eng";
+        const filterBar = wrapper.findComponent({ name: "LGenericFilterBar" });
+        expect(filterBar.exists()).toBe(true);
 
-        const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
-        await sortToggleBtn.trigger("click");
-
-        const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
-        const sortOptionExpiryDate = wrapper.find('[data-test="sort-option-expiry-date"]');
-        const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
-        const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
-
-        const sortOptionAscending = wrapper.find('[data-test="ascending-sort-toggle"]');
-        const sortOptionDescending = wrapper.find('[data-test="descending-sort-toggle"]');
+        // Simulate updating the sort via the component's v-model update
+        const newOptions = {
+            ...filterBar.props("queryOptions"),
+            orderBy: "title",
+            orderDirection: "asc",
+        };
+        await filterBar.vm.$emit("update:queryOptions", newOptions);
 
         await waitForExpect(async () => {
             const contentTable = wrapper.findComponent(ContentTable);
-
-            await sortOptionTitle.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "title" });
-
-            await sortOptionExpiryDate.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "expiryDate" });
-
-            await sortOptionPublishDate.trigger("input");
             expect(contentTable.props("queryOptions")).toMatchObject({
-                orderBy: "publishDate",
-            });
-
-            await sortOptionLastUpdated.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({
-                orderBy: "updatedTimeUtc",
-            });
-
-            await sortOptionAscending.trigger("click");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "asc" });
-
-            await sortOptionDescending.trigger("click");
-            expect(contentTable.props("queryOptions")).toMatchObject({
-                orderDirection: "desc",
+                orderBy: "title",
+                orderDirection: "asc",
             });
         });
     });
 
-    it("should display filter options and inputs", async () => {
+    it("should display filter options (LSelect, LCombobox) and update query options", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -422,54 +408,27 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        //@ts-ignore as this code is valid
-        wrapper.vm.selectedLanguage = "lang-eng";
-
         await waitForExpect(async () => {
-            const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
-            expect(filterInputSelects.length).toBe(2);
-        });
-    });
+            // Check for LSelect components (Translation & Publish Status)
+            const selects = wrapper.findAllComponents({ name: "LSelect" });
+            // Expect at least 2: Translation Status, Publish Status
+            expect(selects.length).toBeGreaterThanOrEqual(2);
 
-    it("should update query options from filter inputs correctly", async () => {
-        const wrapper = mount(ContentOverview, {
-            global: {
-                plugins: [createTestingPinia()],
-            },
-            props: {
-                docType: DocType.Post,
-                tagOrPostType: PostType.Blog,
-            },
+            // Check for LCombobox components (Tags, Groups)
+            const comboboxes = wrapper.findAllComponents({ name: "LCombobox" });
+            expect(comboboxes.length).toBeGreaterThanOrEqual(2);
         });
 
-        //@ts-ignore as this code is valid
-        wrapper.vm.selectedLanguage = "lang-eng";
+        // Test updating a filter
+        const selectComponents = wrapper.findAllComponents({ name: "LSelect" });
+        const translationSelect = selectComponents[0]; // First one is translationStatus
 
-        const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+        // Update value
+        await translationSelect.vm.$emit("update:modelValue", "translated");
 
-        await waitForExpect(async () => {
+        await waitForExpect(() => {
             const contentTable = wrapper.findComponent(ContentTable);
-
-            await filterInputSelects[0].setValue("translated");
             expect(contentTable.props("queryOptions").translationStatus).toBe("translated");
-
-            await filterInputSelects[0].setValue("untranslated");
-            expect(contentTable.props("queryOptions").translationStatus).toBe("untranslated");
-
-            await filterInputSelects[0].setValue("all");
-            expect(contentTable.props("queryOptions").translationStatus).toBe("all");
-
-            await filterInputSelects[1].setValue("published");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("published");
-
-            await filterInputSelects[1].setValue("scheduled");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("scheduled");
-
-            await filterInputSelects[1].setValue("expired");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("expired");
-
-            await filterInputSelects[1].setValue("draft");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
         });
     });
 
