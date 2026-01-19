@@ -121,11 +121,9 @@ onErrorCaptured((err) => {
         <!-- Bottom menu divider for mobile view -->
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
-        <div v-if="mediaQueue.length > 0" class="">
-            <!-- Single Audio Player for all screen sizes -->
-            <div class="w-full lg:absolute lg:-right-24 lg:bottom-5 lg:z-10 lg:max-w-md">
-                <AudioPlayer :content="mediaQueue[0]" />
-            </div>
+        <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
+        <div v-if="mediaQueue.length > 0">
+            <AudioPlayer :content="mediaQueue[0]" />
         </div>
 
         <!-- Mobile Navigation (mobile only) -->
