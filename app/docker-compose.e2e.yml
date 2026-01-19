@@ -1,0 +1,75 @@
+version: "3.8"
+services:
+    couchdb:
+        image: couchdb:latest
+        environment:
+            - COUCHDB_USER=admin
+            - COUCHDB_PASSWORD=password
+        ports:
+            - "5984:5984"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    minio:
+        image: minio/minio
+        command: server /data
+        environment:
+            - MINIO_ROOT_USER=minioadmin
+            - MINIO_ROOT_PASSWORD=minioadmin
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    api:
+        image: node:18
+        working_dir: /app
+        volumes:
+            - ../api:/app
+            - /app/node_modules
+            - ../shared:/shared
+        command: /bin/bash -c "cd ../shared && npm install && npm run build && cd ../app && npm install && cp .env.example .env && node -e 'Promise.all([\"_users\",\"_replicator\",\"luminary-local\"].map(db=>fetch(\"http://couchdb:5984/\"+db,{method:\"PUT\",headers:{Authorization:\"Basic YWRtaW46cGFzc3dvcmQ=\"}}))).then(()=>console.log(\"DBs created\"))' && npm run seed && npm start"
+        environment:
+            - DB_CONNECTION_STRING=http://admin:password@couchdb:5984
+            - DB_DATABASE=luminary-local
+            - PORT=3000
+            - S3_ENDPOINT=minio
+            - S3_ACCESS_KEY=minioadmin
+            - S3_SECRET_KEY=minioadmin
+            - S3_BUCKET_NAME=luminary
+            - S3_PORT=9000
+            - S3_USE_SSL=false
+            - S3_IMG_BUCKET=luminary-images
+            - S3_PUBLIC_ACCESS_URL=http://minio:9000/luminary-images
+        depends_on:
+            couchdb:
+                condition: service_healthy
+            minio:
+                condition: service_healthy
+        ports:
+            - "3000:3000"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    e2e:
+        image: mcr.microsoft.com/playwright:v1.55.1-jammy
+        working_dir: /app
+        volumes:
+            - ./:/app
+            - /app/node_modules
+            - ../shared:/shared
+        environment:
+            - CI=true
+            - VITE_API_URL=http://api:3000
+        command: /bin/bash -c "cd ../shared && npm install && npm run build && cd ../app && npm install && npx playwright test --project=chromium"
+        depends_on:
+            api:
+                condition: service_healthy
+        ipc: host # Recommended for Playwright to avoid memory issues

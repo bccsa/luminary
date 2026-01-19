@@ -1,38 +1,91 @@
 // Leaving link in file for reference to Playwright documentation
 // https://playwright.dev/docs/intro
-import { test as base, chromium, expect } from "@playwright/test";
+import { test as base, chromium, expect, type Page } from "@playwright/test";
+import path from "path";
+import fs from "fs";
 
-async function waitForExpect(
-    assertion: () => void | Promise<void>,
-    timeout = 30000,
-    interval = 100,
-): Promise<void> {
-    const startTime = Date.now();
-    let lastError: any;
+// Enforce serial execution so that we can share the persistent context's userDataDir safely
+// or at least ensure we don't conflict on the same directory if we were to parallelize.
+// Since we want to reuse the "filled" DB, serial is safest to avoid locking issues on the same dir.
+base.describe.configure({ mode: "serial" });
 
-    while (Date.now() - startTime < timeout) {
-        try {
-            await assertion();
-            return;
-        } catch (error) {
-            lastError = error;
-            await new Promise((res) => setTimeout(res, interval));
-        }
-    }
+const USER_DATA_DIR = path.resolve("./test-results/user-data-e2e");
 
-    throw lastError;
+// Helper to wait for IndexedDB to be populated
+async function waitForDB(page: Page) {
+    await expect
+        .poll(
+            async () => {
+                return page.evaluate(() => {
+                    return new Promise((resolve) => {
+                        // @ts-ignore
+                        if (!window.indexedDB) resolve(false);
+                        const req = indexedDB.open("luminary-db");
+                        req.onerror = () => resolve(false);
+                        req.onsuccess = () => {
+                            const db = req.result;
+                            if (!db.objectStoreNames.contains("docs")) {
+                                db.close();
+                                resolve(false);
+                                return;
+                            }
+                            const tx = db.transaction("docs", "readonly");
+                            const store = tx.objectStore("docs");
+                            const countReq = store.count();
+                            countReq.onsuccess = () => {
+                                db.close();
+                                resolve(countReq.result > 0);
+                            };
+                            countReq.onerror = () => {
+                                db.close();
+                                resolve(false);
+                            };
+                        };
+                    });
+                });
+            },
+            {
+                message: "Timed out waiting for IndexedDB 'docs' store to have data",
+                timeout: 60000, // Wait up to 60s for initial sync
+                intervals: [1000, 2000, 5000],
+            },
+        )
+        .toBeTruthy();
 }
 
-//indexedDB.databases() is not supported in all browsers so make context chromium
+// Custom test fixture that provides a persistent context with shared userDataDir
 const test = base.extend({
-    // Playwright requires the first parameter in the context function to be an object
-    // "_" does not work here.
-    // eslint-disable-next-line no-empty-pattern
-    context: async ({}, use) => {
-        const context = await chromium.launchPersistentContext("", {
-            headless: true, // Respect the headless setting from playwright.config.ts
-            locale: "en",
+    context: async ({ browserName }, use) => {
+        // We only support Chromium for these specific IndexedDB tests as configured currently
+        if (browserName !== "chromium") {
+            test.skip();
+            return;
+        }
+
+        // Ensure directory exists
+        if (!fs.existsSync(USER_DATA_DIR)) {
+            fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+        }
+
+        const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
+            headless: true,
+            args: ["--disable-extensions"], // Minimal args
+            viewport: { width: 1280, height: 720 },
+            // We can add more options here if needed to match project config,
+            // but persistent context is specific.
         });
+
+        const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+
+        // Navigate to app to trigger sync
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+
+        // Wait for DB to be ready before running ANY test
+        // This satisfies "Each test should run while indexedDB is already full"
+        console.log("Waiting for IndexedDB sync...");
+        await waitForDB(page);
+        console.log("IndexedDB sync verified.");
+
         await use(context);
         await context.close();
     },
@@ -77,11 +130,11 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
         }) as unknown as Promise<any[]>;
     });
 
-    await waitForExpect(() => {
+    await expect(async () => {
         expect(result).toBeDefined();
         const types = [...new Set(result.map((doc: any) => doc.type))];
         expect(types).toEqual(expect.arrayContaining(["language", "redirect", "content"]));
-    });
+    }).toPass();
 });
 
 test("it does not sync drafted or expired docs to the app(non-cms) client", async ({ context }) => {
@@ -125,11 +178,11 @@ test("it does not sync drafted or expired docs to the app(non-cms) client", asyn
     });
     expect(result).toBeDefined();
 
-    await waitForExpect(() => {
+    await expect(async () => {
         const types = [...new Set(result.map((doc: any) => doc.status))];
         expect(types).not.toEqual(expect.arrayContaining(["draft", "expired"]));
         expect(types).toEqual(expect.arrayContaining(["published"]));
-    });
+    }).toPass();
 });
 
 test("it can correctly add a preferred language to the the user's preferred languages", async ({
@@ -162,13 +215,13 @@ test("it can correctly add a preferred language to the the user's preferred lang
     await languageMenuItem.click();
 
     // Wait for the language modal content to be visible
-    await waitForExpect(async () => {
+    await expect(async () => {
         const modalContent = page.locator(
             '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
         );
         const count = await modalContent.count();
         expect(count).toBeGreaterThan(0);
-    });
+    }).toPass();
 
     // Get available languages (those with add-language-button)
     const availableLanguageButtons = page.locator('[data-test="add-language-button"]');
@@ -184,12 +237,12 @@ test("it can correctly add a preferred language to the the user's preferred lang
             return JSON.parse(localStorage.getItem("languages") || "[]");
         });
 
-        await waitForExpect(() => {
+        await expect(async () => {
             expect(updatedLanguages.length).toBeGreaterThan(initialLanguages.length);
             // Verify it's an array of strings
             expect(Array.isArray(updatedLanguages)).toBe(true);
             expect(updatedLanguages.every((id: any) => typeof id === "string")).toBe(true);
-        });
+        }).toPass();
     }
 });
 
@@ -267,13 +320,13 @@ test("it can correctly remove a preferred language from the user's preferred lan
 
     // Wait for the language modal content to be visible
     // The modal might be teleported, so we wait for actual content inside it
-    await waitForExpect(async () => {
+    await expect(async () => {
         const modalContent = page.locator(
             '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
         );
         const count = await modalContent.count();
         expect(count).toBeGreaterThan(0);
-    });
+    }).toPass();
 
     // Find selected languages (those with CheckCircleIcon that are not disabled)
     // The default language has a disabled cursor style, so we want to find removable ones
@@ -333,7 +386,7 @@ test("it can correctly remove a preferred language from the user's preferred lan
             await page.waitForTimeout(200);
 
             // Wait for localStorage to actually update (poll until it changes)
-            await waitForExpect(async () => {
+            await expect(async () => {
                 const languagesAfterRemoval = await page.evaluate(() => {
                     return JSON.parse(localStorage.getItem("languages") || "[]");
                 });
@@ -344,7 +397,7 @@ test("it can correctly remove a preferred language from the user's preferred lan
                 if (languageIdToRemove) {
                     expect(languagesAfterRemoval).not.toContain(languageIdToRemove);
                 }
-            }, 10000); // Give it more time to update
+            }).toPass({ timeout: 10000 }); // Give it more time to update
         }
     }
 });
@@ -433,25 +486,25 @@ test("it can correctly switch languages using the quick language selector", asyn
                     await page.waitForTimeout(500);
 
                     // Verify the URL changed (language switch should update the slug)
-                    await waitForExpect(async () => {
+                    await expect(async () => {
                         const newUrl = page.url();
                         expect(newUrl).not.toBe(initialUrl);
-                    });
+                    }).toPass();
 
                     // Verify the selector is still visible and functional
-                    await waitForExpect(async () => {
+                    await expect(async () => {
                         const newLanguageText = await translationSelector.textContent();
                         expect(newLanguageText).toBeTruthy();
-                    });
+                    }).toPass();
                 }
             }
         } else {
             // If translation selector is not visible, it means there's only one translation
             // This is a valid state, so we'll just verify the page loaded correctly
-            await waitForExpect(async () => {
+            await expect(async () => {
                 const pageContent = await page.content();
                 expect(pageContent).toBeTruthy();
-            });
+            }).toPass();
         }
     } else {
         // If no content with multiple translations found, skip the test
