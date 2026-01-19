@@ -64,7 +64,8 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
-                    trigger-class="flex flex-1 items-center justify-center"
+                    class="h-full"
+                    trigger-class="flex flex-1 items-center justify-center px-3"
                 >
                     <template #trigger>
                         <button class="z-20 flex size-full items-center justify-center">
@@ -132,7 +133,8 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
-                    trigger-class="flex h-full w-full items-center justify-center"
+                    class="h-full"
+                    trigger-class="flex h-full w-full items-center justify-center px-3"
                 >
                     <template #trigger>
                         <ChevronDownIcon v-if="!showContentActionsMenuDesktop" class="size-5" />

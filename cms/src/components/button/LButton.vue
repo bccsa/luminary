@@ -228,7 +228,13 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             :is="dropdownAnchor ? 'div' : 'button'"
             :type="dropdownAnchor ? undefined : 'button'"
             :disabled="dropdownAnchor ? undefined : disabled"
-            :class="[segmentClass(buttonClasses({ variant, size, context }), 'right'), 'relative']"
+            :class="
+                twMerge(
+                    segmentClass(buttonClasses({ variant, size, context }), 'right'),
+                    'relative',
+                    dropdownAnchor ? 'p-0' : '',
+                )
+            "
             :role="dropdownAnchor ? 'button' : undefined"
             :tabindex="dropdownAnchor ? 0 : undefined"
             @click.capture="handleSegmentClick('right', $event as MouseEvent)"
