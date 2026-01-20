@@ -101,19 +101,19 @@ describe("EditUser.vue", () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
-        // Wait for component to load data from api
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
-        });
+            const userName = wrapper.find('[data-test="userName"]');
+            const userEmail = wrapper.find('[data-test="userEmail"]');
 
-        const currentUser = wrapper.findAll("input");
+            expect(userEmail.exists()).toBe(true);
+            expect(userName.exists()).toBe(true);
 
-        await waitForExpect(async () => {
-            expect(currentUser[0].element.value).toBe(mockUserDto.name);
-            expect(currentUser[1].element.value).toBe(mockUserDto.email);
+            expect(userEmail.attributes("value")).toBe(mockUserDto.email);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
     });
 
