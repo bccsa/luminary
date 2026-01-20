@@ -271,7 +271,6 @@ describe("EditContent.vue", () => {
 
         await db.docs.bulkPut([
             mockData.mockPostDto,
-            mockData.mockEnglishContentDto,
             { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
             { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
             { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },

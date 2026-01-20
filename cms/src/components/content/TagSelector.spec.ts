@@ -47,6 +47,7 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: mockData.mockPostDto, // mockPostDto has a tag of "tag-category1"
             },
+            global: { stubs: { Teleport: true } },
         });
 
         // Wait for updates
@@ -65,6 +66,7 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: { ...mockData.mockPostDto, tags: [] },
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
@@ -85,6 +87,7 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: mockData.mockPostDto,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
@@ -104,6 +107,7 @@ describe("TagSelector.vue", () => {
                 parent: mockData.mockPostDto,
                 disabled: true,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(() => {
@@ -119,6 +123,7 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: parent,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         let tag;
@@ -142,6 +147,7 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: mockData.mockCategoryDto,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         // Wait for the list to be loaded
@@ -173,6 +179,7 @@ describe("TagSelector.vue", () => {
             slots: {
                 actions: "<button>Remove</button>",
             },
+            global: { stubs: { Teleport: true } },
         });
 
         // Wait for the list to be loaded
