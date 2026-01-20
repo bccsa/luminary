@@ -40,6 +40,7 @@ describe("GroupSelector", () => {
                 groups: [mockGroupDtoPublicContent._id],
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(() => {
@@ -54,6 +55,7 @@ describe("GroupSelector", () => {
                 groups: [],
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(() => {
@@ -80,6 +82,7 @@ describe("GroupSelector", () => {
                 groups: [],
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
@@ -102,6 +105,7 @@ describe("GroupSelector", () => {
                 "onUpdate:groups": (e: any) => wrapper.setProps({ groups: e }),
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         //@ts-expect-error
@@ -129,6 +133,7 @@ describe("GroupSelector", () => {
                 groups: groups,
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         expect(groups).toContain(mockGroupDtoPublicEditors._id);
@@ -155,6 +160,7 @@ describe("GroupSelector", () => {
                 disabled: true,
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(() => {
@@ -175,6 +181,7 @@ describe("GroupSelector", () => {
                 groups: [],
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
@@ -200,6 +207,7 @@ describe("GroupSelector", () => {
                 groups: [mockGroupDtoPublicUsers._id],
                 docType: DocType.Post,
             },
+            global: { stubs: { Teleport: true } },
         });
 
         await waitForExpect(async () => {
