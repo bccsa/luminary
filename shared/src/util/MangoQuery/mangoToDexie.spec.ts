@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mongoToDexie } from "./mongoToDexie";
+import { mangoToDexie } from "./mangoToDexie";
 
 type Doc = {
     id: number;
@@ -111,7 +111,7 @@ class FakeTable<T extends Record<string, any>> {
     }
 }
 
-describe("mongoToDexie", () => {
+describe("mangoToDexie", () => {
     it("pushes combined simple equalities (excluding booleans) via where({ ... })", () => {
         const docs: Doc[] = [
             { id: 1, a: 1, b: "x", c: 3, active: true },
@@ -121,7 +121,7 @@ describe("mongoToDexie", () => {
         ];
         const table = new FakeTable(docs);
         const query = { selector: { a: 1, b: "x", $and: [{ c: 3 }, { active: true }] } };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(table.lastWhereArg).toEqual({ a: 1, b: "x", c: 3 });
@@ -138,7 +138,7 @@ describe("mongoToDexie", () => {
         ];
         const table = new FakeTable(docs);
         const query = { selector: { a: { $in: [1, 2] }, d: { $gt: 5 } } };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(table.lastWhereField).toBe("a");
@@ -154,7 +154,7 @@ describe("mongoToDexie", () => {
         ];
         const table = new FakeTable(docs);
         const query = { selector: { age: { $gte: 30 } } };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(table.lastWhereField).toBe("age");
@@ -175,7 +175,7 @@ describe("mongoToDexie", () => {
             $sort: [{ age: "desc" }],
             $limit: 1,
         };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(res.map((d) => d.id)).toEqual([2]);
@@ -189,7 +189,7 @@ describe("mongoToDexie", () => {
         ];
         const table = new FakeTable(docs);
         const query = { selector: { name: "Alice", active: true } };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(table.lastWhereArg).toEqual({ name: "Alice" });
@@ -206,7 +206,7 @@ describe("mongoToDexie", () => {
         ];
         const table = new FakeTable(docs);
         const query = { selector: { status: { $in: [1, 2, 3], $gte: 2 } } };
-        const col: any = mongoToDexie(table as any, query as any);
+        const col: any = mangoToDexie(table as any, query as any);
         const res = col.toArray() as Doc[];
 
         expect(table.lastWhereField).toBe("status");

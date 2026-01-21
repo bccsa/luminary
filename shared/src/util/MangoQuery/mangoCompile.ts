@@ -1,7 +1,7 @@
-import type { MongoSelector } from "./MongoTypes";
+import type { MangoSelector } from "./MangoTypes";
 
-/** Compile a MongoDB-like query into a filter function */
-export function mongoCompile(q: MongoSelector): (doc: any) => boolean {
+/** Compile a Mango query into a filter function */
+export function mangoCompile(q: MangoSelector): (doc: any) => boolean {
     // Handle invalid query
     if (q === null || typeof q !== "object") {
         // Non-object query is unsupported, always returns false
@@ -21,7 +21,7 @@ export function mongoCompile(q: MongoSelector): (doc: any) => boolean {
         if (key === "$or") {
             const arr = q.$or;
             if (!Array.isArray(arr)) throw new Error("$or must be an array of query objects");
-            const subs = arr.map(mongoCompile);
+            const subs = arr.map(mangoCompile);
             andPredicates.push((doc) => subs.some((fn) => fn(doc)));
             return;
         }
@@ -29,7 +29,7 @@ export function mongoCompile(q: MongoSelector): (doc: any) => boolean {
         if (key === "$and") {
             const arr = q.$and;
             if (!Array.isArray(arr)) throw new Error("$and must be an array of query objects");
-            const subs = arr.map(mongoCompile);
+            const subs = arr.map(mangoCompile);
             andPredicates.push((doc) => subs.every((fn) => fn(doc)));
             return;
         }

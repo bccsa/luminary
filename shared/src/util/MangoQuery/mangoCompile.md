@@ -1,20 +1,20 @@
-# mongoCompile
+# mangoCompile
 
-This module provides a minimal, fast compiler that turns a MongoDB‑style query object into a JavaScript predicate function you can use to filter in‑memory data.
+This module provides a minimal, fast compiler that turns a Mango query object into a JavaScript predicate function you can use to filter in‑memory data.
 
-The compiler is intentionally small and supports a focused subset of Mongo query syntax that fits typical client‑side filtering needs.
+The compiler is intentionally small and supports a focused subset of Mango query syntax that fits typical client‑side filtering needs.
 
-> See also: [mongoToDexie](./mongoToDexie.md) for translating Mongo‑like queries into Dexie collections with pushdown.
+> See also: [mangoToDexie](./mangoToDexie.md) for translating Mango queries into Dexie collections with pushdown.
 
 ## Core concept
 
-Use `mongoCompile(selector)` to get back a function `(doc) => boolean`. That function returns `true` when the document matches the selector.
+Use `mangoCompile(selector)` to get back a function `(doc) => boolean`. That function returns `true` when the document matches the selector.
 
 ```ts
-import { mongoCompile } from "./mongoCompile";
+import { mangoCompile } from "./mangoCompile";
 
 const selector = { $and: [{ city: "SF" }, { score: { $gte: 90 } }] };
-const matches = mongoCompile(selector);
+const matches = mangoCompile(selector);
 
 [
     { city: "SF", score: 95 },
@@ -126,14 +126,14 @@ If the operand is not an array, the compiler throws an error (helps catch mistak
 
 ## Type hints
 
-`mongoCompile` consumes a `MSelector` type defined alongside it. In TS, you can author selectors with type safety for supported shapes, but for dynamic inputs you can still pass them at runtime; invalid shapes simply won’t match.
+`mangoCompile` consumes a `MangoSelector` type defined alongside it. In TS, you can author selectors with type safety for supported shapes, but for dynamic inputs you can still pass them at runtime; invalid shapes simply won't match.
 
 ## When to use
 
-Use `mongoCompile` for client‑side filtering where you:
+Use `mangoCompile` for client‑side filtering where you:
 
 - Already have data in memory
-- Want a familiar Mongo‑like query shape
+- Want a familiar Mango query shape
 - Need a tiny, dependency‑free matcher with predictable behavior
 
-> Next: Learn how to execute a Mongo‑like query against Dexie with pushdown in [mongoToDexie](./mongoToDexie.md).
+> Next: Learn how to execute a Mango query against Dexie with pushdown in [mangoToDexie](./mangoToDexie.md).
