@@ -64,7 +64,7 @@ jobs:
           npm ci --install-links
 
       - name: Install Playwright browsers
-        run: npx playwright install
+        run: npx playwright install --with-deps
         working-directory: app
 
       - name: Run Playwright Tests
