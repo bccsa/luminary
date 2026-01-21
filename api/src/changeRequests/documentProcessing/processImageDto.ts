@@ -420,28 +420,11 @@ async function resizeAndUploadImage(
         imageFile.filename = uuidv4() + ".webp";
 
         // Save resized image to S3
-        console.log(
-            `[DEBUG] Uploading file ${imageFile.filename} to bucket ${s3Service.getBucketName()}`,
-        );
         await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
-        console.log(`[DEBUG] Upload success for ${imageFile.filename}`);
-
-        // Verify the file was actually uploaded and is accessible
-        const verification = await s3Service.validateImageUpload(imageFile.filename);
-        const verificationMsg = verification.success
-            ? "Verification: Success"
-            : `Verification: FAILED (${verification.error})`;
 
         resultImageCollection.imageFiles.push(imageFile);
 
-        return {
-            success: true,
-            warnings: [
-                `[DEBUG] Successfully uploaded ${
-                    imageFile.filename
-                } to bucket ${s3Service.getBucketName()} at ${s3Service.getEndpoint()} with public-read ACL. ${verificationMsg}`,
-            ],
-        };
+        return { success: true, warnings: [] };
     } catch (error) {
         return { success: false, warnings: [`Failed to resize/upload image: ${error.message}`] };
     }

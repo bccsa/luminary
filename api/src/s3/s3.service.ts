@@ -274,13 +274,6 @@ export class S3Service {
     }
 
     /**
-     * Get the endpoint
-     */
-    public getEndpoint(): string {
-        return (this.client as any).host;
-    }
-
-    /**
      * Uploads a file to an S3 bucket
      */
     public async uploadFile(key: string, file: Buffer, mimetype: string) {
