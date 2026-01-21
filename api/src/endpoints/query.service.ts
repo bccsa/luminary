@@ -8,6 +8,7 @@ import { processJwt } from "../jwt/processJwt";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
+import { expandMangoSelector } from "../util/expandMangoQuery";
 
 @Injectable()
 export class QueryService {
@@ -48,50 +49,47 @@ export class QueryService {
     async query(query: MongoQueryDto, authToken: string): Promise<DbQueryResult> {
         const now = Date.now();
 
+        // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.
+        query.selector = expandMangoSelector(query.selector);
+
+        // Extract field values from the $and array
+        const type = extractFieldFromAnd<string>(query.selector.$and, "type");
+        const parentType = extractFieldFromAnd<string>(query.selector.$and, "parentType");
+        const docType = extractFieldFromAnd<string>(query.selector.$and, "docType");
+
         // Extract details from query
         const memberOf = extractMemberOf(query.selector);
         removeMemberOf(query.selector);
 
-        // TODO: convert to top level $and to allow multiple top level $or queries
+        if (!type || typeof type !== "string")
+            throw new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST);
 
-        if (!query.selector.type)
-            throw new HttpException("'type' field is required in selector", HttpStatus.BAD_REQUEST);
-
-        if (typeof query.selector.type !== "string")
-            throw new HttpException("Only one 'type' allowed in selector", HttpStatus.BAD_REQUEST);
-
-        if (query.selector.type === DocType.Content && !query.selector.parentType)
+        if (type === DocType.Content && !parentType)
             throw new HttpException(
                 "'parentType' field is required for Content type",
                 HttpStatus.BAD_REQUEST,
             );
 
-        if (query.selector.type === DocType.DeleteCmd && !query.selector.docType)
+        if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(
                 "'docType' field is required for DeleteCmd type",
                 HttpStatus.BAD_REQUEST,
             );
 
-        if (query.selector.$or)
-            throw new HttpException(
-                "Top-level '$or' in selector is currently not supported",
-                HttpStatus.BAD_REQUEST,
-            );
-
         // Determine which doc types to check permissions against
         const permissionCheckTypes: DocType[] = [];
-        switch (query.selector.type as DocType) {
+        switch (type as DocType) {
             case DocType.Content:
-                permissionCheckTypes.push(query.selector.parentType as DocType, DocType.Language);
+                permissionCheckTypes.push(parentType as DocType, DocType.Language);
                 break;
             case DocType.DeleteCmd:
-                query.selector.docType == DocType.Content
+                docType == DocType.Content
                     ? // Include both Post and Tag doc types permission checks for content deletions
                       permissionCheckTypes.push(DocType.Post, DocType.Tag)
-                    : permissionCheckTypes.push(query.selector.docType as DocType);
+                    : permissionCheckTypes.push(docType as DocType);
                 break;
             default:
-                permissionCheckTypes.push(query.selector.type as DocType);
+                permissionCheckTypes.push(type as DocType);
         }
 
         // Get user accessible groups
@@ -107,8 +105,8 @@ export class QueryService {
         let viewGroups: string[];
 
         // Permission and publishing status filtering: Content documents
-        if (query.selector.type === DocType.Content) {
-            viewGroups = userViewGroups[query.selector.parentType as DocType] || [];
+        if (type === DocType.Content) {
+            viewGroups = userViewGroups[parentType as DocType] || [];
             const langViewGroups = userViewGroups[DocType.Language] || [];
 
             // Filter languages to those the user has view access to
@@ -125,8 +123,6 @@ export class QueryService {
 
             // If the CMS flag is not set, add additional filters for published content
             if (!query.cms) {
-                query.selector.$and = query.selector.$and || [];
-
                 query.selector.$and.push(
                     {
                         $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gt: now } }],
@@ -138,25 +134,25 @@ export class QueryService {
         }
 
         // Permission filtering: DeleteCmd documents
-        else if (query.selector.type === DocType.DeleteCmd) {
+        else if (type === DocType.DeleteCmd) {
             // For content document delete commands we strictly speaking need to check Post and Tag permissions using the
             // parentType field of the content document. This is however not available in the DeleteCmd documents.
             // As a compromise we combine all view groups for both Post and Tag document types. This may in some cases
             // distribute delete commands to users who would not normally have access to the content document,
             // but this will not have any negative effect as the delete command does not expose any sensitive information.
-            if (query.selector.docType === DocType.Content) {
+            if (docType === DocType.Content) {
                 const s = new Set<string>();
                 (userViewGroups[DocType.Post] || []).forEach((g: string) => s.add(g));
                 (userViewGroups[DocType.Tag] || []).forEach((g: string) => s.add(g));
                 viewGroups = [...s];
             } else {
-                viewGroups = userViewGroups[query.selector.docType as DocType] || [];
+                viewGroups = userViewGroups[docType as DocType] || [];
             }
         }
 
         // Permission filtering: all other document types
         else {
-            viewGroups = userViewGroups[query.selector.type as DocType] || [];
+            viewGroups = userViewGroups[type as DocType] || [];
         }
 
         delete query.cms;
@@ -164,44 +160,45 @@ export class QueryService {
         // User has no access to any of the requested types/groups
         if (viewGroups.length === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
-        // Add memberOf filter to selector
-        query.selector.memberOf = {
-            $elemMatch: {
-                $in: memberOf.length
-                    ? memberOf.filter((id) => viewGroups?.includes(id))
-                    : viewGroups,
+        // Add memberOf filter to the $and array
+        query.selector.$and.push({
+            memberOf: {
+                $elemMatch: {
+                    $in: memberOf.length
+                        ? memberOf.filter((id) => viewGroups?.includes(id))
+                        : viewGroups,
+                },
             },
-        };
+        });
 
         return this.db.executeFindQuery(query);
     }
 }
 
 /**
- * Extract memberOf groups from selector
+ * Extract memberOf groups from the top-level $and array.
+ * (After expansion, memberOf will always be a condition in the $and array.
  */
 function extractMemberOf(selector: MongoSelectorDto): Uuid[] {
-    if (selector.memberOf) {
-        if (typeof selector.memberOf === "string") {
-            return [selector.memberOf];
+    for (const condition of selector.$and || []) {
+        const memberOf = (condition as MongoSelectorDto).memberOf;
+        if (!memberOf) continue;
+
+        if (typeof memberOf === "string") {
+            return [memberOf];
         }
 
-        if (
-            typeof selector.memberOf === "object" &&
-            Array.isArray((selector.memberOf as MongoComparisonCriteria).$in)
-        ) {
-            return (selector.memberOf as MongoComparisonCriteria).$in as string[];
+        if (Array.isArray((memberOf as MongoComparisonCriteria).$in)) {
+            return (memberOf as MongoComparisonCriteria).$in as string[];
         }
 
-        if (
-            (selector.memberOf as MongoComparisonCriteria).$elemMatch &&
-            Array.isArray((selector.memberOf as MongoComparisonCriteria).$elemMatch.$in)
-        ) {
-            return (selector.memberOf as MongoComparisonCriteria).$elemMatch.$in as string[];
+        if (Array.isArray((memberOf as MongoComparisonCriteria).$elemMatch?.$in)) {
+            return (memberOf as MongoComparisonCriteria).$elemMatch.$in as string[];
         }
 
         throw new HttpException("Invalid memberOf field in selector", HttpStatus.BAD_REQUEST);
     }
+
     return [];
 }
 
@@ -224,4 +221,38 @@ function removeMemberOf(selector: any): void {
             removeMemberOf(selector[key]);
         }
     }
+}
+
+/**
+ * Extract a field value from the $and array.
+ * Returns the first matching value found, or undefined if not present.
+ * Throws if multiple different values are found for the same field.
+ */
+function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string): T | undefined {
+    let foundValue: T | undefined;
+
+    for (const condition of andArray) {
+        if (fieldName in condition) {
+            const value = condition[fieldName] as T;
+
+            // Only accept simple equality values (string, number, boolean)
+            if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+                throw new HttpException(
+                    `'${fieldName}' field must be a simple equality value`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (foundValue !== undefined && foundValue !== value) {
+                throw new HttpException(
+                    `Multiple different '${fieldName}' values found in selector`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            foundValue = value;
+        }
+    }
+
+    return foundValue;
 }
