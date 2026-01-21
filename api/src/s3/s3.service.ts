@@ -274,12 +274,20 @@ export class S3Service {
     }
 
     /**
+     * Get the endpoint
+     */
+    public getEndpoint(): string {
+        return (this.client as any).host;
+    }
+
+    /**
      * Uploads a file to an S3 bucket
      */
     public async uploadFile(key: string, file: Buffer, mimetype: string) {
         this.touch();
         const metadata = {
             "Content-Type": mimetype,
+            "x-amz-acl": "public-read",
         };
         return this.client.putObject(this.bucketName, key, file, file.length, metadata);
     }

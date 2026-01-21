@@ -420,11 +420,22 @@ async function resizeAndUploadImage(
         imageFile.filename = uuidv4();
 
         // Save resized image to S3
+        console.log(
+            `[DEBUG] Uploading file ${imageFile.filename} to bucket ${s3Service.getBucketName()}`,
+        );
         await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
+        console.log(`[DEBUG] Upload success for ${imageFile.filename}`);
 
         resultImageCollection.imageFiles.push(imageFile);
 
-        return { success: true, warnings: [] };
+        return {
+            success: true,
+            warnings: [
+                `[DEBUG] Successfully uploaded ${
+                    imageFile.filename
+                } to bucket ${s3Service.getBucketName()} at ${s3Service.getEndpoint()} with public-read ACL`,
+            ],
+        };
     } catch (error) {
         return { success: false, warnings: [`Failed to resize/upload image: ${error.message}`] };
     }
