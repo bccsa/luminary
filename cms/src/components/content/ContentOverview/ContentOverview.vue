@@ -241,7 +241,7 @@ const createNew = () => {
                             :showSelectedLabels="false"
                             :icon="TagIcon"
                             placeholder="Tags"
-                            class="min-w-[10rem] flex-1"
+                            class="max-w-60 flex-1"
                         />
                     </div>
                     <div class="flex flex-col gap-1">
@@ -249,7 +249,7 @@ const createNew = () => {
                             >Group Memberships</label
                         >
                         <LCombobox
-                            class="min-w-[10rem] flex-1"
+                            class="max-w-60 flex-1"
                             :options="
                                 groups.map((group: GroupDto) => ({
                                     id: group._id,

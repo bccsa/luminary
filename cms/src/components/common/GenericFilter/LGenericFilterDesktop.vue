@@ -153,7 +153,7 @@ onClickOutside(sortOptionsMenu, () => {
                 >
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
-                <div class="absolute right-0 top-12">
+                <div class="absolute right-0 top-4">
                     <LDropdown
                         ref="sortOptionsMenu"
                         :show="showSortOptions"
@@ -169,7 +169,7 @@ onClickOutside(sortOptionsMenu, () => {
                                 :key="String(field.key)"
                                 :label="field.label as string"
                                 :value="String(field.key)"
-                                v-model="queryOptions.orderBy"
+                                v-model="queryOptions.orderBy as string"
                                 :data-test="`sort-option-${String(field.key)}`"
                             />
                         </div>
