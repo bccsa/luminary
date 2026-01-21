@@ -205,22 +205,16 @@ function extractMemberOf(selector: MongoSelectorDto): Uuid[] {
 /**
  * Recursively remove 'memberOf' fields from selector
  */
-function removeMemberOf(selector: any): void {
-    if (selector.memberOf) {
-        delete selector.memberOf;
-    }
-    for (const key in selector) {
-        if (key === "memberOf") delete selector[key];
-        else if (key === "$or" || key === "$and") {
-            if (Array.isArray(selector[key])) {
-                for (const subSelector of selector[key]) {
-                    removeMemberOf(subSelector);
-                }
-            }
-        } else if (typeof selector[key] === "object" && selector[key] !== null) {
-            removeMemberOf(selector[key]);
-        }
-    }
+/**
+ * Remove memberOf conditions from the top-level $and array.
+ * (After expansion, memberOf will always be a condition in the $and array.)
+ */
+function removeMemberOf(selector: MongoSelectorDto): void {
+    if (!selector.$and) return;
+
+    selector.$and = selector.$and.filter(
+        (condition) => !(condition as MongoSelectorDto).memberOf,
+    );
 }
 
 /**
