@@ -37,6 +37,33 @@ watch(groups, (newGroups) => {
             :showDate="!isPhoneScreen"
             @click="editModalVisible"
         >
+            <template #topRightContent>
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-zinc-900">
+                        <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
+                            Offline changes
+                        </LBadge></span
+                    >
+                    <div
+                        v-if="usersDoc.lastLogin"
+                            class="flex items-center gap-1 text-xs text-zinc-400"
+                    >
+                        <KeyIcon class="h-4 w-4 text-zinc-400" />
+                        <span title="Last logged in" class="whitespace-nowrap">
+                            {{
+                                db
+                                    .toDateTime(usersDoc.lastLogin)
+                                    .toLocaleString(
+                                        isMobileScreen
+                                            ? DateTime.DATE_SHORT
+                                            : DateTime.DATETIME_SHORT,
+                                    )
+                            }}
+                        </span>
+                </div>
+                <div v-else class="text-xs text-zinc-400">Has not logged in yet</div>
+                </div>
+            </template>
             <template #content>
                 <div class="flex justify-between pb-1 min-[1500px]:pt-0">
                     <div>
@@ -44,31 +71,7 @@ watch(groups, (newGroups) => {
                             usersDoc.email
                         }}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-medium text-zinc-900">
-                            <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
-                                Offline changes
-                            </LBadge></span
-                        >
-                        <div
-                            v-if="usersDoc.lastLogin"
-                            class="flex items-center gap-1 text-xs text-zinc-400"
-                        >
-                            <KeyIcon class="h-4 w-4 text-zinc-400" />
-                            <span title="Last logged in">
-                                {{
-                                    db
-                                        .toDateTime(usersDoc.lastLogin)
-                                        .toLocaleString(
-                                            isMobileScreen
-                                                ? DateTime.DATE_SHORT
-                                                : DateTime.DATETIME_SHORT,
-                                        )
-                                }}</span
-                            >
-                        </div>
-                        <div v-else class="text-xs text-zinc-400">Has not logged in yet</div>
-                    </div>
+                    
                 </div>
             </template>
 

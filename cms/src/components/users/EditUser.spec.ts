@@ -121,12 +121,15 @@ describe("EditUser.vue", () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
         // Ensure user is loaded
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.exists()).toBe(true);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
         const saveButton = wrapper.find('[data-test="save-button"]');
@@ -161,12 +164,15 @@ describe("EditUser.vue", () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
         // Ensure user is loaded
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.exists()).toBe(true);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
         const saveButton = wrapper.find('[data-test="save-button"]');
@@ -199,6 +205,7 @@ describe("EditUser.vue", () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 

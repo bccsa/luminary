@@ -10,18 +10,21 @@ type Props = {
     secondaryAction?: Function;
     primaryButtonText: string;
     secondaryButtonText?: string;
+    primaryDisableCondition?: boolean;
     context?: "default" | "danger";
+    noDivider?: boolean;
 };
 
 const open = defineModel<boolean>("open");
 
 withDefaults(defineProps<Props>(), {
     context: "default",
+    noDivider: false,
 });
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title">
+    <LModal v-model:isVisible="open" :heading="title" :noDivider="noDivider">
         <template #header>
             <div class="flex items-center">
                 <div
@@ -34,8 +37,8 @@ withDefaults(defineProps<Props>(), {
             </div>
         </template>
 
-        <p class="mt-2 text-sm text-gray-500">{{ description }}</p>
-        <slot />
+        <p class="text-sm text-gray-500">{{ description }}</p>
+        <slot name="default" />
 
         <template #footer>
             <div class="flex justify-end gap-2">
@@ -44,6 +47,7 @@ withDefaults(defineProps<Props>(), {
                     variant="primary"
                     :context="context"
                     data-test="modal-primary-button"
+                    :disabled="primaryDisableCondition"
                 >
                     {{ primaryButtonText }}
                 </LButton>
@@ -55,6 +59,7 @@ withDefaults(defineProps<Props>(), {
                 >
                     {{ secondaryButtonText }}
                 </LButton>
+                <slot name="footer-extra" />
             </div>
         </template>
     </LModal>

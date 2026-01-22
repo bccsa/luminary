@@ -63,6 +63,9 @@ const handleClick = () => {
                     Offline changes
                 </LBadge>
             </div>
+            <div>
+                <slot name="topRightContent" />
+            </div>
 
             <!-- Top badges slot (for language badges, etc.) -->
             <div class="flex items-center justify-end">

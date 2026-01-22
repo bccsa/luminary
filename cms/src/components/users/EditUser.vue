@@ -22,7 +22,7 @@ import {
 import { computed, ref, toRaw, watch } from "vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
-import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon, PlusCircleIcon } from "@heroicons/vue/24/solid";
+import { ArrowUturnLeftIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
@@ -165,19 +165,26 @@ const save = async () => {
 </script>
 
 <template>
-    <div
-        v-if="isVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    <LDialog
+        :isVisible="isVisible"
+        :title="!isNew ? `Edit User: ${editable.name}` : 'Create New User'"
+        :closeOnEsc="true"
+        :closeOnClickOutside="true"
+        @close="emit('close')"
+        :primaryAction="() => {save(), emit('close')}"
+        :primaryButtonText="!isNew ? 'Save' : 'Create'"
+        :primaryDisableCondition="!isDirty || !hasGroupsSelected || !isEmailFilled || !isNameFilled"
+        :secondaryAction="() => emit('close')"
+        secondaryButtonText="Cancel"
+        noDivider
     >
-        <div class="w-[500px] rounded-lg bg-white p-6 shadow-lg">
-
-            <h2 class="mb-4 text-xl font-bold">
-                {{ !isNew ? "Edit User" : "Create new User" }}
-            </h2>
-            <span v-if="isLoading">Loading...</span>
-            <span v-else-if="!isConnected">Offline...</span>
-            <div v-else class="space-y-2">
-            <LCard class="!border-0 rounded-lg bg-white shadow-lg">
+            <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
+            <LBadge v-else-if="!isConnected" variant="warning">You can not create or edit users when offline...</LBadge>
+            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
+                    >No groups selected</LBadge
+            >
+            <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
+        <LCard class="!border-0">
                 <LInput
                     label="Name"
                     name="userName"
@@ -214,57 +221,37 @@ const save = async () => {
                     data-test="groupSelector"
                 />
             </LCard>
-        </div>
-        <div v-if="!isLoading && isConnected" class="flex gap-2">
-                <div class="flex gap-1 mt-4">
-                <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
-                    >No groups selected</LBadge
-                >
-                    <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
-                    <LButton
-                    variant="secondary"
-                    data-test="cancel"
-                    @click="emit('close')"
-                    :icon="ArrowUturnLeftIcon"
-                    >Cancel</LButton
-                >
-                    <LButton
-                        type="button"
-                        variant="secondary"
-                        v-if="isDirty && !isNew"
-                        @click="revertChanges"
-                        :icon="ArrowUturnLeftIcon"
-                        >Revert</LButton
+    
+    <template #footer-extra>
+         <LButton
+            type="button"
+            variant="secondary"
+            v-if="isDirty && !isNew"
+            @click="revertChanges"
+            :icon="ArrowUturnLeftIcon"
+            class="ml-5"
+        >
+            Revert
+        </LButton
                     >
-                    <LButton
-                        type="button"
-                        @click="save"
-                        data-test="save-button"
-                        variant="primary"
-                        :disabled="!isDirty || !hasGroupsSelected || !isEmailFilled || !isNameFilled"
-                        :icon="!isNew ? FolderArrowDownIcon : PlusCircleIcon"
-                >
-                    {{ !isNew ? "Save" : "Create" }}
-                    </LButton>
-                    <LButton
-                        type="button"
-                        @click="
-                            () => {
-                                showDeleteModal = true;
-                            }
-                        "
-                        data-test="delete-button"
-                        variant="secondary"
-                        context="danger"
-                        :icon="TrashIcon"
-                        :disabled="!canDelete"
-                    >
-                        Delete
-                    </LButton>
-                </div>
-            </div>
-    </div>
-    </div>
+         
+         <LButton
+            v-if="!isNew"
+            type="button"
+            @click="
+                () => {
+                    showDeleteModal = true;
+                }
+            "
+            data-test="delete-button"
+            variant="secondary"
+            context="danger"
+            :icon="TrashIcon"
+            :disabled="!canDelete"
+        >
+            Delete
+        </LButton>
+    </template>
 
 
     <LDialog
@@ -275,6 +262,7 @@ const save = async () => {
             () => {
                 showDeleteModal = false;
                 deleteUser();
+                emit('close');
             }
         "
         :secondaryAction="() => (showDeleteModal = false)"
@@ -282,4 +270,5 @@ const save = async () => {
         secondaryButtonText="Cancel"
         context="danger"
     ></LDialog>
+    </LDialog>
 </template>

@@ -4,12 +4,10 @@ import LTeleport from "../common/LTeleport.vue";
 
 type Props = {
     heading: string;
-    adaptiveSize?: boolean;
-    noPadding?: boolean;
+    noDivider?: boolean;
 };
-const props = withDefaults(defineProps<Props>(), {
-    adaptiveSize: false,
-    noPadding: false,
+withDefaults(defineProps<Props>(), {
+    noDivider: false,
 });
 
 const isVisible = defineModel<boolean>("isVisible");
@@ -49,13 +47,13 @@ function handleMouseUp(e: MouseEvent) {
             @mousedown="handleMouseDown"
             @mouseup="handleMouseUp"
         >
-            <div :class="modalClasses">
-                <h2 class="shrink-0 px-5 pb-4 pt-5 text-lg font-semibold">{{ heading }}</h2>
-
-                <div :class="contentClasses">
-                    <div class="divide-y divide-zinc-200">
-                        <slot></slot>
-                    </div>
+            <!-- Modal content at higher z-index -->
+            <div
+                class="relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl"
+            >
+                <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
+                <div :class="noDivider ? '' : 'divide-y divide-zinc-200'">
+                    <slot></slot>
                 </div>
 
                 <div v-if="$slots.footer" class="shrink-0 px-5 pb-5 pt-4">

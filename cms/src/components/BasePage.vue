@@ -35,7 +35,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
     <div class="flex h-full flex-col overflow-hidden scrollbar-hide">
         <div class="sticky top-0 z-20 flex-shrink-0">
             <div
-                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-md sm:gap-x-3 sm:px-6 lg:px-8"
+                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"
                 :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
             >
                 <button
@@ -138,7 +138,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 >
                     <div
                         class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
-                        :class="{ 'sm:mt-0': !$slots.internalPageHeader }"
+                        :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
                         <slot />
