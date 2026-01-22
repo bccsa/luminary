@@ -593,7 +593,7 @@ const quickLanguageSwitch = (languageId: string) => {
                         v-for="language in languages"
                         :key="language._id"
                         @click="quickLanguageSwitch(language._id)"
-                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-yellow-100/50 dark:text-white dark:hover:bg-yellow-100/25"
                         data-test="translationOption"
                     >
                         {{ language.name }}
