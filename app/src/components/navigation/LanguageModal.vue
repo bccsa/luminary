@@ -80,6 +80,7 @@ const removeFromSelected = (id: string) => {
                 :id="language._id"
                 :key="language._id"
                 class="flex w-full items-center p-3"
+                transition="duration-200 hover:bg-yellow-100/50 dark:hover:bg-yellow-100/25"
             >
                 <div class="flex w-full justify-between">
                     <div
@@ -135,6 +136,7 @@ const removeFromSelected = (id: string) => {
                 :id="language._id"
                 :key="language._id"
                 class="flex w-full cursor-pointer items-center gap-1 p-3"
+                transition="duration-200 hover:bg-yellow-100/50 dark:hover:bg-yellow-100/25"
                 data-test="add-language-button"
                 @click="
                     handleLanguageChange({
