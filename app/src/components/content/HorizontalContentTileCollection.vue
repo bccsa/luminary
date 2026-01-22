@@ -78,7 +78,7 @@ useInfiniteScroll(
     <div class="select-none">
         <h2 v-if="title" class="truncate px-4">
             {{ title }}
-            <span v-if="summary" class="text-sm text-zinc-500 dark:text-slate-200">
+            <span v-if="summary" class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200">
                 {{ summary }}
             </span>
         </h2>

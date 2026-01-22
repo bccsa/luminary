@@ -32,7 +32,7 @@ const { t } = useI18n();
                     {{ t("notfoundpage.navigation.home") }}</RouterLink
                 >
             </div>
-            <div v-else class="mt-10 flex items-center justify-center gap-x-1">
+            <div v-else class="mt-10 text-center text-base leading-7 text-zinc-600 dark:text-white">
                 {{ t("notfoundpage.unauthenticated.loginPrompt.before") }}
                 <span class="cursor-pointer text-yellow-700 underline" @click="loginWithRedirect()">
                     {{ t("notfoundpage.unauthenticated.loginPrompt.linkText") }}

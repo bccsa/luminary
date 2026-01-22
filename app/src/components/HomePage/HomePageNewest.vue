@@ -21,6 +21,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType == TagType.Category)
                     return false;
+                if (!content.parentPublishDateVisible) return false;
 
                 return isPublished(content, appLanguageIds);
             })
