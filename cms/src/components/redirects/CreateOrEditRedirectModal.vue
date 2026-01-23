@@ -159,93 +159,98 @@ const deleteRedirect = () => {
 </script>
 
 <template>
-    <div
-        v-if="isVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-    >
-        <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
-            <!-- Dynamic title based on mode -->
-            <h2 class="mb-4 text-xl font-bold">
-                {{ !isNew ? "Edit redirect" : "Create new redirect" }}
-            </h2>
+    <teleport to="body">
+        <div
+            v-if="isVisible"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            @click="isNew ? emit('close') : null"
+        >
+            <div class="w-96 rounded-lg bg-white p-6 shadow-lg" @click.stop>
+                <!-- Dynamic title based on mode -->
+                <h2 class="mb-4 text-xl font-bold">
+                    {{ !isNew ? "Edit redirect" : "Create new redirect" }}
+                </h2>
 
-            <div class="mb-2 flex flex-col items-center">
-                <div class="mb-1 flex w-full gap-1">
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? CheckCircleIcon : undefined"
-                        @click="editable.redirectType = RedirectType.Temporary"
-                        >Temporary
-                    </LButton>
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? undefined : CheckCircleIcon"
-                        @click="editable.redirectType = RedirectType.Permanent"
+                <div class="mb-2 flex flex-col items-center">
+                    <div class="mb-1 flex w-full gap-1">
+                        <LButton
+                            class="w-1/2"
+                            :icon="isTemporary ? CheckCircleIcon : undefined"
+                            @click="editable.redirectType = RedirectType.Temporary"
+                            >Temporary
+                        </LButton>
+                        <LButton
+                            class="w-1/2"
+                            :icon="isTemporary ? undefined : CheckCircleIcon"
+                            @click="editable.redirectType = RedirectType.Permanent"
+                        >
+                            Permanent
+                        </LButton>
+                    </div>
+                    <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
+                </div>
+
+                <div class="relative">
+                    <LInput
+                        label="From *"
+                        name="RedirectFromSlug"
+                        v-model="editable.slug"
+                        class="mb-4 w-full"
+                        placeholder="The slug that will be redirected from.."
+                        @change="editable.slug = validateSlug(editable.slug) || ''"
+                    />
+                    <span
+                        class="absolute left-12 top-1 flex text-xs text-red-400"
+                        v-if="!isSlugUnique"
+                        ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a
+                        redirect</span
                     >
-                        Permanent
+                </div>
+
+                <LInput
+                    label="To"
+                    name="RedirectToSlug"
+                    v-model="editable.toSlug"
+                    class="mb-4 w-full"
+                    placeholder="The slug that will be redirected to..."
+                    @change="editable.toSlug = validateSlug(editable.toSlug)"
+                />
+
+                <GroupSelector
+                    name="memberOf"
+                    v-model:groups="editable.memberOf"
+                    :docType="DocType.Redirect"
+                />
+                <div class="flex gap-4 pt-5">
+                    <LButton
+                        variant="secondary"
+                        context="danger"
+                        data-test="delete"
+                        :icon="TrashIcon"
+                        @click="showDeleteModal = true"
+                        >Delete</LButton
+                    >
+                    <div class="flex-1" />
+                    <LButton
+                        variant="secondary"
+                        data-test="cancel"
+                        @click="emit('close')"
+                        :icon="ArrowUturnLeftIcon"
+                        >Cancel</LButton
+                    >
+                    <LButton
+                        variant="primary"
+                        data-test="save-button"
+                        @click="save"
+                        :disabled="!canSave"
+                        :icon="!isNew ? FolderArrowDownIcon : PlusCircleIcon"
+                    >
+                        {{ !isNew ? "Save" : "Create" }}
                     </LButton>
                 </div>
-                <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
-            </div>
-
-            <div class="relative">
-                <LInput
-                    label="From *"
-                    name="RedirectFromSlug"
-                    v-model="editable.slug"
-                    class="mb-4 w-full"
-                    placeholder="The slug that will be redirected from.."
-                    @change="editable.slug = validateSlug(editable.slug) || ''"
-                />
-                <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
-                    ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a
-                    redirect</span
-                >
-            </div>
-
-            <LInput
-                label="To"
-                name="RedirectToSlug"
-                v-model="editable.toSlug"
-                class="mb-4 w-full"
-                placeholder="The slug that will be redirected to..."
-                @change="editable.toSlug = validateSlug(editable.toSlug)"
-            />
-
-            <GroupSelector
-                name="memberOf"
-                v-model:groups="editable.memberOf"
-                :docType="DocType.Redirect"
-            />
-            <div class="flex gap-4 pt-5">
-                <LButton
-                    variant="secondary"
-                    context="danger"
-                    data-test="delete"
-                    :icon="TrashIcon"
-                    @click="showDeleteModal = true"
-                    >Delete</LButton
-                >
-                <div class="flex-1" />
-                <LButton
-                    variant="secondary"
-                    data-test="cancel"
-                    @click="emit('close')"
-                    :icon="ArrowUturnLeftIcon"
-                    >Cancel</LButton
-                >
-                <LButton
-                    variant="primary"
-                    data-test="save-button"
-                    @click="save"
-                    :disabled="!canSave"
-                    :icon="!isNew ? FolderArrowDownIcon : PlusCircleIcon"
-                >
-                    {{ !isNew ? "Save" : "Create" }}
-                </LButton>
             </div>
         </div>
-    </div>
+    </teleport>
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete redirect?`"
