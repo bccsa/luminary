@@ -4,7 +4,6 @@ import { db, type UserDto, type GroupDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
-import { isPhoneScreen } from "@/globalConfig";
 import { ref, watch } from "vue";
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
@@ -21,7 +20,7 @@ const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
-const smAndSmaller = breakpoints.smallerOrEqual('sm');
+const smallerThanSm = breakpoints.smaller('sm');
 
 function editModalVisible () {
     showEditModal.value = true;
@@ -38,7 +37,7 @@ watch(groups, (newGroups) => {
         <DisplayCard
             :title="usersDoc.name"
             :updatedTimeUtc="usersDoc.updatedTimeUtc"
-            :showDate="!isPhoneScreen"
+            :showDate="!smallerThanSm"
             @click="editModalVisible"
         >
             <template #topRightContent>
@@ -52,13 +51,13 @@ watch(groups, (newGroups) => {
                         v-if="usersDoc.lastLogin"
                             class="flex items-center gap-1 text-xs text-zinc-400"
                     >
-                        <KeyIcon class="h-4 w-4 text-zinc-400" />
+                        <KeyIcon class="h-4 w-4 text-zinc-400 max-sm:h-3 max-sm:w-3" />
                         <span title="Last logged in" class="whitespace-nowrap">
                             {{
                                 db
                                     .toDateTime(usersDoc.lastLogin)
                                     .toLocaleString(
-                                        smAndSmaller.value
+                                        smallerThanSm
                                             ? DateTime.DATE_SHORT
                                             : DateTime.DATETIME_SHORT,
                                     )
