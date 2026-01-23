@@ -156,9 +156,10 @@ const deleteTranslation = () => {
             :class="[
                 'mx-1.5 rounded-md p-1.5 px-2 sm:px-1',
                 {
-                    'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
+                    'mb-0 cursor-default bg-zinc-200 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
-                    'border bg-white/80 transition duration-200 hover:bg-zinc-300 hover:border-white-500': !isActive,
+                    'hover:border-white-500 border bg-white/80 transition duration-200 hover:bg-zinc-100':
+                        !isActive,
                 },
             ]"
         >
