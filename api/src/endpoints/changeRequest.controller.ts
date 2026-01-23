@@ -21,7 +21,7 @@ export class ChangeRequestController {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
         // Try to parse multipart data if it exists
-        // In production, Fastify provides isMultipart(), but in tests it might not be available
+        // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
 
@@ -29,7 +29,7 @@ export class ChangeRequestController {
         const files: Array<{ buffer: Buffer; fieldname: string }> = [];
 
         if (isMultipartRequest && typeof request.parts === "function") {
-            // Production path: parse Fastify multipart data
+            // Parse Fastify multipart data
             const parts = request.parts();
 
             for await (const part of parts) {
@@ -41,19 +41,8 @@ export class ChangeRequestController {
                 }
             }
         } else {
-            // Fallback: check if body is already parsed (test environment)
+            // Standard JSON request
             body = (request.body as any) || {};
-
-            // In test environment, files might be in the body as Buffer objects
-            // Extract them based on the __file__ naming pattern
-            Object.keys(body).forEach((key) => {
-                if (key.includes("__file__") && Buffer.isBuffer(body[key])) {
-                    files.push({
-                        buffer: body[key],
-                        fieldname: key,
-                    });
-                }
-            });
         }
 
         // Check if this is a multipart form data request (with potential binary data)
