@@ -34,7 +34,6 @@ window.addEventListener("resize", () => {
 });
 export const isMobileScreen = computed(() => windowWidth.value < 1024);
 export const isSmallScreen = computed(() => windowWidth.value < 1500);
-export const isPhoneScreen = computed(() => windowWidth.value < 640);
 export const sidebarSectionExpanded = ref({ posts: false, tags: false });
 
 /**

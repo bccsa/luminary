@@ -4,8 +4,9 @@ import { db, type UserDto, type GroupDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
-import { isMobileScreen, isPhoneScreen } from "@/globalConfig";
+import { isPhoneScreen } from "@/globalConfig";
 import { ref, watch } from "vue";
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 type Props = {
     usersDoc: UserDto;
@@ -18,6 +19,9 @@ const userGroups = ref<GroupDto[]>([]);
 
 const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const smAndSmaller = breakpoints.smallerOrEqual('sm');
 
 function editModalVisible () {
     showEditModal.value = true;
@@ -54,7 +58,7 @@ watch(groups, (newGroups) => {
                                 db
                                     .toDateTime(usersDoc.lastLogin)
                                     .toLocaleString(
-                                        isMobileScreen
+                                        smAndSmaller.value
                                             ? DateTime.DATE_SHORT
                                             : DateTime.DATETIME_SHORT,
                                     )
