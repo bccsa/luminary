@@ -20,7 +20,6 @@ export class ChangeRequestController {
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
-        // Try to parse multipart data if it exists
         // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
