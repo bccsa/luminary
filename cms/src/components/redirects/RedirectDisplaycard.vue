@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
-import { ClockIcon } from "@heroicons/vue/20/solid";
-import { DateTime } from "luxon";
-import { db, DocType, AclPermission, verifyAccess, type RedirectDto } from "luminary-shared";
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
+import { UserGroupIcon } from "@heroicons/vue/20/solid";
+import { db, DocType, AclPermission, verifyAccess, type RedirectDto, type GroupDto } from "luminary-shared";
+import { computed } from "vue";
 
 type Props = {
     redirectDoc: RedirectDto
@@ -13,8 +12,9 @@ type Props = {
 const props = defineProps<Props>();
 const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
 
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const smallerThanSm = breakpoints.smaller('sm');
+const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const redirectGroups = computed(() => availableGroups.value?.filter(g => props.redirectDoc.memberOf.includes(g._id) && verifyAccess([g._id], DocType.Group, AclPermission.View, "any")));
+
 
 </script>
 
@@ -22,34 +22,9 @@ const smallerThanSm = breakpoints.smaller('sm');
     <DisplayCard
         :title="redirectDoc.slug"
         :updated-time-utc="redirectDoc.updatedTimeUtc"
-
+        class="mb-1"
     >
-        <template #topRightContent>
-                    <div class="flex items-center gap-2">
-                        <span class="font-medium text-zinc-900">
-                            <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
-                                Offline changes
-                            </LBadge></span
-                        >
-                        <div
-                            v-if="redirectDoc.updatedTimeUtc"
-                                class="flex items-center gap-1 text-xs text-zinc-400"
-                        >
-                            <ClockIcon class="h-4 w-4 text-zinc-400 max-sm:h-3 max-sm:w-3" />
-                            <span title="Last updated" class="whitespace-nowrap">
-                                {{
-                                    db
-                                        .toDateTime(redirectDoc.updatedTimeUtc)
-                                        .toLocaleString(
-                                            smallerThanSm
-                                                ? DateTime.DATE_SHORT
-                                                : DateTime.DATETIME_SHORT,
-                                        )
-                                }}
-                            </span>
-                        </div>
-                    </div>
-        </template>
+
 
         <template #content>
             <div class="flex justify-between pb-1 min-[1500px]:pt-0">
@@ -61,6 +36,49 @@ const smallerThanSm = breakpoints.smaller('sm');
 
                 </div>
         </template>
+
+        <template #topRightContent>
+            <LBadge v-if="isLocalChanges" variant="warning" class="whitespace-nowrap">Offline changes</LBadge>
+            <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }}</LBadge>
+        </template>
+
+        <template #mobileFooter>
+                <div class="flex flex-1 items-center gap-1">
+                    <div>
+                        <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        <LBadge
+                            v-for="group in redirectGroups"
+                            :key="group._id"
+                            type="default"
+                            variant="blue"
+                        >
+                            {{ group.name }}
+                        </LBadge>
+                        <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
+                            No groups
+                        </span>
+                    </div>
+                </div>
+            </template>
+
+            <template #desktopFooter>
+                <div class="flex w-full flex-1 flex-wrap items-center gap-1">
+                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                    <LBadge
+                        v-for="group in redirectGroups"
+                        :key="group._id"
+                        type="default"
+                        variant="blue"
+                    >
+                        {{ group.name }}
+                    </LBadge>
+                    <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
+                        No groups
+                    </span>
+                </div>
+            </template>
 
     </DisplayCard>
 </template>

@@ -48,7 +48,10 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div v-if="title || isLocalChange" class="relative flex cursor-pointer items-center justify-between py-1">
+        <div
+            v-if="title || isLocalChange"
+            class="relative flex cursor-pointer items-center justify-between py-1"
+        >
             <div
                 data-test="card-title"
                 class="w-full"
@@ -63,7 +66,7 @@ const handleClick = () => {
                     Offline changes
                 </LBadge>
             </div>
-            <div>
+            <div class="flex">
                 <slot name="topRightContent" />
             </div>
 

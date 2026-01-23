@@ -29,12 +29,12 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
             </div>
         </template>
 
-        <RedirectTable />
-        <!-- <RedirectDisplaycard
+        <!-- <RedirectTable /> -->
+        <RedirectDisplaycard
             v-for="redirect in redirects"
             :key="redirect._id"
             :redirectDoc="redirect"
-        /> -->
+        />
 
         <CreateOrEditRedirectModal
             v-if="isModalVisible"
