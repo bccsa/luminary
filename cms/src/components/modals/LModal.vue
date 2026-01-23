@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import LTeleport from "../common/LTeleport.vue";
 
 type Props = {
@@ -14,13 +14,6 @@ const isVisible = defineModel<boolean>("isVisible");
 
 // Tracks whether the mouse down event occurred on the modal background.
 const mouseDownOnBackground = ref(false);
-
-const modalClasses = computed(() => [
-    "relative z-50 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-lg bg-white/90 shadow-xl",
-    props.adaptiveSize ? "max-w-fit" : "max-w-md",
-]);
-
-const contentClasses = computed(() => ["flex-1 overflow-auto", props.noPadding ? "" : "px-5"]);
 
 function handleMouseDown(e: MouseEvent) {
     // Only set true if mousedown is on the background (outer div)
