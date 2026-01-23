@@ -274,15 +274,6 @@ watch(
     },
     { immediate: true },
 );
-
-watch(
-    () => props.image,
-    () => {
-        imageElement1Error.value = false;
-        imageElement2Error.value = false;
-        modalImageError.value = false;
-    },
-);
 </script>
 
 <template>
