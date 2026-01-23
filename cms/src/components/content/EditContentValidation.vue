@@ -158,7 +158,7 @@ const deleteTranslation = () => {
                 {
                     'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
-                    'border bg-white/80 hover:bg-white/100': !isActive,
+                    'border bg-white/80 transition duration-200 hover:bg-zinc-300 hover:border-white-500': !isActive,
                 },
             ]"
         >
