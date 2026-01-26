@@ -178,12 +178,12 @@ const save = async () => {
         secondaryButtonText="Cancel"
         noDivider
     >
+        <div class="mb-4">
             <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
             <LBadge v-else-if="!isConnected" variant="warning">You can not create or edit users when offline...</LBadge>
-            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
-                    >No groups selected</LBadge
-            >
+            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2">No groups selected</LBadge>
             <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
+        </div>
         <LCard class="!border-0">
                 <LInput
                     label="Name"
@@ -223,22 +223,10 @@ const save = async () => {
             </LCard>
     
     <template #footer-extra>
-         <LButton
-            type="button"
-            variant="secondary"
-            v-if="isDirty && !isNew"
-            @click="revertChanges"
-            :icon="ArrowUturnLeftIcon"
-            class="ml-5"
-        >
-            Revert
-        </LButton
-                    >
-         
-         <LButton
-            v-if="!isNew"
-            type="button"
-            @click="
+        <LButton
+        v-if="!isNew"
+        type="button"
+        @click="
                 () => {
                     showDeleteModal = true;
                 }
@@ -248,8 +236,19 @@ const save = async () => {
             context="danger"
             :icon="TrashIcon"
             :disabled="!canDelete"
-        >
+            >
             Delete
+        </LButton>
+
+        <LButton
+            type="button"
+            variant="secondary"
+            v-if="isDirty && !isNew"
+            @click="revertChanges"
+            :icon="ArrowUturnLeftIcon"
+            class="ml-5"
+        >
+            Revert
         </LButton>
     </template>
 
@@ -269,6 +268,6 @@ const save = async () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
-    ></LDialog>
+    />
     </LDialog>
 </template>

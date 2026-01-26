@@ -41,7 +41,11 @@ withDefaults(defineProps<Props>(), {
         <slot name="default" />
 
         <template #footer>
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-between items-center">
+                <div>
+                    <slot name="footer-extra" />
+                </div>
+            <div class="flex gap-2">
                 <LButton
                     @click="primaryAction()"
                     variant="primary"
@@ -59,7 +63,7 @@ withDefaults(defineProps<Props>(), {
                 >
                     {{ secondaryButtonText }}
                 </LButton>
-                <slot name="footer-extra" />
+            </div>
             </div>
         </template>
     </LModal>
