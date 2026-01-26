@@ -439,7 +439,7 @@ const duplicate = async () => {
     const clonedParent = _.cloneDeep(editableParent.value);
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
-    
+
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
     if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
     const clonedContent = editableContent.value.map((c) => {
@@ -452,8 +452,7 @@ const duplicate = async () => {
         newContent.parentId = clonedParent._id;
         newContent.parentType = editableParent.value.type;
         newContent.status = PublishStatus.Draft;
-        
-        newContent.parentTaggedDocs = [];
+        newContent.parentTags = [];
         return newContent;
     });
     editableParent.value = clonedParent;

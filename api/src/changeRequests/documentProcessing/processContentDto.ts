@@ -20,7 +20,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
     // Copy essential properties from Post / Tag documents to Content documents
     if (parentDoc) {
         doc.memberOf = parentDoc.memberOf;
-        doc.parentTags = parentDoc.tags;
+        doc.parentTags = [];
         doc.parentImageData = parentDoc.imageData;
         doc.parentImageBucketId = parentDoc.imageBucketId;
 
