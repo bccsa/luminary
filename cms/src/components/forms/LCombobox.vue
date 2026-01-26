@@ -227,14 +227,14 @@ onUnmounted(() => {
                                             }
                                             // If no option is highlighted, add the first option to the selected options
                                             if (filtered.length > 0) {
-                                                selectedOptions.push(filtered[0].id);
+                                                selectedOptions.push(filtered[0].value);
                                                 query = '';
                                                 showDropdown = false;
                                             }
                                         }
                                     }
                                 "
-                                @keydown.escape="
+                                @keydown.escape.prevent.stop="
                                     () => {
                                         query = '';
                                         showDropdown = false;
