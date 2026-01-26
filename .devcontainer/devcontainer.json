@@ -1,8 +1,10 @@
 {
   "name": "Luminary Dev Container",
-  "dockerComposeFile": ["../local-dev/docker-compose.yml"],
-  "service": "api",
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "shared",
   "workspaceFolder": "/workspace",
+  "forwardPorts": [3000, 4174, 4175, 5984, 9000, 9001],
+  "shutdownAction": "stopCompose",
   "customizations": {
     "vscode": {
       "extensions": [

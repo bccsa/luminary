@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   couchdb:
     image: couchdb:3.3
@@ -10,6 +8,12 @@ services:
       - COUCHDB_PASSWORD=password
     volumes:
       - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   minio:
     image: minio/minio
@@ -22,8 +26,40 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # Creates the default bucket in MinIO
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing myminio/luminary;
+      mc anonymous set public myminio/luminary;
+      exit 0;
+      "
+
+  # Build shared library first (one-shot, exits when done)
+  shared-build:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - shared_node_modules:/workspace/shared/node_modules
+    working_dir: /workspace/shared
+    command: sh -c "npm ci && npm run build"
+
+  # Development container (VS Code attaches here)
   shared:
+    container_name: luminary-dev
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile.dev
@@ -38,7 +74,47 @@ services:
     working_dir: /workspace/shared
     command: sleep infinity
 
+  # Creates required CouchDB system databases and app database
+  couchdb-init:
+    image: curlimages/curl:latest
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    command: >
+      sh -c "
+        curl -X PUT http://admin:password@couchdb:5984/_users || true;
+        curl -X PUT http://admin:password@couchdb:5984/_replicator || true;
+        curl -X PUT http://admin:password@couchdb:5984/_global_changes || true;
+        curl -X PUT http://admin:password@couchdb:5984/luminary-local || true
+      "
+
+  # Seeds CouchDB with default data after database is created
+  db-init:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace
+      - api_node_modules:/workspace/api/node_modules
+      - shared_node_modules:/workspace/shared/node_modules
+    env_file:
+      - path: .env
+        required: false
+      - path: ../api/.env
+        required: false
+    environment:
+      - DB_CONNECTION_STRING=http://admin:password@couchdb:5984
+      - DB_DATABASE=luminary-local
+    working_dir: /workspace/api
+    depends_on:
+      couchdb-init:
+        condition: service_completed_successfully
+      shared:
+        condition: service_started
+    command: sh -c "npm ci && npm run seed"
+
   api:
+    container_name: luminary-api
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile.dev
@@ -54,13 +130,25 @@ services:
         required: false
       - path: ../api/.env
         required: false
+    environment:
+      - DB_CONNECTION_STRING=http://admin:password@couchdb:5984
+      - DB_DATABASE=luminary-local
+      - S3_ENDPOINT=minio
+      - S3_PORT=9000
+      - S3_USE_SSL=false
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_IMG_BUCKET=luminary
     working_dir: /workspace/api
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm ci && npm run dev"
     depends_on:
-      - couchdb
-      - minio
+      db-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
 
   app:
+    container_name: luminary-app
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile.dev
@@ -75,12 +163,18 @@ services:
         required: false
       - path: ../app/.env
         required: false
+    environment:
+      - VITE_API_URL=http://localhost:3000
     working_dir: /workspace/app
-    command: sh -c "npm ci && npm run dev -- --host"
+    command: sh -c "npm install --install-links && npm run dev -- --host"
     depends_on:
-      - api
+      api:
+        condition: service_started
+      shared-build:
+        condition: service_completed_successfully
 
   cms:
+    container_name: luminary-cms
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile.dev
@@ -95,10 +189,15 @@ services:
         required: false
       - path: ../cms/.env
         required: false
+    environment:
+      - VITE_API_URL=http://localhost:3000
     working_dir: /workspace/cms
-    command: sh -c "npm ci && npm run dev -- --host"
+    command: sh -c "npm install --install-links && npm run dev -- --host"
     depends_on:
-      - api
+      api:
+        condition: service_started
+      shared-build:
+        condition: service_completed_successfully
 
 volumes:
   couchdb_data:

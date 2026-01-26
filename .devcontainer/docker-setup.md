@@ -1,91 +1,166 @@
-# Docker Development Environment Setup
+# Docker Development Setup
 
-This guide explains how to run the Luminary project using Docker. This approach is recommended for all developers, especially those on Windows, as it provides a consistent environment with all dependencies pre-configured.
+Run Luminary with Docker — works on Windows, Mac, and Linux.
 
-## Prerequisites
-
-- **Docker Desktop**: Install and start [Docker Desktop](https://www.docker.com/products/docker-desktop).
-- **VS Code**: Install [Visual Studio Code](https://code.visualstudio.com/).
-- **Dev Containers Extension**: Install the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension in VS Code.
-
-## Quick Start (Terminal)
-
-If you just want to run the application (API, App, CMS, Database, Storage) without VS Code integration:
-
-1. Open a terminal in the project root.
-2. Run the following command:
-
-   ```bash
-   docker compose up
-   ```
-
-   _Note: On the first run, this may take a while to download images and install dependencies._
-
-3. Access the services:
-
-   - **App (Frontend)**: [http://localhost:4174](http://localhost:4174)
-   - **CMS**: [http://localhost:4175](http://localhost:4175)
-   - **API**: [http://localhost:3000](http://localhost:3000)
-   - **MinIO Console**: [http://localhost:9001](http://localhost:9001) (User: `minioadmin`, Pass: `minioadmin`)
-
-4. To stop the environment, press `Ctrl+C` in the terminal.
-
-## Developing with VS Code (Recommended)
-
-To write code with full IntelliSense, linting, and terminal access inside the container:
-
-1. Open the project folder in VS Code.
-2. A popup should appear: "Reopen in Container". Click it.
-   - If not, press `F1`, type **"Dev Containers: Reopen in Container"**, and select it.
-3. VS Code will build the containers and connect. This acts as your full development environment.
-4. The terminal inside VS Code is now running in the container.
-   - You can run `npm install`, `npm run dev`, etc., directly in this terminal.
-
-## Source Code & Live Reloading
-
-- The project files are mounted into the container. Any change you make in VS Code (or on your host machine) is instantly reflected in the container.
-- **Hot Module Replacement (HMR)** is configured. Saving a file in `app` or `cms` should automatically update your browser.
-- **API Auto-restart**: Saving a file in `api` will restart the NestJS server.
-
-## Environment Variables
-
-The setup uses default values for development, but you can override them using environment variables.
-
-### Option 1: Create a `.env` file (Recommended)
-
-The easiest way to configure these is to copy the example file:
+## Quick Start
 
 ```bash
-cp .env.example .env
+# 1. Copy environment file
+cp .devcontainer/.env.example .devcontainer/.env
+
+# 2. Fill in Auth0 values in .devcontainer/.env (see Auth0 Setup below)
+
+# 3. Start everything
+docker compose -f .devcontainer/docker-compose.yml up --build
 ```
 
-This file contains all the available configuration options. You can then edit `.env` if you need to change anything (e.g., secrets).
-Docker Compose will automatically read this file.
+**First run takes a few minutes** — it installs dependencies and seeds the database.
 
-### Option 2: Command Line
+### Access Points
 
-You can pass environment variables directly when starting the containers:
+| Service | URL                           |
+| ------- | ----------------------------- |
+| App     | http://localhost:4174         |
+| CMS     | http://localhost:4175         |
+| API     | http://localhost:3000         |
+| CouchDB | http://localhost:5984/\_utils |
+| MinIO   | http://localhost:9001         |
+
+> **Credentials:** CouchDB: `admin` / `password` • MinIO: `minioadmin` / `minioadmin`
+
+---
+
+## Auth0 Setup
+
+You need an Auth0 account. Free tier works fine.
+
+### 1. Create Application
+
+1. Go to **Auth0 Dashboard** → **Applications** → **Create Application**
+2. Choose "Single Page Application"
+3. Note the **Client ID** and **Domain** → add to `.env`
+
+### 2. Get JWT Secret
+
+1. Go to **Applications** → your app → **Settings**
+2. Scroll to **Advanced Settings** → **Certificates**
+3. **Download Certificate (PEM)**
+4. Copy the entire certificate content (including `BEGIN/END CERTIFICATE` lines) → add to `JWT_SECRET` in `.env`
+
+### 3. Configure Callback URLs
+
+In **Applications** → your app → **Settings**:
+
+| Field                 | Value                                          |
+| --------------------- | ---------------------------------------------- |
+| Allowed Callback URLs | `http://localhost:4174, http://localhost:4175` |
+| Allowed Logout URLs   | `http://localhost:4174, http://localhost:4175` |
+| Allowed Web Origins   | `http://localhost:4174, http://localhost:4175` |
+
+### 4. Create API
+
+1. Go to **APIs** → **Create API**
+2. Set identifier (e.g., `https://luminary-dev.com/api`)
+3. Copy the identifier → add to `VITE_AUTH0_AUDIENCE` in `.env`
+
+### 5. Add Auth0 Action (Required for JWT Mappings)
+
+This adds user metadata to the JWT token.
+
+1. Go to **Actions** → **Library** → **Build Custom**
+2. Name: `Add Luminary Metadata`
+3. Trigger: **Login / Post Login**
+4. Paste this code:
+
+```javascript
+exports.onExecutePostLogin = async (event, api) => {
+  const namespace = "https://luminary-dev.com/metadata";
+
+  api.accessToken.setCustomClaim(namespace, {
+    userId: event.user.user_id,
+    email: event.user.email,
+    username: event.user.name || event.user.nickname,
+  });
+};
+```
+
+5. **Deploy** the action
+6. Go to **Actions** → **Triggers** → **post-login**
+7. Drag your action into the flow and **Apply**
+
+---
+
+## VS Code Dev Container
+
+For integrated development with VS Code:
+
+1. Install the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
+2. Open this folder in VS Code
+3. Click "Reopen in Container" when prompted
+
+---
+
+## Custom Environment Variables
+
+### Option 1: Edit `.env` file (Recommended)
+
+Add any variable to `.devcontainer/.env`:
 
 ```bash
-JWT_SECRET=my-secret docker compose up
+# Your custom values
+MY_CUSTOM_VAR=my-value
+JWT_SECRET="your-secret-here"
 ```
+
+### Option 2: Command line
+
+Pass variables when starting:
+
+```bash
+JWT_SECRET="my-secret" docker compose -f .devcontainer/docker-compose.yml up
+```
+
+### Option 3: Per-service overrides
+
+Create a `docker-compose.override.yml` in `.devcontainer/`:
+
+```yaml
+services:
+  api:
+    environment:
+      - MY_CUSTOM_VAR=my-value
+      - ANOTHER_VAR=another-value
+```
+
+Docker Compose automatically merges this with `docker-compose.yml`.
+
+---
+
+## Common Commands
+
+```bash
+# Stop everything
+docker compose -f .devcontainer/docker-compose.yml down
+
+# Reset everything (delete all data)
+docker compose -f .devcontainer/docker-compose.yml down -v
+
+# View logs
+docker compose -f .devcontainer/docker-compose.yml logs -f api
+
+# Rebuild after Dockerfile changes
+docker compose -f .devcontainer/docker-compose.yml up --build
+```
+
+---
 
 ## Troubleshooting
 
-### `node_modules` issues
+**Port already in use?**  
+Stop any local instances of the API/app/CMS first.
 
-We use Docker volumes to store `node_modules` to prevent OS compatibility issues (Windows vs Linux).
+**Dependencies not installing?**  
+Delete volumes and rebuild: `docker compose -f .devcontainer/docker-compose.yml down -v && docker compose -f .devcontainer/docker-compose.yml up --build`
 
-- If you delete `node_modules` on your host, it won't affect the container.
-- If you need to wipe dependencies, you must remove the docker volumes:
-  ```bash
-  docker compose down -v
-  ```
-
-### Ports already in use
-
-If you see an error that port 3000, 4174, etc., is already in use, make sure you don't have another instance of the app running (locally or in another container).
-
-### Shared Library Updates
-
-The `shared` library is linked. If you make changes to `shared` and they aren't picked up, try restarting the dev server in the container.
+**Shared library changes not reflected?**  
+Restart the containers: `docker compose -f .devcontainer/docker-compose.yml restart`
