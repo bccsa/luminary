@@ -249,7 +249,7 @@ export async function processImage(
                 warnings.push(`${failedUploads} of ${results.length} image uploads failed`);
 
                 if (successfulUploads === 0) {
-                    warnings.push("All image uploads failed - no images were processed");
+                    warnings.push("All image uploads failed - no images were processed"); // Throw error if ALL failed
                 }
             }
 
@@ -258,7 +258,6 @@ export async function processImage(
     } catch (error) {
         warnings.push(`Image processing failed: ${error.message}`);
     }
-
     return warnings;
 }
 
@@ -293,10 +292,12 @@ async function processImageUpload(
 
         // Bucket ID is required
         if (!bucketId) {
-            warnings.push(
-                "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
-            );
-            return { success: false, warnings };
+            return {
+                success: false,
+                warnings: [
+                    "No bucket specified for image upload. Each post/tag must specify a target bucket with proper credentials.",
+                ],
+            };
         }
 
         // Look up the bucket and create bucket-specific S3 client
@@ -309,10 +310,12 @@ async function processImageUpload(
             ) as StorageDto;
 
             if (!foundBucket || !foundBucket.name) {
-                warnings.push(
-                    `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
-                );
-                return { success: false, warnings };
+                return {
+                    success: false,
+                    warnings: [
+                        `Bucket with ID ${bucketId} not found. Please configure a storage bucket with proper credentials before uploading images.`,
+                    ],
+                };
             }
 
             storage = foundBucket;
@@ -320,24 +323,32 @@ async function processImageUpload(
             // Validate file type against bucket's allowed mimeTypes (if specified)
             // Use Sharp's detected format to determine mimetype
             if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
-                const detectedMimetype = `image/${metadata.format}`;
+                const detectedFormat = metadata.format === "jpeg" ? "jpg" : metadata.format;
+                const detectedMimetype = `image/${detectedFormat}`;
+                const detectedMimetypeAlt = `image/${metadata.format}`;
+
                 const isAllowed = storage.mimeTypes.some((allowedType) => {
                     // Support wildcards like "image/*"
                     if (allowedType.endsWith("/*")) {
                         const prefix = allowedType.slice(0, -2);
-                        return detectedMimetype.startsWith(prefix + "/");
+                        return (
+                            detectedMimetype.startsWith(prefix + "/") ||
+                            detectedMimetypeAlt.startsWith(prefix + "/")
+                        );
                     }
-                    // Exact match
-                    return detectedMimetype === allowedType;
+                    // Exact match (check both variants for jpg/jpeg)
+                    return detectedMimetype === allowedType || detectedMimetypeAlt === allowedType;
                 });
 
                 if (!isAllowed) {
-                    warnings.push(
-                        `File type "${detectedMimetype}" is not allowed for bucket "${
-                            storage.name
-                        }". Allowed types: ${storage.mimeTypes.join(", ")}`,
-                    );
-                    return { success: false, warnings };
+                    return {
+                        success: false,
+                        warnings: [
+                            `File type "${detectedMimetype}" is not allowed for bucket "${
+                                storage.name
+                            }". Allowed types: ${storage.mimeTypes.join(", ")}`,
+                        ],
+                    };
                 }
             }
 
@@ -358,10 +369,7 @@ async function processImageUpload(
                 );
             });
         } catch (error) {
-            warnings.push(
-                `Failed to connect to bucket ${bucketId}: ${error.message}. Please ensure the bucket has valid credentials configured.`,
-            );
-            return { success: false, warnings };
+            throw error; // Rethrow connection/lookup errors
         }
 
         const results = await Promise.all(promises);
@@ -379,12 +387,13 @@ async function processImageUpload(
             image.fileCollections.push(resultImageCollection);
             return { success: true, warnings };
         } else {
-            warnings.push("No image sizes could be processed successfully");
-            return { success: false, warnings };
+            return {
+                success: false,
+                warnings: ["No image sizes could be processed successfully"],
+            };
         }
     } catch (error) {
-        warnings.push(`Image upload failed: ${error.message}`);
-        return { success: false, warnings };
+        return { success: false, warnings: [`Image upload failed: ${error.message}`] };
     }
 }
 
@@ -408,7 +417,7 @@ async function resizeAndUploadImage(
         const imageFile = new ImageFileDto();
         imageFile.width = resized.info.width;
         imageFile.height = resized.info.height;
-        imageFile.filename = uuidv4();
+        imageFile.filename = uuidv4() + ".webp";
 
         // Save resized image to S3
         await s3Service.uploadFile(imageFile.filename, resized.data, "image/webp");
@@ -417,9 +426,6 @@ async function resizeAndUploadImage(
 
         return { success: true, warnings: [] };
     } catch (error) {
-        return {
-            success: false,
-            warnings: [`Failed to process image size ${size}px: ${error.message}\n`],
-        };
+        return { success: false, warnings: [`Failed to resize/upload image: ${error.message}`] };
     }
 }

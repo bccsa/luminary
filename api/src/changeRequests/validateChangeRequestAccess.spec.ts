@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { DbService } from "../db/db.service";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { plainToClass } from "class-transformer";

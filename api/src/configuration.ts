@@ -27,6 +27,7 @@ export type ImageProcessingConfig = {
     imageQuality: number;
 };
 
+// S3 Configuration
 export type S3Config = {
     endpoint: string;
     port: number;

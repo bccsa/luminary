@@ -48,20 +48,16 @@ export class S3Service {
      */
     private static cleanupStaleInstances(): void {
         const now = Date.now();
-        const staleInstances: Array<{ bucketId: string; inactiveMinutes: number }> = [];
+        const staleInstances: string[] = [];
 
         for (const [bucketId, lastAccess] of S3Service.lastAccessTime.entries()) {
             if (now - lastAccess >= S3Service.INACTIVITY_TIMEOUT_MS) {
-                const inactiveMinutes = Math.round((now - lastAccess) / 1000 / 60);
-                staleInstances.push({ bucketId, inactiveMinutes });
+                staleInstances.push(bucketId);
             }
         }
 
-        for (const { bucketId, inactiveMinutes } of staleInstances) {
+        for (const bucketId of staleInstances) {
             S3Service.removeInstance(bucketId);
-            console.log(
-                `Removed stale S3Service instance for bucket ${bucketId} (inactive for ${inactiveMinutes} minutes)`,
-            );
         }
     }
 
@@ -91,9 +87,6 @@ export class S3Service {
                             const instance = S3Service.instances.get(bucketId);
                             if (instance) {
                                 await instance.init(updatedCredentials);
-                                console.log(
-                                    `Updated S3 credentials for bucket ${bucketId} (credential ${credentialId})`,
-                                );
                             }
                         }
                     } catch (error) {
@@ -117,7 +110,6 @@ export class S3Service {
                 // Check if an S3Service instance exists for this bucket
                 if (S3Service.instances.has(bucketId)) {
                     S3Service.removeInstance(bucketId);
-                    console.log(`Removed S3Service instance for deleted bucket: ${bucketId}`);
                 }
             }
         };
@@ -410,7 +402,6 @@ export class S3Service {
             // Check if the bucket exists using the internal client
             const exists = await this.client.bucketExists(this.bucketName);
             if (!exists) {
-                console.log(`Bucket '${this.bucketName}' does not exist on the storage provider.`);
                 return {
                     status: "not-found",
                     message: `Bucket '${this.bucketName}' does not exist`,
