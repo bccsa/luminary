@@ -239,7 +239,7 @@ describe("LCombobox", () => {
 
         await waitForExpect(async () => {
             // Re-find because it might be destroyed
-            expect(wrapper.find("[data-test='options']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='options']").isVisible()).toBe(false);
         });
     });
 
