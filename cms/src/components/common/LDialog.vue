@@ -11,6 +11,7 @@ type Props = {
     secondaryButtonText?: string;
     primaryDisableCondition?: boolean;
     context?: "default" | "danger";
+    primaryButtonDisabled?: boolean;
 };
 
 const open = defineModel<boolean>("open");
@@ -26,29 +27,29 @@ withDefaults(defineProps<Props>(), {
         <slot name="default" />
 
         <template #footer>
-            <div class="flex justify-between items-center">
+            <div class="flex items-center justify-between">
                 <div>
                     <slot name="footer-extra" />
                 </div>
-            <div class="flex gap-2">
-                <LButton
-                    @click="primaryAction()"
-                    variant="primary"
-                    :context="context"
-                    data-test="modal-primary-button"
-                    :disabled="primaryDisableCondition"
-                >
-                    {{ primaryButtonText }}
-                </LButton>
-                <LButton
-                    @click="secondaryAction()"
-                    variant="secondary"
-                    data-test="modal-secondary-button"
-                    v-if="secondaryAction && secondaryButtonText"
-                >
-                    {{ secondaryButtonText }}
-                </LButton>
-            </div>
+                <div class="flex gap-2">
+                    <LButton
+                        @click="primaryAction()"
+                        variant="primary"
+                        :context="context"
+                        :disabled="primaryButtonDisabled"
+                        data-test="modal-primary-button"
+                    >
+                        {{ primaryButtonText }}
+                    </LButton>
+                    <LButton
+                        @click="secondaryAction()"
+                        variant="secondary"
+                        data-test="modal-secondary-button"
+                        v-if="secondaryAction && secondaryButtonText"
+                    >
+                        {{ secondaryButtonText }}
+                    </LButton>
+                </div>
             </div>
         </template>
     </LModal>

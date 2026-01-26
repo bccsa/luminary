@@ -1,22 +1,15 @@
 <script setup lang="ts">
 import { AclPermission, DocType, hasAnyPermission, db, type RedirectDto } from "luminary-shared";
 import BasePage from "../BasePage.vue";
-import RedirectTable from "./RedirectTable.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { computed, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
-type Props = {
-    redirectDoc: RedirectDto;
-};
-const props = defineProps<Props>();
-
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isNewModalVisible = ref(false);
 const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
-const isEditModalVisible = ref(false);
 </script>
 
 <template>
@@ -35,19 +28,17 @@ const isEditModalVisible = ref(false);
             </div>
         </template>
 
-        <RedirectTable />
         <RedirectDisplaycard
             v-for="redirect in redirects"
             :key="redirect._id"
             :redirectDoc="redirect"
-            v-model="isEditModalVisible"
         />
 
         <CreateOrEditRedirectModal
-            v-if="isNewModalVisible || isEditModalVisible"
-            :isVisible="isNewModalVisible || isEditModalVisible"
-            :redirect="isEditModalVisible ? undefined : redirectDoc"
-            @close="isNewModalVisible = false; isEditModalVisible= false"
+            v-if="isNewModalVisible"
+            :isVisible="isNewModalVisible"
+            :redirect="undefined"
+            @close="isNewModalVisible = false"
         />
     </BasePage>
 </template>

@@ -4,6 +4,7 @@ import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
 import { db, DocType, AclPermission, verifyAccess, type RedirectDto, type GroupDto } from "luminary-shared";
 import { computed, ref } from "vue";
+import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 type Props = {
     redirectDoc: RedirectDto
@@ -11,11 +12,10 @@ type Props = {
 
 const props = defineProps<Props>();
 const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
-
-const showEditModal = defineModel<boolean>();
+const isModalVisible = ref(false);
 
 function editModalVisible() {
-    showEditModal.value = true;
+    isModalVisible.value = true;
 }
 
 const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
@@ -41,7 +41,7 @@ const redirectGroups = computed(() => availableGroups.value?.filter(g => props.r
                         </span>
                     </div>
 
-                </div>
+            </div>
         </template>
 
         <template #topRightContent>
@@ -88,4 +88,11 @@ const redirectGroups = computed(() => availableGroups.value?.filter(g => props.r
             </template>
 
     </DisplayCard>
+
+    <CreateOrEditRedirectModal
+        v-if="isModalVisible"
+        :isVisible="isModalVisible"
+        :redirect="redirectDoc"
+        @close="isModalVisible = false"
+    />
 </template>
