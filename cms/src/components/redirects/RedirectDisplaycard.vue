@@ -3,7 +3,7 @@ import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
 import { db, DocType, AclPermission, verifyAccess, type RedirectDto, type GroupDto } from "luminary-shared";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 type Props = {
     redirectDoc: RedirectDto
@@ -11,6 +11,12 @@ type Props = {
 
 const props = defineProps<Props>();
 const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
+
+const showEditModal = defineModel<boolean>();
+
+function editModalVisible() {
+    showEditModal.value = true;
+}
 
 const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 const redirectGroups = computed(() => availableGroups.value?.filter(g => props.redirectDoc.memberOf.includes(g._id) && verifyAccess([g._id], DocType.Group, AclPermission.View, "any")));
@@ -22,6 +28,7 @@ const redirectGroups = computed(() => availableGroups.value?.filter(g => props.r
     <DisplayCard
         :title="redirectDoc.slug"
         :updated-time-utc="redirectDoc.updatedTimeUtc"
+        @click="editModalVisible"
         class="mb-1"
     >
 
