@@ -77,7 +77,7 @@ const handleClick = () => {
         </div>
 
         <!-- Mobile top badges slot -->
-        <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
+        <div v-if="isSmallScreen && $slots.mobileTopBadges" class="flex flex-wrap gap-1 py-1">
             <slot name="mobileTopBadges" />
         </div>
 
