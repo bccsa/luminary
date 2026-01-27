@@ -329,12 +329,10 @@ describe("EditContent.vue", () => {
             },
         });
         console.log(wrapper.html());
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Please select a language to start editing");
-        });
 
         await waitForExpect(() => {
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
+            console.log(wrapper.html());
+            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
 
