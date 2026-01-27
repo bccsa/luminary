@@ -186,9 +186,10 @@ const getVolumeFromEvent = (e: MouseEvent | TouchEvent) => {
     if (!volumeSliderRef.value) return 0;
 
     const rect = volumeSliderRef.value.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clickX = clientX - rect.left;
-    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const clickY = clientY - rect.top;
+    // Invert the percentage for vertical slider (top = 100%, bottom = 0%)
+    const percentage = Math.max(0, Math.min(1, 1 - clickY / rect.height));
     return percentage;
 };
 
@@ -944,7 +945,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player fixed bottom-20 left-0 right-0 z-50 flex max-h-[80vh] w-full flex-col justify-items-end overflow-auto bg-amber-50 shadow-2xl shadow-black/20 scrollbar-hide dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                class="expanded-player fixed bottom-[70px] left-0 right-0 z-50 flex max-h-[80vh] w-full flex-col justify-items-end overflow-auto bg-amber-50 shadow-2xl shadow-black/20 scrollbar-hide dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
@@ -1227,34 +1228,35 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                         </span>
                                     </button>
 
-                                    <!-- Volume slider (expanded controls) -->
+                                    <!-- Volume slider (expanded controls) - Vertical -->
                                     <div
                                         v-if="showVolumeSlider"
-                                        class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform items-center space-x-3 rounded-lg bg-white p-3 shadow-lg dark:bg-slate-700"
+                                        class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
                                     >
-                                        <!-- Volume down button -->
+                                        <!-- Volume up button (top) -->
                                         <button
-                                            @click="changeVolume(-0.1)"
-                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                                            title="Volume down"
-                                            aria-label="Decrease volume"
+                                            @click="changeVolume(0.1)"
+                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            title="Volume up"
+                                            aria-label="Increase volume"
                                         >
-                                            <MinusIcon class="h-5 w-5 text-zinc-500" />
+                                            <PlusIcon class="h-4 w-4 text-zinc-500" />
                                         </button>
 
-                                        <!-- Volume slider -->
+                                        <!-- Vertical volume slider -->
                                         <div
-                                            class="relative flex h-6 w-32 touch-manipulation items-center"
+                                            class="relative flex h-20 w-6 touch-manipulation items-center justify-center"
                                             @mousedown="startVolumeSliding"
                                             @touchstart="startVolumeSliding"
                                         >
                                             <div
-                                                class="relative h-2 w-full cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
                                             >
+                                                <!-- Fill from bottom to current volume -->
                                                 <div
-                                                    class="absolute h-full rounded-full bg-yellow-500 transition-all duration-75"
+                                                    class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
                                                     :style="{
-                                                        width:
+                                                        height:
                                                             (isVolumeSliding
                                                                 ? volumeSlideValue
                                                                 : volume) *
@@ -1264,42 +1266,42 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                                 ></div>
                                                 <!-- Thumb handle for better touch feedback -->
                                                 <div
-                                                    class="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                                    class="absolute left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
                                                     :style="{
-                                                        left:
+                                                        bottom:
                                                             (isVolumeSliding
                                                                 ? volumeSlideValue
                                                                 : volume) *
                                                                 100 +
                                                             '%',
-                                                        transform: 'translate(-50%, -50%)',
+                                                        transform: 'translate(-50%, 50%)',
                                                     }"
                                                 ></div>
                                             </div>
                                         </div>
 
-                                        <!-- Volume up button -->
+                                        <!-- Volume down button (bottom) -->
                                         <button
-                                            @click="changeVolume(0.1)"
-                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                                            title="Volume up"
-                                            aria-label="Increase volume"
+                                            @click="changeVolume(-0.1)"
+                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            title="Volume down"
+                                            aria-label="Decrease volume"
                                         >
-                                            <PlusIcon class="h-5 w-5 text-zinc-500" />
+                                            <MinusIcon class="h-4 w-4 text-zinc-500" />
                                         </button>
 
                                         <!-- Mute toggle -->
                                         <button
                                             @click="toggleMute"
-                                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             :title="isMuted ? 'Unmute' : 'Mute'"
                                             aria-label="Toggle mute"
                                         >
                                             <SpeakerXMarkIcon
                                                 v-if="isMuted"
-                                                class="h-5 w-5 text-red-500"
+                                                class="h-4 w-4 text-red-500"
                                             />
-                                            <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
+                                            <SpeakerWaveIcon v-else class="h-4 w-4 text-zinc-500" />
                                         </button>
                                     </div>
                                 </div>
@@ -1375,7 +1377,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="fixed bottom-[78px] left-0 right-0 z-50 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 shadow-lg dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg"
+            class="fixed bottom-[70px] left-0 right-0 z-50 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 shadow-lg dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
@@ -1428,59 +1430,61 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <SpeakerWaveIcon v-else class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
                     </button>
 
-                    <!-- Mini volume slider for minimal player -->
+                    <!-- Mini volume slider for minimal player - Vertical -->
                     <div
                         v-if="showVolumeSlider"
-                        class="absolute bottom-full right-0 mb-2 flex items-center space-x-3 rounded-lg bg-white p-3 shadow-lg dark:bg-slate-700"
+                        class="absolute bottom-full right-0 mb-2 flex flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
                     >
+                        <span class="text-center text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {{ Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100) }}%
+                        </span>
+
                         <button
-                            @click.stop="changeVolume(-0.1)"
-                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                            aria-label="Decrease volume"
+                            @click.stop="changeVolume(0.1)"
+                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            aria-label="Increase volume"
                         >
-                            <MinusIcon class="h-5 w-5 text-zinc-500" />
+                            <PlusIcon class="h-4 w-4 text-zinc-500" />
                         </button>
 
+                        <!-- Vertical volume slider -->
                         <div
-                            class="relative flex h-6 w-28 touch-manipulation items-center"
+                            class="relative flex h-20 w-6 touch-manipulation items-center justify-center"
                             @mousedown="startVolumeSliding"
                             @touchstart="startVolumeSliding"
                         >
                             <div
-                                class="relative h-2 w-full cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
                             >
+                                <!-- Fill from bottom to current volume -->
                                 <div
-                                    class="absolute h-full rounded-full bg-yellow-500 transition-all duration-75"
+                                    class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
                                     :style="{
-                                        width:
+                                        height:
                                             (isVolumeSliding ? volumeSlideValue : volume) * 100 +
                                             '%',
                                     }"
                                 ></div>
                                 <!-- Thumb handle for better touch feedback -->
                                 <div
-                                    class="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                    class="absolute left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
                                     :style="{
-                                        left:
+                                        bottom:
                                             (isVolumeSliding ? volumeSlideValue : volume) * 100 +
                                             '%',
-                                        transform: 'translate(-50%, -50%)',
+                                        transform: 'translate(-50%, 50%)',
                                     }"
                                 ></div>
                             </div>
                         </div>
 
                         <button
-                            @click.stop="changeVolume(0.1)"
-                            class="touch-manipulation flex h-10 w-10 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                            aria-label="Increase volume"
+                            @click.stop="changeVolume(-0.1)"
+                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            aria-label="Decrease volume"
                         >
-                            <PlusIcon class="h-5 w-5 text-zinc-500" />
+                            <MinusIcon class="h-4 w-4 text-zinc-500" />
                         </button>
-
-                        <span class="min-w-[3rem] text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                            {{ Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100) }}%
-                        </span>
                     </div>
                 </div>
 
