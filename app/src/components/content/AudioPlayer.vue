@@ -1553,14 +1553,14 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 <span class="text-zinc-600 dark:text-zinc-400">Skip ±30s</span>
                                 <code
                                     class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                                    >Ctrl + ←→</code
+                                    >Ctrl/Cmd + ← →</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-zinc-600 dark:text-zinc-400">Skip ±5s</span>
                                 <code
                                     class="inline-flex w-fit items-center justify-center rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                                    >Shift + ←→</code
+                                    >Shift + ← →</code
                                 >
                             </div>
                             <div class="flex flex-col gap-1">
