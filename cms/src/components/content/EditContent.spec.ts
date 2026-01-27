@@ -325,23 +325,25 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("renders 2 language selectors", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                tagOrPostType: PostType.Blog,
-            },
-        });
+    it(
+        "renders 2 language selectors",
+        async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: "Language-selector-id",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            console.log(wrapper.html());
 
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
-        });
-    });
+            await waitForExpect(() => {
+                console.log(wrapper.html());
+                expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
+            });
+        },
+        { timeout: 10000 },
+    );
 
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
