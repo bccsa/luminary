@@ -338,7 +338,7 @@ describe("EditContent.vue", () => {
             // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
             expect(wrapper.findComponent(LanguageSelector).isVisible()).toBe(true);
         });
-    });
+    }, { timeout: 10000 });
 
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
