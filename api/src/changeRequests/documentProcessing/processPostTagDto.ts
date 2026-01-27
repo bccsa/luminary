@@ -60,7 +60,7 @@ export default async function processPostTagDto(
 
     // Process image uploads
     if (doc.imageData) {
-        const imageWarnings: string[] = [];
+        let imageWarnings: string[] = [];
 
         if (!doc.imageBucketId) {
             imageWarnings.push("Bucket is not specified for image processing.");
