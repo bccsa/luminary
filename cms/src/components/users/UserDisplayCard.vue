@@ -4,7 +4,7 @@ import { db, type UserDto, type GroupDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
-import { ref, watch } from "vue";
+import { computed } from "vue";
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 type Props = {
@@ -14,7 +14,6 @@ const props = defineProps<Props>();
 const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
 
 const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
-const userGroups = ref<GroupDto[]>([]);
 
 const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();
@@ -27,8 +26,8 @@ function editModalVisible () {
     emit("edit", props.usersDoc._id);
 }
 
-watch(groups, (newGroups) => {
-    userGroups.value = newGroups.filter((g) => props.usersDoc.memberOf.includes(g._id));
+const userGroups = computed(() => {
+    return groups.value?.filter((g) => props.usersDoc.memberOf.includes(g._id)) || [];
 });
 </script>
 
@@ -64,7 +63,7 @@ watch(groups, (newGroups) => {
                             }}
                         </span>
                 </div>
-                <div v-else class="text-xs text-zinc-400">Has not logged in yet</div>
+                <div v-else class="text-xs text-zinc-400 whitespace-nowrap">Has not logged in yet</div>
                 </div>
             </template>
             <template #content>

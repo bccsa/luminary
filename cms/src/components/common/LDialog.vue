@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import LModal from "../modals/LModal.vue";
 
@@ -25,18 +24,6 @@ withDefaults(defineProps<Props>(), {
 
 <template>
     <LModal v-model:isVisible="open" :heading="title" :noDivider="noDivider">
-        <template #header>
-            <div class="flex items-center">
-                <div
-                    v-if="context === 'danger'"
-                    class="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-100"
-                >
-                    <ExclamationTriangleIcon class="h-5 w-5 text-red-600" aria-hidden="true" />
-                </div>
-                <h3 class="text-lg font-medium leading-6 text-gray-900">{{ title }}</h3>
-            </div>
-        </template>
-
         <p class="text-sm text-gray-500">{{ description }}</p>
         <slot name="default" />
 

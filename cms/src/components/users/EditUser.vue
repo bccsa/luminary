@@ -168,8 +168,8 @@ const save = async () => {
     <LDialog
         :open="isVisible"
         @update:open="(val) => !val && emit('close')"
-        :title="!isNew ? `Edit User: ${editable.name}` : 'Create New User'"
-        @close="emit('close')"
+        :title="!isNew ? `Edit User` : 'Create New User'"
+        @close.stop="emit('close')"
         :primaryAction="() => {save(), emit('close')}"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryDisableCondition="!isDirty || !hasGroupsSelected || !isEmailFilled || !isNameFilled"
@@ -183,7 +183,7 @@ const save = async () => {
             <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2">No groups selected</LBadge>
             <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
         </div>
-        <LCard class="!border-0">
+        <LCard class="!border-0 !p-0">
                 <LInput
                     label="Name"
                     name="userName"
