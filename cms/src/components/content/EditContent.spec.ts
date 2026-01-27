@@ -329,18 +329,16 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "Language-selector-id",
+                id: mockData.mockPostDto._id,
                 tagOrPostType: PostType.Blog,
             },
         });
-        console.log(wrapper.html());
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
         });
 
         await waitForExpect(() => {
-            console.log(wrapper.html());
             expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
