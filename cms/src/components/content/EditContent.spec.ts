@@ -330,6 +330,10 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
+            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
+        });
+
+        await waitForExpect(() => {
             expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
