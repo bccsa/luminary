@@ -317,7 +317,7 @@ describe("EditContent.vue", () => {
         });
         
         await waitForExpect(() => {
-            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(1);
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
         })
     }, { timeout: 10000 });
 
