@@ -328,16 +328,14 @@ describe("EditContent.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
-
+        
         await waitForExpect(() => {
-            // Check for language selector in EmptyState (when no content is selected)
-            expect(wrapper.find('[data-test="language-selector"]').isVisible()).toBe(true);
+            expect(wrapper.html()).toContain("Please select a language to start editing");
         });
-
+        
         await waitForExpect(() => {
-            // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
-            expect(wrapper.findComponent(LanguageSelector).isVisible()).toBe(true);
-        });
+            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
+        })
     }, { timeout: 10000 });
 
     it("renders an initial loading state", async () => {
