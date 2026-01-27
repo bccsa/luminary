@@ -36,10 +36,16 @@ class SocketIO {
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
+            // Always request fresh config/access map on connect; stay offline until server responds
+            isConnected.value = false;
             this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
         });
 
         this.socket.on("disconnect", () => {
+            isConnected.value = false;
+        });
+
+        this.socket.on("connect_error", () => {
             isConnected.value = false;
         });
 
