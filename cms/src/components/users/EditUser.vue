@@ -166,10 +166,9 @@ const save = async () => {
 
 <template>
     <LDialog
-        :isVisible="isVisible"
+        :open="isVisible"
+        @update:open="(val) => !val && emit('close')"
         :title="!isNew ? `Edit User: ${editable.name}` : 'Create New User'"
-        :closeOnEsc="true"
-        :closeOnClickOutside="true"
         @close="emit('close')"
         :primaryAction="() => {save(), emit('close')}"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
@@ -246,7 +245,7 @@ const save = async () => {
             v-if="isDirty && !isNew"
             @click="revertChanges"
             :icon="ArrowUturnLeftIcon"
-            class="ml-5"
+            class="ml-1"
         >
             Revert
         </LButton>
