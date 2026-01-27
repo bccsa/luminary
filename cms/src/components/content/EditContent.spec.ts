@@ -324,7 +324,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "Language-selector-id",
+                id: mockData.mockPostDto._id,
                 tagOrPostType: PostType.Blog,
             },
         });
