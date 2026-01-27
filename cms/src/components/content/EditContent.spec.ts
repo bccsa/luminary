@@ -324,14 +324,12 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "new",
+                id: "Language-selector-id",
                 tagOrPostType: PostType.Blog,
             },
         });
-        console.log(wrapper.html());
 
         await waitForExpect(() => {
-            console.log(wrapper.html());
             expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
