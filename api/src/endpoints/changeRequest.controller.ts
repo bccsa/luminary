@@ -6,8 +6,6 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
-import { MediaType } from "../enums";
-import { detectFileType } from "../util/fileTypeDetection";
 
 @Controller("changerequest")
 export class ChangeRequestController {
