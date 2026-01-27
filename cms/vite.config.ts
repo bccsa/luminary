@@ -14,6 +14,7 @@ export default defineConfig({
     server: {
         port: 4175,
         strictPort: true,
+        host: '0.0.0.0',
     },
     build: {
         sourcemap: true,

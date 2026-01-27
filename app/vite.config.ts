@@ -60,6 +60,7 @@ export default defineConfig({
     server: {
         port: 4174,
         strictPort: true,
+        host: '0.0.0.0',
     },
     build: {
         target: "es2015",

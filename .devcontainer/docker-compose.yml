@@ -73,6 +73,8 @@ services:
         required: false
     working_dir: /workspace/shared
     command: sleep infinity
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Creates required CouchDB system databases and app database
   couchdb-init:
@@ -172,6 +174,8 @@ services:
         condition: service_started
       shared-build:
         condition: service_completed_successfully
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   cms:
     container_name: luminary-cms
@@ -198,6 +202,8 @@ services:
         condition: service_started
       shared-build:
         condition: service_completed_successfully
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   couchdb_data:
