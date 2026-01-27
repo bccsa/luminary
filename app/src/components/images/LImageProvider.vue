@@ -197,6 +197,7 @@ const srcset2 = computed(() => {
 
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
+const modalImageError = ref(false);
 
 const showImageElement1 = computed(
     () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
@@ -278,16 +279,17 @@ watch(
 <template>
     <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="isModal && modalSrc"
+        v-if="isModal && modalSrc && !modalImageError"
         :src="modalSrc"
         :srcset="modalSrcset || undefined"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
         data-test="image-element1"
+        @error="modalImageError = true"
     />
     <img
-        v-else-if="isModal && !modalSrc && fallbackImageUrl"
+        v-else-if="isModal && fallbackImageUrl"
         :src="fallbackImageUrl"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"

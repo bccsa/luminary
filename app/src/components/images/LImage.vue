@@ -78,6 +78,7 @@ onMounted(() => {
                 :size="props.size"
                 :is-modal="props.isModal"
                 :bucketPublicUrl="bucketBaseUrl"
+                :key="props.image ? JSON.stringify(props.image) : 'empty'"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
@@ -94,6 +95,7 @@ onMounted(() => {
             :size="props.size"
             :is-modal="props.isModal"
             :bucketPublicUrl="bucketBaseUrl"
+            :key="props.image ? JSON.stringify(props.image) : 'empty'"
         />
 
         <slot></slot>
