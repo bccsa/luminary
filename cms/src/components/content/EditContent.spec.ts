@@ -328,15 +328,15 @@ describe("EditContent.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
-
+        console.log(wrapper.html());
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Please select a language to start editing");
         });
-        
+
         await waitForExpect(() => {
             expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
-        })
-    }, { timeout: 10000 });
+        });
+    });
 
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
