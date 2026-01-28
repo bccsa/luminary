@@ -112,7 +112,7 @@ describe("validateChangeRequest", () => {
                     },
                     {
                         type: "language",
-                        groupId: 42, // Intentionally wrong value
+                        groupId: ["not", "a", "string"], // Array instead of string - will fail @IsString()
                         permission: ["view"],
                     },
                 ],
