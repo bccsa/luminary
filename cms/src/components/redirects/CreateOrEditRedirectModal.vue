@@ -15,12 +15,14 @@ import {
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import _ from "lodash";
-import { CheckCircleIcon, ExclamationCircleIcon, ArrowUturnLeftIcon} from "@heroicons/vue/20/solid";
+import {
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+    ArrowUturnLeftIcon,
+} from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 import { Slug } from "@/util/slug";
-import {
-    TrashIcon,
-} from "@heroicons/vue/24/solid";
+import { TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 
@@ -108,7 +110,7 @@ const isTemporary = computed(() => {
 const redirectQuery = ref<ApiSearchQuery>({
     types: [DocType.Redirect],
     docId: props.redirect ? props.redirect._id : undefined,
-    });
+});
 const apiLiveQuery = new ApiLiveQuery<RedirectDto>(redirectQuery);
 const original = apiLiveQuery.toRef();
 
@@ -192,70 +194,75 @@ const deleteRedirect = () => {
         :isVisible="isVisible"
         :title="!isNew ? 'Edit redirect' : 'Create new redirect'"
         @close="emit('close')"
-        :primaryAction="() => {save(), emit('close')}"
+        :primaryAction="
+            () => {
+                save(), emit('close');
+            }
+        "
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="!canSave"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="cancel"
-        noDivider
     >
         <div class="mb-2 flex flex-col items-center">
-                <div class="mb-1 flex w-full gap-1">
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? CheckCircleIcon : undefined"
-                        @click="editable.redirectType = RedirectType.Temporary"
-                        >Temporary
-                    </LButton>
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? undefined : CheckCircleIcon"
-                        @click="editable.redirectType = RedirectType.Permanent"
-                    >
-                        Permanent
-                    </LButton>
-                </div>
-                <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
+            <div class="mb-1 flex w-full gap-1">
+                <LButton
+                    class="w-1/2"
+                    :icon="isTemporary ? CheckCircleIcon : undefined"
+                    @click="editable.redirectType = RedirectType.Temporary"
+                    >Temporary
+                </LButton>
+                <LButton
+                    class="w-1/2"
+                    :icon="isTemporary ? undefined : CheckCircleIcon"
+                    @click="editable.redirectType = RedirectType.Permanent"
+                >
+                    Permanent
+                </LButton>
+            </div>
+            <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
         </div>
 
         <div class="relative">
-                <LInput
-                    label="From *"
-                    name="RedirectFromSlug"
-                    v-model="editable.slug"
-                    class="mb-4 w-full"
-                    placeholder="The slug that will be redirected from.."
-                    @change="editable.slug = validateSlug(editable.slug) || ''"
-                />
-                <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
-                    ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a
-                    redirect</span
-                >
-            </div>
-
             <LInput
-                label="To"
-                name="RedirectToSlug"
-                v-model="editable.toSlug"
+                label="From *"
+                name="RedirectFromSlug"
+                v-model="editable.slug"
                 class="mb-4 w-full"
-                placeholder="The slug that will be redirected to..."
-                @change="editable.toSlug = validateSlug(editable.toSlug)"
+                placeholder="The slug that will be redirected from.."
+                @change="editable.slug = validateSlug(editable.slug) || ''"
             />
+            <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
+                ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a redirect</span
+            >
+        </div>
 
-            <LCombobox
-                label="`Group Membership`"
-                :options="groups.map((group: GroupDto) => ({
+        <LInput
+            label="To"
+            name="RedirectToSlug"
+            v-model="editable.toSlug"
+            class="mb-4 w-full"
+            placeholder="The slug that will be redirected to..."
+            @change="editable.toSlug = validateSlug(editable.toSlug)"
+        />
+
+        <LCombobox
+            label="Group Membership"
+            :options="
+                groups.map((group: GroupDto) => ({
                     id: group._id,
                     label: group.name,
                     value: group._id,
-                }))"
-                :selectedOptions="editable.memberOf"
-                placeholder="Select groups that can access this redirect"
-                class="mb-4 w-full"
-                :showIcon="true"
-                :disabled="false"
-            />
-            <template #footer-extra>
+                }))
+            "
+            :selectedOptions="editable.memberOf"
+            placeholder="Select groups that can access this redirect"
+            class="w-full"
+            :showIcon="true"
+            :disabled="false"
+        />
+        <template #footer-left>
+            <div class="flex gap-1">
                 <LButton
                     v-if="!isNew"
                     variant="secondary"
@@ -273,11 +280,11 @@ const deleteRedirect = () => {
                     v-if="isDirty && !isNew"
                     @click="revertChanges"
                     :icon="ArrowUturnLeftIcon"
-                    class="ml-5"
                 >
-            Revert
-        </LButton>
-    </template>
+                    Revert
+                </LButton>
+            </div>
+        </template>
     </LDialog>
 
     <LDialog

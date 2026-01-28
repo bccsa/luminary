@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title">
+    <LModal v-model:isVisible="open" :heading="title" :noDivider="true">
         <template #header>
             <div class="flex items-center">
                 <div
@@ -39,9 +39,9 @@ withDefaults(defineProps<Props>(), {
         <slot />
 
         <template #footer>
-            <div class="flex justify-between items-center">
+            <div class="flex items-center justify-between">
                 <div>
-                    <slot name="footer-extra" />
+                    <slot name="footer-left" />
                 </div>
                 <div class="flex gap-2">
                     <LButton
