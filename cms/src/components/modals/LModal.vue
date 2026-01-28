@@ -19,7 +19,6 @@ watch(modalRef, (el) => {
         el.focus();
     }
 });
-
 </script>
 
 <template>
@@ -36,7 +35,7 @@ watch(modalRef, (el) => {
                 ref="modalRef"
                 class="relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none"
             >
-                <h2 class="mb-4 text-lg font-semibold px-1">{{ heading }}</h2>
+                <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
                 <div :class="noDivider ? '' : 'divide-y divide-zinc-200'">
                     <slot />
                 </div>

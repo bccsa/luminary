@@ -8,7 +8,7 @@ import LButton from "../button/LButton.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
-const isNewModalVisible = ref(false);
+const isCreateOrEditModalVisible = ref(false);
 const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
 </script>
 
@@ -20,7 +20,7 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
                     v-if="canCreateNew"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="isNewModalVisible = true"
+                    @click="isCreateOrEditModalVisible = true"
                     name="createLanguageBtn"
                 >
                     Create redirect
@@ -35,10 +35,9 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
         />
 
         <CreateOrEditRedirectModal
-            v-if="isNewModalVisible"
-            :isVisible="isNewModalVisible"
-            :redirect="undefined"
-            @close="isNewModalVisible = false"
+            v-if="isCreateOrEditModalVisible"
+            :isVisible="isCreateOrEditModalVisible"
+            @close="isCreateOrEditModalVisible = false"
         />
     </BasePage>
 </template>

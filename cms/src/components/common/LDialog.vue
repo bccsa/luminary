@@ -29,7 +29,7 @@ withDefaults(defineProps<Props>(), {
         <template #footer>
             <div class="flex items-center justify-between">
                 <div>
-                    <slot name="footer-extra" />
+                    <slot name="footer-left" />
                 </div>
                 <div class="flex gap-2">
                     <LButton
