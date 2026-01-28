@@ -42,7 +42,6 @@ export async function validateChangeRequest(
     dbService: DbService,
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, {
-        excludeExtraneousValues: true,
         enableImplicitConversion: true,
     });
 
@@ -79,7 +78,6 @@ export async function validateChangeRequest(
 
     // Check included document validity
     const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
-        excludeExtraneousValues: true,
         enableImplicitConversion: true,
     });
     message = `Submitted ${changeRequest.doc.type} document validation failed for the following constraints:\n`;
