@@ -234,7 +234,9 @@ export async function validateChangeRequestAccess(
                 error: "Language document not found",
             };
         }
-        const language = plainToInstance(LanguageDto, dbLangDoc.docs[0]);
+        const language = plainToInstance(LanguageDto, dbLangDoc.docs[0], {
+            enableImplicitConversion: true,
+        });
 
         if (
             !PermissionSystem.verifyAccess(
