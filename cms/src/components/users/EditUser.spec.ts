@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import CreateOrEditUser from "./CreateOrEditUser.vue";
+import LDialog from "../common/LDialog.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -132,7 +133,9 @@ describe("CreateOrEditUser.vue", () => {
             expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.find('[data-test="save-button"]');
+        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        expect(saveButton.exists()).toBe(true);
+        
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
@@ -175,7 +178,8 @@ describe("CreateOrEditUser.vue", () => {
             expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.find('[data-test="save-button"]');
+        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        expect(saveButton.exists()).toBe(true);
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
