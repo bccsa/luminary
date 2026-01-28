@@ -11,19 +11,17 @@ type Props = {
     secondaryButtonText?: string;
     primaryDisableCondition?: boolean;
     context?: "default" | "danger";
-    noDivider?: boolean;
 };
 
 const open = defineModel<boolean>("open");
 
 withDefaults(defineProps<Props>(), {
     context: "default",
-    noDivider: false,
 });
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title" :noDivider="noDivider">
+    <LModal v-model:isVisible="open" :heading="title" :noDivider="true">
         <p class="text-sm text-gray-500">{{ description }}</p>
         <slot name="default" />
 

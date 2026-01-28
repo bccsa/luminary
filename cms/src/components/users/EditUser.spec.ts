@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
-import EditUser from "./EditUser.vue";
+import CreateOrEditUser from "./CreateOrEditUser.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -68,7 +68,7 @@ app.listen(port, () => {
     console.log(`Mock api running on port ${port}.`);
 });
 
-describe("EditUser.vue", () => {
+describe("CreateOrEditUser.vue", () => {
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
         initConfig({
@@ -98,7 +98,7 @@ describe("EditUser.vue", () => {
     });
 
     it("should display the passed user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
                 isVisible: true,
@@ -118,7 +118,7 @@ describe("EditUser.vue", () => {
     });
 
     it("should update and save the current user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
                 isVisible: true,
@@ -161,7 +161,7 @@ describe("EditUser.vue", () => {
     });
 
     it("can not update the user if no group is selected", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
                 isVisible: true,
@@ -202,7 +202,7 @@ describe("EditUser.vue", () => {
     });
 
     it("can delete a user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
                 isVisible: true,

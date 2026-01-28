@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import UserOverview from "./UserOverview.vue";
-import EditUser from "./EditUser.vue";
+import CreateOrEditUser from "./CreateOrEditUser.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
@@ -117,7 +117,7 @@ describe("UserOverview", () => {
 
         await wrapper.find('[name="createUserBtn"]').trigger("click");
 
-        const editUserComp = wrapper.findComponent(EditUser)
+        const editUserComp = wrapper.findComponent(CreateOrEditUser);
 
         await waitForExpect(() => {
             expect(editUserComp.exists()).toBe(true);

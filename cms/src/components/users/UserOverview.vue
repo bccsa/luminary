@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import UserDisplayCard from "@/components/users/UserDisplayCard.vue";
-import EditUser from "@/components/users/EditUser.vue";
+import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
 import UserFilterOptions, { type UserOverviewQueryOptions } from "@/components/users/UserFilterOptions.vue";
 import LPaginator from "@/components/common/LPaginator.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
@@ -116,7 +116,7 @@ const totalUsers = ref(0);
             v-model="isEditUserModalVisible" 
             @edit="(id) => selectedUserId = id"
         />
-        <EditUser v-if="isEditUserModalVisible || isNewUserModalVisible"
+        <CreateOrEditUser v-if="isEditUserModalVisible || isNewUserModalVisible"
                   :isVisible="isEditUserModalVisible || isNewUserModalVisible"
                   :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
                   @close="isEditUserModalVisible = false; isNewUserModalVisible = false"

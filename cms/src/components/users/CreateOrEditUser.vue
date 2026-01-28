@@ -162,6 +162,10 @@ const save = async () => {
         });
     }
 };
+
+const isSaveButtonDisabled = computed(() => {
+    return !isDirty.value || !hasGroupsSelected.value || !isEmailFilled.value || !isNameFilled.value;
+});
 </script>
 
 <template>
@@ -172,10 +176,9 @@ const save = async () => {
         @close.stop="emit('close')"
         :primaryAction="() => {save(), emit('close')}"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
-        :primaryDisableCondition="!isDirty || !hasGroupsSelected || !isEmailFilled || !isNameFilled"
+        :primaryDisableCondition="isSaveButtonDisabled"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
-        noDivider
     >
         <div class="mb-4">
             <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
