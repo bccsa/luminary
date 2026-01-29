@@ -6,10 +6,12 @@ type Props = {
     heading: string;
     adaptiveSize?: boolean;
     noPadding?: boolean;
+    noDivider?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     adaptiveSize: false,
     noPadding: false,
+    noDivider: false,
 });
 
 const isVisible = defineModel<boolean>("isVisible");
@@ -53,8 +55,8 @@ function handleMouseUp(e: MouseEvent) {
                 <h2 class="shrink-0 px-5 pb-4 pt-5 text-lg font-semibold">{{ heading }}</h2>
 
                 <div :class="contentClasses">
-                    <div class="divide-y divide-zinc-200">
-                        <slot></slot>
+                    <div :class="{ 'divide-y divide-zinc-200': !noDivider }">
+                        <slot />
                     </div>
                 </div>
 

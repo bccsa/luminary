@@ -7,8 +7,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
 import { mockRedirectDto, superAdminAccessMap } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import GroupSelector from "../groups/GroupSelector.vue";
-import LButton from "../button/LButton.vue";
+import LDialog from "../common/LDialog.vue";
 
 describe("CreateOrEditRedirectModal.vue", () => {
     beforeEach(async () => {
@@ -54,15 +53,12 @@ describe("CreateOrEditRedirectModal.vue", () => {
             await wrapper.find("[name='RedirectFromSlug']").setValue("Afrikaans");
             await wrapper.find("[name='RedirectToSlug']").setValue("afr");
 
-            let groupSelector: any;
-            await waitForExpect(() => {
-                groupSelector = wrapper.findComponent(GroupSelector);
-                expect(groupSelector.exists()).toBe(true);
-            });
+            const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+            expect(saveButton.exists()).toBe(true);
+            expect((saveButton.element as HTMLButtonElement).disabled).toBe(false);
 
-            // Assert that the save button is enabled
-            const saveButton = wrapper.findAllComponents(LButton).at(3);
-            expect(saveButton!.props("disabled")).toBe(false);
+            const dialog = wrapper.findComponent(LDialog);
+            expect(dialog.props("primaryButtonDisabled")).toBe(false);
         });
     });
 
@@ -98,8 +94,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
         await wrapper.find("[name='RedirectToSlug']").setValue("");
 
         // Assert that the save button is disabled
-        const saveButton = wrapper.findAllComponents(LButton).at(4);
-        expect(saveButton!.props("disabled")).toBe(true);
+        const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+        expect(saveButton.exists()).toBe(true);
+        expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
     });
 
     it("disables save button if no group is set", async () => {
@@ -111,8 +108,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
 
         // The default redirect modal has no groups set if no RedirectDto is passed to the modal
         // Assert that the save button is disabled
-        const saveButton = wrapper.findAllComponents(LButton).at(4);
-        expect(saveButton?.props("disabled")).toBe(true);
+        const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+        expect(saveButton.exists()).toBe(true);
+        expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
     });
 
     it("emits close event when cancel button is clicked", async () => {
@@ -122,7 +120,10 @@ describe("CreateOrEditRedirectModal.vue", () => {
             },
         });
 
-        await wrapper.find("[data-test='cancel']").trigger("click");
+        const cancelButton = wrapper.findComponent(LDialog).find("[data-test='modal-secondary-button']");
+        expect(cancelButton.exists()).toBe(true);
+
+        await cancelButton.trigger("click");
 
         // Assert the close event was emitted
         expect(wrapper.emitted().close).toBeTruthy();
@@ -143,16 +144,17 @@ describe("CreateOrEditRedirectModal.vue", () => {
         });
         await deleteButton!.trigger("click"); // Press Delete button
 
-        let modalButton;
-        await waitForExpect(async () => {
-            modalButton = wrapper.find('[data-test="modal-primary-button"]');
-            expect(modalButton.exists()).toBe(true);
-        });
-        await modalButton!.trigger("click"); // Accept dialog
+        const dialogs = wrapper.findAllComponents(LDialog);
+        const confirmationDialog = dialogs[1];
+        expect(confirmationDialog.exists()).toBe(true);
+
+        const confirmDeleteButton = confirmationDialog.find('[data-test="modal-primary-button"]');
+        expect(confirmDeleteButton.exists()).toBe(true);
+
+        await confirmDeleteButton.trigger("click");
 
         await waitForExpect(async () => {
             const res = await db.docs.where({ _id: mockRedirectDto._id }).first();
-            console.log(res);
             expect(res).toBeUndefined();
         });
     });
