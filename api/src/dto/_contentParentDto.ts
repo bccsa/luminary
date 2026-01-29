@@ -3,6 +3,7 @@ import { IsArray, IsOptional, IsBoolean, IsString, ValidateNested } from "class-
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose, Type } from "class-transformer";
 import { ImageDto } from "./ImageDto";
+import { MediaDto } from "./MediaDto";
 
 /**
  * Database structured _contentParent object
@@ -27,4 +28,15 @@ export class _contentParentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     imageBucketId?: string; // S3 bucket ID for image storage
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => MediaDto)
+    @Expose()
+    media?: MediaDto;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    mediaBucketId?: string; // S3 bucket ID for media storage
 }

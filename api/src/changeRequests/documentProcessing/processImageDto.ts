@@ -24,16 +24,14 @@ const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; 
  * @param oldBucketId - The ID of the source bucket
  * @param newBucketId - The ID of the destination bucket
  * @param db - Database service to retrieve bucket configurations
- * @param s3 - S3 service for creating clients
- * @returns Array of warnings about migration status
+ * @returns Object with migration failure status and warnings
  */
-// TODO: S3Service now uses a static create() method - this function already updated to use S3Service.create()
 async function migrateImagesBetweenBuckets(
     image: ImageDto,
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-): Promise<string[]> {
+): Promise<{ failed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
     try {
@@ -46,7 +44,7 @@ async function migrateImagesBetweenBuckets(
 
         if (allFiles.length === 0) {
             warnings.push("No image files to migrate.");
-            return warnings;
+            return { failed: false, warnings };
         }
 
         const oldBucketName = oldS3Service.getBucketName();
@@ -107,18 +105,20 @@ async function migrateImagesBetweenBuckets(
                 `Failed to migrate ${failedMigrations} image file(s). These files remain in the old bucket.`,
             );
         }
+
+        // Migration is considered failed if ANY files failed to migrate
+        return { failed: failedMigrations > 0, warnings };
     } catch (error) {
         warnings.push(`Image migration failed: ${error.message}`);
+        return { failed: true, warnings };
     }
-
-    return warnings;
 }
 
 /**
  * Processes an embedded image upload by resizing the image and uploading to S3
  * Requires bucket-specific credentials configured at the post/tag level
  * Bucket ID is passed from the parent post/tag document for consistency
- * Returns warnings for any issues encountered but doesn't throw errors
+ * Returns object with migration failure status and warnings
  */
 export async function processImage(
     image: ImageDto,
@@ -126,8 +126,9 @@ export async function processImage(
     db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
-): Promise<string[]> {
+): Promise<{ migrationFailed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
+    let migrationFailed = false;
 
     try {
         // Detect bucket change and migrate images if needed
@@ -138,13 +139,14 @@ export async function processImage(
             prevParentBucketId !== parentBucketId &&
             image.fileCollections.length > 0
         ) {
-            const migrationWarnings = await migrateImagesBetweenBuckets(
+            const migrationResult = await migrateImagesBetweenBuckets(
                 image,
                 prevParentBucketId,
                 parentBucketId,
                 db,
             );
-            warnings.push(...migrationWarnings);
+            warnings.push(...migrationResult.warnings);
+            migrationFailed = migrationResult.failed;
         }
 
         if (prevImage) {
@@ -221,12 +223,12 @@ export async function processImage(
         if (image.uploadData) {
             if (!db) {
                 warnings.push("Unable to upload images - system configuration error.");
-                return warnings;
+                return { migrationFailed, warnings };
             }
 
             if (!parentBucketId) {
                 warnings.push("Parent bucket ID is required for image uploads.");
-                return warnings;
+                return { migrationFailed, warnings };
             }
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
@@ -258,7 +260,8 @@ export async function processImage(
     } catch (error) {
         warnings.push(`Image processing failed: ${error.message}`);
     }
-    return warnings;
+
+    return { migrationFailed, warnings };
 }
 
 async function processImageUpload(
