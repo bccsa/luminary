@@ -15,11 +15,14 @@ ENV PATH="/usr/local/share/npm-global/bin:${PATH}"
 ENV NPM_CONFIG_PREFIX="/usr/local/share/npm-global"
 
 # Set workspace permissions
-# RUN mkdir -p /workspace && chown node:node /workspace
 RUN mkdir -p /workspace
 
-# USER node
+# Copy dev helper script and make it available globally
+COPY .devcontainer/luminary-dev /usr/local/bin/luminary-dev
+RUN chmod +x /usr/local/bin/luminary-dev
+
 WORKDIR /workspace
 
 # Keep container alive
 CMD ["sleep", "infinity"]
+

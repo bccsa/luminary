@@ -2,31 +2,50 @@
 
 Run Luminary with Docker — works on Windows, Mac, and Linux.
 
-## Quick Start
+## Quick Start (Using Setup Wizard)
+
+The easiest way to get started is using the setup wizard inside the dev container:
+
+```bash
+# 1. Open in VS Code
+cd luminary
+code .
+
+# 2. Click "Reopen in Container" when prompted
+# Wait for container to start (~2-3 minutes first time)
+
+# 3. Run the setup wizard (in VS Code terminal inside container)
+cd .devcontainer
+node setup-wizard.js
+```
+
+**First run takes 2-3 minutes** — Docker builds containers and installs dependencies.
+
+### Access Points
+
+| Service       | URL                           | Credentials             |
+| ------------- | ----------------------------- | ----------------------- |
+| App           | http://localhost:4174         | (Auth0 login)           |
+| CMS           | http://localhost:4175         | (Auth0 login)           |
+| API           | http://localhost:3000         | -                       |
+| CouchDB Admin | http://localhost:5984/\_utils | admin / password        |
+| MinIO Console | http://localhost:9001         | minioadmin / minioadmin |
+
+---
+
+## Manual Setup (Without Wizard)
+
+If you prefer to configure manually:
 
 ```bash
 # 1. Copy environment file
 cp .devcontainer/.env.example .devcontainer/.env
 
-# 2. Fill in Auth0 values in .devcontainer/.env (see Auth0 Setup below)
+# 2. Edit .devcontainer/.env and fill in Auth0 values (see Auth0 Setup below)
 
-# 3. Start everything
+# 3. Start Docker services
 docker compose -f .devcontainer/docker-compose.yml up --build
 ```
-
-**First run takes a few minutes** — it installs dependencies and seeds the database.
-
-### Access Points
-
-| Service | URL                           |
-| ------- | ----------------------------- |
-| App     | http://localhost:4174         |
-| CMS     | http://localhost:4175         |
-| API     | http://localhost:3000         |
-| CouchDB | http://localhost:5984/\_utils |
-| MinIO   | http://localhost:9001         |
-
-> **Credentials:** CouchDB: `admin` / `password` • MinIO: `minioadmin` / `minioadmin`
 
 ---
 
@@ -38,14 +57,14 @@ You need an Auth0 account. Free tier works fine.
 
 1. Go to **Auth0 Dashboard** → **Applications** → **Create Application**
 2. Choose "Single Page Application"
-3. Note the **Client ID** and **Domain** → add to `.env`
+3. Note the **Client ID** and **Domain** → add to `.env` as `VITE_AUTH0_CLIENT_ID` and `VITE_AUTH0_DOMAIN`
 
-### 2. Get JWT Secret
+### 2. Get JWT Certificate
 
 1. Go to **Applications** → your app → **Settings**
 2. Scroll to **Advanced Settings** → **Certificates**
 3. **Download Certificate (PEM)**
-4. Copy the entire certificate content (including `BEGIN/END CERTIFICATE` lines) → add to `JWT_SECRET` in `.env`
+4. Copy the entire certificate content (including `BEGIN/END CERTIFICATE` lines) → add to `LUMINARY_JWT_CERTIFICATE` in `.env`
 
 ### 3. Configure Callback URLs
 
