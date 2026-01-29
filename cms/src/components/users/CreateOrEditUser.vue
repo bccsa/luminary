@@ -163,8 +163,10 @@ const save = async () => {
     }
 };
 
-const isSaveButtonDisabled = computed(() => {
-    return !isDirty.value || !hasGroupsSelected.value || !isEmailFilled.value || !isNameFilled.value;
+const saveDisabled = computed(() => {
+    return (
+        !isDirty.value || !hasGroupsSelected.value || !isEmailFilled.value || !isNameFilled.value
+    );
 });
 </script>
 
@@ -174,102 +176,109 @@ const isSaveButtonDisabled = computed(() => {
         @update:open="(val) => !val && emit('close')"
         :title="!isNew ? `Edit User` : 'Create New User'"
         @close.stop="emit('close')"
-        :primaryAction="() => {save(), emit('close')}"
+        :primaryAction="
+            () => {
+                save(), emit('close');
+            }
+        "
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
-        :primaryDisableCondition="isSaveButtonDisabled"
+        :primaryDisableCondition="saveDisabled"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
     >
         <div class="mb-4">
             <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
-            <LBadge v-else-if="!isConnected" variant="warning">You can not create or edit users when offline...</LBadge>
-            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2">No groups selected</LBadge>
+            <LBadge v-else-if="!isConnected" variant="warning"
+                >You can not create or edit users when offline...</LBadge
+            >
+            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
+                >No groups selected</LBadge
+            >
             <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
         </div>
         <LCard class="!border-0 !p-0">
-                <LInput
-                    label="Name"
-                    name="userName"
-                    v-model="editable.name"
-                    class="mb-4 w-full"
-                    placeholder="Enter user name"
-                    :disabled="!canEditOrCreate"
-                    data-test="userName"
-                />
+            <LInput
+                label="Name"
+                name="userName"
+                v-model="editable.name"
+                class="mb-4 w-full"
+                placeholder="Enter user name"
+                :disabled="!canEditOrCreate"
+                data-test="userName"
+            />
 
-                <LInput
-                    label="Email"
-                    name="userEmail"
-                    v-model="editable.email"
-                    class="mb-4 w-full"
-                    placeholder="Enter email"
-                    :disabled="!canEditOrCreate"
-                    data-test="userEmail"
-                />
+            <LInput
+                label="Email"
+                name="userEmail"
+                v-model="editable.email"
+                class="mb-4 w-full"
+                placeholder="Enter email"
+                :disabled="!canEditOrCreate"
+                data-test="userEmail"
+            />
 
-                <LCombobox
-                    v-model:selected-options="editable.memberOf as string[]"
-                    :label="`Group Membership`"
-                    :options="
-                        groups.map((group: GroupDto) => ({
-                            id: group._id,
-                            label: group.name,
-                            value: group._id,
-                        }))
-                    "
-                    :show-selected-in-dropdown="false"
-                    :showSelectedLabels="true"
-                    :disabled="!canEditOrCreate"
-                    data-test="groupSelector"
-                />
-            </LCard>
-    
-    <template #footer-extra>
-        <LButton
-        v-if="!isNew"
-        type="button"
-        @click="
+            <LCombobox
+                v-model:selected-options="editable.memberOf as string[]"
+                :label="`Group Membership`"
+                :options="
+                    groups.map((group: GroupDto) => ({
+                        id: group._id,
+                        label: group.name,
+                        value: group._id,
+                    }))
+                "
+                :show-selected-in-dropdown="false"
+                :showSelectedLabels="true"
+                :disabled="!canEditOrCreate"
+                data-test="groupSelector"
+            />
+        </LCard>
+
+        <template #footer-extra>
+            <LButton
+                v-if="!isNew"
+                type="button"
+                @click="
+                    () => {
+                        showDeleteModal = true;
+                    }
+                "
+                data-test="delete-button"
+                variant="secondary"
+                context="danger"
+                :icon="TrashIcon"
+                :disabled="!canDelete"
+            >
+                Delete
+            </LButton>
+
+            <LButton
+                type="button"
+                variant="secondary"
+                v-if="isDirty && !isNew"
+                @click="revertChanges"
+                :icon="ArrowUturnLeftIcon"
+                class="ml-1"
+            >
+                Revert
+            </LButton>
+        </template>
+
+        <LDialog
+            v-model:open="showDeleteModal"
+            :title="`Delete ${editable.name}?`"
+            :description="`Are you sure you want to delete this user? This action cannot be undone.`"
+            :primaryAction="
                 () => {
-                    showDeleteModal = true;
+                    showDeleteModal = false;
+                    deleteUser();
+                    emit('close');
                 }
             "
-            data-test="delete-button"
-            variant="secondary"
+            :secondaryAction="() => (showDeleteModal = false)"
+            primaryButtonText="Delete"
+            secondaryButtonText="Cancel"
             context="danger"
-            :icon="TrashIcon"
-            :disabled="!canDelete"
-            >
-            Delete
-        </LButton>
-
-        <LButton
-            type="button"
-            variant="secondary"
-            v-if="isDirty && !isNew"
-            @click="revertChanges"
-            :icon="ArrowUturnLeftIcon"
-            class="ml-1"
-        >
-            Revert
-        </LButton>
-    </template>
-
-
-    <LDialog
-        v-model:open="showDeleteModal"
-        :title="`Delete ${editable.name}?`"
-        :description="`Are you sure you want to delete this user? This action cannot be undone.`"
-        :primaryAction="
-            () => {
-                showDeleteModal = false;
-                deleteUser();
-                emit('close');
-            }
-        "
-        :secondaryAction="() => (showDeleteModal = false)"
-        primaryButtonText="Delete"
-        secondaryButtonText="Cancel"
-        context="danger"
-    />
+        />
     </LDialog>
 </template>

@@ -2,7 +2,9 @@
 import BasePage from "@/components/BasePage.vue";
 import UserDisplayCard from "@/components/users/UserDisplayCard.vue";
 import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
-import UserFilterOptions, { type UserOverviewQueryOptions } from "@/components/users/UserFilterOptions.vue";
+import UserFilterOptions, {
+    type UserOverviewQueryOptions,
+} from "@/components/users/UserFilterOptions.vue";
 import LPaginator from "@/components/common/LPaginator.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
@@ -91,7 +93,7 @@ const totalUsers = ref(0);
                 </LButton>
                 <PlusIcon
                     v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 text-zinc-500 hover:text-zinc-700 cursor-pointer hover:bg-zinc-300 bg-zinc-100 p-1 rounded"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                     @click="isNewUserModalVisible = true"
                 />
             </div>
@@ -103,23 +105,27 @@ const totalUsers = ref(0);
                 v-model:query-options="queryOptions"
             />
         </template>
-        <p class="mb-4 p-2 text-gray-500">
+        <p class="mb-2 mt-1 px-2 py-1 text-gray-500">
             Users only need to be created when they require special permissions that are not already
             automatically granted. It's possible to add multiple user objects with the same email
             address. This allows different administrators to independently assign access to the same
             individual for different groups they manage.
         </p>
-        <UserDisplayCard 
-            v-for="user in users" 
-            :key="user._id" 
-            :usersDoc="user" 
-            v-model="isEditUserModalVisible" 
-            @edit="(id) => selectedUserId = id"
+        <UserDisplayCard
+            v-for="user in users"
+            :key="user._id"
+            :usersDoc="user"
+            v-model="isEditUserModalVisible"
+            @edit="(id) => (selectedUserId = id)"
         />
-        <CreateOrEditUser v-if="isEditUserModalVisible || isNewUserModalVisible"
-                  :isVisible="isEditUserModalVisible || isNewUserModalVisible"
-                  :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
-                  @close="isEditUserModalVisible = false; isNewUserModalVisible = false"
+        <CreateOrEditUser
+            v-if="isEditUserModalVisible || isNewUserModalVisible"
+            :isVisible="isEditUserModalVisible || isNewUserModalVisible"
+            :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
+            @close="
+                isEditUserModalVisible = false;
+                isNewUserModalVisible = false;
+            "
         />
 
         <template #footer>
