@@ -187,7 +187,8 @@ const deleteRedirect = () => {
 
 <template>
     <LDialog
-        :isVisible="isVisible"
+        :open="isVisible"
+        @update:open="(val) => !val && emit('close')"
         :title="!isNew ? 'Edit redirect' : 'Create new redirect'"
         @close="emit('close')"
         :primaryAction="
@@ -257,7 +258,7 @@ const deleteRedirect = () => {
             showIcon
             :disabled="false"
         />
-        <template #footer-left>
+        <template #footer-extra>
             <div class="flex gap-1">
                 <LButton
                     v-if="!isNew"

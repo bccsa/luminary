@@ -9,7 +9,6 @@ type Props = {
     secondaryAction?: Function;
     primaryButtonText: string;
     secondaryButtonText?: string;
-    primaryDisableCondition?: boolean;
     context?: "default" | "danger";
     primaryButtonDisabled?: boolean;
 };
@@ -29,7 +28,7 @@ withDefaults(defineProps<Props>(), {
         <template #footer>
             <div class="flex items-center justify-between">
                 <div>
-                    <slot name="footer-left" />
+                    <slot name="footer-extra" />
                 </div>
                 <div class="flex gap-2">
                     <LButton
@@ -38,6 +37,7 @@ withDefaults(defineProps<Props>(), {
                         :context="context"
                         :disabled="primaryButtonDisabled"
                         data-test="modal-primary-button"
+                        class="ml-2"
                     >
                         {{ primaryButtonText }}
                     </LButton>
