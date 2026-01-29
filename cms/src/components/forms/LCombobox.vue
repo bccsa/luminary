@@ -365,6 +365,7 @@ const placementClass = computed(() => {
                         }
                     "
                     :disabled="disabled || option.isRemovable === false"
+                    data-test="selected-tag"
                 >
                     {{ option.label }}
                 </LTag>
