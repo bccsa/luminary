@@ -90,10 +90,6 @@ const save = async () => {
     emit("close");
 };
 
-const revertChanges = () => {
-    editable.value = _.cloneDeep(original.value) as RedirectDto;
-};
-
 const canSave = computed(() => {
     return (
         editable.value.slug?.trim() !== "" &&
@@ -202,7 +198,7 @@ const deleteRedirect = () => {
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="!canSave"
         :secondaryAction="() => emit('close')"
-        secondaryButtonText="cancel"
+        secondaryButtonText="Cancel"
     >
         <div class="mb-2 flex flex-col items-center">
             <div class="mb-1 flex w-full gap-1">
@@ -258,7 +254,7 @@ const deleteRedirect = () => {
             :selectedOptions="editable.memberOf"
             placeholder="Select groups that can access this redirect"
             class="w-full"
-            :showIcon="true"
+            showIcon
             :disabled="false"
         />
         <template #footer-left>
@@ -278,7 +274,11 @@ const deleteRedirect = () => {
                     type="button"
                     variant="secondary"
                     v-if="isDirty && !isNew"
-                    @click="revertChanges"
+                    @click="
+                        () => {
+                            editable = _.cloneDeep(original) as RedirectDto;
+                        }
+                    "
                     :icon="ArrowUturnLeftIcon"
                 >
                     Revert

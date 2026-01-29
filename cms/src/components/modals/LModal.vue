@@ -55,7 +55,7 @@ function handleMouseUp(e: MouseEvent) {
                 <h2 class="shrink-0 px-5 pb-4 pt-5 text-lg font-semibold">{{ heading }}</h2>
 
                 <div :class="contentClasses">
-                    <div :class="noDivider ? '' : 'divide-y divide-zinc-200'">
+                    <div :class="{ 'divide-y divide-zinc-200': !noDivider }">
                         <slot />
                     </div>
                 </div>
