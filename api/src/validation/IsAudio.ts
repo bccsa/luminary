@@ -15,7 +15,6 @@ export function IsAudio() {
                     try {
                         // Check if value exists and has data
                         if (!value || (value.byteLength !== undefined && value.byteLength === 0)) {
-                            console.error("IsAudio validation failed: Empty or null file data");
                             return false;
                         }
 
@@ -32,15 +31,10 @@ export function IsAudio() {
                         // Use robust format detection instead of hardcoded checks
                         const formatInfo = getAudioFormatInfo(metadata);
 
-                        if (!formatInfo.isValidAudio) {
-                            console.error(
-                                `IsAudio validation failed: Detected format ${formatInfo.mime} is not valid audio`,
-                            );
-                        }
-
                         return formatInfo.isValidAudio;
                     } catch (error) {
-                        console.error(`IsAudio validation failed with error: ${error.message}`);
+                        // Validation failed - return false without logging
+                        // The validation message will be shown through the decorator's message option
                         return false;
                     }
                 },
