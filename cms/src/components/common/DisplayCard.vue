@@ -64,7 +64,7 @@ const handleClick = () => {
                         {{ title }}
                     </div>
                     <div>
-                        <slot name="more-title" />
+                        <slot name="title-extension" />
                     </div>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
