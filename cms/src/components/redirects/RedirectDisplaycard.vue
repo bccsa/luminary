@@ -2,6 +2,7 @@
 import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
+import { ArrowRightIcon } from "@heroicons/vue/24/outline";
 import {
     db,
     DocType,
@@ -38,13 +39,12 @@ const redirectGroups = computed(() =>
         @click="isModalVisible = true"
         class="mb-1"
     >
-        <template #content>
-            <div class="flex justify-between pb-1">
-                <div>
-                    <span class="text-xs text-zinc-500 sm:text-sm">
-                        {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
-                    </span>
-                </div>
+        <template #more-title>
+            <div class="flex items-center gap-1">
+                <ArrowRightIcon class="size-4 text-zinc-400" />
+                <span class="text-xs text-zinc-500 sm:text-sm">
+                    {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
+                </span>
             </div>
         </template>
 

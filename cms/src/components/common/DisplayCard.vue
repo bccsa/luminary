@@ -59,8 +59,13 @@ const handleClick = () => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
-                    {{ title }}
+                <div class="flex items-center gap-0">
+                    <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                        {{ title }}
+                    </div>
+                    <div>
+                        <slot name="more-title" />
+                    </div>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
