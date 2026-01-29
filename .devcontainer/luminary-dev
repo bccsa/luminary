@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================
+# Luminary Dev Container Helper
+# Simplified automation for Docker dev environment
+# ============================================================
+
+# --- Logging ---
+info()    { echo -e "\033[1;34mℹ\033[0m $*"; }
+warn()    { echo -e "\033[1;33m⚠\033[0m $*"; }
+error()   { echo -e "\033[1;31m✗\033[0m $*" >&2; }
+success() { echo -e "\033[1;32m✓\033[0m $*"; }
+
+# --- Project root ---
+LUMINARY_ROOT="${LUMINARY_ROOT:-/workspace}"
+
+# --- Build shared library ---
+build_shared() {
+  info "Building shared library..."
+  cd "$LUMINARY_ROOT/shared"
+  npm ci
+  npm run build
+  success "Shared library built"
+}
+
+# --- Install dependencies ---
+install_deps() {
+  local project="${1:-all}"
+  
+  if [[ "$project" == "all" ]]; then
+    info "Installing all dependencies..."
+    for proj in shared app cms api; do
+      info "Installing $proj..."
+      cd "$LUMINARY_ROOT/$proj"
+      npm ci
+      [[ "$proj" == "shared" ]] && npm run build
+    done
+    success "All dependencies installed"
+  else
+    info "Installing $project dependencies..."
+    cd "$LUMINARY_ROOT/$project"
+    npm ci
+    success "$project dependencies installed"
+  fi
+}
+
+# --- Start services ---
+start_service() {
+  local service="$1"
+  
+  case "$service" in
+    api)
+      cd "$LUMINARY_ROOT/api"
+      info "Starting API on port 3000..."
+      npm run start:dev
+      ;;
+    app)
+      cd "$LUMINARY_ROOT/app"
+      info "Starting App on port 4174..."
+      npm run dev
+      ;;
+    cms)
+      cd "$LUMINARY_ROOT/cms"
+      info "Starting CMS on port 4175..."
+      npm run dev
+      ;;
+    *)
+      error "Unknown service: $service"
+      exit 1
+      ;;
+  esac
+}
+
+# --- Reset database ---
+reset_db() {
+  info "Resetting CouchDB database..."
+  
+  local db_name="${DB_DATABASE:-luminary-local}"
+  local user="${COUCHDB_USER:-admin}"
+  local pass="${COUCHDB_PASSWORD:-password}"
+  local url="http://couchdb:5984/$db_name"
+  
+  # Delete database if exists
+  if curl -s -f -u "$user:$pass" "$url" >/dev/null 2>&1; then
+    info "Deleting existing database..."
+    curl -s -X DELETE -u "$user:$pass" "$url"
+  fi
+  
+  # Create new database
+  info "Creating database..."
+  curl -s -X PUT -u "$user:$pass" "$url"
+  
+  # Seed database
+  info "Seeding database..."
+  cd "$LUMINARY_ROOT/api"
+  npm run seed
+  
+  success "Database reset complete"
+}
+
+# --- Setup git hooks ---
+setup_hooks() {
+  info "Setting up git hooks..."
+  
+  local hooks_dir="$LUMINARY_ROOT/.git/hooks"
+  mkdir -p "$hooks_dir"
+  
+  # Post-checkout hook
+  cat > "$hooks_dir/post-checkout" << 'EOF'
+#!/bin/bash
+set -euo pipefail
+
+LUMINARY_ROOT="$(git rev-parse --show-toplevel)"
+
+if git diff-tree -r HEAD@{1} HEAD --name-only 2>/dev/null | grep -q "^shared/"; then
+  echo "[INFO] Shared library changed. Rebuilding..."
+  cd "$LUMINARY_ROOT/shared"
+  npm ci > /dev/null 2>&1 && npm run build > /dev/null 2>&1 && echo "[SUCCESS] Rebuilt." || echo "[WARN] Build failed."
+fi
+EOF
+  
+  chmod +x "$hooks_dir/post-checkout"
+  success "Git hooks installed"
+}
+
+# --- Run tests ---
+run_tests() {
+  local project="${1:-all}"
+  
+  if [[ "$project" == "all" ]]; then
+    info "Running all tests..."
+    for proj in shared app cms api; do
+      info "Testing $proj..."
+      cd "$LUMINARY_ROOT/$proj"
+      npm test || warn "$proj tests failed"
+    done
+  else
+    info "Running $project tests..."
+    cd "$LUMINARY_ROOT/$project"
+    npm test
+  fi
+}
+
+# --- Status check ---
+status() {
+  info "Luminary Dev Environment Status"
+  echo ""
+  
+  # Check if services are running
+  echo "Services:"
+  pgrep -f "npm run start:dev" >/dev/null && echo "  ✓ API running" || echo "  ✗ API not running"
+  pgrep -f "app.*npm run dev" >/dev/null && echo "  ✓ App running" || echo "  ✗ App not running"
+  pgrep -f "cms.*npm run dev" >/dev/null && echo "  ✓ CMS running" || echo "  ✗ CMS not running"
+  echo ""
+  
+  # Check Docker services
+  echo "Docker Services:"
+  docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null | grep -E "couchdb|minio" || echo "  No Docker services found"
+  echo ""
+  
+  # Check dependencies
+  echo "Dependencies:"
+  [[ -d "$LUMINARY_ROOT/shared/node_modules" ]] && echo "  ✓ shared" || echo "  ✗ shared"
+  [[ -d "$LUMINARY_ROOT/app/node_modules" ]] && echo "  ✓ app" || echo "  ✗ app"
+  [[ -d "$LUMINARY_ROOT/cms/node_modules" ]] && echo "  ✓ cms" || echo "  ✗ cms"
+  [[ -d "$LUMINARY_ROOT/api/node_modules" ]] && echo "  ✓ api" || echo "  ✗ api"
+}
+
+# --- Help ---
+usage() {
+  cat <<EOF
+Luminary Dev Container Helper
+==============================
+
+Usage: luminary-dev <command> [options]
+
+Commands:
+  install [project]     Install dependencies (all, shared, app, cms, api)
+  build-shared          Build the shared library
+  start <service>       Start a service (api, app, cms)
+  reset-db              Reset and reseed the CouchDB database
+  setup-hooks           Install git hooks for auto-rebuilding
+  test [project]        Run tests (all, shared, app, cms, api)
+  status                Show environment status
+
+Examples:
+  luminary-dev install          # Install all dependencies
+  luminary-dev install app      # Install only app dependencies
+  luminary-dev build-shared     # Build shared library
+  luminary-dev start api        # Start API server
+  luminary-dev reset-db         # Reset database
+  luminary-dev status           # Check what's running
+
+Environment:
+  LUMINARY_ROOT    Project root (default: /workspace)
+  DB_DATABASE      Database name (default: luminary-local)
+  COUCHDB_USER     CouchDB user (default: admin)
+  COUCHDB_PASSWORD CouchDB password (default: password)
+EOF
+}
+
+# --- Entry point ---
+case "${1:-}" in
+  install)      install_deps "${2:-all}" ;;
+  build-shared) build_shared ;;
+  start)        start_service "${2:-}" ;;
+  reset-db)     reset_db ;;
+  setup-hooks)  setup_hooks ;;
+  test)         run_tests "${2:-all}" ;;
+  status)       status ;;
+  help|--help|-h) usage ;;
+  *)            usage ;;
+esac
