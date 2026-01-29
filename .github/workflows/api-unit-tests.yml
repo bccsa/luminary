@@ -52,7 +52,7 @@ jobs:
         working-directory: api
 
       - name: Rebuild Sharp for Linux
-        run: npm rebuild sharp --platform=linux --arch=x64
+        run: npm install --os=linux --cpu=x64 sharp
         working-directory: api
 
       - name: Run Tests
