@@ -1,27 +1,44 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import UserTable from "@/components/users/UserTable.vue";
+import UserDisplayCard from "@/components/users/UserDisplayCard.vue";
+import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
+import UserFilterOptions, {
+    type UserOverviewQueryOptions,
+} from "@/components/users/UserFilterOptions.vue";
+import LPaginator from "@/components/common/LPaginator.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
     db,
     DocType,
     hasAnyPermission,
+    type UserDto,
+    type ApiSearchQuery,
+    ApiLiveQuery,
     type GroupDto,
     useDexieLiveQuery,
+    isConnected,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
-import router from "@/router";
-import UserFilterOptions, { type UserOverviewQueryOptions } from "./UserFilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
-const createNew = () => {
-    router.push({ name: "user", params: { id: db.uuid() } });
-};
+const usersQuery = ref<ApiSearchQuery>({
+    types: [DocType.User],
+});
+
+const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
+const users = apiLiveQuery.toArrayAsRef();
+
+onBeforeUnmount(() => {
+    apiLiveQuery.stopLiveQuery();
+});
+
+const isEditUserModalVisible = ref(false);
+const isNewUserModalVisible = ref(false);
+const selectedUserId = ref<string>("");
 
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
@@ -29,9 +46,7 @@ const defaultQueryOptions: UserOverviewQueryOptions = {
     pageSize: 20,
     pageIndex: 0,
 };
-
 const savedQueryOptions = () => sessionStorage.getItem("userOverviewQueryOptions");
-
 function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
     const parsed = saved ? JSON.parse(saved) : {};
     return {
@@ -42,11 +57,9 @@ function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
         pageIndex: parsed.pageIndex ?? 0,
     };
 }
-
 const queryOptions = ref<UserOverviewQueryOptions>(
     mergeNewFields(savedQueryOptions()) as UserOverviewQueryOptions,
 );
-
 watch(
     queryOptions,
     () => {
@@ -54,37 +67,34 @@ watch(
     },
     { deep: true },
 );
-
 // Reset to first page when search or groups change
 watch([() => queryOptions.value.search, () => queryOptions.value.groups], () => {
     queryOptions.value.pageIndex = 0;
 });
-
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
 );
-
 const totalUsers = ref(0);
 </script>
 
 <template>
-    <BasePage :is-full-width="true" title="User overview" :should-show-page-title="false">
+    <BasePage title="User overview" :should-show-page-title="false" :is-full-width="true">
         <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew">
+            <div class="flex gap-4" v-if="canCreateNew && isConnected">
                 <LButton
                     v-if="canCreateNew && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="$router.push({ name: 'user', params: { id: db.uuid() } })"
+                    @click="isNewUserModalVisible = true"
                     name="createUserBtn"
                 >
                     Create user
                 </LButton>
                 <PlusIcon
                     v-else-if="canCreateNew && isSmallScreen"
-                    class="h-6 w-6 text-zinc-500"
-                    @click="createNew"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                    @click="isNewUserModalVisible = true"
                 />
             </div>
         </template>
@@ -95,13 +105,29 @@ const totalUsers = ref(0);
                 v-model:query-options="queryOptions"
             />
         </template>
-        <p class="mb-4 p-2 text-gray-500">
+        <p class="mb-2 mt-1 px-2 py-1 text-gray-500">
             Users only need to be created when they require special permissions that are not already
             automatically granted. It's possible to add multiple user objects with the same email
             address. This allows different administrators to independently assign access to the same
             individual for different groups they manage.
         </p>
-        <UserTable :query-options="queryOptions" @update:total="totalUsers = $event" />
+        <UserDisplayCard
+            v-for="user in users"
+            :key="user._id"
+            :usersDoc="user"
+            v-model="isEditUserModalVisible"
+            @edit="(id) => (selectedUserId = id)"
+        />
+        <CreateOrEditUser
+            v-if="isEditUserModalVisible || isNewUserModalVisible"
+            :isVisible="isEditUserModalVisible || isNewUserModalVisible"
+            :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
+            @close="
+                isEditUserModalVisible = false;
+                isNewUserModalVisible = false;
+            "
+        />
+
         <template #footer>
             <div class="w-full sm:px-8">
                 <LPaginator

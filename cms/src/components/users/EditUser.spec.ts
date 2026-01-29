@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
-import EditUser from "./EditUser.vue";
+import CreateOrEditUser from "./CreateOrEditUser.vue";
+import LDialog from "../common/LDialog.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -68,7 +69,7 @@ app.listen(port, () => {
     console.log(`Mock api running on port ${port}.`);
 });
 
-describe("EditUser.vue", () => {
+describe("CreateOrEditUser.vue", () => {
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
         initConfig({
@@ -98,38 +99,43 @@ describe("EditUser.vue", () => {
     });
 
     it("should display the passed user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
-        // Wait for component to load data from api
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
-        });
+            const userName = wrapper.find('[data-test="userName"]');
+            const userEmail = wrapper.find('[data-test="userEmail"]');
 
-        const currentUser = wrapper.findAll("input");
+            expect(userEmail.exists()).toBe(true);
+            expect(userName.exists()).toBe(true);
 
-        await waitForExpect(async () => {
-            expect(currentUser[0].element.value).toBe(mockUserDto.name);
-            expect(currentUser[1].element.value).toBe(mockUserDto.email);
+            expect(userEmail.attributes("value")).toBe(mockUserDto.email);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
     });
 
     it("should update and save the current user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
         // Ensure user is loaded
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.exists()).toBe(true);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.find('[data-test="save-button"]');
+        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        expect(saveButton.exists()).toBe(true);
+        
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
@@ -158,18 +164,22 @@ describe("EditUser.vue", () => {
     });
 
     it("can not update the user if no group is selected", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 
         // Ensure user is loaded
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockUserDto.name);
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.exists()).toBe(true);
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.find('[data-test="save-button"]');
+        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        expect(saveButton.exists()).toBe(true);
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
@@ -196,9 +206,10 @@ describe("EditUser.vue", () => {
     });
 
     it("can delete a user", async () => {
-        const wrapper = mount(EditUser, {
+        const wrapper = mount(CreateOrEditUser, {
             props: {
                 id: mockUserDto._id,
+                isVisible: true,
             },
         });
 

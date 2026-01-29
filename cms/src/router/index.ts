@@ -129,7 +129,7 @@ export const router = createRouter({
                 {
                     path: "users/:id",
                     name: "user",
-                    component: () => import("../components/users/EditUser.vue"),
+                    component: () => import("../components/users/CreateOrEditUser.vue"),
                     props: true,
                 },
                 {
