@@ -141,7 +141,7 @@ const userNavigation = computed(() => {
 
 <template>
     <div>
-        <Menu as="div" class="relative z-50">
+        <Menu as="div" class="relative z-[70]">
             <MenuButton name="profile-menu-btn" class="-m-1.5 flex items-center p-1.5">
                 <span class="sr-only">Open user menu</span>
                 <img
@@ -185,7 +185,7 @@ const userNavigation = computed(() => {
             >
                 <MenuItems
                     name="menu-items"
-                    class="absolute right-0 z-10 mb-10 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
+                    class="absolute right-0 z-[60] mb-10 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
                 >
                     <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                         <button

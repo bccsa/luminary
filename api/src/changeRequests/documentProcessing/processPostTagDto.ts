@@ -4,12 +4,14 @@ import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "./processImageDto";
+import { processMedia } from "./processMediaDto";
 
 /**
  * Process Post / Tag DTO
  * @param doc
  * @param prevDoc
  * @param db
+ * @param s3
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
@@ -29,14 +31,27 @@ export default async function processPostTagDto(
 
         // Remove images from S3
         if (doc.imageData) {
-            const imageWarnings = await processImage(
+            const imageResult = await processImage(
                 { fileCollections: [] },
                 prevDoc?.imageData,
                 db,
                 prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
             );
-            if (imageWarnings && imageWarnings.length > 0) {
-                warnings.push(...imageWarnings);
+            if (imageResult && imageResult.warnings && imageResult.warnings.length > 0) {
+                warnings.push(...imageResult.warnings);
+            }
+        }
+
+        // Remove medias from S3
+        if (doc.media) {
+            const mediaResult = await processMedia(
+                { fileCollections: [] },
+                prevDoc?.media,
+                db,
+                prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
+            );
+            if (mediaResult && mediaResult.warnings && mediaResult.warnings.length > 0) {
+                warnings.push(...mediaResult.warnings);
             }
         }
 
@@ -45,7 +60,7 @@ export default async function processPostTagDto(
 
     // Process image uploads
     if (doc.imageData) {
-        const imageWarnings: string[] = [];
+        let imageWarnings: string[] = [];
 
         if (!doc.imageBucketId) {
             imageWarnings.push("Bucket is not specified for image processing.");
@@ -53,15 +68,27 @@ export default async function processPostTagDto(
 
         // Use the new bucket processing with db service for bucket lookup
         try {
-            const warnings = await processImage(
+            const result = await processImage(
                 doc.imageData,
                 prevDoc?.imageData,
                 db,
                 doc.imageBucketId,
                 prevDoc?.imageBucketId, // Pass previous bucket ID for migration
             );
-            imageWarnings.push(...warnings);
+            imageWarnings = result.warnings;
+
+            // If migration failed, revert to the old bucket ID to keep files accessible
+            if (result.migrationFailed && prevDoc?.imageBucketId) {
+                doc.imageBucketId = prevDoc.imageBucketId;
+                warnings.push(
+                    "Image migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
+                );
+            }
         } catch (error) {
+            // If processing throws an error, also revert bucket ID
+            if (prevDoc?.imageBucketId && doc.imageBucketId !== prevDoc.imageBucketId) {
+                doc.imageBucketId = prevDoc.imageBucketId;
+            }
             imageWarnings.push(`Bucket image processing failed: ${error.message}`);
         }
 
@@ -69,6 +96,46 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
         delete (doc as any).image; // Remove the legacy image field
+    }
+
+    // Process media uploads
+    if (doc.media) {
+        let mediaWarnings: string[] = [];
+
+        // Check if bucket is specified for this upload
+        if (!doc.mediaBucketId) {
+            throw new Error("Bucket is not specified for media processing.");
+        }
+
+        // Use the new bucket processing with db service for bucket lookup
+        try {
+            const result = await processMedia(
+                doc.media,
+                prevDoc?.media,
+                db,
+                doc.mediaBucketId,
+                prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
+            );
+            mediaWarnings = result.warnings;
+
+            // If migration failed, revert to the old bucket ID to keep files accessible
+            if (result.migrationFailed && prevDoc?.mediaBucketId) {
+                doc.mediaBucketId = prevDoc.mediaBucketId;
+                warnings.push(
+                    "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
+                );
+            }
+        } catch (error) {
+            // If processing throws an error, also revert bucket ID
+            if (prevDoc?.mediaBucketId && doc.mediaBucketId !== prevDoc.mediaBucketId) {
+                doc.mediaBucketId = prevDoc.mediaBucketId;
+            }
+            mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
+        }
+
+        if (mediaWarnings && mediaWarnings.length > 0) {
+            warnings.push(...mediaWarnings);
+        }
     }
 
     // Get content documents that are children of the Post / Tag document
@@ -79,6 +146,8 @@ export default async function processPostTagDto(
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
         contentDoc.parentImageBucketId = doc.imageBucketId;
+        contentDoc.parentMedia = doc.media;
+        contentDoc.parentMediaBucketId = doc.mediaBucketId;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;

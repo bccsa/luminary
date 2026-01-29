@@ -34,14 +34,15 @@ const DocTypeMap = {
  * @param data
  * @param groupMembership
  * @param dbService
- * @param s3Service
  */
 export async function validateChangeRequest(
     data: any,
     groupMembership: Array<Uuid>,
     dbService: DbService,
 ): Promise<ValidationResult> {
-    const changeRequest = plainToInstance(ChangeReqDto, data, { excludeExtraneousValues: true });
+    const changeRequest = plainToInstance(ChangeReqDto, data, {
+        enableImplicitConversion: true,
+    });
 
     // Validate main change request document
     let message = "Change request validation failed for the following constraints:\n";
@@ -76,7 +77,7 @@ export async function validateChangeRequest(
 
     // Check included document validity
     const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
-        excludeExtraneousValues: true,
+        enableImplicitConversion: true,
     });
     message = `Submitted ${changeRequest.doc.type} document validation failed for the following constraints:\n`;
     validationResult = await dtoValidate(doc, message);
@@ -116,7 +117,6 @@ async function dtoValidate(data: any, message: string): Promise<ValidationResult
     try {
         const changeReqValidation = await validate(data, {
             whitelist: true,
-            forbidNonWhitelisted: true,
         });
         if (changeReqValidation.length > 0) {
             changeReqValidation.forEach((c) => {

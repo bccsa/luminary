@@ -43,6 +43,7 @@ import {
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
@@ -90,6 +91,12 @@ watch(liveParent, (parent) => {
         !parent.imageData?.uploadData
     ) {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
+
+    if (waitForUpdate.value && parent && editableParent.value.media && !parent.media?.uploadData) {
+        editableParent.value.media = (parent as ContentParentDto).media;
         existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
     }
@@ -349,7 +356,9 @@ const saveChanges = async () => {
 
 const save = async () => {
     if (
-        existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
+        existingParent.value?.imageData?.uploadData !==
+            editableParent.value.imageData?.uploadData ||
+        existingParent.value?.media?.uploadData !== editableParent.value.media?.uploadData
     ) {
         waitForUpdate.value = true;
     }
@@ -590,6 +599,15 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                         />
 
                         <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
+                        <EditContentMedia
                             v-if="editableParent"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"

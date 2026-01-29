@@ -18,6 +18,8 @@ import {
     type StorageDto,
     type S3CredentialDto,
     StorageType,
+    MediaType,
+    type MediaFileDto,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -92,6 +94,24 @@ export const mockPostDto: PostDto = {
     tags: ["tag-category1"],
     publishDateVisible: true,
     postType: PostType.Blog,
+    media: {
+        hlsUrl: "test-hls-url.m3u8",
+        fileCollections: [
+            {
+                languageId: "lang-eng",
+                fileUrl: "https://example.com/audio-en.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+
+            {
+                languageId: "lang-fra",
+                fileUrl: "https://example.com/audio-fr.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+        ] as MediaFileDto[],
+    },
 };
 
 export const mockEnglishContentDto: ContentDto = {
@@ -110,8 +130,6 @@ export const mockEnglishContentDto: ContentDto = {
     author: "ChatGPT",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily\'s eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community\'s beloved guardian"}]}]}',
     localisedImage: "",
-    audio: "",
-    video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImageData: {
@@ -130,6 +148,25 @@ export const mockEnglishContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+
+    parentMedia: {
+        hlsUrl: "test-hls-url.m3u8",
+        fileCollections: [
+            {
+                languageId: "lang-eng",
+                fileUrl: "https://example.com/audio-en.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+
+            {
+                languageId: "lang-fra",
+                fileUrl: "https://example.com/audio-fr.mp3",
+                mediaType: MediaType.Audio,
+                bitrate: 128000,
+            },
+        ] as MediaFileDto[],
+    },
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -147,8 +184,6 @@ export const mockFrenchContentDto: ContentDto = {
     author: "ChatGPT",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l\'aider. Lily s\'accrocha à l\'espoir alors qu\'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté."}]}]}',
     localisedImage: "",
-    audio: "",
-    video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImageData: {
@@ -167,6 +202,10 @@ export const mockFrenchContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+    parentMedia: {
+        hlsUrl: "test-hls-url",
+        fileCollections: [],
+    },
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -184,8 +223,6 @@ export const mockSwahiliContentDto: ContentDto = {
     author: "ChatGPT",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l\'aider. Lily s\'accrocha à l\'espoir alors qu\'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté."}]}]}',
     localisedImage: "",
-    audio: "",
-    video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImageData: {
@@ -204,6 +241,10 @@ export const mockSwahiliContentDto: ContentDto = {
     } as ImageDto,
     parentPublishDateVisible: true,
     parentPostType: PostType.Blog,
+    parentMedia: {
+        hlsUrl: "test-hls-url",
+        fileCollections: [],
+    },
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
