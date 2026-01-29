@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 import { IsImage } from "../validation/IsImage";
-import type { PresetEnum } from "sharp";
+import * as sharp from "sharp";
 
 /**
  * Data for uploading an image
@@ -15,5 +15,5 @@ export class ImageUploadDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    preset: keyof PresetEnum;
+    preset: keyof sharp.PresetEnum;
 }

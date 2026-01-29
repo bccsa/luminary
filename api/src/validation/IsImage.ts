@@ -1,4 +1,5 @@
 import { registerDecorator } from "class-validator";
+import * as sharp from "sharp";
 
 export function IsImage() {
     return function (object: object, propertyName: string) {
@@ -9,8 +10,6 @@ export function IsImage() {
             validator: {
                 async validate(value: any) {
                     try {
-                        // lazy loading of sharp
-                        const sharp = (await import("sharp")).default;
                         const metadata = await sharp(value).metadata();
 
                         // Allow any format that Sharp can process as an image
