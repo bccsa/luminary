@@ -131,7 +131,6 @@ describe("processContentDto", () => {
 
     it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {
         const changeRequest: ChangeReqDto = {
-            id: 86,
             doc: {
                 _id: "post-blog1",
                 type: "post",

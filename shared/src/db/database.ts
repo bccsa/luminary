@@ -138,7 +138,7 @@ class Database extends Dexie {
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
-            localChanges: "++id, reqId, docId, status",
+            localChanges: "++id, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
         };
@@ -685,6 +685,8 @@ class Database extends Dexie {
 
     /**
      * Apply a change request ack from the API
+     * Since changes are processed sequentially (one at a time), we only delete the change
+     * if it was accepted. Rejected changes remain in the queue for potential retry.
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
         if (ack.ack == "rejected") {
@@ -694,19 +696,24 @@ class Database extends Dexie {
                 await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                const change = await this.localChanges.get(ack.id);
-
-                if (change?.doc) {
-                    await this.docs.delete(change.doc._id);
+                const changes = await this.localChanges.toArray();
+                if (changes.length > 0 && changes[0]?.doc) {
+                    await this.docs.delete(changes[0].doc._id);
                 }
             }
+            // Keep the change in queue for retry - do not delete on rejection
+            return;
         }
 
         if (ack.ack == "accepted" && ack.warnings && ack.warnings.length > 0) {
             changeReqWarnings.value = ack.warnings;
         }
 
-        await this.localChanges.delete(ack.id);
+        // Only delete from queue if change was accepted
+        const changes = await this.localChanges.toArray();
+        if (changes.length > 0 && changes[0].id) {
+            await this.localChanges.delete(changes[0].id);
+        }
     }
 
     /**
