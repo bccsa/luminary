@@ -441,12 +441,10 @@ export const mockImageDto: ImageDto = {
 };
 
 export const mockLocalChange1: LocalChangeDto = {
-    id: 42,
     doc: mockPostDto,
     docId: "post-post1",
 };
 export const mockLocalChange2: LocalChangeDto = {
-    id: 43,
     doc: mockEnglishContentDto,
     docId: "content-post1-eng",
 };

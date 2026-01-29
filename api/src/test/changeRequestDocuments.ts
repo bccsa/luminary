@@ -9,7 +9,6 @@ function randomString() {
 
 export const changeRequest_post = () => {
     return {
-        id: 42,
         doc: {
             _id: "post-blog1",
             type: "post",
@@ -25,7 +24,6 @@ export const changeRequest_post = () => {
 };
 export const changeRequest_tag = () => {
     return {
-        id: 43,
         doc: {
             _id: "test-tag-1",
             type: "tag",
@@ -40,7 +38,6 @@ export const changeRequest_tag = () => {
 };
 export const changeRequest_content = () => {
     return {
-        id: 44,
         doc: {
             _id: "content-blog1-eng",
             type: "content",
@@ -65,7 +62,6 @@ export const changeRequest_content = () => {
 };
 export const changeRequest_language = () => {
     return {
-        id: 45,
         doc: {
             _id: "test-lang-eng",
             type: "language",
@@ -81,7 +77,6 @@ export const changeRequest_language = () => {
 };
 export const changeRequest_group = () => {
     return {
-        id: 46,
         doc: {
             _id: "group-languages",
             type: "group",
@@ -114,7 +109,6 @@ export const changeRequest_group = () => {
 
 export const changeRequest_storage = () => {
     return {
-        id: 47,
         doc: {
             _id: "storage-bucket-1",
             type: "storage",
