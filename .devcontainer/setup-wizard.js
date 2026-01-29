@@ -137,23 +137,46 @@ const setupAuth0 = async () => {
   const auth0Audience = await prompt("Auth0 API Audience: ");
 
   console.log("\n");
-  log.info("Paste your Auth0 Certificate (PEM format).");
-  log.info("Press Enter twice when done:\n");
+  log.info("Paste your Auth0 Certificate (PEM format) now:");
+  log.info("(All lines will be captured automatically)\n");
+
+  // Close readline temporarily to read certificate directly from stdin
+  rl.pause();
 
   let certificate = "";
-  let emptyLineCount = 0;
+  let foundEnd = false;
 
-  while (emptyLineCount < 2) {
-    const line = await prompt("");
-    if (line === "") {
-      emptyLineCount++;
-    } else {
-      emptyLineCount = 0;
-      certificate += line + "\n";
-    }
-  }
+  // Read directly from stdin to capture pasted multi-line content
+  const certificatePromise = new Promise((resolve) => {
+    const onData = (chunk) => {
+      const text = chunk.toString();
+      certificate += text;
 
-  if (!auth0Domain || !auth0ClientId || !auth0Audience || !certificate.trim()) {
+      // Check if we have the complete certificate
+      if (certificate.includes("END CERTIFICATE")) {
+        foundEnd = true;
+        process.stdin.removeListener("data", onData);
+        process.stdin.pause();
+        resolve();
+      }
+    };
+
+    // Set stdin to raw mode to capture input
+    process.stdin.setRawMode(false);
+    process.stdin.resume();
+    process.stdin.on("data", onData);
+  });
+
+  await certificatePromise;
+
+  // Resume readline for remaining prompts
+  rl.resume();
+
+  // Convert actual newlines to escaped \n for env file compatibility
+  let trimmedCertificate = certificate.trim();
+  trimmedCertificate = trimmedCertificate.replace(/\n/g, "\\n");
+
+  if (!auth0Domain || !auth0ClientId || !auth0Audience || !trimmedCertificate) {
     log.error("All Auth0 fields are required!");
     process.exit(1);
   }
@@ -162,7 +185,24 @@ const setupAuth0 = async () => {
     VITE_AUTH0_DOMAIN: auth0Domain,
     VITE_AUTH0_CLIENT_ID: auth0ClientId,
     VITE_AUTH0_AUDIENCE: auth0Audience,
-    LUMINARY_JWT_CERTIFICATE: certificate.trim(),
+    LUMINARY_JWT_CERTIFICATE: trimmedCertificate,
+    JWT_SECRET: trimmedCertificate,
+
+    // API Configuration
+    JWT_MAPPINGS: JSON.stringify({
+      groups: {
+        "group-super-admins": "(jwt) => true", // All users are super admins in dev
+      },
+      userId: '(jwt) => jwt && jwt["https://luminary-dev.com/metadata"].userId',
+      email: '(jwt) => jwt && jwt["https://luminary-dev.com/metadata"].email',
+      name: '(jwt) => jwt && jwt["https://luminary-dev.com/metadata"].username',
+    }),
+    ENCRYPTION_KEY: "your-32-byte-encryption-key-here",
+    CORS_ORIGIN: JSON.stringify([
+      "http://localhost:4174",
+      "http://localhost:4175",
+      "http://localhost:5173",
+    ]),
 
     // Docker defaults (matches docker-compose.yml)
     COUCHDB_USER: "admin",
@@ -183,7 +223,124 @@ const setupAuth0 = async () => {
   };
 };
 
-// --- Write .env File ---
+// --- Write Project-Specific .env Files ---
+const writeProjectEnvFiles = (rootDir, config) => {
+  const apiEnvPath = path.join(rootDir, "api", ".env");
+  const appEnvPath = path.join(rootDir, "app", ".env");
+  const cmsEnvPath = path.join(rootDir, "cms", ".env");
+
+  // Generate encryption key if not already present
+  const generateEncryptionKey = () => {
+    const crypto = require("crypto");
+    return crypto.randomBytes(32).toString("hex");
+  };
+
+  // API .env - Needs JWT verification and database
+  const apiEnvLines = [];
+  apiEnvLines.push("# API Configuration");
+  apiEnvLines.push(`PORT=${config.API_PORT}`);
+  apiEnvLines.push(`CORS_ORIGIN=${config.CORS_ORIGIN}`);
+  apiEnvLines.push("");
+  apiEnvLines.push("# Auth0 JWT Configuration");
+  apiEnvLines.push(`JWT_SECRET="${config.LUMINARY_JWT_CERTIFICATE}"`);
+  apiEnvLines.push("");
+  apiEnvLines.push("# Encryption key for sensitive database data");
+  apiEnvLines.push(
+    `ENCRYPTION_KEY="${config.ENCRYPTION_KEY || generateEncryptionKey()}"`,
+  );
+  apiEnvLines.push("");
+  apiEnvLines.push("# Database (CouchDB)");
+  apiEnvLines.push(`DB_CONNECTION_STRING=${config.DB_CONNECTION_STRING}`);
+  apiEnvLines.push(`DB_DATABASE=${config.DB_DATABASE}`);
+  apiEnvLines.push(`DB_MAX_SOCKETS=512`);
+  apiEnvLines.push("");
+  apiEnvLines.push("# Storage (MinIO/S3)");
+  apiEnvLines.push(`S3_ENDPOINT=${config.S3_ENDPOINT}`);
+  apiEnvLines.push(`S3_PORT=${config.S3_PORT}`);
+  apiEnvLines.push(`S3_USE_SSL=${config.S3_USE_SSL}`);
+  apiEnvLines.push(`S3_ACCESS_KEY=${config.S3_ACCESS_KEY}`);
+  apiEnvLines.push(`S3_SECRET_KEY=${config.S3_SECRET_KEY}`);
+  apiEnvLines.push(`S3_IMG_BUCKET=${config.S3_IMG_BUCKET}`);
+  apiEnvLines.push(`S3_PUBLIC_ACCESS_URL=http://localhost:9000/luminary`);
+  apiEnvLines.push("");
+  apiEnvLines.push("# Socket.io Configuration");
+  apiEnvLines.push(`MAX_HTTP_BUFFER_SIZE=10000000`);
+  apiEnvLines.push("");
+  apiEnvLines.push("# JWT Token Mappings");
+  apiEnvLines.push(`JWT_MAPPINGS='{
+    "groups": {
+        "group-super-admins": "(jwt) => true"
+    },
+    "userId": "(jwt) => jwt && jwt[\\"https://luminary-dev.com/metadata\\"].userId",
+    "email": "(jwt) => jwt && jwt[\\"https://luminary-dev.com/metadata\\"].email",
+    "name": "(jwt) => jwt && jwt[\\"https://luminary-dev.com/metadata\\"].username"
+}'`);
+
+  // App .env - Frontend configuration
+  const appEnvLines = [];
+  appEnvLines.push("# App Configuration");
+  appEnvLines.push(`VITE_APP_NAME="Luminary App"`);
+  appEnvLines.push(`VITE_API_URL=${config.VITE_API_URL}`);
+  appEnvLines.push("");
+  appEnvLines.push("# Auth0 Configuration");
+  appEnvLines.push(`VITE_AUTH0_DOMAIN=${config.VITE_AUTH0_DOMAIN}`);
+  appEnvLines.push(`VITE_AUTH0_CLIENT_ID=${config.VITE_AUTH0_CLIENT_ID}`);
+  appEnvLines.push(`VITE_AUTH0_AUDIENCE=${config.VITE_AUTH0_AUDIENCE}`);
+  appEnvLines.push("");
+  appEnvLines.push("# Logos and Branding");
+  appEnvLines.push(`VITE_LOGO="../src/assets/logo.svg"`);
+  appEnvLines.push(`VITE_LOGO_DARK="../src/assets/logo-dark.svg"`);
+  appEnvLines.push(`VITE_LOGO_SMALL="../src/assets/logo-small.svg"`);
+  appEnvLines.push(`VITE_LOGO_SMALL_DARK="../src/assets/logo-small.svg"`);
+  appEnvLines.push(`VITE_LOGO_FAVICON="src/assets/favicon.png"`);
+  appEnvLines.push("");
+  appEnvLines.push("# Pages");
+  appEnvLines.push(`VITE_PRIVACY_POLICY_ID="page-privacy-policy"`);
+  appEnvLines.push(`VITE_COPYRIGHT_ID="page-copyright"`);
+  appEnvLines.push("");
+  appEnvLines.push("# Development Settings");
+  appEnvLines.push(`VITE_HIDE_EXPLORE=true`);
+  appEnvLines.push(`VITE_BYPASS_MINIFY=false`);
+
+  // CMS .env - Frontend configuration
+  const cmsEnvLines = [];
+  cmsEnvLines.push("# CMS Configuration");
+  cmsEnvLines.push(`VITE_APP_NAME="Luminary CMS"`);
+  cmsEnvLines.push(`VITE_API_URL=${config.VITE_API_URL}`);
+  cmsEnvLines.push(`VITE_CLIENT_APP_URL="http://localhost:4174"`);
+  cmsEnvLines.push("");
+  cmsEnvLines.push("# Auth0 Configuration");
+  cmsEnvLines.push(`VITE_AUTH0_DOMAIN=${config.VITE_AUTH0_DOMAIN}`);
+  cmsEnvLines.push(`VITE_AUTH0_CLIENT_ID=${config.VITE_AUTH0_CLIENT_ID}`);
+  cmsEnvLines.push(`VITE_AUTH0_AUDIENCE=${config.VITE_AUTH0_AUDIENCE}`);
+  cmsEnvLines.push("");
+  cmsEnvLines.push("# Branding");
+  cmsEnvLines.push(`VITE_LOGO="../src/assets/logo.svg"`);
+  cmsEnvLines.push(`VITE_LOGO_FAVICON="src/assets/favicon.png"`);
+  cmsEnvLines.push("");
+  cmsEnvLines.push("# Settings");
+  cmsEnvLines.push(`VITE_HIDE_PRIVACY_POLICY=false`);
+  cmsEnvLines.push(`VITE_INITIAL_PAGE=post/overview/blog`);
+
+  // Write all files
+  try {
+    fs.writeFileSync(apiEnvPath, apiEnvLines.join("\n") + "\n");
+    log.success(`Created ${apiEnvPath}`);
+
+    fs.writeFileSync(appEnvPath, appEnvLines.join("\n") + "\n");
+    log.success(`Created ${appEnvPath}`);
+
+    fs.writeFileSync(cmsEnvPath, cmsEnvLines.join("\n") + "\n");
+    log.success(`Created ${cmsEnvPath}`);
+
+    return true;
+  } catch (error) {
+    log.error(`Failed to write .env files: ${error.message}`);
+    return false;
+  }
+};
+
+// --- Legacy: Write Shared .env File ---
 const writeEnvFile = (envPath, config) => {
   const lines = [];
 
@@ -191,7 +348,9 @@ const writeEnvFile = (envPath, config) => {
   lines.push(`VITE_AUTH0_DOMAIN=${config.VITE_AUTH0_DOMAIN}`);
   lines.push(`VITE_AUTH0_CLIENT_ID=${config.VITE_AUTH0_CLIENT_ID}`);
   lines.push(`VITE_AUTH0_AUDIENCE=${config.VITE_AUTH0_AUDIENCE}`);
-  lines.push(`LUMINARY_JWT_CERTIFICATE=${config.LUMINARY_JWT_CERTIFICATE}`);
+
+  // Write certificate - it should already be escaped with \n from user input
+  lines.push(`LUMINARY_JWT_CERTIFICATE="${config.LUMINARY_JWT_CERTIFICATE}"`);
   lines.push("");
 
   lines.push("# Database (CouchDB) - Auto-configured by Docker");
@@ -307,8 +466,13 @@ const main = async () => {
     const luminayRoot = findLuminayRoot();
     const config = await setupAuth0();
 
-    const envPath = path.join(luminayRoot, ".devcontainer", ".env");
-    writeEnvFile(envPath, config);
+    // Write individual project .env files (recommended)
+    log.section("Writing environment files to each project...");
+    writeProjectEnvFiles(luminayRoot, config);
+
+    // Also write legacy shared .env for backward compatibility
+    const legacyEnvPath = path.join(luminayRoot, ".devcontainer", ".env");
+    writeEnvFile(legacyEnvPath, config);
 
     // Automatic setup steps
     console.log("");
