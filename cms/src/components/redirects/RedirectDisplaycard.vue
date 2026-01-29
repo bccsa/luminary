@@ -39,7 +39,7 @@ const redirectGroups = computed(() =>
         class="mb-1"
     >
         <template #content>
-            <div class="flex justify-between pb-1 min-[1500px]:pt-0">
+            <div class="flex justify-between pb-1">
                 <div>
                     <span class="text-xs text-zinc-500 sm:text-sm">
                         {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
