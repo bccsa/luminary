@@ -8,11 +8,13 @@ export default defineConfig({
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
+            "luminary-shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
         },
     },
     server: {
         port: 4175,
         strictPort: true,
+        host: "0.0.0.0",
     },
     build: {
         sourcemap: true,

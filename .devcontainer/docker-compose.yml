@@ -1,0 +1,85 @@
+services:
+  couchdb:
+    image: couchdb:3.3
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing myminio/luminary;
+      mc anonymous set public myminio/luminary;
+      exit 0;
+      "
+
+  dev:
+    container_name: luminary-dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.dev
+    volumes:
+      - ..:/workspace:cached
+      - node_modules_cache:/workspace/node_modules
+    ports:
+      - "3000:3000" # API
+      - "4174:4174" # App
+      - "4175:4175" # CMS
+      - "9229:9229" # Node.js debugger
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - DB_CONNECTION_STRING=http://admin:password@couchdb:5984
+      - DB_DATABASE=luminary-local
+      - S3_ENDPOINT=minio
+      - S3_PORT=9000
+      - S3_USE_SSL=false
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_IMG_BUCKET=luminary
+      - VITE_API_URL=http://localhost:3000
+    command: sleep infinity
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  node_modules_cache:
+  couchdb_data:
+  minio_data:

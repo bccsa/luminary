@@ -252,6 +252,55 @@ reset_database() {
   success "Database reseeded successfully."
 }
 
+# --- Rebuild Shared Library ---
+rebuild_shared() {
+  info "Rebuilding shared library..."
+  cd "$LUMINARY_ROOT/shared"
+  npm ci
+  npm run build
+  success "Shared library rebuilt."
+}
+
+# --- Setup Git Hooks ---
+setup_git_hooks() {
+  local git_dir="$LUMINARY_ROOT/.git"
+  local hooks_dir="$git_dir/hooks"
+
+  if [[ ! -d "$git_dir" ]]; then
+    error "Not a git repository. Cannot install git hooks."
+    exit 1
+  fi
+
+  mkdir -p "$hooks_dir"
+
+  # Create post-checkout hook that rebuilds shared library when switching branches
+  local post_checkout_hook="$hooks_dir/post-checkout"
+  cat > "$post_checkout_hook" << 'HOOK_EOF'
+#!/bin/bash
+# Post-checkout hook: Rebuild shared library when branch changes
+
+set -euo pipefail
+
+# Get the luminary root directory (walk up from .git)
+LUMINARY_ROOT="$(git rev-parse --show-toplevel)"
+
+# Check if shared library changed
+if git diff-tree -r HEAD@{1} HEAD --name-only | grep -q "^shared/"; then
+  echo "[INFO] Shared library files changed. Rebuilding..."
+  cd "$LUMINARY_ROOT/shared"
+  npm ci > /dev/null 2>&1 && npm run build > /dev/null 2>&1 && echo "[SUCCESS] Shared library rebuilt." || echo "[WARN] Failed to rebuild shared library. Check dependencies."
+fi
+
+exit 0
+HOOK_EOF
+
+  chmod +x "$post_checkout_hook"
+  success "Git post-checkout hook installed at $post_checkout_hook"
+  info "Shared library will be automatically rebuilt when switching branches."
+}
+
+# --- Reset CouchDB Database ---
+
 # --- Help ---
 usage() {
   cat <<EOF
@@ -265,14 +314,16 @@ Requirements:
   - curl
 
 Commands:
-  setup           Install Docker, CouchDB, MinIO, build & seed all projects
-  start           Start API, CMS, and App
-  restart         Restart all services
-  restart-api     Restart only API
-  restart-cms     Restart only CMS
-  restart-app     Restart only App
-  start-api       Start only API
-  reset-db        Delete, recreate, and reseed the CouchDB database
+  setup              Install Docker, CouchDB, MinIO, build & seed all projects
+  start              Start API, CMS, and App
+  restart            Restart all services
+  restart-api        Restart only API
+  restart-cms        Restart only CMS
+  restart-app        Restart only App
+  start-api          Start only API
+  reset-db           Delete, recreate, and reseed the CouchDB database
+  rebuild-shared     Rebuild the shared library (TypeScript compilation)
+  setup-git-hooks    Install git post-checkout hook to auto-rebuild shared library on branch changes
 
 Environment Variables (optional for setup/reset-db):
   LUMINARY_COUCHDB_USER
@@ -299,5 +350,7 @@ case "${1:-}" in
   restart-app) restart_app ;;
   start-api) start_api ;;
   reset-db) reset_database ;;
+  rebuild-shared) rebuild_shared ;;
+  setup-git-hooks) setup_git_hooks ;;
   *) usage ;;
 esac

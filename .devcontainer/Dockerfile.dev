@@ -1,0 +1,28 @@
+FROM node:20-bookworm
+
+# Install basic development tools
+RUN apt-get update && apt-get install -y \
+    git \
+    openssh-client \
+    procps \
+    curl \
+    python3 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ensure global node modules are in path
+ENV PATH="/usr/local/share/npm-global/bin:${PATH}"
+ENV NPM_CONFIG_PREFIX="/usr/local/share/npm-global"
+
+# Set workspace permissions
+RUN mkdir -p /workspace
+
+# Copy dev helper script and make it available globally
+COPY .devcontainer/luminary-dev /usr/local/bin/luminary-dev
+RUN chmod +x /usr/local/bin/luminary-dev
+
+WORKDIR /workspace
+
+# Keep container alive
+CMD ["sleep", "infinity"]
+

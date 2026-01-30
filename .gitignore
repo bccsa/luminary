@@ -5,3 +5,6 @@ node_modules
 stats.html
 
 .agent
+# Docker local overrides
+.devcontainer/.env
+.devcontainer/docker-compose.override.yml

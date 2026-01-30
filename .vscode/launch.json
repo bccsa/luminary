@@ -5,6 +5,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Attach to API",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}/api",
+      "remoteRoot": "/workspace/api",
+      "restart": true
+    },
+    {
       "name": "CMS Web-App",
       "request": "launch",
       "type": "chrome",
