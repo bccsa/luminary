@@ -192,18 +192,42 @@ upsert_env_var() {
   if grep -q "^${key}=" "$file"; then
     sed -i.bak "s|^${key}=.*|${key}=${value}|g" "$file"
   else
+    ensure_trailing_newline "$file"
     echo "${key}=${value}" >> "$file"
   fi
   rm -f "$file.bak"
+}
+
+ensure_trailing_newline() {
+  local file="$1"
+  if [[ -s "$file" ]] && [[ $(tail -c 1 "$file") != $'\n' ]]; then
+    echo "" >> "$file"
+  fi
+}
+
+remove_env_block() {
+  local file="$1"
+  local key="$2"
+  local end_regex="$3"
+
+  awk -v key="$key" -v end_regex="$end_regex" '
+    BEGIN { skip=0 }
+    $0 ~ "^" key "=" { skip=1; next }
+    skip==1 {
+      if ($0 ~ end_regex) { skip=0 }
+      next
+    }
+    { print }
+  ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 }
 
 prompt_multiline_value() {
   local prompt="$1"
   local value=""
 
-  info "$prompt"
-  info "Paste the value now."
-  info "Finish by typing END on its own line and pressing Enter, or press Ctrl+D."
+  info "$prompt" >&2
+  info "Paste the value now." >&2
+  info "Finish by typing END on its own line and pressing Enter, or press Ctrl+D." >&2
 
   while IFS= read -r line; do
     if [[ "$line" == "END" ]]; then
@@ -241,7 +265,10 @@ prompt_jwt_secret() {
 apply_api_env_defaults() {
   local output_file="$1"
 
+  sync_credentials_from_docker
+
   if grep -q "JWT_SECRET" "$output_file"; then
+    remove_env_block "$output_file" "JWT_SECRET" '"$'
     local jwt_secret=""
     while [[ -z "$jwt_secret" ]]; do
       jwt_secret=$(prompt_jwt_secret)
@@ -268,6 +295,7 @@ apply_api_env_defaults() {
     upsert_env_var "$output_file" "ENCRYPTION_KEY" "\"$encryption_key\""
   fi
 
+  remove_env_block "$output_file" "JWT_MAPPINGS" "}'$"
   upsert_env_var "$output_file" "JWT_MAPPINGS" "'$JWT_MAPPINGS_JSON'"
 
   local db_connection
@@ -524,6 +552,46 @@ install_minio_client() {
   success "MinIO client installed at $target"
 }
 
+get_docker_env_value() {
+  local container="$1"
+  local key="$2"
+
+  docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$container" 2>/dev/null |
+    awk -F= -v k="$key" '$1 == k {print substr($0, length(k)+2)}' | head -n 1
+}
+
+sync_credentials_from_docker() {
+  if ! command -v docker &>/dev/null; then
+    return
+  fi
+
+  if docker ps -a --format '{{.Names}}' | grep -q '^luminary-couchdb$'; then
+    local couch_user
+    local couch_pass
+    couch_user=$(get_docker_env_value "luminary-couchdb" "COUCHDB_USER")
+    couch_pass=$(get_docker_env_value "luminary-couchdb" "COUCHDB_PASSWORD")
+    if [[ -n "$couch_user" ]]; then
+      LUMINARY_COUCHDB_USER="$couch_user"
+    fi
+    if [[ -n "$couch_pass" ]]; then
+      LUMINARY_COUCHDB_PASSWORD="$couch_pass"
+    fi
+  fi
+
+  if docker ps -a --format '{{.Names}}' | grep -q '^luminary-storage$'; then
+    local minio_user
+    local minio_pass
+    minio_user=$(get_docker_env_value "luminary-storage" "MINIO_ROOT_USER")
+    minio_pass=$(get_docker_env_value "luminary-storage" "MINIO_ROOT_PASSWORD")
+    if [[ -n "$minio_user" ]]; then
+      LUMINARY_MINIO_ROOT_USER="$minio_user"
+    fi
+    if [[ -n "$minio_pass" ]]; then
+      LUMINARY_MINIO_ROOT_PASSWORD="$minio_pass"
+    fi
+  fi
+}
+
 # ============================================================
 # PROJECT BUILD & INITIALIZATION
 # ============================================================
@@ -745,6 +813,7 @@ main() {
             setup_couchdb_docker
             setup_minio_docker
             install_minio_client
+            sync_credentials_from_docker
           else
             setup_couchdb_native
             setup_minio_native
