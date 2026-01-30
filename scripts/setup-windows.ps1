@@ -250,7 +250,8 @@ function Apply-Auth0Env {
 
     if ($envContent -match "AUTH0_DOMAIN|VITE_AUTH0_DOMAIN") {
         Write-Host ""
-        Write-Warn "Auth0 is required. Please provide your Auth0 credentials:"
+        Write-Warn "Auth0 is required. Please provide your Auth0 credentials."
+        Write-Warn "If you have a certificate from the Auth0 dashboard, paste it into the relevant field when prompted."
         
         $auth0Domain = Read-Host "Auth0 Domain (e.g., your-domain.auth0.com)"
         if ($auth0Domain) {
@@ -280,7 +281,16 @@ function Apply-ApiEnvDefaults {
     if ($envContent -match "JWT_SECRET") {
         $jwtSecret = ""
         while (-not $jwtSecret) {
-            $jwtSecret = Read-MultilineSecret -Prompt "JWT_SECRET is required for API authentication."
+            Write-Host ""
+            Write-Warn "JWT_SECRET is required for API authentication."
+            $useMultiline = Read-Host "Use multiline input? (y/n)"
+            if ($useMultiline -eq "y" -or $useMultiline -eq "Y") {
+                $jwtSecret = Read-MultilineSecret -Prompt "Paste JWT_SECRET"
+            }
+            else {
+                $jwtSecret = Read-Host "JWT_SECRET (single line)"
+            }
+
             if (-not $jwtSecret) {
                 Write-Warn "JWT_SECRET cannot be empty."
             }
