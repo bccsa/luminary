@@ -65,10 +65,9 @@ export class ChangeRequestService {
         memberOf: Uuid[],
         message?: string,
     ): Promise<ChangeReqAckDto> {
-        if (!changeRequest) changeRequest = { id: undefined, doc: undefined, apiVersion: "0.0.0" };
+        if (!changeRequest) changeRequest = { doc: undefined, apiVersion: "0.0.0" };
 
         const ack: ChangeReqAckDto = {
-            id: changeRequest.id,
             ack: status,
         };
 

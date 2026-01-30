@@ -50,7 +50,6 @@ export default async function (db: DbService) {
                 delete d.image;
 
                 const changeReq = new ChangeReqDto();
-                changeReq.id = 1;
                 changeReq.doc = d;
 
                 try {
