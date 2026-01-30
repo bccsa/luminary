@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Post-Checkout Git Hook
+# ============================================================
+# This hook runs after switching branches (including initial checkout).
+# It ensures that the shared library is rebuilt and app/cms dependencies
+# are synced with the shared library changes, preventing version mismatches
+# that can cause difficult-to-debug issues when switching between branches
+# with different shared library implementations.
+
+function install_shared () {
+        echo "Syncing shared library with branch..."
+
+        echo "Building the shared library..."
+        cd ./shared || exit
+        npm run build || exit
+
+        echo "Installing dependencies in the app..."
+        cd ../app || exit
+        npm ci --install-links || exit
+
+        echo "Installing dependencies in the cms..."
+        cd ../cms || exit
+        npm ci --install-links || exit
+
+        echo "✓ Sync complete, happy coding!"
+}
+
+# Allows us to read user input below, assigns stdin to keyboard
+exec < /dev/tty
+
+while true; do
+    read -p "Do you want to re-build and install the shared library? (y/n) " yn
+    case $yn in
+        [Yy]* ) install_shared; break;; 
+        [Nn]* ) exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
