@@ -158,7 +158,8 @@ apply_auth0_env() {
 
   if grep -q "VITE_AUTH0_DOMAIN" "$output_file" || grep -q "AUTH0_DOMAIN" "$output_file"; then
     echo ""
-    warn "Auth0 is required. Please provide your Auth0 credentials:"
+    warn "Auth0 is required. Please provide your Auth0 credentials."
+    warn "If you have a certificate from the Auth0 dashboard, paste it into the relevant field when prompted."
     read -rp "Auth0 Domain (e.g., your-domain.auth0.com): " auth0_domain
     sed -i.bak "s|VITE_AUTH0_DOMAIN=.*|VITE_AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
     sed -i.bak "s|AUTH0_DOMAIN=.*|AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
@@ -177,7 +178,12 @@ apply_auth0_env() {
 }
 
 escape_env_value() {
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a;N;$!ba;s/\n/\\n/g'
+  python3 - <<'PY' <<<"$1"
+import sys
+value = sys.stdin.read()
+value = value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+sys.stdout.write(value)
+PY
 }
 
 upsert_env_var() {
@@ -198,17 +204,40 @@ prompt_multiline_value() {
   local value=""
 
   info "$prompt"
-  info "Paste the value, then type END on its own line and press Enter."
+  info "Paste the value now."
+  info "Finish by typing END on its own line and pressing Enter, or press Ctrl+D."
 
   while IFS= read -r line; do
     if [[ "$line" == "END" ]]; then
       break
     fi
     value+="$line"$'\n'
-  done
+  done || true
 
   value="${value%$'\n'}"
   echo "$value"
+}
+
+prompt_jwt_secret() {
+  local jwt_secret=""
+  local use_multiline=""
+
+  echo ""
+  warn "JWT_SECRET is required for API authentication (not the Auth0 certificate)."
+
+  while [[ ! "$use_multiline" =~ ^[YyNn]$ ]]; do
+    read -rp "Use multiline input? (y/n): " -n 1 -r use_multiline
+    echo ""
+  done
+
+  if [[ "$use_multiline" =~ ^[Yy]$ ]]; then
+    info "Waiting for JWT_SECRET input..."
+    jwt_secret=$(prompt_multiline_value "Paste JWT_SECRET")
+  else
+    read -rp "JWT_SECRET (single line): " jwt_secret
+  fi
+
+  echo "$jwt_secret"
 }
 
 apply_api_env_defaults() {
@@ -217,7 +246,7 @@ apply_api_env_defaults() {
   if grep -q "JWT_SECRET" "$output_file"; then
     local jwt_secret=""
     while [[ -z "$jwt_secret" ]]; do
-      jwt_secret=$(prompt_multiline_value "JWT_SECRET is required for API authentication.")
+      jwt_secret=$(prompt_jwt_secret)
       if [[ -z "$jwt_secret" ]]; then
         warn "JWT_SECRET cannot be empty."
       fi
@@ -262,6 +291,7 @@ prompt_service_credentials() {
     LUMINARY_COUCHDB_USER="$couchdb_user_input"
   fi
 
+  info "Enter CouchDB admin password (input hidden). Press Enter to keep current value."
   read -rsp "CouchDB admin password [hidden]: " couchdb_password_input
   echo ""
   if [[ -n "$couchdb_password_input" ]]; then
@@ -273,6 +303,7 @@ prompt_service_credentials() {
     LUMINARY_MINIO_ROOT_USER="$minio_user_input"
   fi
 
+  info "Enter MinIO root password (input hidden). Press Enter to keep current value."
   read -rsp "MinIO root password [hidden]: " minio_password_input
   echo ""
   if [[ -n "$minio_password_input" ]]; then
