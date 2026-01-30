@@ -29,6 +29,7 @@ import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config } from "../config";
+import { useDexieLiveQuery } from "../util";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -66,7 +67,9 @@ describe("Database", async () => {
     });
 
     it("can convert a Dexie query to a Vue ref", async () => {
-        const posts = db.toRef(() => db.docs.where("_id").equals(mockPostDto._id).toArray(), []);
+        const posts = useDexieLiveQuery<PostDto[]>(
+            async () => (await db.docs.where("_id").equals(mockPostDto._id).toArray()) as PostDto[],
+        );
 
         await waitForExpect(() => {
             expect(posts.value).toEqual([mockPostDto]);

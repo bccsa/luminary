@@ -7,6 +7,7 @@ import {
     type GroupDto,
     verifyAccess,
     AclPermission,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
 import { UserGroupIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
@@ -26,7 +27,10 @@ const props = withDefaults(defineProps<Props>(), {
 const groups = defineModel<Uuid[]>("groups", { required: true });
 
 // Reactive list of all available groups from the database
-const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const availableGroups = useDexieLiveQuery(
+    async () => (await db.docs.where("type").equals(DocType.Group).toArray()) as GroupDto[],
+    { initialValue: [] as GroupDto[] },
+);
 
 // Compute assignable groups based on access control:
 // - Must have EDIT access to the document type
