@@ -14,7 +14,7 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
 </script>
 
 <template>
-    <div class="mt-1 flex flex-col">
+    <div class="mb-1 flex flex-col">
         <DisplayCard
             title=""
             :updatedTimeUtc="0"
