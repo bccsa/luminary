@@ -701,8 +701,6 @@ class Database extends Dexie {
                     await this.docs.delete(change.doc._id);
                 }
             }
-            // Keep the change in queue for retry - do not delete on rejection
-            return;
         }
 
         if (ack.ack == "accepted" && ack.warnings && ack.warnings.length > 0) {
