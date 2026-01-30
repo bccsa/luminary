@@ -138,7 +138,7 @@ class Database extends Dexie {
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
-            localChanges: "++id, docId, status",
+            localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
         };
@@ -685,10 +685,11 @@ class Database extends Dexie {
 
     /**
      * Apply a change request ack from the API
-     * Since changes are processed sequentially (one at a time), we only delete the change
-     * if it was accepted. Rejected changes remain in the queue for potential retry.
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
+        const changes = await this.localChanges.toArray();
+        const change = changes.length > 0 ? changes[0] : undefined;
+
         if (ack.ack == "rejected") {
             changeReqErrors.value.push(ack.message || "Unknown error occured");
             if (ack.docs && Array.isArray(ack.docs)) {
@@ -696,9 +697,8 @@ class Database extends Dexie {
                 await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                const changes = await this.localChanges.toArray();
-                if (changes.length > 0 && changes[0]?.doc) {
-                    await this.docs.delete(changes[0].doc._id);
+                if (change?.doc) {
+                    await this.docs.delete(change.doc._id);
                 }
             }
             // Keep the change in queue for retry - do not delete on rejection
@@ -710,9 +710,8 @@ class Database extends Dexie {
         }
 
         // Only delete from queue if change was accepted
-        const changes = await this.localChanges.toArray();
-        if (changes.length > 0 && changes[0].id) {
-            await this.localChanges.delete(changes[0].id);
+        if (change?.id) {
+            await this.localChanges.delete(change.id);
         }
     }
 

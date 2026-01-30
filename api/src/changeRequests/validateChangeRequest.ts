@@ -41,9 +41,7 @@ export async function validateChangeRequest(
     groupMembership: Array<Uuid>,
     dbService: DbService,
 ): Promise<ValidationResult> {
-    const changeRequest = plainToInstance(ChangeReqDto, data, {
-        enableImplicitConversion: true,
-    });
+    const changeRequest = plainToInstance(ChangeReqDto, data);
 
     // Validate main change request document
     let message = "Change request validation failed for the following constraints:\n";
@@ -77,9 +75,7 @@ export async function validateChangeRequest(
     }
 
     // Check included document validity
-    const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
-        enableImplicitConversion: true,
-    });
+    const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc);
     message = `Submitted ${changeRequest.doc.type} document validation failed for the following constraints:\n`;
     validationResult = await dtoValidate(doc, message);
 
