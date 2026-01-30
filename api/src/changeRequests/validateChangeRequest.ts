@@ -114,6 +114,7 @@ async function dtoValidate(data: any, message: string): Promise<ValidationResult
     try {
         const changeReqValidation = await validate(data, {
             whitelist: true,
+            forbidNonWhitelisted: true,
         });
         if (changeReqValidation.length > 0) {
             changeReqValidation.forEach((c) => {
