@@ -307,19 +307,17 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "Language-selector-id",
+                id: mockData.mockPostDto._id,
                 tagOrPostType: PostType.Blog,
             },
         });
 
         await waitForExpect(() => {
-            // Check for language selector in EmptyState (when no content is selected)
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
+            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
         });
 
         await waitForExpect(() => {
-            // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
-            expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true);
+            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
 
