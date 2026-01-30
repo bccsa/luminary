@@ -71,4 +71,62 @@ describe("formatPastedHtml", () => {
             "<h2>Main Title</h2><p>Paragraph with line break</p><h3>Subtitle</h3><p> Spaced text </p><p>Invalid heading</p>",
         );
     });
+
+    // Word Online specific tests
+    describe("Word Online formatting", () => {
+        it("converts bold spans with font-weight: bold to <strong>", () => {
+            const html = '<span style="font-weight: bold">bold text</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<strong>bold text</strong>");
+        });
+
+        it("converts bold spans with numeric font-weight (700+) to <strong>", () => {
+            const html = '<span style="font-weight: 700">bold text</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<strong>bold text</strong>");
+        });
+
+        it("converts italic spans to <em>", () => {
+            const html = '<span style="font-style: italic">italic text</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<em>italic text</em>");
+        });
+
+        it("converts bold+italic spans to nested <strong><em>", () => {
+            const html = '<span style="font-weight: bold; font-style: italic">bold italic</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<strong><em>bold italic</em></strong>");
+        });
+
+        it("converts underline spans to <u>", () => {
+            const html = '<span style="text-decoration: underline">underlined</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<u>underlined</u>");
+        });
+
+        it("converts strikethrough spans to <s>", () => {
+            const html = '<span style="text-decoration: line-through">strikethrough</span>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<s>strikethrough</s>");
+        });
+
+        it("removes MsoNormal and other Mso classes", () => {
+            const html = '<p class="MsoNormal">Normal paragraph</p>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<p>Normal paragraph</p>");
+        });
+
+        it("handles Word Online paragraph with mixed formatting", () => {
+            const html =
+                '<p class="MsoNormal"><span style="font-weight: bold">Bold</span> and <span style="font-style: italic">italic</span> text</p>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<p><strong>Bold</strong> and <em>italic</em> text</p>");
+        });
+
+        it("removes empty spans without meaningful formatting", () => {
+            const html = '<p><span style="color: red">colored text</span></p>';
+            const formatted = formatPastedHtml(html);
+            expect(formatted).toBe("<p>colored text</p>");
+        });
+    });
 });
