@@ -48,7 +48,10 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div v-if="title || isLocalChange" class="relative flex cursor-pointer items-center justify-between py-1">
+        <div
+            v-if="title || isLocalChange"
+            class="relative flex cursor-pointer items-center justify-between py-1"
+        >
             <div
                 data-test="card-title"
                 class="w-full"
@@ -56,14 +59,19 @@ const handleClick = () => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
-                    {{ title }}
+                <div class="flex items-center gap-0">
+                    <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                        {{ title }}
+                    </div>
+                    <div>
+                        <slot name="title-extension" />
+                    </div>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
                 </LBadge>
             </div>
-            <div>
+            <div class="flex">
                 <slot name="topRightContent" />
             </div>
 

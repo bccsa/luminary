@@ -182,7 +182,7 @@ const saveDisabled = computed(() => {
             }
         "
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
-        :primaryDisableCondition="saveDisabled"
+        :primaryButtonDisabled="saveDisabled"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
     >
