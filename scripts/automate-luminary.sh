@@ -178,12 +178,10 @@ apply_auth0_env() {
 }
 
 escape_env_value() {
-  python3 - <<'PY' <<<"$1"
-import sys
+  python3 -c 'import sys
 value = sys.stdin.read()
-value = value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-sys.stdout.write(value)
-PY
+value = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+sys.stdout.write(value)' <<<"$1"
 }
 
 upsert_env_var() {
@@ -222,16 +220,16 @@ prompt_jwt_secret() {
   local jwt_secret=""
   local use_multiline=""
 
-  echo ""
-  warn "JWT_SECRET is required for API authentication (not the Auth0 certificate)."
+  echo "" >&2
+  warn "JWT_SECRET is required for API authentication (not the Auth0 certificate)." >&2
 
   while [[ ! "$use_multiline" =~ ^[YyNn]$ ]]; do
     read -rp "Use multiline input? (y/n): " -n 1 -r use_multiline
-    echo ""
+    echo "" >&2
   done
 
   if [[ "$use_multiline" =~ ^[Yy]$ ]]; then
-    info "Waiting for JWT_SECRET input..."
+    info "Waiting for JWT_SECRET input..." >&2
     jwt_secret=$(prompt_multiline_value "Paste JWT_SECRET")
   else
     read -rp "JWT_SECRET (single line): " jwt_secret
