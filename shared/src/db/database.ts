@@ -707,7 +707,6 @@ class Database extends Dexie {
             changeReqWarnings.value = ack.warnings;
         }
 
-        // Only delete from queue if change was accepted
         if (change?.id) {
             await this.localChanges.delete(change.id);
         }
