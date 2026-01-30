@@ -39,6 +39,8 @@ type Props = {
     icon?: Component | Function;
     showIcon?: boolean;
     badgeVariant?: keyof typeof variants;
+    compact?: boolean;
+    placeholder?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -46,6 +48,8 @@ const props = withDefaults(defineProps<Props>(), {
     showSelectedInDropdown: true,
     showSelectedLabels: true,
     showIcon: true,
+    compact: false,
+    placeholder: "Type to select...",
 });
 
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
@@ -239,11 +243,15 @@ const placementClass = computed(() => {
                     <input
                         v-model="query"
                         ref="inputElement"
-                        class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                        :class="{
-                            'w-96': $slots.actions && !isSmallScreen,
-                        }"
-                        placeholder="Type to select..."
+                        class="z-0 flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 focus:ring-0"
+                        :class="[
+                            props.compact
+                                ? 'h-[30px] w-24 text-sm placeholder:text-xs'
+                                : 'h-[38px] placeholder:text-sm',
+                            $slots.actions && !isSmallScreen ? 'w-96' : '',
+                            'placeholder:text-zinc-400',
+                        ]"
+                        :placeholder="props.placeholder"
                         name="option-search"
                         autocomplete="off"
                         @keydown.enter="
