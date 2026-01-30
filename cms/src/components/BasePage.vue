@@ -141,7 +141,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                 >
                     <div
                         class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
-                        :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
+                        :class="{ 'sm:mt-1': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
                         <slot />
