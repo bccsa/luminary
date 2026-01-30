@@ -8,8 +8,11 @@ import NotificationManager from "./components/notifications/NotificationManager.
 import router from "./router";
 import MobileSideBar from "@/components/navigation/MobileSideBar.vue";
 import SideBar from "@/components/navigation/SideBar.vue";
+import { isAuthBypassed } from "@/auth";
 
-const { isAuthenticated } = useAuth0();
+// In auth bypass mode, always treat as authenticated
+const auth0 = isAuthBypassed ? null : useAuth0();
+const isAuthenticated = computed(() => isAuthBypassed || auth0?.isAuthenticated.value);
 const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {

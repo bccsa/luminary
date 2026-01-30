@@ -1,5 +1,5 @@
 import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
-import { type App, watch } from "vue";
+import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 
@@ -8,9 +8,51 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 /**
+ * Check if auth bypass mode is enabled (for development and E2E testing)
+ */
+export const isAuthBypassed = import.meta.env.VITE_AUTH_BYPASS === "true";
+
+/**
+ * Mock auth plugin for bypass mode
+ */
+function createMockAuth(): AuthPlugin {
+    const mockAuth = {
+        isAuthenticated: ref(true),
+        isLoading: ref(false),
+        user: ref({
+            name: "E2E Test User",
+            email: "e2e@test.local",
+            sub: "e2e-test-user",
+        }),
+        idTokenClaims: ref(null),
+        error: ref(null),
+        loginWithRedirect: async () => {},
+        loginWithPopup: async () => {},
+        logout: async () => {},
+        getAccessTokenSilently: async () => "mock-token-for-e2e-testing",
+        getAccessTokenWithPopup: async () => "mock-token-for-e2e-testing",
+        checkSession: async () => {},
+        handleRedirectCallback: async () => ({ appState: {} }),
+        install: () => {},
+    } as unknown as AuthPlugin;
+
+    return mockAuth;
+}
+
+/**
  * Setup the Auth0 plugin.
  */
 async function setupAuth(app: App<Element>, router: Router) {
+    // If auth bypass is enabled, return a mock auth plugin
+    if (isAuthBypassed) {
+        console.warn(
+            "⚠️ Auth bypass mode enabled - this should only be used for development/E2E testing",
+        );
+        const mockAuth = createMockAuth();
+        app.config.globalProperties.$auth = mockAuth;
+        return mockAuth;
+    }
+
     app.config.globalProperties.$auth = null; // Clear existing auth
     const web_origin = window.location.origin;
 

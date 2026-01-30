@@ -75,3 +75,49 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-cms
 ```
 
 This will run the CMS on port 8080 on the host machine.
+
+## Testing
+
+### Unit Tests
+
+Run unit tests with Vitest:
+
+```sh
+npm run test:unit
+```
+
+### E2E Tests
+
+The CMS uses Playwright for end-to-end testing. E2E tests run in **auth bypass mode**, which allows testing without requiring Auth0 integration.
+
+#### Running E2E Tests
+
+```sh
+# Install Playwright browsers (first time only)
+npx playwright install
+
+# Run E2E tests
+npm run test:e2e
+
+# Run with UI mode for debugging
+npx playwright test --ui
+
+# Generate test code
+npm run test:e2e:codegen
+```
+
+#### Auth Bypass Mode
+
+For E2E testing and local development without Auth0, set `VITE_AUTH_BYPASS=true` in your environment:
+
+```sh
+# Add to your .env file for local development:
+VITE_AUTH_BYPASS=true
+```
+
+When auth bypass is enabled:
+
+- The application skips Auth0 authentication entirely
+- A mock user (`E2E Test User`) is automatically "logged in"
+- All authenticated routes are accessible
+- ⚠️ **Never enable this in production!**

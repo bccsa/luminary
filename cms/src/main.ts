@@ -6,7 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth from "./auth";
+import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initLanguageSync, initSync } from "./sync";
@@ -30,7 +30,7 @@ if (import.meta.env.PROD) {
 
 async function Startup() {
     const oauth = await auth.setupAuth(app, router);
-    const token = await auth.getToken(oauth);
+    const token = isAuthBypassed ? "mock-token-for-e2e-testing" : await auth.getToken(oauth);
 
     await init({
         cms: true,
@@ -82,12 +82,14 @@ async function Startup() {
 
     const socket = getSocket();
 
-    // Redirect to login if the API authentication fails
-    socket.on("apiAuthFailed", async () => {
-        console.error("API authentication failed, redirecting to login");
-        Sentry.captureMessage("API authentication failed, redirecting to login");
-        await auth.loginRedirect(oauth);
-    });
+    // Redirect to login if the API authentication fails (skip in auth bypass mode)
+    if (!isAuthBypassed) {
+        socket.on("apiAuthFailed", async () => {
+            console.error("API authentication failed, redirecting to login");
+            Sentry.captureMessage("API authentication failed, redirecting to login");
+            await auth.loginRedirect(oauth);
+        });
+    }
 
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {

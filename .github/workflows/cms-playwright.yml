@@ -1,0 +1,104 @@
+name: CMS Playwright Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - cms/**
+      - shared/**
+      - api/**
+      - .github/workflows/cms-playwright.yml
+  push:
+    branches: [main, master]
+    paths:
+      - cms/**
+      - shared/**
+      - api/**
+      - .github/workflows/cms-playwright.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    services:
+      couchdb:
+        image: couchdb:latest
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: password
+        ports:
+          - 5984:5984
+        options: >-
+          --health-cmd="curl -f http://localhost:5984/_up"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          docker run -d \
+            --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio server /data
+          # Wait for MinIO to be ready
+          sleep 5
+
+      - name: Create database in couchDB
+        run: |
+          curl -X PUT http://admin:password@localhost:5984/_users
+          curl -X PUT http://admin:password@localhost:5984/luminary-local
+
+      - name: Setup API
+        run: |
+          npm install 
+          cp .env.example .env
+          # Add required S3 environment variables for schema upgrade
+          echo "S3_ENDPOINT=localhost" >> .env
+          echo "S3_PORT=9000" >> .env
+          echo "S3_ACCESS_KEY=minioadmin" >> .env
+          echo "S3_SECRET_KEY=minioadmin" >> .env
+          echo "S3_IMG_BUCKET=luminary-images" >> .env
+          echo "S3_USE_SSL=false" >> .env
+          npm run seed
+        working-directory: api
+
+      - name: Setup CMS and shared library
+        run: |
+          cd shared
+          npm install
+          npm run build
+          cd ../cms
+          cp .env.example .env
+          npm ci --install-links
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+        working-directory: cms
+
+      - name: Run Playwright Tests
+        env:
+          VITE_AUTH_BYPASS: "true"
+        run: |
+          cd api
+          # Export S3 environment variables for the API runtime
+          export S3_ENDPOINT=localhost
+          export S3_PORT=9000
+          export S3_ACCESS_KEY=minioadmin
+          export S3_SECRET_KEY=minioadmin
+          export S3_IMG_BUCKET=luminary-images
+          export S3_USE_SSL=false
+          npm run start & # Start your API in the background
+          sleep 20         # Wait for the API to be ready
+          cd ../cms
+          npm run test:e2e  # Run Playwright E2E tests
