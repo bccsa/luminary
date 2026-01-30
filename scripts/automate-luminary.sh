@@ -158,19 +158,34 @@ apply_auth0_env() {
 
   if grep -q "VITE_AUTH0_DOMAIN" "$output_file" || grep -q "AUTH0_DOMAIN" "$output_file"; then
     echo ""
-    warn "Auth0 is required. Please provide your Auth0 credentials."
-    warn "If you have a certificate from the Auth0 dashboard, paste it into the relevant field when prompted."
-    read -rp "Auth0 Domain (e.g., your-domain.auth0.com): " auth0_domain
+    echo "=================================================================="
+    echo "Auth0 Authentication Setup"
+    echo "=================================================================="
+    info "Auth0 is used for user authentication and authorization."
+    info "You'll need an Auth0 account and application configured."
+    info "Get these values from your Auth0 dashboard (Applications > Your App > Settings)."
+    echo ""
+    
+    info "AUTH0_DOMAIN: Your Auth0 tenant domain."
+    info "  Example: dev-abc123.us.auth0.com or mycompany.auth0.com"
+    read -rp "Auth0 Domain: " auth0_domain
     sed -i.bak "s|VITE_AUTH0_DOMAIN=.*|VITE_AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
     sed -i.bak "s|AUTH0_DOMAIN=.*|AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
     rm -f "$output_file.bak"
 
+    echo ""
+    info "AUTH0_CLIENT_ID: Your application's unique identifier in Auth0."
+    info "  This is a long alphanumeric string found in the Auth0 dashboard."
     read -rp "Auth0 Client ID: " auth0_client_id
     sed -i.bak "s|VITE_AUTH0_CLIENT_ID=.*|VITE_AUTH0_CLIENT_ID=$auth0_client_id|g" "$output_file"
     sed -i.bak "s|AUTH0_CLIENT_ID=.*|AUTH0_CLIENT_ID=$auth0_client_id|g" "$output_file"
     rm -f "$output_file.bak"
 
-    read -rp "Auth0 Audience (e.g., https://your.audience/api): " auth0_audience
+    echo ""
+    info "AUTH0_AUDIENCE: The unique identifier of your API in Auth0."
+    info "  Example: https://your-api.com/api or https://luminary.example.com"
+    info "  This should match the Identifier you set in Auth0 APIs section."
+    read -rp "Auth0 Audience: " auth0_audience
     sed -i.bak "s|VITE_AUTH0_AUDIENCE=.*|VITE_AUTH0_AUDIENCE=$auth0_audience|g" "$output_file"
     sed -i.bak "s|AUTH0_AUDIENCE=.*|AUTH0_AUDIENCE=$auth0_audience|g" "$output_file"
     rm -f "$output_file.bak"
@@ -245,7 +260,14 @@ prompt_jwt_secret() {
   local use_multiline=""
 
   echo "" >&2
-  warn "JWT_SECRET is required for API authentication (not the Auth0 certificate)." >&2
+  echo "==================================================================" >&2
+  echo "JWT Secret Configuration" >&2
+  echo "==================================================================" >&2
+  info "JWT_SECRET: The secret key used to sign and verify JWT tokens." >&2
+  info "  This is typically obtained from your Auth0 application settings" >&2
+  info "  under Advanced Settings > Certificates or can be your own secret." >&2
+  info "  Can be a single-line string or a multi-line PEM certificate." >&2
+  warn "Keep this secret secure - never commit it to version control!" >&2
 
   while [[ ! "$use_multiline" =~ ^[YyNn]$ ]]; do
     read -rp "Use multiline input? (y/n): " -n 1 -r use_multiline
@@ -285,7 +307,13 @@ apply_api_env_defaults() {
     local encryption_key=""
     while [[ -z "$encryption_key" ]]; do
       echo ""
-      warn "ENCRYPTION_KEY is required for data security."
+      echo "=================================================================="
+      echo "Data Encryption Key Setup"
+      echo "=================================================================="
+      info "ENCRYPTION_KEY: A 32-byte (64 hex characters) secret key for encrypting"
+      info "  sensitive data at rest in the database (e.g., user credentials)."
+      info "  Press Enter to auto-generate a secure random key, or paste your own."
+      warn "IMPORTANT: Save this key securely! Losing it means losing access to encrypted data."
       read -rp "Enter a 32-byte encryption key (or press Enter to generate one): " encryption_key
       if [[ -z "$encryption_key" ]]; then
         encryption_key=$(openssl rand -hex 32)
@@ -312,24 +340,42 @@ apply_api_env_defaults() {
 
 prompt_service_credentials() {
   echo ""
+  echo "=================================================================="
+  echo "Database & Storage Credentials"
+  echo "=================================================================="
+  info "Configure credentials for CouchDB (database) and MinIO (file storage)."
+  info "These will be used to create Docker containers for local development."
+  echo ""
+  
+  info "COUCHDB_USER: Admin username for CouchDB database access."
+  info "  Default: admin (you can use the default or choose your own)"
   read -rp "CouchDB admin username [${LUMINARY_COUCHDB_USER}]: " couchdb_user_input
   if [[ -n "$couchdb_user_input" ]]; then
     LUMINARY_COUCHDB_USER="$couchdb_user_input"
   fi
 
-  info "Enter CouchDB admin password (input hidden). Press Enter to keep current value."
+  echo ""
+  info "COUCHDB_PASSWORD: Admin password for CouchDB database access."
+  info "  Choose a strong password for production use."
+  info "  Input will be hidden for security. Press Enter to keep default."
   read -rsp "CouchDB admin password [hidden]: " couchdb_password_input
   echo ""
   if [[ -n "$couchdb_password_input" ]]; then
     LUMINARY_COUCHDB_PASSWORD="$couchdb_password_input"
   fi
 
+  echo ""
+  info "MINIO_ROOT_USER: Root username for MinIO S3-compatible storage."
+  info "  Default: minio (you can use the default or choose your own)"
   read -rp "MinIO root user [${LUMINARY_MINIO_ROOT_USER}]: " minio_user_input
   if [[ -n "$minio_user_input" ]]; then
     LUMINARY_MINIO_ROOT_USER="$minio_user_input"
   fi
 
-  info "Enter MinIO root password (input hidden). Press Enter to keep current value."
+  echo ""
+  info "MINIO_ROOT_PASSWORD: Root password for MinIO storage access."
+  info "  Must be at least 8 characters long."
+  info "  Input will be hidden for security. Press Enter to keep default."
   read -rsp "MinIO root password [hidden]: " minio_password_input
   echo ""
   if [[ -n "$minio_password_input" ]]; then
