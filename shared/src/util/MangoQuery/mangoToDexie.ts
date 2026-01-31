@@ -1,6 +1,6 @@
 import type { Collection, Table } from "dexie";
-import type { MongoQuery, MongoSelector } from "./MongoTypes";
-import { mongoCompile } from "./mongoCompile";
+import type { MangoQuery, MangoSelector } from "./MangoTypes";
+import { mangoCompile } from "./mangoCompile";
 
 type Pushdown =
     | { kind: "anyOf"; field: string; values: any[] }
@@ -10,17 +10,17 @@ type Pushdown =
 // No options needed; Dexie warns at runtime if orderBy/where fields are not indexed.
 
 /**
- * Convert a Mongo-like query into a Dexie Collection, pushing index-friendly parts into Dexie.
+ * Convert a Mango query into a Dexie Collection, pushing index-friendly parts into Dexie.
  *
  * Flow:
  * 1) If $sort is specified, prefer Table.orderBy(index) (+ .reverse for desc) and perform all filtering in-memory
- *    using Collection.filter(mongoCompile(selector)).
+ *    using Collection.filter(mangoCompile(selector)).
  * 2) Without $sort, extract index-friendly predicates from the selector and push it into Table.where().
- *    Remaining selector conditions are compiled via mongoCompile and applied with Collection.filter().
+ *    Remaining selector conditions are compiled via mangoCompile and applied with Collection.filter().
  * 3) If $in is available for the chosen field, prefer where().anyOf(values) over other comparators.
  */
-export function mongoToDexie<T>(table: Table<T>, query: MongoQuery): Collection<T> {
-    const selector: MongoSelector = (query?.selector || {}) as MongoSelector;
+export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<T> {
+    const selector: MangoSelector = (query?.selector || {}) as MangoSelector;
     const limit = typeof query?.$limit === "number" ? query.$limit : undefined;
     const sort = Array.isArray(query?.$sort) ? query.$sort : undefined;
 
@@ -40,7 +40,7 @@ export function mongoToDexie<T>(table: Table<T>, query: MongoQuery): Collection<
             col = table.filter(() => true);
         }
 
-        const pred = mongoCompile(selector) as (d: T) => boolean;
+        const pred = mangoCompile(selector) as (d: T) => boolean;
         col = col.filter(pred);
         if (typeof limit === "number") return col.limit(Math.max(0, limit));
         return col;
@@ -52,7 +52,7 @@ export function mongoToDexie<T>(table: Table<T>, query: MongoQuery): Collection<
         let col = applyWhere(table, push);
         const residual = buildResidualSelector(selector, push);
         if (!isEmptySelector(residual)) {
-            const pred = mongoCompile(residual) as (d: T) => boolean;
+            const pred = mangoCompile(residual) as (d: T) => boolean;
             col = col.filter(pred);
         }
         if (typeof limit === "number") return col.limit(Math.max(0, limit));
@@ -60,17 +60,17 @@ export function mongoToDexie<T>(table: Table<T>, query: MongoQuery): Collection<
     }
 
     // 3) Fallback: in-memory filter for full selector
-    const pred = mongoCompile(selector) as (d: T) => boolean;
+    const pred = mangoCompile(selector) as (d: T) => boolean;
     const base = table.filter(pred);
     if (typeof limit === "number") return base.limit(Math.max(0, limit));
     return base;
 }
 
-function isEmptySelector(q: MongoSelector): boolean {
+function isEmptySelector(q: MangoSelector): boolean {
     return Object.keys(q).length === 0;
 }
 
-function extractPushdown(q: MongoSelector): Pushdown | undefined {
+function extractPushdown(q: MangoSelector): Pushdown | undefined {
     // 1) Prefer maximum number of equality comparators (top-level and within $and), excluding booleans
     const eqMap = collectMultiEq(q);
     if (eqMap && Object.keys(eqMap).length > 0) {
@@ -85,7 +85,7 @@ function extractPushdown(q: MongoSelector): Pushdown | undefined {
     return findSingleComparator(q);
 }
 
-function singleFieldPushdownFromSelector(q: MongoSelector): Pushdown | undefined {
+function singleFieldPushdownFromSelector(q: MangoSelector): Pushdown | undefined {
     const keys = Object.keys(q);
     if (keys.length !== 1) return undefined;
     const field = keys[0];
@@ -138,7 +138,7 @@ function singleFieldPushdownFromSelector(q: MongoSelector): Pushdown | undefined
     return undefined;
 }
 
-function findAnyOf(q: MongoSelector): Pushdown | undefined {
+function findAnyOf(q: MangoSelector): Pushdown | undefined {
     // Check top-level fields for $in
     for (const key of Object.keys(q)) {
         if (key === "$and" || key === "$or") continue;
@@ -164,7 +164,7 @@ function findAnyOf(q: MongoSelector): Pushdown | undefined {
     return undefined;
 }
 
-function findSingleComparator(q: MongoSelector): Pushdown | undefined {
+function findSingleComparator(q: MangoSelector): Pushdown | undefined {
     // Try top-level fields for a comparator
     for (const key of Object.keys(q)) {
         if (key === "$and" || key === "$or") continue;
@@ -217,7 +217,7 @@ function findSingleComparator(q: MongoSelector): Pushdown | undefined {
     return undefined;
 }
 
-function buildResidualSelector(q: MongoSelector, push: Pushdown): MongoSelector {
+function buildResidualSelector(q: MangoSelector, push: Pushdown): MangoSelector {
     // Deep-ish clone to avoid mutating original
     const clone = (): any => JSON.parse(JSON.stringify(q)); // eslint-disable-line @typescript-eslint/no-explicit-any
     const res: any = clone(); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -400,8 +400,8 @@ function buildResidualSelector(q: MongoSelector, push: Pushdown): MongoSelector 
     const keys = Object.keys(res).filter(
         (k) => !(k === "$and" && Array.isArray(res.$and) && res.$and.length === 0),
     );
-    if (keys.length === 0) return {} as MongoSelector;
-    return res as MongoSelector;
+    if (keys.length === 0) return {} as MangoSelector;
+    return res as MangoSelector;
 }
 
 // (no-op) matchesPushdown helper removed; residual subtraction handles correctness
@@ -431,7 +431,7 @@ function applyWhere<T>(table: Table<T>, push: Pushdown): Collection<T> {
 }
 
 // Collect simple (non-boolean) equality conditions from top-level and top-level $and
-function collectMultiEq(q: MongoSelector): Record<string, string | number> {
+function collectMultiEq(q: MangoSelector): Record<string, string | number> {
     const out: Record<string, string | number> = {};
 
     const consider = (field: string, crit: any): void => {
