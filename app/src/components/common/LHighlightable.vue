@@ -182,13 +182,18 @@ function removeHighlight() {
     if (!sel || sel.rangeCount === 0) return;
 
     const range = sel.getRangeAt(0);
+    const startOffset = range.startOffset;
+    const endOffset = range.endOffset;
+    const startContainer = range.startContainer;
+    const endContainer = range.endContainer;
+
     // Find all marks intersecting the range
     const marks = document.querySelectorAll("mark");
-    const marksToRemove: HTMLElement[] = [];
+    const marksToProcess: HTMLElement[] = [];
 
     marks.forEach((mark) => {
         if (range.intersectsNode(mark) && content.value?.contains(mark)) {
-            marksToRemove.push(mark);
+            marksToProcess.push(mark);
         }
     });
 
@@ -196,11 +201,87 @@ function removeHighlight() {
     let container = range.commonAncestorContainer;
     if (container.nodeType === Node.TEXT_NODE) container = container.parentElement as Element;
     const ancestorMark = (container as Element).closest("mark");
-    if (ancestorMark && !marksToRemove.includes(ancestorMark)) marksToRemove.push(ancestorMark);
+    if (ancestorMark && !marksToProcess.includes(ancestorMark)) marksToProcess.push(ancestorMark);
 
-    marksToRemove.forEach((mark) => {
+    marksToProcess.forEach((mark) => {
         const parent = mark.parentNode;
-        if (parent) {
+        if (!parent) return;
+
+        // Get the mark's text content and position info
+        const markText = mark.textContent || "";
+
+        // Check if selection is entirely within this mark (partial removal)
+        const markContainsStart = mark.contains(startContainer);
+        const markContainsEnd = mark.contains(endContainer);
+
+        if (markContainsStart && markContainsEnd && markText.length > 0) {
+            // Calculate the actual offsets within the mark's text
+            let selStart = 0;
+            let selEnd = markText.length;
+
+            // For single text node inside mark
+            if (mark.childNodes.length === 1 && mark.firstChild?.nodeType === Node.TEXT_NODE) {
+                selStart = startOffset;
+                selEnd = endOffset;
+            } else {
+                // For more complex cases, calculate offset by walking the tree
+                const walker = document.createTreeWalker(mark, NodeFilter.SHOW_TEXT);
+                let currentOffset = 0;
+
+                while (walker.nextNode()) {
+                    const textNode = walker.currentNode as Text;
+                    const nodeLength = textNode.length;
+
+                    if (textNode === startContainer) {
+                        selStart = currentOffset + startOffset;
+                    }
+                    if (textNode === endContainer) {
+                        selEnd = currentOffset + endOffset;
+                    }
+                    currentOffset += nodeLength;
+                }
+            }
+
+            // Get the parts
+            const beforeText = markText.substring(0, selStart);
+            const selectedText = markText.substring(selStart, selEnd);
+            const afterText = markText.substring(selEnd);
+
+            const markColor = mark.style.backgroundColor;
+            const markClass = mark.className;
+
+            // Clear mark and rebuild
+            mark.textContent = "";
+
+            // Create "before" part (still highlighted)
+            if (beforeText) {
+                const beforeMark = document.createElement("mark");
+                beforeMark.style.backgroundColor = markColor;
+                beforeMark.className = markClass;
+                beforeMark.textContent = beforeText;
+                parent.insertBefore(beforeMark, mark);
+            }
+
+            // Insert unhighlighted selected text
+            if (selectedText) {
+                const plainText = document.createTextNode(selectedText);
+                parent.insertBefore(plainText, mark);
+            }
+
+            // Create "after" part (still highlighted)
+            if (afterText) {
+                const afterMark = document.createElement("mark");
+                afterMark.style.backgroundColor = markColor;
+                afterMark.className = markClass;
+                afterMark.textContent = afterText;
+                parent.insertBefore(afterMark, mark);
+            }
+
+            // Remove the original empty mark
+            parent.removeChild(mark);
+            parent.normalize();
+        } else {
+            // Full removal - original behavior
             while (mark.firstChild) {
                 parent.insertBefore(mark.firstChild, mark);
             }
@@ -280,14 +361,13 @@ function handleTouchStart() {
         touchTimer = undefined;
     }
 
-    // Set a timer to prevent long-press menu (iOS shows menu after ~500ms)
+    // Set a timer to detect long-press
     touchTimer = setTimeout(() => {
-        // If touch is still active after 400ms, prevent the default to block menu
-        // But we need to be careful not to break text selection
+        // After long-press duration, check if there's a selection
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed) {
-            // If there's a selection, we want to prevent the menu
-            // but we can't preventDefault here as it would break selection
+            // Force our menu to show and prevent native behavior
+            updateMenuState();
         }
     }, 400);
 }
@@ -304,7 +384,12 @@ function handleContextMenu(e: Event) {
     // Prevent native context menu on all platforms (especially iOS)
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     return false;
+}
+
+function handleSelectStart() {
+    // Selection has started - context menu will be handled by our component
 }
 
 function handleTouchCancel() {
@@ -315,15 +400,32 @@ function handleTouchCancel() {
     }
 }
 
+// Intercept any attempts to show native menus at the document level
+function documentContextMenuHandler(e: Event) {
+    if (content.value?.contains(e.target as Node)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}
+
 onMounted(async () => {
     await restoreHighlights();
     document.addEventListener("selectionchange", onSelectionChange);
     document.addEventListener("scroll", onSelectionChange, { passive: true });
+
+    // Add document-level context menu prevention for iOS
+    document.addEventListener("contextmenu", documentContextMenuHandler, { capture: true });
+
+    // Add selectstart listener to track when selection begins
+    content.value?.addEventListener("selectstart", handleSelectStart);
 });
 
 onUnmounted(() => {
     document.removeEventListener("selectionchange", onSelectionChange);
     document.removeEventListener("scroll", onSelectionChange);
+    document.removeEventListener("contextmenu", documentContextMenuHandler, { capture: true });
+    content.value?.removeEventListener("selectstart", handleSelectStart);
 
     if (touchTimer) {
         clearTimeout(touchTimer);
@@ -335,8 +437,8 @@ onUnmounted(() => {
     <div
         ref="content"
         class="no-native-menu relative"
-        @contextmenu.prevent="handleContextMenu"
-        @touchstart.passive="handleTouchStart"
+        @contextmenu.capture.prevent.stop="handleContextMenu"
+        @touchstart="handleTouchStart"
         @touchend.passive="handleTouchEnd"
         @touchcancel.passive="handleTouchCancel"
     >
@@ -350,7 +452,7 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
+                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
                 :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >
@@ -359,7 +461,7 @@ onUnmounted(() => {
                     <!-- Highlight Toggle -->
                     <button
                         @click="isHighlighted ? removeHighlight() : (showColorPicker = true)"
-                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
+                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                     >
                         <component
                             :is="isHighlighted ? TrashIcon : PencilSquareIcon"
@@ -368,12 +470,12 @@ onUnmounted(() => {
                         {{ isHighlighted ? "Remove" : "Highlight" }}
                     </button>
 
-                    <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-zinc-700"></div>
+                    <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
 
                     <!-- Copy -->
                     <button
                         @click="copyText"
-                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
+                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                     >
                         <DocumentDuplicateIcon class="size-4" />
                         Copy
@@ -384,7 +486,7 @@ onUnmounted(() => {
                 <div v-else class="flex items-center gap-2 p-1">
                     <button
                         @click="showColorPicker = false"
-                        class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                        class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
                     >
                         <ChevronLeftIcon class="size-5" />
                     </button>
@@ -393,7 +495,7 @@ onUnmounted(() => {
                         <button
                             v-for="(color, name) in colors"
                             :key="name"
-                            class="size-6 rounded-full ring-1 ring-zinc-200 transition-transform hover:scale-110 dark:ring-zinc-600"
+                            class="size-6 rounded-full ring-1 ring-zinc-200 transition-transform hover:scale-110 dark:ring-slate-400"
                             :style="{ backgroundColor: color }"
                             @click="applyColor(color)"
                         ></button>
@@ -402,7 +504,7 @@ onUnmounted(() => {
 
                 <!-- Arrow -->
                 <div
-                    class="absolute bottom-0 left-1/2 -mb-1.5 -ml-1.5 h-3 w-3 -rotate-45 border-b border-l border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    class="absolute bottom-0 left-1/2 -mb-1.5 -ml-1.5 h-3 w-3 -rotate-45 border-b border-l border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
                 ></div>
             </div>
         </teleport>
@@ -424,31 +526,43 @@ onUnmounted(() => {
     color: inherit;
 }
 
-/* Prevent iOS native selection menu and callout */
+/* Prevent iOS native selection menu and callout - aggressive approach */
 .no-native-menu,
 .no-native-menu * {
     /* Disable iOS callout menu (Copy, Look Up, etc.) */
     -webkit-touch-callout: none !important;
-    /* Disable text selection menu on iOS Safari */
-    -webkit-user-select: text;
-    user-select: text;
-    /* Prevent context menu */
-    -webkit-tap-highlight-color: transparent;
+    /* Allow text selection */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    /* Remove tap highlight */
+    -webkit-tap-highlight-color: transparent !important;
+    /* Disable drag */
+    -webkit-user-drag: none !important;
 }
 
 /* Additional iOS-specific fixes */
 .no-native-menu {
-    /* Prevent iOS from showing the native selection menu */
-    -webkit-user-drag: none;
-    /* Ensure text can still be selected */
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    /* Ensure touch-action doesn't interfere with selection */
+    touch-action: pan-x pan-y;
 }
 
 .prose {
     /* Hides native menu/magnifier on iOS */
     -webkit-touch-callout: none !important;
     /* Allow text selection but prevent native menu */
-    -webkit-user-select: text;
-    user-select: text;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    /* Ensure the prose content behaves correctly */
+    position: relative;
+}
+
+/* Target iOS Safari specifically using feature queries */
+@supports (-webkit-touch-callout: none) {
+    .no-native-menu,
+    .no-native-menu *,
+    .prose,
+    .prose * {
+        -webkit-touch-callout: none !important;
+    }
 }
 </style>
