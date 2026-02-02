@@ -685,11 +685,10 @@ class Database extends Dexie {
 
     /**
      * Apply a change request ack from the API
+     * @param ack The acknowledgement from the API
+     * @param localChange The local change that was sent (used to identify which entry to delete)
      */
-    async applyLocalChangeAck(ack: ChangeReqAckDto) {
-        const changes = await this.localChanges.toArray();
-        const change = changes.length > 0 ? changes[0] : undefined;
-
+    async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
         if (ack.ack == "rejected") {
             changeReqErrors.value.push(ack.message || "Unknown error occured");
             if (ack.docs && Array.isArray(ack.docs)) {
@@ -697,8 +696,8 @@ class Database extends Dexie {
                 await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                if (change?.doc) {
-                    await this.docs.delete(change.doc._id);
+                if (localChange?.doc) {
+                    await this.docs.delete(localChange.doc._id);
                 }
             }
         }
@@ -707,9 +706,7 @@ class Database extends Dexie {
             changeReqWarnings.value = ack.warnings;
         }
 
-        if (change?.id) {
-            await this.localChanges.delete(change.id);
-        }
+        await this.localChanges.delete(localChange.id);
     }
 
     /**
