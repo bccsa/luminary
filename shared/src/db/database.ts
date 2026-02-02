@@ -688,7 +688,7 @@ class Database extends Dexie {
      * @param ack The acknowledgement from the API
      * @param localChange The local change that was sent (used to identify which entry to delete)
      */
-    async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
+    async applyLocalChangeAck(ack: ChangeReqAckDto, localChange?: LocalChangeDto) {
         if (ack.ack == "rejected") {
             changeReqErrors.value.push(ack.message || "Unknown error occured");
             if (ack.docs && Array.isArray(ack.docs)) {
@@ -706,7 +706,9 @@ class Database extends Dexie {
             changeReqWarnings.value = ack.warnings;
         }
 
-        await this.localChanges.delete(localChange.id);
+        if (localChange?.id) {
+            await this.localChanges.delete(localChange.id);
+        }
     }
 
     /**
