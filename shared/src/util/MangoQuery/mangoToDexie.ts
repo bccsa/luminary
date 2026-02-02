@@ -1,23 +1,100 @@
 import type { Collection, Table } from "dexie";
 import type { MangoQuery, MangoSelector } from "./MangoTypes";
 import { mangoCompile } from "./mangoCompile";
+import { expandMangoSelector } from "./expandMangoQuery";
+import {
+    generateCacheKey,
+    cacheGet,
+    cacheSet,
+    clearCacheByPrefix,
+    getCacheStats,
+    CACHE_PREFIX_DEXIE,
+    CACHE_PREFIX_EXPAND,
+} from "./queryCache";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 type Pushdown =
-    | { kind: "anyOf"; field: string; values: any[] }
-    | { kind: "eq" | "gt" | "lt" | "gte" | "lte" | "ne"; field: string; value: any }
+    | { kind: "anyOf"; field: string; values: unknown[] }
+    | { kind: "eq" | "gt" | "lt" | "gte" | "lte" | "ne"; field: string; value: unknown }
+    | { kind: "startsWith"; field: string; prefix: string }
+    | { kind: "between"; field: string; lower: number; upper: number; includeLower: boolean; includeUpper: boolean }
     | { kind: "multiEq"; fields: Record<string, string | number> };
 
-// No options needed; Dexie warns at runtime if orderBy/where fields are not indexed.
+/** Cached result of query analysis */
+interface AnalyzedQuery {
+    push: Pushdown | undefined;
+    residual: MangoSelector;
+}
+
+// ============================================================================
+// Module-level Constants (avoid recreation on each call)
+// ============================================================================
+
+const COMBINATION_OPERATORS = new Set(["$and", "$or", "$not", "$nor"]);
+
+/** Operator to Mango operator key mapping */
+const OP_TO_MANGO: Readonly<Record<string, string>> = {
+    ne: "$ne",
+    gt: "$gt",
+    lt: "$lt",
+    gte: "$gte",
+    lte: "$lte",
+};
+
+// ============================================================================
+// Cache Management Exports
+// ============================================================================
+
+/**
+ * Clear all cached Dexie query analysis results.
+ * Does not affect mangoCompile cache.
+ * For clearing all Mango caches, use clearAllMangoCache() from queryCache.
+ */
+export function clearDexieCache(): void {
+    clearCacheByPrefix(CACHE_PREFIX_DEXIE);
+    clearCacheByPrefix(CACHE_PREFIX_EXPAND);
+}
+
+/**
+ * Get cache statistics for mangoToDexie.
+ */
+export function getDexieCacheStats(): {
+    analysis: { size: number; keys: string[] };
+    expanded: { size: number; keys: string[] };
+} {
+    return {
+        analysis: getCacheStats(CACHE_PREFIX_DEXIE),
+        expanded: getCacheStats(CACHE_PREFIX_EXPAND),
+    };
+}
+
+// ============================================================================
+// Main Export
+// ============================================================================
 
 /**
  * Convert a Mango query into a Dexie Collection, pushing index-friendly parts into Dexie.
  *
- * Flow:
- * 1) If $sort is specified, prefer Table.orderBy(index) (+ .reverse for desc) and perform all filtering in-memory
- *    using Collection.filter(mangoCompile(selector)).
- * 2) Without $sort, extract index-friendly predicates from the selector and push it into Table.where().
- *    Remaining selector conditions are compiled via mangoCompile and applied with Collection.filter().
- * 3) If $in is available for the chosen field, prefer where().anyOf(values) over other comparators.
+ * Query analysis results (pushdown strategy and residual selector) are cached
+ * based on the query structure. Cached entries expire after 5 minutes of non-use.
+ *
+ * The same query used in mangoCompile will have a different cache entry
+ * (different prefix) to avoid conflicts between predicate and analysis caches.
+ *
+ * Supported pushdown operators:
+ * - `$eq` / primitive equality → `where(field).equals(value)` or `where({ f1: v1, ... })`
+ * - `$ne` → `where(field).notEqual(value)`
+ * - `$gt` / `$lt` / `$gte` / `$lte` → `above` / `below` / `aboveOrEqual` / `belowOrEqual`
+ * - Combined `$gte` + `$lte` on same field → `where(field).between(lower, upper)`
+ * - `$in` → `where(field).anyOf(values)`
+ * - `$beginsWith` → `where(field).startsWith(prefix)`
+ *
+ * All other operators (`$or`, `$not`, `$nor`, `$nin`, `$exists`, `$type`, `$all`,
+ * `$elemMatch`, `$allMatch`, `$keyMapMatch`, `$regex`, `$mod`, `$size`) are
+ * handled in-memory via `mangoCompile`.
  */
 export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<T> {
     const selector: MangoSelector = (query?.selector || {}) as MangoSelector;
@@ -28,9 +105,8 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
     if (sort && sort.length > 0) {
         const entry = sort[0];
         const sortField = Object.keys(entry)[0];
-        const desc = (entry as any)[sortField] === "desc"; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const desc = (entry as Record<string, string>)[sortField] === "desc";
 
-        // Try orderBy; if it fails (non-indexed), fall back to table.filter
         let col: Collection<T>;
         try {
             col = table.orderBy(sortField);
@@ -46,13 +122,13 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
         return col;
     }
 
-    // 2) No sorting: push down index-friendly predicates into where(), then filter residual.
-    const push = extractPushdown(selector);
-    if (push) {
-        let col = applyWhere(table, push);
-        const residual = buildResidualSelector(selector, push);
-        if (!isEmptySelector(residual)) {
-            const pred = mangoCompile(residual) as (d: T) => boolean;
+    // 2) No sorting: use cached analysis or compute it
+    const analysis = analyzeQuery(selector);
+
+    if (analysis.push) {
+        let col = applyWhere(table, analysis.push);
+        if (!isEmptySelector(analysis.residual)) {
+            const pred = mangoCompile(analysis.residual) as (d: T) => boolean;
             col = col.filter(pred);
         }
         if (typeof limit === "number") return col.limit(Math.max(0, limit));
@@ -66,352 +142,272 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
     return base;
 }
 
+// ============================================================================
+// Query Analysis (Cached)
+// ============================================================================
+
+/**
+ * Analyze a selector to extract pushdown and residual.
+ * Results are cached for repeated queries.
+ */
+function analyzeQuery(selector: MangoSelector): AnalyzedQuery {
+    // Generate cache key with Dexie analysis prefix
+    const cacheKey = generateCacheKey(selector, CACHE_PREFIX_DEXIE);
+
+    // Check cache
+    const cached = cacheGet<AnalyzedQuery>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    // Cache miss - analyze the query
+    const expanded = expandSelectorCached(selector);
+    const andConditions = expanded.$and || [];
+
+    const push = extractPushdown(andConditions);
+    const residual = push ? buildResidualSelector(andConditions, push) : selector;
+
+    const result: AnalyzedQuery = { push, residual };
+
+    // Add to cache
+    cacheSet(cacheKey, result);
+
+    return result;
+}
+
+/**
+ * Expand a selector with caching.
+ */
+function expandSelectorCached(selector: MangoSelector): MangoSelector {
+    const cacheKey = generateCacheKey(selector, CACHE_PREFIX_EXPAND);
+
+    const cached = cacheGet<MangoSelector>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const expanded = expandMangoSelector(selector);
+    cacheSet(cacheKey, expanded);
+
+    return expanded;
+}
+
+// ============================================================================
+// Pushdown Extraction (Single Pass)
+// ============================================================================
+
 function isEmptySelector(q: MangoSelector): boolean {
-    return Object.keys(q).length === 0;
+    let keyCount = 0;
+    let firstKey: string | null = null;
+
+    for (const k in q) {
+        if (keyCount === 0) firstKey = k;
+        keyCount++;
+        if (keyCount > 1) break;
+    }
+
+    if (keyCount === 0) return true;
+    if (keyCount === 1 && firstKey === "$and") {
+        const andArr = q.$and;
+        return !andArr || andArr.length === 0;
+    }
+    return false;
 }
 
-function extractPushdown(q: MangoSelector): Pushdown | undefined {
-    // 1) Prefer maximum number of equality comparators (top-level and within $and), excluding booleans
-    const eqMap = collectMultiEq(q);
-    if (eqMap && Object.keys(eqMap).length > 0) {
-        return { kind: "multiEq", fields: eqMap };
-    }
-
-    // 2) Next prefer $in -> anyOf on any single field (search both top-level and $and)
-    const anyOf = findAnyOf(q);
-    if (anyOf) return anyOf;
-
-    // 3) Finally pick a single-field comparator pushdown (gt/lt/gte/lte/eq/ne) if available
-    return findSingleComparator(q);
+/** Collected data from a single pass over conditions */
+interface CollectedPushdownData {
+    /** Equality fields for multiEq */
+    eqMap: Record<string, string | number>;
+    /** First $beginsWith found */
+    startsWith: { field: string; prefix: string } | null;
+    /** Range bounds by field for between detection */
+    rangeMap: Record<string, { gte?: number; lte?: number; gt?: number; lt?: number }>;
+    /** First $in found */
+    anyOf: { field: string; values: unknown[] } | null;
+    /** First single comparator found */
+    singleComparator: Pushdown | null;
 }
 
-function singleFieldPushdownFromSelector(q: MangoSelector): Pushdown | undefined {
-    const keys = Object.keys(q);
-    if (keys.length !== 1) return undefined;
-    const field = keys[0];
-    if (field === "$or" || field === "$and") return undefined;
+/**
+ * Extract the best pushdown strategy from the $and conditions.
+ * Uses a SINGLE PASS over all conditions to collect all potential pushdowns,
+ * then selects the best one by priority.
+ *
+ * Priority:
+ * 1. Combined equality fields (multiEq) - maximizes compound index usage
+ * 2. $beginsWith on a string field - efficient prefix search
+ * 3. Combined $gte + $lte on same numeric field - between() is very efficient
+ * 4. $in on a field - anyOf() is efficient
+ * 5. Single comparator ($eq, $ne, $gt, $lt, $gte, $lte)
+ */
+function extractPushdown(conditions: MangoSelector[]): Pushdown | undefined {
+    const data: CollectedPushdownData = {
+        eqMap: {},
+        startsWith: null,
+        rangeMap: {},
+        anyOf: null,
+        singleComparator: null,
+    };
 
-    const criteria = (q as any)[field]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let eqConflict = false;
 
-    // Primitive equality (skip booleans)
-    if (typeof criteria === "string" || typeof criteria === "number") {
-        return { kind: "eq", field, value: criteria };
-    }
-    if (typeof criteria === "boolean") return undefined; // never push booleans
+    // Single pass over all conditions
+    for (let i = 0; i < conditions.length; i++) {
+        const cond = conditions[i];
 
-    // Comparison object
-    if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-        if (Array.isArray((criteria as any).$in)) {
-            const values = (criteria as any).$in as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
-            // Avoid boolean-only arrays
-            if (values.length > 0 && !values.every((v) => typeof v === "boolean")) {
-                return { kind: "anyOf", field, values };
-            }
+        // Get first key without creating array
+        let field: string | null = null;
+        let keyCount = 0;
+        for (const k in cond) {
+            if (keyCount === 0) field = k;
+            keyCount++;
+            if (keyCount > 1) break;
         }
-        for (const op of ["$eq", "$gt", "$lt", "$gte", "$lte", "$ne"]) {
-            if (op in criteria) {
-                const value = (criteria as any)[op]; // eslint-disable-line @typescript-eslint/no-explicit-any
-                switch (op) {
-                    case "$eq":
-                        if (typeof value === "string" || typeof value === "number")
-                            return { kind: "eq", field, value };
-                        break;
-                    case "$gt":
-                        if (typeof value === "number") return { kind: "gt", field, value };
-                        break;
-                    case "$lt":
-                        if (typeof value === "number") return { kind: "lt", field, value };
-                        break;
-                    case "$gte":
-                        if (typeof value === "number") return { kind: "gte", field, value };
-                        break;
-                    case "$lte":
-                        if (typeof value === "number") return { kind: "lte", field, value };
-                        break;
-                    case "$ne":
-                        if (typeof value !== "boolean") return { kind: "ne", field, value };
-                        break;
-                }
-            }
-        }
-    }
-    return undefined;
-}
 
-function findAnyOf(q: MangoSelector): Pushdown | undefined {
-    // Check top-level fields for $in
-    for (const key of Object.keys(q)) {
-        if (key === "$and" || key === "$or") continue;
-        const crit: any = (q as any)[key]; // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (crit && typeof crit === "object" && !Array.isArray(crit)) {
-            const values = (crit as any).$in as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
-            if (
-                Array.isArray(values) &&
-                values.length > 0 &&
-                !values.every((v) => typeof v === "boolean")
-            ) {
-                return { kind: "anyOf", field: key, values };
-            }
-        }
-    }
-    // Check $and subs
-    if (Array.isArray(q.$and)) {
-        for (const sub of q.$and) {
-            const s = singleFieldPushdownFromSelector(sub);
-            if (s && s.kind === "anyOf") return s;
-        }
-    }
-    return undefined;
-}
+        if (keyCount !== 1 || field === null) continue;
+        if (COMBINATION_OPERATORS.has(field)) continue;
 
-function findSingleComparator(q: MangoSelector): Pushdown | undefined {
-    // Try top-level fields for a comparator
-    for (const key of Object.keys(q)) {
-        if (key === "$and" || key === "$or") continue;
-        const criteria: any = (q as any)[key]; // eslint-disable-line @typescript-eslint/no-explicit-any
-        // Primitive equality (skip booleans)
+        const criteria = (cond as Record<string, unknown>)[field];
+
+        // Check primitive equality (skip booleans)
         if (typeof criteria === "string" || typeof criteria === "number") {
-            return { kind: "eq", field: key, value: criteria };
+            // Collect for multiEq
+            if (!eqConflict) {
+                if (data.eqMap[field] !== undefined && data.eqMap[field] !== criteria) {
+                    eqConflict = true;
+                    data.eqMap = {};
+                } else {
+                    data.eqMap[field] = criteria;
+                }
+            }
+            // Also track as potential single comparator
+            if (!data.singleComparator) {
+                data.singleComparator = { kind: "eq", field, value: criteria };
+            }
+            continue;
         }
+
         if (typeof criteria === "boolean") continue;
+
+        // Object criteria
         if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-            // Prefer $eq if present (should be rare here because multiEq would have consumed eqs)
-            if (Object.prototype.hasOwnProperty.call(criteria, "$eq")) {
-                const v = criteria.$eq;
-                if (typeof v === "string" || typeof v === "number") {
-                    return { kind: "eq", field: key, value: v };
-                }
-            }
-            const order = ["$gt", "$lt", "$gte", "$lte", "$ne"] as const;
-            for (const op of order) {
-                if (Object.prototype.hasOwnProperty.call(criteria, op)) {
-                    const v = (criteria as any)[op]; // eslint-disable-line @typescript-eslint/no-explicit-any
-                    if (
-                        (op === "$ne" && typeof v !== "boolean") ||
-                        (op !== "$ne" && typeof v === "number")
-                    ) {
-                        switch (op) {
-                            case "$gt":
-                                return { kind: "gt", field: key, value: v };
-                            case "$lt":
-                                return { kind: "lt", field: key, value: v };
-                            case "$gte":
-                                return { kind: "gte", field: key, value: v };
-                            case "$lte":
-                                return { kind: "lte", field: key, value: v };
-                            case "$ne":
-                                return { kind: "ne", field: key, value: v };
-                        }
+            const critObj = criteria as Record<string, unknown>;
+
+            // Check $eq for multiEq
+            const eqVal = critObj.$eq;
+            if (typeof eqVal === "string" || typeof eqVal === "number") {
+                if (!eqConflict) {
+                    if (data.eqMap[field] !== undefined && data.eqMap[field] !== eqVal) {
+                        eqConflict = true;
+                        data.eqMap = {};
+                    } else {
+                        data.eqMap[field] = eqVal;
                     }
                 }
+                if (!data.singleComparator) {
+                    data.singleComparator = { kind: "eq", field, value: eqVal };
+                }
+            }
+
+            // Check $beginsWith
+            const prefix = critObj.$beginsWith;
+            if (!data.startsWith && typeof prefix === "string" && prefix.length > 0) {
+                data.startsWith = { field, prefix };
+            }
+
+            // Check range operators for between
+            if (typeof critObj.$gte === "number" || typeof critObj.$lte === "number" ||
+                typeof critObj.$gt === "number" || typeof critObj.$lt === "number") {
+                if (!data.rangeMap[field]) data.rangeMap[field] = {};
+                if (typeof critObj.$gte === "number") data.rangeMap[field].gte = critObj.$gte;
+                if (typeof critObj.$lte === "number") data.rangeMap[field].lte = critObj.$lte;
+                if (typeof critObj.$gt === "number") data.rangeMap[field].gt = critObj.$gt;
+                if (typeof critObj.$lt === "number") data.rangeMap[field].lt = critObj.$lt;
+            }
+
+            // Check $in for anyOf
+            const inValues = critObj.$in;
+            if (!data.anyOf && Array.isArray(inValues) && inValues.length > 0) {
+                // Check if not all booleans
+                let allBooleans = true;
+                for (let j = 0; j < inValues.length; j++) {
+                    if (typeof inValues[j] !== "boolean") {
+                        allBooleans = false;
+                        break;
+                    }
+                }
+                if (!allBooleans) {
+                    data.anyOf = { field, values: inValues };
+                }
+            }
+
+            // Check single comparators (if not already found)
+            if (!data.singleComparator) {
+                if (typeof critObj.$gt === "number") {
+                    data.singleComparator = { kind: "gt", field, value: critObj.$gt };
+                } else if (typeof critObj.$lt === "number") {
+                    data.singleComparator = { kind: "lt", field, value: critObj.$lt };
+                } else if (typeof critObj.$gte === "number") {
+                    data.singleComparator = { kind: "gte", field, value: critObj.$gte };
+                } else if (typeof critObj.$lte === "number") {
+                    data.singleComparator = { kind: "lte", field, value: critObj.$lte };
+                } else if (critObj.$ne !== undefined && typeof critObj.$ne !== "boolean") {
+                    data.singleComparator = { kind: "ne", field, value: critObj.$ne };
+                }
             }
         }
     }
-    // Try $and subs
-    if (Array.isArray(q.$and)) {
-        for (const sub of q.$and) {
-            const s = singleFieldPushdownFromSelector(sub);
-            if (s && s.kind !== "anyOf") return s;
+
+    // Priority 1: multiEq (if we have any equalities)
+    let hasEqFields = false;
+    for (const _ in data.eqMap) {
+        hasEqFields = true;
+        break;
+    }
+    if (hasEqFields) {
+        return { kind: "multiEq", fields: data.eqMap };
+    }
+
+    // Priority 2: startsWith
+    if (data.startsWith) {
+        return { kind: "startsWith", field: data.startsWith.field, prefix: data.startsWith.prefix };
+    }
+
+    // Priority 3: between (check rangeMap for fields with both bounds)
+    for (const field in data.rangeMap) {
+        const range = data.rangeMap[field];
+        const hasLower = range.gte !== undefined || range.gt !== undefined;
+        const hasUpper = range.lte !== undefined || range.lt !== undefined;
+
+        if (hasLower && hasUpper) {
+            const lower = range.gte !== undefined ? range.gte : range.gt!;
+            const upper = range.lte !== undefined ? range.lte : range.lt!;
+            const includeLower = range.gte !== undefined;
+            const includeUpper = range.lte !== undefined;
+            return { kind: "between", field, lower, upper, includeLower, includeUpper };
         }
     }
-    return undefined;
+
+    // Priority 4: anyOf
+    if (data.anyOf) {
+        return { kind: "anyOf", field: data.anyOf.field, values: data.anyOf.values };
+    }
+
+    // Priority 5: single comparator
+    return data.singleComparator || undefined;
 }
 
-function buildResidualSelector(q: MangoSelector, push: Pushdown): MangoSelector {
-    // Deep-ish clone to avoid mutating original
-    const clone = (): any => JSON.parse(JSON.stringify(q)); // eslint-disable-line @typescript-eslint/no-explicit-any
-    const res: any = clone(); // eslint-disable-line @typescript-eslint/no-explicit-any
-
-    const removeTopLevelForField = (field: string, predicate: (crit: any) => any | null) => {
-        if (res[field] === undefined) return;
-        const crit = res[field];
-        if (crit === undefined) return;
-        if (typeof crit === "string" || typeof crit === "number" || typeof crit === "boolean") {
-            const next = predicate(crit);
-            if (next === null) delete res[field];
-            else res[field] = next;
-        } else if (crit && typeof crit === "object" && !Array.isArray(crit)) {
-            const next = predicate(crit);
-            if (next === null) delete res[field];
-            else res[field] = next;
-        }
-    };
-
-    const cleanAndArray = () => {
-        if (!Array.isArray(res.$and)) return;
-        const out: any[] = [];
-        for (const sub of res.$and) {
-            const cleaned = cleanSub(sub);
-            if (cleaned && Object.keys(cleaned).length > 0) out.push(cleaned);
-        }
-        if (out.length === 0) delete res.$and;
-        else res.$and = out;
-    };
-
-    const cleanSub = (sub: any): any => {
-        // eslint-disable-line @typescript-eslint/no-explicit-any
-        // Remove pushed conditions from a single-field sub
-        const keys = Object.keys(sub);
-        if (keys.length !== 1) return sub;
-        const field = keys[0];
-        const crit = sub[field];
-
-        if (push.kind === "multiEq") {
-            if (!(field in push.fields)) return sub;
-            const val = push.fields[field];
-            if (typeof crit === "string" || typeof crit === "number") {
-                if (crit === val) return {};
-                return sub;
-            }
-            if (crit && typeof crit === "object") {
-                const copy = { ...crit };
-                if (copy.$eq === val) delete copy.$eq;
-                if (Object.keys(copy).length === 0) return {};
-                return { [field]: copy };
-            }
-            return sub;
-        }
-
-        if ((push as any).field !== field) return sub; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-        const removeOp = (op: string, expected: any) => {
-            // eslint-disable-line @typescript-eslint/no-explicit-any
-            if (typeof crit === "string" || typeof crit === "number" || typeof crit === "boolean") {
-                if (op === "eq" && crit === expected) return {};
-                return sub;
-            }
-            if (crit && typeof crit === "object") {
-                const copy = { ...crit };
-                const map: Record<string, string> = {
-                    eq: "$eq",
-                    ne: "$ne",
-                    gt: "$gt",
-                    lt: "$lt",
-                    gte: "$gte",
-                    lte: "$lte",
-                };
-                const k = map[op];
-                if (k && copy[k] === expected) delete copy[k];
-                if (Object.keys(copy).length === 0) return {};
-                return { [field]: copy };
-            }
-            return sub;
-        };
-
-        switch (push.kind) {
-            case "eq":
-                return removeOp("eq", (push as any).value);
-            case "ne":
-                return removeOp("ne", (push as any).value);
-            case "gt":
-                return removeOp("gt", (push as any).value);
-            case "lt":
-                return removeOp("lt", (push as any).value);
-            case "gte":
-                return removeOp("gte", (push as any).value);
-            case "lte":
-                return removeOp("lte", (push as any).value);
-            case "anyOf":
-                // Remove $in if it matches values; otherwise leave as-is
-                if (crit && typeof crit === "object" && Array.isArray((crit as any).$in)) {
-                    // eslint-disable-line @typescript-eslint/no-explicit-any
-                    const copy = { ...crit };
-                    delete copy.$in;
-                    if (Object.keys(copy).length === 0) return {};
-                    return { [field]: copy };
-                }
-                return sub;
-        }
-    };
-
-    // Clean top-level fields
-    if (push.kind === "multiEq") {
-        for (const f of Object.keys(push.fields)) {
-            const val = push.fields[f];
-            removeTopLevelForField(f, (crit) => {
-                if (typeof crit === "string" || typeof crit === "number") {
-                    return crit === val ? null : crit;
-                }
-                if (crit && typeof crit === "object") {
-                    const copy = { ...crit };
-                    if (copy.$eq === val) delete copy.$eq;
-                    return Object.keys(copy).length === 0 ? null : copy;
-                }
-                return crit;
-            });
-        }
-    } else {
-        const field = (push as any).field as string; // eslint-disable-line @typescript-eslint/no-explicit-any
-        const value = (push as any).value; // eslint-disable-line @typescript-eslint/no-explicit-any
-        removeTopLevelForField(field, (crit) => {
-            switch (push.kind) {
-                case "eq":
-                    if (typeof crit === "string" || typeof crit === "number")
-                        return crit === value ? null : crit;
-                    if (crit && typeof crit === "object") {
-                        const copy = { ...crit };
-                        if (copy.$eq === value) delete copy.$eq;
-                        return Object.keys(copy).length === 0 ? null : copy;
-                    }
-                    return crit;
-                case "ne": {
-                    if (crit && typeof crit === "object") {
-                        const copy = { ...crit };
-                        if (copy.$ne === value) delete copy.$ne;
-                        return Object.keys(copy).length === 0 ? null : copy;
-                    }
-                    return crit;
-                }
-                case "gt":
-                case "lt":
-                case "gte":
-                case "lte": {
-                    if (crit && typeof crit === "object") {
-                        const copy = { ...crit };
-                        const map: Record<string, string> = {
-                            gt: "$gt",
-                            lt: "$lt",
-                            gte: "$gte",
-                            lte: "$lte",
-                        };
-                        const k = map[push.kind];
-                        if (k && copy[k] === value) delete copy[k];
-                        return Object.keys(copy).length === 0 ? null : copy;
-                    }
-                    return crit;
-                }
-                case "anyOf": {
-                    if (crit && typeof crit === "object" && Array.isArray((crit as any).$in)) {
-                        // eslint-disable-line @typescript-eslint/no-explicit-any
-                        const copy = { ...crit };
-                        delete copy.$in;
-                        return Object.keys(copy).length === 0 ? null : copy;
-                    }
-                    return crit;
-                }
-            }
-        });
-    }
-
-    // Clean $and subs
-    cleanAndArray();
-
-    // If selector becomes empty, return {}
-    const keys = Object.keys(res).filter(
-        (k) => !(k === "$and" && Array.isArray(res.$and) && res.$and.length === 0),
-    );
-    if (keys.length === 0) return {} as MangoSelector;
-    return res as MangoSelector;
-}
-
-// (no-op) matchesPushdown helper removed; residual subtraction handles correctness
+// ============================================================================
+// Where Application
+// ============================================================================
 
 function applyWhere<T>(table: Table<T>, push: Pushdown): Collection<T> {
     if (push.kind === "multiEq") {
-        // Dexie supports where(queryObject) for compound index matching; booleans are not included here by construction
-        return (table.where as any)(push.fields); // eslint-disable-line @typescript-eslint/no-explicit-any
+        return (table.where as (arg: Record<string, unknown>) => Collection<T>)(push.fields);
     }
-    const clause = (table.where as any)((push as any).field); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    const clause = (table.where as (field: string) => DexieWhereClause<T>)(push.field);
+
     switch (push.kind) {
         case "anyOf":
             return clause.anyOf(push.values);
@@ -427,53 +423,218 @@ function applyWhere<T>(table: Table<T>, push: Pushdown): Collection<T> {
             return clause.belowOrEqual(push.value);
         case "ne":
             return clause.notEqual(push.value);
+        case "startsWith":
+            return clause.startsWith(push.prefix);
+        case "between":
+            return clause.between(push.lower, push.upper, push.includeLower, push.includeUpper);
     }
 }
 
-// Collect simple (non-boolean) equality conditions from top-level and top-level $and
-function collectMultiEq(q: MangoSelector): Record<string, string | number> {
-    const out: Record<string, string | number> = {};
+interface DexieWhereClause<T> {
+    anyOf(values: unknown[]): Collection<T>;
+    equals(value: unknown): Collection<T>;
+    above(value: unknown): Collection<T>;
+    below(value: unknown): Collection<T>;
+    aboveOrEqual(value: unknown): Collection<T>;
+    belowOrEqual(value: unknown): Collection<T>;
+    notEqual(value: unknown): Collection<T>;
+    startsWith(prefix: string): Collection<T>;
+    between(lower: unknown, upper: unknown, includeLower?: boolean, includeUpper?: boolean): Collection<T>;
+}
 
-    const consider = (field: string, crit: any): void => {
-        if (typeof crit === "string" || typeof crit === "number") {
-            if (out[field] !== undefined && out[field] !== crit) {
-                // conflict -> make unsatisfiable by clearing all (skip pushdown)
-                Object.keys(out).forEach((k) => delete out[k]);
-                return;
+// ============================================================================
+// Residual Selector Building
+// ============================================================================
+
+/**
+ * Build residual selector from conditions, removing the pushed parts.
+ */
+function buildResidualSelector(conditions: MangoSelector[], push: Pushdown): MangoSelector {
+    const residualConditions: MangoSelector[] = [];
+
+    for (let i = 0; i < conditions.length; i++) {
+        const cleaned = cleanCondition(conditions[i], push);
+        if (cleaned !== null) {
+            // Check if non-empty
+            let hasKeys = false;
+            for (const _ in cleaned) {
+                hasKeys = true;
+                break;
             }
-            out[field] = crit;
-        } else if (crit && typeof crit === "object" && !Array.isArray(crit)) {
-            const eqVal = (crit as any).$eq; // eslint-disable-line @typescript-eslint/no-explicit-any
-            if (typeof eqVal === "string" || typeof eqVal === "number") {
-                if (out[field] !== undefined && out[field] !== eqVal) {
-                    Object.keys(out).forEach((k) => delete out[k]);
-                    return;
+            if (hasKeys) {
+                residualConditions.push(cleaned);
+            }
+        }
+    }
+
+    if (residualConditions.length === 0) {
+        return {};
+    }
+
+    if (residualConditions.length === 1) {
+        return residualConditions[0];
+    }
+
+    return { $and: residualConditions };
+}
+
+/**
+ * Clean a single condition by removing pushed parts.
+ */
+function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | null {
+    // Get first key without creating array
+    let field: string | null = null;
+    let keyCount = 0;
+    for (const k in cond) {
+        if (keyCount === 0) field = k;
+        keyCount++;
+        if (keyCount > 1) break;
+    }
+
+    if (keyCount !== 1 || field === null) return cond;
+
+    // Combination operators pass through unchanged
+    if (COMBINATION_OPERATORS.has(field)) {
+        return cond;
+    }
+
+    const criteria = (cond as Record<string, unknown>)[field];
+
+    // Handle multiEq pushdown
+    if (push.kind === "multiEq") {
+        if (!(field in push.fields)) return cond;
+        const val = push.fields[field];
+
+        if (typeof criteria === "string" || typeof criteria === "number") {
+            return criteria === val ? null : cond;
+        }
+
+        if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+            const critObj = criteria as Record<string, unknown>;
+            if (critObj.$eq === val) {
+                // Check if $eq is the only key
+                let otherKeys = false;
+                for (const k in critObj) {
+                    if (k !== "$eq") {
+                        otherKeys = true;
+                        break;
+                    }
                 }
-                out[field] = eqVal;
+                if (!otherKeys) return null;
+                // Copy without $eq
+                const copy: Record<string, unknown> = {};
+                for (const k in critObj) {
+                    if (k !== "$eq") copy[k] = critObj[k];
+                }
+                return { [field]: copy };
             }
         }
-    };
 
-    // Top-level fields
-    for (const k of Object.keys(q)) {
-        if (k === "$and" || k === "$or") continue;
-        const crit = (q as any)[k]; // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (typeof crit === "boolean") continue; // do not index booleans
-        consider(k, crit);
+        return cond;
     }
 
-    // $and: include single-field simple selectors
-    if (Array.isArray(q.$and)) {
-        for (const sub of q.$and) {
-            const keys = Object.keys(sub);
-            if (keys.length !== 1) continue;
-            const f = keys[0];
-            if (f === "$and" || f === "$or") continue;
-            const crit = (sub as any)[f]; // eslint-disable-line @typescript-eslint/no-explicit-any
-            if (typeof crit === "boolean") continue;
-            consider(f, crit);
+    // For single-field pushdowns, only clean if field matches
+    if (push.field !== field) {
+        return cond;
+    }
+
+    // Clean based on pushdown kind
+    switch (push.kind) {
+        case "eq": {
+            if (typeof criteria === "string" || typeof criteria === "number") {
+                return criteria === push.value ? null : cond;
+            }
+            if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$eq", push.value);
+            }
+            return cond;
+        }
+
+        case "ne":
+        case "gt":
+        case "lt":
+        case "gte":
+        case "lte": {
+            if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+                const opKey = OP_TO_MANGO[push.kind];
+                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, opKey, push.value);
+            }
+            return cond;
+        }
+
+        case "anyOf": {
+            if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$in", undefined);
+            }
+            return cond;
+        }
+
+        case "startsWith": {
+            if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$beginsWith", undefined);
+            }
+            return cond;
+        }
+
+        case "between": {
+            if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+                const critObj = criteria as Record<string, unknown>;
+                const copy: Record<string, unknown> = {};
+                let hasRemaining = false;
+
+                for (const k in critObj) {
+                    let shouldRemove = false;
+                    if (push.includeLower && k === "$gte" && critObj[k] === push.lower) shouldRemove = true;
+                    if (!push.includeLower && k === "$gt" && critObj[k] === push.lower) shouldRemove = true;
+                    if (push.includeUpper && k === "$lte" && critObj[k] === push.upper) shouldRemove = true;
+                    if (!push.includeUpper && k === "$lt" && critObj[k] === push.upper) shouldRemove = true;
+
+                    if (!shouldRemove) {
+                        copy[k] = critObj[k];
+                        hasRemaining = true;
+                    }
+                }
+
+                return hasRemaining ? { [field]: copy } : null;
+            }
+            return cond;
+        }
+
+        default:
+            return cond;
+    }
+}
+
+/**
+ * Helper to remove a single operator from criteria object.
+ * Returns null if nothing remains, or a new condition object.
+ */
+function removeOperatorFromCriteria(
+    field: string,
+    critObj: Record<string, unknown>,
+    opKey: string,
+    expectedValue: unknown,
+): MangoSelector | null {
+    // Check if we should remove (value match or undefined means always remove)
+    if (expectedValue !== undefined && critObj[opKey] !== expectedValue) {
+        return { [field]: critObj };
+    }
+
+    // Check if opKey is the only key
+    let hasOther = false;
+    for (const k in critObj) {
+        if (k !== opKey) {
+            hasOther = true;
+            break;
         }
     }
 
-    return out;
+    if (!hasOther) return null;
+
+    // Copy without the operator
+    const copy: Record<string, unknown> = {};
+    for (const k in critObj) {
+        if (k !== opKey) copy[k] = critObj[k];
+    }
+    return { [field]: copy };
 }
