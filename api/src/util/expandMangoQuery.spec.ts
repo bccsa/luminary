@@ -57,6 +57,17 @@ describe("expandMangoSelector", () => {
                 $and: [{ type: "Post" }, { status: "published" }],
             });
         });
+
+        it("should return same reference for already-normalized selector (fast path)", () => {
+            const selector = {
+                $and: [{ type: "Post" }, { status: "published" }],
+            };
+
+            const result = expandMangoSelector(selector);
+
+            // Fast path should return the original object without modification
+            expect(result).toBe(selector);
+        });
     });
 
     describe("$or handling", () => {
