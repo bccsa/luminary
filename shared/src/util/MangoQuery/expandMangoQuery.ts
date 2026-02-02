@@ -1,19 +1,6 @@
 import { MangoSelector } from "./MangoTypes";
 
 /**
- * List of Mango query operators that should not be treated as field conditions.
- * These are combination operators used for logical operations.
- */
-const COMBINATION_OPERATORS = ["$and", "$or", "$not", "$nor", "$all", "$elemMatch", "$allMatch"];
-
-/**
- * Checks if a key is a Mango combination operator
- */
-function isCombinationOperator(key: string): boolean {
-    return COMBINATION_OPERATORS.includes(key);
-}
-
-/**
  * Expands a Mango query selector from shorthand implicit AND form to explicit $and form.
  *
  * This converts queries like:
@@ -43,29 +30,50 @@ function isCombinationOperator(key: string): boolean {
  * @returns A new selector with explicit $and structure
  */
 export function expandMangoSelector(selector: MangoSelector): MangoSelector {
+    // Fast path: if selector only has $and at top level, return as-is
+    // This avoids unnecessary object creation for already-normalized queries
+    let keyCount = 0;
+    let hasOnlyAnd = false;
+
+    for (const key in selector) {
+        keyCount++;
+        if (keyCount === 1 && key === "$and") {
+            hasOnlyAnd = true;
+        } else if (keyCount > 1 || key !== "$and") {
+            hasOnlyAnd = false;
+        }
+        // Early exit if we know it's not normalized
+        if (keyCount > 1) break;
+    }
+
+    if (keyCount === 1 && hasOnlyAnd && Array.isArray(selector.$and)) {
+        return selector;
+    }
+
+    // Empty selector fast path
+    if (keyCount === 0) {
+        return { $and: [] };
+    }
+
     const andConditions: MangoSelector[] = [];
 
     // Extract existing $and conditions and flatten them into the top-level $and
     if (selector.$and && Array.isArray(selector.$and)) {
-        for (const condition of selector.$and) {
-            andConditions.push(condition);
+        const existingAnd = selector.$and;
+        for (let i = 0; i < existingAnd.length; i++) {
+            andConditions.push(existingAnd[i]);
         }
     }
 
     // Process all keys in the selector
-    for (const key of Object.keys(selector)) {
+    for (const key in selector) {
         if (key === "$and") {
             // Already processed above
             continue;
         }
 
-        if (isCombinationOperator(key)) {
-            // Include combination operators ($or, $not, $nor, etc.) as conditions in the $and array
-            andConditions.push({ [key]: selector[key] } as MangoSelector);
-        } else {
-            // Regular field conditions become individual conditions in the $and array
-            andConditions.push({ [key]: selector[key] } as MangoSelector);
-        }
+        // Both combination operators and regular fields become individual conditions
+        andConditions.push({ [key]: selector[key] } as MangoSelector);
     }
 
     // If there are no conditions, return empty $and
@@ -73,6 +81,6 @@ export function expandMangoSelector(selector: MangoSelector): MangoSelector {
         return { $and: [] };
     }
 
-    // Always return the expanded selector with explicit $and wrapper
+    // Return the expanded selector with explicit $and wrapper
     return { $and: andConditions };
 }
