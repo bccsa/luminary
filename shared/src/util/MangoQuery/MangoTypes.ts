@@ -1,13 +1,18 @@
 /** Mango query selector structure */
 export type MangoSelector = {
+    // Combination operators
     $or?: MangoSelector[];
     $and?: MangoSelector[];
+    $not?: MangoSelector;
+    $nor?: MangoSelector[];
     // Allow arbitrary field criteria
     [field: string]:
         | string
         | number
         | boolean
+        | null
         | MangoComparisonCriteria
+        | MangoSelector
         | MangoSelector[]
         | undefined;
 };
@@ -21,12 +26,28 @@ export type MangoQuery = {
 
 /** Comparison object { $op: value } */
 export type MangoComparisonCriteria = {
-    $gt?: number;
-    $lt?: number;
-    $gte?: number;
-    $lte?: number;
-    $ne?: number | string | boolean;
-    $in?: Array<number | string | boolean>;
+    // Equality operators
+    $eq?: unknown;
+    $ne?: unknown;
+    // Numeric comparison operators
+    $gt?: number | string;
+    $lt?: number | string;
+    $gte?: number | string;
+    $lte?: number | string;
+    // Array operators
+    $in?: unknown[];
+    $nin?: unknown[];
+    $all?: unknown[];
+    $elemMatch?: MangoSelector;
+    $allMatch?: MangoSelector;
+    $size?: number;
+    // Object operators
     $exists?: boolean;
-    $elemMatch?: Record<string, unknown>;
+    $type?: "null" | "boolean" | "number" | "string" | "array" | "object";
+    $keyMapMatch?: MangoSelector;
+    // String/pattern operators
+    $regex?: string;
+    $beginsWith?: string;
+    // Numeric operators
+    $mod?: [number, number];
 };
