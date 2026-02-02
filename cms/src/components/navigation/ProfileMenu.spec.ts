@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import ProfileMenu from "./ProfileMenu.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia, createPinia } from "pinia";
+import { ref } from "vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 
@@ -29,9 +30,9 @@ describe("ProfileMenu", () => {
 
     it("shows the user's name", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            user: {
+            user: ref({
                 name: "Test Person",
-            },
+            }),
         });
 
         const wrapper = mount(ProfileMenu);
@@ -42,6 +43,9 @@ describe("ProfileMenu", () => {
     it("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            user: ref({
+                name: "Test Person",
+            }),
             logout,
         });
 
