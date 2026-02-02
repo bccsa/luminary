@@ -1,4 +1,5 @@
 export * from "./MangoTypes";
+export * from "./compileSelector";
 export * from "./mangoCompile";
 export * from "./mangoToDexie";
 export * from "./expandMangoQuery";
