@@ -575,7 +575,7 @@ describe("Database", async () => {
         expect(localChange).toBeDefined();
 
         // Apply the local change
-        await db.applyLocalChangeAck({ id: localChange!.id!, ack: AckStatus.Accepted });
+        await db.applyLocalChangeAck({ ack: AckStatus.Accepted }, localChange!);
 
         // Check if the local change is removed
         const localChangeAfter = await db.localChanges
@@ -596,11 +596,13 @@ describe("Database", async () => {
 
         // Apply the local change
         const ackDoc = { ...mockEnglishContentDto, title: "Old Title 123" };
-        await db.applyLocalChangeAck({
-            id: localChange!.id!,
-            ack: AckStatus.Rejected,
-            docs: [ackDoc],
-        });
+        await db.applyLocalChangeAck(
+            {
+                ack: AckStatus.Rejected,
+                docs: [ackDoc],
+            },
+            localChange!,
+        );
 
         // Check if the local change is removed
         const localChangeAfter = await db.localChanges
@@ -624,10 +626,12 @@ describe("Database", async () => {
         expect(localChange).toBeDefined();
 
         // Apply the local change
-        await db.applyLocalChangeAck({
-            id: localChange!.id!,
-            ack: AckStatus.Rejected,
-        });
+        await db.applyLocalChangeAck(
+            {
+                ack: AckStatus.Rejected,
+            },
+            localChange!,
+        );
 
         // Check if the local change is removed
         const localChangeAfter = await db.localChanges

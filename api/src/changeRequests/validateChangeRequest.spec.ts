@@ -22,7 +22,6 @@ describe("validateChangeRequest", () => {
 
     it("validates a correctly formatted document", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "lang-eng",
                 type: "language",
@@ -43,7 +42,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation for an invalid change request", async () => {
         const changeRequest = {
-            id: 42,
             invalidProperty: {},
         };
 
@@ -55,7 +53,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation for an invalid document type", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "lang-eng",
                 type: "invalid document type",
@@ -77,7 +74,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation for invalid document data", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "lang-eng",
                 type: "language",
@@ -99,7 +95,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation for a wrong nested type", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "test-group",
                 type: "group",
@@ -112,7 +107,7 @@ describe("validateChangeRequest", () => {
                     },
                     {
                         type: "language",
-                        groupId: 42, // Intentionally wrong value
+                        groupId: ["not", "a", "string"], // Array instead of string - will fail @IsString()
                         permission: ["view"],
                     },
                 ],
@@ -127,7 +122,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation for a nested field of enums", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "test-group",
                 type: "group",
@@ -155,7 +149,6 @@ describe("validateChangeRequest", () => {
 
     it("removes invalid fields from the document", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "new-lang",
                 type: "language",
@@ -175,7 +168,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation on an invalid uploaded image document", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "post-post1",
                 type: "post",
@@ -202,7 +194,6 @@ describe("validateChangeRequest", () => {
 
     it("validates a valid uploaded image document", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "post-post1",
                 type: "post",
@@ -239,7 +230,6 @@ describe("validateChangeRequest", () => {
 
     it("fails validation when ACL entries contain invalid permissions", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "test-group",
                 type: "group",

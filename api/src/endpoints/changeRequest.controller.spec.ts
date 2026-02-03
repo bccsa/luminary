@@ -95,7 +95,6 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
-                id: 123,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-test",
@@ -124,7 +123,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 123,
                     apiVersion: "0.0.0",
                     doc: expect.objectContaining({
                         _id: "post-test",
@@ -148,7 +146,6 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
-                id: 456,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "content-audio",
@@ -178,7 +175,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 456,
                     doc: expect.objectContaining({
                         audioData: expect.objectContaining({
                             uploadData: [
@@ -201,7 +197,6 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
-                id: 789,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "content-video",
@@ -231,7 +226,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 789,
                     doc: expect.objectContaining({
                         videoData: expect.objectContaining({
                             uploadData: [
@@ -254,7 +248,6 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
-                id: 101,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "content-pdf",
@@ -284,7 +277,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 101,
                     doc: expect.objectContaining({
                         documentData: expect.objectContaining({
                             uploadData: [
@@ -309,7 +301,6 @@ describe("ChangeRequestController", () => {
             const fileId1 = "file-1";
             const fileId2 = "file-2";
             const changeRequest = {
-                id: 202,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-multiple",
@@ -353,7 +344,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 202,
                     doc: expect.objectContaining({
                         imageData: expect.objectContaining({
                             uploadData: [
@@ -384,7 +374,6 @@ describe("ChangeRequestController", () => {
             const fileId0 = "file-0";
             const fileId1 = "file-1";
             const changeRequest = {
-                id: 303,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-nested",
@@ -442,7 +431,6 @@ describe("ChangeRequestController", () => {
             const fileId0 = "file-0";
             const fileId1 = "file-1";
             const changeRequest = {
-                id: 404,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-deep",
@@ -496,7 +484,6 @@ describe("ChangeRequestController", () => {
             const fileId2 = "file-2";
             const fileId3 = "file-3";
             const changeRequest = {
-                id: 505,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "content-mixed",
@@ -575,7 +562,6 @@ describe("ChangeRequestController", () => {
 
             const fileId = "file-0";
             const changeRequest = {
-                id: 606,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-metadata",
@@ -622,7 +608,6 @@ describe("ChangeRequestController", () => {
             mockChangeRequest.mockResolvedValue(responseData);
 
             const changeRequest = {
-                id: 707,
                 apiVersion: "0.0.0",
                 doc: {
                     _id: "post-no-files",
@@ -639,7 +624,6 @@ describe("ChangeRequestController", () => {
             expect(response.status).toBe(201);
             expect(mockChangeRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: 707,
                     apiVersion: "0.0.0",
                     doc: expect.objectContaining({
                         _id: "post-no-files",
