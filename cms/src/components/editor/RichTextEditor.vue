@@ -1,284 +1,145 @@
 <script setup lang="ts">
-import { useEditor, EditorContent } from "@tiptap/vue-3";
-import StarterKit from "@tiptap/starter-kit";
-import { computed, nextTick, ref, toRefs, watch } from "vue";
+import { computed, ref, nextTick, watch } from "vue";
+import { RTextEditor, formatPastedHtml } from "rte-vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
-import Link from "@tiptap/extension-link";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
-import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "../forms/FormLabel.vue";
-import formatPastedHtml from "@/util/formatPastedHtml";
 
 type Props = {
     title?: string;
     icon?: any;
     disabled: boolean;
 };
+
 const props = defineProps<Props>();
-const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
+const textLanguage = defineModel("textLanguage", { required: true });
+
+// rte-vue expects simple v-model, not v-model:text, so we need a computed wrapper
+const editorContent = computed({
+    get: () => text.value || "",
+    set: (value: string) => {
+        text.value = value;
+    },
+});
 
 const showModal = ref(false);
 const url = ref("");
+const urlInput = ref<InstanceType<typeof LInput>>();
+type RteWithEditor = InstanceType<typeof RTextEditor> & {
+    editor?: {
+        chain: () => {
+            focus: () => {
+                extendMarkRange: (mark: string) => {
+                    setLink: (attrs: { href: string }) => { run: () => void };
+                };
+            };
+        };
+    };
+};
+const rteRef = ref<RteWithEditor>();
 
-const editorText = computed(() => {
-    if (!text.value) return "";
-    try {
-        return JSON.parse(text.value);
-    } catch {
-        return text.value;
-    }
-});
-
-const textLanguage = defineModel("textLanguage", { required: true });
-
-const editor = useEditor({
-    content: editorText.value,
-    extensions: [
-        StarterKit.configure({
-            heading: { levels: [2, 3, 4, 5, 6] },
-        }),
-        Link.configure({ openOnClick: false }),
-    ],
-    editable: (() => !disabled.value as boolean | undefined)(),
-    editorProps: {
-        attributes: {
-            class: "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)] overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
-        },
-        handlePaste(_, event) {
-            const clipboardData = event.clipboardData;
-            if (!clipboardData) return false;
-
-            let html = clipboardData.getData("text/html");
-            if (!html) return false;
-
-            html = formatPastedHtml(html);
-
-            editor.value?.commands.insertContent(html);
-            return true;
-        },
-    },
-    onUpdate: ({ editor }) => {
-        const raw = editor.getJSON();
-        text.value = JSON.stringify(raw);
-    },
-});
-
-const hasTextSelected = computed(() => {
-    const state = editor.value?.state;
-    return state ? !state.selection.empty : false;
-});
-
-const hasLinkSelected = computed(() => {
-    const attrs = editor.value?.getAttributes("link");
-    return !!attrs?.href;
-});
+const iconMap: Record<string, any> = {
+    bold: BoldIcon,
+    italic: ItalicIcon,
+    strike: StrikethroughIcon,
+    bulletList: BulletlistIcon,
+    orderedList: NumberedListIcon,
+};
 
 function openLinkModal() {
-    if (!editor.value) return;
-    const attrs = editor?.value.getAttributes("link");
-    url.value = attrs?.href || "";
+    url.value = "";
     showModal.value = true;
 }
 
 function addLink() {
-    if (!url.value || !editor.value) return;
-
-    const chain = editor.value.chain().focus();
-    if (hasLinkSelected.value) chain.extendMarkRange("link");
-    chain.setLink({ href: url.value }).run();
+    if (url.value) {
+        rteRef.value?.editor
+            ?.chain()
+            .focus()
+            .extendMarkRange("link")
+            .toggleLink({ href: url.value })
+            .run();
+    }
     showModal.value = false;
 }
 
-function removeLink() {
-    editor.value?.chain().focus().unsetLink().run();
-}
-
-watch(disabled, () => {
-    editor.value?.setEditable(!disabled.value);
-});
-
-// Focus the link editor modal when it opens
-// TODO: This is a workaround and should probably be implemented in the LModal component
-const urlInput = ref<InstanceType<typeof LInput> | undefined>(undefined);
+// Focus the URL input when modal opens
 watch(showModal, async () => {
     if (showModal.value) {
         await nextTick();
         urlInput.value?.focus();
-        return;
     }
-
-    editor.value?.commands.focus();
 });
-
-watch(
-    () => textLanguage.value,
-    (newLang, oldLang) => {
-        if (newLang === oldLang) return;
-        if (!editor.value) return;
-        // Always update editor content when language changes
-        if (!text.value) {
-            editor.value.commands.setContent("");
-            return;
-        }
-        try {
-            const parsed = JSON.parse(text.value);
-            editor.value.commands.setContent(parsed);
-        } catch {
-            // If parsing fails just use the previous text
-            editor.value.commands.setContent(text.value);
-        }
-    },
-);
 </script>
 
 <template>
-    <div :class="$attrs.class" class="-mx-4 flex h-full flex-col px-4">
+    <div :class="$attrs.class" class="-mx-4 flex h-full min-h-0 flex-col px-4">
         <div class="flex items-center gap-2">
             <component v-if="props.icon" :is="props.icon" class="h-6 w-6 text-zinc-600" />
             <FormLabel v-if="props.title" :icon="props.icon">{{ title }}</FormLabel>
         </div>
-        <div class="flex flex-wrap gap-4" v-if="!disabled">
-            <div class="flex pb-2">
+        <RTextEditor
+            ref="rteRef"
+            v-model="editorContent"
+            class="h-full min-h-0 flex-1"
+            :key="String(textLanguage)"
+            :disabled="props.disabled"
+            :transformPastedHtml="formatPastedHtml"
+            :headingOffset="1"
+            :contentFormat="'json'"
+            :toolbarGroups="[
+                ['bold', 'italic', 'strike'],
+                ['heading1', 'heading2', 'heading3', 'heading4'],
+                ['bulletList', 'orderedList'],
+                ['link', 'unlink'],
+            ]"
+            @request-link="openLinkModal"
+            :classNames="{
+                root: 'flex flex-1 flex-col',
+                toolbar: 'flex flex-wrap gap-4 pb-2',
+                toolbarGroup: 'flex',
+                button: 'bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
+                buttonActive: 'bg-zinc-300',
+                editor: 'prose flex flex-col h-full sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)] p-1 w-full overflow-y-auto prose-zinc lg:prose-sm max-w-none ring-1 ring-inset border-0 focus-within:ring-2 focus-within:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus-within:ring-zinc-950',
+                editorContent: 'flex-1 h-full outline-none',
+            }"
+        >
+            <template #toolbar-button="{ item, label, active, disabled: btnDisabled, runCommand }">
                 <button
                     :class="[
-                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('bold') },
+                        'bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': active },
+                        {
+                            'rounded-l-md':
+                                item === 'bold' ||
+                                item === 'heading1' ||
+                                item === 'bulletList' ||
+                                item === 'link',
+                        },
+                        {
+                            'rounded-r-md':
+                                item === 'strike' ||
+                                item === 'heading4' ||
+                                item === 'orderedList' ||
+                                item === 'unlink',
+                        },
                     ]"
-                    @click="editor?.chain().focus().toggleBold().run()"
-                    title="Bold"
+                    :disabled="btnDisabled"
+                    @click="runCommand(item)"
                     type="button"
                 >
-                    <BoldIcon class="h-5 w-5" />
+                    <component v-if="iconMap[item]" :is="iconMap[item]" class="h-5 w-5" />
+                    <span v-else class="text-sm font-medium">{{ label }}</span>
                 </button>
-                <button
-                    :class="[
-                        'bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('italic') },
-                    ]"
-                    @click="editor?.chain().focus().toggleItalic().run()"
-                    title="Italic"
-                    type="button"
-                >
-                    <ItalicIcon class="h-5 w-5" />
-                </button>
-                <button
-                    :class="[
-                        'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('strike') },
-                    ]"
-                    @click="editor?.chain().focus().toggleStrike().run()"
-                    title="Strikethrough"
-                    type="button"
-                >
-                    <StrikethroughIcon class="h-5 w-5" />
-                </button>
-            </div>
-
-            <div class="flex pb-2">
-                <button
-                    :class="[
-                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('heading', { level: 2 }) },
-                    ]"
-                    @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()"
-                    title="Heading 2"
-                    type="button"
-                >
-                    H2
-                </button>
-                <button
-                    :class="[
-                        'bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('heading', { level: 3 }) },
-                    ]"
-                    @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()"
-                    title="Heading 3"
-                    type="button"
-                >
-                    H3
-                </button>
-                <button
-                    :class="[
-                        'bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('heading', { level: 4 }) },
-                    ]"
-                    @click="editor?.chain().focus().toggleHeading({ level: 4 }).run()"
-                    title="Heading 4"
-                    type="button"
-                >
-                    H4
-                </button>
-                <button
-                    :class="[
-                        'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('heading', { level: 5 }) },
-                    ]"
-                    @click="editor?.chain().focus().toggleHeading({ level: 5 }).run()"
-                    title="Heading 5"
-                    type="button"
-                >
-                    H5
-                </button>
-            </div>
-
-            <div class="flex pb-2">
-                <button
-                    :class="[
-                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('bulletList') },
-                    ]"
-                    @click="editor?.chain().focus().toggleBulletList().run()"
-                    title="Bullet list"
-                    type="button"
-                >
-                    <BulletlistIcon class="h-5 w-5" />
-                </button>
-                <button
-                    :class="[
-                        'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('orderedList') },
-                    ]"
-                    @click="editor?.chain().focus().toggleOrderedList().run()"
-                    title="Numbered list"
-                    type="button"
-                >
-                    <NumberedListIcon class="h-5 w-5" />
-                </button>
-            </div>
-            <div class="flex pb-2">
-                <button
-                    :class="[
-                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
-                        { 'bg-zinc-300': editor?.isActive('link') },
-                    ]"
-                    @click="openLinkModal"
-                    :disabled="!hasTextSelected"
-                    title="Add/Edit Link"
-                    type="button"
-                >
-                    <LinkIcon class="h-5 w-5" />
-                </button>
-                <button
-                    class="rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300"
-                    @click="removeLink"
-                    :disabled="!hasLinkSelected"
-                    title="Remove Link"
-                    type="button"
-                >
-                    <LinkSlashIcon class="h-5 w-5" />
-                </button>
-            </div>
-        </div>
-        <div class="flex flex-1 flex-col">
-            <EditorContent :editor="editor" class="mb-1 flex-1 bg-white" />
-        </div>
+            </template>
+        </RTextEditor>
     </div>
     <LModal
         v-model:isVisible="showModal"
@@ -294,13 +155,12 @@ watch(
             placeholder="https://example.com"
             type="text"
             class="mb-4"
-            :disabled="disabled"
+            :disabled="props.disabled"
         />
 
         <template #footer>
             <div class="flex justify-end gap-2">
                 <LButton
-                    v-model="url"
                     :disabled="!url"
                     @click="addLink"
                     variant="primary"
@@ -316,48 +176,15 @@ watch(
     </LModal>
 </template>
 
-<style>
-.tiptap[contenteditable="false"] {
-    @apply bg-zinc-100 opacity-80 hover:ring-zinc-300;
-}
-
-/* Ensure the editor fills the container height */
-.ProseMirror-focused {
-    outline: none;
-}
-
-/* Force height inheritance through the TipTap component tree */
-div[data-tiptap-editor] {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-div[data-tiptap-editor] > div {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.ProseMirror {
-    height: 100%;
-    width: 100%;
-    margin: 0 auto;
-    box-sizing: border-box;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.ProseMirror > :first-child {
-    margin-top: 0;
-}
-
-/* ProseMirror is not always correctly parsing the all browser's elements, so we can give some custom styling that it works */
-
+<style scoped>
 .ProseMirror h5 {
     font-size: 0.83em !important;
     font-weight: 600 !important;
     margin: 0.5rem 0 !important;
     line-height: 1.3 !important;
+}
+
+.ProseMirror > :first-child {
+    margin-top: 0;
 }
 </style>
