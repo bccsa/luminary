@@ -4,6 +4,7 @@ import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
+import { upgradeDbSchema } from "./db/db.upgrade";
 import { S3Service } from "./s3/s3.service";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
@@ -43,6 +44,9 @@ async function bootstrap() {
 
     // Initialize S3Service change feed listener for automatic credential updates
     S3Service.initializeChangeListener(dbService);
+
+    // Upgrade database schema if needed
+    await upgradeDbSchema(dbService);
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),
