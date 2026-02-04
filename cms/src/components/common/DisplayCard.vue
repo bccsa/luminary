@@ -71,7 +71,7 @@ const handleClick = () => {
                     Offline changes
                 </LBadge>
             </div>
-            <div class="flex">
+            <div v-if="$slots.topRightContent" class="flex">
                 <slot name="topRightContent" />
             </div>
 
