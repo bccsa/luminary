@@ -123,9 +123,9 @@ export function cacheHas(key: string): boolean {
  * This clears ALL cached data (mangoCompile, mangoToDexie, etc.).
  */
 export function clearAllMangoCache(): void {
-    for (const entry of sharedCache.values()) {
+    sharedCache.forEach((entry) => {
         clearTimeout(entry.timer);
-    }
+    });
     sharedCache.clear();
 }
 
@@ -137,14 +137,14 @@ export function clearAllMangoCache(): void {
  */
 export function clearCacheByPrefix(prefix: string): void {
     const keysToDelete: string[] = [];
-    for (const [key, entry] of sharedCache.entries()) {
+    sharedCache.forEach((entry, key) => {
         if (key.startsWith(prefix)) {
             clearTimeout(entry.timer);
             keysToDelete.push(key);
         }
-    }
-    for (const key of keysToDelete) {
-        sharedCache.delete(key);
+    });
+    for (let i = 0; i < keysToDelete.length; i++) {
+        sharedCache.delete(keysToDelete[i]);
     }
 }
 
@@ -163,11 +163,11 @@ export function getCacheStats(prefix?: string): { size: number; keys: string[] }
     }
 
     const filteredKeys: string[] = [];
-    for (const key of sharedCache.keys()) {
+    sharedCache.forEach((_, key) => {
         if (key.startsWith(prefix)) {
             filteredKeys.push(key);
         }
-    }
+    });
     return {
         size: filteredKeys.length,
         keys: filteredKeys,
