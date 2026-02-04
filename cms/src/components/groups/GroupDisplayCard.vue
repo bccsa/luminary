@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import {
-    type GroupDto,
-    ApiLiveQueryAsEditable,
-    // getRest,
-    // type ChangeRequestQuery,
-    // AckStatus,
-} from "luminary-shared";
+import { db, type GroupDto, ApiLiveQueryAsEditable } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import DisplayCard from "../common/DisplayCard.vue";
 import { computed, ref } from "vue";
 import LModal from "../modals/LModal.vue";
+import { ClockIcon } from "@heroicons/vue/24/outline";
 import EditGroup from "./EditGroup.vue";
+import { DateTime } from "luxon";
+import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     groupQuery: ApiLiveQueryAsEditable<GroupDto>;
@@ -47,18 +44,32 @@ const accessGroupNames = computed(() => {
         @click="showEditModal = true"
         class="mb-1"
     >
-        <template #desktopFooter>
-            <div>
-                <LBadge v-for="name in accessGroupNames" :key="name">
-                    {{ name }}
-                </LBadge>
+        <template #content>
+            <div class="flex items-center justify-between pt-1">
+                <div class="flex flex-wrap gap-1">
+                    <LBadge v-for="name in accessGroupNames" :key="name">
+                        {{ name }}
+                    </LBadge>
+                </div>
+                <div class="flex">
+                    <LBadge v-if="isEdited(group._id)" variant="info">Edited</LBadge>
+                    <LBadge v-if="isModified(group._id)" variant="warning">Incoming edit</LBadge>
+                </div>
             </div>
         </template>
 
         <template #topRightContent>
-            <div class="flex">
-                <LBadge v-if="isEdited(group._id)" variant="info">Edited</LBadge>
-                <LBadge v-if="isModified(group._id)" variant="warning">Incoming edit</LBadge>
+            <div class="flex items-center justify-end text-xs text-zinc-400">
+                <ClockIcon class="mr-[2px] h-4 w-4 text-zinc-400" />
+                <span title="Last Updated" class="whitespace-nowrap">
+                    {{
+                        db
+                            .toDateTime(group.updatedTimeUtc)
+                            .toLocaleString(
+                                isSmallScreen ? DateTime.DATE_SHORT : DateTime.DATETIME_SHORT,
+                            )
+                    }}
+                </span>
             </div>
         </template>
     </DisplayCard>
