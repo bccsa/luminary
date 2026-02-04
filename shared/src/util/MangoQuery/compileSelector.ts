@@ -311,6 +311,11 @@ function compilePrimitiveMatcher(
                 }
                 break;
             default:
+                console.warn(
+                    `[MangoQuery] Unsupported operator "${op}" in primitive matcher. ` +
+                        `Supported operators: $eq, $ne, $gt, $lt, $gte, $lte, $in, $nin, $type, $regex, $beginsWith, $mod. ` +
+                        `This condition will always return false.`,
+                );
                 return () => false;
         }
     }
@@ -599,6 +604,12 @@ function compileFieldCriteria(
                 break;
 
             default:
+                console.warn(
+                    `[MangoQuery] Unsupported field operator "${op}" for field "${field}". ` +
+                        `Supported operators: $eq, $ne, $gt, $lt, $gte, $lte, $in, $nin, $exists, $type, $size, ` +
+                        `$mod, $regex, $beginsWith, $all, $elemMatch, $allMatch, $keyMapMatch. ` +
+                        `This condition will always return false.`,
+                );
                 return () => false;
         }
     }
@@ -728,7 +739,12 @@ export function compileSelector(
             continue;
         }
 
-        // Unsupported criteria type
+        // Unsupported criteria type (e.g., array value for a field)
+        console.warn(
+            `[MangoQuery] Unsupported criteria type for key "${key}". ` +
+                `Expected primitive value, operator object, or nested object. Got: ${Array.isArray(value) ? "array" : typeof value}. ` +
+                `This condition will always return false.`,
+        );
         predicates.push(() => false);
     }
 

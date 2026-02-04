@@ -157,6 +157,7 @@ const rows = await mangoToDexie(db.items, q).toArray();
 - For `$in`, arrays consisting **only of booleans** are not pushed down.
 - Residual construction removes only the pushed pieces (e.g., it strips `$in` if pushed but keeps other operators on the same field).
 - **Dot notation** for nested fields is supported in the selector but typically won't be indexed in Dexie, so will fall back to in‑memory filtering.
+- **Unsupported operators** (e.g., `$contains`) will log a warning to the console and cause that condition to return `false`. See [mangoCompile](./mangoCompile.md#debugging-unsupported-operators) for details.
 
 ## Return value
 
