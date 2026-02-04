@@ -223,12 +223,26 @@ Multiple fields at the same level are implicitly AND-ed:
 
 - Empty selector `{}` → predicate always returns `true`
 - Non-object selector (e.g., `null`, `42`, `"x"`) → predicate always returns `false`
-- Unknown/unsupported operators inside a field comparison cause that condition to evaluate to `false`
+- **Unknown/unsupported operators** inside a field comparison cause that condition to evaluate to `false` and log a warning to the console (e.g., `[MangoQuery] Unsupported field operator "$contains" for field "tags"`)
 - Equality uses CouchDB-style type-aware comparison (type order: null < boolean < number < string < array < object)
 - String comparison uses `localeCompare` for ordering
 - `$regex` returns `false` for invalid regex patterns
 - `$mod` requires integer values for both the field and the divisor/remainder
 - `$allMatch` returns `false` for empty arrays
+
+### Debugging unsupported operators
+
+When you see a warning like:
+
+```
+[MangoQuery] Unsupported field operator "$contains" for field "availableTranslations". Supported operators: $eq, $ne, $gt, $lt, $gte, $lte, $in, $nin, $exists, $type, $size, $mod, $regex, $beginsWith, $all, $elemMatch, $allMatch, $keyMapMatch. This condition will always return false.
+```
+
+This means you're using an operator that doesn't exist in the Mango query specification. Common mistakes:
+
+- `$contains` → Use `$elemMatch: { $eq: value }` to check if array contains a value
+- `$notContains` → Use top-level `$not: { field: { $elemMatch: { $eq: value } } }`
+- Field-level `$not` → Move `$not` to the top level as a combination operator
 
 ## Type hints
 
