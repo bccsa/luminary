@@ -97,22 +97,6 @@ const selectedLabels = computed(() => {
     return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
-const toggleDropdown = () => {
-    showDropdown.value = !showDropdown.value;
-    nextTick(() => {
-        inputElement.value?.focus();
-    });
-};
-
-const open = () => {
-    if (!showDropdown.value) {
-        showDropdown.value = true;
-    }
-    nextTick(() => {
-        inputElement.value?.focus();
-    });
-};
-
 watch(showEditModal, (newVal) => {
     if (newVal) {
         nextTick(() => {
