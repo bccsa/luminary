@@ -15,7 +15,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const { isEdited, isModified, liveData } = props.groupQuery;
+const { isModified, liveData } = props.groupQuery;
 
 /** The group document to be shown in this component */
 const group = defineModel<GroupDto>("group", { required: true });
@@ -52,7 +52,6 @@ const accessGroupNames = computed(() => {
                     </LBadge>
                 </div>
                 <div class="flex">
-                    <LBadge v-if="isEdited(group._id)" variant="info">Edited</LBadge>
                     <LBadge v-if="isModified(group._id)" variant="warning">Incoming edit</LBadge>
                 </div>
             </div>
