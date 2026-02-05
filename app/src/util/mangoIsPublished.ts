@@ -27,8 +27,7 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
     const now = Date.now();
 
     return [
-        // Status must be published
-        { status: PublishStatus.Published },
+        // Status must be published, but we do not need to check this as draft documents are not synced to the app client.
 
         // Publish date must exist and be in the past or now
         { publishDate: { $exists: true, $lte: now } },
@@ -74,11 +73,9 @@ function buildLanguagePrioritySelector(languageIds: Uuid[]): MangoSelector {
 
         // For subsequent languages: match only if higher-priority languages
         // are NOT available in the translations
-        const higherPriorityNotAvailable = validLanguageIds
-            .slice(0, index)
-            .map((prevLangId) => ({
-                $not: { availableTranslations: { $elemMatch: { $eq: prevLangId } } },
-            }));
+        const higherPriorityNotAvailable = validLanguageIds.slice(0, index).map((prevLangId) => ({
+            $not: { availableTranslations: { $elemMatch: { $eq: prevLangId } } },
+        }));
 
         return {
             $and: [{ language: langId }, ...higherPriorityNotAvailable],
