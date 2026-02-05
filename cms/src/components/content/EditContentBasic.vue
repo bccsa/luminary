@@ -315,6 +315,15 @@ const clearExpiryDate = () => {
                     class="min-h-2"
                 />
 
+                <!-- Copyright -->
+                <FormLabel>Copyright</FormLabel>
+                <LInput
+                    name="copyright"
+                    :disabled="disabled"
+                    InputType="textarea"
+                    placeholder="© 2024 My Company"
+                    v-model="content.copyright"
+                />
                 <!-- Publish date -->
                 <FormLabel>Publish date</FormLabel>
                 <LInput
