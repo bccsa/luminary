@@ -2,7 +2,7 @@
 
 Translate a Mango query into a Dexie `Collection`, pushing index‑friendly parts down to IndexedDB where possible and applying the rest in memory via `mangoCompile`.
 
-Query analysis results (pushdown strategy and residual selector) are cached for repeated queries. Cached entries expire after 5 minutes of non-use.
+**Template-based caching**: Query analysis results are cached based on query *structure*, not values. This means queries like `{ type: "post" }` and `{ type: "page" }` share the same cached analysis, with values applied at runtime. Cache entries expire after 5 minutes of non-use.
 
 > See also: [mangoCompile](./mangoCompile.md) for compiling a Mango selector into an in‑memory predicate.
 
@@ -26,7 +26,7 @@ Examples of `MangoSelector` are documented in [mangoCompile](./mangoCompile.md).
 
 ## How it works
 
-The query is first normalized using `expandMangoSelector` to convert implicit AND conditions to explicit `$and` form. This simplifies the pushdown extraction logic.
+The query selector is first normalized into a **template** (structure with placeholders) and **values** (extracted parameters). This enables template-based caching where the analysis is done once per structure.
 
 ### 1. Sort‑first path
 
@@ -34,9 +34,13 @@ The query is first normalized using `expandMangoSelector` to convert implicit AN
 - All filtering is then done in memory via `collection.filter(mangoCompile(selector))`.
 - If `orderBy` throws (e.g., field not indexed), it falls back to `table.filter(() => true)` and still applies the in‑memory filter.
 
-### 2. Pushdown without sort
+### 2. Pushdown without sort (template-based)
 
-If no `$sort`, the function extracts index‑friendly predicates and pushes them to Dexie using `where(...)`:
+If no `$sort`, the function uses cached template analysis:
+
+1. **Normalize**: Extract values from selector, creating a template
+2. **Analyze**: Get or compute pushdown strategy for the template (cached)
+3. **Apply**: Execute pushdown with actual runtime values
 
 | Priority | Operator(s) | Dexie method | Notes |
 |----------|-------------|--------------|-------|
@@ -46,7 +50,14 @@ If no `$sort`, the function extracts index‑friendly predicates and pushes them
 | 4 | `$in` | `where(field).anyOf(values)` | Array membership. Boolean‑only arrays excluded. |
 | 5 | Single comparator | `equals`, `notEqual`, `above`, `below`, `aboveOrEqual`, `belowOrEqual` | For `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`. |
 
-Any remaining conditions are compiled with `mangoCompile` and applied via `.filter(...)`.
+The pushdown strategy is cached per template. At runtime, the cached strategy is applied with actual values:
+
+```ts
+// Template analysis (cached): { type: $0, authorId: $1 } → multiEq pushdown
+// Runtime application: where({ type: "post", authorId: 42 })
+```
+
+Any remaining conditions are compiled into a parameterized residual predicate and applied via `.filter(...)`.
 
 ### 3. In‑memory fallback
 
@@ -169,7 +180,11 @@ const rows = await mangoToDexie(db.items, q).toArray();
 
 ## Cache management
 
-Query analysis results are automatically cached to avoid recomputing pushdown strategies for repeated queries. The cache uses the same expiry mechanism as `mangoCompile` (5 minutes of non-use).
+Query analysis results are automatically cached using **template-based caching**. This means:
+
+- The query structure is normalized (values replaced with placeholders)
+- The pushdown strategy and residual predicate are cached per template
+- Different values with the same structure share the cached analysis
 
 ```ts
 import { clearDexieCache, getDexieCacheStats } from "./mangoToDexie";
@@ -182,6 +197,34 @@ const stats = getDexieCacheStats();
 console.log(`Analysis cache: ${stats.analysis.size} entries`);
 console.log(`Expanded cache: ${stats.expanded.size} entries`);
 ```
+
+### How template caching works
+
+```ts
+// These queries share the same cached analysis:
+mangoToDexie(table, { selector: { type: "post", authorId: 42 } });
+mangoToDexie(table, { selector: { type: "page", authorId: 99 } });
+
+// Both normalize to template: { type: $0, authorId: $1 }
+// The pushdown strategy (multiEq on type + authorId) is computed once
+// Values are applied at runtime via where({ type: values[0], authorId: values[1] })
+```
+
+**Benefits**:
+- Dramatically improves cache hit rate for parameterized queries
+- Reduces memory usage (fewer cache entries)
+- Expensive analysis done once per structure, cheap value binding per call
+
+Cache entries expire after 5 minutes of non-use, with the timer resetting on each access.
+
+### Performance optimizations
+
+The implementation is optimized for low-end devices:
+
+- **Template-based caching**: Avoids recomputing pushdown strategies for queries with same structure
+- **No `Object.keys()` in hot paths**: Uses `for...in` loops to avoid array allocations
+- **Pre-compiled residual predicates**: Residual filters are compiled once per template
+- **Parameterized execution**: Values are bound at runtime without recompilation
 
 ## When to use
 

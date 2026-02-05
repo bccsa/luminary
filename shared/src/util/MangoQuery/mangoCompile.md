@@ -10,7 +10,16 @@ The compiler supports the full CouchDB Mango query syntax, making it compatible 
 
 Use `mangoCompile(selector)` to get back a function `(doc) => boolean`. That function returns `true` when the document matches the selector.
 
-**Caching**: Compiled predicates are automatically cached based on query structure. Cache entries expire after 5 minutes of non-use, with the timer resetting on each access. This eliminates redundant compilation when the same queries are used repeatedly.
+**Template-based caching**: Compiled predicates are cached based on query *structure*, not values. This means queries with the same shape but different parameter values share the same compiled logic:
+
+```ts
+// These two queries share the same cached compiled predicate:
+mangoCompile({ city: "NYC", score: { $gte: 90 } });
+mangoCompile({ city: "LA", score: { $gte: 50 } });
+// Both normalize to template: { city: $0, score: { $gte: $1 } }
+```
+
+Cache entries expire after 5 minutes of non-use, with the timer resetting on each access.
 
 ```ts
 import { mangoCompile } from "./mangoCompile";
@@ -261,36 +270,63 @@ clearMangoCache();
 // Get cache statistics
 const stats = getMangoCacheStats();
 console.log(`Cache size: ${stats.size}`);
-console.log(`Cached queries: ${stats.keys}`);
+console.log(`Cached templates: ${stats.keys.length}`);
 ```
+
+### Template-based caching
+
+The compiler uses **template-based caching** for optimal performance on low-end devices:
+
+1. **Normalization**: Query values are extracted and replaced with placeholders
+2. **Template key**: Cache key is generated from the template structure (not values)
+3. **Parameterized predicate**: The cached predicate accepts values at runtime
+
+```ts
+// Query: { type: "post", status: "published" }
+// Template: { type: { $__idx: 0 }, status: { $__idx: 1 } }
+// Values: ["post", "published"]
+
+// Same template, different values - shares compiled logic:
+mangoCompile({ type: "page", status: "draft" });
+// Reuses the same cached predicate, only binds new values
+```
+
+**Benefits**:
+- Queries with same structure share compiled predicates (massive cache hit rate improvement)
+- Expensive compilation done once per template, cheap value binding per call
+- Reduces memory usage (fewer cache entries)
 
 ### Cache behavior
 
-- **Automatic caching**: Queries are cached using a fast hash of their JSON representation
+- **Template-based**: Queries are cached by structure, not values
 - **5-minute expiry**: Unused cache entries are automatically removed after 5 minutes
 - **Resettable timer**: Each cache hit resets the entry's expiry timer
 - **Memory-efficient**: Empty and invalid queries are not cached
+- **Boolean handling**: Boolean values are kept in templates (not parameterized) for type safety
 
-### Performance tradeoff: Key order sensitivity
+### Performance optimizations
 
-Cache keys are generated using `JSON.stringify()` + a fast djb2 hash. This approach was chosen over recursive key sorting for better performance on low-end devices:
+The implementation is optimized for low-end devices:
 
-| Approach | Cache key generation | Key normalization |
-|----------|---------------------|-------------------|
-| **Sort + stringify** | Slower (recursive traversal, object allocation, sorting) | Normalized (same cache entry for different key orders) |
-| **Stringify + hash** ✓ | Faster (single-pass hash, no allocations) | Not normalized (different key orders = different entries) |
+- **No `Object.keys()` in hot paths**: Uses `for...in` loops to avoid array allocations
+- **Pre-split field paths**: Dot notation paths are split at compile time, not per-document
+- **Index-based loops**: Avoids iterator overhead
+- **Set-based operator lookups**: O(1) operator validation
+- **Early returns**: Short-circuit evaluation throughout
 
-**Consequence**: Semantically equivalent queries with different key orders are cached separately:
+### Key order sensitivity
+
+Cache keys are generated using `JSON.stringify()` + a fast djb2 hash on the template. Different key orders produce different cache entries:
 
 ```ts
-mangoCompile({ a: 1, b: 2 });  // Cache entry #1
-mangoCompile({ b: 2, a: 1 });  // Cache entry #2 (different key order)
+mangoCompile({ a: 1, b: 2 });  // Template cache entry #1
+mangoCompile({ b: 2, a: 1 });  // Template cache entry #2 (different key order)
 ```
 
 **Why this is acceptable**:
 - Most applications construct queries via the same code path, producing consistent key order
+- Template-based caching already dramatically reduces cache misses (values don't matter)
 - A cache miss only means recompiling once, not incorrect behavior
-- The performance gain on every cache key generation outweighs occasional duplicate entries
 - Memory impact is minimal since entries auto-expire after 5 minutes of non-use
 
 ## When to use

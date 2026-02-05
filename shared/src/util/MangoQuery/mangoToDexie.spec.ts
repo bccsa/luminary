@@ -713,8 +713,11 @@ describe("mangoToDexie", () => {
             const docs: Doc[] = [{ id: 1, a: 1 }];
             const table = new FakeTable(docs);
 
+            // With template-based caching, { a: 1 } and { a: 2 } share the same template
             mangoToDexie(table as any, { selector: { a: 1 } } as any);
             mangoToDexie(table as any, { selector: { a: 2 } } as any);
+            // Use a different structure to get a second cache entry
+            mangoToDexie(table as any, { selector: { b: 1 } } as any);
 
             expect(getDexieCacheStats().analysis.size).toBe(2);
 
@@ -762,13 +765,13 @@ describe("mangoToDexie", () => {
             const compileStats = getMangoCacheStats();
             const dexieStats = getDexieCacheStats();
 
-            // mangoCompile should have its own cache entry
+            // mangoCompile should have its own cache entry (now uses tp: prefix for template)
             expect(compileStats.size).toBe(1);
-            expect(compileStats.keys[0]).toMatch(/^mc:/);
+            expect(compileStats.keys[0]).toMatch(/^tp:/);
 
-            // mangoToDexie should have its own cache entries
+            // mangoToDexie should have its own cache entries (now uses td: prefix for template)
             expect(dexieStats.analysis.size).toBe(1);
-            expect(dexieStats.analysis.keys[0]).toMatch(/^dx:/);
+            expect(dexieStats.analysis.keys[0]).toMatch(/^td:/);
 
             // Total cache should have entries from both
             const totalStats = getCacheStats();

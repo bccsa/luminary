@@ -3,8 +3,8 @@
  * Provides a single shared cache used by mangoCompile and mangoToDexie.
  *
  * Cache keys are prefixed to avoid collisions between different cache usages:
- * - "mc:" - mangoCompile predicate cache
- * - "dx:" - mangoToDexie analysis cache
+ * - "tp:" - template-based predicate cache (mangoCompile)
+ * - "td:" - template-based Dexie analysis cache (mangoToDexie)
  * - "ex:" - expanded selector cache
  */
 
@@ -178,11 +178,11 @@ export function getCacheStats(prefix?: string): { size: number; keys: string[] }
 // Cache Key Prefixes (exported for documentation/consistency)
 // ============================================================================
 
-/** Prefix for mangoCompile predicate cache */
-export const CACHE_PREFIX_COMPILE = "mc:";
-
-/** Prefix for mangoToDexie analysis cache */
-export const CACHE_PREFIX_DEXIE = "dx:";
-
 /** Prefix for expanded selector cache */
 export const CACHE_PREFIX_EXPAND = "ex:";
+
+/** Prefix for template-based predicate cache (mangoCompile) */
+export const CACHE_PREFIX_TEMPLATE = "tp:";
+
+/** Prefix for template-based Dexie analysis cache (mangoToDexie) */
+export const CACHE_PREFIX_TEMPLATE_DEXIE = "td:";
