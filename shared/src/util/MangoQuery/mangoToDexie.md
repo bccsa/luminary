@@ -194,8 +194,7 @@ clearDexieCache();
 
 // Get cache statistics
 const stats = getDexieCacheStats();
-console.log(`Analysis cache: ${stats.analysis.size} entries`);
-console.log(`Expanded cache: ${stats.expanded.size} entries`);
+console.log(`Cache size: ${stats.size} entries`);
 ```
 
 ### How template caching works

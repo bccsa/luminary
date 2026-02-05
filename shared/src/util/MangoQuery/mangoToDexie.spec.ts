@@ -689,12 +689,12 @@ describe("mangoToDexie", () => {
             // First call - should analyze and cache
             mangoToDexie(table as any, query as any);
             const stats1 = getDexieCacheStats();
-            expect(stats1.analysis.size).toBe(1);
+            expect(stats1.size).toBe(1);
 
             // Second call with same query - should use cache
             mangoToDexie(table as any, query as any);
             const stats2 = getDexieCacheStats();
-            expect(stats2.analysis.size).toBe(1); // Still only 1 entry
+            expect(stats2.size).toBe(1); // Still only 1 entry
         });
 
         it("caches different queries separately", () => {
@@ -706,7 +706,7 @@ describe("mangoToDexie", () => {
             mangoToDexie(table as any, { selector: { a: 1, b: 2 } } as any);
 
             const stats = getDexieCacheStats();
-            expect(stats.analysis.size).toBe(3);
+            expect(stats.size).toBe(3);
         });
 
         it("clearDexieCache removes all cached entries", () => {
@@ -719,12 +719,11 @@ describe("mangoToDexie", () => {
             // Use a different structure to get a second cache entry
             mangoToDexie(table as any, { selector: { b: 1 } } as any);
 
-            expect(getDexieCacheStats().analysis.size).toBe(2);
+            expect(getDexieCacheStats().size).toBe(2);
 
             clearDexieCache();
 
-            expect(getDexieCacheStats().analysis.size).toBe(0);
-            expect(getDexieCacheStats().expanded.size).toBe(0);
+            expect(getDexieCacheStats().size).toBe(0);
         });
 
         it("returns correct results from cached analysis", () => {
@@ -770,8 +769,8 @@ describe("mangoToDexie", () => {
             expect(compileStats.keys[0]).toMatch(/^tp:/);
 
             // mangoToDexie should have its own cache entries (now uses td: prefix for template)
-            expect(dexieStats.analysis.size).toBe(1);
-            expect(dexieStats.analysis.keys[0]).toMatch(/^td:/);
+            expect(dexieStats.size).toBe(1);
+            expect(dexieStats.keys[0]).toMatch(/^td:/);
 
             // Total cache should have entries from both
             const totalStats = getCacheStats();
@@ -790,14 +789,14 @@ describe("mangoToDexie", () => {
             mangoToDexie(table as any, { selector } as any);
 
             expect(getMangoCacheStats().size).toBe(1);
-            expect(getDexieCacheStats().analysis.size).toBe(1);
+            expect(getDexieCacheStats().size).toBe(1);
 
             // Clear only Dexie cache
             clearDexieCache();
 
             // mangoCompile cache should be unaffected
             expect(getMangoCacheStats().size).toBe(1);
-            expect(getDexieCacheStats().analysis.size).toBe(0);
+            expect(getDexieCacheStats().size).toBe(0);
         });
 
         it("clearMangoCache does not affect Dexie cache", () => {
@@ -812,14 +811,14 @@ describe("mangoToDexie", () => {
             mangoToDexie(table as any, { selector } as any);
 
             expect(getMangoCacheStats().size).toBe(1);
-            expect(getDexieCacheStats().analysis.size).toBe(1);
+            expect(getDexieCacheStats().size).toBe(1);
 
             // Clear only mangoCompile cache
             clearMangoCache();
 
             // Dexie cache should be unaffected
             expect(getMangoCacheStats().size).toBe(0);
-            expect(getDexieCacheStats().analysis.size).toBe(1);
+            expect(getDexieCacheStats().size).toBe(1);
         });
 
         it("clearAllMangoCache clears all caches", () => {
@@ -840,7 +839,7 @@ describe("mangoToDexie", () => {
 
             expect(getCacheStats().size).toBe(0);
             expect(getMangoCacheStats().size).toBe(0);
-            expect(getDexieCacheStats().analysis.size).toBe(0);
+            expect(getDexieCacheStats().size).toBe(0);
         });
     });
 });

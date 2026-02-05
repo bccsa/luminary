@@ -9,7 +9,6 @@ import {
     cacheSet,
     clearCacheByPrefix,
     getCacheStats,
-    CACHE_PREFIX_EXPAND,
     CACHE_PREFIX_TEMPLATE_DEXIE,
 } from "./queryCache";
 
@@ -57,21 +56,14 @@ const COMBINATION_OPERATORS = new Set(["$and", "$or", "$not", "$nor"]);
  * Does not affect mangoCompile cache.
  */
 export function clearDexieCache(): void {
-    clearCacheByPrefix(CACHE_PREFIX_EXPAND);
     clearCacheByPrefix(CACHE_PREFIX_TEMPLATE_DEXIE);
 }
 
 /**
  * Get cache statistics for mangoToDexie.
  */
-export function getDexieCacheStats(): {
-    analysis: { size: number; keys: string[] };
-    expanded: { size: number; keys: string[] };
-} {
-    return {
-        analysis: getCacheStats(CACHE_PREFIX_TEMPLATE_DEXIE),
-        expanded: getCacheStats(CACHE_PREFIX_EXPAND),
-    };
+export function getDexieCacheStats(): { size: number; keys: string[] } {
+    return getCacheStats(CACHE_PREFIX_TEMPLATE_DEXIE);
 }
 
 // ============================================================================

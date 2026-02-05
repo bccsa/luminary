@@ -14,8 +14,7 @@
  * the same compiled predicate with different bound values.
  */
 
-import type { MangoSelector } from "./MangoTypes";
-import type { Predicate } from "./compileSelector";
+import type { MangoSelector, Predicate } from "./MangoTypes";
 import { normalizeSelector, generateTemplateKey } from "./templateNormalize";
 import {
     compileTemplateSelector,
@@ -30,7 +29,7 @@ import {
 } from "./queryCache";
 
 // Re-export Predicate type for convenience
-export type { Predicate };
+export type { Predicate } from "./MangoTypes";
 
 // ============================================================================
 // Cache Management Exports
