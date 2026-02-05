@@ -1,3 +1,6 @@
+/** Predicate function that returns true if a document matches */
+export type Predicate = (doc: any) => boolean;
+
 /** Mango query selector structure */
 export type MangoSelector = {
     // Combination operators

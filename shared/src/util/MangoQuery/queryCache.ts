@@ -5,7 +5,6 @@
  * Cache keys are prefixed to avoid collisions between different cache usages:
  * - "tp:" - template-based predicate cache (mangoCompile)
  * - "td:" - template-based Dexie analysis cache (mangoToDexie)
- * - "ex:" - expanded selector cache
  */
 
 // ============================================================================
@@ -14,42 +13,6 @@
 
 /** Cache expiry time in milliseconds (5 minutes) */
 export const CACHE_EXPIRY_MS = 5 * 60 * 1000;
-
-// ============================================================================
-// Cache Key Generation
-// ============================================================================
-
-/**
- * Fast string hash using djb2 algorithm.
- * Produces a numeric hash that we convert to a base-36 string for compactness.
- */
-export function hashString(str: string): string {
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
-    }
-    // Convert to unsigned 32-bit integer, then to base-36 string
-    return (hash >>> 0).toString(36);
-}
-
-/**
- * Generate a cache key from an object (typically a MangoSelector or MangoQuery).
- * Uses JSON.stringify + fast hash for efficient key generation.
- *
- * IMPORTANT: The prefix parameter is required to namespace cache keys and prevent
- * collisions between different cache usages (e.g., mangoCompile vs mangoToDexie).
- *
- * Note: Different key orders in equivalent objects may produce different cache keys,
- * but this is acceptable as it only affects cache efficiency, not correctness.
- *
- * @param obj - The object to generate a cache key for
- * @param prefix - Required prefix to namespace the cache key (e.g., "mc", "dx", "ex")
- * @returns A compact string cache key with prefix
- */
-export function generateCacheKey(obj: unknown, prefix: string): string {
-    const hash = hashString(JSON.stringify(obj));
-    return `${prefix}:${hash}`;
-}
 
 // ============================================================================
 // Shared Cache Instance
@@ -107,15 +70,6 @@ export function cacheSet(key: string, value: unknown): void {
     }, CACHE_EXPIRY_MS);
 
     sharedCache.set(key, { value, timer });
-}
-
-/**
- * Check if a key exists in the cache.
- *
- * @param key - The cache key (should include prefix)
- */
-export function cacheHas(key: string): boolean {
-    return sharedCache.has(key);
 }
 
 /**
@@ -177,9 +131,6 @@ export function getCacheStats(prefix?: string): { size: number; keys: string[] }
 // ============================================================================
 // Cache Key Prefixes (exported for documentation/consistency)
 // ============================================================================
-
-/** Prefix for expanded selector cache */
-export const CACHE_PREFIX_EXPAND = "ex:";
 
 /** Prefix for template-based predicate cache (mangoCompile) */
 export const CACHE_PREFIX_TEMPLATE = "tp:";
