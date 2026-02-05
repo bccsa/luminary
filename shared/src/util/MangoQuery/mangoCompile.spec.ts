@@ -69,10 +69,34 @@ describe("mangoCompile", () => {
             expect(pred2({ city: "NYC", score: 70 })).toBe(false);
         });
 
-        it("caches different queries separately", () => {
+        it("caches queries with same structure but different values together (template-based)", () => {
+            // With template-based caching, queries with the same structure share a cache entry
             const query1 = { city: "NYC" };
-            const query2 = { city: "LA" };
-            const query3 = { score: { $gt: 50 } };
+            const query2 = { city: "LA" }; // Same structure as query1, different value
+            const query3 = { score: { $gt: 50 } }; // Different structure
+
+            mangoCompile(query1);
+            mangoCompile(query2);
+            mangoCompile(query3);
+
+            const stats = getMangoCacheStats();
+            // query1 and query2 share the same template { city: $0 }
+            // query3 has a different template { score: { $gt: $0 } }
+            expect(stats.size).toBe(2);
+
+            // Both predicates still work correctly with their bound values
+            const pred1 = mangoCompile(query1);
+            const pred2 = mangoCompile(query2);
+            expect(pred1({ city: "NYC" })).toBe(true);
+            expect(pred1({ city: "LA" })).toBe(false);
+            expect(pred2({ city: "LA" })).toBe(true);
+            expect(pred2({ city: "NYC" })).toBe(false);
+        });
+
+        it("caches structurally different queries separately", () => {
+            const query1 = { city: "NYC" };
+            const query2 = { name: "Alice" }; // Different field
+            const query3 = { score: { $gt: 50 } }; // Different operator
 
             mangoCompile(query1);
             mangoCompile(query2);
@@ -140,18 +164,21 @@ describe("mangoCompile", () => {
             expect(stats.keys.every((k) => typeof k === "string" && k.length > 0)).toBe(true);
         });
 
-        it("caches nested sub-selectors for reuse", () => {
-            // First query with a sub-selector
+        it("caches queries with nested sub-selectors efficiently", () => {
+            // With template-based caching, the entire query structure is one cache entry
             mangoCompile({ $or: [{ city: "NYC" }, { city: "LA" }] });
 
-            // The sub-selectors should also be cached
             const stats = getMangoCacheStats();
-            // Main query + 2 sub-selectors = 3 cache entries
-            expect(stats.size).toBe(3);
+            // Template caching caches the whole query as one entry
+            expect(stats.size).toBe(1);
 
-            // Reusing the same sub-selector should hit cache
+            // A standalone sub-selector query has a different structure
             mangoCompile({ city: "NYC" });
-            expect(getMangoCacheStats().size).toBe(3); // No new entries
+            expect(getMangoCacheStats().size).toBe(2);
+
+            // Another query with same $or structure but different values shares the template
+            mangoCompile({ $or: [{ city: "Boston" }, { city: "Chicago" }] });
+            expect(getMangoCacheStats().size).toBe(2); // No new entries - same template
         });
     });
 });

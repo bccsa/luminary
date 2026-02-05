@@ -2,47 +2,51 @@ import type { Collection, Table } from "dexie";
 import type { MangoQuery, MangoSelector } from "./MangoTypes";
 import { mangoCompile } from "./mangoCompile";
 import { expandMangoSelector } from "./expandMangoQuery";
+import { normalizeSelector, generateTemplateKey, isPlaceholder } from "./templateNormalize";
+import { compileTemplateSelector, type ParameterizedPredicate } from "./compileTemplateSelector";
 import {
-    generateCacheKey,
     cacheGet,
     cacheSet,
     clearCacheByPrefix,
     getCacheStats,
-    CACHE_PREFIX_DEXIE,
     CACHE_PREFIX_EXPAND,
+    CACHE_PREFIX_TEMPLATE_DEXIE,
 } from "./queryCache";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type Pushdown =
-    | { kind: "anyOf"; field: string; values: unknown[] }
-    | { kind: "eq" | "gt" | "lt" | "gte" | "lte" | "ne"; field: string; value: unknown }
-    | { kind: "startsWith"; field: string; prefix: string }
-    | { kind: "between"; field: string; lower: number; upper: number; includeLower: boolean; includeUpper: boolean }
-    | { kind: "multiEq"; fields: Record<string, string | number> };
+/**
+ * Pushdown strategy with value indices for parameterized execution.
+ * Values are stored as indices into the values array.
+ */
+type TemplatePushdown =
+    | { kind: "anyOf"; field: string; valuesIdx: number }
+    | { kind: "eq" | "gt" | "lt" | "gte" | "lte" | "ne"; field: string; valueIdx: number }
+    | { kind: "startsWith"; field: string; prefixIdx: number }
+    | {
+          kind: "between";
+          field: string;
+          lowerIdx: number;
+          upperIdx: number;
+          includeLower: boolean;
+          includeUpper: boolean;
+      }
+    | { kind: "multiEq"; fieldIndices: Record<string, number> };
 
-/** Cached result of query analysis */
-interface AnalyzedQuery {
-    push: Pushdown | undefined;
-    residual: MangoSelector;
+/** Cached result of template query analysis */
+interface AnalyzedTemplate {
+    push: TemplatePushdown | undefined;
+    residualTemplate: MangoSelector;
+    residualPredicate: ParameterizedPredicate | null;
 }
 
 // ============================================================================
-// Module-level Constants (avoid recreation on each call)
+// Module-level Constants
 // ============================================================================
 
 const COMBINATION_OPERATORS = new Set(["$and", "$or", "$not", "$nor"]);
-
-/** Operator to Mango operator key mapping */
-const OP_TO_MANGO: Readonly<Record<string, string>> = {
-    ne: "$ne",
-    gt: "$gt",
-    lt: "$lt",
-    gte: "$gte",
-    lte: "$lte",
-};
 
 // ============================================================================
 // Cache Management Exports
@@ -51,11 +55,10 @@ const OP_TO_MANGO: Readonly<Record<string, string>> = {
 /**
  * Clear all cached Dexie query analysis results.
  * Does not affect mangoCompile cache.
- * For clearing all Mango caches, use clearAllMangoCache() from queryCache.
  */
 export function clearDexieCache(): void {
-    clearCacheByPrefix(CACHE_PREFIX_DEXIE);
     clearCacheByPrefix(CACHE_PREFIX_EXPAND);
+    clearCacheByPrefix(CACHE_PREFIX_TEMPLATE_DEXIE);
 }
 
 /**
@@ -66,7 +69,7 @@ export function getDexieCacheStats(): {
     expanded: { size: number; keys: string[] };
 } {
     return {
-        analysis: getCacheStats(CACHE_PREFIX_DEXIE),
+        analysis: getCacheStats(CACHE_PREFIX_TEMPLATE_DEXIE),
         expanded: getCacheStats(CACHE_PREFIX_EXPAND),
     };
 }
@@ -78,11 +81,10 @@ export function getDexieCacheStats(): {
 /**
  * Convert a Mango query into a Dexie Collection, pushing index-friendly parts into Dexie.
  *
- * Query analysis results (pushdown strategy and residual selector) are cached
- * based on the query structure. Cached entries expire after 5 minutes of non-use.
- *
- * The same query used in mangoCompile will have a different cache entry
- * (different prefix) to avoid conflicts between predicate and analysis caches.
+ * Uses template-based caching: the query structure is normalized, and the analysis
+ * (pushdown strategy and residual selector) is cached based on the structure alone.
+ * This allows queries with the same structure but different values to share the
+ * same analysis, with values applied at runtime.
  *
  * Supported pushdown operators:
  * - `$eq` / primitive equality → `where(field).equals(value)` or `where({ f1: v1, ... })`
@@ -92,9 +94,7 @@ export function getDexieCacheStats(): {
  * - `$in` → `where(field).anyOf(values)`
  * - `$beginsWith` → `where(field).startsWith(prefix)`
  *
- * All other operators (`$or`, `$not`, `$nor`, `$nin`, `$exists`, `$type`, `$all`,
- * `$elemMatch`, `$allMatch`, `$keyMapMatch`, `$regex`, `$mod`, `$size`) are
- * handled in-memory via `mangoCompile`.
+ * All other operators are handled in-memory via the residual filter.
  */
 export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<T> {
     const selector: MangoSelector = (query?.selector || {}) as MangoSelector;
@@ -112,7 +112,6 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
             col = table.orderBy(sortField);
             if (desc) col = col.reverse();
         } catch {
-            // Fallback to an un-ordered collection filtered in-memory
             col = table.filter(() => true);
         }
 
@@ -122,15 +121,22 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
         return col;
     }
 
-    // 2) No sorting: use cached analysis or compute it
-    const analysis = analyzeQuery(selector);
+    // 2) No sorting: use template-based cached analysis
+    // Normalize the selector to extract values
+    const { template, values } = normalizeSelector(selector);
+
+    // Get or compute the analysis for this template
+    const analysis = analyzeTemplate(template);
 
     if (analysis.push) {
-        let col = applyWhere(table, analysis.push);
-        if (!isEmptySelector(analysis.residual)) {
-            const pred = mangoCompile(analysis.residual) as (d: T) => boolean;
-            col = col.filter(pred);
+        // Apply the pushdown with actual values
+        let col = applyTemplateWhere(table, analysis.push, values);
+
+        // Apply residual filter if needed
+        if (analysis.residualPredicate) {
+            col = col.filter((doc) => analysis.residualPredicate!(doc, values));
         }
+
         if (typeof limit === "number") return col.limit(Math.max(0, limit));
         return col;
     }
@@ -143,57 +149,54 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
 }
 
 // ============================================================================
-// Query Analysis (Cached)
+// Template Analysis (Cached)
 // ============================================================================
 
 /**
- * Analyze a selector to extract pushdown and residual.
- * Results are cached for repeated queries.
+ * Analyze a template selector to extract pushdown strategy and residual.
+ * Results are cached for repeated queries with the same structure.
  */
-function analyzeQuery(selector: MangoSelector): AnalyzedQuery {
-    // Generate cache key with Dexie analysis prefix
-    const cacheKey = generateCacheKey(selector, CACHE_PREFIX_DEXIE);
+function analyzeTemplate(template: MangoSelector): AnalyzedTemplate {
+    const cacheKey = generateTemplateKey(template, CACHE_PREFIX_TEMPLATE_DEXIE);
 
-    // Check cache
-    const cached = cacheGet<AnalyzedQuery>(cacheKey);
+    const cached = cacheGet<AnalyzedTemplate>(cacheKey);
     if (cached) {
         return cached;
     }
 
-    // Cache miss - analyze the query
-    const expanded = expandSelectorCached(selector);
+    // Expand the template to $and form for analysis
+    const expanded = expandMangoSelector(template);
     const andConditions = expanded.$and || [];
 
-    const push = extractPushdown(andConditions);
-    const residual = push ? buildResidualSelector(andConditions, push) : selector;
+    // Extract pushdown strategy from template
+    const push = extractTemplatePushdown(andConditions);
 
-    const result: AnalyzedQuery = { push, residual };
+    // Build residual template (parts not handled by pushdown)
+    let residualTemplate: MangoSelector;
+    let residualPredicate: ParameterizedPredicate | null = null;
 
-    // Add to cache
+    if (push) {
+        residualTemplate = buildResidualTemplate(andConditions, push);
+        if (!isEmptySelector(residualTemplate)) {
+            residualPredicate = compileTemplateSelector(residualTemplate);
+        }
+    } else {
+        residualTemplate = template;
+        residualPredicate = compileTemplateSelector(template);
+    }
+
+    const result: AnalyzedTemplate = {
+        push,
+        residualTemplate,
+        residualPredicate,
+    };
+
     cacheSet(cacheKey, result);
-
     return result;
 }
 
-/**
- * Expand a selector with caching.
- */
-function expandSelectorCached(selector: MangoSelector): MangoSelector {
-    const cacheKey = generateCacheKey(selector, CACHE_PREFIX_EXPAND);
-
-    const cached = cacheGet<MangoSelector>(cacheKey);
-    if (cached) {
-        return cached;
-    }
-
-    const expanded = expandMangoSelector(selector);
-    cacheSet(cacheKey, expanded);
-
-    return expanded;
-}
-
 // ============================================================================
-// Pushdown Extraction (Single Pass)
+// Template Pushdown Extraction
 // ============================================================================
 
 function isEmptySelector(q: MangoSelector): boolean {
@@ -214,34 +217,31 @@ function isEmptySelector(q: MangoSelector): boolean {
     return false;
 }
 
-/** Collected data from a single pass over conditions */
-interface CollectedPushdownData {
-    /** Equality fields for multiEq */
-    eqMap: Record<string, string | number>;
+/** Collected pushdown data from template analysis */
+interface CollectedTemplatePushdownData {
+    /** Equality fields with their value indices */
+    eqMap: Record<string, number>;
     /** First $beginsWith found */
-    startsWith: { field: string; prefix: string } | null;
-    /** Range bounds by field for between detection */
-    rangeMap: Record<string, { gte?: number; lte?: number; gt?: number; lt?: number }>;
+    startsWith: { field: string; prefixIdx: number } | null;
+    /** Range bounds by field */
+    rangeMap: Record<
+        string,
+        { gteIdx?: number; lteIdx?: number; gtIdx?: number; ltIdx?: number }
+    >;
     /** First $in found */
-    anyOf: { field: string; values: unknown[] } | null;
+    anyOf: { field: string; valuesIdx: number } | null;
     /** First single comparator found */
-    singleComparator: Pushdown | null;
+    singleComparator: TemplatePushdown | null;
 }
 
 /**
- * Extract the best pushdown strategy from the $and conditions.
- * Uses a SINGLE PASS over all conditions to collect all potential pushdowns,
- * then selects the best one by priority.
- *
- * Priority:
- * 1. Combined equality fields (multiEq) - maximizes compound index usage
- * 2. $beginsWith on a string field - efficient prefix search
- * 3. Combined $gte + $lte on same numeric field - between() is very efficient
- * 4. $in on a field - anyOf() is efficient
- * 5. Single comparator ($eq, $ne, $gt, $lt, $gte, $lte)
+ * Extract pushdown strategy from template conditions.
+ * Uses placeholder indices instead of actual values.
+ * Note: Static boolean values in templates are skipped for pushdown
+ * (Dexie's where() doesn't work well with boolean indexes).
  */
-function extractPushdown(conditions: MangoSelector[]): Pushdown | undefined {
-    const data: CollectedPushdownData = {
+function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown | undefined {
+    const data: CollectedTemplatePushdownData = {
         eqMap: {},
         startsWith: null,
         rangeMap: {},
@@ -251,11 +251,9 @@ function extractPushdown(conditions: MangoSelector[]): Pushdown | undefined {
 
     let eqConflict = false;
 
-    // Single pass over all conditions
     for (let i = 0; i < conditions.length; i++) {
         const cond = conditions[i];
 
-        // Get first key without creating array
         let field: string | null = null;
         let keyCount = 0;
         for (const k in cond) {
@@ -269,128 +267,139 @@ function extractPushdown(conditions: MangoSelector[]): Pushdown | undefined {
 
         const criteria = (cond as Record<string, unknown>)[field];
 
-        // Check primitive equality (skip booleans)
-        if (typeof criteria === "string" || typeof criteria === "number") {
-            // Collect for multiEq
+        // Skip static boolean values - they're kept in template but not pushed to Dexie
+        if (typeof criteria === "boolean") {
+            continue;
+        }
+
+        // Check for placeholder (direct field equality)
+        if (isPlaceholder(criteria)) {
+            const idx = criteria.$__idx;
             if (!eqConflict) {
-                if (data.eqMap[field] !== undefined && data.eqMap[field] !== criteria) {
+                if (data.eqMap[field] !== undefined && data.eqMap[field] !== idx) {
                     eqConflict = true;
                     data.eqMap = {};
                 } else {
-                    data.eqMap[field] = criteria;
+                    data.eqMap[field] = idx;
                 }
             }
-            // Also track as potential single comparator
             if (!data.singleComparator) {
-                data.singleComparator = { kind: "eq", field, value: criteria };
+                data.singleComparator = { kind: "eq", field, valueIdx: idx };
             }
             continue;
         }
 
-        if (typeof criteria === "boolean") continue;
-
-        // Object criteria
+        // Object criteria with operators
         if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
             const critObj = criteria as Record<string, unknown>;
 
-            // Check $eq for multiEq
+            // Check $eq
             const eqVal = critObj.$eq;
-            if (typeof eqVal === "string" || typeof eqVal === "number") {
+            if (isPlaceholder(eqVal)) {
+                const idx = eqVal.$__idx;
                 if (!eqConflict) {
-                    if (data.eqMap[field] !== undefined && data.eqMap[field] !== eqVal) {
+                    if (data.eqMap[field] !== undefined && data.eqMap[field] !== idx) {
                         eqConflict = true;
                         data.eqMap = {};
                     } else {
-                        data.eqMap[field] = eqVal;
+                        data.eqMap[field] = idx;
                     }
                 }
                 if (!data.singleComparator) {
-                    data.singleComparator = { kind: "eq", field, value: eqVal };
+                    data.singleComparator = { kind: "eq", field, valueIdx: idx };
                 }
             }
 
             // Check $beginsWith
             const prefix = critObj.$beginsWith;
-            if (!data.startsWith && typeof prefix === "string" && prefix.length > 0) {
-                data.startsWith = { field, prefix };
+            if (!data.startsWith && isPlaceholder(prefix)) {
+                data.startsWith = { field, prefixIdx: prefix.$__idx };
             }
 
-            // Check range operators for between
-            if (typeof critObj.$gte === "number" || typeof critObj.$lte === "number" ||
-                typeof critObj.$gt === "number" || typeof critObj.$lt === "number") {
+            // Check range operators
+            const gteVal = critObj.$gte;
+            const lteVal = critObj.$lte;
+            const gtVal = critObj.$gt;
+            const ltVal = critObj.$lt;
+
+            if (
+                isPlaceholder(gteVal) ||
+                isPlaceholder(lteVal) ||
+                isPlaceholder(gtVal) ||
+                isPlaceholder(ltVal)
+            ) {
                 if (!data.rangeMap[field]) data.rangeMap[field] = {};
-                if (typeof critObj.$gte === "number") data.rangeMap[field].gte = critObj.$gte;
-                if (typeof critObj.$lte === "number") data.rangeMap[field].lte = critObj.$lte;
-                if (typeof critObj.$gt === "number") data.rangeMap[field].gt = critObj.$gt;
-                if (typeof critObj.$lt === "number") data.rangeMap[field].lt = critObj.$lt;
+                if (isPlaceholder(gteVal)) data.rangeMap[field].gteIdx = gteVal.$__idx;
+                if (isPlaceholder(lteVal)) data.rangeMap[field].lteIdx = lteVal.$__idx;
+                if (isPlaceholder(gtVal)) data.rangeMap[field].gtIdx = gtVal.$__idx;
+                if (isPlaceholder(ltVal)) data.rangeMap[field].ltIdx = ltVal.$__idx;
             }
 
-            // Check $in for anyOf
-            const inValues = critObj.$in;
-            if (!data.anyOf && Array.isArray(inValues) && inValues.length > 0) {
-                // Check if not all booleans
-                let allBooleans = true;
-                for (let j = 0; j < inValues.length; j++) {
-                    if (typeof inValues[j] !== "boolean") {
-                        allBooleans = false;
-                        break;
-                    }
-                }
-                if (!allBooleans) {
-                    data.anyOf = { field, values: inValues };
-                }
+            // Check $in
+            const inVal = critObj.$in;
+            if (!data.anyOf && isPlaceholder(inVal)) {
+                data.anyOf = { field, valuesIdx: inVal.$__idx };
             }
 
-            // Check single comparators (if not already found)
+            // Check single comparators
             if (!data.singleComparator) {
-                if (typeof critObj.$gt === "number") {
-                    data.singleComparator = { kind: "gt", field, value: critObj.$gt };
-                } else if (typeof critObj.$lt === "number") {
-                    data.singleComparator = { kind: "lt", field, value: critObj.$lt };
-                } else if (typeof critObj.$gte === "number") {
-                    data.singleComparator = { kind: "gte", field, value: critObj.$gte };
-                } else if (typeof critObj.$lte === "number") {
-                    data.singleComparator = { kind: "lte", field, value: critObj.$lte };
-                } else if (critObj.$ne !== undefined && typeof critObj.$ne !== "boolean") {
-                    data.singleComparator = { kind: "ne", field, value: critObj.$ne };
+                if (isPlaceholder(gtVal)) {
+                    data.singleComparator = { kind: "gt", field, valueIdx: gtVal.$__idx };
+                } else if (isPlaceholder(ltVal)) {
+                    data.singleComparator = { kind: "lt", field, valueIdx: ltVal.$__idx };
+                } else if (isPlaceholder(gteVal)) {
+                    data.singleComparator = { kind: "gte", field, valueIdx: gteVal.$__idx };
+                } else if (isPlaceholder(lteVal)) {
+                    data.singleComparator = { kind: "lte", field, valueIdx: lteVal.$__idx };
+                } else if (isPlaceholder(critObj.$ne)) {
+                    data.singleComparator = {
+                        kind: "ne",
+                        field,
+                        valueIdx: (critObj.$ne as { $__idx: number }).$__idx,
+                    };
                 }
             }
         }
     }
 
-    // Priority 1: multiEq (if we have any equalities)
+    // Priority 1: multiEq - check without Object.keys() allocation
     let hasEqFields = false;
-    for (const _ in data.eqMap) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const _key in data.eqMap) {
         hasEqFields = true;
         break;
     }
     if (hasEqFields) {
-        return { kind: "multiEq", fields: data.eqMap };
+        return { kind: "multiEq", fieldIndices: data.eqMap };
     }
 
     // Priority 2: startsWith
     if (data.startsWith) {
-        return { kind: "startsWith", field: data.startsWith.field, prefix: data.startsWith.prefix };
+        return {
+            kind: "startsWith",
+            field: data.startsWith.field,
+            prefixIdx: data.startsWith.prefixIdx,
+        };
     }
 
-    // Priority 3: between (check rangeMap for fields with both bounds)
+    // Priority 3: between
     for (const field in data.rangeMap) {
         const range = data.rangeMap[field];
-        const hasLower = range.gte !== undefined || range.gt !== undefined;
-        const hasUpper = range.lte !== undefined || range.lt !== undefined;
+        const hasLower = range.gteIdx !== undefined || range.gtIdx !== undefined;
+        const hasUpper = range.lteIdx !== undefined || range.ltIdx !== undefined;
 
         if (hasLower && hasUpper) {
-            const lower = range.gte !== undefined ? range.gte : range.gt!;
-            const upper = range.lte !== undefined ? range.lte : range.lt!;
-            const includeLower = range.gte !== undefined;
-            const includeUpper = range.lte !== undefined;
-            return { kind: "between", field, lower, upper, includeLower, includeUpper };
+            const lowerIdx = range.gteIdx !== undefined ? range.gteIdx : range.gtIdx!;
+            const upperIdx = range.lteIdx !== undefined ? range.lteIdx : range.ltIdx!;
+            const includeLower = range.gteIdx !== undefined;
+            const includeUpper = range.lteIdx !== undefined;
+            return { kind: "between", field, lowerIdx, upperIdx, includeLower, includeUpper };
         }
     }
 
     // Priority 4: anyOf
     if (data.anyOf) {
-        return { kind: "anyOf", field: data.anyOf.field, values: data.anyOf.values };
+        return { kind: "anyOf", field: data.anyOf.field, valuesIdx: data.anyOf.valuesIdx };
     }
 
     // Priority 5: single comparator
@@ -398,35 +407,49 @@ function extractPushdown(conditions: MangoSelector[]): Pushdown | undefined {
 }
 
 // ============================================================================
-// Where Application
+// Where Application with Values
 // ============================================================================
 
-function applyWhere<T>(table: Table<T>, push: Pushdown): Collection<T> {
+function applyTemplateWhere<T>(
+    table: Table<T>,
+    push: TemplatePushdown,
+    values: unknown[],
+): Collection<T> {
     if (push.kind === "multiEq") {
-        return (table.where as (arg: Record<string, unknown>) => Collection<T>)(push.fields);
+        // Build the where object from field indices and actual values
+        const whereObj: Record<string, unknown> = {};
+        for (const field in push.fieldIndices) {
+            whereObj[field] = values[push.fieldIndices[field]];
+        }
+        return (table.where as (arg: Record<string, unknown>) => Collection<T>)(whereObj);
     }
 
     const clause = (table.where as (field: string) => DexieWhereClause<T>)(push.field);
 
     switch (push.kind) {
         case "anyOf":
-            return clause.anyOf(push.values);
+            return clause.anyOf(values[push.valuesIdx] as unknown[]);
         case "eq":
-            return clause.equals(push.value);
+            return clause.equals(values[push.valueIdx]);
         case "gt":
-            return clause.above(push.value);
+            return clause.above(values[push.valueIdx]);
         case "lt":
-            return clause.below(push.value);
+            return clause.below(values[push.valueIdx]);
         case "gte":
-            return clause.aboveOrEqual(push.value);
+            return clause.aboveOrEqual(values[push.valueIdx]);
         case "lte":
-            return clause.belowOrEqual(push.value);
+            return clause.belowOrEqual(values[push.valueIdx]);
         case "ne":
-            return clause.notEqual(push.value);
+            return clause.notEqual(values[push.valueIdx]);
         case "startsWith":
-            return clause.startsWith(push.prefix);
+            return clause.startsWith(values[push.prefixIdx] as string);
         case "between":
-            return clause.between(push.lower, push.upper, push.includeLower, push.includeUpper);
+            return clause.between(
+                values[push.lowerIdx],
+                values[push.upperIdx],
+                push.includeLower,
+                push.includeUpper,
+            );
     }
 }
 
@@ -439,25 +462,34 @@ interface DexieWhereClause<T> {
     belowOrEqual(value: unknown): Collection<T>;
     notEqual(value: unknown): Collection<T>;
     startsWith(prefix: string): Collection<T>;
-    between(lower: unknown, upper: unknown, includeLower?: boolean, includeUpper?: boolean): Collection<T>;
+    between(
+        lower: unknown,
+        upper: unknown,
+        includeLower?: boolean,
+        includeUpper?: boolean,
+    ): Collection<T>;
 }
 
 // ============================================================================
-// Residual Selector Building
+// Residual Template Building
 // ============================================================================
 
 /**
- * Build residual selector from conditions, removing the pushed parts.
+ * Build residual template from conditions, removing the pushed parts.
  */
-function buildResidualSelector(conditions: MangoSelector[], push: Pushdown): MangoSelector {
+function buildResidualTemplate(
+    conditions: MangoSelector[],
+    push: TemplatePushdown,
+): MangoSelector {
     const residualConditions: MangoSelector[] = [];
 
     for (let i = 0; i < conditions.length; i++) {
-        const cleaned = cleanCondition(conditions[i], push);
+        const cleaned = cleanTemplateCondition(conditions[i], push);
         if (cleaned !== null) {
-            // Check if non-empty
+            // Check for non-empty without Object.keys() allocation
             let hasKeys = false;
-            for (const _ in cleaned) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            for (const _key in cleaned) {
                 hasKeys = true;
                 break;
             }
@@ -481,8 +513,10 @@ function buildResidualSelector(conditions: MangoSelector[], push: Pushdown): Man
 /**
  * Clean a single condition by removing pushed parts.
  */
-function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | null {
-    // Get first key without creating array
+function cleanTemplateCondition(
+    cond: MangoSelector,
+    push: TemplatePushdown,
+): MangoSelector | null {
     let field: string | null = null;
     let keyCount = 0;
     for (const k in cond) {
@@ -492,26 +526,25 @@ function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | nu
     }
 
     if (keyCount !== 1 || field === null) return cond;
-
-    // Combination operators pass through unchanged
-    if (COMBINATION_OPERATORS.has(field)) {
-        return cond;
-    }
+    if (COMBINATION_OPERATORS.has(field)) return cond;
 
     const criteria = (cond as Record<string, unknown>)[field];
 
     // Handle multiEq pushdown
     if (push.kind === "multiEq") {
-        if (!(field in push.fields)) return cond;
-        const val = push.fields[field];
+        if (!(field in push.fieldIndices)) return cond;
+        const expectedIdx = push.fieldIndices[field];
 
-        if (typeof criteria === "string" || typeof criteria === "number") {
-            return criteria === val ? null : cond;
+        // Direct placeholder
+        if (isPlaceholder(criteria) && criteria.$__idx === expectedIdx) {
+            return null;
         }
 
+        // $eq operator
         if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
             const critObj = criteria as Record<string, unknown>;
-            if (critObj.$eq === val) {
+            const eqVal = critObj.$eq;
+            if (isPlaceholder(eqVal) && eqVal.$__idx === expectedIdx) {
                 // Check if $eq is the only key
                 let otherKeys = false;
                 for (const k in critObj) {
@@ -538,14 +571,17 @@ function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | nu
         return cond;
     }
 
-    // Clean based on pushdown kind
     switch (push.kind) {
         case "eq": {
-            if (typeof criteria === "string" || typeof criteria === "number") {
-                return criteria === push.value ? null : cond;
+            if (isPlaceholder(criteria) && criteria.$__idx === push.valueIdx) {
+                return null;
             }
             if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$eq", push.value);
+                const critObj = criteria as Record<string, unknown>;
+                const eqVal = critObj.$eq;
+                if (isPlaceholder(eqVal) && eqVal.$__idx === push.valueIdx) {
+                    return removeOperatorFromCriteria(field, critObj, "$eq");
+                }
             }
             return cond;
         }
@@ -556,22 +592,43 @@ function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | nu
         case "gte":
         case "lte": {
             if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-                const opKey = OP_TO_MANGO[push.kind];
-                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, opKey, push.value);
+                const critObj = criteria as Record<string, unknown>;
+                const opKey =
+                    push.kind === "ne"
+                        ? "$ne"
+                        : push.kind === "gt"
+                          ? "$gt"
+                          : push.kind === "lt"
+                            ? "$lt"
+                            : push.kind === "gte"
+                              ? "$gte"
+                              : "$lte";
+                const opVal = critObj[opKey];
+                if (isPlaceholder(opVal) && opVal.$__idx === push.valueIdx) {
+                    return removeOperatorFromCriteria(field, critObj, opKey);
+                }
             }
             return cond;
         }
 
         case "anyOf": {
             if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$in", undefined);
+                const critObj = criteria as Record<string, unknown>;
+                const inVal = critObj.$in;
+                if (isPlaceholder(inVal) && inVal.$__idx === push.valuesIdx) {
+                    return removeOperatorFromCriteria(field, critObj, "$in");
+                }
             }
             return cond;
         }
 
         case "startsWith": {
             if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
-                return removeOperatorFromCriteria(field, criteria as Record<string, unknown>, "$beginsWith", undefined);
+                const critObj = criteria as Record<string, unknown>;
+                const bwVal = critObj.$beginsWith;
+                if (isPlaceholder(bwVal) && bwVal.$__idx === push.prefixIdx) {
+                    return removeOperatorFromCriteria(field, critObj, "$beginsWith");
+                }
             }
             return cond;
         }
@@ -584,10 +641,23 @@ function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | nu
 
                 for (const k in critObj) {
                     let shouldRemove = false;
-                    if (push.includeLower && k === "$gte" && critObj[k] === push.lower) shouldRemove = true;
-                    if (!push.includeLower && k === "$gt" && critObj[k] === push.lower) shouldRemove = true;
-                    if (push.includeUpper && k === "$lte" && critObj[k] === push.upper) shouldRemove = true;
-                    if (!push.includeUpper && k === "$lt" && critObj[k] === push.upper) shouldRemove = true;
+
+                    if (push.includeLower && k === "$gte") {
+                        const v = critObj[k];
+                        if (isPlaceholder(v) && v.$__idx === push.lowerIdx) shouldRemove = true;
+                    }
+                    if (!push.includeLower && k === "$gt") {
+                        const v = critObj[k];
+                        if (isPlaceholder(v) && v.$__idx === push.lowerIdx) shouldRemove = true;
+                    }
+                    if (push.includeUpper && k === "$lte") {
+                        const v = critObj[k];
+                        if (isPlaceholder(v) && v.$__idx === push.upperIdx) shouldRemove = true;
+                    }
+                    if (!push.includeUpper && k === "$lt") {
+                        const v = critObj[k];
+                        if (isPlaceholder(v) && v.$__idx === push.upperIdx) shouldRemove = true;
+                    }
 
                     if (!shouldRemove) {
                         copy[k] = critObj[k];
@@ -607,20 +677,12 @@ function cleanCondition(cond: MangoSelector, push: Pushdown): MangoSelector | nu
 
 /**
  * Helper to remove a single operator from criteria object.
- * Returns null if nothing remains, or a new condition object.
  */
 function removeOperatorFromCriteria(
     field: string,
     critObj: Record<string, unknown>,
     opKey: string,
-    expectedValue: unknown,
 ): MangoSelector | null {
-    // Check if we should remove (value match or undefined means always remove)
-    if (expectedValue !== undefined && critObj[opKey] !== expectedValue) {
-        return { [field]: critObj };
-    }
-
-    // Check if opKey is the only key
     let hasOther = false;
     for (const k in critObj) {
         if (k !== opKey) {
@@ -631,7 +693,6 @@ function removeOperatorFromCriteria(
 
     if (!hasOther) return null;
 
-    // Copy without the operator
     const copy: Record<string, unknown> = {};
     for (const k in critObj) {
         if (k !== opKey) copy[k] = critObj[k];
