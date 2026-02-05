@@ -124,19 +124,17 @@ describe("Content query", () => {
             tagOrPostType: PostType.Blog,
         });
 
-        await waitForExpect(
-            () => {
-                const res1DocsAsContent = res1.value?.docs as ContentDto[];
-                expect(res1DocsAsContent).toHaveLength(2);
-                expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
-                expect(res1DocsAsContent[1].title).toBe("Doc 2 Eng");
+        await waitForExpect(() => {
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
+            expect(res1DocsAsContent[1].title).toBe("Doc 2 Eng");
 
-                const res2DocsAsContent = res2.value?.docs as ContentDto[];
-                expect(res2DocsAsContent).toHaveLength(2);
-                expect(res2DocsAsContent[0].title).toBe("Doc 1 Fra");
-                expect(res2DocsAsContent[1].title).toBe("Doc 2 Fra");
-            },
-        );
+            const res2DocsAsContent = res2.value?.docs as ContentDto[];
+            expect(res2DocsAsContent).toHaveLength(2);
+            expect(res2DocsAsContent[0].title).toBe("Doc 1 Fra");
+            expect(res2DocsAsContent[1].title).toBe("Doc 2 Fra");
+        });
     });
 
     it("can sort by title in descending order", async () => {
@@ -148,14 +146,12 @@ describe("Content query", () => {
             tagOrPostType: PostType.Blog,
         });
 
-        await waitForExpect(
-            () => {
-                const res1DocsAsContent = res1.value?.docs as ContentDto[];
-                expect(res1DocsAsContent).toHaveLength(2);
-                expect(res1DocsAsContent[0].title).toBe("Doc 2 Eng");
-                expect(res1DocsAsContent[1].title).toBe("Doc 1 Eng");
-            },
-        );
+        await waitForExpect(() => {
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[0].title).toBe("Doc 2 Eng");
+            expect(res1DocsAsContent[1].title).toBe("Doc 1 Eng");
+        });
     });
 
     it("can sort by updatedTimeUtc", async () => {
