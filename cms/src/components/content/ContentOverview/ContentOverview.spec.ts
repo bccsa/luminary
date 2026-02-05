@@ -95,6 +95,8 @@ describe("ContentOverview.vue", () => {
     });
 
     it("should display content", async () => {
+        cmsLanguageIdAsRef.value = "lang-eng";
+
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -253,27 +255,22 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await waitForExpect(async () => {
-            //@ts-ignore as this code is valid
-            wrapper.vm.cmsLanguageIdAsRef = "lang-eng";
+        const contentTable = wrapper.findComponent(ContentTable);
 
-            const contentTable = await wrapper.findComponent(ContentTable);
-
-            const contentRows = await contentTable.findAll('[data-test="content-row"]');
+        await waitForExpect(() => {
+            const contentRows = contentTable.findAll('[data-test="content-row"]');
             expect(contentRows.length).toBe(3);
+        });
 
-            //@ts-ignore as this code is valid
-            cmsLanguageIdAsRef.value = "lang-fra";
-            const updatedFrenchContentRows = await contentTable.findAll(
-                '[data-test="content-row"]',
-            );
+        cmsLanguageIdAsRef.value = "lang-fra";
+        await waitForExpect(() => {
+            const updatedFrenchContentRows = contentTable.findAll('[data-test="content-row"]');
             expect(updatedFrenchContentRows.length).toBe(3);
+        });
 
-            //@ts-ignore as this code is valid
-            cmsLanguageIdAsRef.value = "lang-swa";
-            const updatedSwahiliContentRows = await contentTable.findAll(
-                '[data-test="content-row"]',
-            );
+        cmsLanguageIdAsRef.value = "lang-swa";
+        await waitForExpect(() => {
+            const updatedSwahiliContentRows = contentTable.findAll('[data-test="content-row"]');
             expect(updatedSwahiliContentRows.length).toBe(3);
         });
     });

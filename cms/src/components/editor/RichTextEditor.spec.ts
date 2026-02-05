@@ -18,14 +18,7 @@ describe("RichTextEditor", () => {
         });
     });
 
-    it("should call formatPastedHtml and convert h1 to h2 when pasting", async () => {
-        // Mock the formatPastedHtml module
-        vi.mock("@/util/formatPastedHtml", () => ({
-            default: vi.fn().mockReturnValue("<h2>My Heading</h2>"), // Mock the function to return <h2>
-        }));
-
-        const formatPastedHtml = (await import("@/util/formatPastedHtml")).default;
-
+    it("converts h1 to h2 when pasting", async () => {
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
@@ -59,8 +52,8 @@ describe("RichTextEditor", () => {
         editorEl.dispatchEvent(pasteEvent);
 
         await waitForExpect(() => {
-            expect(formatPastedHtml).toHaveBeenCalledWith("<h1>My Heading</h1>");
             expect(wrapper.html()).toContain("<h2>My Heading</h2>");
+            expect(wrapper.html()).not.toContain("<h1>My Heading</h1>");
         });
     });
     it("updates content correctly", async () => {

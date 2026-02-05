@@ -313,6 +313,9 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
+            expect(res1.value?.docs).toBeDefined();
+            expect(res2.value?.docs).toBeDefined();
+
             const res1DocsAsContent = res1.value?.docs as ContentDto[];
 
             expect(res1DocsAsContent).toHaveLength(2);
@@ -368,12 +371,10 @@ describe("Content query", () => {
 
         await waitForExpect(() => {
             const res1DocsAsContent = res1.value?.docs as ContentDto[];
-
             expect(res1DocsAsContent).toHaveLength(1);
             expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
 
             const res2DocsAsContent = res2.value?.docs as ContentDto[];
-
             expect(res2DocsAsContent).toHaveLength(1);
             expect(res2DocsAsContent[0].title).toBe("Doc 2 Eng");
         });
