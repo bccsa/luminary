@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import type { Transaction } from "@tiptap/pm/state";
 import RichTextEditor from "./RichTextEditor.vue";
 import waitForExpect from "wait-for-expect";
 
@@ -18,14 +19,7 @@ describe("RichTextEditor", () => {
         });
     });
 
-    it("should call formatPastedHtml and convert h1 to h2 when pasting", async () => {
-        // Mock the formatPastedHtml module
-        vi.mock("@/util/formatPastedHtml", () => ({
-            default: vi.fn().mockReturnValue("<h2>My Heading</h2>"), // Mock the function to return <h2>
-        }));
-
-        const formatPastedHtml = (await import("@/util/formatPastedHtml")).default;
-
+    it("converts h1 to h2 when pasting", async () => {
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
@@ -59,8 +53,8 @@ describe("RichTextEditor", () => {
         editorEl.dispatchEvent(pasteEvent);
 
         await waitForExpect(() => {
-            expect(formatPastedHtml).toHaveBeenCalledWith("<h1>My Heading</h1>");
             expect(wrapper.html()).toContain("<h2>My Heading</h2>");
+            expect(wrapper.html()).not.toContain("<h1>My Heading</h1>");
         });
     });
     it("updates content correctly", async () => {
@@ -75,13 +69,15 @@ describe("RichTextEditor", () => {
             },
         });
 
-        //@ts-expect-error
         const editor = wrapper.vm.editor;
         expect(editor).toBeDefined();
 
-        editor.commands.setContent("Testing Testing 123");
+        editor?.commands.setContent("Testing Testing 123");
 
-        editor.options.onUpdate?.({ editor });
+        const transaction = editor?.state.tr;
+        if (editor && transaction) {
+            editor.options.onUpdate?.({ editor, transaction: transaction as Transaction });
+        }
 
         await waitForExpect(() => {
             const textValue = wrapper.vm.text;
@@ -106,11 +102,9 @@ describe("RichTextEditor", () => {
         });
 
         await waitForExpect(() => {
-            //@ts-expect-error
             expect(wrapper.vm.editor).toBeDefined();
         });
 
-        //@ts-expect-error
         //eslint disabled for line 115 as it is used to ensure the editor is defined for the test
         //eslint-disable-next-line @typescript-eslint/no-unused-vars
         const editor = wrapper.vm.editor;
@@ -133,7 +127,7 @@ describe("RichTextEditor", () => {
 
         // Manually update editor content since single instance doesn't watch text prop
         const parsed = JSON.parse(newText);
-        editor.commands.setContent(parsed);
+        editor?.commands.setContent(parsed);
 
         // Verify editor content updated
         await waitForExpect(() => {
@@ -157,12 +151,12 @@ describe("RichTextEditor", () => {
         });
 
         await waitForExpect(() => {
-            //@ts-expect-error
             expect(wrapper.vm.editor).toBeDefined();
         });
 
-        //@ts-expect-error
         const editor = wrapper.vm.editor;
+        if (!editor) throw new Error("Editor should be defined");
+
         const setContentSpy = vi.spyOn(editor.commands, "setContent");
 
         // Clear the spy call from initial mount
@@ -200,22 +194,20 @@ describe("RichTextEditor", () => {
         await wrapper.setProps({ text: "" });
 
         // Manually clear editor content since single instance doesn't watch text prop
-        //@ts-expect-error
         const editor = wrapper.vm.editor;
-        editor.commands.setContent("");
+        editor?.commands.setContent("");
 
         // Verify editor content is cleared
         await waitForExpect(() => {
-            //@ts-expect-error
             const editor = wrapper.vm.editor;
-            const content = editor.getJSON();
-            expect(content.content).toBeDefined();
+            const content = editor?.getJSON();
+            expect(content?.content).toBeDefined();
             // Empty content should have empty paragraph or no content
             expect(
-                content.content.length === 0 ||
-                    (content.content.length === 1 &&
-                        content.content[0].type === "paragraph" &&
-                        (!content.content[0].content || content.content[0].content.length === 0)),
+                content?.content?.length === 0 ||
+                    (content?.content?.length === 1 &&
+                        content?.content[0].type === "paragraph" &&
+                        (!content?.content[0].content || content?.content[0].content.length === 0)),
             ).toBe(true);
         });
     });
@@ -230,7 +222,7 @@ describe("RichTextEditor", () => {
         });
 
         await waitForExpect(() => {
-            //@ts-expect-error
+            if (!wrapper.vm.editor) throw new Error("Editor should be defined");
             expect(wrapper.vm.editor).toBeDefined();
         });
 

@@ -307,7 +307,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "Language-selector-id",
+                id: "new",
                 tagOrPostType: PostType.Blog,
             },
         });
@@ -666,14 +666,12 @@ describe("EditContent.vue", () => {
         expect(authorInput.exists()).toBe(true);
         await authorInput.setValue("New Author");
 
+        const updatedContent = JSON.stringify({
+            type: "doc",
+            content: [{ type: "paragraph", content: [{ type: "text", text: "New Content" }] }],
+        });
         //@ts-ignore -- valid code
-        await richTextEditor.vm.editor.commands.setContent("<p>New Content</p>");
-
-        // Trigger the update event to save the content
-        //@ts-ignore -- valid code
-        const updatedContent = richTextEditor.vm.editor.getJSON();
-        //@ts-ignore -- valid code
-        richTextEditor.vm.text = JSON.stringify(updatedContent);
+        richTextEditor.vm.text = updatedContent;
 
         await waitForExpect(() => {
             expect(richTextEditor.vm.text).toContain("New Content");

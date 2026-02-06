@@ -30,81 +30,89 @@ export const loadingContentOverviewContent = ref(false);
 
 export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
     loadingContentOverviewContent.value = true;
-    return useDexieLiveQuery(async () => {
-        if (!options.orderBy) options.orderBy = "updatedTimeUtc";
-        if (!options.orderDirection) options.orderDirection = "desc";
-        if (!options.pageSize) options.pageSize = 20;
-        if (!options.pageIndex) options.pageIndex = 0;
-        if (!options.translationStatus) options.translationStatus = "all";
-        if (!options.publishStatus) options.publishStatus = "all";
+    const initialValue = options.count ? { count: 0 } : { docs: [] as ContentDto[] };
 
-        const translated = (await db.docs // This may slow down the query if there are many documents, but it is necessary to be able to include and filter on untranslated documents
-            .where({ type: DocType.Content, language: options.languageId })
-            .toArray()) as ContentDto[];
-        const untranslatedByParentId: Uuid[] = [];
+    return useDexieLiveQuery(
+        async () => {
+            if (!options.orderBy) options.orderBy = "updatedTimeUtc";
+            if (!options.orderDirection) options.orderDirection = "desc";
+            if (!options.pageSize) options.pageSize = 20;
+            if (!options.pageIndex) options.pageIndex = 0;
+            if (!options.translationStatus) options.translationStatus = "all";
+            if (!options.publishStatus) options.publishStatus = "all";
 
-        let res = db.docs.orderBy(options.orderBy);
-        if (options.orderDirection == "desc") res = res.reverse();
+            const translated = (await db.docs // This may slow down the query if there are many documents, but it is necessary to be able to include and filter on untranslated documents
+                .where({ type: DocType.Content, language: options.languageId })
+                .toArray()) as ContentDto[];
+            const untranslatedByParentId: Uuid[] = [];
 
-        res = res.filter((doc) => {
-            const contentDoc = doc as ContentDto;
-            // Filter documents by type
-            if (!contentDoc.parentId) return false;
-            if (contentDoc.type != DocType.Content) return false;
-            if (contentDoc.parentType != options.parentType) return false;
-            if (
-                contentDoc.parentType == DocType.Tag &&
-                contentDoc.parentTagType != options.tagOrPostType
-            )
-                return false;
-            if (
-                contentDoc.parentType == DocType.Post &&
-                contentDoc.parentPostType != options.tagOrPostType
-            )
-                return false;
+            let res = db.docs.orderBy(options.orderBy);
+            if (options.orderDirection == "desc") res = res.reverse();
 
-            const translationFilter = translationStatusFilter(
-                contentDoc,
-                options,
-                translated,
-                untranslatedByParentId,
-            );
-            if (!translationFilter) return false;
+            res = res.filter((doc) => {
+                const contentDoc = doc as ContentDto;
+                // Filter documents by type
+                if (!contentDoc.parentId) return false;
+                if (contentDoc.type != DocType.Content) return false;
+                if (contentDoc.parentType != options.parentType) return false;
+                if (
+                    contentDoc.parentType == DocType.Tag &&
+                    contentDoc.parentTagType != options.tagOrPostType
+                )
+                    return false;
+                if (
+                    contentDoc.parentType == DocType.Post &&
+                    contentDoc.parentPostType != options.tagOrPostType
+                )
+                    return false;
 
-            const tagFilter =
-                !options.tags ||
-                options.tags.length == 0 ||
-                options.tags.some((tagId) => contentDoc.parentTags.includes(tagId));
-            if (!tagFilter) return false;
+                const translationFilter = translationStatusFilter(
+                    contentDoc,
+                    options,
+                    translated,
+                    untranslatedByParentId,
+                );
+                if (!translationFilter) return false;
 
-            const groupFilter =
-                !options.groups ||
-                options.groups.length == 0 ||
-                options.groups.some((groupId) => contentDoc.memberOf.includes(groupId));
-            if (!groupFilter) return false;
+                const parentTags = contentDoc.parentTags ?? [];
+                const memberOf = contentDoc.memberOf ?? [];
+                const title = contentDoc.title ?? "";
 
-            const publishFilter = publishStatusFilter(contentDoc, options);
-            if (!publishFilter) return false;
+                const tagFilter =
+                    !options.tags ||
+                    options.tags.length == 0 ||
+                    options.tags.some((tagId) => parentTags.includes(tagId));
+                if (!tagFilter) return false;
 
-            const searchFilter =
-                !options.search ||
-                contentDoc.title.toLowerCase().includes(options.search.toLowerCase());
-            if (!searchFilter) return false;
+                const groupFilter =
+                    !options.groups ||
+                    options.groups.length == 0 ||
+                    options.groups.some((groupId) => memberOf.includes(groupId));
+                if (!groupFilter) return false;
 
-            return true;
-        });
+                const publishFilter = publishStatusFilter(contentDoc, options);
+                if (!publishFilter) return false;
 
-        if (options.count) {
-            const count = await res.count();
-            return { count };
-        } else {
-            const docs = await res
-                .offset(options.pageIndex * options.pageSize) // TODO: This may be improved as described here: https://dexie.org/docs/Collection/Collection.offset()
-                .limit(options.pageSize)
-                .toArray();
-            return { docs };
-        }
-    });
+                const searchFilter =
+                    !options.search || title.toLowerCase().includes(options.search.toLowerCase());
+                if (!searchFilter) return false;
+
+                return true;
+            });
+
+            if (options.count) {
+                const count = await res.count();
+                return { count };
+            } else {
+                const docs = await res
+                    .offset(options.pageIndex * options.pageSize) // TODO: This may be improved as described here: https://dexie.org/docs/Collection/Collection.offset()
+                    .limit(options.pageSize)
+                    .toArray();
+                return { docs };
+            }
+        },
+        { initialValue },
+    );
 };
 
 /**

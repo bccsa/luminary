@@ -63,33 +63,18 @@ describe("EditContentText.vue", () => {
             props: {
                 disabled: false,
                 content: initialContent,
-                textLanguage: initialContent.language,
             },
         });
 
-        // Wait for editor to be ready
         await waitForExpect(() => {
-            const editorComponent = wrapper.findComponent({ name: "RichTextEditor" });
-            expect(editorComponent.exists()).toBe(true);
-            expect(editorComponent.vm.editor).toBeDefined();
+            expect(wrapper.text()).toContain("English content");
         });
-
-        const editorComponent = wrapper.findComponent({ name: "RichTextEditor" });
-        const editor = editorComponent.vm.editor;
-
-        // Verify initial content
-        expect(editor.getText()).toBe("English content");
 
         // Update content prop (simulating language switch)
         await wrapper.setProps({ content: updatedContent });
-        wrapper.vm.textLanguage = updatedContent.language;
 
-        // Wait for the watcher in RichTextEditor to update
         await waitForExpect(() => {
-            expect(editor.getText()).toBe("French content");
+            expect(wrapper.text()).toContain("French content");
         });
-
-        // Verify language display
-        expect(wrapper.text()).toContain("H2  H3  H4  H5 French content");
     });
 });

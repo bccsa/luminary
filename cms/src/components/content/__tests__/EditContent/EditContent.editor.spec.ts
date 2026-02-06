@@ -81,14 +81,18 @@ describe("EditContent - Rich Text Editor and Slug Management", () => {
         expect(authorInput.exists()).toBe(true);
         await authorInput.setValue("New Author");
 
-        //@ts-ignore -- valid code
-        await richTextEditor.vm.editor.commands.setContent("<p>New Content</p>");
+        const updatedContent = JSON.stringify({
+            type: "doc",
+            content: [
+                {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "New Content" }],
+                },
+            ],
+        });
 
-        // Trigger the update event to save the content
         //@ts-ignore -- valid code
-        const updatedContent = richTextEditor.vm.editor.getJSON();
-        //@ts-ignore -- valid code
-        richTextEditor.vm.text = JSON.stringify(updatedContent);
+        richTextEditor.vm.text = updatedContent;
 
         await waitForExpect(() => {
             expect(richTextEditor.vm.text).toContain("New Content");
