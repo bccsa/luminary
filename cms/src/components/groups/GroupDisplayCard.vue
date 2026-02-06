@@ -21,7 +21,6 @@ const { isModified, liveData } = props.groupQuery;
 const group = defineModel<GroupDto>("group", { required: true });
 
 defineEmits<{
-    // (e: "showEditModal", group: GroupDto): void;
     (e: "save", group: GroupDto): void;
     (e: "delete", group: GroupDto): void;
     (e: "duplicate", group: GroupDto): void;
