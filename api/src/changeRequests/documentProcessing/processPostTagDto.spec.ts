@@ -56,7 +56,6 @@ describe("processPostTagDto", () => {
 
     it("accepts a change request for a post with postType 'blog'", async () => {
         const changeRequest: ChangeReqDto = {
-            id: 87,
             doc: {
                 _id: "post-blog2",
                 type: "post",
@@ -80,7 +79,6 @@ describe("processPostTagDto", () => {
 
     it("accepts a change request for a post with postType 'page'", async () => {
         const changeRequest: ChangeReqDto = {
-            id: 88,
             doc: {
                 _id: "post-page1",
                 type: "post",

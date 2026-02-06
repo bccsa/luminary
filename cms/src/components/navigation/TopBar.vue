@@ -4,7 +4,7 @@
             <slot name="quickActions" />
         </div>
     </div>
-    <div>
+    <div v-if="$slots.contentActions">
         <slot name="contentActions" />
     </div>
 </template>

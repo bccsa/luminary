@@ -9,13 +9,21 @@ import {
 import { useAuth0 } from "@auth0/auth0-vue";
 import { cmsLanguageIdAsRef, isDevMode } from "@/globalConfig";
 import { useRouter } from "vue-router";
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import type { LanguageDto } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
 import { PlayIcon } from "@heroicons/vue/16/solid";
+import { isAuthBypassed } from "@/auth";
 
-const { user, logout } = useAuth0();
+// In auth bypass mode, use mock user data
+const auth0 = isAuthBypassed ? null : useAuth0();
+const user = computed(() =>
+    isAuthBypassed ? { name: "E2E Test User", email: "e2e@test.local" } : auth0?.user.value,
+);
+const logout = isAuthBypassed
+    ? () => console.warn("Logout called in auth bypass mode")
+    : auth0!.logout;
 const router = useRouter();
 
 const showLanguageModal = ref(false);

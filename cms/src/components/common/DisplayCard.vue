@@ -12,11 +12,13 @@ type Props = {
     isLocalChange?: boolean;
     navigateTo?: RouteLocationRaw | (() => void);
     canNavigate?: boolean;
+    showDate?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     isLocalChange: false,
     canNavigate: true,
+    showDate: true,
 });
 
 const router = useRouter();
@@ -46,7 +48,10 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div class="relative flex cursor-pointer items-center justify-between py-1">
+        <div
+            v-if="title || isLocalChange"
+            class="relative flex cursor-pointer items-center justify-between py-1"
+        >
             <div
                 data-test="card-title"
                 class="w-full"
@@ -54,12 +59,20 @@ const handleClick = () => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
-                    {{ title }}
+                <div class="flex items-center gap-0">
+                    <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                        {{ title }}
+                    </div>
+                    <div>
+                        <slot name="title-extension" />
+                    </div>
                 </div>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
                 </LBadge>
+            </div>
+            <div class="flex">
+                <slot name="topRightContent" />
             </div>
 
             <!-- Top badges slot (for language badges, etc.) -->
@@ -74,7 +87,7 @@ const handleClick = () => {
         </div>
 
         <!-- Mobile top badges slot -->
-        <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
+        <div v-if="isSmallScreen && $slots.mobileTopBadges" class="flex flex-wrap gap-1 py-1">
             <slot name="mobileTopBadges" />
         </div>
 
@@ -87,7 +100,7 @@ const handleClick = () => {
             class="flex flex-wrap items-center gap-1 py-1"
         >
             <slot name="mobileFooter" />
-            <div class="flex w-max items-start text-xs text-zinc-400">
+            <div v-if="showDate" class="flex w-max items-start text-xs text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", updatedTimeUtc)
@@ -100,7 +113,7 @@ const handleClick = () => {
             class="flex items-center justify-between pt-1 text-xs sm:gap-4"
         >
             <slot name="desktopFooter" />
-            <div class="flex items-center justify-end text-zinc-400">
+            <div v-if="showDate" class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", updatedTimeUtc)

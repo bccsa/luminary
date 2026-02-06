@@ -26,7 +26,6 @@ describe("validateChangeRequestAccess", () => {
     });
 
     const testChangeReq_group = plainToClass(ChangeReqDto, {
-        id: 1,
 
         doc: {
             _id: "group-languages",
@@ -60,7 +59,6 @@ describe("validateChangeRequestAccess", () => {
     describe("Invalid documents", () => {
         it("can reject a Change document", async () => {
             const testChangeReq_change = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "change-123",
                     type: "change",
@@ -78,7 +76,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject a document type change", async () => {
             const testChangeReq_change = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "lang-eng",
                     type: "post",
@@ -97,7 +94,6 @@ describe("validateChangeRequestAccess", () => {
     describe("Delete requests", () => {
         it("can reject a delete request if the user does not have delete access to the document", async () => {
             const testChangeReq_delete = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "group-languages",
                     type: "group",
@@ -119,7 +115,6 @@ describe("validateChangeRequestAccess", () => {
             await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
 
             const testChangeReq_delete = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "post-blog2",
                     type: "post",
@@ -164,7 +159,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can not assign an existing group to another group's ACL without 'Assign' access to the second group", async () => {
             const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "group-languages",
                     type: "group",
@@ -204,7 +198,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can not assign a new group to another group's ACL without 'Assign' access to the second group", async () => {
             const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "test-new-group-languages",
                     type: "group",
@@ -244,7 +237,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can not create a new group without 'Edit' access to at least one group in the ACL", async () => {
             const testChangeReq_newGroup = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "new-group",
                     type: "group",
@@ -270,7 +262,6 @@ describe("validateChangeRequestAccess", () => {
 
     describe("Content documents", () => {
         const testChangeReq_Content = plainToClass(ChangeReqDto, {
-            id: 1,
             doc: {
                 _id: "content-blog2-eng",
                 type: "content",
@@ -463,7 +454,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject a document with an invalid language", async () => {
             const testChangeReq_invalidLanguage = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "content-blog2-eng",
                     type: "content",
@@ -496,7 +486,6 @@ describe("validateChangeRequestAccess", () => {
 
     describe("Generic documents", () => {
         const testChangeReq_Post = plainToClass(ChangeReqDto, {
-            id: 1,
             doc: {
                 _id: "post-blog2",
                 type: "post",
@@ -528,7 +517,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject a new document without group membership", async () => {
             const testChangeReq_noGroup = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "test-new-post-123",
                     type: "post",
@@ -549,7 +537,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject an existing document without group membership", async () => {
             const testChangeReq_noGroup = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "post-blog2",
                     type: "post",
@@ -570,7 +557,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject an update to an existing document when a group is added to the memberOf array to which the user does not have 'Assign' access", async () => {
             const testChangeReq_noAssign = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "post-blog2",
                     type: "post",
@@ -588,7 +574,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject a new document when the user does not have 'Assign' access to all the groups in the memberOf array", async () => {
             const testChangeReq_noAssign = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "test-new-post-doc",
                     type: "post",
@@ -608,7 +593,6 @@ describe("validateChangeRequestAccess", () => {
     describe("Tag assign access", () => {
         it("can accept a document with no tags", async () => {
             const testChangeReq_noTags = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "post-post2",
                     type: "post",
@@ -665,7 +649,6 @@ describe("validateChangeRequestAccess", () => {
             ]);
 
             const testChangeReq_Tag = plainToClass(ChangeReqDto, {
-                id: 1,
                 doc: {
                     _id: "post-post2",
                     type: "post",
@@ -686,7 +669,6 @@ describe("validateChangeRequestAccess", () => {
 
         it("can accept a document with no tags", async () => {
             const testChangeReq_noTags = plainToClass(ChangeReqDto, {
-                id: 42,
                 doc: {
                     _id: "post-post2",
                     type: "post",

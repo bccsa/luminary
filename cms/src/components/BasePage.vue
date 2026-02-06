@@ -5,6 +5,7 @@ import { type Component } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import { isSmallScreen } from "@/globalConfig";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
 type Props = {
     title?: string;
@@ -29,16 +30,22 @@ withDefaults(defineProps<Props>(), {
 
 const router = useRouter();
 const isEditContentPage = router.currentRoute.value.name === "edit";
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobileScreen = breakpoints.smaller("lg");
 </script>
 
 <template>
     <div class="flex h-full flex-col overflow-hidden scrollbar-hide">
         <div class="sticky top-0 z-20 flex-shrink-0">
             <div
-                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 shadow-sm sm:gap-x-3 sm:px-6 lg:px-8"
-                :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
+                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white py-8 shadow-sm sm:gap-x-3"
+                :class="[
+                    { 'border-b border-zinc-200': !$slots.internalPageHeader },
+                    isSmallScreen ? 'sm:pl-5 sm:pr-1' : 'lg:pl-9 lg:pr-5',
+                ]"
             >
                 <button
+                    v-if="isMobileScreen"
                     type="button"
                     class="-m-2.5 p-2.5 text-zinc-700"
                     @click="
@@ -48,14 +55,10 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     "
                 >
                     <span class="sr-only">Open sidebar</span>
-                    <Bars3Icon
-                        class="h-6 w-6 lg:hidden"
-                        :class="{ hidden: isEditContentPage }"
-                        aria-hidden="true"
-                    />
+                    <Bars3Icon v-if="!isEditContentPage" class="h-6 w-6" aria-hidden="true" />
                     <ChevronLeftIcon
+                        v-else-if="isEditContentPage"
                         class="h-6 w-6"
-                        :class="{ hidden: !isEditContentPage }"
                         aria-hidden="true"
                     />
                 </button>
@@ -138,7 +141,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 >
                     <div
                         class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
-                        :class="{ 'sm:mt-2': !$slots.internalPageHeader }"
+                        :class="{ 'sm:mt-1': !$slots.internalPageHeader }"
                         @scroll.stop
                     >
                         <slot />

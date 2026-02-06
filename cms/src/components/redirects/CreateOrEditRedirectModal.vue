@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, toRaw } from "vue";
 import {
     AclPermission,
     db,
@@ -7,21 +7,24 @@ import {
     type RedirectDto,
     RedirectType,
     verifyAccess,
+    type GroupDto,
+    type ApiSearchQuery,
+    useDexieLiveQuery,
+    ApiLiveQuery,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
-import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
-import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/20/solid";
+import {
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+    ArrowUturnLeftIcon,
+} from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 import { Slug } from "@/util/slug";
-import {
-    PlusCircleIcon,
-    FolderArrowDownIcon,
-    ArrowUturnLeftIcon,
-    TrashIcon,
-} from "@heroicons/vue/24/solid";
+import { TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
+import LCombobox from "../forms/LCombobox.vue";
 
 // Props for visibility and Redirect to edit
 type Props = {
@@ -87,10 +90,6 @@ const save = async () => {
     emit("close");
 };
 
-const isDirty = computed(() => {
-    return !_.isEqual({ ...editable.value, updatedBy: "" }, { ...previous.value, updatedBy: "" });
-});
-
 const canSave = computed(() => {
     return (
         editable.value.slug?.trim() !== "" &&
@@ -104,6 +103,29 @@ const isTemporary = computed(() => {
     return editable.value.redirectType == RedirectType.Temporary;
 });
 
+const redirectQuery = ref<ApiSearchQuery>({
+    types: [DocType.Redirect],
+    docId: props.redirect ? props.redirect._id : undefined,
+});
+const apiLiveQuery = new ApiLiveQuery<RedirectDto>(redirectQuery);
+const original = apiLiveQuery.toRef();
+
+const isDirty = ref(false);
+watch(
+    [editable, original],
+    () => {
+        if (!original.value) {
+            isDirty.value = true;
+            return;
+        }
+        isDirty.value = !_.isEqual(
+            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
+        );
+    },
+    { deep: true, immediate: true },
+);
+
 const redirectExplanation = computed(() => {
     return isTemporary.value
         ? "Temporary redirects are used for short-term changes. They are cached by browsers and search engines for a limited time."
@@ -111,6 +133,11 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
+
 watch(
     () => editable.value.slug,
     async () => {
@@ -159,93 +186,108 @@ const deleteRedirect = () => {
 </script>
 
 <template>
-    <div
-        v-if="isVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    <LDialog
+        :open="isVisible"
+        @update:open="(val) => !val && emit('close')"
+        :title="!isNew ? 'Edit redirect' : 'Create new redirect'"
+        @close="emit('close')"
+        :primaryAction="
+            () => {
+                save(), emit('close');
+            }
+        "
+        :primaryButtonText="!isNew ? 'Save' : 'Create'"
+        :primaryButtonDisabled="!canSave"
+        :secondaryAction="() => emit('close')"
+        secondaryButtonText="Cancel"
     >
-        <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
-            <!-- Dynamic title based on mode -->
-            <h2 class="mb-4 text-xl font-bold">
-                {{ !isNew ? "Edit redirect" : "Create new redirect" }}
-            </h2>
-
-            <div class="mb-2 flex flex-col items-center">
-                <div class="mb-1 flex w-full gap-1">
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? CheckCircleIcon : undefined"
-                        @click="editable.redirectType = RedirectType.Temporary"
-                        >Temporary
-                    </LButton>
-                    <LButton
-                        class="w-1/2"
-                        :icon="isTemporary ? undefined : CheckCircleIcon"
-                        @click="editable.redirectType = RedirectType.Permanent"
-                    >
-                        Permanent
-                    </LButton>
-                </div>
-                <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
-            </div>
-
-            <div class="relative">
-                <LInput
-                    label="From *"
-                    name="RedirectFromSlug"
-                    v-model="editable.slug"
-                    class="mb-4 w-full"
-                    placeholder="The slug that will be redirected from.."
-                    @change="editable.slug = validateSlug(editable.slug) || ''"
-                />
-                <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
-                    ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a
-                    redirect</span
-                >
-            </div>
-
-            <LInput
-                label="To"
-                name="RedirectToSlug"
-                v-model="editable.toSlug"
-                class="mb-4 w-full"
-                placeholder="The slug that will be redirected to..."
-                @change="editable.toSlug = validateSlug(editable.toSlug)"
-            />
-
-            <GroupSelector
-                name="memberOf"
-                v-model:groups="editable.memberOf"
-                :docType="DocType.Redirect"
-            />
-            <div class="flex gap-4 pt-5">
+        <div class="mb-2 flex flex-col items-center">
+            <div class="mb-1 flex w-full gap-1">
                 <LButton
+                    class="w-1/2"
+                    :icon="isTemporary ? CheckCircleIcon : undefined"
+                    @click="editable.redirectType = RedirectType.Temporary"
+                    >Temporary
+                </LButton>
+                <LButton
+                    class="w-1/2"
+                    :icon="isTemporary ? undefined : CheckCircleIcon"
+                    @click="editable.redirectType = RedirectType.Permanent"
+                >
+                    Permanent
+                </LButton>
+            </div>
+            <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
+        </div>
+
+        <div class="relative">
+            <LInput
+                label="From *"
+                name="RedirectFromSlug"
+                v-model="editable.slug"
+                class="mb-4 w-full"
+                placeholder="The slug that will be redirected from.."
+                @change="editable.slug = validateSlug(editable.slug) || ''"
+            />
+            <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
+                ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a redirect</span
+            >
+        </div>
+
+        <LInput
+            label="To"
+            name="RedirectToSlug"
+            v-model="editable.toSlug"
+            class="mb-4 w-full"
+            placeholder="The slug that will be redirected to..."
+            @change="editable.toSlug = validateSlug(editable.toSlug)"
+        />
+
+        <LCombobox
+            label="Group Membership"
+            :options="
+                groups.map((group: GroupDto) => ({
+                    id: group._id,
+                    label: group.name,
+                    value: group._id,
+                }))
+            "
+            :selectedOptions="editable.memberOf"
+            placeholder="Select groups that can access this redirect"
+            class="w-full"
+            showIcon
+            :disabled="false"
+        />
+        <template #footer-extra>
+            <div class="flex gap-1">
+                <LButton
+                    v-if="!isNew"
                     variant="secondary"
                     context="danger"
                     data-test="delete"
                     :icon="TrashIcon"
                     @click="showDeleteModal = true"
-                    >Delete</LButton
+                    :disabled="!canDelete"
                 >
-                <div class="flex-1" />
+                    Delete
+                </LButton>
                 <LButton
+                    type="button"
                     variant="secondary"
-                    data-test="cancel"
-                    @click="emit('close')"
+                    v-if="isDirty && !isNew"
+                    @click="
+                        () => {
+                            editable = _.cloneDeep(original) as RedirectDto;
+                        }
+                    "
                     :icon="ArrowUturnLeftIcon"
-                    >Cancel</LButton
                 >
-                <LButton
-                    variant="primary"
-                    data-test="save-button"
-                    @click="save"
-                    :disabled="!canSave"
-                    :icon="!isNew ? FolderArrowDownIcon : PlusCircleIcon"
-                >
-                    {{ !isNew ? "Save" : "Create" }}
+                    Revert
                 </LButton>
             </div>
-        </div>
-    </div>
+        </template>
+    </LDialog>
+
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete redirect?`"

@@ -185,7 +185,7 @@ const placementClass = computed(() => {
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
     >
-        <div class="flex justify-between">
+        <div class="mb-2 flex justify-between">
             <div class="flex items-center gap-1">
                 <component
                     :is="props.labelIcon"
@@ -365,6 +365,7 @@ const placementClass = computed(() => {
                         }
                     "
                     :disabled="disabled || option.isRemovable === false"
+                    data-test="selected-tag"
                 >
                     {{ option.label }}
                 </LTag>

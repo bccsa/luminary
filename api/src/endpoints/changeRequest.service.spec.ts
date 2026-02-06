@@ -37,7 +37,6 @@ describe("ChangeRequest service", () => {
 
     it("can submit a single change request and receive an acknowledgement", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "lang-eng",
                 type: "language",
@@ -51,27 +50,23 @@ describe("ChangeRequest service", () => {
         };
 
         const res = await changeRequestService.changeRequest(changeRequest, "");
-        expect(res.id).toBe(42);
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
 
     it("can correctly fail validation of an invalid change request", async () => {
         const changeRequest = {
-            id: 42,
             invalidProperty: {},
         };
 
         // @ts-expect-error - we are testing invalid input
         const res = await changeRequestService.changeRequest(changeRequest, "");
-        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
         expect(res.message).toContain("Change request validation failed");
     });
 
     it("sends the existing document back when validation fails", async () => {
         const changeRequest = {
-            id: 42,
             doc: {
                 _id: "lang-eng",
                 type: "invalid",
@@ -83,7 +78,6 @@ describe("ChangeRequest service", () => {
 
         const res = await changeRequestService.changeRequest(changeRequest, "");
 
-        expect(res.id).toBe(42);
         expect(res.message).toContain("Invalid document type");
         expect(res.ack).toBe("rejected");
 
@@ -99,7 +93,6 @@ describe("ChangeRequest service", () => {
         await service.upsertDoc({ ...postDoc, memberOf: ["invalid-group"] });
 
         const changeRequest = {
-            id: 43,
             doc: { ...postDoc, deleteReq: 1 },
         };
 

@@ -16,14 +16,14 @@ export const processChangeReqLock = ref(false); // start unlocked so first chang
 /**
  * Handle change request acknowledgements from the api
  * @param ack ack from api
- * @param localChanges the local changes from db as Ref to keep reactivity
+ * @param localChange the local change that was sent (for reference)
  */
-async function handleAck(ack: ChangeReqAckDto) {
+async function handleAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
     // Clear previous warnings and errors
     changeReqWarnings.value = [];
     changeReqErrors.value = [];
 
-    await db.applyLocalChangeAck(ack);
+    await db.applyLocalChangeAck(ack, localChange);
 
     // Release lock; watcher will notice localChanges updated (Dexie live query) and proceed
     processChangeReqLock.value = false;
@@ -39,7 +39,7 @@ async function pushLocalChange(localChange: LocalChangeDto) {
 
     const res = await getRest().changeRequest(formData);
 
-    if (res) handleAck(res as ChangeReqAckDto);
+    if (res) handleAck(res as ChangeReqAckDto, localChange);
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {

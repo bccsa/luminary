@@ -51,6 +51,8 @@ describe("App", () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isLoading: ref(false),
             isAuthenticated: ref(true),
+            user: ref({ name: "Test User" }),
+            logout: vi.fn(),
             getAccessTokenSilently: vi.fn().mockResolvedValue("mockToken"),
         });
 

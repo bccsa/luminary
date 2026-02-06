@@ -198,12 +198,10 @@ export type MediaUploadDataDto = {
 };
 
 export type ChangeReqDto = {
-    id: number;
     doc: BaseDocumentDto;
 };
 
 export type ChangeReqAckDto = {
-    id: number;
     ack: AckStatus;
     message?: string;
     warnings?: string[];

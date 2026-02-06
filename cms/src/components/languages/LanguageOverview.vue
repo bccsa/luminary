@@ -31,7 +31,7 @@ const createNew = () => {
                 </LButton>
                 <PlusIcon
                     v-else-if="canCreateNew && isSmallScreen"
-                    class="h-6 w-6 text-zinc-500"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                     @click="createNew"
                 />
             </div>
