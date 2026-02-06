@@ -437,7 +437,7 @@ const clearExpiryDate = () => {
                     :disabled="disabled"
                     inputType="textarea"
                     placeholder="© 2024 My Company"
-                    v-model="content.copyright"
+                    v-model="(content as any).copyright"
                     class="flex-1"
                 />
             </div>
