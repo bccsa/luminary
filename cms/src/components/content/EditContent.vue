@@ -62,6 +62,7 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id === "new" ? db.uuid() : props.id;
 const newDocument = props.id === "new";
 const waitForUpdate = ref(false);
+const componentKey = ref(0);
 
 // Refs
 const editableParent = ref<ContentParentDto>({
@@ -383,6 +384,7 @@ const revertChanges = () => {
     }
     editableParent.value = _.cloneDeep(existingParent.value!);
     editableContent.value = _.cloneDeep(existingContent.value!);
+    componentKey.value++;
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
         description: `The changes to the ${props.tagOrPostType} have been reverted`,
@@ -580,6 +582,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
+                            :key="componentKey"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
                             :language="selectedLanguage"
@@ -591,6 +594,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
 
                         <EditContentImage
                             v-if="editableParent"
+                            :key="componentKey"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
                             :disabled="!canEditParent"
@@ -600,6 +604,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
 
                         <div class="sticky -top-1 z-10 lg:static">
                             <EditContentParentValidation
+                                :key="componentKey"
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
                                 :can-delete="canDelete"
@@ -618,10 +623,12 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                             />
                         </div>
                         <EditContentVideo
+                            :key="componentKey"
                             v-model:content="selectedContent"
                             :disabled="!canTranslate"
                         />
                         <EditContentBasic
+                            :key="componentKey"
                             v-model:content="selectedContent"
                             :selectedLanguage="selectedLanguage!"
                             :disabled="!canTranslate"
@@ -668,6 +675,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 </EmptyState>
                 <div v-else class="h-full lg:overflow-hidden">
                     <EditContentText
+                        :key="componentKey"
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
