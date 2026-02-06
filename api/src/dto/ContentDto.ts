@@ -153,4 +153,9 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentImageBucketId?: string; // Inherited from parent Post/Tag for image storage
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    copyright?: string;
 }
