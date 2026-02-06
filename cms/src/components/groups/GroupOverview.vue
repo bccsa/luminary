@@ -2,6 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
+import GroupDisplayCard from "./GroupDisplayCard.vue";
 import {
     AclPermission,
     ApiLiveQueryAsEditable,
@@ -13,8 +14,6 @@ import {
     type GroupDto,
 } from "luminary-shared";
 import { computed, ref } from "vue";
-import LCard from "@/components/common/LCard.vue";
-import GroupRow from "@/components/groups/GroupRow.vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
 import LModal from "../modals/LModal.vue";
@@ -86,7 +85,7 @@ const canCreateGroup = computed(() => {
 
 <template>
     <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
-        <template #actions>
+        <template #pageNav>
             <LButton
                 v-if="canCreateGroup"
                 variant="primary"
@@ -98,57 +97,12 @@ const canCreateGroup = computed(() => {
             </LButton>
         </template>
 
-        <LCard padding="none">
-            <div class="overflow-x-auto rounded-md">
-                <div class="inline-block min-w-full align-middle">
-                    <table class="min-w-full divide-y divide-zinc-200">
-                        <thead class="bg-zinc-50">
-                            <tr>
-                                <!-- name -->
-                                <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                                    @click="false"
-                                >
-                                    <div class="flex items-center gap-2">Name</div>
-                                </th>
-
-                                <!-- status -->
-                                <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                                    @click="false"
-                                ></th>
-
-                                <!-- Have accessTo -->
-                                <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                                    @click="false"
-                                ></th>
-
-                                <!-- updated -->
-                                <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
-                                    @click="false"
-                                >
-                                    <div class="flex items-center gap-2">Last updated</div>
-                                </th>
-                                <!-- actions -->
-                                <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
-                                ></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-zinc-200 bg-white">
-                            <GroupRow
-                                v-for="(group, index) in editable"
-                                :key="group._id"
-                                v-model:group="editable[index]"
-                                :groupQuery="groupQuery"
-                            />
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </LCard>
+        <GroupDisplayCard
+            v-for="(group, index) in editable"
+            :key="group._id"
+            v-model:group="editable[index]"
+            :groupQuery="groupQuery"
+        />
     </BasePage>
 
     <LModal heading="Edit Group" v-model:isVisible="showModal" adaptiveSize noPadding>
