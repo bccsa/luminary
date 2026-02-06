@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
-import MobileMenu from "./navigation/MobileMenu.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
 import NotificationBottomManager from "./notifications/NotificationBottomManager.vue";
+import type { ContentDto } from "luminary-shared";
 
 defineProps<{
+    content?: ContentDto;
     showBackButton?: boolean;
 }>();
 
@@ -29,7 +30,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="absolute bottom-0 left-0 right-0 top-0 flex flex-col">
+    <div class="flex h-full w-full flex-col scrollbar-hide">
         <TopBar
             :showBackButton="showBackButton"
             class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
@@ -49,12 +50,8 @@ onUnmounted(() => {
 
         <!-- slot for footer -->
         <div class="sticky bottom-0">
-            <slot name="footer" />
             <NotificationBottomManager />
+            <slot name="footer" />
         </div>
-
-        <MobileMenu
-            class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
     </div>
 </template>

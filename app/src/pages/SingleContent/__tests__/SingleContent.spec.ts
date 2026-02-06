@@ -60,6 +60,35 @@ vi.mock("@/router", () => ({
 
 vi.mock("@auth0/auth0-vue");
 
+// Mock video.js to prevent initialization errors
+vi.mock("video.js", () => {
+    const mockVideoPlayer = {
+        poster: vi.fn(),
+        src: vi.fn(),
+        mobileUi: vi.fn(),
+        on: vi.fn(),
+        userActive: vi.fn(),
+        requestFullscreen: vi.fn(),
+        isFullscreen: vi.fn(() => false),
+        pause: vi.fn(),
+        play: vi.fn(),
+        dispose: vi.fn(),
+        off: vi.fn(),
+        currentTime: vi.fn(),
+        duration: vi.fn(),
+        audioTracks: vi.fn(() => []), // Mock audioTracks method
+    };
+
+    const defaultFunction = () => mockVideoPlayer;
+    defaultFunction.browser = {
+        IS_SAFARI: false,
+    };
+
+    return {
+        default: defaultFunction,
+    };
+});
+
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
@@ -303,28 +332,40 @@ describe("SingleContent", () => {
     // Remove all 404-related tests from here - they've been moved to SingleContent.404.spec.ts
 
     it("can zoom the image when clicking on the image", async () => {
+        // Create mock content without hlsUrl so the image div renders instead of video player
+        const mockContentWithoutVideo = {
+            ...mockEnglishContentDto,
+            parentMedia: {
+                fileCollections: [],
+            },
+        };
+
+        // Update the database with modified content
+        await db.docs.update(mockContentWithoutVideo._id, mockContentWithoutVideo);
+
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockEnglishContentDto.slug,
+                slug: mockContentWithoutVideo.slug,
             },
         });
 
-        await waitForExpect(() => {
+        // First, wait for content to load and image to appear
+        await waitForExpect(async () => {
             const image = wrapper.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
-            image.trigger("click");
+            // click on the LImage
+            await image.trigger("click");
 
-            // expect ImageModal to be opened
-            expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
-
-            // expect ImageModal to have the correct image source and correct props
-            const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("imageCollections")).toEqual(
-                mockEnglishContentDto.parentImageData?.fileCollections,
-            );
-            expect(imageModal.props("aspectRatio")).toBe("original");
-            expect(imageModal.props("size")).toBe("post");
+            // Wait for the modal to appear
+            await waitForExpect(() => {
+                expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
+                expect(wrapper.findComponent(ImageModal).props("imageCollections")).toEqual(
+                    mockContentWithoutVideo.parentImageData?.fileCollections,
+                );
+                expect(wrapper.findComponent(ImageModal).props("aspectRatio")).toBe("original");
+                expect(wrapper.findComponent(ImageModal).props("size")).toBe("post");
+            });
         });
     });
 

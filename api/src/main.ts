@@ -5,7 +5,6 @@ import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
-import { S3Service } from "./s3/s3.service";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
@@ -41,9 +40,6 @@ async function bootstrap() {
 
     // Initialize permission system
     await PermissionSystem.init(dbService);
-
-    // Initialize S3Service change feed listener for automatic credential updates
-    S3Service.initializeChangeListener(dbService);
 
     // Upgrade database schema if needed
     await upgradeDbSchema(dbService);

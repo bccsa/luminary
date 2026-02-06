@@ -124,10 +124,10 @@ describe("ContentTile", () => {
             title: "Sample Content",
             slug: "sample-content",
             parentImageData: {},
-            video: "sample-video.mp4",
             publishDate: 1,
             parentPublishDateVisible: false,
-        } as ContentDto;
+            video: "sample-video.mp4",
+        } as unknown as ContentDto;
 
         const wrapper = mount(ContentTile, {
             props: {
@@ -192,7 +192,7 @@ describe("ContentTile", () => {
             parentPublishDateVisible: false,
             video: "sample-media-id",
             parentId: "post-blog1",
-        } as ContentDto;
+        } as unknown as ContentDto;
 
         // Set media progress AND duration in localStorage
         setMediaProgress("sample-media-id", content._id, 120, 300); // 120s played, 300s total

@@ -31,6 +31,7 @@ import {
     theme,
     appLanguageAsRef,
     queryParams,
+    addToMediaQueue,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -47,7 +48,7 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, DocumentDuplicateIcon, SpeakerWaveIcon } from "@heroicons/vue/20/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
@@ -556,6 +557,22 @@ const quickLanguageSwitch = (languageId: string) => {
     selectedLanguageId.value = languageId;
     showDropdown.value = false;
 };
+
+// Check if the current content has audio files - fully reactive to data changes
+// Check both content and idbContent to ensure we always have the latest data
+const hasAudioFiles = computed(() => {
+    // Check the live query result first (most up-to-date), then fall back to content ref
+    const dataSource = idbContent.value || content.value;
+    const fileCollections = dataSource?.parentMedia?.fileCollections;
+    return !!(fileCollections && Array.isArray(fileCollections) && fileCollections.length > 0);
+});
+
+// Function to start playing audio
+const playAudio = () => {
+    if (content.value && hasAudioFiles.value) {
+        addToMediaQueue(content.value);
+    }
+};
 </script>
 
 <template>
@@ -619,7 +636,7 @@ const quickLanguageSwitch = (languageId: string) => {
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer
-                            v-if="content.video"
+                            v-if="content && content.video"
                             :content="content"
                             :language="selectedLanguageCode"
                         />
@@ -646,6 +663,23 @@ const quickLanguageSwitch = (languageId: string) => {
                             >
                                 <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
+
+                            <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                            <button
+                                v-if="hasAudioFiles"
+                                @click.stop="
+                                    (event) => {
+                                        playAudio();
+                                        // Prevent focus staying on button
+                                        (event.target as HTMLElement).blur();
+                                    }
+                                "
+                                class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 pl-2 pr-3.5 py-1 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                title="Play Audio"
+                            >
+                                <SpeakerWaveIcon class="h-5 w-5" />
+                                Listen
+                            </button>
                         </div>
                     </IgnorePagePadding>
 
@@ -754,11 +788,10 @@ const quickLanguageSwitch = (languageId: string) => {
                     )
                 "
             />
+            <IgnorePagePadding ignoreBottom>
+                <CopyrightBanner />
+            </IgnorePagePadding>
         </div>
-
-        <IgnorePagePadding ignoreBottom>
-            <CopyrightBanner />
-        </IgnorePagePadding>
     </BasePage>
 
     <LModal

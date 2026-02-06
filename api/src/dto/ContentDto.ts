@@ -13,6 +13,7 @@ import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
 import { ImageDto } from "./ImageDto";
+import { MediaDto } from "./MediaDto";
 
 /**
  * Database structured Content object
@@ -153,4 +154,13 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentImageBucketId?: string; // Inherited from parent Post/Tag for image storage
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @Expose()
+    parentMedia?: MediaDto;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    parentMediaBucketId?: string; // Inherited from parent Post/Tag for media storage
 }

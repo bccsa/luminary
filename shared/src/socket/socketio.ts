@@ -11,6 +11,7 @@ import { config, SharedConfig } from "../config";
  */
 type ClientConfig = {
     maxUploadFileSize: number;
+    maxMediaUploadFileSize?: number;
     accessMap: AccessMap;
 };
 
@@ -23,6 +24,11 @@ export const isConnected = ref(false);
  * Maximum file size for uploads in bytes as a Vue ref
  */
 export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+/**
+ * Maximum file size for media uploads in bytes as a Vue ref
+ */
+export const maxMediaUploadFileSize = useLocalStorage("maxMediaUploadFileSize", 0);
 
 class SocketIO {
     private socket: Socket;
@@ -78,6 +84,7 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });

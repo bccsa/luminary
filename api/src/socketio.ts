@@ -15,6 +15,7 @@ import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails, processJwt } from "./jwt/processJwt";
+import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 
@@ -30,6 +31,7 @@ type ClientDataReq = {
  */
 type ClientConfig = {
     maxUploadFileSize: number;
+    maxMediaUploadFileSize?: number;
 };
 
 /**
@@ -88,6 +90,7 @@ export class Socketio implements OnGatewayInit {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private s3: S3Service,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -169,6 +172,7 @@ export class Socketio implements OnGatewayInit {
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
+            maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);

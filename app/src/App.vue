@@ -2,12 +2,14 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
+import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
 const router = useRouter();
@@ -107,12 +109,29 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
-    <RouterView v-slot="{ Component }">
-        <KeepAlive include="HomePage,ExplorePage,VideoPage">
-            <component :is="Component" :key="routeKey" />
-        </KeepAlive>
-    </RouterView>
+    <div class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden">
+        <div class="flex-1 overflow-y-scroll scrollbar-hide">
+            <RouterView v-slot="{ Component }">
+                <KeepAlive include="HomePage,ExplorePage,VideoPage">
+                    <component :is="Component" :key="routeKey" />
+                </KeepAlive>
+            </RouterView>
+        </div>
 
+        <!-- Bottom menu divider for mobile view -->
+        <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
+        <!-- Global Audio Player for All Devices -->
+        <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
+        <div v-if="mediaQueue.length > 0">
+            <AudioPlayer :content="mediaQueue[0]" />
+        </div>
+
+        <!-- Mobile Navigation (mobile only) -->
+        <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
+        <MobileMenu
+            class="z-10 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+        />
+    </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
 </template>

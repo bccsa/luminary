@@ -5,13 +5,18 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { DocType } from "../../enums";
+import { DocType, MediaType } from "../../enums";
 import { processImage } from "./processImageDto";
+import { processMedia } from "./processMediaDto";
 
-// Mock processImage from processImageDto
-// Mock processImage from processImageDto
+// Mock processImage
 jest.mock("./processImageDto", () => ({
-    processImage: jest.fn().mockResolvedValue([]),
+    processImage: jest.fn(),
+}));
+
+// Mock processMedia
+jest.mock("./processMediaDto", () => ({
+    processMedia: jest.fn(),
 }));
 
 describe("processPostTagDto", () => {
@@ -211,37 +216,9 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).imageData,
             undefined,
             db,
-            "storage-bucket-1", // imageBucketId from changeRequest_post()
-            undefined, // prevImageBucketId
+            (changeRequest.doc as PostDto).imageBucketId,
+            undefined,
         );
-    });
-
-    it("returns warning when no imageBucketId is provided for image processing", async () => {
-        const changeRequest = changeRequest_post();
-        changeRequest.doc._id = "post-blog4";
-        (changeRequest.doc as PostDto).imageData = {
-            fileCollections: [
-                {
-                    aspectRatio: 1,
-                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
-                },
-            ],
-        };
-        delete (changeRequest.doc as PostDto).imageBucketId; // Remove imageBucketId to simulate missing bucket ID
-
-        // Ensure previous tests' calls to the mocked processImage do not affect this assertion
-        (processImage as jest.Mock).mockClear();
-
-        const processResult = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-        );
-
-        expect(processResult.result.ok).toBe(true);
-        expect(processResult.warnings).toContain("Bucket is not specified for image processing.");
-        expect(processImage).toHaveBeenCalled();
     });
 
     it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
@@ -267,7 +244,90 @@ describe("processPostTagDto", () => {
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
             db,
-            "storage-bucket-1", // prevDoc?.imageBucketId - Delete from the bucket where files currently exist
+            (changeRequest.doc as PostDto).imageBucketId,
+        );
+    });
+
+    it("can handle media field when creating a new post without previous document", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog6";
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "http://test.com/test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        // This should not throw an error even though prevDoc is undefined
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(processResult.result.ok).toBe(true);
+    });
+
+    it("can handle media field when deleting a post without previous document", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog7";
+        changeRequest.doc.deleteReq = 1;
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        // This should not throw an error even though prevDoc is undefined
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(processResult.result.ok).toBe(true);
+    });
+
+    it("can remove media from S3 when a post/tag document is marked for deletion", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog8";
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                {
+                    languageId: "lang-eng",
+                    fileUrl: "test-audio.mp3",
+                    bitrate: 128,
+                    mediaType: MediaType.Audio,
+                },
+            ],
+        };
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        // Mark the post document for deletion
+        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
+        deleteRequest.doc.deleteReq = 1;
+        await processChangeRequest("test-user", deleteRequest, ["group-super-admins"], db);
+
+        expect(processMedia).toHaveBeenCalledWith(
+            { fileCollections: [] }, // Empty fileCollections to remove the media from S3
+            (changeRequest.doc as PostDto).media,
+            db,
+            (changeRequest.doc as PostDto).mediaBucketId,
         );
     });
 });

@@ -121,7 +121,10 @@ Schema upgrades can be safely removed when:
 
 ### Current Baseline
 
-**Current Schema Version**: 9 (as of 2026-02-03)
+
+**Current Schema Version**: 10 (as of 2026-02-06)
+
+All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
 All production databases are expected to be at version 9 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
