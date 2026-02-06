@@ -429,6 +429,19 @@ const clearExpiryDate = () => {
                 </div>
             </div>
 
+            <!-- Copyright -->
+            <div class="mt-2 flex items-center gap-5">
+                <FormLabel class="whitespace-nowrap">Copyright</FormLabel>
+                <LInput
+                    name="copyright"
+                    :disabled="disabled"
+                    inputType="textarea"
+                    placeholder="© 2024 My Company"
+                    v-model="content.copyright"
+                    class="flex-1"
+                />
+            </div>
+
             <!-- Status -->
             <div class="mt-2 flex items-center justify-between gap-2">
                 <FormLabel class="self-start py-2">Status</FormLabel>
