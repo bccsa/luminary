@@ -2,10 +2,79 @@ import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
 import { type App, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
+import { getRest, type OAuthProviderPublicDto } from "luminary-shared";
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
 };
+
+const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+
+/**
+ * Get OAuth provider config, either from API or fallback to env vars.
+ */
+async function getProviderConfig(): Promise<{
+    domain: string;
+    clientId: string;
+    audience: string;
+}> {
+    try {
+        const rest = getRest();
+        const providers = await rest.getOAuthProviders();
+
+        if (providers.length > 0) {
+            // Check for saved selection
+            const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
+            const selected = selectedId ? providers.find((p) => p.id === selectedId) : providers[0];
+
+            const provider = selected ?? providers[0];
+
+            // Save selection for next time
+            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id);
+
+            return {
+                domain: provider.domain,
+                clientId: provider.clientId,
+                audience: provider.audience,
+            };
+        }
+    } catch {
+        // API unreachable or failed, fall back to env vars
+    }
+
+    // Fallback to env vars (legacy or offline mode)
+    return {
+        domain: import.meta.env.VITE_AUTH0_DOMAIN,
+        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+    };
+}
+
+/**
+ * Get available OAuth providers from the API.
+ */
+export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
+    try {
+        const rest = getRest();
+        return await rest.getOAuthProviders();
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Set the selected OAuth provider by ID.
+ */
+export function setSelectedProvider(providerId: string): void {
+    localStorage.setItem(SELECTED_PROVIDER_KEY, providerId);
+}
+
+/**
+ * Get the currently selected OAuth provider ID.
+ */
+export function getSelectedProviderId(): string | undefined {
+    return localStorage.getItem(SELECTED_PROVIDER_KEY) ?? undefined;
+}
 
 /**
  * Setup the Auth0 plugin.
@@ -14,15 +83,17 @@ async function setupAuth(app: App<Element>, router: Router) {
     app.config.globalProperties.$auth = null; // Clear existing auth
     const web_origin = window.location.origin;
 
+    const config = await getProviderConfig();
+
     const oauth = createAuth0(
         {
-            domain: import.meta.env.VITE_AUTH0_DOMAIN,
-            clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+            domain: config.domain,
+            clientId: config.clientId,
             useRefreshTokens: true,
             useRefreshTokensFallback: true,
             cacheLocation: "localstorage",
             authorizationParams: {
-                audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+                audience: config.audience,
                 scope: "openid profile email offline_access",
                 redirect_uri: web_origin,
             },
