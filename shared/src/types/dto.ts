@@ -239,9 +239,24 @@ export type ApiQueryResult<T> = {
     contentOnly?: boolean;
 };
 
-export type AuthCredentialsDto = {
-    authDomain: string;
+export type OAuthProviderPublicDto = {
+    id: string;
+    label: string;
+    domain: string;
     clientId: string;
-    authApiUrl: string;
-    secret: string;
+    audience: string;
+};
+
+export type Auth0CredentialDto = {
+    domain: string;
+    clientId: string;
+    clientSecret: string;
+    audience: string;
+};
+
+export type OAuthProviderDto = ContentBaseDto & {
+    label: string;
+    providerType: "auth0";
+    credential?: Auth0CredentialDto;
+    credential_id?: string;
 };
