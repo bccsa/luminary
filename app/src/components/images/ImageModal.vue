@@ -167,15 +167,8 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
-        setTimeout(() => {
-            pinchZooming = false;
-        }, 200);
+        pinchZooming = false;
         return; // Don't swipe after a pinch gesture
-    }
-
-    if (scale.value > 1.05) {
-        isTouchDragging = false;
-        return;
     }
 
     if (e.changedTouches?.[0]) {
@@ -407,7 +400,6 @@ onBeforeUnmount(() => {
                 maxHeight: '90vh',
             }"
         >
-            {{ translateX }}, {{ translateY }}, scale: {{ scale }}
             <LImage
                 :contentParentId="contentParentId"
                 :parent-image-bucket-id="parentImageBucketId"
