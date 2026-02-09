@@ -94,7 +94,9 @@ const hasAttemptedSubmit = ref(false);
 
 const hasValidCredentials = computed(() => {
     const c = localCredentials.value;
-    return c.domain.trim() && c.clientId.trim() && c.clientSecret.trim() && c.audience.trim();
+    return Boolean(
+        c.domain.trim() && c.clientId.trim() && c.clientSecret.trim() && c.audience.trim(),
+    );
 });
 
 const hasPartialCredentials = computed(() => {
