@@ -145,6 +145,7 @@ Remove an override when:
 
 ## Additional Resources
 
+- [npm overrides FAQ](./docs/npm-overrides-faq.md) - **Start here!** Simple explanations and examples
 - [ADR 0008: npm overrides for security](./docs/adr/0008-npm-overrides-for-security.md) - Detailed decision record
 - [npm overrides documentation](https://docs.npmjs.com/cli/v9/configuring-npm/package-json#overrides)
 - [GitHub Advisory Database](https://github.com/advisories)
