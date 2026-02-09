@@ -15,6 +15,8 @@ import processLanguageDto from "./documentProcessing/processLanguageDto";
 import processGroupDto from "./documentProcessing/processGroupDto";
 import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
+import { OAuthProviderDto } from "../dto/OAuthProviderDto";
+import processOAuthProviderDto from "./documentProcessing/processOAuthProviderDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -55,6 +57,8 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
+        [DocType.OAuthProvider]: () =>
+            processOAuthProviderDto(doc as OAuthProviderDto, prevDoc as OAuthProviderDto, db),
     };
 
     if (docProcessMap[doc.type]) {

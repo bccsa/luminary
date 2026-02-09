@@ -9,6 +9,7 @@ export enum DocType {
     DeleteCmd = "deleteCmd",
     Storage = "storage",
     Crypto = "crypto",
+    OAuthProvider = "oAuthProvider",
 }
 
 export enum PublishStatus {
