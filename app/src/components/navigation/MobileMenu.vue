@@ -3,6 +3,7 @@
 import { getNavigationItems } from "./navigationItems";
 </script>
 <template>
+    <slot name="before"></slot>
     <div class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800">
         <RouterLink
             v-for="item in getNavigationItems()"

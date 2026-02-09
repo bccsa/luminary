@@ -122,15 +122,22 @@ onErrorCaptured((err) => {
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
-        <div v-if="mediaQueue.length > 0">
+        <!-- <div v-if="mediaQueue.length > 0">
             <AudioPlayer :content="mediaQueue[0]" />
-        </div>
+        </div> -->
 
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
-        <MobileMenu
-            class="z-10 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
+        <div
+            class="z-40 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+        >
+            <div v-if="mediaQueue.length > 0">
+                <AudioPlayer :content="mediaQueue[0]" />
+            </div>
+            <MobileMenu
+                class="z-40 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+            />
+        </div>
     </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />

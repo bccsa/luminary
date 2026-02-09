@@ -945,7 +945,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player fixed bottom-[70px] left-0 right-0 z-50 flex max-h-[80vh] w-full flex-col justify-items-end overflow-auto bg-amber-50 shadow-2xl shadow-black/20 scrollbar-hide dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                class="expanded-player fixed bottom-[70px] left-0 right-0 z-50 flex max-h-[80vh] w-full flex-col justify-items-end overflow-auto bg-amber-50 scrollbar-hide dark:bg-slate-600 md:shadow-2xl md:shadow-black/20 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                :class="{ 'expanded-player-leave': !isExpanded }"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
@@ -1209,7 +1210,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     <!-- Volume toggle button -->
                                     <button
                                         @click="toggleVolumeSlider"
-                                        class="touch-manipulation flex min-h-[44px] min-w-[44px] items-center justify-center space-x-1 rounded-lg px-3 py-2 active:bg-black/10 dark:active:bg-white/10"
+                                        class="flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center space-x-1 rounded-lg px-3 py-2 active:bg-black/10 dark:active:bg-white/10"
                                         :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
                                         aria-label="Toggle volume controls"
                                     >
@@ -1218,7 +1219,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                             class="h-5 w-5 text-zinc-500"
                                         />
                                         <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
-                                        <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                        <span
+                                            class="text-sm font-medium text-zinc-600 dark:text-zinc-400"
+                                        >
                                             {{
                                                 Math.round(
                                                     (isVolumeSliding ? volumeSlideValue : volume) *
@@ -1236,7 +1239,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                         <!-- Volume up button (top) -->
                                         <button
                                             @click="changeVolume(0.1)"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             title="Volume up"
                                             aria-label="Increase volume"
                                         >
@@ -1283,7 +1286,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                         <!-- Volume down button (bottom) -->
                                         <button
                                             @click="changeVolume(-0.1)"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             title="Volume down"
                                             aria-label="Decrease volume"
                                         >
@@ -1293,7 +1296,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                         <!-- Mute toggle -->
                                         <button
                                             @click="toggleMute"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                             :title="isMuted ? 'Unmute' : 'Mute'"
                                             aria-label="Toggle mute"
                                         >
@@ -1377,7 +1380,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="fixed bottom-[70px] left-0 right-0 z-50 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 shadow-lg dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg"
+            class="fixed bottom-[70px] left-0 right-0 z-50 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-600 md:shadow-lg lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
@@ -1419,7 +1422,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 <div class="volume-control-container relative">
                     <button
                         @click.stop="toggleVolumeSlider"
-                        class="touch-manipulation flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                         title="Volume controls"
                         aria-label="Toggle volume controls"
                     >
@@ -1435,13 +1438,15 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         v-if="showVolumeSlider"
                         class="absolute bottom-full right-0 mb-2 flex flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
                     >
-                        <span class="text-center text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                        <span
+                            class="text-center text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                        >
                             {{ Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100) }}%
                         </span>
 
                         <button
                             @click.stop="changeVolume(0.1)"
-                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Increase volume"
                         >
                             <PlusIcon class="h-4 w-4 text-zinc-500" />
@@ -1480,7 +1485,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <button
                             @click.stop="changeVolume(-0.1)"
-                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Decrease volume"
                         >
                             <MinusIcon class="h-4 w-4 text-zinc-500" />
@@ -1737,5 +1742,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
     user-select: none;
     overscroll-behavior: contain;
     /* prevent scroll chaining to parent while dragging */
+}
+
+/* When minimizing, slide behind the bottom menu (z-40) so it doesn’t cover it */
+.expanded-player-leave {
+    z-index: 30;
 }
 </style>
