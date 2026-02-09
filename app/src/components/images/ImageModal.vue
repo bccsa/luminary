@@ -393,6 +393,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Image Container -->
+        {{ translateX }}, {{ translateY }}, scale: {{ scale }}
         <div
             ref="container"
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
