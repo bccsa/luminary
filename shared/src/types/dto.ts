@@ -238,3 +238,10 @@ export type ApiQueryResult<T> = {
     type?: DocType;
     contentOnly?: boolean;
 };
+
+export type AuthCredentialsDto = {
+    authDomain: string;
+    clientId: string;
+    authApiUrl: string;
+    secret: string;
+};
