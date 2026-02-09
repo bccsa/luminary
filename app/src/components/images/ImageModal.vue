@@ -167,8 +167,15 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
-        pinchZooming = false;
+        setTimeout(() => {
+            pinchZooming = false;
+        }, 200);
         return; // Don't swipe after a pinch gesture
+    }
+
+    if (scale.value > 1.05) {
+        isTouchDragging = false;
+        return;
     }
 
     if (e.changedTouches?.[0]) {
