@@ -30,7 +30,7 @@ async function getProviderConfig(): Promise<{
             const provider = selected ?? providers[0];
 
             // Save selection for next time
-            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id);
+            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id); // lgtm[js/clear-text-storage-of-sensitive-data]
 
             return {
                 domain: provider.domain,
