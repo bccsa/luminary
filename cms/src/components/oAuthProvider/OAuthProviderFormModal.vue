@@ -179,7 +179,10 @@ function handleDelete() {
                             ref="imageEditorRef"
                             :parent="provider as unknown as ContentParentDto"
                             @update:parent="
-                                (val) => emit('update:provider', val as unknown as OAuthProviderDto)
+                                (val: ContentParentDto | undefined) => {
+                                    if (val)
+                                        emit('update:provider', val as unknown as OAuthProviderDto);
+                                }
                             "
                             :disabled="isLoading"
                         />
