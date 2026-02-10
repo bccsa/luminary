@@ -1,5 +1,5 @@
 import { ImageDto } from "../../dto/ImageDto";
-import { processImage } from "./processImageDto";
+import { processImage, isImageMimeTypeAllowed } from "./processImageDto";
 import { S3Service } from "../../s3/s3.service";
 import { createTestingModule } from "../../test/testingModule";
 import * as fs from "fs";
@@ -67,6 +67,10 @@ describe("S3ImageHandler", () => {
 
     it("should be defined", () => {
         expect(processImage).toBeDefined();
+    });
+
+    it("allows svg+xml when format is svg", () => {
+        expect(isImageMimeTypeAllowed(["image/svg+xml"], "svg")).toBe(true);
     });
 
     it("can process and upload an image", async () => {
@@ -631,7 +635,8 @@ describe("S3ImageHandler - File Type Validation", () => {
         // Should fail with file type warning (jpeg not allowed when only webp is allowed)
         // Note: Sharp detects "jpeg" format but the code normalizes it to "jpg" in the warning
         const fileTypeWarning = warnings.warnings.find(
-            (w) => w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
+            (w) =>
+                w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
         );
         expect(fileTypeWarning).toBeDefined();
         expect(image.fileCollections.length).toBe(0);
