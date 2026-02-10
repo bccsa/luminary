@@ -1,0 +1,92 @@
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
+import LModal from "@/components/form/LModal.vue";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { getAvailableProviders, setSelectedProvider, showProviderSelectionModal } from "@/auth";
+import type { OAuthProviderPublicDto } from "luminary-shared";
+
+const providers = ref<OAuthProviderPublicDto[]>([]);
+const isLoading = ref(true);
+
+const handleProviderSelect = (provider: OAuthProviderPublicDto) => {
+    // Clear Auth0 cache and store the new provider (handled inside setSelectedProvider)
+    setSelectedProvider(provider.id);
+    // Full page reload with triggerLogin to re-initialize Auth0 SDK with the new provider
+    window.location.href = "/?triggerLogin=true";
+};
+
+const handleClose = () => {
+    showProviderSelectionModal.value = false;
+};
+
+onMounted(async () => {
+    providers.value = await getAvailableProviders();
+    isLoading.value = false;
+});
+</script>
+
+<template>
+    <LModal heading="Sign in" :is-visible="showProviderSelectionModal" @close="handleClose">
+        <p class="mb-4 text-sm text-zinc-500 dark:text-slate-400">
+            Select an authentication provider to continue
+        </p>
+
+        <!-- Loading spinner -->
+        <div v-if="isLoading" class="flex justify-center py-6">
+            <div
+                class="h-8 w-8 animate-spin rounded-full border-b-2 border-zinc-900 dark:border-slate-200"
+            ></div>
+        </div>
+
+        <!-- Provider list -->
+        <div v-else class="flex flex-col gap-3 py-2">
+            <button
+                v-for="provider in providers"
+                :key="provider.id"
+                class="group relative flex w-full items-center justify-start rounded-lg border border-zinc-200 bg-white px-4 py-3 pl-12 hover:bg-zinc-50 hover:shadow-sm active:bg-zinc-100 dark:border-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600/80 dark:active:bg-slate-700/80"
+                @click="handleProviderSelect(provider)"
+            >
+                <div class="absolute left-4 flex shrink-0 items-center justify-center">
+                    <img
+                        v-if="provider.icon"
+                        :src="provider.icon"
+                        :alt="provider.label"
+                        class="h-5 w-5 object-contain"
+                    />
+                </div>
+                <span
+                    class="text-start text-[15px] font-medium text-zinc-700 group-hover:text-zinc-900 dark:text-slate-200 dark:group-hover:text-white"
+                >
+                    Continue with {{ provider.label }}
+                </span>
+            </button>
+
+            <div
+                v-if="providers.length === 0"
+                class="flex flex-col items-center justify-center py-8 text-center"
+            >
+                <div class="mb-3 rounded-full bg-zinc-100 p-3 dark:bg-slate-700">
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400 dark:text-slate-400" />
+                </div>
+                <p class="text-sm text-zinc-500 dark:text-slate-400">
+                    No sign-in methods available.
+                </p>
+                <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
+                    Please contact support for assistance.
+                </p>
+            </div>
+        </div>
+
+        <template #footer>
+            <LButton
+                variant="tertiary"
+                size="lg"
+                rounding="less"
+                class="w-full"
+                @click="handleClose"
+            >
+                Cancel
+            </LButton>
+        </template>
+    </LModal>
+</template>

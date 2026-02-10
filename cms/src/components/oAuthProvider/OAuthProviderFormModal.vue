@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { ref, watch, computed } from "vue";
+import { ExclamationTriangleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import { type OAuthProviderDto, type Auth0CredentialDto, type GroupDto } from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
+import ImageEditor from "../images/ImageEditor.vue";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
+import { type ContentParentDto } from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
 
 const props = defineProps<{
     isVisible: boolean;
@@ -31,6 +34,45 @@ const emit = defineEmits<{
 }>();
 
 const showCredentials = ref(false);
+
+// Image upload refs
+const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
+const uploadInput = ref<HTMLInputElement | null>(null);
+const storage = storageSelection();
+
+// Check if bucket is selected
+const isBucketSelected = computed(() => {
+    return !!props.provider?.imageBucketId;
+});
+
+// Get the selected bucket's mimeTypes for the accept attribute
+const acceptedMimeTypes = computed(() => {
+    if (!props.provider?.imageBucketId) {
+        return "image/jpeg, image/png, image/webp, image/svg+xml";
+    }
+
+    const bucket = storage.getBucketById(props.provider.imageBucketId);
+    if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
+        return "image/*";
+    }
+
+    return bucket.mimeTypes.join(", ");
+});
+
+const triggerFilePicker = () => {
+    if (uploadInput.value) {
+        uploadInput.value.value = "";
+    }
+    uploadInput.value?.showPicker();
+};
+
+const handleFileChange = () => {
+    const files = uploadInput.value?.files;
+    if (files?.length && imageEditorRef.value?.handleFiles) {
+        imageEditorRef.value.handleFiles(files);
+        uploadInput.value!.value = "";
+    }
+};
 
 // Watch for modal visibility changes
 watch(
@@ -59,7 +101,7 @@ function handleDelete() {
     <LModal
         :isVisible="isVisible"
         @update:isVisible="(value?: boolean) => emit('update:isVisible', value ?? false)"
-        :heading="isEditing ? 'Edit OAuth Provider' : 'Create New OAuth Provider'"
+        :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'"
     >
         <div class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error display -->
@@ -108,6 +150,40 @@ function handleDelete() {
                     <p class="mt-0.5 text-[11px] text-gray-500">
                         Currently only Auth0 is supported
                     </p>
+                </div>
+
+                <!-- Provider Icon -->
+                <div>
+                    <div class="mb-1 flex items-center justify-between">
+                        <label class="block text-xs font-medium text-gray-700">Icon</label>
+                        <LButton
+                            v-if="isBucketSelected"
+                            :icon="ArrowUpOnSquareIcon"
+                            size="sm"
+                            variant="tertiary"
+                            :disabled="isLoading || !isBucketSelected"
+                            @click.stop="triggerFilePicker"
+                        >
+                            Upload
+                        </LButton>
+                        <input
+                            ref="uploadInput"
+                            type="file"
+                            class="hidden"
+                            :accept="acceptedMimeTypes"
+                            @change="handleFileChange"
+                        />
+                    </div>
+                    <div class="rounded-md border border-gray-200 p-2">
+                        <ImageEditor
+                            ref="imageEditorRef"
+                            :parent="provider as unknown as ContentParentDto"
+                            @update:parent="
+                                (val) => emit('update:provider', val as unknown as OAuthProviderDto)
+                            "
+                            :disabled="isLoading"
+                        />
+                    </div>
                 </div>
 
                 <!-- Group Membership -->

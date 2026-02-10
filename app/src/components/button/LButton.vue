@@ -5,7 +5,7 @@ type Props = {
     is?: "button" | "a" | string | Component;
     variant?: keyof typeof variants;
     size?: keyof typeof sizes;
-    icon?: Component | Function;
+    icon?: Component | Function | string;
     iconRight?: boolean;
     disabled?: boolean;
     rounding?: "default" | "less";
@@ -60,10 +60,20 @@ const roundingClasses = {
         ]"
     >
         <template v-if="typeof icon === 'string'">
-            <img :src="icon" alt="Icon" class="order-2 h-5 w-5" />
+            <img
+                :src="icon"
+                alt="Icon"
+                class="order-2"
+                :class="{
+                    'h-5 w-5': size != 'xl',
+                    'mr-0.5 h-6 w-6': size == 'xl',
+                    '-mr-0.5': iconRight && $slots.default,
+                    '-ml-0.5': !iconRight && $slots.default,
+                }"
+            />
         </template>
         <component
-            v-if="icon"
+            v-else-if="icon"
             :is="icon"
             class="order-2"
             :class="{
