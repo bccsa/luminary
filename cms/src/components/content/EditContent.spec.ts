@@ -25,6 +25,7 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import BasePage from "../BasePage.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -161,6 +162,23 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.find('[name="view-live"]').exists()).toBe(false);
+        });
+    });
+
+    it("Displays the chevron icon", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            const chevronIcon = wrapper.find('[data-test="chevron-icon"]');
+            expect(chevronIcon.exists()).toBe(true);
+            expect(chevronIcon.isVisible()).toBe(true);
         });
     });
 

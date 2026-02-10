@@ -46,6 +46,7 @@ const isMobileScreen = breakpoints.smaller("lg");
             >
                 <button
                     type="button"
+                    data-test="chevron-icon"
                     class="-m-2.5 p-2.5 text-zinc-500"
                     @click="
                         !isEditContentPage
