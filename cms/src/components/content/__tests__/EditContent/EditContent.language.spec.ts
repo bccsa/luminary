@@ -1,4 +1,5 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
+import { translatableLanguagesAsRef } from "@/globalConfig";
 
 // Set up mocks before any imports
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -81,6 +82,12 @@ describe("EditContent - Language & Translations", () => {
             { ...mockLanguageDtoFra, memberOf: ["group-public-content"] },
             { ...mockLanguageDtoSwa, memberOf: ["group-public-content"] },
         ]);
+
+        // Wait for global language list to update based on new DB data and access map
+        await waitForExpect(() => {
+            expect(translatableLanguagesAsRef.value.length).toBe(1);
+            expect(translatableLanguagesAsRef.value[0]._id).toBe(mockLanguageDtoEng._id);
+        });
 
         const wrapper = mount(EditContent, {
             props: {
