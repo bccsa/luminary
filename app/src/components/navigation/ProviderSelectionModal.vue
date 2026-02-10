@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import LModal from "@/components/form/LModal.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { getAvailableProviders, setSelectedProvider, showProviderSelectionModal } from "@/auth";
+import { getAvailableProviders, setProposedProvider, showProviderSelectionModal } from "@/auth";
 import type { OAuthProviderPublicDto } from "luminary-shared";
 
 const providers = ref<OAuthProviderPublicDto[]>([]);
 const isLoading = ref(true);
 
 const handleProviderSelect = (provider: OAuthProviderPublicDto) => {
-    // Clear Auth0 cache and store the new provider (handled inside setSelectedProvider)
-    setSelectedProvider(provider.id);
+    setProposedProvider(provider.id);
     // Full page reload with triggerLogin to re-initialize Auth0 SDK with the new provider
     window.location.href = "/?triggerLogin=true";
 };
@@ -26,11 +25,13 @@ onMounted(async () => {
 </script>
 
 <template>
-    <LModal heading="Sign in" :is-visible="showProviderSelectionModal" @close="handleClose">
-        <p class="mb-4 text-sm text-zinc-500 dark:text-slate-400">
-            Select an authentication provider to continue
-        </p>
-
+    <LDialog
+        title="Sign in"
+        v-model:open="showProviderSelectionModal"
+        description="Select an authentication provider to continue"
+        :secondaryAction="handleClose"
+        secondaryButtonText="Cancel"
+    >
         <!-- Loading spinner -->
         <div v-if="isLoading" class="flex justify-center py-6">
             <div
@@ -44,6 +45,15 @@ onMounted(async () => {
                 v-for="provider in providers"
                 :key="provider.id"
                 class="group relative flex w-full items-center justify-start rounded-lg border border-zinc-200 bg-white px-4 py-3 pl-12 hover:bg-zinc-50 hover:shadow-sm active:bg-zinc-100 dark:border-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600/80 dark:active:bg-slate-700/80"
+                :style="
+                    provider.backgroundColor
+                        ? {
+                              backgroundColor: provider.backgroundColor,
+                              borderColor: provider.backgroundColor,
+                              color: provider.textColor,
+                          }
+                        : {}
+                "
                 @click="handleProviderSelect(provider)"
             >
                 <div class="absolute left-4 flex shrink-0 items-center justify-center">
@@ -56,6 +66,13 @@ onMounted(async () => {
                 </div>
                 <span
                     class="text-start text-[15px] font-medium text-zinc-700 group-hover:text-zinc-900 dark:text-slate-200 dark:group-hover:text-white"
+                    :style="
+                        provider.textColor
+                            ? {
+                                  color: provider.textColor,
+                              }
+                            : {}
+                    "
                 >
                     Continue with {{ provider.label }}
                 </span>
@@ -76,17 +93,5 @@ onMounted(async () => {
                 </p>
             </div>
         </div>
-
-        <template #footer>
-            <LButton
-                variant="tertiary"
-                size="lg"
-                rounding="less"
-                class="w-full"
-                @click="handleClose"
-            >
-                Cancel
-            </LButton>
-        </template>
-    </LModal>
+    </LDialog>
 </template>

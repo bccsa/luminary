@@ -186,6 +186,84 @@ function handleDelete() {
                     </div>
                 </div>
 
+                <!-- Appearance -->
+                <div>
+                    <h3 class="mb-2 text-sm font-medium text-gray-900">Appearance</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-700"
+                                >Text Color</label
+                            >
+                            <div class="flex items-center gap-2">
+                                <input
+                                    type="color"
+                                    :value="provider.textColor || '#000000'"
+                                    @input="
+                                        (e) =>
+                                            emit('update:provider', {
+                                                ...provider,
+                                                textColor: (e.target as HTMLInputElement).value,
+                                            } as OAuthProviderDto)
+                                    "
+                                    class="h-[38px] w-[38px] flex-shrink-0 cursor-pointer rounded-md border border-gray-300 p-1"
+                                    :disabled="isLoading"
+                                />
+                                <LInput
+                                    id="textColor"
+                                    name="textColor"
+                                    :model-value="provider.textColor"
+                                    @update:model-value="
+                                        (value) =>
+                                            emit('update:provider', {
+                                                ...provider,
+                                                textColor: value,
+                                            } as OAuthProviderDto)
+                                    "
+                                    type="text"
+                                    placeholder="#000000"
+                                    :disabled="isLoading"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-700"
+                                >Background Color</label
+                            >
+                            <div class="flex items-center gap-2">
+                                <input
+                                    type="color"
+                                    :value="provider.backgroundColor || '#ffffff'"
+                                    @input="
+                                        (e) =>
+                                            emit('update:provider', {
+                                                ...provider,
+                                                backgroundColor: (e.target as HTMLInputElement)
+                                                    .value,
+                                            } as OAuthProviderDto)
+                                    "
+                                    class="h-[38px] w-[38px] flex-shrink-0 cursor-pointer rounded-md border border-gray-300 p-1"
+                                    :disabled="isLoading"
+                                />
+                                <LInput
+                                    id="backgroundColor"
+                                    name="backgroundColor"
+                                    :model-value="provider.backgroundColor"
+                                    @update:model-value="
+                                        (value) =>
+                                            emit('update:provider', {
+                                                ...provider,
+                                                backgroundColor: value,
+                                            } as OAuthProviderDto)
+                                    "
+                                    type="text"
+                                    placeholder="#FFFFFF"
+                                    :disabled="isLoading"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Group Membership -->
                 <div>
                     <LCombobox
