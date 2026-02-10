@@ -75,6 +75,10 @@ let swipeEndX = 0;
 const swipeThreshold = 50;
 let pinchZooming = false;
 
+let isPinching = false;
+let pinchOriginX = 0;
+let pinchOriginY = 0;
+
 const closeModal = () => emit("close");
 
 function clamp(val: number, min: number, max: number) {
@@ -85,6 +89,13 @@ function getDistance(touches: TouchList): number {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getMidpoint(touches: TouchList): { x: number; y: number } {
+    return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
 }
 
 function clampTranslation() {
@@ -136,10 +147,21 @@ function onTouchStart(e: TouchEvent) {
     }
 
     if (e.touches.length === 2) {
+        e.preventDefault();
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
         pinchZooming = true;
+        isPinching = true;
+
+        // Calculer et conserver le point médian du pinch
+        const midpoint = getMidpoint(e.touches);
+        const el = container.value;
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            pinchOriginX = midpoint.x - rect.left;
+            pinchOriginY = midpoint.y - rect.top;
+        }
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -156,6 +178,16 @@ function onTouchMove(e: TouchEvent) {
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
         scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
+
+        // Mettre à jour transform-origin pour maintenir le point médian du pinch
+        const midpoint = getMidpoint(e.touches);
+        const el = container.value;
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            pinchOriginX = midpoint.x - rect.left;
+            pinchOriginY = midpoint.y - rect.top;
+        }
+
         clampTranslation();
     } else if (e.touches.length === 1 && isTouchDragging) {
         e.preventDefault();
@@ -168,6 +200,7 @@ function onTouchMove(e: TouchEvent) {
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
         pinchZooming = false;
+        isPinching = false;
         return; // Don't swipe after a pinch gesture
     }
 
@@ -390,14 +423,20 @@ onBeforeUnmount(() => {
         <div
             ref="container"
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
+            :class="{ pinching: isPinching }"
             :style="{
-                transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
+                transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
+                transformOrigin: `${pinchOriginX}px ${pinchOriginY}px`,
+                transition:
+                    isPinching || isMouseDragging || isTouchDragging
+                        ? 'none'
+                        : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
                 width: 'fit-content',
                 height: 'fit-content',
                 maxWidth: '90vw',
                 maxHeight: '90vh',
+                touchAction: 'none',
             }"
         >
             <LImage
@@ -436,3 +475,9 @@ onBeforeUnmount(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.pinching {
+    transition: none !important;
+}
+</style>
