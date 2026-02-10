@@ -337,10 +337,7 @@ const saveProvider = async () => {
         // This prevents DataCloneError when saving to IndexedDB
         const rawProvider = toRaw(provider);
 
-        // Manual sanitization to ensure no non-serializable objects (like DOM elements or functions) remain
-        const sanitizedProvider = JSON.parse(JSON.stringify(rawProvider));
-
-        await db.upsert({ doc: sanitizedProvider });
+        await db.upsert({ doc: rawProvider });
 
         showModal.value = false;
 

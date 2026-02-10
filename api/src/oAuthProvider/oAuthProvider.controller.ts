@@ -12,6 +12,8 @@ export type OAuthProviderPublicDto = {
     clientId: string;
     audience: string;
     icon?: string;
+    textColor?: string;
+    backgroundColor?: string;
 };
 
 @Controller("oauth")
@@ -90,6 +92,8 @@ export class OAuthProviderController {
                     clientId: credentials.clientId,
                     audience: credentials.audience,
                     icon,
+                    textColor: provider.textColor,
+                    backgroundColor: provider.backgroundColor,
                 });
             } catch {
                 // Skip providers with invalid credentials
