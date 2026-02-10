@@ -31,7 +31,7 @@ withDefaults(defineProps<Props>(), {
                     <ExclamationTriangleIcon class="h-6 w-6 text-red-600" aria-hidden="true" />
                 </div>
                 <div
-                    :class="['mt-3 text-center sm:text-left', { 'sm:mt-3': context !== 'default' }]"
+                    :class="['text-center sm:text-left', { 'mt-3 sm:mt-3': context !== 'default' }]"
                 >
                     <div class="mt-2" v-if="description">
                         <p class="text-sm">

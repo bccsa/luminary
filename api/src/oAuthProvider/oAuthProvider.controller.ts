@@ -52,24 +52,27 @@ export class OAuthProviderController {
                             const bucket = result.docs[0] as StorageDto;
 
                             if (bucket && bucket.publicUrl) {
-                                // Prefer uploadData as it's the raw file usually used for icons/simple uploads
-                                // But ImageEditor might process it into fileCollections. Check both.
+                                // Prefer the smallest processed image from fileCollections
+                                // since icons display at ~20x20px and don't need full quality
                                 let filename: string | undefined;
 
-                                if (
+                                const allImageFiles =
+                                    provider.imageData.fileCollections?.flatMap(
+                                        (c) => c.imageFiles,
+                                    ) ?? [];
+
+                                if (allImageFiles.length > 0) {
+                                    // Pick the smallest image by width
+                                    const smallest = allImageFiles.reduce((a, b) =>
+                                        a.width <= b.width ? a : b,
+                                    );
+                                    filename = smallest.filename;
+                                } else if (
                                     provider.imageData.uploadData &&
                                     provider.imageData.uploadData.length > 0
                                 ) {
+                                    // Fall back to raw upload if no processed versions exist
                                     filename = provider.imageData.uploadData[0].filename;
-                                } else if (
-                                    provider.imageData.fileCollections &&
-                                    provider.imageData.fileCollections.length > 0 &&
-                                    provider.imageData.fileCollections[0].imageFiles.length > 0
-                                ) {
-                                    // Just grab the first available file if no uploadData
-                                    filename =
-                                        provider.imageData.fileCollections[0].imageFiles[0]
-                                            .filename;
                                 }
 
                                 if (filename) {
