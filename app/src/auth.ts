@@ -1,8 +1,9 @@
 import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
-import { type App, watch } from "vue";
+import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { getRest, type OAuthProviderPublicDto } from "luminary-shared";
+import { apiUrl } from "./globalConfig";
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
@@ -11,7 +12,38 @@ export type AuthPlugin = Auth0Plugin & {
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
 
 /**
- * Get OAuth provider config, either from API or fallback to env vars.
+ * Reactive flag to show/hide the provider selection modal.
+ */
+export const showProviderSelectionModal = ref(false);
+
+/**
+ * Clear Auth0 SDK's localStorage cache and related keys.
+ * This ensures a clean slate when switching between OAuth providers,
+ * preventing stale tokens from the previous provider being reused.
+ */
+export function clearAuth0Cache(): void {
+    const keysToRemove: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+
+        // Auth0 SPA SDK token cache keys
+        if (key.startsWith("@@auth0spajs@@")) keysToRemove.push(key);
+        // Auth0 SPA SDK transaction keys
+        if (key.startsWith("a0.spajs.txs")) keysToRemove.push(key);
+    }
+
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    // Clear connection and retry state from previous provider
+    localStorage.removeItem("usedAuth0Connection");
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    localStorage.removeItem(SELECTED_PROVIDER_KEY);
+}
+
+/**
+ * Get OAuth provider config from API or fallback to env vars.
  */
 async function getProviderConfig(): Promise<{
     domain: string;
@@ -30,7 +62,7 @@ async function getProviderConfig(): Promise<{
             const provider = selected ?? providers[0];
 
             // Save selection for next time
-            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id); // lgtm[js/clear-text-storage-of-sensitive-data]
+            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id);
 
             return {
                 domain: provider.domain,
@@ -64,8 +96,10 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
 
 /**
  * Set the selected OAuth provider by ID.
+ * Clears the Auth0 cache first to ensure a clean login with the new provider.
  */
 export function setSelectedProvider(providerId: string): void {
+    clearAuth0Cache();
     localStorage.setItem(SELECTED_PROVIDER_KEY, providerId);
 }
 
@@ -110,14 +144,20 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         if (url.searchParams.has("error")) {
             const error = url.searchParams.get("error");
-            console.error(error);
-            alert(error);
+            const errorDescription = url.searchParams.get("error_description");
+            console.error("Auth0 callback error:", error, errorDescription);
+            alert(`Login error: ${error}\n${errorDescription || ""}`);
             return false;
         }
 
         if (!url.searchParams.has("code")) return false;
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
+        try {
+            await oauth.handleRedirectCallback(url.toString());
+        } catch (err) {
+            console.error("Auth0 callback handling failed:", err);
+            // Don't block the app, but log the error
+        }
 
         const to = getRedirectTo() || "/";
 
@@ -143,12 +183,30 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     // Handle logout
     const _Logout = oauth.logout;
-    (oauth as AuthPlugin).logout = (retrying = false) => {
-        let returnTo = web_origin;
-        if (!retrying) returnTo += "?loggedOut";
+    (oauth as AuthPlugin).logout = (options?: any) => {
+        // Reset all auth state so the app returns to a clean "never logged in" state
+        clearAuth0Cache();
+
+        let retrying = false;
+        let logoutParams: any = {};
+
+        if (typeof options === "boolean") {
+            retrying = options;
+        } else if (options && typeof options === "object") {
+            logoutParams = options.logoutParams || {};
+        }
+
+        let returnTo = logoutParams.returnTo || web_origin;
+
+        if (!retrying) {
+            const url = new URL(returnTo);
+            url.searchParams.set("loggedOut", "true");
+            returnTo = url.toString();
+        }
 
         return _Logout({
             logoutParams: {
+                ...logoutParams, // Preserve other params if any
                 returnTo,
             },
         });
@@ -181,6 +239,20 @@ async function setupAuth(app: App<Element>, router: Router) {
  */
 async function loginRedirect(oauth: AuthPlugin) {
     const { loginWithRedirect, logout } = oauth;
+
+    // Check if we have a selected provider
+    const selectedProviderId = getSelectedProviderId();
+
+    // If no provider selected, check availability
+    if (!selectedProviderId) {
+        const providers = await getAvailableProviders();
+        if (providers.length > 1) {
+            // Multiple providers and none selected - show provider selection modal
+            showProviderSelectionModal.value = true;
+            return;
+        }
+        // If 0 or 1 provider, fall through to default behavior (auto-login with default/env vars)
+    }
 
     const usedConnection = localStorage.getItem("usedAuth0Connection");
     const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");

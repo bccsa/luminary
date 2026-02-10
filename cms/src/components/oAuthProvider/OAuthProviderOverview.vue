@@ -17,6 +17,9 @@ import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const emit = defineEmits(["openMobileSidebar"]);
+
 // Reactive database queries
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
@@ -25,12 +28,15 @@ const groups = useDexieLiveQuery(
 
 // Filter groups to only show those where user has both Edit and Assign permissions
 const availableGroups = computed(() => {
-    return groups.value.filter((group) => {
-        return (
-            verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
-            verifyAccess([group._id], DocType.Group, AclPermission.Assign)
-        );
+    console.log("All Groups:", groups.value);
+    const filtered = groups.value.filter((group) => {
+        const canEdit = verifyAccess([group._id], DocType.Group, AclPermission.Edit);
+        const canAssign = verifyAccess([group._id], DocType.Group, AclPermission.Assign);
+        console.log(`Group ${group.name} (${group._id}): Edit=${canEdit}, Assign=${canAssign}`);
+        return canEdit && canAssign;
     });
+    console.log("Filtered Available Groups:", filtered);
+    return filtered;
 });
 
 const providers = useDexieLiveQuery(
@@ -358,9 +364,9 @@ const saveProvider = async () => {
         </div>
 
         <div v-else-if="!providers.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No OAuth providers configured</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No OAuth configured</h3>
             <p class="mt-1 text-sm text-gray-500">
-                Get started by creating your first OAuth provider configuration.
+                Get started by creating your first OAuth configuration.
             </p>
         </div>
 
