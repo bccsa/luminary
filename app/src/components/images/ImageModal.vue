@@ -175,9 +175,9 @@ function onTouchEnd(e: TouchEvent) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
     }
-}
 
-isTouchDragging = false;
+    isTouchDragging = false;
+}
 
 // Double-tap support
 let lastTap = 0;
