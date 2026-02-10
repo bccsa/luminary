@@ -16,7 +16,7 @@ const createNew = () => {
 </script>
 
 <template>
-    <BasePage title="OAuth Providers" :should-show-page-title="true">
+    <BasePage title="OAuth" :should-show-page-title="true">
         <template #pageNav>
             <div class="flex gap-4">
                 <LButton
@@ -38,9 +38,7 @@ const createNew = () => {
 
         <div class="space-y-1">
             <div>
-                <p class="text-gray-600">
-                    Manage OAuth provider configurations for authentication.
-                </p>
+                <p class="text-gray-600">Manage OAuth configurations for authentication.</p>
             </div>
 
             <OAuthProviderOverview ref="overviewRef" />

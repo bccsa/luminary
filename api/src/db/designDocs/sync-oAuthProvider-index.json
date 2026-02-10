@@ -1,0 +1,24 @@
+{
+    "_id": "_design/sync-oAuthProvider-index",
+    "language": "query",
+    "views": {
+        "sync-oAuthProvider-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "oAuthProvider"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}

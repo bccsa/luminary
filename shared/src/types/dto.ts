@@ -245,6 +245,7 @@ export type OAuthProviderPublicDto = {
     domain: string;
     clientId: string;
     audience: string;
+    icon?: string;
 };
 
 export type Auth0CredentialDto = {
@@ -259,4 +260,6 @@ export type OAuthProviderDto = ContentBaseDto & {
     providerType: "auth0";
     credential?: Auth0CredentialDto;
     credential_id?: string;
+    imageData?: ImageDto;
+    imageBucketId?: Uuid;
 };

@@ -2,6 +2,8 @@
     "_id": "group-private-editors",
     "type": "group",
     "name": "Editors Private",
+    "updatedTimeUtc": 2000000000001,
+    "memberOf": ["group-super-admins"],
     "acl": [
         {
             "type": "post",

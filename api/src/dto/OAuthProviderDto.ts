@@ -38,4 +38,18 @@ export class OAuthProviderDto extends _contentBaseDto {
      * The credentials are encrypted using ENCRYPTION_KEY from the environment.
      */
     credential_id?: Uuid;
+    @IsOptional()
+    @Expose()
+    /**
+     * Image data for the provider icon.
+     */
+    imageData?: any;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    /**
+     * Bucket ID where images are stored.
+     */
+    imageBucketId?: Uuid;
 }
