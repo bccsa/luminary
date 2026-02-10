@@ -314,17 +314,17 @@ onMounted(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
         <XCircleIcon
-            class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+            class="fixed right-8 top-8 z-[110] h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
             @click.stop="closeModal"
         />
 
         <!-- Zoom controls -->
-        <div class="fixed bottom-8 right-8 z-40 flex flex-row gap-2">
+        <div class="fixed bottom-8 right-8 z-[110] flex flex-row gap-2">
             <MagnifyingGlassMinusIcon
                 class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
                 @click.stop="zoomOut"
@@ -340,7 +340,7 @@ onMounted(() => {
             <!-- Left Arrow -->
             <ArrowLeftCircleIcon
                 v-if="hasMultiple"
-                class="fixed left-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                class="fixed left-24 top-1/2 z-[110] hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
                 :class="arrowSizeClass"
                 @click="onSwipe('right')"
             />
@@ -348,7 +348,7 @@ onMounted(() => {
             <!-- Right Arrow -->
             <ArrowRightCircleIcon
                 v-if="hasMultiple"
-                class="fixed right-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                class="fixed right-24 top-1/2 z-[110] hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
                 :class="arrowSizeClass"
                 @click="onSwipe('left')"
             />
@@ -392,7 +392,7 @@ onMounted(() => {
         <!-- Dots -->
         <div
             v-if="hasMultiple"
-            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
+            class="fixed bottom-4 left-1/2 z-[110] flex -translate-x-1/2 items-center justify-center gap-2"
         >
             <span
                 v-for="(img, idx) in imageCollections"

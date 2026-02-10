@@ -6,9 +6,9 @@ import LModal from "../form/LModal.vue";
 type Props = {
     title: string;
     description?: string;
-    primaryAction: Function;
+    primaryAction?: Function;
     secondaryAction?: Function;
-    primaryButtonText: string;
+    primaryButtonText?: string;
     secondaryButtonText?: string;
     context?: "default" | "danger";
 };
@@ -42,12 +42,15 @@ withDefaults(defineProps<Props>(), {
                         </p>
                     </div>
                 </div>
+                <div class="mt-4 w-full">
+                    <slot />
+                </div>
             </div>
         </template>
 
         <template #footer>
             <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <span class="mb-3 block sm:mb-0 sm:ml-3">
+                <span class="mb-3 block sm:mb-0 sm:ml-3" v-if="primaryButtonText && primaryAction">
                     <LButton
                         @click="primaryAction()"
                         variant="primary"

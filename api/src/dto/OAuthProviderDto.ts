@@ -21,6 +21,16 @@ export class OAuthProviderDto extends _contentBaseDto {
     providerType: "auth0";
 
     @IsOptional()
+    @IsString()
+    @Expose()
+    textColor?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    backgroundColor?: string;
+
+    @IsOptional()
     @ValidateNested()
     @Type(() => Auth0CredentialsDto)
     @Expose()

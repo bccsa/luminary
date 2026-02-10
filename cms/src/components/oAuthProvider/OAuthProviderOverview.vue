@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, toRaw } from "vue";
 import OAuthProviderDisplayCard from "./OAuthProviderDisplayCard.vue";
 import OAuthProviderFormModal from "./OAuthProviderFormModal.vue";
 import {
@@ -333,7 +333,14 @@ const saveProvider = async () => {
         isSavingProvider.value = true;
         savedProviderLabel.value = provider.label;
 
-        await db.upsert({ doc: provider });
+        // Create a deep clone of the raw object to remove all Vue proxies
+        // This prevents DataCloneError when saving to IndexedDB
+        const rawProvider = toRaw(provider);
+
+        // Manual sanitization to ensure no non-serializable objects (like DOM elements or functions) remain
+        const sanitizedProvider = JSON.parse(JSON.stringify(rawProvider));
+
+        await db.upsert({ doc: sanitizedProvider });
 
         showModal.value = false;
 
