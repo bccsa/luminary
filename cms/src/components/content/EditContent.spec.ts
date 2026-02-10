@@ -28,6 +28,11 @@ import EditContentVideo from "./EditContentVideo.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Mock URL.createObjectURL for tests
+if (typeof window.URL.createObjectURL === "undefined") {
+    Object.defineProperty(window.URL, "createObjectURL", { value: () => "blob:mock-url" });
+}
+
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
     return {
