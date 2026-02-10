@@ -121,7 +121,7 @@ function zoomOut() {
 }
 
 function handleSwipeGesture() {
-    if (!hasMultiple.value || scale.value > 1.05) return; // Sécurité : pas de swipe si zoomé
+    if (!hasMultiple.value || scale.value > 1) return;
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
@@ -156,7 +156,6 @@ function onTouchMove(e: TouchEvent) {
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
         scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
-
         clampTranslation();
     } else if (e.touches.length === 1 && isTouchDragging) {
         e.preventDefault();
@@ -168,21 +167,17 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
-        setTimeout(() => {
-            pinchZooming = false;
-        }, 100);
-        return;
+        pinchZooming = false;
+        return; // Don't swipe after a pinch gesture
     }
 
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
-        if (scale.value <= 1.05) {
-            handleSwipeGesture();
-        }
+        handleSwipeGesture();
     }
-
-    isTouchDragging = false;
 }
+
+isTouchDragging = false;
 
 // Double-tap support
 let lastTap = 0;
@@ -291,12 +286,10 @@ const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14
 watch(
     () => currentImage.value,
     () => {
-        if (!isTouchDragging && !pinchZooming && !isMouseDragging) {
-            scale.value = 1;
-            translateX.value = 0;
-            translateY.value = 0;
-            nextTick(() => clampTranslation());
-        }
+        scale.value = 1;
+        translateX.value = 0;
+        translateY.value = 0;
+        nextTick(() => clampTranslation());
     },
     { immediate: true },
 );
@@ -393,16 +386,12 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Image Container -->
-
         <div
             ref="container"
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                transition:
-                    isMouseDragging || isTouchDragging || pinchZooming
-                        ? 'none'
-                        : 'transform 0.1s ease-out',
+                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
                 width: 'fit-content',
                 height: 'fit-content',
