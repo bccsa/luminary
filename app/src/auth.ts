@@ -3,7 +3,6 @@ import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { getRest, type OAuthProviderPublicDto } from "luminary-shared";
-import { apiUrl } from "./globalConfig";
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;

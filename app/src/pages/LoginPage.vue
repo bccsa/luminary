@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { getAvailableProviders, setSelectedProvider } from "@/auth";
+import { getAvailableProviders, setProposedProvider } from "@/auth";
 import type { OAuthProviderPublicDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 
@@ -9,7 +9,7 @@ const isLoading = ref(true);
 
 const handleProviderSelect = async (provider: OAuthProviderPublicDto) => {
     // Store only the provider ID - config will be fetched from API
-    setSelectedProvider(provider.id);
+    setProposedProvider(provider.id);
     // Reload the page with triggerLogin flag to ensure Auth0 plugin is re-initialized
     // with the new provider config, then trigger login
     window.location.href = "/?triggerLogin=true";
