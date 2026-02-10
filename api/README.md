@@ -131,3 +131,31 @@ The load tester currently tests the API for Luminary Client app sync loads on th
 # load tester help
 $ npx ts-node load_tester --help
 ```
+
+## Security: npm overrides
+
+This package uses **npm overrides** to manage security vulnerabilities in transitive dependencies. The `overrides` field in `package.json` forces specific versions of packages throughout the dependency tree.
+
+### Current overrides:
+
+- **lodash** → `^4.17.23` - Fixes prototype pollution vulnerability ([GHSA-xxjr-mmjv-4gpg](https://github.com/advisories/GHSA-xxjr-mmjv-4gpg))
+- **fast-xml-parser** → `^5.3.4` - Fixes DoS vulnerability ([GHSA-37qj-frw5-hhjh](https://github.com/advisories/GHSA-37qj-frw5-hhjh))
+- **fastify** → `^5.7.3` - Fixes DoS and content-type bypass ([GHSA-mrq3-vjjr-p77c](https://github.com/advisories/GHSA-mrq3-vjjr-p77c), [GHSA-jx2c-rxcm-jvmq](https://github.com/advisories/GHSA-jx2c-rxcm-jvmq))
+- **@fastify/middie** → `^9.0.4` - Fixes path bypass vulnerability ([GHSA-cxrg-g7r8-w69p](https://github.com/advisories/GHSA-cxrg-g7r8-w69p))
+
+### Why overrides?
+
+Many vulnerabilities exist in **transitive dependencies** (dependencies of our dependencies). Using overrides allows us to fix these immediately without waiting for parent packages to update.
+
+### Maintenance
+
+When adding or updating overrides:
+1. Identify the vulnerability and required version
+2. Update the `overrides` section in `package.json`
+3. Run `npm install` to apply changes
+4. Test thoroughly: `npm run build && npm run test`
+5. Update this README with the vulnerability information
+
+For more details, see:
+- [SECURITY.md](../SECURITY.md) - Complete security policy
+- [ADR 0008](../docs/adr/0008-npm-overrides-for-security.md) - Decision rationale

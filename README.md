@@ -27,6 +27,10 @@ We record our decisions in the `docs/adr` folder. See the [first ADR](./docs/adr
 adr new Branching strategy
 ```
 
+## Security
+
+This project uses npm overrides to manage security vulnerabilities in dependencies. For details on our security practices and how to report vulnerabilities, see [SECURITY.md](./SECURITY.md).
+
 ## Running Luminary
 
 For Visual Studio Code users, `./.vscode/launch.json` includes debug configurations for the API, CMS and reference App.

@@ -126,3 +126,32 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app
 ```
 
 This will run the app on port 8080 on the host machine.
+
+## Security: npm overrides
+
+This package uses **npm overrides** to manage security vulnerabilities in transitive dependencies. The `overrides` field in `package.json` forces specific versions of packages throughout the dependency tree.
+
+### Current overrides:
+
+- **lodash** → `^4.17.23` - Fixes prototype pollution vulnerability ([GHSA-xxjr-mmjv-4gpg](https://github.com/advisories/GHSA-xxjr-mmjv-4gpg))
+- **glob** → `^11.1.0` - Fixes command injection vulnerability ([GHSA-5j98-mcp5-4vw2](https://github.com/advisories/GHSA-5j98-mcp5-4vw2))
+- **js-yaml** → `^4.1.1` - Fixes prototype pollution vulnerability ([GHSA-mh29-5h37-fv8m](https://github.com/advisories/GHSA-mh29-5h37-fv8m))
+- **esbuild** → `^0.25.0` - Fixes CORS vulnerability ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99))
+- **min-document** → `^2.19.2` - Fixes prototype pollution vulnerability ([GHSA-rx8g-88g5-qh64](https://github.com/advisories/GHSA-rx8g-88g5-qh64))
+
+### Why overrides?
+
+Many vulnerabilities exist in **transitive dependencies** (dependencies of our dependencies). Using overrides allows us to fix these immediately without waiting for parent packages to update.
+
+### Maintenance
+
+When adding or updating overrides:
+1. Identify the vulnerability and required version
+2. Update the `overrides` section in `package.json`
+3. Run `npm install` to apply changes
+4. Test thoroughly: `npm run build && npm run test`
+5. Update this README with the vulnerability information
+
+For more details, see:
+- [SECURITY.md](../SECURITY.md) - Complete security policy
+- [ADR 0008](../docs/adr/0008-npm-overrides-for-security.md) - Decision rationale

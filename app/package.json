@@ -2,6 +2,13 @@
     "name": "luminary-app",
     "private": true,
     "type": "module",
+    "overrides": {
+        "lodash": "^4.17.23",
+        "glob": "^11.1.0",
+        "js-yaml": "^4.1.1",
+        "esbuild": "^0.25.0",
+        "min-document": "^2.19.2"
+    },
     "scripts": {
         "dev": "vite --host",
         "build": "run-p type-check \"build-only {@}\" --",
