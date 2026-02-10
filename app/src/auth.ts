@@ -10,6 +10,7 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+const PROPOSED_PROVIDER_KEY = "proposedOAuthProviderId";
 
 /**
  * Reactive flag to show/hide the provider selection modal.
@@ -39,7 +40,8 @@ export function clearAuth0Cache(): void {
     // Clear connection and retry state from previous provider
     localStorage.removeItem("usedAuth0Connection");
     localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem(SELECTED_PROVIDER_KEY);
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    // Do NOT remove SELECTED_PROVIDER_KEY here, as we want to persist it until explicitly changed or login with new provider succeeds
 }
 
 /**
@@ -57,12 +59,23 @@ async function getProviderConfig(): Promise<{
         if (providers.length > 0) {
             // Check for saved selection
             const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-            const selected = selectedId ? providers.find((p) => p.id === selectedId) : providers[0];
+            // Check for proposed selection (session only) - used during login flow
+            const proposedId = sessionStorage.getItem(PROPOSED_PROVIDER_KEY);
+
+            // If we are in the middle of a login flow (triggerLogin or callback), prefer the proposed ID
+            const isLoginFlow =
+                location.search.includes("triggerLogin") ||
+                location.search.includes("code=") ||
+                location.search.includes("state=");
+
+            let idToUse = selectedId;
+            if (isLoginFlow && proposedId) {
+                idToUse = proposedId;
+            }
+
+            const selected = idToUse ? providers.find((p) => p.id === idToUse) : providers[0];
 
             const provider = selected ?? providers[0];
-
-            // Save selection for next time
-            localStorage.setItem(SELECTED_PROVIDER_KEY, provider.id);
 
             return {
                 domain: provider.domain,
@@ -98,9 +111,9 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
  * Set the selected OAuth provider by ID.
  * Clears the Auth0 cache first to ensure a clean login with the new provider.
  */
-export function setSelectedProvider(providerId: string): void {
+export function setProposedProvider(providerId: string): void {
     clearAuth0Cache();
-    localStorage.setItem(SELECTED_PROVIDER_KEY, providerId);
+    sessionStorage.setItem(PROPOSED_PROVIDER_KEY, providerId);
 }
 
 /**
@@ -162,6 +175,13 @@ async function setupAuth(app: App<Element>, router: Router) {
         const to = getRedirectTo() || "/";
 
         // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
+        // Login successful! Commit the proposed provider to permanent storage if it exists
+        const proposedId = sessionStorage.getItem(PROPOSED_PROVIDER_KEY);
+        if (proposedId) {
+            localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
+            sessionStorage.removeItem(PROPOSED_PROVIDER_KEY);
+        }
+
         router.push(to);
 
         return true;
@@ -186,6 +206,7 @@ async function setupAuth(app: App<Element>, router: Router) {
     (oauth as AuthPlugin).logout = (options?: any) => {
         // Reset all auth state so the app returns to a clean "never logged in" state
         clearAuth0Cache();
+        localStorage.removeItem(SELECTED_PROVIDER_KEY);
 
         let retrying = false;
         let logoutParams: any = {};

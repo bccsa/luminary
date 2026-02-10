@@ -22,9 +22,9 @@ const emit = defineEmits(["close"]);
         @click="emit('close')"
     >
         <div
-            class="fixed inset-0 z-50 bg-zinc-800 bg-opacity-50 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+            class="fixed inset-0 z-[100] bg-zinc-800 bg-opacity-50 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         ></div>
-        <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
+        <div class="fixed inset-0 z-[100] flex items-center justify-center rounded-lg p-2">
             <div
                 class="max-h-screen w-full max-w-md rounded-lg"
                 :class="[
