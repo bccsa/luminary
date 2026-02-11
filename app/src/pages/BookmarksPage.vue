@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import ContentTile from "@/components/content/ContentTile.vue";
 import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
-import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
+import { db, useDexieLiveQueryWithDeps, mangoToDexie, type ContentDto, type Uuid } from "luminary-shared";
 import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
 
@@ -16,18 +16,18 @@ const bookmarks = computed(
 );
 
 const content = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .where("parentId")
-            .anyOf(bookmarks.value)
-            .filter((c) => {
-                const content = c as ContentDto;
-
-                return isPublished(content, appLanguageIds);
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
-
+    [appLanguageIdsAsRef, bookmarks],
+    ([appLanguageIds, bookmarkIds]: [Uuid[], Uuid[]]) => {
+        if (bookmarkIds.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: { $in: bookmarkIds } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: [],
     },

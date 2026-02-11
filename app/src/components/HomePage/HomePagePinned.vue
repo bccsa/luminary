@@ -19,7 +19,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (appLanguageIds: Uuid[]) => {
         // Build query inside callback so it uses current appLanguageIds
-        const query = mangoToDexie(db.docs, {
+        return mangoToDexie<ContentDto>(db.docs, {
             selector: {
                 $and: [
                     { type: DocType.Content },
@@ -28,7 +28,6 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                 ],
             },
         });
-        return query.toArray() as unknown as Promise<ContentDto[]>;
     },
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
@@ -41,7 +40,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
     ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
         // Build query inside callback so it uses current values
-        const query = mangoToDexie(db.docs, {
+        return mangoToDexie<ContentDto>(db.docs, {
             selector: {
                 $and: [
                     { type: DocType.Content },
@@ -52,7 +51,6 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 ],
             },
         });
-        return query.toArray() as unknown as Promise<ContentDto[]>;
     },
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
 );

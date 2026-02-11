@@ -1,33 +1,37 @@
 <script setup lang="ts">
 import { watch } from "vue";
-import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
+import {
+    type ContentDto,
+    DocType,
+    TagType,
+    type Uuid,
+    db,
+    useDexieLiveQueryWithDeps,
+    mangoToDexie,
+} from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { useDexieLiveQueryWithDeps } from "luminary-shared";
-import { isPublished } from "@/util/isPublished";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
 const topics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                status: "published",
-                parentTagType: TagType.Topic,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                return !!(
-                    isPublished(content, appLanguageIds) &&
-                    content.parentTaggedDocs &&
-                    content.parentTaggedDocs.length > 0
-                );
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    (appLanguageIds: Uuid[]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { status: "published" },
+                    { parentTagType: TagType.Topic },
+                    { parentTaggedDocs: { $exists: true, $ne: [] } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_unpinnedTopics"),
         deep: true,
@@ -36,19 +40,19 @@ const topics = useDexieLiveQueryWithDeps(
 
 const categories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                status: "published",
-                parentTagType: TagType.Category,
-            })
-            .filter((c) => {
-                if (c.parentPinned) return false; // Only unpinned categories
-                return isPublished(c as ContentDto, appLanguageIds);
-            })
-
-            .toArray() as unknown as Promise<ContentDto[]>,
+    (appLanguageIds: Uuid[]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { status: "published" },
+                    { parentTagType: TagType.Category },
+                    { parentPinned: { $ne: 1 } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_unpinnedCategories"),
         deep: true,

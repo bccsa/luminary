@@ -5,13 +5,14 @@ import {
     db,
     TagType,
     useDexieLiveQueryWithDeps,
+    mangoToDexie,
     type ContentDto,
     type Uuid,
 } from "luminary-shared";
 import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -32,15 +33,18 @@ const contentIds = computed(() =>
 
 const contentDocs = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, contentIds],
-    ([languageIds, ids]: [Uuid[], Uuid[]]) =>
-        db.docs
-            .where("parentId")
-            .anyOf(ids)
-            .filter((c) => {
-                const content = c as ContentDto;
-                return isPublished(content, languageIds);
-            })
-            .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
+    ([languageIds, ids]: [Uuid[], Uuid[]]) => {
+        if (ids.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: { $in: ids } },
+                    ...mangoIsPublished(languageIds),
+                ],
+            },
+            $sort: [{ publishDate: "asc" }],
+        });
+    },
     { initialValue: [] as ContentDto[] },
 );
 

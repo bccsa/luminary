@@ -2,9 +2,9 @@ import {
     db,
     DocType,
     useDexieLiveQuery,
+    mangoToDexie,
     type LanguageDto,
     type Uuid,
-    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
@@ -128,11 +128,7 @@ export const appLanguageAsRef = computed(() => appLanguagesPreferredAsRef.value[
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
         const _cmsLanguages = useDexieLiveQuery(
-            async () =>
-                (await db.docs
-                    .where("type")
-                    .equals(DocType.Language)
-                    .toArray()) as unknown as Promise<LanguageDto[]>,
+            () => mangoToDexie<LanguageDto>(db.docs, { selector: { type: DocType.Language } }),
             { initialValue: [] },
         );
 
