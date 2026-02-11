@@ -91,7 +91,7 @@ const statusChanged = computed(
         statusBadge.value(props.existingContent).title !=
         statusBadge.value(editableContent.value).title,
 );
-
+console.log("Status changed:", statusChanged.value);
 const validations = ref([] as Validation[]);
 
 const isValid = ref(true);
@@ -167,9 +167,9 @@ const deleteTranslation = () => {
             :class="[
                 'mx-1.5 rounded-md p-1.5 px-2 sm:px-1',
                 {
-                    'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
-                    'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
-                    'border bg-white/80 hover:bg-white/100': !isActive,
+                    'mb-0 cursor-default border bg-zinc-200/70': isActive && !isCardCollapsed,
+                    'cursor-default border bg-zinc-200': isActive && isCardCollapsed,
+                    'border bg-white/80 hover:border-zinc-200 hover:bg-zinc-100': !isActive,
                 },
             ]"
         >
