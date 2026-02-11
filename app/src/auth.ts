@@ -9,7 +9,6 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
-const PROPOSED_PROVIDER_KEY = "proposedOAuthProviderId";
 
 /**
  * Reactive flag to show/hide the provider selection modal.
@@ -58,14 +57,14 @@ async function getProviderConfig(): Promise<{
         if (providers.length > 0) {
             // Check for saved selection
             const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-            // Check for proposed selection (session only) - used during login flow
-            const proposedId = sessionStorage.getItem(PROPOSED_PROVIDER_KEY);
+
+            // Check for proposed selection from URL (query param) - used during login flow
+            const urlParams = new URLSearchParams(window.location.search);
+            const proposedId = urlParams.get("providerId");
 
             // If we are in the middle of a login flow (triggerLogin or callback), prefer the proposed ID
             const isLoginFlow =
-                location.search.includes("triggerLogin") ||
-                location.search.includes("code=") ||
-                location.search.includes("state=");
+                urlParams.has("providerId") || urlParams.has("code") || urlParams.has("state");
 
             let idToUse = selectedId;
             if (isLoginFlow && proposedId) {
@@ -104,15 +103,6 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
     } catch {
         return [];
     }
-}
-
-/**
- * Set the selected OAuth provider by ID.
- * Clears the Auth0 cache first to ensure a clean login with the new provider.
- */
-export function setProposedProvider(providerId: string): void {
-    clearAuth0Cache();
-    sessionStorage.setItem(PROPOSED_PROVIDER_KEY, providerId);
 }
 
 /**
@@ -175,10 +165,9 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
         // Login successful! Commit the proposed provider to permanent storage if it exists
-        const proposedId = sessionStorage.getItem(PROPOSED_PROVIDER_KEY);
+        const proposedId = url.searchParams.get("providerId");
         if (proposedId) {
             localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
-            sessionStorage.removeItem(PROPOSED_PROVIDER_KEY);
         }
 
         router.push(to);
@@ -205,7 +194,11 @@ async function setupAuth(app: App<Element>, router: Router) {
     (oauth as AuthPlugin).logout = (options?: any) => {
         // Reset all auth state so the app returns to a clean "never logged in" state
         clearAuth0Cache();
-        localStorage.removeItem(SELECTED_PROVIDER_KEY);
+
+        // We want to keep the current provider selected on logout, but we can also facilitate switching
+        // if we want to default to the selection screen, we could remove it.
+        // For now, let's keep it in local storage so next visit remembers it.
+        // localStorage.removeItem(SELECTED_PROVIDER_KEY);
 
         let retrying = false;
         let logoutParams: any = {};
@@ -220,7 +213,10 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         if (!retrying) {
             const url = new URL(returnTo);
-            url.searchParams.set("loggedOut", "true");
+            const currentProviderId = getSelectedProviderId();
+            if (currentProviderId) {
+                url.searchParams.set("providerId", currentProviderId);
+            }
             returnTo = url.toString();
         }
 
@@ -235,8 +231,12 @@ async function setupAuth(app: App<Element>, router: Router) {
     // Handle login
     const _LoginWithRedirect = oauth.loginWithRedirect;
     oauth.loginWithRedirect = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        // If providerId is present in the URL, prompt login
+        const shouldPromptLogin = urlParams.has("providerId");
+
         return _LoginWithRedirect({
-            authorizationParams: location.search.includes("loggedOut")
+            authorizationParams: shouldPromptLogin
                 ? {
                       prompt: "login",
                   }

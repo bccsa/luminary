@@ -2,16 +2,18 @@
 import { ref, onMounted } from "vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { getAvailableProviders, setProposedProvider, showProviderSelectionModal } from "@/auth";
+import { getAvailableProviders, clearAuth0Cache, showProviderSelectionModal } from "@/auth";
 import type { OAuthProviderPublicDto } from "luminary-shared";
 
 const providers = ref<OAuthProviderPublicDto[]>([]);
 const isLoading = ref(true);
 
 const handleProviderSelect = (provider: OAuthProviderPublicDto) => {
-    setProposedProvider(provider.id);
-    // Full page reload with triggerLogin to re-initialize Auth0 SDK with the new provider
-    window.location.href = "/?triggerLogin=true";
+    // Clear old auth data (cache, etc.)
+    clearAuth0Cache();
+    // Full page reload with providerId query param to re-initialize Auth0 SDK with the new provider
+    // and trigger the login flow
+    window.location.href = `/?providerId=${provider.id}`;
 };
 
 const handleClose = () => {
