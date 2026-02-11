@@ -20,7 +20,7 @@ const { t } = useI18n();
 const newest10Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (appLanguageIds: Uuid[]) => {
-        const query = mangoToDexie(db.docs, {
+        return mangoToDexie<ContentDto>(db.docs, {
             selector: {
                 $and: [
                     { type: DocType.Content },
@@ -32,7 +32,6 @@ const newest10Content = useDexieLiveQueryWithDeps(
             $sort: [{ publishDate: "desc" }],
             $limit: 10,
         });
-        return query.toArray() as unknown as Promise<ContentDto[]>;
     },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("homepage_newestContent"),

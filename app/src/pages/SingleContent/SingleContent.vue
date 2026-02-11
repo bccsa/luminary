@@ -8,6 +8,7 @@ import {
     TagType,
     db,
     isConnected,
+    mangoToDexie,
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
     type BaseDocumentDto,
@@ -42,6 +43,7 @@ import LImage from "@/components/images/LImage.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -90,32 +92,53 @@ const content = ref<ContentDto | undefined>(defaultContent);
 
 const idbContent = useDexieLiveQuery(
     () =>
-        db.docs
-            .where("slug")
-            .equals(props.slug)
-            .toArray()
-            .then((docs) => {
-                if (!docs?.length) return undefined;
+        mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { slug: props.slug },
+                    {
+                        $or: [
+                            { type: DocType.Redirect },
+                            {
+                                $and: [
+                                    { publishDate: { $exists: true, $lte: Date.now() } },
+                                    {
+                                        $or: [
+                                            { expiryDate: { $exists: false } },
+                                            { expiryDate: null },
+                                            { expiryDate: { $gte: Date.now() } },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        }).then((docs) => {
+            if (!docs?.length) return undefined;
 
-                // Check if the document is a redirect
-                const redirect = docs.find((d) => d.type === DocType.Redirect) as
-                    | RedirectDto
-                    | undefined;
-                if (redirect && redirect.toSlug) {
-                    // If toSlug matches a route name, redirect to that route
-                    const routes = router.getRoutes();
-                    const targetRoute = routes.find((r) => r.name === redirect.toSlug);
-                    if (targetRoute) {
-                        router.replace({ name: redirect.toSlug });
-                    } else {
-                        // Otherwise, treat as a content slug
-                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                    }
-                    return undefined;
+            // Check if the document is a redirect
+            const redirect = docs.find((d: any) => d.type === DocType.Redirect) as
+                | RedirectDto
+                | undefined;
+            if (redirect && redirect.toSlug) {
+                // If toSlug matches a route name, redirect to that route
+                const routes = router.getRoutes();
+                const targetRoute = routes.find((r) => r.name === redirect.toSlug);
+                if (targetRoute) {
+                    router.replace({ name: redirect.toSlug });
+                } else {
+                    // Otherwise, treat as a content slug
+                    router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 }
+                return undefined;
+            }
 
-                return docs.find((d) => d.type === DocType.Content) as ContentDto | undefined;
-            }),
+            return docs.find((d: any) => d.type === DocType.Content) as
+                | ContentDto
+                | undefined;
+        }),
     { initialValue: defaultContent },
 );
 
@@ -179,8 +202,22 @@ watch([content, isConnected], async () => {
     isLoadingTranslations.value = true;
 
     const [availableContentTranslations, availableLanguages] = await Promise.all([
-        db.docs.where("parentId").equals(content.value.parentId).toArray(),
-        db.docs.where("type").equals(DocType.Language).toArray(),
+        mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: content.value.parentId },
+                    { publishDate: { $exists: true, $lte: Date.now() } },
+                    {
+                        $or: [
+                            { expiryDate: { $exists: false } },
+                            { expiryDate: null },
+                            { expiryDate: { $gte: Date.now() } },
+                        ],
+                    },
+                ],
+            },
+        }),
+        mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
     if (availableContentTranslations.length > 1) {
@@ -230,16 +267,19 @@ watch([content, isConnected], async () => {
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
-    ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
-        db.docs
-            .where("parentId")
-            .anyOf((content?.parentTags || []).concat([content?.parentId || ""])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
-            .filter((t) => {
-                const tag = t as ContentDto;
-                if (tag.parentType != DocType.Tag) return false;
-                return isPublished(tag, appLanguageIds);
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    ([content, appLanguageIds]: [ContentDto, Uuid[]]) => {
+        const parentIds = (content?.parentTags || []).concat([content?.parentId || ""]); // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
+        if (parentIds.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: { $in: parentIds } },
+                    { parentType: DocType.Tag },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        }) as unknown as Promise<ContentDto[]>;
+    },
     { initialValue: [] as ContentDto[] },
 );
 
@@ -462,6 +502,9 @@ onMounted(() => {
     window.addEventListener("click", onClickOutside);
 });
 
+// Track whether the user explicitly switched language via the quick selector
+const userSwitchedLanguage = ref(false);
+
 // Quick language switch (dropdown)
 watch(selectedLanguageId, (newId) => {
     if (!newId || !content.value) return;
@@ -469,12 +512,14 @@ watch(selectedLanguageId, (newId) => {
     const target = availableTranslations.value.find((c) => c.language === newId);
     if (!target || target.slug === content.value.slug) return;
 
+    userSwitchedLanguage.value = true;
     content.value = target;
     const newUrl = router.resolve({ name: "content", params: { slug: target.slug } }).href;
     window.history.replaceState(window.history.state, "", newUrl);
 });
 
-// Show banner: only external + preferred lang exists + different slug
+// Show banner: only external navigation + preferred lang exists + different slug
+// Do not show banner if the user explicitly switched language via the quick selector
 watch(
     () => [
         content.value,
@@ -484,6 +529,7 @@ watch(
     ],
     ([cur, prefId, external, translations]) => {
         if (!cur || !prefId || !external) return;
+        if (userSwitchedLanguage.value) return;
         const currentContent = cur as ContentDto;
         if (currentContent.language === prefId) return;
 

@@ -2,7 +2,7 @@
 import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { ShieldCheckIcon } from "@heroicons/vue/24/outline";
-import { db, useDexieLiveQuery, type ContentDto } from "luminary-shared";
+import { db, useDexieLiveQuery, mangoToDexie, type ContentDto } from "luminary-shared";
 import { computed, watch, h, type ComputedRef } from "vue";
 import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -10,6 +10,7 @@ import { useI18n } from "vue-i18n";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const { t } = useI18n();
 const { isAuthenticated, logout } = useAuth0();
@@ -20,20 +21,15 @@ const show = defineModel<boolean>("show");
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
 const privacyPolicy = useDexieLiveQuery(
     () =>
-        db.docs
-            .where({
-                parentId: import.meta.env.VITE_PRIVACY_POLICY_ID,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) =>
-                    content.availableTranslations?.includes(lang),
-                );
-                if (content.language == firstSupportedLang) return true;
-
-                return false;
-            })
-            .first() as unknown as ContentDto | undefined,
+        mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
+                    ...mangoIsPublished(appLanguageIdsAsRef.value),
+                ],
+            },
+            $limit: 1,
+        }).then((docs) => docs[0] as ContentDto | undefined),
 );
 
 // Logic for showing the "Necessary only" button

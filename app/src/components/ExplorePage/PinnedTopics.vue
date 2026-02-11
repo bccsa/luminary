@@ -3,30 +3,31 @@ import { watch } from "vue";
 import {
     type ContentDto,
     DocType,
-    PublishStatus,
     TagType,
     type Uuid,
     db,
     useDexieLiveQueryWithDeps,
+    mangoToDexie,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const categories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                parentPinned: 1, // 1 = true
-            })
-            .filter((c) => {
-                if (c.parentTagType !== TagType.Category) return false;
-                return isPublished(c as ContentDto, appLanguageIds);
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    (appLanguageIds: Uuid[]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentPinned: 1 }, // 1 = true
+                    { parentTagType: TagType.Category },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedCategories"),
         deep: true,
@@ -39,30 +40,21 @@ watch(categories, async (value) => {
 
 const topics = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, categories],
-    ([appLanguageIds, pinnedTopics]: [Uuid[], ContentDto[]]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                status: PublishStatus.Published,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (!isPublished(content, appLanguageIds)) return false;
-
-                if (content.parentType != DocType.Tag) return false;
-                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-
-                for (const tagId of content.parentTags) {
-                    if (
-                        pinnedTopics.some((p) => p.parentId == tagId) &&
-                        isPublished(content, appLanguageIds)
-                    )
-                        return true;
-                }
-
-                return false;
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
+        const pinnedCategoryIds = pinnedCategories.map((p) => p.parentId);
+        if (pinnedCategoryIds.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentType: DocType.Tag },
+                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+                    { parentTags: { $elemMatch: { $in: pinnedCategoryIds } } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics"), deep: true },
 );
 

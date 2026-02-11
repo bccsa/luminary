@@ -36,7 +36,7 @@ async function Startup() {
     await init({
         cms: false,
         docsIndex:
-            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentPinned], [type+parentPinned+parentTagType], [parentType+parentTagType], [type+status+parentTagType], [type+parentType]",
         apiUrl,
         token,
         appLanguageIdsAsRef,
