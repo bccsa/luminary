@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, nextTick } from "vue";
 import { ExclamationTriangleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import { type OAuthProviderDto, type Auth0CredentialDto, type GroupDto } from "luminary-shared";
@@ -95,6 +95,19 @@ function handleSave() {
 function handleDelete() {
     emit("delete");
 }
+const scrollContainer = ref<HTMLElement | null>(null);
+
+function toggleCredentials() {
+    showCredentials.value = !showCredentials.value;
+    if (showCredentials.value) {
+        // Wait for DOM update then scroll to bottom
+        nextTick(() => {
+            if (scrollContainer.value) {
+                scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+            }
+        });
+    }
+}
 </script>
 
 <template>
@@ -103,7 +116,7 @@ function handleDelete() {
         @update:isVisible="(value?: boolean) => emit('update:isVisible', value ?? false)"
         :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'"
     >
-        <div class="max-h-[500px] overflow-auto scrollbar-hide">
+        <div ref="scrollContainer" class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error display -->
             <div v-if="errors" class="mb-3">
                 <div v-for="(error, idx) in errors" :key="idx" class="mb-1 flex items-center gap-2">
@@ -190,7 +203,7 @@ function handleDelete() {
                 </div>
 
                 <!-- Appearance -->
-                <div>
+                <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <h3 class="mb-2 text-sm font-medium text-gray-900">Appearance</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -198,19 +211,29 @@ function handleDelete() {
                                 >Text Color</label
                             >
                             <div class="flex items-center gap-2">
-                                <input
-                                    type="color"
-                                    :value="provider.textColor || '#000000'"
-                                    @input="
-                                        (e) =>
-                                            emit('update:provider', {
-                                                ...provider,
-                                                textColor: (e.target as HTMLInputElement).value,
-                                            } as OAuthProviderDto)
-                                    "
-                                    class="h-[38px] w-[38px] flex-shrink-0 cursor-pointer rounded-md border border-gray-300 p-1"
-                                    :disabled="isLoading"
-                                />
+                                <div
+                                    class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-gray-300"
+                                >
+                                    <input
+                                        type="color"
+                                        :value="provider.textColor || '#000000'"
+                                        @input="
+                                            (e) =>
+                                                emit('update:provider', {
+                                                    ...provider,
+                                                    textColor: (e.target as HTMLInputElement).value,
+                                                } as OAuthProviderDto)
+                                        "
+                                        class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
+                                        :disabled="isLoading"
+                                    />
+                                    <div
+                                        class="h-full w-full"
+                                        :style="{
+                                            backgroundColor: provider.textColor || '#000000',
+                                        }"
+                                    ></div>
+                                </div>
                                 <LInput
                                     id="textColor"
                                     name="textColor"
@@ -233,20 +256,30 @@ function handleDelete() {
                                 >Background Color</label
                             >
                             <div class="flex items-center gap-2">
-                                <input
-                                    type="color"
-                                    :value="provider.backgroundColor || '#ffffff'"
-                                    @input="
-                                        (e) =>
-                                            emit('update:provider', {
-                                                ...provider,
-                                                backgroundColor: (e.target as HTMLInputElement)
-                                                    .value,
-                                            } as OAuthProviderDto)
-                                    "
-                                    class="h-[38px] w-[38px] flex-shrink-0 cursor-pointer rounded-md border border-gray-300 p-1"
-                                    :disabled="isLoading"
-                                />
+                                <div
+                                    class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-gray-300"
+                                >
+                                    <input
+                                        type="color"
+                                        :value="provider.backgroundColor || '#ffffff'"
+                                        @input="
+                                            (e) =>
+                                                emit('update:provider', {
+                                                    ...provider,
+                                                    backgroundColor: (e.target as HTMLInputElement)
+                                                        .value,
+                                                } as OAuthProviderDto)
+                                        "
+                                        class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
+                                        :disabled="isLoading"
+                                    />
+                                    <div
+                                        class="h-full w-full"
+                                        :style="{
+                                            backgroundColor: provider.backgroundColor || '#ffffff',
+                                        }"
+                                    ></div>
+                                </div>
                                 <LInput
                                     id="backgroundColor"
                                     name="backgroundColor"
@@ -300,11 +333,7 @@ function handleDelete() {
                             Auth0 Credentials
                             <span v-if="!isEditing" class="text-red-500">*</span>
                         </h3>
-                        <LButton
-                            @click="showCredentials = !showCredentials"
-                            variant="tertiary"
-                            size="sm"
-                        >
+                        <LButton @click="toggleCredentials" variant="tertiary" size="sm">
                             {{ showCredentials ? "Hide" : isEditing ? "Update" : "Set" }}
                         </LButton>
                     </div>

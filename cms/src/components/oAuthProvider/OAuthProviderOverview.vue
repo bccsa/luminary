@@ -16,6 +16,7 @@ import {
 import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
+import cloneDeep from "lodash.clonedeep";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const emit = defineEmits(["openMobileSidebar"]);
@@ -335,8 +336,7 @@ const saveProvider = async () => {
 
         // Create a deep clone of the raw object to remove all Vue proxies
         // This prevents DataCloneError when saving to IndexedDB
-        // We use structuredClone as it handles deep cloning including ArrayBuffers correctly
-        const rawProvider = structuredClone(toRaw(provider));
+        const rawProvider = cloneDeep(toRaw(provider));
 
         await db.upsert({ doc: rawProvider });
 
