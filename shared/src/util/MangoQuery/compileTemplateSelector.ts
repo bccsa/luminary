@@ -69,10 +69,13 @@ function createFieldGetter(path: string): (doc: any) => unknown {
 
 /**
  * Creates a field existence checker.
+ * Treats `undefined` values as non-existing, consistent with JSON semantics
+ * and IndexedDB behavior (which strips `undefined` values on storage).
  */
 function createFieldExistsChecker(path: string): (doc: any) => boolean {
     if (path.indexOf(".") === -1) {
-        return (doc) => doc != null && typeof doc === "object" && path in doc;
+        return (doc) =>
+            doc != null && typeof doc === "object" && path in doc && doc[path] !== undefined;
     }
 
     const parts = path.split(".");
@@ -85,7 +88,7 @@ function createFieldExistsChecker(path: string): (doc: any) => boolean {
             if (!(parts[i] in current)) return false;
             current = current[parts[i]];
         }
-        return true;
+        return current !== undefined;
     };
 }
 
