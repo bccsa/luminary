@@ -268,6 +268,7 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
+    if (isTouchDragging) return;
     scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
