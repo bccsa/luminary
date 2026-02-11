@@ -71,7 +71,13 @@ export function getDexieCacheStats(): { size: number; keys: string[] } {
 // ============================================================================
 
 /**
- * Convert a Mango query into a Dexie Collection, pushing index-friendly parts into Dexie.
+ * Convert a Mango query into a Dexie result array, pushing index-friendly parts into Dexie.
+ *
+ * Returns `Promise<T[]>` directly, handling sorting and limiting internally for
+ * optimal performance. When sorting without a limit, the function uses index-based
+ * filtering first (via pushdown), then sorts the smaller result set in memory using
+ * `Collection.sortBy()`. When sorting with a limit, it uses `table.orderBy()` for
+ * early termination.
  *
  * Uses template-based caching: the query structure is normalized, and the analysis
  * (pushdown strategy and residual selector) is cached based on the structure alone.
@@ -88,32 +94,54 @@ export function getDexieCacheStats(): { size: number; keys: string[] } {
  *
  * All other operators are handled in-memory via the residual filter.
  */
-export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<T> {
+export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<T[]> {
     const selector: MangoSelector = (query?.selector || {}) as MangoSelector;
     const limit = typeof query?.$limit === "number" ? query.$limit : undefined;
     const sort = Array.isArray(query?.$sort) ? query.$sort : undefined;
 
-    // 1) Sorting path: prefer using orderBy on an indexed field, then filter in-memory.
+    // Build a filtered collection using index pushdown
+    const col = buildFilteredCollection(table, selector);
+
+    // Apply sorting and limiting
     if (sort && sort.length > 0) {
         const entry = sort[0];
         const sortField = Object.keys(entry)[0];
         const desc = (entry as Record<string, string>)[sortField] === "desc";
 
-        let col: Collection<T>;
-        try {
-            col = table.orderBy(sortField);
-            if (desc) col = col.reverse();
-        } catch {
-            col = table.filter(() => true);
+        if (typeof limit === "number") {
+            // Sort + limit: use orderBy for early termination.
+            // This scans rows in index order and stops after enough matches.
+            let ordered: Collection;
+            try {
+                ordered = table.orderBy(sortField);
+                if (desc) ordered = ordered.reverse();
+            } catch {
+                ordered = table.filter(() => true);
+            }
+
+            const pred = mangoCompile(selector) as (d: unknown) => boolean;
+            ordered = ordered.filter(pred);
+            return ordered.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
         }
 
-        const pred = mangoCompile(selector) as (d: T) => boolean;
-        col = col.filter(pred);
-        if (typeof limit === "number") return col.limit(Math.max(0, limit));
-        return col;
+        // Sort + no limit: filter first using index pushdown, then sort in memory.
+        // This is much faster than scanning the entire table via orderBy.
+        const result = col.sortBy(sortField) as Promise<T[]>;
+        return desc ? result.then((arr) => arr.reverse()) : result;
     }
 
-    // 2) No sorting: use template-based cached analysis
+    // No sorting: apply limit if specified and return array
+    if (typeof limit === "number") {
+        return col.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
+    }
+    return col.toArray() as Promise<T[]>;
+}
+
+/**
+ * Build a filtered Dexie Collection using template-based index pushdown.
+ * This is the core filtering logic separated from sorting/limiting concerns.
+ */
+function buildFilteredCollection(table: Table, selector: MangoSelector): Collection {
     // Normalize the selector to extract values
     const { template, values } = normalizeSelector(selector);
 
@@ -129,15 +157,12 @@ export function mangoToDexie<T>(table: Table<T>, query: MangoQuery): Collection<
             col = col.filter((doc) => analysis.residualPredicate!(doc, values));
         }
 
-        if (typeof limit === "number") return col.limit(Math.max(0, limit));
         return col;
     }
 
-    // 3) Fallback: in-memory filter for full selector
-    const pred = mangoCompile(selector) as (d: T) => boolean;
-    const base = table.filter(pred);
-    if (typeof limit === "number") return base.limit(Math.max(0, limit));
-    return base;
+    // Fallback: in-memory filter for full selector
+    const pred = mangoCompile(selector) as (d: unknown) => boolean;
+    return table.filter(pred);
 }
 
 // ============================================================================
@@ -402,21 +427,21 @@ function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown 
 // Where Application with Values
 // ============================================================================
 
-function applyTemplateWhere<T>(
-    table: Table<T>,
+function applyTemplateWhere(
+    table: Table,
     push: TemplatePushdown,
     values: unknown[],
-): Collection<T> {
+): Collection {
     if (push.kind === "multiEq") {
         // Build the where object from field indices and actual values
         const whereObj: Record<string, unknown> = {};
         for (const field in push.fieldIndices) {
             whereObj[field] = values[push.fieldIndices[field]];
         }
-        return (table.where as (arg: Record<string, unknown>) => Collection<T>)(whereObj);
+        return (table.where as (arg: Record<string, unknown>) => Collection)(whereObj);
     }
 
-    const clause = (table.where as (field: string) => DexieWhereClause<T>)(push.field);
+    const clause = (table.where as (field: string) => DexieWhereClause)(push.field);
 
     switch (push.kind) {
         case "anyOf":
@@ -445,21 +470,21 @@ function applyTemplateWhere<T>(
     }
 }
 
-interface DexieWhereClause<T> {
-    anyOf(values: unknown[]): Collection<T>;
-    equals(value: unknown): Collection<T>;
-    above(value: unknown): Collection<T>;
-    below(value: unknown): Collection<T>;
-    aboveOrEqual(value: unknown): Collection<T>;
-    belowOrEqual(value: unknown): Collection<T>;
-    notEqual(value: unknown): Collection<T>;
-    startsWith(prefix: string): Collection<T>;
+interface DexieWhereClause {
+    anyOf(values: unknown[]): Collection;
+    equals(value: unknown): Collection;
+    above(value: unknown): Collection;
+    below(value: unknown): Collection;
+    aboveOrEqual(value: unknown): Collection;
+    belowOrEqual(value: unknown): Collection;
+    notEqual(value: unknown): Collection;
+    startsWith(prefix: string): Collection;
     between(
         lower: unknown,
         upper: unknown,
         includeLower?: boolean,
         includeUpper?: boolean,
-    ): Collection<T>;
+    ): Collection;
 }
 
 // ============================================================================
