@@ -45,9 +45,9 @@ const isMobileScreen = breakpoints.smaller("lg");
                 ]"
             >
                 <button
-                    v-if="isMobileScreen"
                     type="button"
-                    class="-m-2.5 p-2.5 text-zinc-700"
+                    data-test="chevron-icon"
+                    class="-m-2.5 p-2.5 text-zinc-500"
                     @click="
                         !isEditContentPage
                             ? onOpenMobileSidebar?.()
@@ -55,10 +55,14 @@ const isMobileScreen = breakpoints.smaller("lg");
                     "
                 >
                     <span class="sr-only">Open sidebar</span>
-                    <Bars3Icon v-if="!isEditContentPage" class="h-6 w-6" aria-hidden="true" />
+                    <Bars3Icon
+                        v-if="!isEditContentPage && isMobileScreen"
+                        class="h-6 w-6"
+                        aria-hidden="true"
+                    />
                     <ChevronLeftIcon
                         v-else-if="isEditContentPage"
-                        class="h-6 w-6"
+                        class="size-5"
                         aria-hidden="true"
                     />
                 </button>

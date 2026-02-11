@@ -164,6 +164,23 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("Displays the chevron icon", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            const chevronIcon = wrapper.find('[data-test="chevron-icon"]');
+            expect(chevronIcon.exists()).toBe(true);
+            expect(chevronIcon.isVisible()).toBe(true);
+        });
+    });
+
     it("can save content to the database", async () => {
         const notificationStore = useNotificationStore();
         const wrapper = mount(EditContent, {
