@@ -167,20 +167,14 @@ function onTouchMove(e: TouchEvent) {
 
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
-        if (e.touches.length < 2) {
-            setTimeout(() => {
-                pinchZooming = false;
-                isTouchDragging = false;
-            }, 50);
-        }
+        pinchZooming = false;
+
         return; // Don't swipe after a pinch gesture
     }
-
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
     }
-
     isTouchDragging = false;
 }
 
@@ -268,7 +262,6 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
-    if (isTouchDragging) return;
     scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
