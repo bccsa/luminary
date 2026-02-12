@@ -2,18 +2,22 @@
 import { ref, onMounted } from "vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { getAvailableProviders, clearAuth0Cache, showProviderSelectionModal } from "@/auth";
+import {
+    getAvailableProviders,
+    clearAuth0Cache,
+    showProviderSelectionModal,
+    loginWithProvider,
+} from "@/auth";
 import type { OAuthProviderPublicDto } from "luminary-shared";
 
 const providers = ref<OAuthProviderPublicDto[]>([]);
 const isLoading = ref(true);
 
-const handleProviderSelect = (provider: OAuthProviderPublicDto) => {
+const handleProviderSelect = async (provider: OAuthProviderPublicDto) => {
     // Clear old auth data (cache, etc.)
     clearAuth0Cache();
-    // Full page reload with providerId query param to re-initialize Auth0 SDK with the new provider
-    // and trigger the login flow
-    window.location.href = `/?providerId=${provider.id}`;
+    // Trigger login directly
+    await loginWithProvider(provider);
 };
 
 const handleClose = () => {
@@ -42,11 +46,11 @@ onMounted(async () => {
         </div>
 
         <!-- Provider list -->
-        <div v-else class="flex flex-col gap-3 py-2">
+        <div v-else class="flex flex-col gap-3">
             <button
                 v-for="provider in providers"
                 :key="provider.id"
-                class="group relative flex w-full items-center justify-start rounded-lg border border-zinc-200 bg-white px-4 py-3 pl-12 hover:bg-zinc-50 hover:shadow-sm active:bg-zinc-100 dark:border-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600/80 dark:active:bg-slate-700/80"
+                class="group relative flex h-full w-full items-center justify-start overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 pl-12 hover:shadow-sm dark:border-slate-600 dark:bg-slate-700"
                 :style="
                     provider.backgroundColor
                         ? {
@@ -58,6 +62,9 @@ onMounted(async () => {
                 "
                 @click="handleProviderSelect(provider)"
             >
+                <div
+                    class="pointer-events-none absolute inset-0 bg-white opacity-0 group-hover:opacity-20"
+                ></div>
                 <div class="absolute left-4 flex shrink-0 items-center justify-center">
                     <img
                         v-if="provider.icon"

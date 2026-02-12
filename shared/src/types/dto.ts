@@ -262,6 +262,11 @@ export type OAuthProviderDto = ContentBaseDto & {
     providerType: "auth0";
     textColor?: string;
     backgroundColor?: string;
+    // Public fields for sync
+    clientId?: string;
+    domain?: string;
+    audience?: string;
+    icon?: string;
     credential?: Auth0CredentialDto;
     credential_id?: string;
     imageData?: ImageDto;

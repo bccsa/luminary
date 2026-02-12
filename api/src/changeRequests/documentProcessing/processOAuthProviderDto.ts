@@ -81,6 +81,11 @@ export default async function processOAuthProviderDto(
             // Update document to reference stored credentials
             doc.credential_id = savedId;
 
+            // Populate public fields
+            doc.clientId = doc.credential.clientId;
+            doc.domain = doc.credential.domain;
+            doc.audience = doc.credential.audience;
+
             // Remove embedded credentials to avoid storing them in plain text
             delete doc.credential;
         } catch (error) {
@@ -103,6 +108,45 @@ export default async function processOAuthProviderDto(
                 );
                 if (result?.warnings?.length > 0) {
                     warnings.push(...result.warnings);
+                }
+
+                // Generate and store public icon URL
+                if (doc.imageBucketId) {
+                    try {
+                        const bucketResult = await db.getDoc(doc.imageBucketId);
+                        if (bucketResult.docs && bucketResult.docs.length > 0) {
+                            const bucket = bucketResult.docs[0]; // Assuming StorageDto structure
+                            if (bucket && bucket.publicUrl) {
+                                let filename: string | undefined;
+                                const allImageFiles =
+                                    doc.imageData.fileCollections?.flatMap(
+                                        (c: any) => c.imageFiles,
+                                    ) ?? [];
+
+                                if (allImageFiles.length > 0) {
+                                    // Find smallest image
+                                    const smallest = allImageFiles.reduce((a: any, b: any) =>
+                                        a.width <= b.width ? a : b,
+                                    );
+                                    filename = smallest.filename;
+                                } else if (
+                                    doc.imageData.uploadData &&
+                                    doc.imageData.uploadData.length > 0
+                                ) {
+                                    filename = doc.imageData.uploadData[0].filename;
+                                }
+
+                                if (filename) {
+                                    const baseUrl = bucket.publicUrl.replace(/\/$/, "");
+                                    const safeFilename = filename.replace(/^\//, "");
+                                    doc.icon = `${baseUrl}/${safeFilename}`;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore icon generation errors, just log warning
+                        warnings.push(`Warning: Failed to generate icon URL: ${e.message}`);
+                    }
                 }
             } catch (error) {
                 warnings.push(`Image processing failed: ${error.message}`);

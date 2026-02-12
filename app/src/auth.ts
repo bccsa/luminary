@@ -1,8 +1,9 @@
 import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
+import { Auth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
-import { getRest, type OAuthProviderPublicDto } from "luminary-shared";
+import { type OAuthProviderPublicDto } from "luminary-shared";
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
@@ -42,8 +43,13 @@ export function clearAuth0Cache(): void {
     // Do NOT remove SELECTED_PROVIDER_KEY here, as we want to persist it until explicitly changed or login with new provider succeeds
 }
 
+import { db, DocType, type OAuthProviderDto } from "luminary-shared";
+
 /**
- * Get OAuth provider config from API or fallback to env vars.
+ * Get OAuth provider config from local DB or fallback to env vars.
+ */
+/**
+ * Get OAuth provider config from local DB or fallback to env vars.
  */
 async function getProviderConfig(): Promise<{
     domain: string;
@@ -51,8 +57,42 @@ async function getProviderConfig(): Promise<{
     audience: string;
 }> {
     try {
-        const rest = getRest();
-        const providers = await rest.getOAuthProviders();
+        let providers: OAuthProviderDto[] = [];
+
+        // Try to get providers from local DB (synced)
+        if (db) {
+            providers = (await db.docs
+                .where("type")
+                .equals(DocType.OAuthProvider)
+                .toArray()) as OAuthProviderDto[];
+        } else {
+            // DB not initialized yet (bootstrap), try raw IndexedDB
+            providers = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
+                const request = indexedDB.open("luminary-db");
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const database = request.result;
+                    if (!database.objectStoreNames.contains("docs")) {
+                        database.close();
+                        return resolve([]);
+                    }
+                    const transaction = database.transaction("docs", "readonly");
+                    const store = transaction.objectStore("docs");
+                    // We assume 'type' index exists as per schema
+                    const index = store.index("type");
+                    const query = index.getAll("oAuthProvider"); // DocType.OAuthProvider value
+
+                    query.onsuccess = () => {
+                        database.close();
+                        resolve(query.result as OAuthProviderDto[]);
+                    };
+                    query.onerror = () => {
+                        database.close();
+                        reject(query.error);
+                    };
+                };
+            });
+        }
 
         if (providers.length > 0) {
             // Check for saved selection
@@ -71,18 +111,19 @@ async function getProviderConfig(): Promise<{
                 idToUse = proposedId;
             }
 
-            const selected = idToUse ? providers.find((p) => p.id === idToUse) : providers[0];
-
+            const selected = idToUse ? providers.find((p) => p._id === idToUse) : providers[0];
             const provider = selected ?? providers[0];
 
-            return {
-                domain: provider.domain,
-                clientId: provider.clientId,
-                audience: provider.audience,
-            };
+            if (provider.domain && provider.clientId && provider.audience) {
+                return {
+                    domain: provider.domain,
+                    clientId: provider.clientId,
+                    audience: provider.audience,
+                };
+            }
         }
-    } catch {
-        // API unreachable or failed, fall back to env vars
+    } catch (e) {
+        console.warn("Failed to load providers from DB, falling back to env vars", e);
     }
 
     // Fallback to env vars (legacy or offline mode)
@@ -94,21 +135,93 @@ async function getProviderConfig(): Promise<{
 }
 
 /**
- * Get available OAuth providers from the API.
+ * Get available OAuth providers from the local DB.
+ */
+/**
+ * Get available OAuth providers from the local DB.
  */
 export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
     try {
-        const rest = getRest();
-        return await rest.getOAuthProviders();
+        let docs: any[] = [];
+        if (db) {
+            docs = await db.docs.where("type").equals(DocType.OAuthProvider).toArray();
+        } else {
+            docs = await new Promise<any[]>((resolve, reject) => {
+                const request = indexedDB.open("luminary-db");
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const database = request.result;
+                    if (!database.objectStoreNames.contains("docs")) {
+                        database.close();
+                        return resolve([]);
+                    }
+                    const transaction = database.transaction("docs", "readonly");
+                    const store = transaction.objectStore("docs");
+                    const index = store.index("type");
+                    const query = index.getAll("oAuthProvider");
+
+                    query.onsuccess = () => {
+                        database.close();
+                        resolve(query.result);
+                    };
+                    query.onerror = () => {
+                        database.close();
+                        reject(query.error);
+                    };
+                };
+            });
+        }
+
+        return docs.map((d: any) => ({
+            id: d._id,
+            label: d.label,
+            domain: d.domain,
+            clientId: d.clientId,
+            audience: d.audience,
+            icon: d.icon,
+            textColor: d.textColor,
+            backgroundColor: d.backgroundColor,
+        })) as OAuthProviderPublicDto[];
     } catch {
         return [];
     }
 }
 
 /**
+ * Login with a specific provider.
+ * Creates a temporary Auth0 client to trigger the redirect.
+ */
+export async function loginWithProvider(provider: OAuthProviderPublicDto) {
+    const web_origin = window.location.origin;
+
+    const client = new Auth0Client({
+        domain: provider.domain,
+        clientId: provider.clientId,
+        useRefreshTokens: true,
+        useRefreshTokensFallback: true,
+        cacheLocation: "localstorage",
+        authorizationParams: {
+            audience: provider.audience,
+            scope: "openid profile email offline_access",
+            redirect_uri: `${web_origin}?providerId=${encodeURIComponent(provider.id)}`,
+        },
+    });
+
+    await client.loginWithRedirect();
+}
+
+/**
  * Get the currently selected OAuth provider ID.
  */
 export function getSelectedProviderId(): string | undefined {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasProviderId = urlParams.has("providerId");
+    const isCallback = urlParams.has("code") || urlParams.has("state");
+
+    if (hasProviderId && !isCallback) {
+        return undefined;
+    }
+
     return localStorage.getItem(SELECTED_PROVIDER_KEY) ?? undefined;
 }
 
@@ -121,6 +234,13 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     const config = await getProviderConfig();
 
+    // Determine the redirect_uri that was used (must match exactly for code exchange)
+    const urlParams = new URLSearchParams(window.location.search);
+    const providerIdInUrl = urlParams.get("providerId");
+    const redirect_uri = providerIdInUrl
+        ? `${web_origin}?providerId=${encodeURIComponent(providerIdInUrl)}`
+        : web_origin;
+
     const oauth = createAuth0(
         {
             domain: config.domain,
@@ -131,7 +251,7 @@ async function setupAuth(app: App<Element>, router: Router) {
             authorizationParams: {
                 audience: config.audience,
                 scope: "openid profile email offline_access",
-                redirect_uri: web_origin,
+                redirect_uri,
             },
         },
         {

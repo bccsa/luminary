@@ -37,16 +37,6 @@ async function Startup() {
 
     const oauth = await auth.setupAuth(app, router);
 
-    // Check if we should trigger login (coming from provider selection)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has("triggerLogin")) {
-        // Clean up the URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Trigger login with the newly selected provider
-        await auth.loginRedirect(oauth);
-        return; // Stop startup as we're redirecting to Auth0
-    }
-
     const token = await auth.getToken(oauth);
 
     await init({
@@ -94,4 +84,7 @@ async function Startup() {
     initAnalytics();
 }
 
-Startup();
+Startup().catch((err) => {
+    console.error("Startup failed:", err);
+    Sentry?.captureException(err);
+});
