@@ -147,7 +147,8 @@ function onTouchMove(e: TouchEvent) {
         isTouchDragging = false;
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
-        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
+        scale.value = clamp(scale.value * deltaScale, MIN_SCALE, MAX_SCALE.value);
+        lastDistance = newDistance; // Update for next frame
         clampTranslation();
     } else if (e.touches.length === 1 && isTouchDragging) {
         e.preventDefault();
