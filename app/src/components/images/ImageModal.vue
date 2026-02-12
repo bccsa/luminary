@@ -64,6 +64,7 @@ let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
 const pinchZooming = ref(false);
+let skipNextSwipeCheck = false; // Prevent accidental swipe when lifting last finger after pinch
 
 const closeModal = () => emit("close");
 
@@ -130,6 +131,7 @@ function onTouchStart(e: TouchEvent) {
         initialScale = scale.value;
         isTouchDragging = false;
         pinchZooming.value = true;
+        swipeStartX = e.touches[0].clientX; // Prevent stale value from being used if swipe is somehow evaluated
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -158,13 +160,18 @@ function onTouchMove(e: TouchEvent) {
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming.value) {
         pinchZooming.value = false;
-
+        skipNextSwipeCheck = true; // Lifting first finger - next touchend will be last finger, don't treat as swipe
         return; // Don't swipe after a pinch gesture
     }
     if (e.changedTouches?.[0]) {
-        swipeEndX = e.changedTouches[0].clientX;
-        handleSwipeGesture();
+        if (skipNextSwipeCheck) {
+            skipNextSwipeCheck = false; // Lifting last finger after pinch - ignore this touchend for swipe
+        } else {
+            swipeEndX = e.changedTouches[0].clientX;
+            handleSwipeGesture();
+        }
     }
+
     isTouchDragging = false;
 }
 
@@ -278,7 +285,8 @@ function onKeyDown(event: KeyboardEvent) {
 
 const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14");
 
-// Reset state on image change
+// Reset state only when the displayed image actually changes (not on every re-render)
+// Watching currentImage caused resets on every reactive update because it returns a new object each time
 watch(
     [() => props.currentIndex, () => props.image?.fileCollections?.[0]?.imageFiles?.[0]?.filename],
     () => {
