@@ -1,4 +1,4 @@
-import { PublishStatus, type Uuid, type MangoSelector } from "luminary-shared";
+import { type Uuid, type MangoSelector } from "luminary-shared";
 
 /**
  * Builds Mango selector conditions for the "isPublished" check.
