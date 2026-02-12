@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-    ref,
-    onMounted,
-    onBeforeUnmount,
-    watch,
-    withDefaults,
-    defineProps,
-    defineEmits,
-    nextTick,
-    computed,
-} from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
@@ -73,7 +63,7 @@ let lastMouse = { x: 0, y: 0 };
 let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
-let pinchZooming = false;
+const pinchZooming = ref(false);
 
 const closeModal = () => emit("close");
 
@@ -139,7 +129,7 @@ function onTouchStart(e: TouchEvent) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
-        pinchZooming = true;
+        pinchZooming.value = true;
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -166,8 +156,8 @@ function onTouchMove(e: TouchEvent) {
 }
 
 function onTouchEnd(e: TouchEvent) {
-    if (pinchZooming) {
-        pinchZooming = false;
+    if (pinchZooming.value) {
+        pinchZooming.value = false;
 
         return; // Don't swipe after a pinch gesture
     }
@@ -260,6 +250,13 @@ function onDblClick(e: MouseEvent | TouchEvent) {
     }
 }
 
+function goToImage(index: number) {
+    scale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    emit("update:index", index);
+}
+
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
     scale.value = 1;
@@ -283,7 +280,7 @@ const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14
 
 // Reset state on image change
 watch(
-    () => currentImage.value,
+    [() => props.currentIndex, () => props.image?.fileCollections?.[0]?.imageFiles?.[0]?.filename],
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -390,7 +387,10 @@ onBeforeUnmount(() => {
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
+                transition:
+                    isMouseDragging || isTouchDragging || pinchZooming
+                        ? 'none'
+                        : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
                 width: 'fit-content',
                 height: 'fit-content',
@@ -422,14 +422,7 @@ onBeforeUnmount(() => {
                     idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
                     'cursor-pointer transition-all duration-300',
                 ]"
-                @click="
-                    () => {
-                        scale = 1;
-                        translateX = 0;
-                        translateY = 0;
-                        emit('update:index', idx);
-                    }
-                "
+                @click="goToImage(idx)"
             ></span>
         </div>
     </div>
