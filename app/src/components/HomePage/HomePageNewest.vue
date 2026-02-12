@@ -26,6 +26,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: PostType.Page } }] },
                     { $or: [{ parentTagType: { $exists: false } }, { parentTagType: { $ne: TagType.Category } }] },
+                    { parentPublishDateVisible: true },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
