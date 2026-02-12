@@ -89,7 +89,7 @@ export function getDexieCacheStats(): { size: number; keys: string[] } {
  * - `$ne` → `where(field).notEqual(value)`
  * - `$gt` / `$lt` / `$gte` / `$lte` → `above` / `below` / `aboveOrEqual` / `belowOrEqual`
  * - Combined `$gte` + `$lte` on same field → `where(field).between(lower, upper)`
- * - `$in` → `where(field).anyOf(values)`
+ * - `$in` → `where(field).anyOf(values)`, or `table.bulkGet(values)` when targeting primary key
  * - `$beginsWith` → `where(field).startsWith(prefix)`
  *
  * All other operators are handled in-memory via the residual filter.
@@ -99,8 +99,21 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
     const limit = typeof query?.$limit === "number" ? query.$limit : undefined;
     const sort = Array.isArray(query?.$sort) ? query.$sort : undefined;
 
+    // Normalize selector and analyze template (cached)
+    const { template, values } = normalizeSelector(selector);
+    const analysis = analyzeTemplate(template);
+
+    // Fast path: bulkGet when $in targets the primary key.
+    // Uses direct key lookups instead of cursor-based anyOf scan.
+    if (
+        analysis.push?.kind === "anyOf" &&
+        isPrimaryKeyField(table, analysis.push.field)
+    ) {
+        return executeBulkGet<T>(table, analysis, values, sort, limit);
+    }
+
     // Build a filtered collection using index pushdown
-    const col = buildFilteredCollection(table, selector);
+    const col = buildFilteredCollection(table, selector, analysis, values);
 
     // Apply sorting and limiting
     if (sort && sort.length > 0) {
@@ -141,13 +154,12 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
  * Build a filtered Dexie Collection using template-based index pushdown.
  * This is the core filtering logic separated from sorting/limiting concerns.
  */
-function buildFilteredCollection(table: Table, selector: MangoSelector): Collection {
-    // Normalize the selector to extract values
-    const { template, values } = normalizeSelector(selector);
-
-    // Get or compute the analysis for this template
-    const analysis = analyzeTemplate(template);
-
+function buildFilteredCollection(
+    table: Table,
+    selector: MangoSelector,
+    analysis: AnalyzedTemplate,
+    values: unknown[],
+): Collection {
     if (analysis.push) {
         // Apply the pushdown with actual values
         let col = applyTemplateWhere(table, analysis.push, values);
@@ -163,6 +175,94 @@ function buildFilteredCollection(table: Table, selector: MangoSelector): Collect
     // Fallback: in-memory filter for full selector
     const pred = mangoCompile(selector) as (d: unknown) => boolean;
     return table.filter(pred);
+}
+
+// ============================================================================
+// Primary Key BulkGet Optimization
+// ============================================================================
+
+/**
+ * Check if a field matches the table's primary key path.
+ * Returns false for compound keys, out-of-line keys, or if schema is unavailable.
+ */
+function isPrimaryKeyField(table: Table, field: string): boolean {
+    try {
+        const keyPath = table.schema?.primKey?.keyPath;
+        return typeof keyPath === "string" && keyPath === field;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Execute a bulkGet for $in queries on the primary key.
+ * This is faster than where(pk).anyOf(values) because it uses direct
+ * key lookups (IDBObjectStore.get) instead of cursor-based index scans.
+ * Sort and limit are applied in-memory on the (typically small) result set.
+ */
+async function executeBulkGet<T>(
+    table: Table,
+    analysis: AnalyzedTemplate,
+    values: unknown[],
+    sort: Record<string, string>[] | undefined,
+    limit: number | undefined,
+): Promise<T[]> {
+    const push = analysis.push as { kind: "anyOf"; field: string; valuesIdx: number };
+    const keys = values[push.valuesIdx] as unknown[];
+
+    // Direct primary key lookup
+    const raw = await table.bulkGet(keys as any);
+
+    // Filter out undefined (missing keys) and apply residual predicate
+    let results: T[];
+    if (analysis.residualPredicate) {
+        results = [];
+        for (let i = 0; i < raw.length; i++) {
+            const doc = raw[i];
+            if (doc !== undefined && analysis.residualPredicate(doc, values)) {
+                results.push(doc as T);
+            }
+        }
+    } else {
+        results = [];
+        for (let i = 0; i < raw.length; i++) {
+            if (raw[i] !== undefined) {
+                results.push(raw[i] as T);
+            }
+        }
+    }
+
+    // Apply sort if specified
+    if (sort && sort.length > 0) {
+        const entry = sort[0];
+        // Use for...in instead of Object.keys() to avoid temporary array allocation
+        let sortField = "";
+        for (const k in entry) {
+            sortField = k;
+            break;
+        }
+        const desc = (entry as Record<string, string>)[sortField] === "desc";
+
+        results.sort((a, b) => {
+            const av = (a as Record<string, unknown>)[sortField];
+            const bv = (b as Record<string, unknown>)[sortField];
+            if (av == null && bv == null) return 0;
+            if (av == null) return -1;
+            if (bv == null) return 1;
+            if (av < bv) return -1;
+            if (av > bv) return 1;
+            return 0;
+        });
+
+        if (desc) results.reverse();
+    }
+
+    // Apply limit
+    if (typeof limit === "number") {
+        results = results.slice(0, Math.max(0, limit));
+    }
+
+    return results;
 }
 
 // ============================================================================

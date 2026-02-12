@@ -48,6 +48,7 @@ If no `$sort`, the function uses cached template analysis:
 | 2 | `$beginsWith` | `where(field).startsWith(prefix)` | Efficient prefix search on indexed string field. |
 | 3 | `$gte` + `$lte` (same field) | `where(field).between(lower, upper)` | Combined range query. Also handles `$gt`/`$lt` combinations. |
 | 4 | `$in` | `where(field).anyOf(values)` | Array membership. Boolean‑only arrays excluded. |
+| 4a | `$in` on primary key | `table.bulkGet(values)` | Direct key lookups, faster than `anyOf` for primary key fields. |
 | 5 | Single comparator | `equals`, `notEqual`, `above`, `below`, `aboveOrEqual`, `belowOrEqual` | For `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`. |
 
 The pushdown strategy is cached per template. At runtime, the cached strategy is applied with actual values:
@@ -125,6 +126,31 @@ const rows = await col.toArray();
 // Pushes where("status").anyOf(["draft", "published"]) and applies score >= 80 in memory
 ```
 
+### `$in` on primary key (bulkGet optimization)
+
+```ts
+const q = {
+    selector: { _id: { $in: ["doc1", "doc2", "doc3"] } },
+} satisfies MangoQuery;
+
+const rows = await mangoToDexie(db.docs, q);
+// Uses table.bulkGet(["doc1", "doc2", "doc3"]) for direct key lookups
+// Automatically detected when $in targets the table's primary key (table.schema.primKey.keyPath)
+```
+
+This also works with residual filters, sort, and limit:
+
+```ts
+const q = {
+    selector: { _id: { $in: ids }, status: "published" },
+    $sort: [{ createdAt: "desc" }],
+    $limit: 10,
+} satisfies MangoQuery;
+
+const rows = await mangoToDexie(db.docs, q);
+// bulkGet fetches by primary key, then status filter + sort + limit applied in memory
+```
+
 ### Single comparator pushdown
 
 ```ts
@@ -167,6 +193,7 @@ const rows = await mangoToDexie(db.items, q).toArray();
 - Pushing to `orderBy`/`where` requires Dexie indexes on the chosen fields. Dexie will warn at runtime if an index is missing.
 - For `$in`, arrays consisting **only of booleans** are not pushed down.
 - Residual construction removes only the pushed pieces (e.g., it strips `$in` if pushed but keeps other operators on the same field).
+- **`$in` on primary key** is automatically optimized to use `table.bulkGet()` for direct key lookups instead of `where(pk).anyOf()`. This is detected at runtime by comparing the `$in` field against `table.schema.primKey.keyPath`. Sort and limit are applied in-memory on the (typically small) result set. Only simple string primary keys are supported (not compound or out-of-line keys).
 - **Dot notation** for nested fields is supported in the selector but typically won't be indexed in Dexie, so will fall back to in‑memory filtering.
 - **Unsupported operators** (e.g., `$contains`) will log a warning to the console and cause that condition to return `false`. See [mangoCompile](./mangoCompile.md#debugging-unsupported-operators) for details.
 
