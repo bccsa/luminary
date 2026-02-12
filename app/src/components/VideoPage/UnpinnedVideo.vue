@@ -24,7 +24,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { video: { $exists: true, $ne: "" } },
                     { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
+                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
