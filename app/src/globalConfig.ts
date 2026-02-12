@@ -5,6 +5,7 @@ import {
     mangoToDexie,
     type LanguageDto,
     type Uuid,
+    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
