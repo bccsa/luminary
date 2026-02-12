@@ -3,6 +3,7 @@ import { Expose, Type } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Auth0CredentialsDto } from "./Auth0CredentialsDto";
 import { Uuid } from "../enums";
+import { ImageDto } from "./ImageDto";
 
 /**
  * OAuthProviderDto represents an OAuth provider configuration.
@@ -31,6 +32,26 @@ export class OAuthProviderDto extends _contentBaseDto {
     backgroundColor?: string;
 
     @IsOptional()
+    @IsString()
+    @Expose()
+    clientId?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    domain?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    audience?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    icon?: string;
+
+    @IsOptional()
     @ValidateNested()
     @Type(() => Auth0CredentialsDto)
     @Expose()
@@ -53,7 +74,7 @@ export class OAuthProviderDto extends _contentBaseDto {
     /**
      * Image data for the provider icon.
      */
-    imageData?: any;
+    imageData?: ImageDto;
 
     @IsOptional()
     @IsString()
