@@ -63,8 +63,7 @@ let lastMouse = { x: 0, y: 0 };
 let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
-const pinchZooming = ref(false);
-let skipNextSwipeCheck = false; // Prevent accidental swipe when lifting last finger after pinch
+let pinchZooming = false;
 
 const closeModal = () => emit("close");
 
@@ -130,8 +129,7 @@ function onTouchStart(e: TouchEvent) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
-        pinchZooming.value = true;
-        swipeStartX = e.touches[0].clientX; // Prevent stale value from being used if swipe is somehow evaluated
+        pinchZooming = true;
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -147,8 +145,7 @@ function onTouchMove(e: TouchEvent) {
         isTouchDragging = false;
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
-        scale.value = clamp(scale.value * deltaScale, MIN_SCALE, MAX_SCALE.value);
-        lastDistance = newDistance; // Update for next frame
+        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
         clampTranslation();
     } else if (e.touches.length === 1 && isTouchDragging) {
         e.preventDefault();
@@ -159,18 +156,14 @@ function onTouchMove(e: TouchEvent) {
 }
 
 function onTouchEnd(e: TouchEvent) {
-    if (pinchZooming.value) {
-        pinchZooming.value = false;
-        skipNextSwipeCheck = true; // Lifting first finger - next touchend will be last finger, don't treat as swipe
+    if (pinchZooming) {
+        pinchZooming = false;
         return; // Don't swipe after a pinch gesture
     }
+
     if (e.changedTouches?.[0]) {
-        if (skipNextSwipeCheck) {
-            skipNextSwipeCheck = false; // Lifting last finger after pinch - ignore this touchend for swipe
-        } else {
-            swipeEndX = e.changedTouches[0].clientX;
-            handleSwipeGesture();
-        }
+        swipeEndX = e.changedTouches[0].clientX;
+        handleSwipeGesture();
     }
 
     isTouchDragging = false;
@@ -258,15 +251,9 @@ function onDblClick(e: MouseEvent | TouchEvent) {
     }
 }
 
-function goToImage(index: number) {
-    scale.value = 1;
-    translateX.value = 0;
-    translateY.value = 0;
-    emit("update:index", index);
-}
-
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
+    scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
     const total = props.imageCollections.length;
@@ -285,10 +272,9 @@ function onKeyDown(event: KeyboardEvent) {
 
 const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14");
 
-// Reset state only when the displayed image actually changes (not on every re-render)
-// Watching currentImage caused resets on every reactive update because it returns a new object each time
+// Reset state on image change
 watch(
-    [() => props.currentIndex, () => props.image?.fileCollections?.[0]?.imageFiles?.[0]?.filename],
+    () => currentImage.value,
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -349,7 +335,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
@@ -395,10 +381,7 @@ onBeforeUnmount(() => {
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                transition:
-                    isMouseDragging || isTouchDragging || pinchZooming
-                        ? 'none'
-                        : 'transform 0.1s ease-out',
+                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
                 width: 'fit-content',
                 height: 'fit-content',
@@ -430,7 +413,14 @@ onBeforeUnmount(() => {
                     idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
                     'cursor-pointer transition-all duration-300',
                 ]"
-                @click="goToImage(idx)"
+                @click="
+                    () => {
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
             ></span>
         </div>
     </div>
