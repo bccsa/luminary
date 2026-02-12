@@ -115,7 +115,11 @@ class FakeTable<T extends Record<string, any>> {
     public lastWhereField?: string;
     public lastClauseOp?: string;
     public lastBetweenArgs?: { lower: any; upper: any; includeLower: boolean; includeUpper: boolean };
-    constructor(public data: T[]) {}
+    public lastBulkGetKeys?: any[];
+    public schema: { primKey: { keyPath: string } };
+    constructor(public data: T[], primaryKey = "id") {
+        this.schema = { primKey: { keyPath: primaryKey } };
+    }
 
     orderBy(field: string) {
         const sorted = [...this.data].sort((a, b) => {
@@ -133,6 +137,14 @@ class FakeTable<T extends Record<string, any>> {
 
     filter(pred: (d: T) => boolean) {
         return new FakeCollection(this.data.filter(pred));
+    }
+
+    bulkGet(keys: any[]): Promise<(T | undefined)[]> {
+        this.lastBulkGetKeys = keys;
+        const keyField = this.schema.primKey.keyPath;
+        return Promise.resolve(
+            keys.map((key) => this.data.find((d) => (d as any)[keyField] === key)),
+        );
     }
 
     // where(field) -> clause; where(object) -> collection
@@ -222,6 +234,149 @@ describe("mangoToDexie", () => {
             expect(table.lastWhereField).toBe("status");
             expect(table.lastClauseOp).toBe("anyOf");
             expect(res.map((d) => d.id)).toEqual([2, 3]);
+        });
+    });
+
+    // ============================================
+    // $in / bulkGet pushdown (primary key)
+    // ============================================
+
+    describe("$in bulkGet pushdown (primary key)", () => {
+        it("uses bulkGet when $in targets the primary key", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice" },
+                { id: 2, name: "Bob" },
+                { id: 3, name: "Charlie" },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { id: { $in: [1, 3] } } };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 3]);
+            expect(table.lastWhereField).toBeUndefined();
+            expect(res.map((d) => d.id)).toEqual([1, 3]);
+        });
+
+        it("applies residual filter after bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice", active: true },
+                { id: 2, name: "Bob", active: false },
+                { id: 3, name: "Charlie", active: true },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { id: { $in: [1, 2, 3] }, active: true } };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res.map((d) => d.id)).toEqual([1, 3]);
+        });
+
+        it("filters out missing keys from bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice" },
+                { id: 3, name: "Charlie" },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { id: { $in: [1, 2, 3] } } };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res.map((d) => d.id)).toEqual([1, 3]);
+        });
+
+        it("applies sort after bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Charlie", age: 40 },
+                { id: 2, name: "Alice", age: 20 },
+                { id: 3, name: "Bob", age: 30 },
+            ];
+            const table = new FakeTable(docs);
+            const query = {
+                selector: { id: { $in: [1, 2, 3] } },
+                $sort: [{ age: "asc" }],
+            };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res.map((d) => d.id)).toEqual([2, 3, 1]);
+        });
+
+        it("applies sort desc after bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Charlie", age: 40 },
+                { id: 2, name: "Alice", age: 20 },
+                { id: 3, name: "Bob", age: 30 },
+            ];
+            const table = new FakeTable(docs);
+            const query = {
+                selector: { id: { $in: [1, 2, 3] } },
+                $sort: [{ age: "desc" }],
+            };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res.map((d) => d.id)).toEqual([1, 3, 2]);
+        });
+
+        it("applies limit after bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice" },
+                { id: 2, name: "Bob" },
+                { id: 3, name: "Charlie" },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { id: { $in: [1, 2, 3] } }, $limit: 2 };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res).toHaveLength(2);
+        });
+
+        it("applies sort + limit after bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, age: 40 },
+                { id: 2, age: 20 },
+                { id: 3, age: 30 },
+            ];
+            const table = new FakeTable(docs);
+            const query = {
+                selector: { id: { $in: [1, 2, 3] } },
+                $sort: [{ age: "asc" }],
+                $limit: 2,
+            };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
+            expect(res.map((d) => d.id)).toEqual([2, 3]);
+        });
+
+        it("does not use bulkGet when $in targets a non-primary-key field", async () => {
+            const docs: Doc[] = [
+                { id: 1, a: 1, d: 4 },
+                { id: 2, a: 1, d: 6 },
+                { id: 3, a: 2, d: 10 },
+                { id: 4, a: 3, d: 7 },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { a: { $in: [1, 2] } } };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toBeUndefined();
+            expect(table.lastWhereField).toBe("a");
+            expect(table.lastClauseOp).toBe("anyOf");
+            expect(res.map((d) => d.id)).toEqual([1, 2, 3]);
+        });
+
+        it("handles empty $in array via bulkGet", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice" },
+            ];
+            const table = new FakeTable(docs);
+            const query = { selector: { id: { $in: [] } } };
+            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+
+            expect(table.lastBulkGetKeys).toEqual([]);
+            expect(res).toHaveLength(0);
         });
     });
 
