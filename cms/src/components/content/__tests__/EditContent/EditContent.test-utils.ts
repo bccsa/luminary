@@ -3,9 +3,19 @@ import { createTestingPinia } from "@pinia/testing";
 import { db, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
-import { initLanguage } from "@/globalConfig";
+import {
+    initLanguage,
+    cmsLanguages,
+    translatableLanguagesAsRef,
+    cmsLanguageIdAsRef,
+} from "@/globalConfig";
 
 export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Mock URL.createObjectURL for tests
+if (typeof window.URL.createObjectURL === "undefined") {
+    Object.defineProperty(window.URL, "createObjectURL", { value: () => "blob:mock-url" });
+}
 
 // Set up mocks at module level (must be executed before tests run)
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -88,7 +98,7 @@ export const setupTestEnvironment = async () => {
     ]);
 
     accessMap.value = { ...mockData.superAdminAccessMap };
-    initLanguage();
+    await initLanguage();
 };
 
 export const cleanupTestEnvironment = async () => {
@@ -96,6 +106,11 @@ export const cleanupTestEnvironment = async () => {
     await db.docs.clear();
     await db.localChanges.clear();
     vi.clearAllMocks();
+
+    // Reset global config state
+    cmsLanguages.value = [];
+    translatableLanguagesAsRef.value = [];
+    cmsLanguageIdAsRef.value = "";
 };
 
 // Re-export commonly used mock data
