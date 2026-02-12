@@ -267,7 +267,6 @@ function goToImage(index: number) {
 
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
-    scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
     const total = props.imageCollections.length;
