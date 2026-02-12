@@ -174,6 +174,11 @@ let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
+    if (e.changedTouches.length > 1) {
+        lastTap = 0;
+        onTouchEnd(e);
+        return;
+    }
     lastTap = now;
 
     if (isDoubleTap) {
@@ -335,7 +340,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="z-[80flex fixed inset-0 items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
