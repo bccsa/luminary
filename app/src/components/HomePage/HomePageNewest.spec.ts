@@ -11,7 +11,7 @@ import {
     mockLanguageDtoSwa,
     mockCategoryContentDto,
 } from "@/tests/mockdata";
-import { db, type ContentDto, DocType, PostType, TagType } from "luminary-shared";
+import { db, type ContentDto, DocType, PostType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import HomePageNewest from "./HomePageNewest.vue";

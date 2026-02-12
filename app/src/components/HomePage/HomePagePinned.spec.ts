@@ -9,7 +9,6 @@ import {
     mockLanguageDtoEng,
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
-    mockCategoryContentDto,
 } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, TagType, PostType, PublishStatus } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
