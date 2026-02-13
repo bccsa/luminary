@@ -17,10 +17,12 @@ type Props = {
     image?: ImageDto; // for single image mode
     contentParentId: Uuid;
     parentImageBucketId?: Uuid;
+    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    aspectRatio: "classic",
     size: "post",
     currentIndex: 0,
 });
@@ -61,7 +63,6 @@ let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
 let pinchZooming = false;
-let lastPinchTime = 0;
 
 const closeModal = () => emit("close");
 
@@ -109,27 +110,12 @@ function zoomOut() {
 }
 
 function handleSwipeGesture() {
-    if (!hasMultiple.value || scale.value > 1) {
-        isTouchDragging = false;
-        return;
-    }
-
-    // Ignore swipes within 150ms after a pinch to avoid accidental swipes
-    if (Date.now() - lastPinchTime < 150) {
-        isTouchDragging = false;
-        return;
-    }
+    if (!hasMultiple.value || scale.value > 1) return;
 
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
         else onSwipe("left");
-        // Keep isTouchDragging true until next tick to prevent animation during swipe
-        nextTick(() => {
-            isTouchDragging = false;
-        });
-    } else {
-        isTouchDragging = false;
     }
 }
 
@@ -144,7 +130,6 @@ function onTouchStart(e: TouchEvent) {
         initialScale = scale.value;
         isTouchDragging = false;
         pinchZooming = true;
-        lastPinchTime = Date.now();
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -173,9 +158,6 @@ function onTouchMove(e: TouchEvent) {
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
         pinchZooming = false;
-        // Reset swipe tracking after pinch to prevent accidental swipes
-        swipeStartX = 0;
-        swipeEndX = 0;
         return; // Don't swipe after a pinch gesture
     }
 
