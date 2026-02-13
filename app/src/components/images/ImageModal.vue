@@ -17,12 +17,10 @@ type Props = {
     image?: ImageDto; // for single image mode
     contentParentId: Uuid;
     parentImageBucketId?: Uuid;
-    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
 };
 
 const props = withDefaults(defineProps<Props>(), {
-    aspectRatio: "classic",
     size: "post",
     currentIndex: 0,
 });
@@ -111,10 +109,16 @@ function zoomOut() {
 }
 
 function handleSwipeGesture() {
-    if (!hasMultiple.value || scale.value > 1) return;
+    if (!hasMultiple.value || scale.value > 1) {
+        isTouchDragging = false;
+        return;
+    }
 
     // Ignore swipes within 150ms after a pinch to avoid accidental swipes
-    if (Date.now() - lastPinchTime < 150) return;
+    if (Date.now() - lastPinchTime < 150) {
+        isTouchDragging = false;
+        return;
+    }
 
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
@@ -178,11 +182,9 @@ function onTouchEnd(e: TouchEvent) {
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
-        // isTouchDragging is managed by handleSwipeGesture now
-        return;
+    } else {
+        isTouchDragging = false;
     }
-
-    isTouchDragging = false;
 }
 
 // Double-tap support
