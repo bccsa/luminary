@@ -169,6 +169,9 @@ function onTouchMove(e: TouchEvent) {
 function onTouchEnd(e: TouchEvent) {
     if (pinchZooming) {
         pinchZooming = false;
+        // Reset swipe tracking after pinch to prevent accidental swipes
+        swipeStartX = 0;
+        swipeEndX = 0;
         return; // Don't swipe after a pinch gesture
     }
 
