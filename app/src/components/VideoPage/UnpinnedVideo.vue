@@ -61,7 +61,7 @@ const categories = useDexieLiveQueryWithDeps(
                     { parentId: { $in: _categoryIds } },
                     { parentType: DocType.Tag },
                     { parentTagType: TagType.Category },
-                    { $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }] },
+                    { parentPinned: { $ne: 1 } },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
