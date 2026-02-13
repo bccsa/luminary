@@ -4,30 +4,31 @@ import {
     type ContentDto,
     DocType,
     PostType,
-    PublishStatus,
     TagType,
     type Uuid,
     db,
     useDexieLiveQueryWithDeps,
+    mangoToDexie,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                parentPinned: 1, // 1 = true
-            })
-            .filter((c) => {
-                if (c.parentTagType !== TagType.Category) return false;
-                return isPublished(c as ContentDto, appLanguageIds);
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    (appLanguageIds: Uuid[]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentPinned: 1 }, // 1 = true
+                    { parentTagType: TagType.Category },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories"),
         deep: true,
@@ -40,30 +41,24 @@ watch(pinnedCategories, async (value) => {
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) =>
-        db.docs
-            .where({
-                type: DocType.Content,
-                status: PublishStatus.Published,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (!content.video) return false;
-
-                if (content.parentPostType && content.parentPostType == PostType.Page) return false;
-                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-
-                for (const tagId of content.parentTags) {
-                    if (
-                        pinnedCategories.some((p) => p.parentId == tagId) &&
-                        isPublished(content, appLanguageIds)
-                    )
-                        return true;
-                }
-
-                return false;
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { video: { $exists: true, $ne: "" } },
+                    { parentPostType: { $ne: PostType.Page } },
+                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+                    {
+                        parentTags: {
+                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
+                        },
+                    },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedContent") },
 );
 

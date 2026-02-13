@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } from "vitest";
-import VideoPage from "./VideoPage.vue";
+import ExplorePage from "./ExplorePage.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { accessMap, db } from "luminary-shared";
 import { ref } from "vue";
@@ -13,8 +13,8 @@ import {
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { initLanguage } from "@/globalConfig";
-import PinnedVideo from "@/components/VideoPage/PinnedVideo.vue";
-import UnpinnedVideo from "@/components/VideoPage/UnpinnedVideo.vue";
+import PinnedTopics from "@/components/ExplorePage/PinnedTopics.vue";
+import UnpinnedTopics from "@/components/ExplorePage/UnpinnedTopics.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
@@ -31,7 +31,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("VideoPage.vue", () => {
+describe("ExplorePage.vue", () => {
     beforeAll(async () => {
         accessMap.value = viewAccessToAllContentMap;
     });
@@ -51,23 +51,23 @@ describe("VideoPage.vue", () => {
         await db.localChanges.clear();
     });
 
-    // Behavioral tests for pinned/unpinned video content (filtering, grouping, language, etc.)
-    // are covered in PinnedVideo.spec.ts and UnpinnedVideo.spec.ts respectively.
+    // Behavioral tests for pinned/unpinned topic content (filtering, grouping, language, etc.)
+    // are covered in PinnedTopics.spec.ts and UnpinnedTopics.spec.ts respectively.
     // These tests focus on page-level composition only.
 
-    it("renders the PinnedVideo child component", async () => {
-        const wrapper = mount(VideoPage);
+    it("renders the PinnedTopics child component", async () => {
+        const wrapper = mount(ExplorePage);
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(PinnedVideo).exists()).toBe(true);
+            expect(wrapper.findComponent(PinnedTopics).exists()).toBe(true);
         });
     });
 
-    it("renders the UnpinnedVideo child component", async () => {
-        const wrapper = mount(VideoPage);
+    it("renders the UnpinnedTopics child component", async () => {
+        const wrapper = mount(ExplorePage);
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(UnpinnedVideo).exists()).toBe(true);
+            expect(wrapper.findComponent(UnpinnedTopics).exists()).toBe(true);
         });
     });
 });
