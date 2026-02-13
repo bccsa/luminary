@@ -115,6 +115,12 @@ function handleSwipeGesture() {
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
         else onSwipe("left");
+        // Keep isTouchDragging true until next tick to prevent animation during swipe
+        nextTick(() => {
+            isTouchDragging = false;
+        });
+    } else {
+        isTouchDragging = false;
     }
 }
 
@@ -163,6 +169,8 @@ function onTouchEnd(e: TouchEvent) {
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
+        // isTouchDragging is managed by handleSwipeGesture now
+        return;
     }
 
     isTouchDragging = false;
