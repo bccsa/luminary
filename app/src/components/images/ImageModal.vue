@@ -19,7 +19,6 @@ type Props = {
     parentImageBucketId?: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
-    rounded?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -285,7 +284,7 @@ watch(
 );
 
 onMounted(() => {
-    const el = container.value;
+    window.addEventListener("keydown", onKeyDown);
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
         MAX_SCALE.value = 3;
@@ -296,12 +295,10 @@ onMounted(() => {
             clampTranslation();
         }
     }
-    if (!el) return;
 });
 
 onBeforeUnmount(() => {
-    const el = container.value;
-    if (!el) return;
+    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
@@ -370,7 +367,6 @@ onBeforeUnmount(() => {
             @mousemove.stop="onMouseMove"
             @mouseup.stop="onMouseUp"
             @touchcancel="onTouchEndWithDoubleTap"
-            @keydown.stop="onKeyDown"
         >
             <LImage
                 :contentParentId="contentParentId"
