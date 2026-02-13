@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-    ref,
-    onMounted,
-    onBeforeUnmount,
-    watch,
-    withDefaults,
-    defineProps,
-    defineEmits,
-    nextTick,
-    computed,
-} from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
@@ -29,7 +19,6 @@ type Props = {
     parentImageBucketId?: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
-    rounded?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -122,6 +111,7 @@ function zoomOut() {
 
 function handleSwipeGesture() {
     if (!hasMultiple.value || scale.value > 1) return;
+
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
@@ -174,14 +164,19 @@ function onTouchEnd(e: TouchEvent) {
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
+    } else {
+        isTouchDragging = false;
     }
-
-    isTouchDragging = false;
 }
 
 // Double-tap support
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return;
+    }
+
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
     lastTap = now;
@@ -295,7 +290,7 @@ watch(
 );
 
 onMounted(() => {
-    const el = container.value;
+    window.addEventListener("keydown", onKeyDown);
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
         MAX_SCALE.value = 3;
@@ -306,46 +301,16 @@ onMounted(() => {
             clampTranslation();
         }
     }
-    if (!el) return;
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEndWithDoubleTap);
-    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    el.addEventListener("dblclick", onDblClick);
-
-    window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
-    const el = container.value;
-    if (!el) return;
-
-    el.removeEventListener("touchstart", onTouchStart);
-    el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
-    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-
-    el.removeEventListener("wheel", handleWheel);
-    el.removeEventListener("dblclick", onDblClick);
-
     window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
@@ -398,6 +363,15 @@ onBeforeUnmount(() => {
                 maxWidth: '90vw',
                 maxHeight: '90vh',
             }"
+            @wheel.stop="handleWheel"
+            @dblclick.stop="onDblClick"
+            @touchstart.stop="onTouchStart"
+            @touchmove.stop="onTouchMove"
+            @touchend.stop="onTouchEndWithDoubleTap"
+            @touchcancel.stop="onTouchEndWithDoubleTap"
+            @mousedown.stop="onMouseDown"
+            @mousemove.stop="onMouseMove"
+            @mouseup.stop="onMouseUp"
         >
             <LImage
                 :contentParentId="contentParentId"
