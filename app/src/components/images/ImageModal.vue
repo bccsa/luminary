@@ -361,12 +361,11 @@ onBeforeUnmount(() => {
             @dblclick.stop="onDblClick"
             @touchstart.stop="onTouchStart"
             @touchmove.stop="onTouchMove"
-            @touchend.stop="onTouchEnd"
-            @touchcancel.stop="onTouchEnd"
+            @touchend.stop="onTouchEndWithDoubleTap"
+            @touchcancel.stop="onTouchEndWithDoubleTap"
             @mousedown.stop="onMouseDown"
             @mousemove.stop="onMouseMove"
             @mouseup.stop="onMouseUp"
-            @touchcancel="onTouchEndWithDoubleTap"
         >
             <LImage
                 :contentParentId="contentParentId"
