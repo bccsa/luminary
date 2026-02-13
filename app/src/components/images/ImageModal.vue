@@ -174,11 +174,6 @@ let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
-    if (e.changedTouches.length > 1) {
-        lastTap = 0;
-        onTouchEnd(e);
-        return;
-    }
     lastTap = now;
 
     if (isDoubleTap) {
@@ -302,45 +297,17 @@ onMounted(() => {
         }
     }
     if (!el) return;
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEndWithDoubleTap);
-    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    el.addEventListener("dblclick", onDblClick);
-
-    window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
     const el = container.value;
     if (!el) return;
-
-    el.removeEventListener("touchstart", onTouchStart);
-    el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
-    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-
-    el.removeEventListener("wheel", handleWheel);
-    el.removeEventListener("dblclick", onDblClick);
-
-    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
 <template>
     <div
-        class="z-[80flex fixed inset-0 items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
@@ -393,6 +360,17 @@ onBeforeUnmount(() => {
                 maxWidth: '90vw',
                 maxHeight: '90vh',
             }"
+            @wheel.stop="handleWheel"
+            @dblclick.stop="onDblClick"
+            @touchstart.stop="onTouchStart"
+            @touchmove.stop="onTouchMove"
+            @touchend.stop="onTouchEnd"
+            @touchcancel.stop="onTouchEnd"
+            @mousedown.stop="onMouseDown"
+            @mousemove.stop="onMouseMove"
+            @mouseup.stop="onMouseUp"
+            @touchcancel="onTouchEndWithDoubleTap"
+            @keydown.stop="onKeyDown"
         >
             <LImage
                 :contentParentId="contentParentId"
