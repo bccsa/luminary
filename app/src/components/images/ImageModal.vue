@@ -63,6 +63,7 @@ let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
 let pinchZooming = false;
+let lastPinchTime = 0;
 
 const closeModal = () => emit("close");
 
@@ -111,6 +112,10 @@ function zoomOut() {
 
 function handleSwipeGesture() {
     if (!hasMultiple.value || scale.value > 1) return;
+
+    // Ignore swipes within 150ms after a pinch to avoid accidental swipes
+    if (Date.now() - lastPinchTime < 150) return;
+
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
@@ -135,6 +140,7 @@ function onTouchStart(e: TouchEvent) {
         initialScale = scale.value;
         isTouchDragging = false;
         pinchZooming = true;
+        lastPinchTime = Date.now();
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
