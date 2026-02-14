@@ -50,12 +50,9 @@ export default async function processOAuthProviderDto(
 
     // Handle credential updates for existing providers
     if (doc.credential && doc.credential_id && prevDoc?.credential_id) {
-        // Delete the old encrypted credential document
-        try {
-            await db.deleteDoc(prevDoc.credential_id);
-        } catch (error) {
-            warnings.push(`Warning: Failed to remove previous credentials: ${error.message}`);
-        }
+        // Delete the old encrypted credential document (best-effort: conflicts are fine
+        // since the document is being replaced regardless)
+        await db.deleteDoc(prevDoc.credential_id);
 
         // Remove the old credential_id reference so new credentials will be processed
         delete doc.credential_id;
