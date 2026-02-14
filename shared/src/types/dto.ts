@@ -238,3 +238,38 @@ export type ApiQueryResult<T> = {
     type?: DocType;
     contentOnly?: boolean;
 };
+
+export type OAuthProviderPublicDto = {
+    id: string;
+    label: string;
+    domain: string;
+    clientId: string;
+    audience: string;
+    icon?: string;
+    textColor?: string;
+    backgroundColor?: string;
+};
+
+export type Auth0CredentialDto = {
+    domain: string;
+    clientId: string;
+    clientSecret: string;
+    audience: string;
+};
+
+export type OAuthProviderDto = ContentBaseDto & {
+    label: string;
+    providerType: "auth0";
+    textColor?: string;
+    backgroundColor?: string;
+    // Public fields for sync
+    clientId?: string;
+    domain?: string;
+    audience?: string;
+    icon?: string;
+    credential?: Auth0CredentialDto;
+    credential_id?: string;
+    imageData?: ImageDto;
+    imageBucketId?: Uuid;
+    claimNamespace?: string; // e.g. "https://your-tenant.com/metadata"
+};

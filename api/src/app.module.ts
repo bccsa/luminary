@@ -56,13 +56,6 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryController,
         StorageStatusController,
     ],
-    providers: [
-        DbService,
-        Socketio,
-        S3Service,
-        SearchService,
-        QueryService,
-        ChangeRequestService,
-    ],
+    providers: [DbService, Socketio, S3Service, SearchService, QueryService, ChangeRequestService],
 })
 export class AppModule {}
