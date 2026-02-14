@@ -16,7 +16,7 @@ import {
 import LDialog from "../common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
-import cloneDeep from "lodash.clonedeep";
+import _ from "lodash";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const emit = defineEmits(["openMobileSidebar"]);
@@ -79,6 +79,9 @@ const newProvider = ref<OAuthProviderDto>({
 });
 
 const editableProvider = ref<OAuthProviderDto | undefined>(undefined);
+// Snapshot of provider at time of opening the edit modal (deep clone)
+const existingProvider = ref<OAuthProviderDto | undefined>(undefined);
+
 const isEditing = computed(() => {
     if (!canEdit.value) return false;
     return !!editableProvider.value;
@@ -91,10 +94,14 @@ const localCredentials = ref<Auth0CredentialDto>({
     audience: "",
 });
 
-// Current provider being edited/created
-const currentProvider = computed(() =>
-    isEditing.value ? editableProvider.value : newProvider.value,
-);
+// Current provider being edited/created (writable computed for v-model binding)
+const currentProvider = computed({
+    get: () => (isEditing.value ? editableProvider.value : newProvider.value),
+    set: (value) => {
+        if (isEditing.value) editableProvider.value = value;
+        else newProvider.value = value!;
+    },
+});
 
 // Validation state
 const hasAttemptedSubmit = ref(false);
@@ -113,12 +120,47 @@ const hasPartialCredentials = computed(() => {
     return hasAny && !hasValidCredentials.value;
 });
 
+// Credentials always start empty (GitHub secrets model), so any non-empty field = a change.
+const hasAnyCredentialInput = computed(() => {
+    const c = localCredentials.value;
+    return !!(
+        (c.domain ?? "").trim() ||
+        (c.clientId ?? "").trim() ||
+        (c.clientSecret ?? "").trim() ||
+        (c.audience ?? "").trim()
+    );
+});
+
+// Dirty checking: provider fields deep-compared against snapshot, credentials checked for any input.
+const isDirty = ref(false);
+watch(
+    [editableProvider, localCredentials],
+    () => {
+        if (!isEditing.value) {
+            isDirty.value = true;
+            return;
+        }
+        if (!existingProvider.value) {
+            isDirty.value = false;
+            return;
+        }
+
+        const providerChanged = !_.isEqual(
+            { ...toRaw(editableProvider.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(existingProvider.value), updatedTimeUtc: 0, _rev: "" },
+        );
+
+        isDirty.value = providerChanged || hasAnyCredentialInput.value;
+    },
+    { deep: true, immediate: true },
+);
+
 const isFormValid = computed(() => {
     const provider = currentProvider.value;
     if (!provider) return false;
 
     // Label is required
-    if (!provider.label.trim()) return false;
+    if (!(provider.label ?? "").trim()) return false;
 
     // For new providers, credentials are required
     if (!isEditing.value && !hasValidCredentials.value) return false;
@@ -126,49 +168,42 @@ const isFormValid = computed(() => {
     // For existing providers, if partial credentials are provided, they must be complete
     if (isEditing.value && hasPartialCredentials.value) return false;
 
+    // When editing, require at least one change to enable Update
+    if (isEditing.value && !isDirty.value) return false;
+
     return true;
 });
 
-// Watch for modal visibility changes
-watch(
-    showModal,
-    (visible) => {
-        if (visible) {
-            // Reset form when modal is shown for new provider
-            if (!isEditing.value) {
-                resetNewProvider();
-            }
-            hasAttemptedSubmit.value = false;
-        } else {
-            // Clear error when modal is closed
-            errors.value = undefined;
-            // Clear editing state when modal is closed
-            if (isEditing.value) {
-                editableProvider.value = undefined;
-            }
-            hasAttemptedSubmit.value = false;
-        }
-    },
-    { immediate: false },
-);
+// Centralised modal open/close helpers instead of relying on watcher ordering
+function openModal() {
+    hasAttemptedSubmit.value = false;
 
-// Watch for modal opening to populate credentials
-watch(showModal, (isOpen) => {
-    if (isOpen) {
-        const provider = isEditing.value ? editableProvider.value : newProvider.value;
-        const c =
-            provider?.credential ??
-            ({
-                domain: "",
-                clientId: "",
-                clientSecret: "",
-                audience: "",
-            } as Auth0CredentialDto);
-        localCredentials.value = { ...c };
+    // Credentials always start empty (GitHub secrets model: not retrievable after storage)
+    localCredentials.value = { domain: "", clientId: "", clientSecret: "", audience: "" };
+
+    // Capture clean snapshot for dirty checking when editing
+    if (editableProvider.value) {
+        existingProvider.value = _.cloneDeep(toRaw(editableProvider.value));
+    }
+
+    showModal.value = true;
+}
+
+function closeModal() {
+    showModal.value = false;
+    errors.value = undefined;
+    editableProvider.value = undefined;
+    existingProvider.value = undefined;
+    hasAttemptedSubmit.value = false;
+}
+
+// Ensure state is cleaned up if the modal is closed externally (e.g. backdrop click)
+watch(showModal, (visible) => {
+    if (!visible) {
+        closeModal();
     }
 });
 
-// Watch for change request errors
 watch(changeReqErrors, (errors) => {
     if (errors && errors.length > 0) {
         errors.forEach((error) => {
@@ -180,13 +215,7 @@ watch(changeReqErrors, (errors) => {
         });
 
         if (showModal.value) {
-            showModal.value = false;
-            if (isEditing.value) {
-                editableProvider.value = undefined;
-            } else {
-                resetNewProvider();
-            }
-            hasAttemptedSubmit.value = false;
+            closeModal();
         }
 
         changeReqErrors.value = [];
@@ -215,7 +244,7 @@ function resetNewProvider() {
 function openCreateModal() {
     resetNewProvider();
     editableProvider.value = undefined;
-    showModal.value = true;
+    openModal();
 }
 
 // Expose method for parent to trigger modal
@@ -224,8 +253,8 @@ defineExpose({
 });
 
 function editProvider(provider: OAuthProviderDto) {
-    editableProvider.value = { ...provider };
-    showModal.value = true;
+    editableProvider.value = _.cloneDeep(provider);
+    openModal();
 }
 
 function deleteProvider() {
@@ -264,8 +293,7 @@ async function confirmDelete() {
         providerToDelete.value = undefined;
 
         if (showModal.value) {
-            showModal.value = false;
-            editableProvider.value = undefined;
+            closeModal();
         }
 
         notification.addNotification({
@@ -324,7 +352,6 @@ const saveProvider = async () => {
             delete provider.credential;
         }
 
-        // Ensure memberOf is always a valid array
         if (!Array.isArray(provider.memberOf)) {
             provider.memberOf = [];
         } else {
@@ -334,17 +361,16 @@ const saveProvider = async () => {
         isSavingProvider.value = true;
         savedProviderLabel.value = provider.label;
 
-        // Create a deep clone of the raw object to remove all Vue proxies
-        // This prevents DataCloneError when saving to IndexedDB
-        const rawProvider = cloneDeep(toRaw(provider));
+        const rawProvider = _.cloneDeep(toRaw(provider));
 
         await db.upsert({ doc: rawProvider });
 
-        showModal.value = false;
+        const wasEditing = isEditing.value;
+        closeModal();
 
         notification.addNotification({
-            title: `Provider ${provider.label} ${isEditing.value ? "updated" : "created"}`,
-            description: `Your provider has been successfully ${isEditing.value ? "updated" : "created"}.`,
+            title: `Provider ${provider.label} ${wasEditing ? "updated" : "created"}`,
+            description: `Your provider has been successfully ${wasEditing ? "updated" : "created"}.`,
             state: "success",
         });
     } catch (err) {
@@ -394,7 +420,8 @@ const saveProvider = async () => {
     <!-- Create/Edit Provider Modal -->
     <OAuthProviderFormModal
         v-model:isVisible="showModal"
-        :provider="currentProvider"
+        v-model:provider="currentProvider"
+        v-model:localCredentials="localCredentials"
         :isEditing="isEditing"
         :isLoading="isLoading"
         :errors="errors"
@@ -402,13 +429,7 @@ const saveProvider = async () => {
         :canDelete="canDelete"
         :isFormValid="isFormValid"
         :hasAttemptedSubmit="hasAttemptedSubmit"
-        :localCredentials="localCredentials"
         :hasValidCredentials="hasValidCredentials"
-        @update:provider="
-            (value: OAuthProviderDto) =>
-                isEditing ? (editableProvider = value) : (newProvider = value)
-        "
-        @update:localCredentials="(value: Auth0CredentialDto) => (localCredentials = value)"
         @save="saveProvider"
         @delete="deleteProvider"
     />
