@@ -11,9 +11,7 @@ import { XCircleIcon } from "@heroicons/vue/20/solid";
 import { type ContentParentDto } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
 
-const props = defineProps<{
-    isVisible: boolean;
-    provider: OAuthProviderDto | undefined;
+defineProps<{
     isEditing: boolean;
     isLoading: boolean;
     errors: string[] | undefined;
@@ -21,17 +19,17 @@ const props = defineProps<{
     canDelete: boolean;
     isFormValid: boolean;
     hasAttemptedSubmit: boolean;
-    localCredentials: Auth0CredentialDto;
     hasValidCredentials: boolean;
 }>();
 
 const emit = defineEmits<{
-    "update:isVisible": [value: boolean];
-    "update:provider": [value: OAuthProviderDto];
-    "update:localCredentials": [value: Auth0CredentialDto];
     save: [];
     delete: [];
 }>();
+
+const isVisible = defineModel<boolean>("isVisible");
+const provider = defineModel<OAuthProviderDto | undefined>("provider");
+const localCredentials = defineModel<Auth0CredentialDto>("localCredentials", { required: true });
 
 const showCredentials = ref(false);
 
@@ -42,16 +40,16 @@ const storage = storageSelection();
 
 // Check if bucket is selected
 const isBucketSelected = computed(() => {
-    return !!props.provider?.imageBucketId;
+    return !!provider.value?.imageBucketId;
 });
 
 // Get the selected bucket's mimeTypes for the accept attribute
 const acceptedMimeTypes = computed(() => {
-    if (!props.provider?.imageBucketId) {
+    if (!provider.value?.imageBucketId) {
         return "image/jpeg, image/png, image/webp, image/svg+xml";
     }
 
-    const bucket = storage.getBucketById(props.provider.imageBucketId);
+    const bucket = storage.getBucketById(provider.value.imageBucketId);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*";
     }
@@ -75,17 +73,14 @@ const handleFileChange = () => {
 };
 
 // Watch for modal visibility changes
-watch(
-    () => props.isVisible,
-    (visible) => {
-        if (visible) {
-            showCredentials.value = false;
-        }
-    },
-);
+watch(isVisible, (visible) => {
+    if (visible) {
+        showCredentials.value = false;
+    }
+});
 
 function closeModal() {
-    emit("update:isVisible", false);
+    isVisible.value = false;
 }
 
 function handleSave() {
@@ -111,11 +106,7 @@ function toggleCredentials() {
 </script>
 
 <template>
-    <LModal
-        :isVisible="isVisible"
-        @update:isVisible="(value?: boolean) => emit('update:isVisible', value ?? false)"
-        :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'"
-    >
+    <LModal v-model:isVisible="isVisible" :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'">
         <div ref="scrollContainer" class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error display -->
             <div v-if="errors" class="mb-3">
@@ -137,14 +128,7 @@ function toggleCredentials() {
                     <LInput
                         id="provider-label"
                         name="providerLabel"
-                        :model-value="provider.label"
-                        @update:model-value="
-                            (value) =>
-                                emit('update:provider', {
-                                    ...provider,
-                                    label: value,
-                                } as OAuthProviderDto)
-                        "
+                        v-model="provider.label"
                         type="text"
                         placeholder="Production Auth0 or Development Auth0"
                     />
@@ -190,13 +174,7 @@ function toggleCredentials() {
                     <div class="rounded-md border border-gray-200 p-2">
                         <ImageEditor
                             ref="imageEditorRef"
-                            :parent="provider as unknown as ContentParentDto"
-                            @update:parent="
-                                (val: ContentParentDto | undefined) => {
-                                    if (val)
-                                        emit('update:provider', val as unknown as OAuthProviderDto);
-                                }
-                            "
+                            v-model:parent="provider as unknown as ContentParentDto"
                             :disabled="isLoading"
                         />
                     </div>
@@ -219,10 +197,9 @@ function toggleCredentials() {
                                         :value="provider.textColor || '#000000'"
                                         @input="
                                             (e) =>
-                                                emit('update:provider', {
-                                                    ...provider,
-                                                    textColor: (e.target as HTMLInputElement).value,
-                                                } as OAuthProviderDto)
+                                                (provider!.textColor = (
+                                                    e.target as HTMLInputElement
+                                                ).value)
                                         "
                                         class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                                         :disabled="isLoading"
@@ -237,14 +214,7 @@ function toggleCredentials() {
                                 <LInput
                                     id="textColor"
                                     name="textColor"
-                                    :model-value="provider.textColor"
-                                    @update:model-value="
-                                        (value) =>
-                                            emit('update:provider', {
-                                                ...provider,
-                                                textColor: value,
-                                            } as OAuthProviderDto)
-                                    "
+                                    v-model="provider.textColor"
                                     type="text"
                                     placeholder="#000000"
                                     :disabled="isLoading"
@@ -264,11 +234,9 @@ function toggleCredentials() {
                                         :value="provider.backgroundColor || '#ffffff'"
                                         @input="
                                             (e) =>
-                                                emit('update:provider', {
-                                                    ...provider,
-                                                    backgroundColor: (e.target as HTMLInputElement)
-                                                        .value,
-                                                } as OAuthProviderDto)
+                                                (provider!.backgroundColor = (
+                                                    e.target as HTMLInputElement
+                                                ).value)
                                         "
                                         class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                                         :disabled="isLoading"
@@ -283,14 +251,7 @@ function toggleCredentials() {
                                 <LInput
                                     id="backgroundColor"
                                     name="backgroundColor"
-                                    :model-value="provider.backgroundColor"
-                                    @update:model-value="
-                                        (value) =>
-                                            emit('update:provider', {
-                                                ...provider,
-                                                backgroundColor: value,
-                                            } as OAuthProviderDto)
-                                    "
+                                    v-model="provider.backgroundColor"
                                     type="text"
                                     placeholder="#FFFFFF"
                                     :disabled="isLoading"
@@ -303,14 +264,7 @@ function toggleCredentials() {
                 <!-- Group Membership -->
                 <div>
                     <LCombobox
-                        :selected-options="provider.memberOf as string[]"
-                        @update:selected-options="
-                            (value: (string | number)[]) =>
-                                emit('update:provider', {
-                                    ...provider,
-                                    memberOf: value as string[],
-                                } as OAuthProviderDto)
-                        "
+                        v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"
                         :options="
                             availableGroups.map((group: GroupDto) => ({
@@ -388,14 +342,7 @@ function toggleCredentials() {
                             <LInput
                                 id="domain"
                                 name="domain"
-                                :model-value="localCredentials.domain"
-                                @update:model-value="
-                                    (value) =>
-                                        emit('update:localCredentials', {
-                                            ...localCredentials,
-                                            domain: value,
-                                        })
-                                "
+                                v-model="localCredentials.domain"
                                 type="text"
                                 placeholder="your-tenant.auth0.com"
                                 :disabled="isLoading"
@@ -414,14 +361,7 @@ function toggleCredentials() {
                             <LInput
                                 id="clientId"
                                 name="clientId"
-                                :model-value="localCredentials.clientId"
-                                @update:model-value="
-                                    (value) =>
-                                        emit('update:localCredentials', {
-                                            ...localCredentials,
-                                            clientId: value,
-                                        })
-                                "
+                                v-model="localCredentials.clientId"
                                 type="text"
                                 placeholder="Your Auth0 Client ID"
                                 :disabled="isLoading"
@@ -440,14 +380,7 @@ function toggleCredentials() {
                             <LInput
                                 id="clientSecret"
                                 name="clientSecret"
-                                :model-value="localCredentials.clientSecret"
-                                @update:model-value="
-                                    (value) =>
-                                        emit('update:localCredentials', {
-                                            ...localCredentials,
-                                            clientSecret: value,
-                                        })
-                                "
+                                v-model="localCredentials.clientSecret"
                                 type="password"
                                 placeholder="Your Auth0 Client Secret"
                                 :disabled="isLoading"
@@ -466,14 +399,7 @@ function toggleCredentials() {
                             <LInput
                                 id="audience"
                                 name="audience"
-                                :model-value="localCredentials.audience"
-                                @update:model-value="
-                                    (value) =>
-                                        emit('update:localCredentials', {
-                                            ...localCredentials,
-                                            audience: value,
-                                        })
-                                "
+                                v-model="localCredentials.audience"
                                 type="text"
                                 placeholder="https://your-api.example.com"
                                 :disabled="isLoading"
@@ -481,6 +407,28 @@ function toggleCredentials() {
                             />
                             <p class="mt-0.5 text-[11px] text-gray-500">
                                 The API identifier/audience configured in Auth0
+                            </p>
+                        </div>
+
+                        <!-- Claim Namespace -->
+                        <div>
+                            <label
+                                for="claimNamespace"
+                                class="mb-1 block text-xs font-medium text-gray-700"
+                            >
+                                Claim Namespace
+                            </label>
+                            <LInput
+                                id="claimNamespace"
+                                name="claimNamespace"
+                                v-model="provider.claimNamespace"
+                                type="text"
+                                placeholder="https://your-tenant.com/metadata"
+                                :disabled="isLoading"
+                            />
+                            <p class="mt-0.5 text-[11px] text-gray-500">
+                                The custom claim namespace configured in your Auth0 tenant's
+                                Actions/Rules
                             </p>
                         </div>
                     </div>

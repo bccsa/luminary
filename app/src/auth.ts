@@ -126,11 +126,15 @@ async function getProviderConfig(): Promise<{
         console.warn("Failed to load providers from DB, falling back to env vars", e);
     }
 
-    // Fallback to env vars (legacy or offline mode)
+    // Fallback to env vars (legacy or offline mode).
+    // If env vars are also missing (dynamic-only setup), use safe placeholders so
+    // createAuth0 doesn't crash. The plugin will be non-functional but the app
+    // starts in guest mode; loginWithProvider() creates its own Auth0Client with the
+    // real config once providers have been synced via the socket.
     return {
-        domain: import.meta.env.VITE_AUTH0_DOMAIN,
-        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+        domain: import.meta.env.VITE_AUTH0_DOMAIN || "auth.placeholder.local",
+        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID || "placeholder",
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE || "",
     };
 }
 

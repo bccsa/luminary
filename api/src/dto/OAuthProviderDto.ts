@@ -83,4 +83,14 @@ export class OAuthProviderDto extends _contentBaseDto {
      * Bucket ID where images are stored.
      */
     imageBucketId?: Uuid;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    /**
+     * Custom claim namespace configured in the Auth0 tenant's Actions/Rules.
+     * Used to extract user details (userId, email, name) from the JWT payload.
+     * e.g. "https://your-tenant.com/metadata"
+     */
+    claimNamespace?: string;
 }

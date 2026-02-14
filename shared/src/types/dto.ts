@@ -271,4 +271,5 @@ export type OAuthProviderDto = ContentBaseDto & {
     credential_id?: string;
     imageData?: ImageDto;
     imageBucketId?: Uuid;
+    claimNamespace?: string; // e.g. "https://your-tenant.com/metadata"
 };
