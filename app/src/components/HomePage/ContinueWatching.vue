@@ -60,7 +60,7 @@ const watchedContent = useDexieLiveQueryWithDeps(
 
         const contentIds = watched.map((entry: any) => entry.contentId);
 
-        return mangoToDexie<ContentDto>(db.docs, {
+        const results = await mangoToDexie<ContentDto>(db.docs, {
             selector: {
                 $and: [
                     { _id: { $in: contentIds } },
@@ -71,6 +71,12 @@ const watchedContent = useDexieLiveQueryWithDeps(
                 ],
             },
         });
+
+        // Re-sort results to match the watched order from localStorage
+        const orderMap = new Map<string, number>(contentIds.map((id: string, i: number) => [id, i]));
+        results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
+
+        return results;
     },
     {
         initialValue: [],

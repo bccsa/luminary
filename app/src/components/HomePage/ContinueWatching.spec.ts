@@ -172,4 +172,49 @@ describe("ContinueWatching", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
+
+    it("preserves the watched order from localStorage regardless of database order", async () => {
+        // Create three content documents with IDs that sort alphabetically as A < B < C
+        const contentA: ContentDto = {
+            ...mockEnglishContentDto,
+            _id: "content-aaa",
+            title: "Alpha Video",
+            slug: "alpha-video",
+        };
+        const contentB: ContentDto = {
+            ...mockEnglishContentDto,
+            _id: "content-bbb",
+            title: "Bravo Video",
+            slug: "bravo-video",
+        };
+        const contentC: ContentDto = {
+            ...mockEnglishContentDto,
+            _id: "content-ccc",
+            title: "Charlie Video",
+            slug: "charlie-video",
+        };
+
+        // Insert into database (Dexie will store by primary key order: A, B, C)
+        await db.docs.bulkPut([contentA, contentB, contentC]);
+
+        // Set localStorage in reverse order: C, B, A (last watched first)
+        setMediaProgress([contentC._id, contentB._id, contentA._id]);
+
+        const wrapper = mount(ContinueWatching);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Alpha Video");
+            expect(wrapper.text()).toContain("Bravo Video");
+            expect(wrapper.text()).toContain("Charlie Video");
+        });
+
+        // Verify the DOM order matches the localStorage order (C, B, A), not database order
+        const html = wrapper.html();
+        const posC = html.indexOf("Charlie Video");
+        const posB = html.indexOf("Bravo Video");
+        const posA = html.indexOf("Alpha Video");
+
+        expect(posC).toBeLessThan(posB);
+        expect(posB).toBeLessThan(posA);
+    });
 });
