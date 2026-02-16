@@ -400,8 +400,6 @@ export class DbService extends EventEmitter {
             deleteReason: options.reason,
         } as DeleteCmdDto;
 
-        // Set language on DeleteCmds for Content documents using prevDoc,
-        // as the incoming doc (e.g. a delete request) may not carry the language field.
         if (options.doc.type === DocType.Content && options.prevDoc) {
             cmd.language = (options.prevDoc as unknown as ContentDto).language;
         }
