@@ -50,7 +50,7 @@ if (props.content.video) {
 
 const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
 
-let timeout: any;
+let timeout: ReturnType<typeof setTimeout> | undefined;
 function autoHidePlayerControls() {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
@@ -411,13 +411,14 @@ onUnmounted(() => {
         // Pause the player first
         player.pause();
 
-        // Remove all event listeners
+        // Remove named event listeners before dispose
         player.off(["mousemove", "click"], autoHidePlayerControls);
         player.off("play", playerPlayEventHandler);
         player.off(["useractive", "userinactive"], playerUserActiveEventHandler);
 
         // Dispose of the player completely
         player.dispose();
+        player = null;
     }
 
     // emit event when player is Destroyed
@@ -497,9 +498,7 @@ watch(audioMode, async (mode) => {
     player?.one("loadedmetadata", () => {
         player?.currentTime(adjustedTime);
         // When switching back to video mode, restore the selected track
-        if (!mode && selectedTrackInfo) {
-            restoreTrack();
-        }
+        if (!mode && selectedTrackInfo) restoreTrack();
     });
 
     // Clear the restoration flag once ready
@@ -540,7 +539,7 @@ watch(audioMode, async (mode) => {
 watch(
     () => props.language,
     (newLanguage) => {
-        if (newLanguage) {
+        if (newLanguage && player) {
             setAudioTrackLanguage(newLanguage);
         }
     },
