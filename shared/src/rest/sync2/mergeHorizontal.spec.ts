@@ -358,7 +358,7 @@ describe("mergeHorizontal", () => {
         mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
 
         expect(syncList.value).toHaveLength(1);
-        expect(syncList.value[0].languages).toEqual([]);
+        expect(syncList.value[0].languages).toBeUndefined();
     });
 
     it("should merge when one content chunk has languages and another doesn't", () => {
@@ -611,5 +611,141 @@ describe("mergeHorizontal", () => {
         // Should only consider chunks with eof=true
         expect(result.blockStart).toBe(5000);
         expect(result.blockEnd).toBe(2500);
+    });
+
+    it("should merge languages on deleteCmd entries with different languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group1"],
+                languages: ["fr"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+        ];
+
+        mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Post });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en", "fr"]);
+    });
+
+    it("should dedupe and sort overlapping languages on deleteCmd entries", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group1"],
+                languages: ["en", "fr"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group1"],
+                languages: ["fr", "de"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+        ];
+
+        mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Post });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["de", "en", "fr"]);
+    });
+
+    it("should merge languages across three deleteCmd entries", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:tag",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:tag",
+                memberOf: ["group1"],
+                languages: ["fr"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:tag",
+                memberOf: ["group1"],
+                languages: ["de"],
+                blockStart: 4800,
+                blockEnd: 2800,
+                eof: true,
+            },
+        ];
+
+        mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Tag });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["de", "en", "fr"]);
+    });
+
+    it("should handle deleteCmd entry without languages property gracefully", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["group2"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+        ];
+
+        mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Post });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en"]);
+    });
+
+    it("should not introduce languages property on non-content deleteCmd entries without languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:language",
+                memberOf: ["group1"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:language",
+                memberOf: ["group2"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+        ];
+
+        mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Language });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].memberOf).toEqual(["group1", "group2"]);
+        expect(syncList.value[0].languages).toBeUndefined();
     });
 });
