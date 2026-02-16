@@ -7,7 +7,8 @@
         "glob": "^11.1.0",
         "js-yaml": "^4.1.1",
         "esbuild": "^0.25.0",
-        "min-document": "^2.19.2"
+        "min-document": "^2.19.2",
+        "markdown-it": "^14.1.1"
     },
     "scripts": {
         "dev": "vite --host",
@@ -34,7 +35,7 @@
         "@vueuse/core": "^10.9.0",
         "dotenv": "^16.4.5",
         "iso-639-2": "^3.0.2",
-        "lodash-es": "^4.17.21",
+        "lodash-es": "^4.17.23",
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "m3u8-parser": "^7.2.0",

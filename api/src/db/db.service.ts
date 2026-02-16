@@ -3,7 +3,6 @@ import * as nano from "nano";
 import { DeleteReason, DocType, PublishStatus, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
-import * as http from "http";
 import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
@@ -118,10 +117,8 @@ export class DbService extends EventEmitter {
     private connect(dbConfig: DatabaseConfig) {
         this.db = nano({
             url: dbConfig.connectionString,
-            requestDefaults: {
-                agent: new http.Agent({
-                    maxSockets: dbConfig.maxSockets,
-                }),
+            agentOptions: {
+                connections: dbConfig.maxSockets as unknown as null,
             },
         }).use(dbConfig.database);
 
