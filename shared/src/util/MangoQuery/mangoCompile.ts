@@ -26,6 +26,9 @@ import {
     clearCacheByPrefix,
     getCacheStats,
     CACHE_PREFIX_TEMPLATE,
+    scheduleTemplatePersist,
+    getPersistedTemplates,
+    setWarmingFlag,
 } from "./queryCache";
 
 // Re-export Predicate type for convenience
@@ -106,8 +109,33 @@ export function mangoCompile(q: MangoSelector): Predicate {
     // Cache miss - compile the template and cache it
     const compiledTemplate = compileTemplateSelector(template);
     cacheSet(cacheKey, compiledTemplate);
+    scheduleTemplatePersist(cacheKey, template);
 
     // Return a bound predicate that captures the extracted values
     // This is a cheap closure creation - the expensive compilation is cached
     return (doc: any) => compiledTemplate(doc, values);
+}
+
+/**
+ * Pre-warm the mangoCompile cache from templates persisted in localStorage.
+ *
+ * Call this early in app startup (before components mount) to eliminate
+ * cold-start compilation latency. On the first visit the cache will be
+ * empty; templates are automatically persisted as queries execute.
+ * On subsequent page loads, this function restores and compiles them
+ * so the first real query hits a warm cache.
+ */
+export function warmMangoCompileCache(): void {
+    setWarmingFlag(true);
+    try {
+        const persisted = getPersistedTemplates(CACHE_PREFIX_TEMPLATE);
+        persisted.forEach((template, key) => {
+            if (!cacheGet(key)) {
+                const compiled = compileTemplateSelector(template as MangoSelector);
+                cacheSet(key, compiled);
+            }
+        });
+    } finally {
+        setWarmingFlag(false);
+    }
 }

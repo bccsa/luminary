@@ -314,6 +314,22 @@ The implementation is optimized for low-end devices:
 - **Set-based operator lookups**: O(1) operator validation
 - **Early returns**: Short-circuit evaluation throughout
 
+### Cache persistence (localStorage)
+
+To eliminate cold-start compilation latency on page reload, compiled templates are automatically persisted to `localStorage`. On app startup, call `warmMangoCompileCache()` (or the combined `warmMangoCaches()`) to restore them:
+
+```ts
+import { warmMangoCompileCache } from "./mangoCompile";
+
+// Call once, early in app startup
+warmMangoCompileCache();
+```
+
+- Templates are saved to `localStorage` automatically on first compilation (debounced 200ms batch writes).
+- On subsequent page loads, persisted templates are loaded and re-compiled before any queries run, so the first real query hits a warm cache.
+- If `localStorage` is unavailable (Web Workers, private browsing, Node.js), persistence is silently skipped and caching works purely in-memory as before.
+- Persisted data is versioned; a version mismatch (e.g. after a schema change) automatically discards stale entries.
+
 ### Key order sensitivity
 
 Cache keys are generated using `JSON.stringify()` + a fast djb2 hash on the template. Different key orders produce different cache entries:

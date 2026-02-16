@@ -137,3 +137,160 @@ export const CACHE_PREFIX_TEMPLATE = "tp:";
 
 /** Prefix for template-based Dexie analysis cache (mangoToDexie) */
 export const CACHE_PREFIX_TEMPLATE_DEXIE = "td:";
+
+// ============================================================================
+// Template Persistence (localStorage)
+// ============================================================================
+
+/** localStorage key for persisted template data */
+const STORAGE_KEY = "mango_tpl_cache";
+
+/** Storage format version - bump to invalidate persisted data on schema changes */
+const STORAGE_VERSION = 1;
+
+/** Suppresses re-persistence during cache warmup to avoid redundant writes */
+let _isWarming = false;
+
+/** Pending templates to batch-flush to localStorage */
+let _pendingTemplates: Array<[string, object]> | null = null;
+
+/** Timer for debounced localStorage writes */
+let _flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Check if localStorage is available (not present in Node.js, Web Workers, etc.)
+ */
+function hasLocalStorage(): boolean {
+    try {
+        return typeof localStorage !== "undefined" && localStorage !== null;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Read all persisted template entries from localStorage.
+ */
+function readPersistedEntries(): Map<string, object> {
+    const result = new Map<string, object>();
+
+    if (!hasLocalStorage()) return result;
+
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return result;
+
+        const data = JSON.parse(raw);
+        if (!data || data.v !== STORAGE_VERSION || !Array.isArray(data.e)) {
+            // Version mismatch or corrupt data - discard
+            localStorage.removeItem(STORAGE_KEY);
+            return result;
+        }
+
+        for (let i = 0; i < data.e.length; i++) {
+            const entry = data.e[i];
+            if (Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string") {
+                result.set(entry[0], entry[1]);
+            }
+        }
+    } catch {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            /* ignore */
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Flush pending templates to localStorage.
+ * Merges with any existing persisted entries.
+ */
+function flushPendingTemplates(): void {
+    _flushTimer = null;
+    if (!_pendingTemplates || _pendingTemplates.length === 0) return;
+
+    try {
+        const existing = readPersistedEntries();
+
+        for (let i = 0; i < _pendingTemplates.length; i++) {
+            existing.set(_pendingTemplates[i][0], _pendingTemplates[i][1]);
+        }
+
+        const entries: Array<[string, object]> = [];
+        existing.forEach((template, key) => {
+            entries.push([key, template]);
+        });
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: STORAGE_VERSION, e: entries }));
+    } catch {
+        // localStorage may be full or unavailable - silently fail
+    }
+
+    _pendingTemplates = null;
+}
+
+/**
+ * Schedule a template to be persisted to localStorage.
+ * Writes are debounced (200ms) to batch multiple saves into a single write.
+ *
+ * @param cacheKey - The cache key (including prefix)
+ * @param template - The normalized template object (must be JSON-serializable)
+ */
+export function scheduleTemplatePersist(cacheKey: string, template: object): void {
+    if (_isWarming || !hasLocalStorage()) return;
+
+    if (!_pendingTemplates) _pendingTemplates = [];
+    _pendingTemplates.push([cacheKey, template]);
+
+    if (!_flushTimer) {
+        _flushTimer = setTimeout(flushPendingTemplates, 200);
+    }
+}
+
+/**
+ * Get all persisted templates whose cache keys match a given prefix.
+ *
+ * @param prefix - The cache key prefix to filter by (e.g., "tp:", "td:")
+ * @returns Map of cache key → template object
+ */
+export function getPersistedTemplates(prefix: string): Map<string, object> {
+    const all = readPersistedEntries();
+    const result = new Map<string, object>();
+
+    all.forEach((template, key) => {
+        if (key.startsWith(prefix)) {
+            result.set(key, template);
+        }
+    });
+
+    return result;
+}
+
+/**
+ * Set the warming flag to suppress re-persistence during cache warmup.
+ */
+export function setWarmingFlag(warming: boolean): void {
+    _isWarming = warming;
+}
+
+/**
+ * Clear all persisted template data from localStorage and reset internal state.
+ * Also cancels any pending debounced writes.
+ */
+export function clearPersistedTemplates(): void {
+    if (_flushTimer) {
+        clearTimeout(_flushTimer);
+        _flushTimer = null;
+    }
+    _pendingTemplates = null;
+
+    if (!hasLocalStorage()) return;
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch {
+        /* ignore */
+    }
+}

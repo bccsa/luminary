@@ -8,6 +8,10 @@ import {
     CACHE_EXPIRY_MS,
     CACHE_PREFIX_TEMPLATE,
     CACHE_PREFIX_TEMPLATE_DEXIE,
+    scheduleTemplatePersist,
+    getPersistedTemplates,
+    clearPersistedTemplates,
+    setWarmingFlag,
 } from "./queryCache";
 
 describe("queryCache", () => {
@@ -300,6 +304,143 @@ describe("queryCache", () => {
     describe("CACHE_EXPIRY_MS", () => {
         it("is set to 5 minutes", () => {
             expect(CACHE_EXPIRY_MS).toBe(5 * 60 * 1000);
+        });
+    });
+
+    // ============================================
+    // Template persistence (localStorage)
+    // ============================================
+
+    describe("template persistence", () => {
+        // jsdom provides a real in-memory localStorage
+
+        beforeEach(() => {
+            clearPersistedTemplates();
+            setWarmingFlag(false);
+        });
+
+        afterEach(() => {
+            clearPersistedTemplates();
+            setWarmingFlag(false);
+        });
+
+        it("scheduleTemplatePersist writes to localStorage after debounce", () => {
+            vi.useFakeTimers();
+
+            const template = { type: { $__idx: 0 } };
+            scheduleTemplatePersist("tp::abc", template);
+
+            // Not yet written (debounced)
+            expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+
+            // Flush the debounce timer
+            vi.advanceTimersByTime(300);
+
+            const raw = localStorage.getItem("mango_tpl_cache");
+            expect(raw).not.toBeNull();
+            const stored = JSON.parse(raw!);
+            expect(stored.v).toBe(1);
+            expect(stored.e).toHaveLength(1);
+            expect(stored.e[0][0]).toBe("tp::abc");
+            expect(stored.e[0][1]).toEqual(template);
+        });
+
+        it("batches multiple persists into one localStorage write", () => {
+            vi.useFakeTimers();
+
+            scheduleTemplatePersist("tp::key1", { a: 1 });
+            scheduleTemplatePersist("tp::key2", { b: 2 });
+            scheduleTemplatePersist("td::key3", { c: 3 });
+
+            vi.advanceTimersByTime(300);
+
+            const stored = JSON.parse(localStorage.getItem("mango_tpl_cache")!);
+            expect(stored.e).toHaveLength(3);
+        });
+
+        it("getPersistedTemplates retrieves templates by prefix", () => {
+            vi.useFakeTimers();
+
+            scheduleTemplatePersist("tp::key1", { type: "A" });
+            scheduleTemplatePersist("td::key2", { type: "B" });
+            vi.advanceTimersByTime(300);
+
+            const tpTemplates = getPersistedTemplates("tp:");
+            expect(tpTemplates.size).toBe(1);
+            expect(tpTemplates.get("tp::key1")).toEqual({ type: "A" });
+
+            const tdTemplates = getPersistedTemplates("td:");
+            expect(tdTemplates.size).toBe(1);
+            expect(tdTemplates.get("td::key2")).toEqual({ type: "B" });
+        });
+
+        it("clearPersistedTemplates removes all persisted data", () => {
+            vi.useFakeTimers();
+
+            scheduleTemplatePersist("tp::key1", { a: 1 });
+            vi.advanceTimersByTime(300);
+
+            expect(localStorage.getItem("mango_tpl_cache")).not.toBeNull();
+
+            clearPersistedTemplates();
+
+            expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+            expect(getPersistedTemplates("tp:").size).toBe(0);
+        });
+
+        it("suppresses persistence when warming flag is set", () => {
+            vi.useFakeTimers();
+
+            setWarmingFlag(true);
+            scheduleTemplatePersist("tp::key1", { a: 1 });
+            vi.advanceTimersByTime(300);
+
+            expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+
+            setWarmingFlag(false);
+        });
+
+        it("handles corrupt localStorage data gracefully", () => {
+            localStorage.setItem("mango_tpl_cache", "not valid json{{{");
+
+            const result = getPersistedTemplates("tp:");
+            expect(result.size).toBe(0);
+
+            // Should have cleaned up the corrupt data
+            expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+        });
+
+        it("handles version mismatch gracefully", () => {
+            localStorage.setItem(
+                "mango_tpl_cache",
+                JSON.stringify({ v: 999, e: [["tp::old", { old: true }]] }),
+            );
+
+            const result = getPersistedTemplates("tp:");
+            expect(result.size).toBe(0);
+
+            // Should have cleaned up the stale data
+            expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+        });
+
+        it("merges new templates with existing persisted data", () => {
+            vi.useFakeTimers();
+
+            // First persist
+            scheduleTemplatePersist("tp::key1", { a: 1 });
+            vi.advanceTimersByTime(300);
+
+            // Second persist (should merge)
+            scheduleTemplatePersist("tp::key2", { b: 2 });
+            vi.advanceTimersByTime(300);
+
+            const stored = JSON.parse(localStorage.getItem("mango_tpl_cache")!);
+            expect(stored.e).toHaveLength(2);
+
+            const allTemplates = getPersistedTemplates("tp:");
+            expect(allTemplates.size).toBe(2);
+            expect(allTemplates.get("tp::key1")).toEqual({ a: 1 });
+            expect(allTemplates.get("tp::key2")).toEqual({ b: 2 });
         });
     });
 });

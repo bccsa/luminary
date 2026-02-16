@@ -10,6 +10,9 @@ import {
     clearCacheByPrefix,
     getCacheStats,
     CACHE_PREFIX_TEMPLATE_DEXIE,
+    scheduleTemplatePersist,
+    getPersistedTemplates,
+    setWarmingFlag,
 } from "./queryCache";
 
 // ============================================================================
@@ -309,7 +312,29 @@ function analyzeTemplate(template: MangoSelector): AnalyzedTemplate {
     };
 
     cacheSet(cacheKey, result);
+    scheduleTemplatePersist(cacheKey, template);
     return result;
+}
+
+/**
+ * Pre-warm the mangoToDexie analysis cache from templates persisted in localStorage.
+ *
+ * Call this early in app startup (before components mount) to eliminate
+ * cold-start query analysis latency. Templates are automatically persisted
+ * as queries execute; on subsequent page loads this function restores and
+ * re-analyzes them so the first real query hits a warm cache.
+ */
+export function warmDexieAnalysisCache(): void {
+    setWarmingFlag(true);
+    try {
+        const persisted = getPersistedTemplates(CACHE_PREFIX_TEMPLATE_DEXIE);
+        persisted.forEach((template) => {
+            // analyzeTemplate handles its own cache-key generation and caching
+            analyzeTemplate(template as MangoSelector);
+        });
+    } finally {
+        setWarmingFlag(false);
+    }
 }
 
 // ============================================================================

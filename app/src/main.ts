@@ -4,7 +4,7 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { DocType, getSocket, init } from "luminary-shared";
+import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
@@ -30,6 +30,11 @@ if (import.meta.env.PROD && Sentry) {
 }
 
 async function Startup() {
+    // Pre-warm Mango query caches from localStorage before any queries run.
+    // On the first visit this is a no-op; on subsequent loads it eliminates
+    // cold-start compilation latency for IndexedDB queries.
+    warmMangoCaches();
+
     const oauth = await auth.setupAuth(app, router);
     const token = await auth.getToken(oauth);
 

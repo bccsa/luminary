@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { mangoCompile, clearMangoCache, getMangoCacheStats } from "./mangoCompile";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { mangoCompile, clearMangoCache, getMangoCacheStats, warmMangoCompileCache } from "./mangoCompile";
+import { clearAllMangoCache, clearPersistedTemplates } from "./queryCache";
 
 describe("mangoCompile", () => {
     // ============================================
@@ -632,6 +633,53 @@ describe("mangoCompile", () => {
             // Another query with same $or structure but different values shares the template
             mangoCompile({ $or: [{ city: "Boston" }, { city: "Chicago" }] });
             expect(getMangoCacheStats().size).toBe(2); // No new entries - same template
+        });
+    });
+
+    // ============================================
+    // Cache warmup from localStorage
+    // ============================================
+
+    describe("warmMangoCompileCache", () => {
+        beforeEach(() => {
+            clearAllMangoCache();
+            clearPersistedTemplates();
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            clearPersistedTemplates();
+            vi.useRealTimers();
+        });
+
+        it("warms compile cache from persisted templates", () => {
+            // Execute a query to populate in-memory cache + persist template
+            const pred1 = mangoCompile({ type: "post", status: "published" });
+            expect(pred1({ type: "post", status: "published" })).toBe(true);
+
+            // Flush persistence
+            vi.advanceTimersByTime(300);
+            expect(localStorage.getItem("mango_tpl_cache")).not.toBeNull();
+
+            // Clear in-memory cache (simulates page reload)
+            clearAllMangoCache();
+            expect(getMangoCacheStats().size).toBe(0);
+
+            // Warm from localStorage
+            warmMangoCompileCache();
+
+            // Cache should now be populated
+            expect(getMangoCacheStats().size).toBe(1);
+
+            // Queries with same structure should hit cache
+            const pred2 = mangoCompile({ type: "page", status: "draft" });
+            expect(pred2({ type: "page", status: "draft" })).toBe(true);
+            expect(pred2({ type: "post", status: "draft" })).toBe(false);
+        });
+
+        it("is a no-op when localStorage is empty", () => {
+            warmMangoCompileCache();
+            expect(getMangoCacheStats().size).toBe(0);
         });
     });
 });

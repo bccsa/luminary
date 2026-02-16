@@ -243,6 +243,22 @@ mangoToDexie(table, { selector: { type: "page", authorId: 99 } });
 
 Cache entries expire after 5 minutes of non-use, with the timer resetting on each access.
 
+### Cache persistence (localStorage)
+
+To eliminate cold-start analysis latency on page reload, query analysis templates are automatically persisted to `localStorage`. On app startup, call `warmDexieAnalysisCache()` (or the combined `warmMangoCaches()`) to restore them:
+
+```ts
+import { warmDexieAnalysisCache } from "./mangoToDexie";
+
+// Call once, early in app startup
+warmDexieAnalysisCache();
+```
+
+- Templates are saved to `localStorage` automatically when a new template is analyzed (debounced 200ms batch writes).
+- On subsequent page loads, persisted templates are loaded and re-analyzed before any queries run, so the first real query hits a warm cache.
+- If `localStorage` is unavailable (Web Workers, private browsing, Node.js), persistence is silently skipped and caching works purely in-memory as before.
+- Persisted data is versioned; a version mismatch automatically discards stale entries.
+
 ### Performance optimizations
 
 The implementation is optimized for low-end devices:
