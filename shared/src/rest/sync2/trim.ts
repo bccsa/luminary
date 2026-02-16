@@ -51,5 +51,9 @@ export function trim(options: SyncBaseOptions): void {
             // Update the entry with trimmed languages
             entry.languages = trimmedLanguages.sort();
         }
+
+        if (type === DocType.DeleteCmd) {
+            entry.languages = undefined;
+        }
     }
 }
