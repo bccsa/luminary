@@ -390,8 +390,7 @@ describe("Content query", () => {
         });
     });
 
-    // TODO: This test is flaky due to Dexie live query timing issues
-    it.skip("can return the total count of results", async () => {
+    it("can return the total count of results", async () => {
         const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
@@ -401,6 +400,10 @@ describe("Content query", () => {
             pageIndex: 0,
             count: true,
             tagOrPostType: PostType.Blog,
+        });
+
+        await waitForExpect(() => {
+            expect(res1.value?.count).toBe(2);
         });
 
         const res2 = contentOverviewQuery({
@@ -415,11 +418,6 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toBeDefined();
-            expect(res1.value?.count).toBeDefined();
-            expect(res1.value?.count).toBe(2);
-            expect(res2.value).toBeDefined();
-            expect(res2.value?.count).toBeDefined();
             expect(res2.value?.count).toBe(2);
         });
     });

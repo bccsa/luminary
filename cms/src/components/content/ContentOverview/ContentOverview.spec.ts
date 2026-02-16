@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, enableAutoUnmount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 
@@ -54,6 +54,8 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 });
 
 describe("ContentOverview.vue", () => {
+    enableAutoUnmount(afterEach);
+
     beforeAll(async () => {
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
@@ -201,8 +203,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    // TODO: This test is flaky due to Dexie live query timing issues
-    it.skip("should switch languages correctly", async () => {
+    it("should switch languages correctly", async () => {
         await db.docs.clear();
         const docs: ContentDto[] = [
             {
@@ -268,27 +269,20 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        // Wait for component to be fully mounted
         await waitForExpect(() => {
-            expect(wrapper.vm).toBeDefined();
-        });
-
-        const contentTable = wrapper.findComponent(ContentTable);
-
-        await waitForExpect(() => {
-            const contentRows = contentTable.findAll('[data-test="content-row"]');
+            const contentRows = wrapper.findAll('[data-test="content-row"]');
             expect(contentRows.length).toBe(3);
         });
 
         cmsLanguageIdAsRef.value = "lang-fra";
         await waitForExpect(() => {
-            const updatedFrenchContentRows = contentTable.findAll('[data-test="content-row"]');
+            const updatedFrenchContentRows = wrapper.findAll('[data-test="content-row"]');
             expect(updatedFrenchContentRows.length).toBe(3);
         });
 
         cmsLanguageIdAsRef.value = "lang-swa";
         await waitForExpect(() => {
-            const updatedSwahiliContentRows = contentTable.findAll('[data-test="content-row"]');
+            const updatedSwahiliContentRows = wrapper.findAll('[data-test="content-row"]');
             expect(updatedSwahiliContentRows.length).toBe(3);
         });
     });
