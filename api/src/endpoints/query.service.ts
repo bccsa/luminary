@@ -203,17 +203,21 @@ function extractMemberOf(selector: MongoSelectorDto): Uuid[] {
 }
 
 /**
- * Recursively remove 'memberOf' fields from selector
- */
-/**
- * Remove memberOf conditions from the top-level $and array.
+ * Remove memberOf from conditions in the top-level $and array.
  * (After expansion, memberOf will always be a condition in the $and array.)
  */
 function removeMemberOf(selector: MongoSelectorDto): void {
     if (!selector.$and) return;
 
+    for (const condition of selector.$and) {
+        if ((condition as any).memberOf !== undefined) {
+            delete (condition as any).memberOf;
+        }
+    }
+
+    // Remove any conditions that are now empty after memberOf deletion
     selector.$and = selector.$and.filter(
-        (condition) => !(condition as MongoSelectorDto).memberOf,
+        (condition) => Object.keys(condition).length > 0,
     );
 }
 

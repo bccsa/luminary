@@ -276,6 +276,33 @@ describe("QueryService", () => {
         });
     });
 
+    it("preserves sibling fields when memberOf is in a multi-field $and condition", async () => {
+        const access = { [DocType.Post]: ["a", "b"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        // Provide a pre-existing $and where memberOf shares a condition with status
+        (selector as any).$and = [
+            { type: DocType.Post },
+            { memberOf: { $in: ["a", "c"] }, status: "published" },
+        ];
+        (query as any).selector = selector;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const sel = calledWith.selector;
+        expect(sel.$and).toBeDefined();
+        expect(sel.$and).toContainEqual({ type: DocType.Post });
+        // status must survive memberOf removal
+        expect(sel.$and).toContainEqual({ status: "published" });
+        // The service should have replaced memberOf with a permission-filtered version
+        expect(sel.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["a"] } }, // intersection of ["a","c"] with ["a","b"]
+        });
+    });
+
     it("throws 403 Forbidden when user has no access to requested types/groups", async () => {
         const access = { [DocType.Post]: [] } as any;
         (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
