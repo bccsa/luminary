@@ -42,6 +42,14 @@ export class DeleteCmdDto extends _baseDto {
     @Expose()
     newMemberOf?: Uuid[];
 
+    /**
+     * Language ID of the deleted content document (only set for Content DeleteCmds)
+     */
+    @IsOptional()
+    @IsString()
+    @Expose()
+    language?: Uuid;
+
     @IsOptional()
     @Expose()
     @IsString()

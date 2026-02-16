@@ -66,6 +66,76 @@ describe("syncBatch", () => {
         expect(body.identifier).toBe("sync");
     });
 
+    it("builds mango query for deleteCmd type including docType and language selector", async () => {
+        const docs = makeDocs(5, 5000, 10);
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        const languages = ["en", "es"];
+        await syncBatch({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            languages,
+            httpService: http as any,
+        });
+        expect(http.post.mock.calls.length).toBeGreaterThanOrEqual(1);
+        const body = capturedBodies[0];
+        expect(body.selector.docType).toBe(DocType.Post);
+        expect(body.selector.language.$in).toEqual(languages);
+    });
+
+    it("does not add language selector to deleteCmd query when languages is empty", async () => {
+        const docs = makeDocs(2, 2000, 10);
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        await syncBatch({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            languages: [],
+            httpService: http as any,
+        });
+        const body = capturedBodies[0];
+        expect(body.selector.docType).toBe(DocType.Post);
+        expect(body.selector.language).toBeUndefined();
+    });
+
+    it("does not add language selector to deleteCmd query when languages is undefined", async () => {
+        const docs = makeDocs(2, 2000, 10);
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        await syncBatch({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            httpService: http as any,
+        });
+        const body = capturedBodies[0];
+        expect(body.selector.docType).toBe(DocType.Post);
+        expect(body.selector.language).toBeUndefined();
+    });
+
     it("adds cms flag when cms option set", async () => {
         const capturedBodies: any[] = [];
         const http = {
