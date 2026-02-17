@@ -164,19 +164,14 @@ function onTouchEnd(e: TouchEvent) {
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
-    } else {
-        isTouchDragging = false;
     }
+
+    isTouchDragging = false;
 }
 
 // Double-tap support
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
-    if (pinchZooming) {
-        pinchZooming = false;
-        return;
-    }
-
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
     lastTap = now;
