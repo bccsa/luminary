@@ -6,7 +6,7 @@ import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
 import { DocType } from "../../types";
 import * as utils from "./utils";
-import { merge } from "./merge";
+import { merge, mergeHorizontal } from "./merge";
 
 // Mock dependencies
 vi.mock("../../db/database", () => ({
@@ -23,9 +23,13 @@ vi.mock("./trim", () => ({
     trim: vi.fn(),
 }));
 
-vi.mock("./merge", () => ({
-    merge: vi.fn(),
-}));
+vi.mock("./merge", async () => {
+    const actual = await vi.importActual("./merge");
+    return {
+        ...actual,
+        merge: vi.fn(),
+    };
+});
 
 vi.mock("./utils", async () => {
     const actual = await vi.importActual("./utils");
@@ -949,6 +953,85 @@ describe("sync module", () => {
                     subType: DocType.Post,
                 }),
             );
+        });
+
+        it("should merge deleteCmd languages when adding a new language via horizontal merge", async () => {
+            // Pre-populate syncList: existing deleteCmd:post entry for "en" (already synced)
+            syncList.value = [
+                {
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+            ];
+
+            // Mock language utilities: first call sees "en" as existing, subsequent calls see both
+            let langCallCount = 0;
+            vi.mocked(utils.getLanguages).mockImplementation(() => {
+                langCallCount++;
+                return langCallCount === 1 ? ["en"] : ["en", "fr"];
+            });
+            let langSetCallCount = 0;
+            vi.mocked(utils.getLanguageSets).mockImplementation(() => {
+                langSetCallCount++;
+                return langSetCallCount === 1 ? [["en"]] : [["en", "fr"]];
+            });
+
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+
+            // Mock syncBatch:
+            // 1st call: existing language ["en"] content sync → firstSync: false
+            // 2nd call: DeleteCmd sync for ["en"] → firstSync: false
+            // 3rd call: new language ["fr"] content sync → firstSync: true
+            vi.mocked(syncBatch)
+                .mockResolvedValueOnce({
+                    eof: true,
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    firstSync: false,
+                })
+                .mockResolvedValueOnce({
+                    eof: true,
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    firstSync: false,
+                })
+                .mockResolvedValueOnce({
+                    eof: true,
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    firstSync: true,
+                });
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en", "fr"],
+                limit: 100,
+                includeDeleteCmds: true,
+            });
+
+            // After sync: the new deleteCmd:post entry for ["fr"] was pushed to syncList.
+            // merge() was mocked (no-op), so verify both entries exist first.
+            const deleteCmdBefore = syncList.value.filter(
+                (chunk) => chunk.chunkType === "deleteCmd:post",
+            );
+            expect(deleteCmdBefore).toHaveLength(2);
+
+            // Now run the real mergeHorizontal (exposed via mock factory's vi.importActual)
+            // to verify the fix correctly combines deleteCmd languages.
+            mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Post });
+
+            const deleteCmdAfter = syncList.value.filter(
+                (chunk) => chunk.chunkType === "deleteCmd:post",
+            );
+            expect(deleteCmdAfter).toHaveLength(1);
+            expect(deleteCmdAfter[0].languages).toEqual(["en", "fr"]);
         });
     });
 });

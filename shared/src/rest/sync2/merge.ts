@@ -85,7 +85,7 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
             base.memberOf = mergedGroups;
 
             // Merge languages
-            if (options.type === DocType.Content) {
+            if (base.languages || compare.languages) {
                 const mergedLanguages = Array.from(
                     new Set([...(base.languages || []), ...(compare.languages || [])]),
                 ).sort();

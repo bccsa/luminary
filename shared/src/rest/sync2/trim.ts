@@ -36,8 +36,12 @@ export function trim(options: SyncBaseOptions): void {
 
         const { type } = splitChunkTypeString(entry.chunkType);
 
-        // Trim languages for content document types
-        if (type === DocType.Content && entry.languages && options.languages) {
+        // Trim languages for content and deleteCmd document types
+        if (
+            (type === DocType.Content || type === DocType.DeleteCmd) &&
+            entry.languages &&
+            options.languages
+        ) {
             const trimmedLanguages = entry.languages.filter((lang) =>
                 options.languages!.includes(lang),
             );

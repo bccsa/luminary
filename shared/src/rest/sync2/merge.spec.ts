@@ -260,4 +260,36 @@ describe("merge", () => {
         // Should have 2 chunks (group1 and group2 not merged)
         expect(syncList.value).toHaveLength(2);
     });
+
+    it("should merge languages on deleteCmd entries during horizontal merge", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:tag",
+                memberOf: ["group1"],
+                languages: ["en"],
+                blockStart: 5000,
+                blockEnd: 3000,
+                eof: true,
+            },
+            {
+                chunkType: "deleteCmd:tag",
+                memberOf: ["group1"],
+                languages: ["fr"],
+                blockStart: 4500,
+                blockEnd: 2500,
+                eof: true,
+            },
+        ];
+
+        const result = merge({
+            type: DocType.DeleteCmd,
+            subType: DocType.Tag,
+            memberOf: ["group1"],
+            languages: ["en"],
+        });
+
+        expect(result.eof).toBe(true);
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en", "fr"]);
+    });
 });

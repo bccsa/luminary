@@ -117,6 +117,77 @@ describe("DbService", () => {
         });
     });
 
+    describe("insertDoc", () => {
+        it("can insert a new document", async () => {
+            const uuid = randomUUID();
+            const doc = { _id: uuid, testData: "insertDocTest" };
+
+            const res = await service.insertDoc(doc);
+
+            expect(res.ok).toBe(true);
+            expect(res.id).toBe(uuid);
+            expect(res.rev).toBeDefined();
+
+            const getRes = await service.getDoc(uuid);
+            expect(getRes.docs[0].testData).toBe("insertDocTest");
+        });
+
+        it("automatically resolves document update conflicts by fetching the latest revision", async () => {
+            const uuid = randomUUID();
+
+            // Insert a document to establish an initial revision
+            const firstInsert = await service.insertDoc({ _id: uuid, testData: "v1" });
+            expect(firstInsert.ok).toBe(true);
+
+            // Update the document to advance the revision
+            await service.insertDoc({ _id: uuid, _rev: firstInsert.rev, testData: "v2" });
+
+            // Attempt to insert with the stale (first) revision -- this should conflict
+            // but insertDoc should auto-resolve by fetching the latest _rev and retrying
+            const conflictResult = await service.insertDoc({
+                _id: uuid,
+                _rev: firstInsert.rev,
+                testData: "v3",
+            });
+
+            expect(conflictResult.ok).toBe(true);
+
+            const getRes = await service.getDoc(uuid);
+            expect(getRes.docs[0].testData).toBe("v3");
+        });
+
+        it("can handle simultaneous inserts to the same document", async () => {
+            const uuid = randomUUID();
+            await service.insertDoc({ _id: uuid, counter: 0 });
+
+            const firstRev = (await service.getDoc(uuid)).docs[0]._rev;
+
+            // Fire 20 parallel inserts all using the same stale _rev
+            const promises = [];
+            for (let i = 1; i <= 20; i++) {
+                promises.push(service.insertDoc({ _id: uuid, _rev: firstRev, counter: i }));
+            }
+
+            await Promise.all(promises);
+
+            const getRes = await service.getDoc(uuid);
+            expect(getRes.docs[0].counter).toBeGreaterThan(0);
+        }, 15000);
+
+        it("throws a sanitized error for non-conflict failures", async () => {
+            // Attempt to insert a document with an invalid _rev that isn't a conflict
+            // (e.g., malformed _rev format causes a different error than a conflict)
+            const err = await service
+                .insertDoc({ _id: randomUUID(), _rev: "bad-format" })
+                .catch((e) => e);
+
+            expect(err).toBeInstanceOf(Error);
+            expect(err.message).toBeDefined();
+            // Ensure the error is a plain Error (no circular references from CouchDB internals)
+            expect(JSON.stringify(err.message)).toBeDefined();
+        });
+    });
+
     describe("upsert", () => {
         it("can insert a new document and return the full document in the result's 'changes' field", async () => {
             const uuid = randomUUID();

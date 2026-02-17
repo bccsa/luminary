@@ -120,6 +120,70 @@ describe("sync2 trim", () => {
         expect(syncList.value[0].languages).toEqual(["en", "fr"]);
     });
 
+    it("trims languages for deleteCmd entries with languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                languages: ["en", "es"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+        });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en"]);
+    });
+
+    it("removes deleteCmd entry when all languages trimmed away", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["es"],
+        });
+
+        expect(syncList.value).toHaveLength(0);
+    });
+
+    it("does not trim languages for deleteCmd entries without languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+        });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toBeUndefined();
+    });
+
     it("only trims entries matching the specified type and subType", () => {
         syncList.value = [
             {

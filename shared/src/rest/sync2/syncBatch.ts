@@ -46,6 +46,11 @@ export async function syncBatch(options: SyncOptions) {
     // Add docType selector for deleteCmd queries
     if (options.type === DocType.DeleteCmd && options.subType) {
         mangoQuery.selector.docType = options.subType;
+
+        // Filter DeleteCmds by language for content-based delete commands
+        if (options.languages && options.languages.length > 0) {
+            mangoQuery.selector.language = { $in: options.languages };
+        }
     }
 
     // Check if sync has been cancelled before making API request
