@@ -111,7 +111,6 @@ function zoomOut() {
 
 function handleSwipeGesture() {
     if (!hasMultiple.value || scale.value > 1) return;
-
     const deltaX = swipeEndX - swipeStartX;
     if (Math.abs(deltaX) > swipeThreshold) {
         if (deltaX > 0) onSwipe("right");
@@ -304,7 +303,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <!-- Close -->
