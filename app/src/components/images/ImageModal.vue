@@ -171,6 +171,11 @@ function onTouchEnd(e: TouchEvent) {
 // Double-tap support
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return;
+    }
+
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
     lastTap = now;
