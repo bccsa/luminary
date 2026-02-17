@@ -174,18 +174,27 @@ function onTouchEndWithDoubleTap(e: TouchEvent) {
         if (e.touches.length === 0) {
             pinchZooming = false;
         }
-        return; // Don't process double tap or swipe
+        return;
+    }
+
+    const touch = e.changedTouches[0];
+    const distanceX = Math.abs(touch.clientX - swipeStartX);
+
+    if (distanceX > 10) {
+        lastTap = 0;
+        onTouchEnd(e);
+        return;
     }
 
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
-    lastTap = now;
 
     if (isDoubleTap) {
         e.preventDefault();
         onDblClick(e);
         lastTap = 0;
     } else {
+        lastTap = now;
         onTouchEnd(e);
     }
 }
