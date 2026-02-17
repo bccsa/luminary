@@ -1,4 +1,4 @@
-import { DocType, LocalChangeDto, OAuthProviderPublicDto } from "../types";
+import { DocType, LocalChangeDto } from "../types";
 import { syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
@@ -90,7 +90,7 @@ class RestApi {
         }
 
         // this._sync = new Sync();
-        this.http = new HttpReq(config.apiUrl || "", config.token);
+        this.http = new HttpReq(config.apiUrl || "", config.token, config.providerId);
 
         const localChanges = useDexieLiveQuery(
             () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
@@ -124,10 +124,6 @@ class RestApi {
             bucketId,
             apiVersion: "0.0.0",
         });
-    }
-
-    async getOAuthProviders(): Promise<OAuthProviderPublicDto[]> {
-        return (await this.http.getWithQueryParams("oauth/providers", {})) ?? [];
     }
 }
 

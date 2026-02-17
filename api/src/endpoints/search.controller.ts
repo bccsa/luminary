@@ -12,6 +12,7 @@ export class SearchController {
     async getDocs(
         @Headers("X-Query") query: string,
         @Headers("Authorization") auth: string,
+        @Headers("X-Provider-Id") providerId: string,
     ): Promise<any> {
         const queryObj = xQuery(query, SearchReqDto);
         await validateApiVersion(queryObj.apiVersion); // validate API version
@@ -19,6 +20,7 @@ export class SearchController {
         return this.searchService.processReq(
             queryObj,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
+            providerId,
         );
     }
 }

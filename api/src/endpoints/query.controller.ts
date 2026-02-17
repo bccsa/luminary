@@ -29,7 +29,11 @@ export class QueryController {
 
     @Post()
     @HttpCode(200) // override the default 201 created status code to enable gzip compression by downstream reverse proxy servers
-    async processPostReq(@Body() body: any, @Headers("Authorization") auth: string): Promise<any> {
+    async processPostReq(
+        @Body() body: any,
+        @Headers("Authorization") auth: string,
+        @Headers("X-Provider-Id") providerId: string,
+    ): Promise<any> {
         // TODO: add api version validation
 
         const bypassValidation =
@@ -46,6 +50,7 @@ export class QueryController {
         return this.queryService.query(
             body as MongoQueryDto,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
+            providerId,
         );
     }
 }

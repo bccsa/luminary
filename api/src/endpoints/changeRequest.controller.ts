@@ -17,6 +17,7 @@ export class ChangeRequestController {
     async handleChangeRequest(
         @Req() request: FastifyRequest,
         @Headers("Authorization") authHeader: string,
+        @Headers("X-Provider-Id") providerId: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
@@ -112,7 +113,11 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(changeRequest, token);
+            const result = await this.changeRequestService.changeRequest(
+                changeRequest,
+                token,
+                providerId,
+            );
 
             return result;
         }
@@ -121,7 +126,11 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, token);
+        const result = await this.changeRequestService.changeRequest(
+            cleanedBody,
+            token,
+            providerId,
+        );
 
         return result;
     }

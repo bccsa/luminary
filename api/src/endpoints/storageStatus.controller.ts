@@ -30,6 +30,7 @@ export class StorageStatusController {
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
         @Headers("Authorization") authHeader: string,
+        @Headers("X-Provider-Id") providerId: string,
     ): Promise<StorageStatusResponseDto> {
         await validateApiVersion(apiVersion);
 
@@ -39,7 +40,7 @@ export class StorageStatusController {
             throw new HttpException("Authorization token required", HttpStatus.UNAUTHORIZED);
         }
 
-        const userDetails = await processJwt(token, this.dbService, undefined);
+        const userDetails = await processJwt(token, this.dbService, undefined, providerId);
 
         // Validate bucketId parameter
         if (!bucketId) {
