@@ -1,7 +1,6 @@
 import { Logger } from "winston";
 import { DocType, Uuid } from "../enums";
 import * as JWT from "jsonwebtoken";
-import { JwksClient } from "jwks-rsa";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import configuration from "../configuration";
@@ -19,40 +18,6 @@ export type JwtUserDetails = {
 };
 
 let jwtMap: JwtMap;
-
-// Cache JWKS clients per provider domain to avoid repeated OIDC discovery requests
-const jwksClients = new Map<string, JwksClient>();
-
-function getOrCreateJwksClient(domain: string): JwksClient {
-    if (!jwksClients.has(domain)) {
-        jwksClients.set(
-            domain,
-            new JwksClient({
-                jwksUri: `https://${domain}/.well-known/jwks.json`,
-                cache: true,
-                cacheMaxAge: 600000, // 10 minutes
-                rateLimit: true,
-            }),
-        );
-    }
-    return jwksClients.get(domain)!;
-}
-
-/**
- * Verify a JWT using the JWKS endpoint of a trusted OIDC provider.
- */
-async function verifyJwtWithJwks(
-    token: string,
-    domain: string,
-    kid: string,
-): Promise<JWT.JwtPayload> {
-    const client = getOrCreateJwksClient(domain);
-    const key = await client.getSigningKey(kid);
-    const publicKey = key.getPublicKey();
-    return JWT.verify(token, publicKey, {
-        algorithms: ["RS256"],
-    }) as JWT.JwtPayload;
-}
 
 /**
  * Parse the permission map from the JWT_MAPPINGS environmental variable to an object
@@ -91,22 +56,16 @@ export function clearJwtMap() {
 }
 
 /**
- * Clear the JWKS client cache. Useful for testing.
- */
-export function clearJwksClients() {
-    jwksClients.clear();
-}
-
-/**
  * Process a JWT token against the JWT_MAPPINGS (environmental variable) and return mapped groups and user details
  * @param jwt - Javascript Web Token
  * @param logger - Logger instance
  * @returns - Array with JWT verified groups
  */
 export async function processJwt(
-    jwt: string,
+    token: string,
     db: DbService,
     logger?: Logger,
+    providerId?: string,
 ): Promise<JwtUserDetails> {
     const groupSet = new Set<Uuid>();
     let userId: string;
@@ -124,47 +83,37 @@ export async function processJwt(
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
-    // Verify the JWT token – try OIDC provider JWKS first, then fall back to static secret
     let jwtPayload: JWT.JwtPayload;
     let matchedProvider: any;
 
-    const decoded = jwt ? JWT.decode(jwt, { complete: true }) : undefined;
-
-    if (decoded && typeof decoded !== "string" && decoded.header.kid) {
-        // Token has a key ID – likely signed by an OIDC provider (RS256)
-        const kid = decoded.header.kid;
-        const payload = decoded.payload as JWT.JwtPayload;
-        const iss = payload?.iss;
-
-        if (iss) {
-            try {
-                const issuerUrl = new URL(iss);
-                const domain = issuerUrl.hostname;
-
-                // Validate this is a trusted provider registered in the database
-                const providerResult = await db.getDocsByType(DocType.OAuthProvider);
-                const trustedProvider = providerResult.docs?.find(
-                    (p: any) => p.domain === domain,
-                );
-
-                if (trustedProvider) {
-                    jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-                    matchedProvider = trustedProvider;
-                } else {
-                    logger?.warn(
-                        `No trusted OAuthProvider found for issuer domain: ${domain}`,
-                    );
-                }
-            } catch (err) {
-                logger?.error(`JWKS verification failed for issuer ${iss}`, err);
-            }
-        }
-    }
-
-    // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
-    if (!jwtPayload) {
+    if (providerId) {
+        // Look up the OIDC provider by document _id in the database
         try {
-            jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
+            const providerResult = await db.getDoc(providerId);
+            const provider = providerResult.docs?.[0];
+
+            if (!provider || provider.type !== DocType.OAuthProvider) {
+                logger?.warn(`No trusted OAuthProvider found for provider ID: ${providerId}`);
+                return { groups: [] };
+            }
+
+            // Provider is trusted -- decode the JWT without signature verification
+            const decoded = token ? JWT.decode(token) : undefined;
+            if (decoded && typeof decoded === "object") {
+                jwtPayload = decoded as JWT.JwtPayload;
+                matchedProvider = provider;
+            } else {
+                logger?.error(`Unable to decode JWT for trusted provider ${providerId}`);
+                return { groups: [] };
+            }
+        } catch (err) {
+            logger?.error(`Error looking up provider ${providerId}`, err);
+            return { groups: [] };
+        }
+    } else {
+        // No provider ID -- fall back to static JWT_SECRET (symmetric-key tokens)
+        try {
+            jwtPayload = JWT.verify(token, process.env.JWT_SECRET) as JWT.JwtPayload;
         } catch (err) {
             logger?.error(`Unable to verify JWT`, err);
         }

@@ -46,7 +46,7 @@ export class QueryService {
             });
     }
 
-    async query(query: MongoQueryDto, authToken: string): Promise<DbQueryResult> {
+    async query(query: MongoQueryDto, authToken: string, providerId?: string): Promise<DbQueryResult> {
         const now = Date.now();
 
         // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.
@@ -93,7 +93,7 @@ export class QueryService {
         }
 
         // Get user accessible groups
-        const userDetails = await processJwt(authToken, this.db, this.logger);
+        const userDetails = await processJwt(authToken, this.db, this.logger, providerId);
 
         // TODO: Get view permissions based CMS access if CMS view permissions are set (future)
         const userViewGroups = PermissionSystem.accessMapToGroups(

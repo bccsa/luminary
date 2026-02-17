@@ -97,7 +97,12 @@ export class Socketio implements OnGatewayInit {
         // Handle authentication
         server.use(async (socket, next) => {
             // Get automatically assigned group access
-            const userDetails = await processJwt(socket.handshake.auth.token, this.db, this.logger);
+            const userDetails = await processJwt(
+                socket.handshake.auth.token,
+                this.db,
+                this.logger,
+                socket.handshake.auth.providerId,
+            );
 
             if (socket.handshake.auth.token && !userDetails.jwtPayload) {
                 // Assume that the user's token is expired.
