@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from "vue";
+import { ref, onMounted, watch, nextTick, computed } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
@@ -294,10 +294,6 @@ onMounted(() => {
             clampTranslation();
         }
     }
-});
-
-onBeforeUnmount(() => {
-    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
