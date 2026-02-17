@@ -290,7 +290,6 @@ watch(
 );
 
 onMounted(() => {
-    window.addEventListener("keydown", onKeyDown);
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
         MAX_SCALE.value = 3;
@@ -363,15 +362,16 @@ onBeforeUnmount(() => {
                 maxWidth: '90vw',
                 maxHeight: '90vh',
             }"
-            @wheel.stop="handleWheel"
+            @wheel="handleWheel"
             @dblclick.stop="onDblClick"
-            @touchstart.stop="onTouchStart"
-            @touchmove.stop="onTouchMove"
-            @touchend.stop="onTouchEndWithDoubleTap"
-            @touchcancel.stop="onTouchEndWithDoubleTap"
-            @mousedown.stop="onMouseDown"
-            @mousemove.stop="onMouseMove"
-            @mouseup.stop="onMouseUp"
+            @touchstart="onTouchStart"
+            @touchmove="onTouchMove"
+            @touchend="onTouchEndWithDoubleTap"
+            @touchcancel="onTouchEndWithDoubleTap"
+            @mousedown="onMouseDown"
+            @mousemove="onMouseMove"
+            @mouseup="onMouseUp"
+            @keydown="onKeyDown"
         >
             <LImage
                 :contentParentId="contentParentId"
