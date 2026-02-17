@@ -184,10 +184,10 @@ export class DbService extends EventEmitter {
                     if (existing.docs?.length > 0) {
                         doc._rev = existing.docs[0]._rev;
                     } else {
-                        throw err;
+                        throw new Error(err.message || err.reason || String(err));
                     }
                 } else {
-                    throw err;
+                    throw new Error(err.message || err.reason || String(err));
                 }
             }
         }
