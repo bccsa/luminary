@@ -32,7 +32,6 @@ type ClientDataReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
-    accessMap: AccessMap;
 };
 
 /**
