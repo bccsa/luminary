@@ -163,25 +163,34 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Insert a document into the database. This should only be used for new documents with unique IDs.
+     * Insert a document into the database. Automatically retries on document update conflicts
+     * by fetching the latest revision and retrying, up to maxRetries attempts.
      * @param {any} doc - Document to be inserted
+     * @param {number} maxRetries - Maximum number of retry attempts on conflict (default 5)
      * @returns - Promise containing the insert result
      */
-    insertDoc(doc: any): Promise<DbUpsertResult> {
-        return new Promise((resolve, reject) => {
-            this.db
-                .insert(doc)
-                .then((insertResult) => {
-                    resolve({
-                        id: insertResult.id,
-                        ok: insertResult.ok,
-                        rev: insertResult.rev,
-                    });
-                })
-                .catch((err) => {
-                    reject(err);
-                });
-        });
+    async insertDoc(doc: any, maxRetries: number = 5): Promise<DbUpsertResult> {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const insertResult = await this.db.insert(doc);
+                return {
+                    id: insertResult.id,
+                    ok: insertResult.ok,
+                    rev: insertResult.rev,
+                };
+            } catch (err) {
+                if (err.reason === "Document update conflict." && attempt < maxRetries) {
+                    const existing = await this.getDoc(doc._id);
+                    if (existing.docs?.length > 0) {
+                        doc._rev = existing.docs[0]._rev;
+                    } else {
+                        throw err;
+                    }
+                } else {
+                    throw err;
+                }
+            }
+        }
     }
 
     /**
@@ -289,25 +298,10 @@ export class DbService extends EventEmitter {
 
         // Passed document is different than document in DB: update
         const changes = this.calculateDiff(docPlain, existing);
-        try {
-            const insertResult = await this.insertDoc(docPlain);
-            insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
-            insertResult.changes = changes;
-            return insertResult;
-        } catch (err) {
-            if (err.reason == "Document update conflict.") {
-                // This error can happen when a document is updated near-simultaneously by another process, i.e.
-                // after the revision has been returned to this process but before this process could write the
-                // change to the database. To resolve this, just try again to get the updated revision ID and update
-                // the document.
-
-                // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
-                delete docPlain._rev;
-                return await this.upsertDoc(docPlain);
-            } else {
-                throw new Error(err);
-            }
-        }
+        const insertResult = await this.insertDoc(docPlain);
+        insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
+        insertResult.changes = changes;
+        return insertResult;
     }
 
     /**
