@@ -155,11 +155,6 @@ function onTouchMove(e: TouchEvent) {
 }
 
 function onTouchEnd(e: TouchEvent) {
-    if (pinchZooming) {
-        pinchZooming = false;
-        return; // Don't swipe after a pinch gesture
-    }
-
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
@@ -172,8 +167,10 @@ function onTouchEnd(e: TouchEvent) {
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
     if (pinchZooming) {
-        pinchZooming = false;
-        return;
+        if (e.touches.length === 0) {
+            pinchZooming = false;
+        }
+        return; // Don't process double tap or swipe
     }
 
     const now = Date.now();
