@@ -164,12 +164,16 @@ export class DbService extends EventEmitter {
 
     /**
      * Insert a document into the database. Automatically retries on document update conflicts
-     * by fetching the latest revision and retrying, up to maxRetries attempts.
+     * by fetching the latest revision and retrying.
+     *
+     * Uses jitter (random delay) on retry to prevent concurrent writers from repeatedly
+     * colliding at the same instant -- spreading them out so most succeed without conflicting.
+     *
      * @param {any} doc - Document to be inserted
-     * @param {number} maxRetries - Maximum number of retry attempts on conflict (default 5)
+     * @param {number} maxRetries - Safety net to prevent infinite loops (default 50)
      * @returns - Promise containing the insert result
      */
-    async insertDoc(doc: any, maxRetries: number = 5): Promise<DbUpsertResult> {
+    async insertDoc(doc: any, maxRetries: number = 10): Promise<DbUpsertResult> {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 const insertResult = await this.db.insert(doc);
@@ -180,6 +184,10 @@ export class DbService extends EventEmitter {
                 };
             } catch (err) {
                 if (err.reason === "Document update conflict." && attempt < maxRetries) {
+                    // Random delay to stagger concurrent writers and reduce repeated collisions
+                    const jitter = Math.floor(Math.random() * 10 * (attempt + 1));
+                    await new Promise((r) => setTimeout(r, jitter));
+
                     const existing = await this.getDoc(doc._id);
                     if (existing.docs?.length > 0) {
                         doc._rev = existing.docs[0]._rev;
