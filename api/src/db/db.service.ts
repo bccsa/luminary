@@ -173,7 +173,7 @@ export class DbService extends EventEmitter {
      * @param {number} maxRetries - Safety net to prevent infinite loops (default 50)
      * @returns - Promise containing the insert result
      */
-    async insertDoc(doc: any, maxRetries: number = 10): Promise<DbUpsertResult> {
+    async insertDoc(doc: any, maxRetries: number = 50): Promise<DbUpsertResult> {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 const insertResult = await this.db.insert(doc);
