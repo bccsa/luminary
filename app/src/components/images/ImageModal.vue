@@ -180,7 +180,7 @@ function onTouchEndWithDoubleTap(e: TouchEvent) {
     const touch = e.changedTouches[0];
     const distanceX = Math.abs(touch.clientX - swipeStartX);
 
-    if (distanceX > 3) {
+    if (distanceX > 10) {
         lastTap = 0;
         onTouchEnd(e);
         return;
