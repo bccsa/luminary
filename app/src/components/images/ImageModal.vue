@@ -155,6 +155,10 @@ function onTouchMove(e: TouchEvent) {
 }
 
 function onTouchEnd(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return; // Don't swipe after a pinch gesture
+    }
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
