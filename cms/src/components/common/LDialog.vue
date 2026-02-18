@@ -11,6 +11,8 @@ type Props = {
     secondaryButtonText?: string;
     context?: "default" | "danger";
     primaryButtonDisabled?: boolean;
+    footerSticky?: boolean;
+    shadowOnFooter?: boolean;
 };
 
 const open = defineModel<boolean>("open");
@@ -21,12 +23,17 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title" :noDivider="true">
+    <LModal
+        v-model:isVisible="open"
+        :heading="title"
+        :noDivider="true"
+        :shadowOnFooter="shadowOnFooter"
+    >
         <p class="text-sm text-gray-500">{{ description }}</p>
         <slot name="default" />
 
         <template #footer>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between" :class="footerSticky ? 'sticky' : ''">
                 <div>
                     <slot name="footer-extra" />
                 </div>

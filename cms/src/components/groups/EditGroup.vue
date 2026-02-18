@@ -223,7 +223,33 @@ const saveChanges = async () => {
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
         @close="emit('close')"
+        footerSticky
+        shadowOnFooter
     >
+        <template #footer-extra>
+            <div class="flex items-center gap-4">
+                <div v-if="isDirty && !disabled" class="-my-2 flex items-center gap-2">
+                    <LButton
+                        variant="secondary"
+                        size="sm"
+                        @click.prevent="discardChanges"
+                        data-test="discardChanges"
+                    >
+                        Discard changes
+                    </LButton>
+                </div>
+                <LBadge v-if="isDirty" variant="warning" withIcon>Unsaved changes</LBadge>
+                <LBadge v-if="isEmpty" variant="warning" withIcon>
+                    The group does not have any access configured
+                </LBadge>
+                <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
+                    Saving disabled: The group would not be editable
+                </LBadge>
+                <LBadge v-if="!isConnected" variant="warning" withIcon>
+                    Saving disabled: Unable to save while offline
+                </LBadge>
+            </div>
+        </template>
         <div
             :class="[
                 'w-full overflow-visible rounded-md bg-white p-6 shadow',
@@ -279,37 +305,7 @@ const saveChanges = async () => {
                     class="mr-4 grow"
                     data-test="groupNameInput"
                 />
-                <div class="flex items-center gap-4">
-                    <div v-if="isDirty && !disabled" class="-my-2 flex items-center gap-2">
-                        <LButton
-                            variant="tertiary"
-                            size="sm"
-                            context="danger"
-                            @click.prevent="discardChanges"
-                            data-test="discardChanges"
-                        >
-                            Discard changes
-                        </LButton>
-
-                        <LButton
-                            v-if="hasEditPermission && isConnected"
-                            size="sm"
-                            @click.prevent="saveChanges"
-                            data-test="saveChanges"
-                        >
-                            Save changes
-                        </LButton>
-                    </div>
-                    <LBadge v-if="isDirty">Unsaved changes</LBadge>
-                    <LBadge v-if="isEmpty" variant="warning" withIcon>
-                        The group does not have any access configured
-                    </LBadge>
-                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
-                        Saving disabled: The group would not be editable
-                    </LBadge>
-                    <LBadge v-if="!isConnected" variant="warning" withIcon>
-                        Saving disabled: Unable to save while offline
-                    </LBadge>
+                <div class="">
                     <LButton
                         v-if="
                             groupQuery.editable &&
