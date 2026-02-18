@@ -20,7 +20,14 @@ import {
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-import { clearMediaQueue, isMobileScreen, mediaQueue } from "@/globalConfig";
+import {
+    clearMediaQueue,
+    getMediaProgress,
+    isMobileScreen,
+    mediaQueue,
+    removeMediaProgress,
+    setMediaProgress,
+} from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 
 const router = useRouter();
@@ -713,6 +720,11 @@ onMounted(() => {
         // Progress events
         el.addEventListener("timeupdate", () => {
             currentTime.value = el.currentTime;
+
+            const audioSource = matchAudioFileUrl.value;
+            const durationTime = el.duration;
+            if (!audioSource || !currentContent.value._id || el.currentTime < 60) return;
+            setMediaProgress(audioSource, currentContent.value._id, el.currentTime, durationTime);
         });
 
         el.addEventListener("loadedmetadata", () => {
@@ -721,6 +733,13 @@ onMounted(() => {
             el.volume = volume.value;
             el.muted = isMuted.value;
             el.playbackRate = playbackRate.value;
+
+            // Restore saved progress (rewind 30 seconds as buffer)
+            const audioSource = matchAudioFileUrl.value;
+            if (audioSource && currentContent.value._id) {
+                const progress = getMediaProgress(audioSource, currentContent.value._id);
+                if (progress > 60) el.currentTime = progress - 30;
+            }
         });
 
         // Loading events
@@ -754,6 +773,12 @@ onMounted(() => {
         el.addEventListener("ended", () => {
             isPlaying.value = false;
             // Player stays visible - user can replay, switch tracks, or close manually
+
+            // Remove saved progress when audio finishes
+            const audioSource = matchAudioFileUrl.value;
+            if (audioSource && currentContent.value._id) {
+                removeMediaProgress(audioSource, currentContent.value._id);
+            }
         });
 
         // Auto-play when the component mounts (when first added to queue)
