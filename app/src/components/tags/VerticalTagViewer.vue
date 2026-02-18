@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
-import { toRef } from "vue";
+import { db, mangoToDexie, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { DateTime } from "luxon";
 
 const router = useRouter();
@@ -21,17 +21,19 @@ const isContentSelected = (slug: string) => {
     return false;
 };
 
+const parentTaggedDocsRef = computed(() => props.tag.parentTaggedDocs || []);
+
 const tagged = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, toRef(() => props.tag.parentTaggedDocs)],
-    ([languageIds, ids]: [Uuid[], Uuid]) =>
-        db.docs
-            .where("parentId")
-            .anyOf(ids)
-            .filter((c) => {
-                const content = c as ContentDto;
-                return isPublished(content, languageIds);
-            })
-            .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
+    [appLanguageIdsAsRef, parentTaggedDocsRef],
+    ([languageIds, ids]: [Uuid[], Uuid[]]) => {
+        if (!ids || ids.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [{ parentId: { $in: ids } }, ...mangoIsPublished(languageIds)],
+            },
+            $sort: [{ publishDate: "asc" }],
+        });
+    },
     { initialValue: [] as ContentDto[] },
 );
 </script>

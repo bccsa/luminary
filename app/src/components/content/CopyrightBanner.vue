@@ -1,29 +1,22 @@
 <script lang="ts" setup>
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { firstLanguageSupported } from "@/util/firstSupportedLanguage";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
-import { useDexieLiveQuery, db, type ContentDto } from "luminary-shared";
+import { useDexieLiveQuery, db, mangoToDexie, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 
 const copyright = useDexieLiveQuery(
     () =>
-        db.docs
-            .where({
-                parentId: import.meta.env.VITE_COPYRIGHT_ID,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (!content.availableTranslations) return false;
-                if (
-                    content.language ==
-                    firstLanguageSupported(appLanguageIdsAsRef.value, content.availableTranslations)
-                )
-                    return true;
-
-                return false;
-            })
-            .first() as unknown as ContentDto | undefined,
+        mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: import.meta.env.VITE_COPYRIGHT_ID },
+                    ...mangoIsPublished(appLanguageIdsAsRef.value),
+                ],
+            },
+            $limit: 1,
+        }).then((docs) => docs[0] as ContentDto | undefined),
 );
 
 const copyrightContent = computed(() => {

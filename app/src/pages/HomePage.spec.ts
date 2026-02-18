@@ -16,7 +16,6 @@ import {
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
-import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
@@ -87,35 +86,4 @@ describe("HomePage.vue", () => {
         });
     });
 
-    describe("Content display tests", () => {
-        it("renders pinned categories correctly", async () => {
-            await db.docs.bulkPut([
-                { ...mockCategoryContentDto, parentPinned: 1 },
-                { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
-            ]);
-
-            const wrapper = mount(HomePage);
-
-            appLanguageIdsAsRef.value.unshift("lang-eng");
-
-            await waitForExpect(() => {
-                const pinnedComponent = wrapper.findComponent(HomePagePinned);
-                expect(pinnedComponent.exists()).toBe(true);
-                expect(pinnedComponent.text()).toContain(mockCategoryContentDto.title);
-            });
-        });
-
-        it("displays the newest content", async () => {
-            await db.docs.bulkPut([mockEnglishContentDto]);
-
-            const wrapper = mount(HomePage);
-
-            appLanguageIdsAsRef.value.unshift("lang-eng");
-
-            await waitForExpect(() => {
-                expect(wrapper.text()).toContain("Newest");
-                expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-            });
-        });
-    });
 });

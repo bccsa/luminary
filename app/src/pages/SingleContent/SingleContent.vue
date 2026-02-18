@@ -8,6 +8,8 @@ import {
     TagType,
     db,
     isConnected,
+    mangoCompile,
+    mangoToDexie,
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
     type BaseDocumentDto,
@@ -41,7 +43,7 @@ import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -90,32 +92,53 @@ const content = ref<ContentDto | undefined>(defaultContent);
 
 const idbContent = useDexieLiveQuery(
     () =>
-        db.docs
-            .where("slug")
-            .equals(props.slug)
-            .toArray()
-            .then((docs) => {
-                if (!docs?.length) return undefined;
+        mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { slug: props.slug },
+                    {
+                        $or: [
+                            { type: DocType.Redirect },
+                            {
+                                $and: [
+                                    { publishDate: { $exists: true, $lte: Date.now() } },
+                                    {
+                                        $or: [
+                                            { expiryDate: { $exists: false } },
+                                            { expiryDate: null },
+                                            { expiryDate: { $gte: Date.now() } },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        }).then((docs) => {
+            if (!docs?.length) return undefined;
 
-                // Check if the document is a redirect
-                const redirect = docs.find((d) => d.type === DocType.Redirect) as
-                    | RedirectDto
-                    | undefined;
-                if (redirect && redirect.toSlug) {
-                    // If toSlug matches a route name, redirect to that route
-                    const routes = router.getRoutes();
-                    const targetRoute = routes.find((r) => r.name === redirect.toSlug);
-                    if (targetRoute) {
-                        router.replace({ name: redirect.toSlug });
-                    } else {
-                        // Otherwise, treat as a content slug
-                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                    }
-                    return undefined;
+            // Check if the document is a redirect
+            const redirect = docs.find((d: any) => d.type === DocType.Redirect) as
+                | RedirectDto
+                | undefined;
+            if (redirect && redirect.toSlug) {
+                // If toSlug matches a route name, redirect to that route
+                const routes = router.getRoutes();
+                const targetRoute = routes.find((r) => r.name === redirect.toSlug);
+                if (targetRoute) {
+                    router.replace({ name: redirect.toSlug });
+                } else {
+                    // Otherwise, treat as a content slug
+                    router.replace({ name: "content", params: { slug: redirect.toSlug } });
                 }
+                return undefined;
+            }
 
-                return docs.find((d) => d.type === DocType.Content) as ContentDto | undefined;
-            }),
+            return docs.find((d: any) => d.type === DocType.Content) as
+                | ContentDto
+                | undefined;
+        }),
     { initialValue: defaultContent },
 );
 
@@ -179,8 +202,22 @@ watch([content, isConnected], async () => {
     isLoadingTranslations.value = true;
 
     const [availableContentTranslations, availableLanguages] = await Promise.all([
-        db.docs.where("parentId").equals(content.value.parentId).toArray(),
-        db.docs.where("type").equals(DocType.Language).toArray(),
+        mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: content.value.parentId },
+                    { publishDate: { $exists: true, $lte: Date.now() } },
+                    {
+                        $or: [
+                            { expiryDate: { $exists: false } },
+                            { expiryDate: null },
+                            { expiryDate: { $gte: Date.now() } },
+                        ],
+                    },
+                ],
+            },
+        }),
+        mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
     if (availableContentTranslations.length > 1) {
@@ -230,16 +267,19 @@ watch([content, isConnected], async () => {
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
-    ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
-        db.docs
-            .where("parentId")
-            .anyOf((content?.parentTags || []).concat([content?.parentId || ""])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
-            .filter((t) => {
-                const tag = t as ContentDto;
-                if (tag.parentType != DocType.Tag) return false;
-                return isPublished(tag, appLanguageIds);
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    ([content, appLanguageIds]: [ContentDto, Uuid[]]) => {
+        const parentIds = (content?.parentTags || []).concat([content?.parentId || ""]); // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
+        if (parentIds.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: { $in: parentIds } },
+                    { parentType: DocType.Tag },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        }) as unknown as Promise<ContentDto[]>;
+    },
     { initialValue: [] as ContentDto[] },
 );
 
@@ -250,17 +290,24 @@ const selectedCategoryId = ref<Uuid | undefined>();
 const isLoading = ref(isConnected.value);
 const is404 = ref(false);
 
+// Compiled Mango filter to check if content is published (recompiles reactively when content changes)
+const isPublishedFilter = computed(() => {
+    if (!content.value?.language) return () => false;
+    return mangoCompile({
+        $and: [{ status: PublishStatus.Published }, ...mangoIsPublished([content.value.language])],
+    });
+});
+
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
 
-    // If content is undefined (not Sifound), show 404
+    // If content is undefined (not found), show 404
     if (!content.value) return true;
 
     // If content is still the default loading content, don't show 404 yet
     if (content.value === defaultContent) return false;
 
-    // Check if content is published
-    return !isPublished(content.value, [content.value.language]);
+    return !isPublishedFilter.value(content.value);
 };
 
 watch(content, () => {
@@ -462,6 +509,9 @@ onMounted(() => {
     window.addEventListener("click", onClickOutside);
 });
 
+// Track whether the user explicitly switched language via the quick selector
+const userSwitchedLanguage = ref(false);
+
 // Quick language switch (dropdown)
 watch(selectedLanguageId, (newId) => {
     if (!newId || !content.value) return;
@@ -469,12 +519,14 @@ watch(selectedLanguageId, (newId) => {
     const target = availableTranslations.value.find((c) => c.language === newId);
     if (!target || target.slug === content.value.slug) return;
 
+    userSwitchedLanguage.value = true;
     content.value = target;
     const newUrl = router.resolve({ name: "content", params: { slug: target.slug } }).href;
     window.history.replaceState(window.history.state, "", newUrl);
 });
 
-// Show banner: only external + preferred lang exists + different slug
+// Show banner: only external navigation + preferred lang exists + different slug
+// Do not show banner if the user explicitly switched language via the quick selector
 watch(
     () => [
         content.value,
@@ -484,6 +536,7 @@ watch(
     ],
     ([cur, prefId, external, translations]) => {
         if (!cur || !prefId || !external) return;
+        if (userSwitchedLanguage.value) return;
         const currentContent = cur as ContentDto;
         if (currentContent.language === prefId) return;
 
@@ -579,15 +632,10 @@ const playAudio = () => {
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
             <div class="relative w-auto">
-                <button
-                    v-show="
-                        !isLoading && !isLoadingTranslations && availableTranslations.length > 1
-                    "
-                    name="translationSelector"
-                    @click="showDropdown = !showDropdown"
+                <button v-show="!isLoading && !isLoadingTranslations && availableTranslations.length > 1
+                    " name="translationSelector" @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
-                    data-test="translationSelector"
-                >
+                    data-test="translationSelector">
                     <span class="hidden sm:inline">
                         {{
                             languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
@@ -602,23 +650,14 @@ const playAudio = () => {
                         }}
                     </span>
                 </button>
-                <div
-                    v-if="showDropdown"
-                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
-                >
-                    <div
-                        v-for="language in languages"
-                        :key="language._id"
-                        @click="quickLanguageSwitch(language._id)"
+                <div v-if="showDropdown"
+                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700">
+                    <div v-for="language in languages" :key="language._id" @click="quickLanguageSwitch(language._id)"
                         class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                        data-test="translationOption"
-                    >
+                        data-test="translationOption">
                         {{ language.name }}
-                        <CheckCircleIcon
-                            v-if="selectedLanguageId === language._id"
-                            class="h-5 w-5 text-yellow-500"
-                            aria-hidden="true"
-                        />
+                        <CheckCircleIcon v-if="selectedLanguageId === language._id" class="h-5 w-5 text-yellow-500"
+                            aria-hidden="true" />
                     </div>
                 </div>
             </div>
@@ -635,48 +674,32 @@ const playAudio = () => {
                 <LoadingSpinner v-if="isLoading" />
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                        <VideoPlayer
-                            v-if="content && content.video"
-                            :content="content"
-                            :language="selectedLanguageCode"
-                        />
-                        <div
-                            v-else-if="content.parentId || content.parentImageData"
-                            class="relative cursor-pointer"
+                        <VideoPlayer v-if="content && content.video" :content="content"
+                            :language="selectedLanguageCode" />
+                        <div v-else-if="content.parentId || content.parentImageData" class="relative cursor-pointer"
                             @click="
                                 () => {
                                     if (content) currentImageIndex = activeImageCollection(content);
                                     enableZoom = true;
                                 }
-                            "
-                        >
-                            <LImage
-                                :image="content.parentImageData"
-                                :content-parent-id="content.parentId"
-                                :parent-image-bucket-id="content.parentImageBucketId"
-                                aspectRatio="video"
-                                size="post"
-                            />
-                            <div
-                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex items-center gap-1"
-                            >
+                            ">
+                            <LImage :image="content.parentImageData" :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId" aspectRatio="video" size="post" />
+                            <div v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1">
                                 <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
 
                             <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                            <button
-                                v-if="hasAudioFiles"
-                                @click.stop="
-                                    (event) => {
-                                        playAudio();
-                                        // Prevent focus staying on button
-                                        (event.target as HTMLElement).blur();
-                                    }
-                                "
+                            <button v-if="hasAudioFiles" @click.stop="
+                                (event) => {
+                                    playAudio();
+                                    // Prevent focus staying on button
+                                    (event.target as HTMLElement).blur();
+                                }
+                            "
                                 class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 pl-2 pr-3.5 py-1 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                title="Play Audio"
-                            >
+                                title="Play Audio">
                                 <SpeakerWaveIcon class="h-5 w-5" />
                                 Listen
                             </button>
@@ -684,79 +707,55 @@ const playAudio = () => {
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
-                        <div
-                            class="mt-3 flex flex-col"
-                            :class="{
-                                'gap-1': !content.publishDate || !content.parentPublishDateVisible,
-                                'gap-3': content.publishDate && content.parentPublishDateVisible,
-                            }"
-                        >
-                            <h1
-                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
-                            >
+                        <div class="mt-3 flex flex-col" :class="{
+                            'gap-1': !content.publishDate || !content.parentPublishDateVisible,
+                            'gap-3': content.publishDate && content.parentPublishDateVisible,
+                        }">
+                            <h1 class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl">
                                 {{ content.title }}
                             </h1>
-                            <div
-                                v-if="content.author"
-                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
-                            >
+                            <div v-if="content.author" class="text-center text-xs text-zinc-500 dark:text-slate-300">
                                 By {{ content.author }}
                             </div>
-                            <div
-                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
-                                v-if="content.publishDate && content.parentPublishDateVisible"
-                            >
+                            <div class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                                v-if="content.publishDate && content.parentPublishDateVisible">
                                 {{
                                     content.publishDate
                                         ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
+                                            .toDateTime(content.publishDate)
+                                            .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
                             </div>
                             <div class="items-center">
                                 <div class="flex justify-center">
                                     <div @click="toggleBookmark" data-test="bookmark">
-                                        <component
-                                            v-if="
-                                                !(
-                                                    content.parentPostType &&
-                                                    content.parentPostType == PostType.Page
-                                                )
-                                            "
-                                            :is="
-                                                isBookmarked
-                                                    ? BookmarkIconSolid
-                                                    : BookmarkIconOutline
-                                            "
-                                            class="h-6 w-6 cursor-pointer"
-                                            :class="{ 'text-yellow-500': isBookmarked }"
-                                        />
+                                        <component v-if="
+                                            !(
+                                                content.parentPostType &&
+                                                content.parentPostType == PostType.Page
+                                            )
+                                        " :is="isBookmarked
+                                            ? BookmarkIconSolid
+                                            : BookmarkIconOutline
+                                            " class="h-6 w-6 cursor-pointer"
+                                            :class="{ 'text-yellow-500': isBookmarked }" />
                                     </div>
                                 </div>
                             </div>
-                            <div
-                                class="text-center text-sm text-zinc-800 dark:text-slate-200"
-                                v-if="content.summary"
-                            >
+                            <div class="text-center text-sm text-zinc-800 dark:text-slate-200" v-if="content.summary">
                                 {{ content.summary }}
                             </div>
                         </div>
                     </div>
 
-                    <div
-                        class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
-                        v-if="categoryTags.length"
-                    >
-                        <span
-                            v-for="tag in categoryTags"
-                            :key="tag._id"
-                            @click="
-                                selectedCategoryId = tag.parentId;
-                                showCategoryModal = true;
-                            "
-                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
-                        >
+                    <div class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                        v-if="categoryTags.length">
+                        <span v-for="tag in categoryTags" :key="tag._id" @click="
+                            selectedCategoryId = tag.parentId;
+                        showCategoryModal = true;
+                        "
+                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25">
                             <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" />
                             <span class="line-clamp-1">{{ tag.title }}</span>
                         </span>
@@ -764,41 +763,27 @@ const playAudio = () => {
 
                     <!-- Render content with highlighting support -->
                     <LHighlightable v-if="content.text" :content-id="content._id">
-                        <div
-                            v-html="
-                                content.text && contentBlocks.length > 0
-                                    ? contentBlocks.map((block: any) => block.html).join('')
-                                    : text
-                            "
-                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                            :class="{
+                        <div v-html="content.text && contentBlocks.length > 0
+                            ? contentBlocks.map((block: any) => block.html).join('')
+                            : text
+                            " class="prose prose-zinc mt-3 max-w-full dark:prose-invert" :class="{
                                 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                            }"
-                        ></div>
+                            }"></div>
                     </LHighlightable>
                 </article>
             </div>
 
-            <RelatedContent
-                v-if="content && tags.length"
-                :selectedContent="content"
-                :tags="
-                    tags.filter(
-                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
-                    )
-                "
-            />
+            <RelatedContent v-if="content && tags.length" :selectedContent="content" :tags="tags.filter(
+                (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
+            )
+                " />
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
         </div>
     </BasePage>
 
-    <LModal
-        :isVisible="showCategoryModal"
-        @close="showCategoryModal = false"
-        :heading="selectedCategory?.title || ''"
-    >
+    <LModal :isVisible="showCategoryModal" @close="showCategoryModal = false" :heading="selectedCategory?.title || ''">
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
                 <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
@@ -806,14 +791,8 @@ const playAudio = () => {
         </div>
     </LModal>
 
-    <ImageModal
-        v-if="content && enableZoom"
-        :content-parent-id="content.parentId"
+    <ImageModal v-if="content && enableZoom" :content-parent-id="content.parentId"
         :parent-image-bucket-id="content.parentImageBucketId"
-        :imageCollections="content?.parentImageData?.fileCollections"
-        :currentIndex="currentImageIndex"
-        aspectRatio="original"
-        @update:index="currentImageIndex = $event"
-        @close="enableZoom = false"
-    />
+        :imageCollections="content?.parentImageData?.fileCollections" :currentIndex="currentImageIndex"
+        aspectRatio="original" @update:index="currentImageIndex = $event" @close="enableZoom = false" />
 </template>

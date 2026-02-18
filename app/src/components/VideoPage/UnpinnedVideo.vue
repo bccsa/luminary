@@ -8,41 +8,30 @@ import {
     type Uuid,
     db,
     useDexieLiveQueryWithDeps,
+    mangoToDexie,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) =>
-        db.docs
-            .orderBy("publishDate")
-            .reverse()
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (!content.video) return false;
-                if (content.type !== DocType.Content) return false;
-                if (content.parentPostType && content.parentPostType == PostType.Page) return false;
-                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-
-                const firstSupportedLang = appLanguageIds.find((lang) =>
-                    content.availableTranslations?.includes(lang),
-                );
-
-                if (content.language !== firstSupportedLang) return false;
-
-                return true;
-            })
-            .limit(100) // Limit to the newest posts
-            .toArray() as unknown as Promise<ContentDto[]>,
+    (appLanguageIds: Uuid[]) => {
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { video: { $exists: true, $ne: "" } },
+                    { parentPostType: { $ne: PostType.Page } },
+                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+            $sort: [{ publishDate: "desc" }],
+            $limit: 100,
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("videopage_newest100Content"),
         deep: true,
@@ -64,24 +53,20 @@ const categoryIds = computed(() =>
 
 const categories = useDexieLiveQueryWithDeps(
     [categoryIds, appLanguageIdsAsRef],
-    ([_categoryIds, appLanguageIds]: [Uuid[], Uuid[]]) =>
-        db.docs
-            .where("parentId")
-            .anyOf(_categoryIds)
-            .filter((content) => {
-                const _content = content as ContentDto;
-                if (_content.parentType !== DocType.Tag) return false;
-                if (!_content.parentTagType) return false;
-                if (_content.parentTagType !== TagType.Category) return false;
-                if (_content.parentPinned) return false;
-
-                // Use the `isPublished` helper function
-                return (
-                    isPublished(_content, appLanguageIds) &&
-                    _content.parentTagType === TagType.Category
-                );
-            })
-            .toArray() as unknown as Promise<ContentDto[]>,
+    ([_categoryIds, appLanguageIds]: [Uuid[], Uuid[]]) => {
+        if (_categoryIds.length === 0) return Promise.resolve([] as ContentDto[]);
+        return mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { parentId: { $in: _categoryIds } },
+                    { parentType: DocType.Tag },
+                    { parentTagType: TagType.Category },
+                    { parentPinned: { $ne: 1 } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
+    },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("videopage_unpinnedCategories"),
         deep: true,

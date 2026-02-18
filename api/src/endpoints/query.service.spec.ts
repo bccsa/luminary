@@ -61,11 +61,11 @@ describe("QueryService", () => {
 
     it("throws 400 when invalid type field is provided", async () => {
         const query = makeQuery((s) => {
-            // invalid: object type (only string allowed)
+            // invalid: object type (only simple equality value allowed)
             (s as any).type = { $eq: DocType.Post } as any;
         });
         await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Only one 'type' allowed in selector", HttpStatus.BAD_REQUEST),
+            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
         );
     });
 
@@ -86,14 +86,12 @@ describe("QueryService", () => {
 
         const res = await service.query(query, "token");
 
-        expect(dbService.executeFindQuery).toHaveBeenCalledWith(
-            expect.objectContaining({
-                selector: expect.objectContaining({
-                    type: DocType.Group,
-                    memberOf: { $elemMatch: { $in: ["g1", "g2"] } },
-                }),
-            }),
-        );
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toBeDefined();
+        expect(calledWith.selector.$and).toContainEqual({ type: DocType.Group });
+        expect(calledWith.selector.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["g1", "g2"] } },
+        });
         expect(res.docs).toHaveLength(2);
     });
 
@@ -107,14 +105,12 @@ describe("QueryService", () => {
 
         await service.query(query, "token");
 
-        expect(dbService.executeFindQuery).toHaveBeenCalledWith(
-            expect.objectContaining({
-                selector: expect.objectContaining({
-                    type: DocType.Post,
-                    memberOf: { $elemMatch: { $in: ["a", "b"] } },
-                }),
-            }),
-        );
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toBeDefined();
+        expect(calledWith.selector.$and).toContainEqual({ type: DocType.Post });
+        expect(calledWith.selector.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["a", "b"] } },
+        });
     });
 
     it("throws 400 when no type specified", async () => {
@@ -126,7 +122,7 @@ describe("QueryService", () => {
         });
 
         await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("'type' field is required in selector", HttpStatus.BAD_REQUEST),
+            new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST),
         );
     });
 
@@ -183,15 +179,13 @@ describe("QueryService", () => {
 
         await service.query(query, "token");
 
-        expect(dbService.executeFindQuery).toHaveBeenCalledWith(
-            expect.objectContaining({
-                selector: expect.objectContaining({
-                    type: DocType.Content,
-                    parentType: DocType.Post,
-                    memberOf: { $elemMatch: { $in: ["gp1", "gp2"] } },
-                }),
-            }),
-        );
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toBeDefined();
+        expect(calledWith.selector.$and).toContainEqual({ type: DocType.Content });
+        expect(calledWith.selector.$and).toContainEqual({ parentType: DocType.Post });
+        expect(calledWith.selector.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["gp1", "gp2"] } },
+        });
     });
 
     it("throws 403 when user has no accessible languages for Content type", async () => {
@@ -219,12 +213,12 @@ describe("QueryService", () => {
 
     it("throws 400 when multiple types are specified", async () => {
         const query = makeQuery((s) => {
-            // Multiple types not allowed
+            // Multiple types not allowed (using $in operator)
             (s as any).type = { $in: [DocType.Post, DocType.Content] } as any;
         });
 
         await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Only one 'type' allowed in selector", HttpStatus.BAD_REQUEST),
+            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
         );
     });
 
@@ -245,11 +239,12 @@ describe("QueryService", () => {
         expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
-        expect(sel.type).toBe(DocType.Post);
-        expect(sel.memberOf).toEqual({
-            $elemMatch: { $in: ["b"] }, // intersection of ["b","c"] with ["a","b"]
+        expect(sel.$and).toBeDefined();
+        expect(sel.$and).toContainEqual({ type: DocType.Post });
+        expect(sel.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["b"] } }, // intersection of ["b","c"] with ["a","b"]
         });
-        expect(sel.status).toBe("published");
+        expect(sel.$and).toContainEqual({ status: "published" });
     });
 
     it("intersects provided memberOf for Content type", async () => {
@@ -274,9 +269,37 @@ describe("QueryService", () => {
         expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
-        expect(sel.type).toBe(DocType.Content);
-        expect(sel.memberOf).toEqual({
-            $elemMatch: { $in: ["p1"] }, // intersection of ["p1", "x"] with ["p1", "p2"]
+        expect(sel.$and).toBeDefined();
+        expect(sel.$and).toContainEqual({ type: DocType.Content });
+        expect(sel.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["p1"] } }, // intersection of ["p1", "x"] with ["p1", "p2"]
+        });
+    });
+
+    it("preserves sibling fields when memberOf is in a multi-field $and condition", async () => {
+        const access = { [DocType.Post]: ["a", "b"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        // Provide a pre-existing $and where memberOf shares a condition with status
+        (selector as any).$and = [
+            { type: DocType.Post },
+            { memberOf: { $in: ["a", "c"] }, status: "published" },
+        ];
+        (query as any).selector = selector;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const sel = calledWith.selector;
+        expect(sel.$and).toBeDefined();
+        expect(sel.$and).toContainEqual({ type: DocType.Post });
+        // status must survive memberOf removal
+        expect(sel.$and).toContainEqual({ status: "published" });
+        // The service should have replaced memberOf with a permission-filtered version
+        expect(sel.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["a"] } }, // intersection of ["a","c"] with ["a","b"]
         });
     });
 
@@ -293,20 +316,24 @@ describe("QueryService", () => {
         );
     });
 
-    it("throws 400 when top-level $or is provided", async () => {
+    it("supports top-level $or by wrapping in $and", async () => {
+        const access = { [DocType.Post]: ["a", "b"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
         const query = new MongoQueryDto();
         const selector = new MongoSelectorDto();
         (selector as any).type = DocType.Post;
         (selector as any).$or = [{ status: "published" }, { language: "en" }];
         (query as any).selector = selector;
 
-        // The $or check happens before permission checks, so no need to mock access
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException(
-                "Top-level '$or' in selector is currently not supported",
-                HttpStatus.BAD_REQUEST,
-            ),
-        );
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toBeDefined();
+        expect(calledWith.selector.$and).toContainEqual({ type: DocType.Post });
+        expect(calledWith.selector.$and).toContainEqual({
+            $or: [{ status: "published" }, { language: "en" }],
+        });
     });
 
     it("adds publishing filters for Content type when cms flag is not set", async () => {
@@ -331,10 +358,11 @@ describe("QueryService", () => {
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
 
-        // Check that $and array contains publishing filters
+        // Check that $and array contains publishing filters plus type, parentType, and memberOf
         expect(sel.$and).toBeDefined();
         expect(Array.isArray(sel.$and)).toBe(true);
-        expect(sel.$and.length).toBe(3);
+        // Should have: type, parentType, expiryDate filter, status, language, memberOf
+        expect(sel.$and.length).toBe(6);
 
         // Check for expiry date filter
         expect(sel.$and).toEqual(
@@ -384,16 +412,14 @@ describe("QueryService", () => {
             expect.arrayContaining([DocType.Post]),
         );
 
-        // Verify the query was executed with proper memberOf filter
-        expect(dbService.executeFindQuery).toHaveBeenCalledWith(
-            expect.objectContaining({
-                selector: expect.objectContaining({
-                    type: DocType.DeleteCmd,
-                    docType: DocType.Post,
-                    memberOf: { $elemMatch: { $in: ["gp1", "gp2"] } },
-                }),
-            }),
-        );
+        // Verify the query was executed with proper memberOf filter in $and
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toBeDefined();
+        expect(calledWith.selector.$and).toContainEqual({ type: DocType.DeleteCmd });
+        expect(calledWith.selector.$and).toContainEqual({ docType: DocType.Post });
+        expect(calledWith.selector.$and).toContainEqual({
+            memberOf: { $elemMatch: { $in: ["gp1", "gp2"] } },
+        });
     });
 
     it("throws 403 when user has no access to docType groups for DeleteCmd", async () => {
@@ -434,9 +460,12 @@ describe("QueryService", () => {
             expect.arrayContaining([DocType.Post, DocType.Tag]),
         );
 
-        // Verify the query was executed with combined memberOf filter
+        // Verify the query was executed with combined memberOf filter in $and
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
-        const memberOfGroups = calledWith.selector.memberOf.$elemMatch.$in;
+        const memberOfCondition = calledWith.selector.$and.find(
+            (c: any) => c.memberOf !== undefined,
+        );
+        const memberOfGroups = memberOfCondition.memberOf.$elemMatch.$in;
 
         // Should contain all groups from both Post and Tag
         expect(memberOfGroups).toHaveLength(4);
@@ -460,9 +489,12 @@ describe("QueryService", () => {
 
         await service.query(query, "token");
 
-        // Verify the query was executed with deduplicated memberOf filter
+        // Verify the query was executed with deduplicated memberOf filter in $and
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
-        const memberOfGroups = calledWith.selector.memberOf.$elemMatch.$in;
+        const memberOfCondition = calledWith.selector.$and.find(
+            (c: any) => c.memberOf !== undefined,
+        );
+        const memberOfGroups = memberOfCondition.memberOf.$elemMatch.$in;
 
         // Should contain unique groups only (3 unique groups from 4 total)
         expect(memberOfGroups).toHaveLength(3);
