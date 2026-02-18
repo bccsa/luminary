@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-    ref,
-    onMounted,
-    onBeforeUnmount,
-    watch,
-    withDefaults,
-    defineProps,
-    defineEmits,
-    nextTick,
-    computed,
-} from "vue";
+import { ref, onMounted, watch, nextTick, computed } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
@@ -29,7 +19,6 @@ type Props = {
     parentImageBucketId?: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
-    rounded?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -170,7 +159,6 @@ function onTouchEnd(e: TouchEvent) {
         pinchZooming = false;
         return; // Don't swipe after a pinch gesture
     }
-
     if (e.changedTouches?.[0]) {
         swipeEndX = e.changedTouches[0].clientX;
         handleSwipeGesture();
@@ -182,15 +170,31 @@ function onTouchEnd(e: TouchEvent) {
 // Double-tap support
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
+    if (pinchZooming) {
+        if (e.touches.length === 0) {
+            pinchZooming = false;
+        }
+        return;
+    }
+
+    const touch = e.changedTouches[0];
+    const distanceX = Math.abs(touch.clientX - swipeStartX);
+
+    if (distanceX > 10) {
+        lastTap = 0;
+        onTouchEnd(e);
+        return;
+    }
+
     const now = Date.now();
     const isDoubleTap = now - lastTap < 400;
-    lastTap = now;
 
     if (isDoubleTap) {
         e.preventDefault();
         onDblClick(e);
         lastTap = 0;
     } else {
+        lastTap = now;
         onTouchEnd(e);
     }
 }
@@ -295,7 +299,6 @@ watch(
 );
 
 onMounted(() => {
-    const el = container.value;
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
         MAX_SCALE.value = 3;
@@ -306,40 +309,6 @@ onMounted(() => {
             clampTranslation();
         }
     }
-    if (!el) return;
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEndWithDoubleTap);
-    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    el.addEventListener("dblclick", onDblClick);
-
-    window.addEventListener("keydown", onKeyDown);
-});
-
-onBeforeUnmount(() => {
-    const el = container.value;
-    if (!el) return;
-
-    el.removeEventListener("touchstart", onTouchStart);
-    el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
-    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
-
-    el.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-
-    el.removeEventListener("wheel", handleWheel);
-    el.removeEventListener("dblclick", onDblClick);
-
-    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
@@ -398,6 +367,16 @@ onBeforeUnmount(() => {
                 maxWidth: '90vw',
                 maxHeight: '90vh',
             }"
+            @wheel="handleWheel"
+            @dblclick.stop="onDblClick"
+            @touchstart="onTouchStart"
+            @touchmove="onTouchMove"
+            @touchend="onTouchEndWithDoubleTap"
+            @touchcancel="onTouchEndWithDoubleTap"
+            @mousedown="onMouseDown"
+            @mousemove="onMouseMove"
+            @mouseup="onMouseUp"
+            @keydown="onKeyDown"
         >
             <LImage
                 :contentParentId="contentParentId"
