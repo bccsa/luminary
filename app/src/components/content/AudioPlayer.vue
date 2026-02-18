@@ -1281,25 +1281,25 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <!-- Volume slider (expanded controls) - Vertical -->
                         <div
                             v-if="showVolumeSlider"
-                            class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
+                            class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform flex-col items-center space-y-2 rounded-xl bg-white p-3 shadow-lg dark:bg-slate-700"
                         >
                             <!-- Volume up button (top) -->
                             <button
                                 @click="changeVolume(0.1)"
-                                class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                 title="Volume up"
                                 aria-label="Increase volume"
                             >
-                                <PlusIcon class="h-4 w-4 text-zinc-500" />
+                                <PlusIcon class="h-5 w-5 text-zinc-500" />
                             </button>
 
                             <!-- Vertical volume slider -->
                             <div
-                                class="relative flex h-20 w-6 touch-manipulation items-center justify-center"
+                                class="relative flex h-32 w-8 touch-manipulation items-center justify-center"
                                 @mousedown="startVolumeSliding"
                                 @touchstart="startVolumeSliding"
                             >
-                                <div class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600">
+                                <div class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600">
                                     <!-- Fill from bottom to current volume -->
                                     <div
                                         class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
@@ -1312,7 +1312,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     ></div>
                                     <!-- Thumb handle for better touch feedback -->
                                     <div
-                                        class="absolute left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                        class="absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
                                         :style="{
                                             bottom:
                                                 (isVolumeSliding ? volumeSlideValue : volume) *
@@ -1327,27 +1327,27 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             <!-- Volume down button (bottom) -->
                             <button
                                 @click="changeVolume(-0.1)"
-                                class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                 title="Volume down"
                                 aria-label="Decrease volume"
                             >
-                                <MinusIcon class="h-4 w-4 text-zinc-500" />
+                                <MinusIcon class="h-5 w-5 text-zinc-500" />
                             </button>
 
                             <!-- Mute toggle -->
                             <button
                                 @click="toggleMute"
-                                class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                                 :title="isMuted ? 'Unmute' : 'Mute'"
                                 aria-label="Toggle mute"
                             >
                                 <SpeakerXMarkIcon
                                     v-if="isMuted"
-                                    class="h-4 w-4 text-red-500"
+                                    class="h-5 w-5 text-red-500"
                                 />
                                 <SpeakerWaveIcon
                                     v-else
-                                    class="h-4 w-4 text-zinc-500"
+                                    class="h-5 w-5 text-zinc-500"
                                 />
                             </button>
                         </div>
