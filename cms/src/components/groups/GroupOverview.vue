@@ -16,7 +16,6 @@ import {
 import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
-import LModal from "../modals/LModal.vue";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
@@ -105,13 +104,12 @@ const canCreateGroup = computed(() => {
         />
     </BasePage>
 
-    <LModal heading="Edit Group" v-model:isVisible="showModal" adaptiveSize noPadding>
-        <EditGroup
-            v-if="showModal"
-            :group="editable.find((g: GroupDto) => g._id === newGroupId)!"
-            :groups="editable"
-            :hasEditPermission="canCreateGroup"
-            :group-query="groupQuery"
-        />
-    </LModal>
+    <EditGroup
+        :openModal="showModal"
+        :group="editable.find((g: GroupDto) => g._id === newGroupId)!"
+        :groups="editable"
+        :hasEditPermission="canCreateGroup"
+        :group-query="groupQuery"
+        @close="showModal = false"
+    />
 </template>

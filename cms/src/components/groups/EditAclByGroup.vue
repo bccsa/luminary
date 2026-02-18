@@ -38,8 +38,8 @@ const duplicateGroup = (targetGroup: GroupDto) => {
 </script>
 
 <template>
-    <div>
-        <div class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
+    <div class="w-full">
+        <div class="inline-block w-full rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
             <h3
                 :class="[
                     'border-b border-zinc-200 px-6 py-4 text-center font-medium',
@@ -64,7 +64,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                 </div>
             </h3>
 
-            <table>
+            <table class="w-full">
                 <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
                     <tr>
                         <th></th>
