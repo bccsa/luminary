@@ -1034,7 +1034,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @click="closePlayerWithConfirmation"
                                 class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
                             >
-                                <XMarkIcon class="h-6 w-6" />
+                                <XMarkIcon class="h-9 w-9" />
                             </button>
                         </div>
                     </div>
