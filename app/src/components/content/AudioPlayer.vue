@@ -1539,7 +1539,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                 <button
                     @click.stop="togglePlay"
-                    class="flex-shrink-0 rounded-full bg-transparent p-0"
+                    class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
                     <PlayIcon
                         v-if="!isPlaying"
@@ -1552,9 +1552,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 </button>
                 <button
                     @click.stop="closePlayerWithConfirmation"
-                    class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
+                    class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
-                    <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                    <XMarkIcon class="h-7 w-7 text-gray-600 dark:text-zinc-300" />
                 </button>
             </div>
         </div>
