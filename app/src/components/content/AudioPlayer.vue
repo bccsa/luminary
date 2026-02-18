@@ -990,6 +990,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     <!-- Swipe-down handle (drag area only) - allows users to drag down to collapse the player on mobile -->
                     <div
                         class="flex cursor-grab justify-center pb-2 pt-1 active:cursor-grabbing lg:hidden"
+                        style="touch-action: none"
                         @pointerdown.stop="onPointerDown"
                         @pointermove="onPointerMove"
                         @pointerup="onPointerUp"
@@ -1797,10 +1798,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
     opacity: 1;
 }
 
-/* Make sure the div allows vertical drag */
+/* Make sure the div allows vertical scroll */
 .expanded-player {
-    touch-action: pan-x;
-    /* only block horizontal gestures; vertical scroll allowed */
+    touch-action: pan-y;
+    /* allow vertical scroll; block horizontal pan-back gesture */
     user-select: none;
     overscroll-behavior: contain;
     /* prevent scroll chaining to parent while dragging */
