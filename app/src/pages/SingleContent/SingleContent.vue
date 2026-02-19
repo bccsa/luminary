@@ -669,6 +669,12 @@ const quickLanguageSwitch = (languageId: string) => {
                                 By {{ content.author }}
                             </div>
                             <div
+                                v-if="(content as any).copyright"
+                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
+                                {{ (content as any).copyright }}
+                            </div>
+                            <div
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                             >
