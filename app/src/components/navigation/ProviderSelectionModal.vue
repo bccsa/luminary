@@ -75,6 +75,9 @@ onMounted(async () => {
                         :src="provider.icon"
                         :alt="provider.label"
                         class="h-5 w-5 object-contain"
+                        :style="{
+                            opacity: provider.iconOpacity ?? 1,
+                        }"
                     />
                 </div>
                 <span

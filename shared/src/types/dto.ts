@@ -246,6 +246,8 @@ export type OAuthProviderPublicDto = {
     clientId: string;
     audience: string;
     icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
     textColor?: string;
     backgroundColor?: string;
 };
@@ -268,6 +270,8 @@ export type OAuthProviderDto = ContentBaseDto & {
     domain?: string;
     audience?: string;
     icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
     credential?: Auth0CredentialDto;
     /** Reference to CryptoDto containing encrypted clientSecret only (see api Auth0CredentialSecretsDto). */
     credential_id?: string;
