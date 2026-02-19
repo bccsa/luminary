@@ -250,6 +250,7 @@ export type OAuthProviderPublicDto = {
     backgroundColor?: string;
 };
 
+/** Transient input for create/update. Public fields are stored on OAuthProviderDto; only clientSecret is encrypted (see credential_id). */
 export type Auth0CredentialDto = {
     domain: string;
     clientId: string;
@@ -262,12 +263,13 @@ export type OAuthProviderDto = ContentBaseDto & {
     providerType: "auth0";
     textColor?: string;
     backgroundColor?: string;
-    // Public fields for sync
+    /** Public config (synced to app). */
     clientId?: string;
     domain?: string;
     audience?: string;
     icon?: string;
     credential?: Auth0CredentialDto;
+    /** Reference to CryptoDto containing encrypted clientSecret only (see api Auth0CredentialSecretsDto). */
     credential_id?: string;
     imageData?: ImageDto;
     imageBucketId?: Uuid;
