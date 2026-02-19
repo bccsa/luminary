@@ -1154,21 +1154,6 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             </div>
                         </div>
 
-                        <!-- Loading Indicator -->
-                        <div
-                            v-if="isLoading"
-                            class="mx-6 my-2 flex items-center justify-center"
-                        >
-                            <div class="flex items-center space-x-2">
-                                <div
-                                    class="h-4 w-4 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent"
-                                ></div>
-                                <span class="text-sm text-zinc-600 dark:text-zinc-400"
-                                    >Loading audio...</span
-                                >
-                            </div>
-                        </div>
-
                         <!-- Connection Warning -->
                         <div
                             v-if="connectionError && !audioError"
