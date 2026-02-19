@@ -183,6 +183,7 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
             clientId: d.clientId,
             audience: d.audience,
             icon: d.icon,
+            iconOpacity: d.iconOpacity,
             textColor: d.textColor,
             backgroundColor: d.backgroundColor,
         })) as OAuthProviderPublicDto[];

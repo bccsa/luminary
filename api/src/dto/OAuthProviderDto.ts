@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Auth0CredentialsDto } from "./Auth0CredentialsDto";
@@ -50,6 +50,14 @@ export class OAuthProviderDto extends _contentBaseDto {
     @IsString()
     @Expose()
     icon?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(1)
+    @Expose()
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
 
     @IsOptional()
     @ValidateNested()

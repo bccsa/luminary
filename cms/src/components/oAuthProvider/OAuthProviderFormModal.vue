@@ -171,12 +171,40 @@ function toggleCredentials() {
                             @change="handleFileChange"
                         />
                     </div>
-                    <div class="rounded-md border border-gray-200 p-2">
+                    <div class="rounded-md border border-gray-200 bg-white p-2">
                         <ImageEditor
                             ref="imageEditorRef"
                             v-model:parent="provider as unknown as ContentParentDto"
                             :disabled="isLoading"
                         />
+                    </div>
+                    <div class="mt-2">
+                        <label
+                            for="icon-opacity"
+                            class="mb-1 block text-xs font-medium text-gray-700"
+                        >
+                            Icon transparency
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input
+                                id="icon-opacity"
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                :value="provider.iconOpacity ?? 1"
+                                class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
+                                :disabled="isLoading"
+                                @input="
+                                    (e) =>
+                                        (provider!.iconOpacity = (e.target as HTMLInputElement)
+                                            .valueAsNumber)
+                                "
+                            />
+                            <span class="w-10 text-right text-xs text-gray-600">
+                                {{ Math.round((provider.iconOpacity ?? 1) * 100) }}%
+                            </span>
+                        </div>
                     </div>
                 </div>
 
