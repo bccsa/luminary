@@ -1014,11 +1014,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             @click="toggleExpand"
                             class="p-0.5"
                         >
-                            <ChevronDownIcon class="h-9 w-9" />
+                            <ChevronDownIcon class="h-9 w-9 text-zinc-500 dark:text-slate-400" />
                         </button>
-
-                        <!-- Empty div for mobile to keep centering -->
-                        <!-- <div class="lg:hidden"></div> -->
 
                         <!-- Language Dropdown -->
                         <div
@@ -1061,7 +1058,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @click="closePlayerWithConfirmation"
                                 class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
                             >
-                                <XMarkIcon class="h-9 w-9" />
+                                <XMarkIcon class="h-9 w-9 text-zinc-500 dark:text-slate-400" />
                             </button>
                         </div>
                     </div>
@@ -1245,7 +1242,6 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     />
                                 </button>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -1253,7 +1249,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 <!-- Secondary controls — outside the scroll container so dropdowns aren't clipped -->
                 <div class="flex items-center justify-center space-x-6 px-4 pb-3 text-xs">
                     <!-- Volume control -->
-                    <div class="volume-control-container relative flex items-center space-x-2">
+                    <div
+                        class="volume-control-container relative hidden items-center space-x-2 lg:flex"
+                    >
                         <!-- Volume toggle button -->
                         <button
                             @click="toggleVolumeSlider"
@@ -1271,9 +1269,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             />
                             <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                                 {{
-                                    Math.round(
-                                        (isVolumeSliding ? volumeSlideValue : volume) * 100,
-                                    )
+                                    Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100)
                                 }}%
                             </span>
                         </button>
@@ -1299,7 +1295,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @mousedown="startVolumeSliding"
                                 @touchstart="startVolumeSliding"
                             >
-                                <div class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600">
+                                <div
+                                    class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                >
                                     <!-- Fill from bottom to current volume -->
                                     <div
                                         class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
@@ -1458,9 +1456,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-0.5">
                 <!-- Volume control for minimal player -->
-                <div class="volume-control-container relative">
+                <div class="volume-control-container relative hidden lg:block">
                     <button
                         @click.stop="toggleVolumeSlider"
                         class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
@@ -1552,9 +1550,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 </button>
                 <button
                     @click.stop="closePlayerWithConfirmation"
-                    class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
+                    class="flex h-9 w-9 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
-                    <XMarkIcon class="h-7 w-7 text-gray-600 dark:text-zinc-300" />
+                    <XMarkIcon class="text-zinc-500 dark:text-zinc-300" />
                 </button>
             </div>
         </div>
