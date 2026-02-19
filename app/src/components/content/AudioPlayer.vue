@@ -882,11 +882,23 @@ watch(
 const startY = ref(0);
 const currentY = ref(0);
 const isDragging = ref(false);
+const isSnapBack = ref(false); // true during the 300ms snap-back animation after releasing
+let snapBackTimer: ReturnType<typeof setTimeout> | null = null;
+
+const startSnapBack = () => {
+    isSnapBack.value = true;
+    if (snapBackTimer) clearTimeout(snapBackTimer);
+    snapBackTimer = setTimeout(() => {
+        isSnapBack.value = false;
+    }, 300); // matches transform 0.3s ease-out
+};
 
 const onPointerDown = (e: PointerEvent) => {
     startY.value = e.clientY;
     currentY.value = 0;
     isDragging.value = true;
+    isSnapBack.value = false;
+    if (snapBackTimer) clearTimeout(snapBackTimer);
 };
 
 const onPointerMove = (e: PointerEvent) => {
@@ -909,12 +921,14 @@ const onPointerUp = () => {
     }
     currentY.value = 0;
     isDragging.value = false;
+    startSnapBack();
 };
 
 const onPointerLeave = () => {
     if (isDragging.value) {
         currentY.value = 0;
         isDragging.value = false;
+        startSnapBack();
     }
 };
 
@@ -980,7 +994,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player fixed bottom-[70px] left-0 right-0 z-40 flex max-h-[80vh] w-full flex-col justify-items-end overflow-hidden bg-amber-50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
+                class="expanded-player fixed bottom-[76px] left-0 right-0 z-40 flex max-h-[80vh] w-full flex-col justify-items-end overflow-hidden bg-amber-50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
@@ -1404,7 +1418,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="fixed bottom-[70px] left-0 right-0 z-40 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg lg:shadow-lg"
+            class="fixed bottom-[76px] left-0 right-0 z-40 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg lg:shadow-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
