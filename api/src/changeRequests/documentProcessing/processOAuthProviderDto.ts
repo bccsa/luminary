@@ -1,7 +1,7 @@
 import { OAuthProviderDto } from "../../dto/OAuthProviderDto";
 import { DbService } from "../../db/db.service";
 import { storeCryptoData } from "../../util/encryption";
-import { Auth0CredentialsDto } from "../../dto/Auth0CredentialsDto";
+import { Auth0CredentialSecretsDto } from "../../dto/Auth0CredentialsDto";
 import { processImage } from "./processImageDto";
 
 /**
@@ -60,7 +60,9 @@ export default async function processOAuthProviderDto(
 
     // If both are provided (but not an update), prefer embedded credentials
     if (doc.credential && doc.credential_id) {
-        warnings.push("The previous credentials will be deleted and replaced with new ones.");
+        warnings.push(
+            "The previous credentials will be deleted and replaced with new ones.",
+        );
         delete doc.credential_id;
     }
 
@@ -72,21 +74,25 @@ export default async function processOAuthProviderDto(
     // Process new embedded credentials if provided
     if (doc.credential && !doc.credential_id) {
         try {
-            // Use helper to encrypt and store credentials
-            const savedId = await storeCryptoData<Auth0CredentialsDto>(db, doc.credential);
+            // Store only the secret in the crypto document; public config stays on the doc
+            const cryptoPayload = { clientSecret: doc.credential.clientSecret };
+            const savedId = await storeCryptoData<Auth0CredentialSecretsDto>(
+                db,
+                cryptoPayload,
+            );
 
-            // Update document to reference stored credentials
             doc.credential_id = savedId;
 
-            // Populate public fields
-            doc.clientId = doc.credential.clientId;
+            // Set public fields on the document (already on OAuthProviderDto)
             doc.domain = doc.credential.domain;
+            doc.clientId = doc.credential.clientId;
             doc.audience = doc.credential.audience;
 
-            // Remove embedded credentials to avoid storing them in plain text
             delete doc.credential;
         } catch (error) {
-            throw new Error(`Failed to encrypt OAuth credentials: ${error.message}`);
+            throw new Error(
+                `Failed to encrypt OAuth credentials: ${error.message}`,
+            );
         }
     }
 
@@ -122,27 +128,37 @@ export default async function processOAuthProviderDto(
 
                                 if (allImageFiles.length > 0) {
                                     // Find smallest image
-                                    const smallest = allImageFiles.reduce((a: any, b: any) =>
-                                        a.width <= b.width ? a : b,
+                                    const smallest = allImageFiles.reduce(
+                                        (a: any, b: any) =>
+                                            a.width <= b.width ? a : b,
                                     );
                                     filename = smallest.filename;
                                 } else if (
                                     doc.imageData.uploadData &&
                                     doc.imageData.uploadData.length > 0
                                 ) {
-                                    filename = doc.imageData.uploadData[0].filename;
+                                    filename =
+                                        doc.imageData.uploadData[0].filename;
                                 }
 
                                 if (filename) {
-                                    const baseUrl = bucket.publicUrl.replace(/\/$/, "");
-                                    const safeFilename = filename.replace(/^\//, "");
+                                    const baseUrl = bucket.publicUrl.replace(
+                                        /\/$/,
+                                        "",
+                                    );
+                                    const safeFilename = filename.replace(
+                                        /^\//,
+                                        "",
+                                    );
                                     doc.icon = `${baseUrl}/${safeFilename}`;
                                 }
                             }
                         }
                     } catch (e) {
                         // Ignore icon generation errors, just log warning
-                        warnings.push(`Warning: Failed to generate icon URL: ${e.message}`);
+                        warnings.push(
+                            `Warning: Failed to generate icon URL: ${e.message}`,
+                        );
                     }
                 }
             } catch (error) {

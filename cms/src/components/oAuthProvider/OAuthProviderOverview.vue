@@ -23,7 +23,10 @@ const emit = defineEmits(["openMobileSidebar"]);
 
 // Reactive database queries
 const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
+    () =>
+        db.docs.where({ type: "group" }).toArray() as unknown as Promise<
+            GroupDto[]
+        >,
     { initialValue: [] as GroupDto[] },
 );
 
@@ -31,9 +34,19 @@ const groups = useDexieLiveQuery(
 const availableGroups = computed(() => {
     console.log("All Groups:", groups.value);
     const filtered = groups.value.filter((group) => {
-        const canEdit = verifyAccess([group._id], DocType.Group, AclPermission.Edit);
-        const canAssign = verifyAccess([group._id], DocType.Group, AclPermission.Assign);
-        console.log(`Group ${group.name} (${group._id}): Edit=${canEdit}, Assign=${canAssign}`);
+        const canEdit = verifyAccess(
+            [group._id],
+            DocType.Group,
+            AclPermission.Edit,
+        );
+        const canAssign = verifyAccess(
+            [group._id],
+            DocType.Group,
+            AclPermission.Assign,
+        );
+        console.log(
+            `Group ${group.name} (${group._id}): Edit=${canEdit}, Assign=${canAssign}`,
+        );
         return canEdit && canAssign;
     });
     console.log("Filtered Available Groups:", filtered);
@@ -42,15 +55,19 @@ const availableGroups = computed(() => {
 
 const providers = useDexieLiveQuery(
     () =>
-        db.docs.where({ type: "oAuthProvider" }).toArray() as unknown as Promise<
-            OAuthProviderDto[]
-        >,
+        db.docs
+            .where({ type: "oAuthProvider" })
+            .toArray() as unknown as Promise<OAuthProviderDto[]>,
     { initialValue: [] as OAuthProviderDto[] },
 );
 
 // Delete permission check
-const canDelete = computed(() => hasAnyPermission(DocType.OAuthProvider, AclPermission.Delete));
-const canEdit = computed(() => hasAnyPermission(DocType.OAuthProvider, AclPermission.Edit));
+const canDelete = computed(() =>
+    hasAnyPermission(DocType.OAuthProvider, AclPermission.Delete),
+);
+const canEdit = computed(() =>
+    hasAnyPermission(DocType.OAuthProvider, AclPermission.Edit),
+);
 
 const isLoading = ref(false);
 const errors = ref<string[] | undefined>(undefined);
@@ -109,18 +126,14 @@ const hasAttemptedSubmit = ref(false);
 const hasValidCredentials = computed(() => {
     const c = localCredentials.value;
     return Boolean(
-        c.domain.trim() && c.clientId.trim() && c.clientSecret.trim() && c.audience.trim(),
+        c.domain.trim() &&
+            c.clientId.trim() &&
+            c.clientSecret.trim() &&
+            c.audience.trim(),
     );
 });
 
-const hasPartialCredentials = computed(() => {
-    const c = localCredentials.value;
-    const hasAny =
-        c.domain.trim() || c.clientId.trim() || c.clientSecret.trim() || c.audience.trim();
-    return hasAny && !hasValidCredentials.value;
-});
-
-// Credentials always start empty (GitHub secrets model), so any non-empty field = a change.
+// Any non-empty credential field (for dirty checking).
 const hasAnyCredentialInput = computed(() => {
     const c = localCredentials.value;
     return !!(
@@ -165,8 +178,14 @@ const isFormValid = computed(() => {
     // For new providers, credentials are required
     if (!isEditing.value && !hasValidCredentials.value) return false;
 
-    // For existing providers, if partial credentials are provided, they must be complete
-    if (isEditing.value && hasPartialCredentials.value) return false;
+    // When editing, if user entered a new secret they must provide all four credential fields
+    if (
+        isEditing.value &&
+        (localCredentials.value.clientSecret ?? "").trim() !== "" &&
+        !hasValidCredentials.value
+    ) {
+        return false;
+    }
 
     // When editing, require at least one change to enable Update
     if (isEditing.value && !isDirty.value) return false;
@@ -178,8 +197,14 @@ const isFormValid = computed(() => {
 function openModal() {
     hasAttemptedSubmit.value = false;
 
-    // Credentials always start empty (GitHub secrets model: not retrievable after storage)
-    localCredentials.value = { domain: "", clientId: "", clientSecret: "", audience: "" };
+    // Only clientSecret is stored encrypted; domain, clientId, audience are on the doc. Prefill those when editing.
+    const p = editableProvider.value;
+    localCredentials.value = {
+        domain: p?.domain ?? "",
+        clientId: p?.clientId ?? "",
+        clientSecret: "", // Has to be re-entered to change the secret
+        audience: p?.audience ?? "",
+    };
 
     // Capture clean snapshot for dirty checking when editing
     if (editableProvider.value) {
@@ -305,7 +330,10 @@ async function confirmDelete() {
         console.error("Error deleting provider:", error);
         notification.addNotification({
             title: "Failed to delete provider",
-            description: error instanceof Error ? error.message : "An unknown error occurred",
+            description:
+                error instanceof Error
+                    ? error.message
+                    : "An unknown error occurred",
             state: "error",
         });
     }
@@ -322,7 +350,9 @@ const saveProvider = async () => {
             return;
         }
 
-        const provider = isEditing.value ? editableProvider.value : newProvider.value;
+        const provider = isEditing.value
+            ? editableProvider.value
+            : newProvider.value;
         if (!provider) return;
 
         // For new providers, credentials are required
@@ -334,18 +364,29 @@ const saveProvider = async () => {
             return;
         }
 
-        // For existing providers, if credentials are provided, they must be valid
-        if (isEditing.value && hasPartialCredentials.value && !hasValidCredentials.value) {
+        // When editing: if user entered a new secret they must provide all four fields
+        if (
+            isEditing.value &&
+            (localCredentials.value.clientSecret ?? "").trim() !== "" &&
+            !hasValidCredentials.value
+        ) {
             notification.addNotification({
                 title: "Invalid Auth0 credentials",
                 description:
-                    "Please provide all credential fields, or leave all empty to keep existing credentials.",
+                    "Please provide domain, client ID, and audience when changing the client secret.",
                 state: "error",
             });
             return;
         }
 
-        // If credentials valid include them, else remove credential field for edits
+        // Always sync public fields from form to doc (domain, clientId, audience live on the doc)
+        provider.domain = localCredentials.value.domain?.trim() || undefined;
+        provider.clientId =
+            localCredentials.value.clientId?.trim() || undefined;
+        provider.audience =
+            localCredentials.value.audience?.trim() || undefined;
+
+        // Only send credential when user provided a new secret (API encrypts clientSecret only)
         if (hasValidCredentials.value) {
             provider.credential = { ...localCredentials.value };
         } else {
@@ -375,7 +416,9 @@ const saveProvider = async () => {
         });
     } catch (err) {
         console.error("Failed to save provider:", err);
-        errors.value = [err instanceof Error ? err.message : "Failed to save provider"];
+        errors.value = [
+            err instanceof Error ? err.message : "Failed to save provider",
+        ];
         isSavingProvider.value = false;
     } finally {
         isLoading.value = false;
@@ -389,13 +432,20 @@ const saveProvider = async () => {
             <div class="px-3 sm:px-0"></div>
         </div>
 
-        <div v-if="isLoading && !providers.length" class="px-6 py-8 text-center">
-            <div class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
+        <div
+            v-if="isLoading && !providers.length"
+            class="px-6 py-8 text-center"
+        >
+            <div
+                class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"
+            ></div>
             <p class="mt-2 text-sm text-gray-500">Loading providers...</p>
         </div>
 
         <div v-else-if="!providers.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No OAuth configured</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">
+                No OAuth configured
+            </h3>
             <p class="mt-1 text-sm text-gray-500">
                 Get started by creating your first OAuth configuration.
             </p>

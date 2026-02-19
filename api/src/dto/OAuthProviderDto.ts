@@ -57,7 +57,8 @@ export class OAuthProviderDto extends _contentBaseDto {
     @Expose()
     /**
      * Transient field for passing credentials during create/update operations.
-     * Never stored directly in the database - use credential_id instead.
+     * Public fields (domain, clientId, audience) are stored on this doc; only
+     * clientSecret is encrypted and stored via credential_id.
      */
     credential?: Auth0CredentialsDto;
 
@@ -65,8 +66,8 @@ export class OAuthProviderDto extends _contentBaseDto {
     @IsString()
     @Expose()
     /**
-     * Reference to encrypted CryptoDto document containing Auth0CredentialsDto.
-     * The credentials are encrypted using ENCRYPTION_KEY from the environment.
+     * Reference to encrypted CryptoDto document containing only the clientSecret.
+     * Public config (domain, clientId, audience) is stored on this document.
      */
     credential_id?: Uuid;
     @IsOptional()
