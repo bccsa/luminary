@@ -225,6 +225,7 @@ const saveChanges = async () => {
         @close="emit('close')"
         footerSticky
         shadowOnFooter
+        fullScreen
     >
         <template #footer-extra>
             <div class="flex items-center gap-4">

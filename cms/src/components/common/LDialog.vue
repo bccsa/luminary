@@ -13,6 +13,7 @@ type Props = {
     primaryButtonDisabled?: boolean;
     footerSticky?: boolean;
     shadowOnFooter?: boolean;
+    fullScreen?: boolean;
 };
 
 const open = defineModel<boolean>("open");
@@ -28,6 +29,7 @@ withDefaults(defineProps<Props>(), {
         :heading="title"
         :noDivider="true"
         :shadowOnFooter="shadowOnFooter"
+        :fullScreen="fullScreen"
     >
         <p class="text-sm text-gray-500">{{ description }}</p>
         <slot name="default" />

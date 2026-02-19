@@ -6,6 +6,7 @@ type Props = {
     heading: string;
     noDivider?: boolean;
     shadowOnFooter?: boolean;
+    fullScreen?: boolean;
 };
 withDefaults(defineProps<Props>(), {
     noDivider: false,
@@ -34,7 +35,11 @@ watch(modalRef, (el) => {
                 @keydown.esc="isVisible = false"
                 @click.stop
                 ref="modalRef"
-                class="relative z-50 flex max-h-[95vh] min-w-[28rem] max-w-[90vw] flex-col rounded-lg bg-white/90 shadow-xl focus:outline-none"
+                :class="
+                    fullScreen
+                        ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 shadow-xl focus:outline-none'
+                        : 'relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                "
             >
                 <div class="flex-1 overflow-scroll p-5 scrollbar-hide">
                     <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
@@ -47,7 +52,7 @@ watch(modalRef, (el) => {
                     v-if="$slots.footer"
                     :class="
                         shadowOnFooter
-                            ? 'shrink-0 px-5 pb-5 pt-4 shadow-[0_-4px_8px_0_rgba(0,0,0,0.1)]'
+                            ? 'shrink-0 px-5 pb-5 pt-4 shadow-[0_-2px_6px_0_rgba(0,0,0,0.1)]'
                             : 'shrink-0 px-5 pb-5 pt-4'
                     "
                 >
