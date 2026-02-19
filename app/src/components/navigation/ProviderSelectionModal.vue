@@ -14,10 +14,8 @@ const providers = ref<OAuthProviderPublicDto[]>([]);
 const isLoading = ref(true);
 
 const handleProviderSelect = async (provider: OAuthProviderPublicDto) => {
-    // Clear old auth data (cache, etc.)
     clearAuth0Cache();
-    // Trigger login directly
-    await loginWithProvider(provider);
+    await loginWithProvider(provider, { prompt: "login" });
 };
 
 const handleClose = () => {
@@ -39,14 +37,20 @@ onMounted(async () => {
         secondaryButtonText="Cancel"
     >
         <!-- Loading spinner -->
-        <div v-if="isLoading" class="flex justify-center py-6">
+        <div
+            v-if="isLoading"
+            class="flex justify-center py-6"
+        >
             <div
                 class="h-8 w-8 animate-spin rounded-full border-b-2 border-zinc-900 dark:border-slate-200"
             ></div>
         </div>
 
         <!-- Provider list -->
-        <div v-else class="flex flex-col gap-3">
+        <div
+            v-else
+            class="flex flex-col gap-3"
+        >
             <button
                 v-for="provider in providers"
                 :key="provider.id"

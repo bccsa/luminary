@@ -195,7 +195,10 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
  * Login with a specific provider.
  * Creates a temporary Auth0 client to trigger the redirect.
  */
-export async function loginWithProvider(provider: OAuthProviderPublicDto) {
+export async function loginWithProvider(
+    provider: OAuthProviderPublicDto,
+    options?: { prompt?: "login" },
+) {
     const web_origin = window.location.origin;
 
     const client = new Auth0Client({
@@ -211,7 +214,9 @@ export async function loginWithProvider(provider: OAuthProviderPublicDto) {
         },
     });
 
-    await client.loginWithRedirect();
+    await client.loginWithRedirect({
+        authorizationParams: options?.prompt ? { prompt: options.prompt } : undefined,
+    });
 }
 
 /**
@@ -352,20 +357,10 @@ async function setupAuth(app: App<Element>, router: Router) {
         });
     };
 
-    // Handle login
+    // Handle login – never pass prompt so Auth0 can use SSO on return-from-logout
     const _LoginWithRedirect = oauth.loginWithRedirect;
     oauth.loginWithRedirect = () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        // If providerId is present in the URL, prompt login
-        const shouldPromptLogin = urlParams.has("providerId");
-
-        return _LoginWithRedirect({
-            authorizationParams: shouldPromptLogin
-                ? {
-                      prompt: "login",
-                  }
-                : undefined,
-        });
+        return _LoginWithRedirect();
     };
 
     if (oauth.isLoading.value) {
