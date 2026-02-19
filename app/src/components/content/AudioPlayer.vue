@@ -998,7 +998,6 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-                    zIndex: isDragging ? 9 : undefined, // Drop below mobile nav (z-10) while dragging down
                 }"
             >
                 <div class="flex-1 overflow-y-auto scrollbar-hide">
@@ -1770,9 +1769,6 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         opacity 0.3s ease-out;
 }
 
-.slide-up-leave-active {
-    z-index: 9 !important; /* Slide behind the mobile bottom nav (z-10) when minimizing */
-}
 
 .slide-up-enter-from,
 .slide-up-leave-to {
