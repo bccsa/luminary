@@ -97,6 +97,7 @@
         "notfoundpage.unauthenticated.loginPrompt.after": "pour vous connecter ou créer un compte.",
         "notfoundpage.unauthenticated.description": "Le contenu peut être uniquement disponible pour les utilisateurs connectés.",
         "notfoundpage.authenticated.title": "Hé, nous n'avons pas pu trouver cette page",
-        "notfoundpage.authenticated.description": "Le contenu que vous recherchez a peut-être été supprimé ou n'est pas disponible pour le moment."
+        "notfoundpage.authenticated.description": "Le contenu que vous recherchez a peut-être été supprimé ou n'est pas disponible pour le moment.",
+        "singlecontent.listen": "Écouter"
     }
 }
