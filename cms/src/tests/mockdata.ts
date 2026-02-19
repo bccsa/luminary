@@ -17,6 +17,7 @@ import {
     type UserDto,
     type StorageDto,
     type S3CredentialDto,
+    type OAuthProviderDto,
     StorageType,
     MediaType,
     type MediaFileDto,
@@ -865,6 +866,11 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        oAuthProvider: {
+            view: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-private-content": {
         post: {
@@ -919,6 +925,11 @@ export const superAdminAccessMap = {
             view: true,
             edit: true,
             assign: true,
+            delete: true,
+        },
+        oAuthProvider: {
+            view: true,
+            edit: true,
             delete: true,
         },
     },
@@ -1442,6 +1453,18 @@ export const mockStorageDtoGeneral: StorageDto = {
     publicUrl: "http://localhost:9000/general",
     credential: mockS3Credentials,
     mimeTypes: ["image/*", "video/mp4", "application/pdf"],
+};
+
+export const mockOAuthProviderDto: OAuthProviderDto = {
+    _id: "oauth-provider-test",
+    type: DocType.OAuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-super-admins"],
+    label: "Test Auth0 Provider",
+    providerType: "auth0",
+    domain: "tenant.auth0.com",
+    clientId: "client123",
+    audience: "https://api.example.com",
 };
 
 // Alias for backward compatibility
