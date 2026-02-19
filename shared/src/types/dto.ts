@@ -110,6 +110,7 @@ export type ContentDto = ContentBaseDto & {
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
+    copyright?: string;
 };
 
 export type ContentParentDto = ContentBaseDto & {
