@@ -103,6 +103,7 @@ export type ContentDto = ContentBaseDto & {
     parentMediaBucketId?: Uuid;
     fts?: string[];
     ftsTokenCount?: number;
+    copyright?: string;
 };
 
 export type ContentParentDto = ContentBaseDto & {
