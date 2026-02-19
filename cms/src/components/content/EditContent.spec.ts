@@ -28,6 +28,11 @@ import EditContentVideo from "./EditContentVideo.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Mock URL.createObjectURL for tests
+if (typeof window.URL.createObjectURL === "undefined") {
+    Object.defineProperty(window.URL, "createObjectURL", { value: () => "blob:mock-url" });
+}
+
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -324,19 +329,17 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: "new",
+                id: mockData.mockPostDto._id,
                 tagOrPostType: PostType.Blog,
             },
         });
 
         await waitForExpect(() => {
-            // Check for language selector in EmptyState (when no content is selected)
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
+            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
         });
 
         await waitForExpect(() => {
-            // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
-            expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true);
+            expect(wrapper.findAllComponents(LanguageSelector).length).toBe(2);
         });
     });
 
