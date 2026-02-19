@@ -48,15 +48,8 @@ watch(modalRef, (el) => {
                     </div>
                 </div>
 
-                <div
-                    v-if="$slots.footer"
-                    :class="
-                        shadowOnFooter
-                            ? 'shrink-0 px-5 pb-5 pt-4 shadow-[0_-2px_6px_0_rgba(0,0,0,0.1)]'
-                            : 'shrink-0 px-5 pb-5 pt-4'
-                    "
-                >
-                    <slot name="footer"></slot>
+                <div v-if="$slots.footer" class="shrink-0 px-5 pb-5 pt-4">
+                    <slot name="footer" />
                 </div>
             </div>
         </div>
