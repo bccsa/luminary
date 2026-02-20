@@ -92,7 +92,7 @@ export class QueryService {
                 permissionCheckTypes.push(type as DocType);
         }
 
-        // Get user accessible groups
+        // Get user accessible groups (no JWT → public/anonymous permissions)
         const userDetails = await processJwt(authToken, this.db, this.logger);
 
         // TODO: Get view permissions based CMS access if CMS view permissions are set (future)

@@ -10,6 +10,7 @@ import {
     ArrowUturnRightIcon,
     UsersIcon,
     CloudIcon,
+    LockClosedIcon,
 } from "@heroicons/vue/20/solid";
 
 import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
@@ -74,6 +75,12 @@ const navigation = computed(() => [
         to: { name: "storage" },
         icon: CloudIcon,
         visible: hasAnyPermission(DocType.Storage, AclPermission.View),
+    },
+    {
+        name: "OAuth",
+        to: { name: "oAuthProviders" },
+        icon: LockClosedIcon,
+        visible: hasAnyPermission(DocType.OAuthProvider, AclPermission.View),
     },
     {
         name: "Users",

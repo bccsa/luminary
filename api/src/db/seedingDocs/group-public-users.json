@@ -2,6 +2,8 @@
     "_id": "group-public-users",
     "type": "group",
     "name": "Public Users",
+    "updatedTimeUtc": 2000000000001,
+    "memberOf": ["group-super-admins"],
     "acl": [
         {
             "type": "post",

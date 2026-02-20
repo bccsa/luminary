@@ -19,6 +19,19 @@ vi.mock("@auth0/auth0-vue", () => ({
     })),
 }));
 
+// Create ref before mock hoisting so vi.mock factory can reference it
+const { mockProviderSelectionModal } = vi.hoisted(() => {
+    const { ref: createRef } = require("vue");
+    return { mockProviderSelectionModal: createRef(false) };
+});
+
+// Mock auth module - return 0 providers so performLogin falls through to originalLoginWithRedirect
+vi.mock("@/auth", () => ({
+    getAvailableProviders: vi.fn(() => Promise.resolve([])),
+    getSelectedProviderId: vi.fn(() => undefined),
+    showProviderSelectionModal: mockProviderSelectionModal,
+}));
+
 // Mock userPreferencesAsRef
 vi.mock("@/globalConfig", () => ({
     userPreferencesAsRef: {
@@ -79,14 +92,16 @@ describe("useAuthWithPrivacyPolicy", () => {
         hasPendingLogin.value = false;
     });
 
-    it("loginWithRedirect calls originalLoginWithRedirect when privacy policy is accepted", () => {
+    it("loginWithRedirect calls originalLoginWithRedirect when privacy policy is accepted", async () => {
         userPreferencesMock.value.privacyPolicy.status = "accepted";
         (userPreferencesAsRef as any).value = userPreferencesMock.value;
 
         const { loginWithRedirect } = useAuthWithPrivacyPolicy();
         loginWithRedirect();
-        expect(loginWithRedirectMock).toHaveBeenCalled();
-        expect(showPrivacyPolicyModal.value).toBe(false);
+        await waitForExpect(() => {
+            expect(loginWithRedirectMock).toHaveBeenCalled();
+            expect(showPrivacyPolicyModal.value).toBe(false);
+        });
     });
 
     it("loginWithRedirect shows modal when privacy policy is not accepted", () => {

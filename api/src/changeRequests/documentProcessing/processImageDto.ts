@@ -14,6 +14,29 @@ const imageSizes = [180, 360, 640, 1280, 2560];
 
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 
+export function isImageMimeTypeAllowed(allowedTypes: string[], format: string): boolean {
+    const detectedFormat = format === "jpeg" ? "jpg" : format;
+    const detectedMimetype = `image/${detectedFormat}`;
+    const detectedMimetypeAlt = `image/${format}`;
+    const svgMimeType = format === "svg" ? "image/svg+xml" : undefined;
+
+    return allowedTypes.some((allowedType) => {
+        if (allowedType.endsWith("/*")) {
+            const prefix = allowedType.slice(0, -2);
+            return (
+                detectedMimetype.startsWith(prefix + "/") ||
+                detectedMimetypeAlt.startsWith(prefix + "/")
+            );
+        }
+
+        return (
+            detectedMimetype === allowedType ||
+            detectedMimetypeAlt === allowedType ||
+            svgMimeType === allowedType
+        );
+    });
+}
+
 /**
  * Migrates all image files from one bucket to another
  * Supports migration between different S3 systems (e.g., MinIO to AWS S3, or different MinIO instances)
@@ -326,24 +349,11 @@ async function processImageUpload(
             // Validate file type against bucket's allowed mimeTypes (if specified)
             // Use Sharp's detected format to determine mimetype
             if (storage.mimeTypes && storage.mimeTypes.length > 0 && metadata.format) {
-                const detectedFormat = metadata.format === "jpeg" ? "jpg" : metadata.format;
-                const detectedMimetype = `image/${detectedFormat}`;
-                const detectedMimetypeAlt = `image/${metadata.format}`;
+                const detectedMimetype = `image/${
+                    metadata.format === "jpeg" ? "jpg" : metadata.format
+                }`;
 
-                const isAllowed = storage.mimeTypes.some((allowedType) => {
-                    // Support wildcards like "image/*"
-                    if (allowedType.endsWith("/*")) {
-                        const prefix = allowedType.slice(0, -2);
-                        return (
-                            detectedMimetype.startsWith(prefix + "/") ||
-                            detectedMimetypeAlt.startsWith(prefix + "/")
-                        );
-                    }
-                    // Exact match (check both variants for jpg/jpeg)
-                    return detectedMimetype === allowedType || detectedMimetypeAlt === allowedType;
-                });
-
-                if (!isAllowed) {
+                if (!isImageMimeTypeAllowed(storage.mimeTypes, metadata.format)) {
                     return {
                         success: false,
                         warnings: [

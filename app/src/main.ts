@@ -3,7 +3,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import auth from "./auth";
+import auth, { clearAuth0Cache } from "./auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
@@ -11,6 +11,7 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initLanguageSync } from "./sync";
+import { useNotificationStore } from "./stores/notification";
 
 export const app = createApp(App);
 
@@ -36,6 +37,7 @@ async function Startup() {
     warmMangoCaches();
 
     const oauth = await auth.setupAuth(app, router);
+
     const token = await auth.getToken(oauth);
 
     await init({
@@ -46,6 +48,7 @@ async function Startup() {
         token,
         appLanguageIdsAsRef,
         syncList: [
+            { type: DocType.OAuthProvider, contentOnly: false, syncPriority: 1 },
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
@@ -61,11 +64,25 @@ async function Startup() {
         Sentry?.captureException(err);
     });
 
-    // Redirect to login if the API authentication fails
-    getSocket().on("apiAuthFailed", async () => {
-        console.error("API authentication failed, redirecting to login");
-        Sentry?.captureMessage("API authentication failed, redirecting to login");
-        await auth.loginRedirect(oauth);
+    // Handle API authentication failures – clear stale auth state and stay in guest mode
+    // rather than aggressively redirecting (which causes a redirect loop).
+    getSocket().on("apiAuthFailed", () => {
+        console.error("API authentication failed, falling back to guest mode");
+        Sentry?.captureMessage("API authentication failed, falling back to guest mode");
+
+        // Clear any cached tokens and selected provider so the next explicit
+        // login attempt starts fresh.
+        clearAuth0Cache();
+        localStorage.removeItem("selectedOAuthProviderId");
+
+        // Show a notification so the user understands what happened.
+        useNotificationStore().addNotification({
+            title: "Login did not grant access",
+            description:
+                "We couldn't find any permissions for this login. Please sign in with a different provider.",
+            state: "warning",
+            type: "toast",
+        });
     });
 
     initLanguageSync();
@@ -83,4 +100,7 @@ async function Startup() {
     initAnalytics();
 }
 
-Startup();
+Startup().catch((err) => {
+    console.error("Startup failed:", err);
+    Sentry?.captureException(err);
+});

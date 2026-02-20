@@ -5,6 +5,7 @@ import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import configuration from "../configuration";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+import { OAuthProviderCache, CachedOAuthProvider } from "../auth/oauthProviderCache";
 
 export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
 
@@ -18,6 +19,14 @@ export type JwtUserDetails = {
 };
 
 let jwtMap: JwtMap;
+
+/** Group ID for unauthenticated/public access (no or invalid JWT). */
+const PUBLIC_GROUP_ID = "group-public-users" as Uuid;
+
+function publicUserDetails(): JwtUserDetails {
+    const groups = [PUBLIC_GROUP_ID];
+    return { groups, accessMap: PermissionSystem.getAccessMap(groups) };
+}
 
 /**
  * Parse the permission map from the JWT_MAPPINGS environmental variable to an object
@@ -62,7 +71,7 @@ export function clearJwtMap() {
  * @returns - Array with JWT verified groups
  */
 export async function processJwt(
-    jwt: string,
+    token: string,
     db: DbService,
     logger?: Logger,
 ): Promise<JwtUserDetails> {
@@ -77,41 +86,82 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
+            return publicUserDetails();
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
-    // Verify the JWT token
     let jwtPayload: JWT.JwtPayload;
+    let matchedProvider: CachedOAuthProvider | undefined;
+
+    // Verify token against the cached OAuth provider's signing certificate
     try {
-        jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
+        const decoded = JWT.decode(token, { complete: true });
+        if (!decoded?.payload || typeof decoded.payload === "string") {
+            return publicUserDetails();
+        }
+
+        const iss = (decoded.payload as JWT.JwtPayload).iss;
+        if (!iss) return publicUserDetails();
+
+        const provider = OAuthProviderCache.getByIssuer(iss);
+        if (!provider) {
+            logger?.warn(`No cached OAuth provider matches issuer "${iss}"`);
+            return publicUserDetails();
+        }
+
+        const kid = decoded.header?.kid;
+        const pem = OAuthProviderCache.getSigningKey(provider, kid);
+        if (!pem) {
+            logger?.warn(`No signing key found for provider "${provider.domain}" (kid=${kid})`);
+            return publicUserDetails();
+        }
+
+        jwtPayload = JWT.verify(token, pem, { algorithms: ["RS256"] }) as JWT.JwtPayload;
+        matchedProvider = provider;
     } catch (err) {
         logger?.error(`Unable to verify JWT`, err);
+        return publicUserDetails();
     }
 
-    // Get JWT mapped groups and user details
+    // Extract user details: use provider's claimNamespace if available, otherwise global jwtMap
     try {
+        // Group mappings always use the global jwtMap
         if (jwtMap["groups"]) {
             Object.keys(jwtMap["groups"]).forEach((groupId) => {
                 if (jwtMap["groups"][groupId](jwtPayload)) groupSet.add(groupId);
             });
         }
 
-        if (jwtMap["userId"]) {
-            userId = jwtMap["userId"](jwtPayload);
-        }
+        if (matchedProvider?.claimNamespace && jwtPayload) {
+            // Extract claims from the provider-specific namespace
+            const ns = jwtPayload[matchedProvider.claimNamespace];
+            if (ns && typeof ns === "object") {
+                userId = ns.userId;
+                email = ns.email || jwtPayload.email;
+                name = ns.username || ns.name || jwtPayload.name;
+            }
+            // Standard OIDC claim fallbacks
+            if (!email) email = jwtPayload.email;
+            if (!name) name = jwtPayload.name;
+            if (!userId) userId = jwtPayload.sub;
+        } else {
+            // Fallback: use global JWT_MAPPINGS functions
+            if (jwtMap["userId"]) {
+                userId = jwtMap["userId"](jwtPayload);
+            }
 
-        if (jwtMap["email"]) {
-            email = jwtMap["email"](jwtPayload);
-        }
+            if (jwtMap["email"]) {
+                email = jwtMap["email"](jwtPayload);
+            }
 
-        if (jwtMap["name"]) {
-            name = jwtMap["name"](jwtPayload);
+            if (jwtMap["name"]) {
+                name = jwtMap["name"](jwtPayload);
+            }
         }
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
+        return publicUserDetails();
     }
 
     // If userId is set, get the user details from the database using the userId

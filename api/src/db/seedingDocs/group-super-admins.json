@@ -2,6 +2,8 @@
     "_id": "group-super-admins",
     "type": "group",
     "name": "Super Admins",
+    "updatedTimeUtc": 2000000000001,
+    "memberOf": ["group-super-admins"],
     "acl": [
         {
             "type": "post",
@@ -40,6 +42,11 @@
         },
         {
             "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
+        },
+        {
+            "type": "oAuthProvider",
             "groupId": "group-super-admins",
             "permission": ["view", "edit", "delete", "assign"]
         }

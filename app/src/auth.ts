@@ -1,11 +1,228 @@
-import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
-import { type App, watch } from "vue";
+import { Auth0Plugin, createAuth0, AUTH0_INJECTION_KEY } from "@auth0/auth0-vue";
+import { Auth0Client } from "@auth0/auth0-spa-js";
+import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
+import { type OAuthProviderPublicDto } from "luminary-shared";
 
 export type AuthPlugin = Auth0Plugin & {
-    logout: (retrying?: boolean) => Promise<void>;
+    logout: () => Promise<void>;
 };
+
+const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+
+/**
+ * Reactive flag to show/hide the provider selection modal.
+ */
+export const showProviderSelectionModal = ref(false);
+
+/**
+ * Clear Auth0 SDK's localStorage cache and related keys.
+ * This ensures a clean slate when switching between OAuth providers,
+ * preventing stale tokens from the previous provider being reused.
+ */
+export function clearAuth0Cache(): void {
+    const keysToRemove: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+
+        // Auth0 SPA SDK token cache keys
+        if (key.startsWith("@@auth0spajs@@")) keysToRemove.push(key);
+        // Auth0 SPA SDK transaction keys
+        if (key.startsWith("a0.spajs.txs")) keysToRemove.push(key);
+    }
+
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    // Clear connection and retry state from previous provider
+    localStorage.removeItem("usedAuth0Connection");
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    // Do NOT remove SELECTED_PROVIDER_KEY here, as we want to persist it until explicitly changed or login with new provider succeeds
+}
+
+import { db, DocType, type OAuthProviderDto } from "luminary-shared";
+
+/**
+ * Get OAuth provider config from local DB.
+ * Returns undefined when no provider is available yet (guest mode).
+ */
+async function getProviderConfig(): Promise<{
+    domain: string;
+    clientId: string;
+    audience: string;
+} | undefined> {
+    try {
+        let providers: OAuthProviderDto[] = [];
+
+        // Try to get providers from local DB (synced)
+        if (db) {
+            providers = (await db.docs
+                .where("type")
+                .equals(DocType.OAuthProvider)
+                .toArray()) as OAuthProviderDto[];
+        } else {
+            // DB not initialized yet (bootstrap), try raw IndexedDB
+            providers = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
+                const request = indexedDB.open("luminary-db");
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const database = request.result;
+                    if (!database.objectStoreNames.contains("docs")) {
+                        database.close();
+                        return resolve([]);
+                    }
+                    const transaction = database.transaction("docs", "readonly");
+                    const store = transaction.objectStore("docs");
+                    // We assume 'type' index exists as per schema
+                    const index = store.index("type");
+                    const query = index.getAll("oAuthProvider"); // DocType.OAuthProvider value
+
+                    query.onsuccess = () => {
+                        database.close();
+                        resolve(query.result as OAuthProviderDto[]);
+                    };
+                    query.onerror = () => {
+                        database.close();
+                        reject(query.error);
+                    };
+                };
+            });
+        }
+
+        if (providers.length > 0) {
+            // Check for saved selection
+            const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
+
+            // Check for proposed selection from URL (query param) - used during login flow
+            const urlParams = new URLSearchParams(window.location.search);
+            const proposedId = urlParams.get("providerId");
+
+            // If we are in the middle of a login flow (triggerLogin or callback), prefer the proposed ID
+            const isLoginFlow =
+                urlParams.has("providerId") || urlParams.has("code") || urlParams.has("state");
+
+            let idToUse = selectedId;
+            if (isLoginFlow && proposedId) {
+                idToUse = proposedId;
+            }
+
+            const selected = idToUse ? providers.find((p) => p._id === idToUse) : providers[0];
+            const provider = selected ?? providers[0];
+
+            if (provider.domain && provider.clientId && provider.audience) {
+                return {
+                    domain: provider.domain,
+                    clientId: provider.clientId,
+                    audience: provider.audience,
+                };
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to load providers from DB", e);
+    }
+
+    return undefined;
+}
+
+/**
+ * Get available OAuth providers from the local DB.
+ */
+/**
+ * Get available OAuth providers from the local DB.
+ */
+export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
+    try {
+        let docs: any[] = [];
+        if (db) {
+            docs = await db.docs.where("type").equals(DocType.OAuthProvider).toArray();
+        } else {
+            docs = await new Promise<any[]>((resolve, reject) => {
+                const request = indexedDB.open("luminary-db");
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const database = request.result;
+                    if (!database.objectStoreNames.contains("docs")) {
+                        database.close();
+                        return resolve([]);
+                    }
+                    const transaction = database.transaction("docs", "readonly");
+                    const store = transaction.objectStore("docs");
+                    const index = store.index("type");
+                    const query = index.getAll("oAuthProvider");
+
+                    query.onsuccess = () => {
+                        database.close();
+                        resolve(query.result);
+                    };
+                    query.onerror = () => {
+                        database.close();
+                        reject(query.error);
+                    };
+                };
+            });
+        }
+
+        return docs.map((d: any) => ({
+            id: d._id,
+            label: d.label,
+            domain: d.domain,
+            clientId: d.clientId,
+            audience: d.audience,
+            icon: d.icon,
+            iconOpacity: d.iconOpacity,
+            textColor: d.textColor,
+            backgroundColor: d.backgroundColor,
+        })) as OAuthProviderPublicDto[];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Login with a specific provider.
+ * Creates a temporary Auth0 client to trigger the redirect.
+ */
+export async function loginWithProvider(
+    provider: OAuthProviderPublicDto,
+    options?: { prompt?: "login" },
+) {
+    const web_origin = window.location.origin;
+
+    const client = new Auth0Client({
+        domain: provider.domain,
+        clientId: provider.clientId,
+        useRefreshTokens: true,
+        useRefreshTokensFallback: true,
+        cacheLocation: "localstorage",
+        authorizationParams: {
+            audience: provider.audience,
+            scope: "openid profile email offline_access",
+            redirect_uri: `${web_origin}?providerId=${encodeURIComponent(provider.id)}`,
+        },
+    });
+
+    await client.loginWithRedirect({
+        authorizationParams: options?.prompt ? { prompt: options.prompt } : undefined,
+    });
+}
+
+/**
+ * Get the currently selected OAuth provider ID.
+ */
+export function getSelectedProviderId(): string | undefined {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasProviderId = urlParams.has("providerId");
+    const isCallback = urlParams.has("code") || urlParams.has("state");
+
+    if (hasProviderId && !isCallback) {
+        return undefined;
+    }
+
+    return localStorage.getItem(SELECTED_PROVIDER_KEY) ?? undefined;
+}
 
 /**
  * Setup the Auth0 plugin.
@@ -14,17 +231,57 @@ async function setupAuth(app: App<Element>, router: Router) {
     app.config.globalProperties.$auth = null; // Clear existing auth
     const web_origin = window.location.origin;
 
+    const config = await getProviderConfig();
+
+    if (!config) {
+        // No provider config at startup (e.g. sync not run yet). Provide minimal auth so useAuth0() is defined.
+        // Public access is handled by the API permission map (group-public-users), not by this object.
+        // loginWithRedirect triggers real login via getAvailableProviders + loginWithProvider so the Login button works.
+        const fallbackAuth = {
+            isAuthenticated: ref(false),
+            isLoading: ref(false),
+            user: ref(undefined),
+            idTokenClaims: ref(undefined),
+            error: ref(undefined),
+            loginWithRedirect: async () => {
+                const providers = await getAvailableProviders();
+                if (providers.length === 0) return;
+                if (providers.length > 1) {
+                    showProviderSelectionModal.value = true;
+                    return;
+                }
+                await loginWithProvider(providers[0]);
+            },
+            logout: async () => {},
+            getAccessTokenSilently: async () => undefined as unknown as string,
+            loginWithPopup: async () => {},
+            handleRedirectCallback: async () => ({} as unknown as ReturnType<AuthPlugin["handleRedirectCallback"]>),
+            checkSession: async () => {},
+        } as unknown as AuthPlugin;
+        app.provide(AUTH0_INJECTION_KEY, fallbackAuth);
+        app.config.globalProperties.$auth = fallbackAuth;
+        app.config.globalProperties.$auth0 = fallbackAuth;
+        return fallbackAuth;
+    }
+
+    // Determine the redirect_uri that was used (must match exactly for code exchange)
+    const urlParams = new URLSearchParams(window.location.search);
+    const providerIdInUrl = urlParams.get("providerId");
+    const redirect_uri = providerIdInUrl
+        ? `${web_origin}?providerId=${encodeURIComponent(providerIdInUrl)}`
+        : web_origin;
+
     const oauth = createAuth0(
         {
-            domain: import.meta.env.VITE_AUTH0_DOMAIN,
-            clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+            domain: config.domain,
+            clientId: config.clientId,
             useRefreshTokens: true,
             useRefreshTokensFallback: true,
             cacheLocation: "localstorage",
             authorizationParams: {
-                audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+                audience: config.audience,
                 scope: "openid profile email offline_access",
-                redirect_uri: web_origin,
+                redirect_uri,
             },
         },
         {
@@ -39,18 +296,30 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         if (url.searchParams.has("error")) {
             const error = url.searchParams.get("error");
-            console.error(error);
-            alert(error);
+            const errorDescription = url.searchParams.get("error_description");
+            console.error("Auth0 callback error:", error, errorDescription);
+            alert(`Login error: ${error}\n${errorDescription || ""}`);
             return false;
         }
 
         if (!url.searchParams.has("code")) return false;
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
+        try {
+            await oauth.handleRedirectCallback(url.toString());
+        } catch (err) {
+            console.error("Auth0 callback handling failed:", err);
+            // Don't block the app, but log the error
+        }
 
         const to = getRedirectTo() || "/";
 
         // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
+        // Login successful! Commit the proposed provider to permanent storage if it exists
+        const proposedId = url.searchParams.get("providerId");
+        if (proposedId) {
+            localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
+        }
+
         router.push(to);
 
         return true;
@@ -72,27 +341,21 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     // Handle logout
     const _Logout = oauth.logout;
-    (oauth as AuthPlugin).logout = (retrying = false) => {
-        let returnTo = web_origin;
-        if (!retrying) returnTo += "?loggedOut";
+    (oauth as AuthPlugin).logout = () => {
+        clearAuth0Cache();
+        localStorage.removeItem(SELECTED_PROVIDER_KEY);
 
         return _Logout({
             logoutParams: {
-                returnTo,
+                returnTo: web_origin,
             },
         });
     };
 
-    // Handle login
+    // Handle login – never pass prompt so Auth0 can use SSO on return-from-logout
     const _LoginWithRedirect = oauth.loginWithRedirect;
     oauth.loginWithRedirect = () => {
-        return _LoginWithRedirect({
-            authorizationParams: location.search.includes("loggedOut")
-                ? {
-                      prompt: "login",
-                  }
-                : undefined,
-        });
+        return _LoginWithRedirect();
     };
 
     if (oauth.isLoading.value) {
@@ -111,6 +374,20 @@ async function setupAuth(app: App<Element>, router: Router) {
 async function loginRedirect(oauth: AuthPlugin) {
     const { loginWithRedirect, logout } = oauth;
 
+    // Check if we have a selected provider
+    const selectedProviderId = getSelectedProviderId();
+
+    // If no provider selected, check availability
+    if (!selectedProviderId) {
+        const providers = await getAvailableProviders();
+        if (providers.length > 1) {
+            // Multiple providers and none selected - show provider selection modal
+            showProviderSelectionModal.value = true;
+            return;
+        }
+        // If 0 or 1 provider, fall through to default behavior (auto-login with default/env vars)
+    }
+
     const usedConnection = localStorage.getItem("usedAuth0Connection");
     const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
 
@@ -128,7 +405,7 @@ async function loginRedirect(oauth: AuthPlugin) {
 
     localStorage.removeItem("auth0AuthFailedRetryCount");
     localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    await logout();
 }
 
 /**

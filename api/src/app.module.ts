@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
 import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
@@ -45,9 +44,6 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         ConfigModule.forRoot({
             load: [configuration],
         }),
-        JwtModule.register({
-            global: true,
-        }),
     ],
     controllers: [
         AppController,
@@ -56,13 +52,6 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryController,
         StorageStatusController,
     ],
-    providers: [
-        DbService,
-        Socketio,
-        S3Service,
-        SearchService,
-        QueryService,
-        ChangeRequestService,
-    ],
+    providers: [DbService, Socketio, S3Service, SearchService, QueryService, ChangeRequestService],
 })
 export class AppModule {}

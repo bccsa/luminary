@@ -238,3 +238,44 @@ export type ApiQueryResult<T> = {
     type?: DocType;
     contentOnly?: boolean;
 };
+
+export type OAuthProviderPublicDto = {
+    id: string;
+    label: string;
+    domain: string;
+    clientId: string;
+    audience: string;
+    icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
+    textColor?: string;
+    backgroundColor?: string;
+};
+
+/** Transient input for create/update. Public fields are stored on OAuthProviderDto; only clientSecret is encrypted (see credential_id). */
+export type Auth0CredentialDto = {
+    domain: string;
+    clientId: string;
+    clientSecret: string;
+    audience: string;
+};
+
+export type OAuthProviderDto = ContentBaseDto & {
+    label: string;
+    providerType: "auth0";
+    textColor?: string;
+    backgroundColor?: string;
+    /** Public config (synced to app). */
+    clientId?: string;
+    domain?: string;
+    audience?: string;
+    icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
+    credential?: Auth0CredentialDto;
+    /** Reference to CryptoDto containing encrypted clientSecret only (see api Auth0CredentialSecretsDto). */
+    credential_id?: string;
+    imageData?: ImageDto;
+    imageBucketId?: Uuid;
+    claimNamespace?: string; // e.g. "https://your-tenant.com/metadata"
+};

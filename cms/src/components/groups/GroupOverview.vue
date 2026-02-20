@@ -61,6 +61,9 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
 const editable = groupQuery.editable;
 const isLoading = groupQuery.isLoading;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const emit = defineEmits(["openMobileSidebar"]);
+
 const showModal = ref(false);
 
 const newGroupId = ref("");
