@@ -4,6 +4,7 @@ import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import BasePage from "@/components/BasePage.vue";
 import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
+import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 </script>
 
 <template>
@@ -17,6 +18,7 @@ import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
             </Suspense>
 
             <ContinueWatching />
+            <ContinueListening />
         </IgnorePagePadding>
     </BasePage>
 </template>

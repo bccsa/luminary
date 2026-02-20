@@ -76,7 +76,8 @@ const watchedContent = useDexieLiveQueryWithDeps(
         const orderMap = new Map<string, number>(contentIds.map((id: string, i: number) => [id, i]));
         results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
 
-        return results;
+        // Only show video content (has a direct video field or an HLS stream)
+        return results.filter((c) => c.video || c.parentMedia?.hlsUrl);
     },
     {
         initialValue: [],

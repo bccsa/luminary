@@ -20,7 +20,14 @@ import {
 } from "@heroicons/vue/20/solid";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-import { clearMediaQueue, isMobileScreen, mediaQueue } from "@/globalConfig";
+import {
+    clearMediaQueue,
+    getMediaProgress,
+    isMobileScreen,
+    mediaQueue,
+    removeMediaProgress,
+    setMediaProgress,
+} from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 
 const router = useRouter();
@@ -266,6 +273,7 @@ const toggleSpeedMenu = () => {
 // Handle click outside to close speed menu
 const speedMenuRef = ref<HTMLElement | null>(null);
 const speedButtonRef = ref<HTMLElement | null>(null);
+
 const handleClickOutside = (event: MouseEvent) => {
     const target = event.target as Node;
     const isClickInsideMenu = speedMenuRef.value?.contains(target);
@@ -713,6 +721,11 @@ onMounted(() => {
         // Progress events
         el.addEventListener("timeupdate", () => {
             currentTime.value = el.currentTime;
+
+            const audioSource = matchAudioFileUrl.value;
+            const durationTime = el.duration;
+            if (!audioSource || !currentContent.value._id || el.currentTime < 60) return;
+            setMediaProgress(audioSource, currentContent.value._id, el.currentTime, durationTime);
         });
 
         el.addEventListener("loadedmetadata", () => {
@@ -721,6 +734,13 @@ onMounted(() => {
             el.volume = volume.value;
             el.muted = isMuted.value;
             el.playbackRate = playbackRate.value;
+
+            // Restore saved progress (rewind 30 seconds as buffer)
+            const audioSource = matchAudioFileUrl.value;
+            if (audioSource && currentContent.value._id) {
+                const progress = getMediaProgress(audioSource, currentContent.value._id);
+                if (progress > 60) el.currentTime = progress - 30;
+            }
         });
 
         // Loading events
@@ -754,6 +774,12 @@ onMounted(() => {
         el.addEventListener("ended", () => {
             isPlaying.value = false;
             // Player stays visible - user can replay, switch tracks, or close manually
+
+            // Remove saved progress when audio finishes
+            const audioSource = matchAudioFileUrl.value;
+            if (audioSource && currentContent.value._id) {
+                removeMediaProgress(audioSource, currentContent.value._id);
+            }
         });
 
         // Auto-play when the component mounts (when first added to queue)
@@ -856,11 +882,23 @@ watch(
 const startY = ref(0);
 const currentY = ref(0);
 const isDragging = ref(false);
+const isSnapBack = ref(false); // true during the 300ms snap-back animation after releasing
+let snapBackTimer: ReturnType<typeof setTimeout> | null = null;
+
+const startSnapBack = () => {
+    isSnapBack.value = true;
+    if (snapBackTimer) clearTimeout(snapBackTimer);
+    snapBackTimer = setTimeout(() => {
+        isSnapBack.value = false;
+    }, 300); // matches transform 0.3s ease-out
+};
 
 const onPointerDown = (e: PointerEvent) => {
     startY.value = e.clientY;
     currentY.value = 0;
     isDragging.value = true;
+    isSnapBack.value = false;
+    if (snapBackTimer) clearTimeout(snapBackTimer);
 };
 
 const onPointerMove = (e: PointerEvent) => {
@@ -883,12 +921,14 @@ const onPointerUp = () => {
     }
     currentY.value = 0;
     isDragging.value = false;
+    startSnapBack();
 };
 
 const onPointerLeave = () => {
     if (isDragging.value) {
         currentY.value = 0;
         isDragging.value = false;
+        startSnapBack();
     }
 };
 
@@ -927,10 +967,19 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 <template>
     <div class="">
         <!-- Hidden audio element -->
-        <audio ref="audioElement" :src="matchAudioFileUrl" preload="auto" class="hidden" />
+        <audio
+            ref="audioElement"
+            :src="matchAudioFileUrl"
+            preload="auto"
+            class="hidden"
+        />
 
         <!-- Screen reader status announcements -->
-        <div class="sr-only" aria-live="polite" aria-atomic="true">
+        <div
+            class="sr-only"
+            aria-live="polite"
+            aria-atomic="true"
+        >
             {{ isPlaying ? "Playing" : "Paused" }}: {{ currentContent.title }} by
             {{ currentContent.author }}
             <span v-if="audioError">Error: {{ audioError }}</span>
@@ -945,16 +994,17 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player fixed bottom-[70px] left-0 right-0 z-50 flex max-h-[80vh] w-full flex-col justify-items-end overflow-auto bg-amber-50 shadow-2xl shadow-black/20 scrollbar-hide dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl"
+                class="expanded-player fixed bottom-[76px] left-0 right-0 z-40 flex max-h-[80vh] w-full flex-col justify-items-end overflow-hidden bg-amber-50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
                 :style="{
-                    transform: currentY ? `translateY(${currentY}px)` : 'none', // Apply downward translation during drag
-                    transition: isDragging ? 'none' : 'transform 0.3s ease-out', // Smooth transition when not dragging
+                    transform: currentY ? `translateY(${currentY}px)` : 'none',
+                    transition: isDragging ? 'none' : 'transform 0.3s ease-out',
                 }"
             >
-                <div class="">
+                <div class="flex-1 overflow-y-auto scrollbar-hide">
                     <!-- Swipe-down handle (drag area only) - allows users to drag down to collapse the player on mobile -->
                     <div
                         class="flex cursor-grab justify-center pb-2 pt-1 active:cursor-grabbing lg:hidden"
+                        style="touch-action: none"
                         @pointerdown.stop="onPointerDown"
                         @pointermove="onPointerMove"
                         @pointerup="onPointerUp"
@@ -973,15 +1023,18 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             'justify-between': availableAudioLanguages.length >= 0,
                         }"
                     >
-                        <button @click="toggleExpand" class="p-0.5">
-                            <ChevronDownIcon class="h-9 w-9" />
+                        <button
+                            @click="toggleExpand"
+                            class="rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
+                        >
+                            <ChevronDownIcon class="h-9 w-9 text-zinc-500 dark:text-slate-400" />
                         </button>
 
-                        <!-- Empty div for mobile to keep centering -->
-                        <!-- <div class="lg:hidden"></div> -->
-
                         <!-- Language Dropdown -->
-                        <div v-if="availableAudioLanguages.length > 1" class="relative">
+                        <div
+                            v-if="availableAudioLanguages.length > 1"
+                            class="relative"
+                        >
                             <button
                                 @click="showLanguageDropdown = !showLanguageDropdown"
                                 class="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-black/10 dark:hover:bg-white/10"
@@ -1018,7 +1071,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @click="closePlayerWithConfirmation"
                                 class="rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
                             >
-                                <XMarkIcon class="h-6 w-6" />
+                                <XMarkIcon class="h-9 w-9 text-zinc-500 dark:text-slate-400" />
                             </button>
                         </div>
                     </div>
@@ -1114,18 +1167,6 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             </div>
                         </div>
 
-                        <!-- Loading Indicator -->
-                        <div v-if="isLoading" class="mx-6 my-2 flex items-center justify-center">
-                            <div class="flex items-center space-x-2">
-                                <div
-                                    class="h-4 w-4 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent"
-                                ></div>
-                                <span class="text-sm text-zinc-600 dark:text-zinc-400"
-                                    >Loading audio...</span
-                                >
-                            </div>
-                        </div>
-
                         <!-- Connection Warning -->
                         <div
                             v-if="connectionError && !audioError"
@@ -1199,176 +1240,175 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                     />
                                 </button>
                             </div>
-
-                            <!-- Secondary controls -->
-                            <div class="mt-2 flex items-center justify-center space-x-6 text-xs">
-                                <!-- Volume control -->
-                                <div
-                                    class="volume-control-container relative flex items-center space-x-2"
-                                >
-                                    <!-- Volume toggle button -->
-                                    <button
-                                        @click="toggleVolumeSlider"
-                                        class="touch-manipulation flex min-h-[44px] min-w-[44px] items-center justify-center space-x-1 rounded-lg px-3 py-2 active:bg-black/10 dark:active:bg-white/10"
-                                        :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
-                                        aria-label="Toggle volume controls"
-                                    >
-                                        <SpeakerXMarkIcon
-                                            v-if="isMuted"
-                                            class="h-5 w-5 text-zinc-500"
-                                        />
-                                        <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
-                                        <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                                            {{
-                                                Math.round(
-                                                    (isVolumeSliding ? volumeSlideValue : volume) *
-                                                        100,
-                                                )
-                                            }}%
-                                        </span>
-                                    </button>
-
-                                    <!-- Volume slider (expanded controls) - Vertical -->
-                                    <div
-                                        v-if="showVolumeSlider"
-                                        class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
-                                    >
-                                        <!-- Volume up button (top) -->
-                                        <button
-                                            @click="changeVolume(0.1)"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                                            title="Volume up"
-                                            aria-label="Increase volume"
-                                        >
-                                            <PlusIcon class="h-4 w-4 text-zinc-500" />
-                                        </button>
-
-                                        <!-- Vertical volume slider -->
-                                        <div
-                                            class="relative flex h-20 w-6 touch-manipulation items-center justify-center"
-                                            @mousedown="startVolumeSliding"
-                                            @touchstart="startVolumeSliding"
-                                        >
-                                            <div
-                                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
-                                            >
-                                                <!-- Fill from bottom to current volume -->
-                                                <div
-                                                    class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
-                                                    :style="{
-                                                        height:
-                                                            (isVolumeSliding
-                                                                ? volumeSlideValue
-                                                                : volume) *
-                                                                100 +
-                                                            '%',
-                                                    }"
-                                                ></div>
-                                                <!-- Thumb handle for better touch feedback -->
-                                                <div
-                                                    class="absolute left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
-                                                    :style="{
-                                                        bottom:
-                                                            (isVolumeSliding
-                                                                ? volumeSlideValue
-                                                                : volume) *
-                                                                100 +
-                                                            '%',
-                                                        transform: 'translate(-50%, 50%)',
-                                                    }"
-                                                ></div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Volume down button (bottom) -->
-                                        <button
-                                            @click="changeVolume(-0.1)"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                                            title="Volume down"
-                                            aria-label="Decrease volume"
-                                        >
-                                            <MinusIcon class="h-4 w-4 text-zinc-500" />
-                                        </button>
-
-                                        <!-- Mute toggle -->
-                                        <button
-                                            @click="toggleMute"
-                                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
-                                            :title="isMuted ? 'Unmute' : 'Mute'"
-                                            aria-label="Toggle mute"
-                                        >
-                                            <SpeakerXMarkIcon
-                                                v-if="isMuted"
-                                                class="h-4 w-4 text-red-500"
-                                            />
-                                            <SpeakerWaveIcon v-else class="h-4 w-4 text-zinc-500" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Playback speed dropdown (Video.js style) -->
-                                <div class="relative">
-                                    <button
-                                        ref="speedButtonRef"
-                                        @click.stop="toggleSpeedMenu"
-                                        class="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-600 hover:bg-black/10 dark:text-zinc-400 dark:hover:bg-white/10"
-                                        title="Playback speed (1-5 keys)"
-                                        aria-label="Change playback speed"
-                                    >
-                                        <span>{{ playbackRate }}x</span>
-                                        <ChevronDownIcon
-                                            class="h-3 w-3 transition-transform duration-200"
-                                            :class="{ 'rotate-180': showSpeedMenu }"
-                                        />
-                                    </button>
-
-                                    <!-- Speed menu dropdown -->
-                                    <transition
-                                        enter-active-class="transition ease-out duration-100"
-                                        enter-from-class="opacity-0 scale-95"
-                                        enter-to-class="opacity-100 scale-100"
-                                        leave-active-class="transition ease-in duration-75"
-                                        leave-from-class="opacity-100 scale-100"
-                                        leave-to-class="opacity-0 scale-95"
-                                    >
-                                        <div
-                                            v-if="showSpeedMenu"
-                                            ref="speedMenuRef"
-                                            class="absolute bottom-full left-0 z-50 mb-1 min-w-[80px] rounded-md bg-zinc-50 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-600 dark:text-slate-100"
-                                            @click.stop
-                                        >
-                                            <div class="py-1">
-                                                <button
-                                                    v-for="speed in speedOptions"
-                                                    :key="speed"
-                                                    @click="changePlaybackSpeed(speed)"
-                                                    class="w-full px-3 py-2.5 text-left text-sm text-zinc-900 outline-none transition-colors dark:text-slate-100"
-                                                    :class="{
-                                                        'bg-zinc-300 font-semibold focus:bg-zinc-300 dark:bg-zinc-500 focus:dark:bg-zinc-500':
-                                                            playbackRate === speed,
-                                                        'hover:bg-zinc-200 focus:bg-transparent dark:hover:bg-zinc-500 focus:dark:bg-transparent':
-                                                            playbackRate !== speed,
-                                                    }"
-                                                >
-                                                    {{ speed }}x
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </transition>
-                                </div>
-
-                                <!-- Help button -->
-                                <button
-                                    @click="showHelpModal = true"
-                                    class="hidden rounded p-1 hover:bg-black/10 dark:hover:bg-white/10 lg:block"
-                                    title="Keyboard shortcuts (?)"
-                                    aria-label="Show keyboard shortcuts help"
-                                >
-                                    <QuestionMarkCircleIcon class="h-4 w-4 text-zinc-500" />
-                                </button>
-                            </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Secondary controls — outside the scroll container so dropdowns aren't clipped -->
+                <div class="flex items-center justify-center space-x-6 px-4 pb-3 text-xs">
+                    <!-- Volume control -->
+                    <div
+                        class="volume-control-container relative hidden items-center space-x-2 lg:flex"
+                    >
+                        <!-- Volume toggle button -->
+                        <button
+                            @click="toggleVolumeSlider"
+                            class="flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center space-x-1 rounded-lg px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
+                            :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
+                            aria-label="Toggle volume controls"
+                        >
+                            <SpeakerXMarkIcon
+                                v-if="isMuted"
+                                class="h-5 w-5 text-zinc-500"
+                            />
+                            <SpeakerWaveIcon
+                                v-else
+                                class="h-5 w-5 text-zinc-500"
+                            />
+                            <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                {{
+                                    Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100)
+                                }}%
+                            </span>
+                        </button>
+
+                        <!-- Volume slider (expanded controls) - Vertical -->
+                        <div
+                            v-if="showVolumeSlider"
+                            class="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 transform flex-col items-center space-y-2 rounded-xl bg-white p-3 shadow-lg dark:bg-slate-700"
+                        >
+                            <!-- Volume up button (top) -->
+                            <button
+                                @click="changeVolume(0.1)"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                title="Volume up"
+                                aria-label="Increase volume"
+                            >
+                                <PlusIcon class="h-5 w-5 text-zinc-500" />
+                            </button>
+
+                            <!-- Vertical volume slider -->
+                            <div
+                                class="relative flex h-32 w-8 touch-manipulation items-center justify-center"
+                                @mousedown="startVolumeSliding"
+                                @touchstart="startVolumeSliding"
+                            >
+                                <div
+                                    class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 transition-colors hover:bg-zinc-400 dark:bg-slate-600 dark:hover:bg-slate-500"
+                                >
+                                    <!-- Fill from bottom to current volume -->
+                                    <div
+                                        class="absolute bottom-0 w-full rounded-full bg-yellow-500 transition-all duration-75"
+                                        :style="{
+                                            height:
+                                                (isVolumeSliding ? volumeSlideValue : volume) *
+                                                    100 +
+                                                '%',
+                                        }"
+                                    ></div>
+                                    <!-- Thumb handle for better touch feedback -->
+                                    <div
+                                        class="absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-yellow-500 shadow-md transition-all duration-75"
+                                        :style="{
+                                            bottom:
+                                                (isVolumeSliding ? volumeSlideValue : volume) *
+                                                    100 +
+                                                '%',
+                                            transform: 'translate(-50%, 50%)',
+                                        }"
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <!-- Volume down button (bottom) -->
+                            <button
+                                @click="changeVolume(-0.1)"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                title="Volume down"
+                                aria-label="Decrease volume"
+                            >
+                                <MinusIcon class="h-5 w-5 text-zinc-500" />
+                            </button>
+
+                            <!-- Mute toggle -->
+                            <button
+                                @click="toggleMute"
+                                class="flex h-10 w-10 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                                :title="isMuted ? 'Unmute' : 'Mute'"
+                                aria-label="Toggle mute"
+                            >
+                                <SpeakerXMarkIcon
+                                    v-if="isMuted"
+                                    class="h-5 w-5 text-red-500"
+                                />
+                                <SpeakerWaveIcon
+                                    v-else
+                                    class="h-5 w-5 text-zinc-500"
+                                />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Playback speed dropdown -->
+                    <div class="relative">
+                        <button
+                            ref="speedButtonRef"
+                            @click.stop="toggleSpeedMenu"
+                            class="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-600 hover:bg-black/10 dark:text-zinc-400 dark:hover:bg-white/10"
+                            title="Playback speed (1-5 keys)"
+                            aria-label="Change playback speed"
+                        >
+                            <span>{{ playbackRate }}x</span>
+                            <ChevronDownIcon
+                                class="h-3 w-3 transition-transform duration-200"
+                                :class="{ 'rotate-180': showSpeedMenu }"
+                            />
+                        </button>
+
+                        <!-- Speed menu dropdown -->
+                        <transition
+                            enter-active-class="transition ease-out duration-100"
+                            enter-from-class="opacity-0 scale-95"
+                            enter-to-class="opacity-100 scale-100"
+                            leave-active-class="transition ease-in duration-75"
+                            leave-from-class="opacity-100 scale-100"
+                            leave-to-class="opacity-0 scale-95"
+                        >
+                            <div
+                                v-if="showSpeedMenu"
+                                ref="speedMenuRef"
+                                class="absolute bottom-full left-0 z-50 mb-1 min-w-[80px] rounded-md bg-zinc-50 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-600 dark:text-slate-100"
+                                @click.stop
+                            >
+                                <div class="py-1">
+                                    <button
+                                        v-for="speed in speedOptions"
+                                        :key="speed"
+                                        @click="changePlaybackSpeed(speed)"
+                                        class="w-full px-3 py-2.5 text-left text-sm text-zinc-900 outline-none transition-colors dark:text-slate-100"
+                                        :class="{
+                                            'bg-zinc-300 font-semibold focus:bg-zinc-300 dark:bg-zinc-500 focus:dark:bg-zinc-500':
+                                                playbackRate === speed,
+                                            'hover:bg-zinc-200 focus:bg-transparent dark:hover:bg-zinc-500 focus:dark:bg-transparent':
+                                                playbackRate !== speed,
+                                        }"
+                                    >
+                                        {{ speed }}x
+                                    </button>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+
+                    <!-- Help button -->
+                    <button
+                        @click="showHelpModal = true"
+                        class="hidden rounded p-1 hover:bg-black/10 dark:hover:bg-white/10 lg:block"
+                        title="Keyboard shortcuts (?)"
+                        aria-label="Show keyboard shortcuts help"
+                    >
+                        <QuestionMarkCircleIcon class="h-4 w-4 text-zinc-500" />
+                    </button>
                 </div>
             </div>
         </transition>
@@ -1377,7 +1417,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <div
             v-if="!isExpanded"
             @click="toggleExpand"
-            class="fixed bottom-[70px] left-0 right-0 z-50 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 shadow-lg dark:bg-slate-600 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg"
+            class="fixed bottom-[76px] left-0 right-0 z-40 flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg lg:shadow-lg"
         >
             <div class="flex min-w-0 items-center space-x-2">
                 <LImage
@@ -1414,12 +1454,12 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-0.5">
                 <!-- Volume control for minimal player -->
-                <div class="volume-control-container relative">
+                <div class="volume-control-container relative hidden lg:block">
                     <button
                         @click.stop="toggleVolumeSlider"
-                        class="touch-manipulation flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent hover:bg-black/10 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
                         title="Volume controls"
                         aria-label="Toggle volume controls"
                     >
@@ -1427,7 +1467,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             v-if="isMuted"
                             class="h-6 w-6 text-zinc-500 dark:text-slate-400"
                         />
-                        <SpeakerWaveIcon v-else class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
+                        <SpeakerWaveIcon
+                            v-else
+                            class="h-6 w-6 text-zinc-500 dark:text-slate-400"
+                        />
                     </button>
 
                     <!-- Mini volume slider for minimal player - Vertical -->
@@ -1435,13 +1478,15 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         v-if="showVolumeSlider"
                         class="absolute bottom-full right-0 mb-2 flex flex-col items-center space-y-1.5 rounded-lg bg-white p-2 shadow-lg dark:bg-slate-700"
                     >
-                        <span class="text-center text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                        <span
+                            class="text-center text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                        >
                             {{ Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100) }}%
                         </span>
 
                         <button
                             @click.stop="changeVolume(0.1)"
-                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Increase volume"
                         >
                             <PlusIcon class="h-4 w-4 text-zinc-500" />
@@ -1454,7 +1499,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             @touchstart="startVolumeSliding"
                         >
                             <div
-                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 transition-colors hover:bg-zinc-400 dark:bg-slate-600 dark:hover:bg-slate-500"
                             >
                                 <!-- Fill from bottom to current volume -->
                                 <div
@@ -1480,7 +1525,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                         <button
                             @click.stop="changeVolume(-0.1)"
-                            class="touch-manipulation flex h-8 w-8 items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
+                            class="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg active:bg-gray-100 dark:active:bg-slate-600"
                             aria-label="Decrease volume"
                         >
                             <MinusIcon class="h-4 w-4 text-zinc-500" />
@@ -1490,16 +1535,22 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
                 <button
                     @click.stop="togglePlay"
-                    class="flex-shrink-0 rounded-full bg-transparent p-0"
+                    class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
-                    <PlayIcon v-if="!isPlaying" class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
-                    <PauseIcon v-else class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
+                    <PlayIcon
+                        v-if="!isPlaying"
+                        class="h-7 w-7 text-zinc-500 dark:text-slate-400"
+                    />
+                    <PauseIcon
+                        v-else
+                        class="h-7 w-7 text-zinc-500 dark:text-slate-400"
+                    />
                 </button>
                 <button
                     @click.stop="closePlayerWithConfirmation"
-                    class="flex-shrink-0 rounded-full bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
+                    class="flex h-9 w-9 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
-                    <XMarkIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                    <XMarkIcon class="text-zinc-500 dark:text-zinc-300" />
                 </button>
             </div>
         </div>
@@ -1718,6 +1769,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         opacity 0.3s ease-out;
 }
 
+
 .slide-up-enter-from,
 .slide-up-leave-to {
     transform: translateY(100%);
@@ -1730,10 +1782,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
     opacity: 1;
 }
 
-/* Make sure the div allows vertical drag */
+/* Make sure the div allows vertical scroll */
 .expanded-player {
-    touch-action: pan-x;
-    /* only block horizontal gestures; vertical scroll allowed */
+    touch-action: pan-y;
+    /* allow vertical scroll; block horizontal pan-back gesture */
     user-select: none;
     overscroll-behavior: contain;
     /* prevent scroll chaining to parent while dragging */

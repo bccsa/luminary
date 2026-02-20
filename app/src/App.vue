@@ -129,7 +129,7 @@ onErrorCaptured((err) => {
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
         <MobileMenu
-            class="z-10 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+            class="z-50 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
     </div>
     <!-- Privacy Policy Modal for authentication flow -->

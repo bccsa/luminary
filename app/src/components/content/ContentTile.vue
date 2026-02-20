@@ -2,7 +2,7 @@
 import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
-import { PlayIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress } from "@/globalConfig";
 import { ref } from "vue";
 
@@ -40,24 +40,24 @@ function formatDuration(seconds: number): string {
 
 const durationText = ref("");
 const hasProgress = ref(false);
+const allMedia = localStorage.getItem("mediaProgress");
 
-if (props.content.video) {
-    const allMedia = localStorage.getItem("mediaProgress");
+if (allMedia) {
+    const mediaIds = props.content.video
+        ? [props.content.video]
+        : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
 
-    if (allMedia) {
-        const mediaProgress = getMediaProgress(props.content.video, props.content._id);
-        const mediaDuration = getMediaDuration(props.content.video, props.content._id);
+    for (const mediaId of mediaIds) {
+        const mediaProgress = getMediaProgress(mediaId, props.content._id);
+        const mediaDuration = getMediaDuration(mediaId, props.content._id);
 
         if (mediaProgress > 0 && mediaDuration > 0) {
             hasProgress.value = true;
             media.value.progress = Math.min(100, (mediaProgress / mediaDuration) * 100);
             media.value.duration = mediaDuration;
             durationText.value = formatDuration(mediaDuration);
-        } else {
-            hasProgress.value = false; // fallback if duration is 0
+            break;
         }
-    } else {
-        hasProgress.value = false;
     }
 }
 </script>
@@ -78,7 +78,10 @@ if (props.content.video) {
                     size="thumbnail"
                 >
                     <template #default>
-                        <div class="w-full" v-if="titlePosition === 'bottom'">
+                        <div
+                            class="w-full"
+                            v-if="titlePosition === 'bottom'"
+                        >
                             <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>
@@ -113,6 +116,27 @@ if (props.content.video) {
                             >
                                 <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
                             </div>
+                            <!-- Audio Icon (Only if content has audio files but no video) -->
+                            <div
+                                v-if="
+                                    !content.video && content.parentMedia?.fileCollections?.length
+                                "
+                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            >
+                                <SpeakerWaveIcon
+                                    class="relative h-8 w-8 text-black blur-sm lg:h-12 lg:w-12"
+                                />
+                            </div>
+                            <div
+                                v-if="
+                                    !content.video && content.parentMedia?.fileCollections?.length
+                                "
+                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            >
+                                <SpeakerWaveIcon
+                                    class="relative h-8 w-8 text-white lg:h-12 lg:w-12"
+                                />
+                            </div>
                         </div>
                         <div
                             v-else
@@ -130,7 +154,11 @@ if (props.content.video) {
 
                         <!-- Bottom overlay: progress bar + duration on same line -->
                         <div
-                            v-if="showProgress && content.video && hasProgress"
+                            v-if="
+                                showProgress &&
+                                (content.video || content.parentMedia?.fileCollections?.length) &&
+                                hasProgress
+                            "
                             class="absolute bottom-2 left-0 right-0 z-10 mx-1 rounded-md bg-black/50 px-1"
                         >
                             <div class="flex h-4 w-full items-center gap-2">

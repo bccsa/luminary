@@ -29,6 +29,7 @@
         "settings.device_info.description": "Provide these details when contacting support",
         "home.title": "Home",
         "home.continue": "Continue Watching",
+        "home.continueListening": "Continue Listening",
         "explore.title": "Explore",
         "explore.other": "Other",
         "watch.title": "Watch",
@@ -96,6 +97,7 @@
         "notfoundpage.unauthenticated.loginPrompt.after": "to log in or create an account.",
         "notfoundpage.unauthenticated.description": "The content may only be available to logged in users.",
         "notfoundpage.authenticated.title": "Hey - we could not find this page",
-        "notfoundpage.authenticated.description": "The content you are looking for may have been removed or is not available at the moment."
+        "notfoundpage.authenticated.description": "The content you are looking for may have been removed or is not available at the moment.",
+        "singlecontent.listen": "Listen"
     }
 }
