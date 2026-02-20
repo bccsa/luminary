@@ -4,10 +4,13 @@ import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
+import { OAuthProviderCache } from "./auth/oauthProviderCache";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { Logger } from "winston";
 
 async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
@@ -41,12 +44,16 @@ async function bootstrap() {
     // Initialize permission system
     await PermissionSystem.init(dbService);
 
+    // Pre-load and cache OAuth provider signing certificates from each provider's JWKS endpoint
+    const logger = app.get<Logger>(WINSTON_MODULE_PROVIDER);
+    await OAuthProviderCache.init(dbService, logger);
+
     // Upgrade database schema if needed
     await upgradeDbSchema(dbService);
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),
-        allowedHeaders: ["X-Query", "Authorization", "Content-Type", "X-Provider-Id"],
+        allowedHeaders: ["X-Query", "Authorization", "Content-Type"],
     });
 
     app.useGlobalPipes(new ValidationPipe());

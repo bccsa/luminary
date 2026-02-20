@@ -17,7 +17,6 @@ export class ChangeRequestController {
     async handleChangeRequest(
         @Req() request: FastifyRequest,
         @Headers("Authorization") authHeader: string,
-        @Headers("X-Provider-Id") providerId: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
 
@@ -116,7 +115,6 @@ export class ChangeRequestController {
             const result = await this.changeRequestService.changeRequest(
                 changeRequest,
                 token,
-                providerId,
             );
 
             return result;
@@ -129,7 +127,6 @@ export class ChangeRequestController {
         const result = await this.changeRequestService.changeRequest(
             cleanedBody,
             token,
-            providerId,
         );
 
         return result;

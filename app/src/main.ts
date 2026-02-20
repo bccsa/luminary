@@ -3,7 +3,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import auth, { clearAuth0Cache, getSelectedProviderId } from "./auth";
+import auth, { clearAuth0Cache } from "./auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
@@ -46,7 +46,6 @@ async function Startup() {
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentPinned], [type+parentPinned+parentTagType], [parentType+parentTagType], [type+status+parentTagType], [type+parentType]",
         apiUrl,
         token,
-        providerId: getSelectedProviderId(),
         appLanguageIdsAsRef,
         syncList: [
             { type: DocType.OAuthProvider, contentOnly: false, syncPriority: 1 },
