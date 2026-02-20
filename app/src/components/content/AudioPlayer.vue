@@ -1025,7 +1025,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     >
                         <button
                             @click="toggleExpand"
-                            class="p-0.5"
+                            class="rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
                         >
                             <ChevronDownIcon class="h-9 w-9 text-zinc-500 dark:text-slate-400" />
                         </button>
@@ -1253,7 +1253,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         <!-- Volume toggle button -->
                         <button
                             @click="toggleVolumeSlider"
-                            class="flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center space-x-1 rounded-lg px-3 py-2 active:bg-black/10 dark:active:bg-white/10"
+                            class="flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center space-x-1 rounded-lg px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
                             :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
                             aria-label="Toggle volume controls"
                         >
@@ -1294,7 +1294,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 @touchstart="startVolumeSliding"
                             >
                                 <div
-                                    class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                    class="relative h-full w-3 cursor-pointer rounded-full bg-zinc-300 transition-colors hover:bg-zinc-400 dark:bg-slate-600 dark:hover:bg-slate-500"
                                 >
                                     <!-- Fill from bottom to current volume -->
                                     <div
@@ -1459,7 +1459,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                 <div class="volume-control-container relative hidden lg:block">
                     <button
                         @click.stop="toggleVolumeSlider"
-                        class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent hover:bg-black/10 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
                         title="Volume controls"
                         aria-label="Toggle volume controls"
                     >
@@ -1499,7 +1499,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             @touchstart="startVolumeSliding"
                         >
                             <div
-                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 dark:bg-slate-600"
+                                class="relative h-full w-2 cursor-pointer rounded-full bg-zinc-300 transition-colors hover:bg-zinc-400 dark:bg-slate-600 dark:hover:bg-slate-500"
                             >
                                 <!-- Fill from bottom to current volume -->
                                 <div
