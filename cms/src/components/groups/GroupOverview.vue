@@ -16,7 +16,6 @@ import {
 import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
-import LModal from "../modals/LModal.vue";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
@@ -81,37 +80,41 @@ const createGroup = async () => {
 const canCreateGroup = computed(() => {
     return hasAnyPermission(DocType.Group, AclPermission.Assign);
 });
+
+const selectedGroup = computed(() => editable.value.find((g) => g._id === newGroupId.value));
 </script>
 
 <template>
-    <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
-        <template #pageNav>
-            <LButton
-                v-if="canCreateGroup"
-                variant="primary"
-                :icon="PlusIcon"
-                @click="createGroup"
-                data-test="createGroupButton"
-            >
-                Create group
-            </LButton>
-        </template>
+    <div>
+        <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
+            <template #pageNav>
+                <LButton
+                    v-if="canCreateGroup"
+                    variant="primary"
+                    :icon="PlusIcon"
+                    @click="createGroup"
+                    data-test="createGroupButton"
+                >
+                    Create group
+                </LButton>
+            </template>
 
-        <GroupDisplayCard
-            v-for="(group, index) in editable"
-            :key="group._id"
-            v-model:group="editable[index]"
-            :groupQuery="groupQuery"
-        />
-    </BasePage>
+            <GroupDisplayCard
+                v-for="(group, index) in editable"
+                :key="group._id"
+                v-model:group="editable[index]"
+                :groupQuery="groupQuery"
+            />
+        </BasePage>
 
-    <LModal heading="Edit Group" v-model:isVisible="showModal" adaptiveSize noPadding>
         <EditGroup
-            v-if="showModal"
-            :group="editable.find((g: GroupDto) => g._id === newGroupId)!"
+            v-if="selectedGroup"
+            :openModal="showModal"
+            :group="selectedGroup"
             :groups="editable"
             :hasEditPermission="canCreateGroup"
             :group-query="groupQuery"
+            @close="showModal = false"
         />
-    </LModal>
+    </div>
 </template>

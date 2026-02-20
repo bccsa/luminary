@@ -3,7 +3,6 @@ import { db, type GroupDto, ApiLiveQueryAsEditable } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import DisplayCard from "../common/DisplayCard.vue";
 import { computed, ref } from "vue";
-import LModal from "../modals/LModal.vue";
 import { ClockIcon } from "@heroicons/vue/24/outline";
 import EditGroup from "./EditGroup.vue";
 import { DateTime } from "luxon";
@@ -71,8 +70,11 @@ const accessGroupNames = computed(() => {
             </div>
         </template>
     </DisplayCard>
-
-    <LModal heading="Edit Group" v-model:isVisible="showEditModal" adaptiveSize noPadding>
-        <EditGroup v-model:group="group" :groupQuery="groupQuery" />
-    </LModal>
+    <EditGroup
+        v-if="showEditModal"
+        :openModal="showEditModal"
+        v-model:group="group"
+        :groupQuery="groupQuery"
+        @close="showEditModal = false"
+    />
 </template>
