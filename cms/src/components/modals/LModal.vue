@@ -5,8 +5,7 @@ import LTeleport from "../common/LTeleport.vue";
 type Props = {
     heading: string;
     noDivider?: boolean;
-    shadowOnFooter?: boolean;
-    fullScreen?: boolean;
+    largeModal?: boolean;
 };
 withDefaults(defineProps<Props>(), {
     noDivider: false,
@@ -36,16 +35,19 @@ watch(modalRef, (el) => {
                 @click.stop
                 ref="modalRef"
                 :class="
-                    fullScreen
-                        ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 shadow-xl focus:outline-none'
-                        : 'relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                    largeModal
+                        ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        : 'relative z-50 flex max-h-screen w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                 "
             >
-                <div class="flex-1 overflow-scroll p-5 scrollbar-hide">
-                    <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
-                    <div :class="noDivider ? '' : 'divide-y divide-zinc-200'">
-                        <slot />
-                    </div>
+                <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
+                <div
+                    :class="[
+                        noDivider ? '' : 'divide-y divide-zinc-200',
+                        'flex min-h-0 flex-1 flex-col',
+                    ]"
+                >
+                    <slot />
                 </div>
 
                 <div v-if="$slots.footer" class="shrink-0 px-5 pb-5 pt-4">
