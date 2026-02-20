@@ -32,7 +32,6 @@ export class QueryController {
     async processPostReq(
         @Body() body: any,
         @Headers("Authorization") auth: string,
-        @Headers("X-Provider-Id") providerId: string,
     ): Promise<any> {
         // TODO: add api version validation
 
@@ -50,7 +49,6 @@ export class QueryController {
         return this.queryService.query(
             body as MongoQueryDto,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
-            providerId,
         );
     }
 }

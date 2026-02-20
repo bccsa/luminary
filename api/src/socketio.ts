@@ -102,7 +102,6 @@ export class Socketio implements OnGatewayInit {
                 socket.handshake.auth.token,
                 this.db,
                 this.logger,
-                socket.handshake.auth.providerId,
             );
 
             if (socket.handshake.auth.token && !userDetails.jwtPayload) {

@@ -26,10 +26,6 @@ export type SharedConfig = {
      */
     token?: string;
     /**
-     * OAuth provider ID (document _id) sent as X-Provider-Id header for OIDC trust verification
-     */
-    providerId?: string;
-    /**
      * Array of API Sync queries passed to the shared library, that the client needs to sync down
      */
     syncList?: Array<ApiSyncQuery>;

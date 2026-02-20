@@ -25,8 +25,8 @@ export class ChangeRequestService {
         this.config = configuration();
     }
 
-    async changeRequest(changeRequest: ChangeReqDto, token: string, providerId?: string): Promise<ChangeReqAckDto> {
-        const userDetails = await processJwt(token, this.db, this.logger, providerId);
+    async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
+        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Process change request
         return await processChangeRequest(

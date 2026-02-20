@@ -1,12 +1,10 @@
 export class HttpReq<T> {
     private apiUrl: string;
     private token?: string;
-    private providerId?: string;
 
-    constructor(apiUrl: string, token?: string, providerId?: string) {
+    constructor(apiUrl: string, token?: string) {
         this.token = token;
         this.apiUrl = apiUrl;
-        this.providerId = providerId;
     }
 
     async get(endpoint: string, query: T) {
@@ -17,7 +15,6 @@ export class HttpReq<T> {
             "X-Query": JSON.stringify(query),
         };
         this.token && (headers.Authorization = `Bearer ${this.token}`);
-        this.providerId && (headers["X-Provider-Id"] = this.providerId);
 
         try {
             const schema = "https://";
@@ -39,7 +36,6 @@ export class HttpReq<T> {
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
         const headers: any = {};
         this.token && (headers.Authorization = `Bearer ${this.token}`);
-        this.providerId && (headers["X-Provider-Id"] = this.providerId);
 
         try {
             const schema = "https://";
@@ -71,7 +67,6 @@ export class HttpReq<T> {
                 method: "POST",
                 headers: {
                     Authorization: this.token ? `Bearer ${this.token}` : "",
-                    ...(this.providerId && { "X-Provider-Id": this.providerId }),
                     ...(!isFormData && { "Content-Type": "application/json" }),
                 },
                 body: isFormData ? query : JSON.stringify(query),

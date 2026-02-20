@@ -39,10 +39,9 @@ class SocketIO {
      */
     constructor(config: SharedConfig) {
         const token = config.token;
-        const providerId = config.providerId;
         this.socket = io(
             config.apiUrl,
-            token ? { auth: { token, providerId } } : undefined,
+            token ? { auth: { token } } : undefined,
         );
 
         this.socket.on("connect", () => {

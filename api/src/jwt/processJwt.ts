@@ -1,10 +1,11 @@
 import { Logger } from "winston";
-import { DocType, Uuid } from "../enums";
+import { Uuid } from "../enums";
 import * as JWT from "jsonwebtoken";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import configuration from "../configuration";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+import { OAuthProviderCache, CachedOAuthProvider } from "../auth/oauthProviderCache";
 
 export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
 
@@ -18,6 +19,14 @@ export type JwtUserDetails = {
 };
 
 let jwtMap: JwtMap;
+
+/** Group ID for unauthenticated/public access (no or invalid JWT). */
+const PUBLIC_GROUP_ID = "group-public-users" as Uuid;
+
+function publicUserDetails(): JwtUserDetails {
+    const groups = [PUBLIC_GROUP_ID];
+    return { groups, accessMap: PermissionSystem.getAccessMap(groups) };
+}
 
 /**
  * Parse the permission map from the JWT_MAPPINGS environmental variable to an object
@@ -65,7 +74,6 @@ export async function processJwt(
     token: string,
     db: DbService,
     logger?: Logger,
-    providerId?: string,
 ): Promise<JwtUserDetails> {
     const groupSet = new Set<Uuid>();
     let userId: string;
@@ -78,45 +86,42 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
+            return publicUserDetails();
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
     let jwtPayload: JWT.JwtPayload;
-    let matchedProvider: any;
+    let matchedProvider: CachedOAuthProvider | undefined;
 
-    if (providerId) {
-        // Look up the OIDC provider by document _id in the database
-        try {
-            const providerResult = await db.getDoc(providerId);
-            const provider = providerResult.docs?.[0];
-
-            if (!provider || provider.type !== DocType.OAuthProvider) {
-                logger?.warn(`No trusted OAuthProvider found for provider ID: ${providerId}`);
-                return { groups: [] };
-            }
-
-            // Provider is trusted -- decode the JWT without signature verification
-            const decoded = token ? JWT.decode(token) : undefined;
-            if (decoded && typeof decoded === "object") {
-                jwtPayload = decoded as JWT.JwtPayload;
-                matchedProvider = provider;
-            } else {
-                logger?.error(`Unable to decode JWT for trusted provider ${providerId}`);
-                return { groups: [] };
-            }
-        } catch (err) {
-            logger?.error(`Error looking up provider ${providerId}`, err);
-            return { groups: [] };
+    // Verify token against the cached OAuth provider's signing certificate
+    try {
+        const decoded = JWT.decode(token, { complete: true });
+        if (!decoded?.payload || typeof decoded.payload === "string") {
+            return publicUserDetails();
         }
-    } else {
-        // No provider ID -- fall back to static JWT_SECRET (symmetric-key tokens)
-        try {
-            jwtPayload = JWT.verify(token, process.env.JWT_SECRET) as JWT.JwtPayload;
-        } catch (err) {
-            logger?.error(`Unable to verify JWT`, err);
+
+        const iss = (decoded.payload as JWT.JwtPayload).iss;
+        if (!iss) return publicUserDetails();
+
+        const provider = OAuthProviderCache.getByIssuer(iss);
+        if (!provider) {
+            logger?.warn(`No cached OAuth provider matches issuer "${iss}"`);
+            return publicUserDetails();
         }
+
+        const kid = decoded.header?.kid;
+        const pem = OAuthProviderCache.getSigningKey(provider, kid);
+        if (!pem) {
+            logger?.warn(`No signing key found for provider "${provider.domain}" (kid=${kid})`);
+            return publicUserDetails();
+        }
+
+        jwtPayload = JWT.verify(token, pem, { algorithms: ["RS256"] }) as JWT.JwtPayload;
+        matchedProvider = provider;
+    } catch (err) {
+        logger?.error(`Unable to verify JWT`, err);
+        return publicUserDetails();
     }
 
     // Extract user details: use provider's claimNamespace if available, otherwise global jwtMap
@@ -156,7 +161,7 @@ export async function processJwt(
         }
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
+        return publicUserDetails();
     }
 
     // If userId is set, get the user details from the database using the userId

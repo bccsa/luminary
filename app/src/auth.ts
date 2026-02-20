@@ -1,4 +1,4 @@
-import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
+import { Auth0Plugin, createAuth0, AUTH0_INJECTION_KEY } from "@auth0/auth0-vue";
 import { Auth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
@@ -6,7 +6,7 @@ import * as Sentry from "@sentry/vue";
 import { type OAuthProviderPublicDto } from "luminary-shared";
 
 export type AuthPlugin = Auth0Plugin & {
-    logout: (retrying?: boolean) => Promise<void>;
+    logout: () => Promise<void>;
 };
 
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
@@ -46,16 +46,14 @@ export function clearAuth0Cache(): void {
 import { db, DocType, type OAuthProviderDto } from "luminary-shared";
 
 /**
- * Get OAuth provider config from local DB or fallback to env vars.
- */
-/**
- * Get OAuth provider config from local DB or fallback to env vars.
+ * Get OAuth provider config from local DB.
+ * Returns undefined when no provider is available yet (guest mode).
  */
 async function getProviderConfig(): Promise<{
     domain: string;
     clientId: string;
     audience: string;
-}> {
+} | undefined> {
     try {
         let providers: OAuthProviderDto[] = [];
 
@@ -123,19 +121,10 @@ async function getProviderConfig(): Promise<{
             }
         }
     } catch (e) {
-        console.warn("Failed to load providers from DB, falling back to env vars", e);
+        console.warn("Failed to load providers from DB", e);
     }
 
-    // Fallback to env vars (legacy or offline mode).
-    // If env vars are also missing (dynamic-only setup), use safe placeholders so
-    // createAuth0 doesn't crash. The plugin will be non-functional but the app
-    // starts in guest mode; loginWithProvider() creates its own Auth0Client with the
-    // real config once providers have been synced via the socket.
-    return {
-        domain: import.meta.env.VITE_AUTH0_DOMAIN || "auth.placeholder.local",
-        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID || "placeholder",
-        audience: import.meta.env.VITE_AUTH0_AUDIENCE || "",
-    };
+    return undefined;
 }
 
 /**
@@ -244,6 +233,37 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     const config = await getProviderConfig();
 
+    if (!config) {
+        // No provider config at startup (e.g. sync not run yet). Provide minimal auth so useAuth0() is defined.
+        // Public access is handled by the API permission map (group-public-users), not by this object.
+        // loginWithRedirect triggers real login via getAvailableProviders + loginWithProvider so the Login button works.
+        const fallbackAuth = {
+            isAuthenticated: ref(false),
+            isLoading: ref(false),
+            user: ref(undefined),
+            idTokenClaims: ref(undefined),
+            error: ref(undefined),
+            loginWithRedirect: async () => {
+                const providers = await getAvailableProviders();
+                if (providers.length === 0) return;
+                if (providers.length > 1) {
+                    showProviderSelectionModal.value = true;
+                    return;
+                }
+                await loginWithProvider(providers[0]);
+            },
+            logout: async () => {},
+            getAccessTokenSilently: async () => undefined as unknown as string,
+            loginWithPopup: async () => {},
+            handleRedirectCallback: async () => ({} as unknown as ReturnType<AuthPlugin["handleRedirectCallback"]>),
+            checkSession: async () => {},
+        } as unknown as AuthPlugin;
+        app.provide(AUTH0_INJECTION_KEY, fallbackAuth);
+        app.config.globalProperties.$auth = fallbackAuth;
+        app.config.globalProperties.$auth0 = fallbackAuth;
+        return fallbackAuth;
+    }
+
     // Determine the redirect_uri that was used (must match exactly for code exchange)
     const urlParams = new URLSearchParams(window.location.search);
     const providerIdInUrl = urlParams.get("providerId");
@@ -321,39 +341,13 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     // Handle logout
     const _Logout = oauth.logout;
-    (oauth as AuthPlugin).logout = (options?: any) => {
-        // Reset all auth state so the app returns to a clean "never logged in" state
+    (oauth as AuthPlugin).logout = () => {
         clearAuth0Cache();
-
-        // We want to keep the current provider selected on logout, but we can also facilitate switching
-        // if we want to default to the selection screen, we could remove it.
-        // For now, let's keep it in local storage so next visit remembers it.
-        // localStorage.removeItem(SELECTED_PROVIDER_KEY);
-
-        let retrying = false;
-        let logoutParams: any = {};
-
-        if (typeof options === "boolean") {
-            retrying = options;
-        } else if (options && typeof options === "object") {
-            logoutParams = options.logoutParams || {};
-        }
-
-        let returnTo = logoutParams.returnTo || web_origin;
-
-        if (!retrying) {
-            const url = new URL(returnTo);
-            const currentProviderId = getSelectedProviderId();
-            if (currentProviderId) {
-                url.searchParams.set("providerId", currentProviderId);
-            }
-            returnTo = url.toString();
-        }
+        localStorage.removeItem(SELECTED_PROVIDER_KEY);
 
         return _Logout({
             logoutParams: {
-                ...logoutParams, // Preserve other params if any
-                returnTo,
+                returnTo: web_origin,
             },
         });
     };
@@ -411,7 +405,7 @@ async function loginRedirect(oauth: AuthPlugin) {
 
     localStorage.removeItem("auth0AuthFailedRetryCount");
     localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    await logout();
 }
 
 /**

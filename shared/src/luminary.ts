@@ -23,6 +23,6 @@ export async function init(config: SharedConfig) {
     getRest();
 
     // Create HTTP service instance for use in sync operations
-    const http = new HttpReq(config.apiUrl || "", config.token, config.providerId);
+    const http = new HttpReq(config.apiUrl || "", config.token);
     initSync(http);
 }

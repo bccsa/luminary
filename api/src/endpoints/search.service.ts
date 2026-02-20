@@ -21,8 +21,8 @@ export class SearchService {
      * @param req - api request
      * @returns
      */
-    async processReq(query: SearchReqDto, token: string, providerId?: string): Promise<DbQueryResult> {
-        const userDetails = await processJwt(token, this.db, this.logger, providerId);
+    async processReq(query: SearchReqDto, token: string): Promise<DbQueryResult> {
+        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Validate request
         if (!query.slug && (!query.types || query.types.length < 1)) {

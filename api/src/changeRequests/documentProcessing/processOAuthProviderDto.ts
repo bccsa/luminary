@@ -4,6 +4,9 @@ import { storeCryptoData } from "../../util/encryption";
 import { Auth0CredentialSecretsDto } from "../../dto/Auth0CredentialsDto";
 import { processImage } from "./processImageDto";
 
+/** Group that grants public (logged-out) view access; OAuthProvider docs must include it so providers are listable before login. */
+const PUBLIC_CONTENT_GROUP_ID = "group-public-content";
+
 /**
  * Processes OAuth provider documents.
  * Handles credential encryption similar to Storage documents.
@@ -165,6 +168,14 @@ export default async function processOAuthProviderDto(
                 warnings.push(`Image processing failed: ${error.message}`);
             }
         }
+    }
+
+    // OAuthProvider documents are always public so logged-out users can list providers and log in
+    if (!Array.isArray(doc.memberOf)) {
+        doc.memberOf = [];
+    }
+    if (!doc.memberOf.includes(PUBLIC_CONTENT_GROUP_ID)) {
+        doc.memberOf = [...doc.memberOf, PUBLIC_CONTENT_GROUP_ID];
     }
 
     return warnings;
