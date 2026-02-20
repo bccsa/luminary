@@ -97,6 +97,7 @@ describe("EditGroup", () => {
             props: {
                 groupQuery: mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>,
                 group: group,
+                openModal: true,
                 "onUpdate:group": vi.fn(),
                 ...props,
             },
@@ -156,26 +157,30 @@ describe("EditGroup", () => {
 
             const wrapper = createWrapper();
 
-            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(true);
+            expect(wrapper.find('[data-test="modal-primary-button"]').exists()).toBe(true);
             expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(true);
         });
 
-        it("does not show save and discard buttons when group is not dirty", () => {
+        it("does not show discard button and save button disable when group is not dirty", () => {
             isEditedMock.mockReturnValue(false);
 
             const wrapper = createWrapper();
 
-            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+            const saveButton = wrapper.find('[data-test="modal-primary-button"]');
+
+            expect(saveButton.exists()).toBe(true);
+            expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
             expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(false);
         });
 
-        it("does not show save and discard buttons when disabled", () => {
+        it("does not show discard button and save button disable when disabled", () => {
             isEditedMock.mockReturnValue(true);
             vi.mocked(verifyAccess).mockReturnValue(false);
 
             const wrapper = createWrapper();
+            const saveButton = wrapper.find('[data-test="modal-primary-button"]');
 
-            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+            expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
             expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(false);
         });
 
@@ -194,7 +199,7 @@ describe("EditGroup", () => {
 
             const wrapper = createWrapper();
 
-            await wrapper.find('[data-test="saveChanges"]').trigger("click");
+            await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
 
             expect(mockGroupQuery.save).toHaveBeenCalledWith(testGroup._id);
         });
@@ -286,6 +291,7 @@ describe("EditGroup", () => {
                 props: {
                     groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
                     group: newGroup,
+                    openModal: true,
                     "onUpdate:group": vi.fn(),
                 },
                 global: {
@@ -349,7 +355,7 @@ describe("EditGroup", () => {
 
             const wrapper = createWrapper();
 
-            const container = wrapper.find(".w-full.overflow-visible.rounded-md");
+            const container = wrapper.find(".w-full.rounded-md");
             expect(container.classes()).toContain("bg-zinc-100");
         });
 
@@ -364,7 +370,7 @@ describe("EditGroup", () => {
         it("shows normal styling when user has permissions", () => {
             const wrapper = createWrapper();
 
-            const container = wrapper.find(".w-full.overflow-visible.rounded-md");
+            const container = wrapper.find(".w-full.rounded-md");
             expect(container.classes()).toContain("bg-white");
             expect(container.classes()).not.toContain("bg-zinc-100");
         });
@@ -383,6 +389,7 @@ describe("EditGroup", () => {
                 props: {
                     groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
                     group: newGroup,
+                    openModal: true,
                     "onUpdate:group": vi.fn(),
                 },
                 global: {
@@ -460,6 +467,7 @@ describe("EditGroup", () => {
                 props: {
                     groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
                     group: newGroup,
+                    openModal: true,
                     "onUpdate:group": vi.fn(),
                 },
                 global: {
@@ -561,16 +569,17 @@ describe("EditGroup", () => {
             isConnected.value = true;
 
             const wrapper = createWrapper();
+            const saveButton = wrapper.find('[data-test="modal-primary-button"]');
 
             // Initially connected, should show save button
-            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(true);
+            expect(wrapper.find('[data-test="modal-primary-button"]').exists()).toBe(true);
 
             // Disconnect
             isConnected.value = false;
             await wrapper.vm.$nextTick();
 
             // Should no longer show save button
-            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+            expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
         });
     });
 });

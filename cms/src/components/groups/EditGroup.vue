@@ -220,6 +220,7 @@ const saveChanges = async () => {
         @update:open="(val) => !val && emit('close')"
         :primaryAction="saveChanges"
         primaryButtonText="Save"
+        :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
         @close="emit('close')"
