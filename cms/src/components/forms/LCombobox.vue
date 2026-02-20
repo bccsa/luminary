@@ -82,7 +82,7 @@ onClickOutside(
     () => {
         showDropdown.value = false;
     },
-    { ignore: [dropdown] },
+    { ignore: [dropdown, triggerRef] },
 );
 
 const highlightedIndex = ref(-1);
@@ -106,15 +106,6 @@ const selectedLabels = computed(() => {
 
 const toggle = () => {
     showDropdown.value = !showDropdown.value;
-    nextTick(() => {
-        inputElement.value?.focus();
-    });
-};
-
-const open = () => {
-    if (!showDropdown.value) {
-        showDropdown.value = true;
-    }
     nextTick(() => {
         inputElement.value?.focus();
     });
@@ -223,7 +214,7 @@ const placementClass = computed(() => {
                 class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-8 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
-                @click="open()"
+                @click="toggle()"
             >
                 <div class="flex items-center justify-center gap-2">
                     <div v-if="icon" class="flex items-center">
@@ -311,6 +302,7 @@ const placementClass = computed(() => {
                     class="overflow-y-auto rounded-md bg-white shadow-md focus:outline-none"
                     :class="[placementClass, 'max-h-48']"
                     data-test="options"
+                    @click.self="showDropdown = false"
                     @wheel.stop
                     @touchmove.stop
                 >

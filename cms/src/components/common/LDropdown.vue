@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick } from "vue";
-import { onClickOutside } from "@vueuse/core";
+import { onClickOutside, useEventListener } from "@vueuse/core";
+import LTeleport from "./LTeleport.vue";
 
 defineOptions({ inheritAttrs: false });
 
@@ -15,18 +16,25 @@ const show = defineModel<boolean>("show", { required: true });
 const rootRef = ref<HTMLElement | null>(null);
 const panelRef = ref<HTMLElement | null>(null);
 const panelId = `dropdown-panel-${Math.random().toString(36).slice(2)}`;
+const triggerRect = ref<DOMRect | null>(null);
+const GAP = 4;
 
 const toggle = () => (show.value = !show.value);
 const close = () => (show.value = false);
+
+const updateTriggerRect = () => {
+    if (!show.value) return;
+    triggerRect.value = rootRef.value?.getBoundingClientRect() ?? null;
+};
 
 const onTriggerClick = (event: MouseEvent) => {
     if (event.defaultPrevented) return;
     toggle();
 };
 
-onClickOutside(rootRef.value, () => {
+onClickOutside(rootRef, () => {
     if (show.value) close();
-});
+}, { ignore: [panelRef] });
 
 // Focus first menuitem on open
 const focusFirst = () => {
@@ -39,9 +47,17 @@ const focusFirst = () => {
 
 watch(show, (val) => {
     if (val) {
-        nextTick(() => focusFirst());
+        nextTick(() => {
+            updateTriggerRect();
+            focusFirst();
+        });
+    } else {
+        triggerRect.value = null;
     }
 });
+
+useEventListener("resize", updateTriggerRect);
+useEventListener("scroll", updateTriggerRect, { capture: true });
 
 // Keyboard navigation inside panel (ArrowUp, ArrowDown, Enter, Escape)
 const onPanelKeydown = (e: KeyboardEvent) => {
@@ -70,21 +86,40 @@ const onPanelKeydown = (e: KeyboardEvent) => {
     }
 };
 
-const placementClasses = computed(() => {
+const panelStyle = computed((): Record<string, string> => {
+    const rect = triggerRect.value;
+    if (!rect) return { position: "fixed", zIndex: "9999" };
+    const style: Record<string, string> = { position: "fixed", zIndex: "9999" };
     switch (props.placement) {
         case "bottom-start":
-            return "left-0 top-full mt-1";
+            style.left = `${rect.left}px`;
+            style.top = `${rect.bottom + GAP}px`;
+            break;
         case "bottom-end":
-            return "right-0 top-full mt-1";
+            style.right = `${window.innerWidth - rect.right}px`;
+            style.top = `${rect.bottom + GAP}px`;
+            break;
         case "top-start":
-            return "left-0 bottom-full mb-1";
+            style.left = `${rect.left}px`;
+            style.bottom = `${window.innerHeight - rect.top + GAP}px`;
+            break;
         case "top-end":
-            return "right-0 bottom-full mb-1";
+            style.right = `${window.innerWidth - rect.right}px`;
+            style.bottom = `${window.innerHeight - rect.top + GAP}px`;
+            break;
         case "top-center":
-            return "left-1/2 -translate-x-1/2 bottom-full mb-1";
+            style.left = `${rect.left + rect.width / 2}px`;
+            style.transform = "translateX(-50%)";
+            style.bottom = `${window.innerHeight - rect.top + GAP}px`;
+            break;
         default:
-            return "right-0 top-full mt-1";
+            style.right = `${window.innerWidth - rect.right}px`;
+            style.top = `${rect.bottom + GAP}px`;
     }
+    if (props.width === "full") {
+        style.width = `${rect.width}px`;
+    }
+    return style;
 });
 
 const paddingClass = computed(() =>
@@ -128,23 +163,24 @@ const widthClass = computed(() => {
             <slot name="trigger" />
         </div>
 
-        <div
-            v-show="show"
-            ref="panelRef"
-            :id="panelId"
-            class="absolute z-[9999] origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-            :class="[
-                placementClasses,
-                widthClass,
-                props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
-            ]"
-            role="menu"
-            data-dropdown-panel
-            @keydown="onPanelKeydown"
-        >
-            <div class="py-1" :class="paddingClass">
-                <slot />
+        <LTeleport v-if="show">
+            <div
+                ref="panelRef"
+                :id="panelId"
+                class="origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                :class="[
+                    widthClass,
+                    props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
+                ]"
+                :style="panelStyle"
+                role="menu"
+                data-dropdown-panel
+                @keydown="onPanelKeydown"
+            >
+                <div class="py-1" :class="paddingClass">
+                    <slot />
+                </div>
             </div>
-        </div>
+        </LTeleport>
     </div>
 </template>
