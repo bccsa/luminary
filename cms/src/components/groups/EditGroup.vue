@@ -24,10 +24,8 @@ import LDialog from "../common/LDialog.vue";
 const { addNotification } = useNotificationStore();
 
 type Props = {
-    // group: GroupDto;
     groupQuery: ApiLiveQueryAsEditable<GroupDto>;
     openModal: boolean;
-    // newGroups: GroupDto[];
 };
 const props = defineProps<Props>();
 
@@ -327,7 +325,7 @@ const saveChanges = async () => {
                         <AddGroupAclButton
                             v-if="!disabled"
                             :groups="availableGroups"
-                            @select="addAssignedGroup"
+                            @s\elect="addAssignedGroup"
                         />
                     </div>
                     <LButton
