@@ -149,7 +149,14 @@ export async function processJwt(
                     DocType.OAuthProvider,
                 );
                 const trustedProvider = providerResult.docs?.find(
-                    (p: Record<string, unknown>) => p.domain === domain,
+                    (p: Record<string, unknown>) => {
+                        // Normalize the stored domain: strip protocol and trailing slashes
+                        // to handle both "dev-xxx.us.auth0.com" and "https://dev-xxx.us.auth0.com/"
+                        const storedDomain = String(p.domain || "")
+                            .replace(/^https?:\/\//, "")
+                            .replace(/\/+$/, "");
+                        return storedDomain === domain;
+                    },
                 );
 
                 if (trustedProvider) {
@@ -158,9 +165,22 @@ export async function processJwt(
                         matchedProvider = trustedProvider as {
                             claimNamespace?: string;
                         };
-                    } catch {
-                        // Ignore error, user will fall back to public access
+                    } catch (err) {
+                        // TODO: Remove debug logging after fixing auth issue
+                        logger?.error(
+                            `JWKS verification failed for domain ${domain}, kid ${kid}:`,
+                            err,
+                        );
+                        console.error(`[DEBUG] JWKS verification failed:`, err);
                     }
+                } else {
+                    // TODO: Remove debug logging after fixing auth issue
+                    logger?.warn(
+                        `No trusted provider found for domain: ${domain}`,
+                    );
+                    console.warn(
+                        `[DEBUG] No trusted provider for domain: ${domain}`,
+                    );
                 }
             }
         }
@@ -168,12 +188,17 @@ export async function processJwt(
         // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
         if (!jwtPayload) {
             try {
-                jwtPayload = JWT.verify(
-                    jwt,
-                    process.env.JWT_SECRET,
-                ) as JWT.JwtPayload;
-            } catch {
-                // Ignore error, user will fall back to public access
+                // Convert literal '\n' escape sequences to real newlines
+                // so PEM certificates from .env files are parsed correctly
+                const secret = (process.env.JWT_SECRET || "").replace(
+                    /\\n/g,
+                    "\n",
+                );
+                jwtPayload = JWT.verify(jwt, secret) as JWT.JwtPayload;
+            } catch (err) {
+                // TODO: Remove debug logging after fixing auth issue
+                logger?.error(`JWT_SECRET verification also failed:`, err);
+                console.error(`[DEBUG] JWT_SECRET fallback failed:`, err);
             }
         }
     }

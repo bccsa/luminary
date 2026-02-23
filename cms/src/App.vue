@@ -12,14 +12,19 @@ import { isAuthBypassed } from "@/auth";
 
 // In auth bypass mode, always treat as authenticated
 const auth0 = isAuthBypassed ? null : useAuth0();
-const isAuthenticated = computed(() => isAuthBypassed || auth0?.isAuthenticated.value);
+const isAuthenticated = computed(
+    () => isAuthBypassed || auth0?.isAuthenticated.value,
+);
 const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;
 
     // Check if the route is an overview route, and return a unique route key. This will disable component reuse for dynamic routes and allow the component to reload data
-    if (routeKey.includes("tag/overview/") || routeKey.includes("post/overview/")) {
+    if (
+        routeKey.includes("tag/overview/") ||
+        routeKey.includes("post/overview/")
+    ) {
         return routeKey;
     }
 
@@ -33,7 +38,9 @@ const routeKey = computed(() => {
         <div class="relative flex h-screen w-full overflow-hidden">
             <MobileSideBar v-model:open="sidebarOpen" />
 
-            <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
+            <div
+                class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col"
+            >
                 <SideBar @close="sidebarOpen = false" />
             </div>
 
