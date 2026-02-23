@@ -30,7 +30,7 @@ describe("ChangeRequest service", () => {
     });
 
     it("can query the api endpoint", async () => {
-        const res = await changeRequestService.changeRequest(changeRequest_post(), "");
+        const res = await changeRequestService.changeRequest(changeRequest_post(), "fake-token");
 
         expect(res.ack).toBe(AckStatus.Accepted);
     });
@@ -49,7 +49,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
@@ -60,7 +60,7 @@ describe("ChangeRequest service", () => {
         };
 
         // @ts-expect-error - we are testing invalid input
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
         expect(res.ack).toBe("rejected");
         expect(res.message).toContain("Change request validation failed");
     });
@@ -76,7 +76,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
 
         expect(res.message).toContain("Invalid document type");
         expect(res.ack).toBe("rejected");
@@ -96,7 +96,7 @@ describe("ChangeRequest service", () => {
             doc: { ...postDoc, deleteReq: 1 },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
 
         expect(res.message).toBe("No 'Delete' access to document");
         expect(res.ack).toBe("rejected");
