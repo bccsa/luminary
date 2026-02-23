@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from "vue";
+import { ref, computed } from "vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import { type OAuthProviderDto, type GroupDto } from "luminary-shared";
