@@ -26,18 +26,30 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const providerGroups = computed(() =>
-    props.groups.filter((group) => props.provider.memberOf?.includes(group._id)),
+    props.groups.filter((group) =>
+        props.provider.memberOf?.includes(group._id),
+    ),
 );
 
-const renderDate = (size: "default" | "small", timestampRelevance: string, timestamp: number) =>
+const renderDate = (
+    size: "default" | "small",
+    timestampRelevance: string,
+    timestamp: number,
+) =>
     size == "default"
         ? timestamp
-            ? DateTime.fromMillis(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
+            ? DateTime.fromMillis(timestamp).toLocaleString(
+                  DateTime.DATETIME_SHORT,
+              )
             : `${timestampRelevance} not set`
         : DateTime.fromMillis(timestamp).toLocaleString();
 
 const canEdit = computed(() =>
-    verifyAccess(props.provider.memberOf, DocType.OAuthProvider, AclPermission.Edit),
+    verifyAccess(
+        props.provider.memberOf,
+        DocType.OAuthProvider,
+        AclPermission.Edit,
+    ),
 );
 
 const handleEdit = () => {
@@ -52,14 +64,18 @@ const handleEdit = () => {
         class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-3 py-2 sm:rounded-md sm:border"
         @click="handleEdit"
     >
-        <div class="relative flex cursor-pointer items-center justify-between pb-1.5">
+        <div
+            class="relative flex cursor-pointer items-center justify-between pb-1.5"
+        >
             <div
                 class="w-full"
                 :class="{
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-base font-medium">
+                <div
+                    class="mr-1 max-w-full truncate text-wrap text-base font-medium"
+                >
                     {{ capitaliseFirstLetter(provider.label) }}
                 </div>
             </div>
@@ -75,7 +91,7 @@ const handleEdit = () => {
             </div>
             <div class="flex flex-nowrap gap-1">
                 <LBadge
-                    v-if="provider.credential_id"
+                    v-if="provider.domain && provider.clientId"
                     type="default"
                     variant="success"
                     class="gap-1 whitespace-nowrap text-xs font-semibold"
@@ -93,7 +109,10 @@ const handleEdit = () => {
             </div>
         </div>
 
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1.5">
+        <div
+            v-if="isSmallScreen"
+            class="flex flex-wrap items-center gap-1 py-1.5"
+        >
             <div class="flex flex-1 items-center gap-1">
                 <div>
                     <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -153,7 +172,11 @@ const handleEdit = () => {
             <div class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="text-zinc-340 mr-[1px] h-3.5 w-3.5" />
                 <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("default", "Last updated", provider.updatedTimeUtc)
+                    renderDate(
+                        "default",
+                        "Last updated",
+                        provider.updatedTimeUtc,
+                    )
                 }}</span>
             </div>
         </div>

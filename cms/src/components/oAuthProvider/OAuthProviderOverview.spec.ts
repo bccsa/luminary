@@ -90,10 +90,9 @@ describe("OAuthProviderOverview", () => {
         });
     });
 
-    it("save without new secret updates only public fields", async () => {
+    it("save updates public fields", async () => {
         const provider = {
             ...mockData.mockOAuthProviderDto,
-            credential_id: "cred-1",
         };
         await db.docs.add(provider);
         const upsertSpy = vi.spyOn(db, "upsert");
@@ -122,12 +121,9 @@ describe("OAuthProviderOverview", () => {
         });
         const upsertCall =
             upsertSpy.mock.calls[upsertSpy.mock.calls.length - 1];
-        const doc = upsertCall[0]?.doc as
-            | { domain?: string; credential?: unknown }
-            | undefined;
+        const doc = upsertCall[0]?.doc as { domain?: string } | undefined;
         expect(doc).toBeDefined();
         expect(doc?.domain).toBe("updated-domain.auth0.com");
-        expect(doc?.credential).toBeUndefined();
         upsertSpy.mockRestore();
     });
 
