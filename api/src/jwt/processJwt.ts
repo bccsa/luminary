@@ -127,57 +127,54 @@ export async function processJwt(
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
-    // Early return if no JWT is provided
-    if (!jwt) {
-        return { groups: [] };
-    }
-
-    // Verify the JWT token – try OIDC provider JWKS first, then fall back to static secret
+    // Verify the JWT token (skip verification if no JWT provided – group mappings still run below)
     let jwtPayload: JWT.JwtPayload;
     let matchedProvider: { claimNamespace?: string } | undefined;
 
-    const decoded = JWT.decode(jwt, { complete: true });
+    if (jwt) {
+        const decoded = JWT.decode(jwt, { complete: true });
 
-    if (decoded && typeof decoded !== "string" && decoded.header.kid) {
-        // Token has a key ID – likely signed by an OIDC provider (RS256)
-        const kid = decoded.header.kid;
-        const payload = decoded.payload as JWT.JwtPayload;
-        const iss = payload?.iss;
+        if (decoded && typeof decoded !== "string" && decoded.header.kid) {
+            // Token has a key ID – likely signed by an OIDC provider (RS256)
+            const kid = decoded.header.kid;
+            const payload = decoded.payload as JWT.JwtPayload;
+            const iss = payload?.iss;
 
-        if (iss) {
-            const issuerUrl = new URL(iss);
-            const domain = issuerUrl.hostname;
+            if (iss) {
+                const issuerUrl = new URL(iss);
+                const domain = issuerUrl.hostname;
 
-            // Validate this is a trusted provider registered in the database
-            const providerResult = await db.getDocsByType(
-                DocType.OAuthProvider,
-            );
-            const trustedProvider = providerResult.docs?.find(
-                (p: Record<string, unknown>) => p.domain === domain,
-            );
+                // Validate this is a trusted provider registered in the database
+                const providerResult = await db.getDocsByType(
+                    DocType.OAuthProvider,
+                );
+                const trustedProvider = providerResult.docs?.find(
+                    (p: Record<string, unknown>) => p.domain === domain,
+                );
 
-            if (trustedProvider) {
-                try {
-                    jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-                    matchedProvider = trustedProvider as {
-                        claimNamespace?: string;
-                    };
-                } catch {
-                    // Ignore error, user will fall back to public access
+                if (trustedProvider) {
+                    try {
+                        jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
+                        matchedProvider = trustedProvider as {
+                            claimNamespace?: string;
+                        };
+                    } catch {
+                        // Ignore error, user will fall back to public access
+                    }
                 }
             }
         }
-    }
 
-    // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
-    if (!jwtPayload) {
-        try {
-            jwtPayload = JWT.verify(
-                jwt,
-                process.env.JWT_SECRET,
-            ) as JWT.JwtPayload;
-        } catch {
-            // Ignore error, user will fall back to public access
+        // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
+        if (!jwtPayload) {
+            try {
+                jwtPayload = JWT.verify(
+                    jwt,
+                    process.env.JWT_SECRET,
+                ) as JWT.JwtPayload;
+            } catch {
+                // Ignore error, user will fall back to public access
+            }
         }
     }
 
