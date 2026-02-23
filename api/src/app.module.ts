@@ -1,11 +1,15 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
 import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
 import { S3Service } from "./s3/s3.service";
 import configuration from "./configuration";
-import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
+import {
+    utilities as nestWinstonModuleUtilities,
+    WinstonModule,
+} from "nest-winston";
 import { SearchController } from "./endpoints/search.controller";
 import { SearchService } from "./endpoints/search.service";
 import { ChangeRequestService } from "./endpoints/changeRequest.service";
@@ -38,11 +42,17 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
     imports: [
         WinstonModule.forRoot({
             level: "info",
-            format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.json(),
+            ),
             transports: [winstonTransport],
         }),
         ConfigModule.forRoot({
             load: [configuration],
+        }),
+        JwtModule.register({
+            global: true,
         }),
     ],
     controllers: [
@@ -52,6 +62,13 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryController,
         StorageStatusController,
     ],
-    providers: [DbService, Socketio, S3Service, SearchService, QueryService, ChangeRequestService],
+    providers: [
+        DbService,
+        Socketio,
+        S3Service,
+        SearchService,
+        QueryService,
+        ChangeRequestService,
+    ],
 })
 export class AppModule {}

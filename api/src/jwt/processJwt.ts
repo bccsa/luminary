@@ -1,11 +1,14 @@
 import { Logger } from "winston";
-import { Uuid } from "../enums";
+import { DocType, Uuid } from "../enums";
 import * as JWT from "jsonwebtoken";
+import { JwksClient } from "jwks-rsa";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import configuration from "../configuration";
-import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
-import { OAuthProviderCache, CachedOAuthProvider } from "../auth/oauthProviderCache";
+import {
+    AccessMap,
+    PermissionSystem,
+} from "../permissions/permissions.service";
 
 export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
 
@@ -20,12 +23,38 @@ export type JwtUserDetails = {
 
 let jwtMap: JwtMap;
 
-/** Group ID for unauthenticated/public access (no or invalid JWT). */
-const PUBLIC_GROUP_ID = "group-public-users" as Uuid;
+// Cache JWKS clients per provider domain to avoid repeated OIDC discovery requests
+const jwksClients = new Map<string, JwksClient>();
 
-function publicUserDetails(): JwtUserDetails {
-    const groups = [PUBLIC_GROUP_ID];
-    return { groups, accessMap: PermissionSystem.getAccessMap(groups) };
+function getOrCreateJwksClient(domain: string): JwksClient {
+    if (!jwksClients.has(domain)) {
+        jwksClients.set(
+            domain,
+            new JwksClient({
+                jwksUri: `https://${domain}/.well-known/jwks.json`,
+                cache: true,
+                cacheMaxAge: 600000, // 10 minutes
+                rateLimit: true,
+            }),
+        );
+    }
+    return jwksClients.get(domain)!;
+}
+
+/**
+ * Verify a JWT using the JWKS endpoint of a trusted OIDC provider.
+ */
+async function verifyJwtWithJwks(
+    token: string,
+    domain: string,
+    kid: string,
+): Promise<JWT.JwtPayload> {
+    const client = getOrCreateJwksClient(domain);
+    const key = await client.getSigningKey(kid);
+    const publicKey = key.getPublicKey();
+    return JWT.verify(token, publicKey, {
+        algorithms: ["RS256"],
+    }) as JWT.JwtPayload;
 }
 
 /**
@@ -65,13 +94,20 @@ export function clearJwtMap() {
 }
 
 /**
+ * Clear the JWKS client cache. Useful for testing.
+ */
+export function clearJwksClients() {
+    jwksClients.clear();
+}
+
+/**
  * Process a JWT token against the JWT_MAPPINGS (environmental variable) and return mapped groups and user details
  * @param jwt - Javascript Web Token
  * @param logger - Logger instance
  * @returns - Array with JWT verified groups
  */
 export async function processJwt(
-    token: string,
+    jwt: string,
     db: DbService,
     logger?: Logger,
 ): Promise<JwtUserDetails> {
@@ -86,42 +122,51 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return publicUserDetails();
+            return { groups: [] };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
+    // Verify the JWT token – try OIDC provider JWKS first, then fall back to static secret
     let jwtPayload: JWT.JwtPayload;
-    let matchedProvider: CachedOAuthProvider | undefined;
+    let matchedProvider: { claimNamespace?: string } | undefined;
 
-    // Verify token against the cached OAuth provider's signing certificate
-    try {
-        const decoded = JWT.decode(token, { complete: true });
-        if (!decoded?.payload || typeof decoded.payload === "string") {
-            return publicUserDetails();
+    const decoded = jwt ? JWT.decode(jwt, { complete: true }) : undefined;
+
+    if (decoded && typeof decoded !== "string" && decoded.header.kid) {
+        // Token has a key ID – likely signed by an OIDC provider (RS256)
+        const kid = decoded.header.kid;
+        const payload = decoded.payload as JWT.JwtPayload;
+        const iss = payload?.iss;
+
+        if (iss) {
+            const issuerUrl = new URL(iss);
+            const domain = issuerUrl.hostname;
+
+            // Validate this is a trusted provider registered in the database
+            const providerResult = await db.getDocsByType(
+                DocType.OAuthProvider,
+            );
+            const trustedProvider = providerResult.docs?.find(
+                (p: Record<string, unknown>) => p.domain === domain,
+            );
+
+            if (trustedProvider) {
+                jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
+                matchedProvider = trustedProvider as {
+                    claimNamespace?: string;
+                };
+            } else {
+                logger?.warn(
+                    `No trusted OAuthProvider found for issuer domain: ${domain}`,
+                );
+            }
         }
+    }
 
-        const iss = (decoded.payload as JWT.JwtPayload).iss;
-        if (!iss) return publicUserDetails();
-
-        const provider = OAuthProviderCache.getByIssuer(iss);
-        if (!provider) {
-            logger?.warn(`No cached OAuth provider matches issuer "${iss}"`);
-            return publicUserDetails();
-        }
-
-        const kid = decoded.header?.kid;
-        const pem = OAuthProviderCache.getSigningKey(provider, kid);
-        if (!pem) {
-            logger?.warn(`No signing key found for provider "${provider.domain}" (kid=${kid})`);
-            return publicUserDetails();
-        }
-
-        jwtPayload = JWT.verify(token, pem, { algorithms: ["RS256"] }) as JWT.JwtPayload;
-        matchedProvider = provider;
-    } catch (err) {
-        logger?.error(`Unable to verify JWT`, err);
-        return publicUserDetails();
+    // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
+    if (!jwtPayload) {
+        jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
     }
 
     // Extract user details: use provider's claimNamespace if available, otherwise global jwtMap
@@ -129,7 +174,8 @@ export async function processJwt(
         // Group mappings always use the global jwtMap
         if (jwtMap["groups"]) {
             Object.keys(jwtMap["groups"]).forEach((groupId) => {
-                if (jwtMap["groups"][groupId](jwtPayload)) groupSet.add(groupId);
+                if (jwtMap["groups"][groupId](jwtPayload))
+                    groupSet.add(groupId);
             });
         }
 
@@ -159,9 +205,8 @@ export async function processJwt(
                 name = jwtMap["name"](jwtPayload);
             }
         }
-    } catch (err) {
-        logger?.error(`Unable to get JWT mappings`, err);
-        return publicUserDetails();
+    } catch {
+        return { groups: [] };
     }
 
     // If userId is set, get the user details from the database using the userId
@@ -169,7 +214,8 @@ export async function processJwt(
         userId = userId.toString();
     }
 
-    const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
+    const userDocs = (await db.getUserByIdOrEmail(email, userId))
+        .docs as UserDto[];
 
     // Update user details in the database if either userId or email is set
     if (userId) {
