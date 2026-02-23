@@ -1,7 +1,13 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
-import { Expose, Type } from "class-transformer";
+import {
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    Max,
+    Min,
+} from "class-validator";
+import { Expose } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
-import { Auth0CredentialsDto } from "./Auth0CredentialsDto";
 import { Uuid } from "../enums";
 import { ImageDto } from "./ImageDto";
 
@@ -59,25 +65,6 @@ export class OAuthProviderDto extends _contentBaseDto {
     /** Icon opacity 0–1; applied when displaying the icon. */
     iconOpacity?: number;
 
-    @IsOptional()
-    @ValidateNested()
-    @Type(() => Auth0CredentialsDto)
-    @Expose()
-    /**
-     * Transient field for passing credentials during create/update operations.
-     * Public fields (domain, clientId, audience) are stored on this doc; only
-     * clientSecret is encrypted and stored via credential_id.
-     */
-    credential?: Auth0CredentialsDto;
-
-    @IsOptional()
-    @IsString()
-    @Expose()
-    /**
-     * Reference to encrypted CryptoDto document containing only the clientSecret.
-     * Public config (domain, clientId, audience) is stored on this document.
-     */
-    credential_id?: Uuid;
     @IsOptional()
     @Expose()
     /**

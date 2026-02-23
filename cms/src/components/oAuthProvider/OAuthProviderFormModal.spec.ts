@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import OAuthProviderFormModal from "./OAuthProviderFormModal.vue";
 import LInput from "../forms/LInput.vue";
-import { DocType, type OAuthProviderDto, type Auth0CredentialDto, type GroupDto } from "luminary-shared";
+import { DocType, type OAuthProviderDto, type GroupDto } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 
 vi.mock("@/composables/storageSelection", () => ({
@@ -19,17 +19,14 @@ describe("OAuthProviderFormModal", () => {
         memberOf: [],
         label: "Test Provider",
         providerType: "auth0",
+        domain: "",
+        clientId: "",
+        audience: "",
     };
 
     const defaultProps = {
         isVisible: true,
         provider: mockProvider,
-        localCredentials: {
-            domain: "",
-            clientId: "",
-            clientSecret: "",
-            audience: "",
-        } as Auth0CredentialDto,
         isEditing: false,
         isLoading: false,
         errors: undefined,
@@ -37,17 +34,10 @@ describe("OAuthProviderFormModal", () => {
         canDelete: false,
         isFormValid: true,
         hasAttemptedSubmit: false,
-        hasValidCredentials: false,
     };
 
     beforeEach(() => {
         defaultProps.provider = { ...mockProvider };
-        defaultProps.localCredentials = {
-            domain: "",
-            clientId: "",
-            clientSecret: "",
-            audience: "",
-        };
     });
 
     async function expandCredentials(wrapper: ReturnType<typeof mount>) {
@@ -67,21 +57,20 @@ describe("OAuthProviderFormModal", () => {
         await expandCredentials(wrapper);
         expect(wrapper.text()).toContain("Domain");
         expect(wrapper.text()).toContain("Client ID");
-        expect(wrapper.text()).toContain("Client Secret");
         expect(wrapper.text()).toContain("Audience");
     });
 
-    it("shows domain, clientId, audience in inputs when localCredentials has those values", async () => {
-        const credentials: Auth0CredentialDto = {
+    it("shows domain, clientId, audience inside inputs when provider has those values", async () => {
+        const provider: OAuthProviderDto = {
+            ...mockProvider,
             domain: "tenant.auth0.com",
             clientId: "client123",
-            clientSecret: "",
             audience: "https://api.example.com",
         };
         const wrapper = mount(OAuthProviderFormModal, {
             props: {
                 ...defaultProps,
-                localCredentials: credentials,
+                provider: provider,
             },
             global: {
                 stubs: { ImageEditor: true },
@@ -89,13 +78,16 @@ describe("OAuthProviderFormModal", () => {
         });
         await expandCredentials(wrapper);
         const inputs = wrapper.findAllComponents(LInput);
-        const byName = (name: string) => inputs.find((w) => w.props("name") === name);
+        const byName = (name: string) =>
+            inputs.find((w) => w.props("name") === name);
         expect(byName("domain")?.props("modelValue")).toBe("tenant.auth0.com");
         expect(byName("clientId")?.props("modelValue")).toBe("client123");
-        expect(byName("audience")?.props("modelValue")).toBe("https://api.example.com");
+        expect(byName("audience")?.props("modelValue")).toBe(
+            "https://api.example.com",
+        );
     });
 
-    it("binds credential inputs to localCredentials model", async () => {
+    it("binds credential inputs to provider model", async () => {
         const wrapper = mount(OAuthProviderFormModal, {
             props: defaultProps,
             global: {
@@ -103,17 +95,24 @@ describe("OAuthProviderFormModal", () => {
             },
         });
         await expandCredentials(wrapper);
-        const domainInput = wrapper.findAllComponents(LInput).find((w) => w.props("name") === "domain");
+        const domainInput = wrapper
+            .findAllComponents(LInput)
+            .find((w) => w.props("name") === "domain");
         expect(domainInput?.props("modelValue")).toBe("");
         await wrapper.setProps({
-            localCredentials: {
+            provider: {
+                ...mockProvider,
                 domain: "updated.com",
                 clientId: "",
-                clientSecret: "",
                 audience: "",
             },
         });
         await wrapper.vm.$nextTick();
-        expect(wrapper.findAllComponents(LInput).find((w) => w.props("name") === "domain")?.props("modelValue")).toBe("updated.com");
+        expect(
+            wrapper
+                .findAllComponents(LInput)
+                .find((w) => w.props("name") === "domain")
+                ?.props("modelValue"),
+        ).toBe("updated.com");
     });
 });

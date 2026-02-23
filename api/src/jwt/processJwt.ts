@@ -127,11 +127,16 @@ export async function processJwt(
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
+    // Early return if no JWT is provided
+    if (!jwt) {
+        return { groups: [] };
+    }
+
     // Verify the JWT token – try OIDC provider JWKS first, then fall back to static secret
     let jwtPayload: JWT.JwtPayload;
     let matchedProvider: { claimNamespace?: string } | undefined;
 
-    const decoded = jwt ? JWT.decode(jwt, { complete: true }) : undefined;
+    const decoded = JWT.decode(jwt, { complete: true });
 
     if (decoded && typeof decoded !== "string" && decoded.header.kid) {
         // Token has a key ID – likely signed by an OIDC provider (RS256)
@@ -152,21 +157,28 @@ export async function processJwt(
             );
 
             if (trustedProvider) {
-                jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-                matchedProvider = trustedProvider as {
-                    claimNamespace?: string;
-                };
-            } else {
-                logger?.warn(
-                    `No trusted OAuthProvider found for issuer domain: ${domain}`,
-                );
+                try {
+                    jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
+                    matchedProvider = trustedProvider as {
+                        claimNamespace?: string;
+                    };
+                } catch {
+                    // Ignore error, user will fall back to public access
+                }
             }
         }
     }
 
     // Fall back to static JWT_SECRET (for legacy / symmetric-key tokens)
     if (!jwtPayload) {
-        jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
+        try {
+            jwtPayload = JWT.verify(
+                jwt,
+                process.env.JWT_SECRET,
+            ) as JWT.JwtPayload;
+        } catch {
+            // Ignore error, user will fall back to public access
+        }
     }
 
     // Extract user details: use provider's claimNamespace if available, otherwise global jwtMap

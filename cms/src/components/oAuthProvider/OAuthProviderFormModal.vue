@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from "vue";
-import { ExclamationTriangleIcon, ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
+import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import { type OAuthProviderDto, type Auth0CredentialDto, type GroupDto } from "luminary-shared";
+import { type OAuthProviderDto, type GroupDto } from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -19,7 +19,6 @@ defineProps<{
     canDelete: boolean;
     isFormValid: boolean;
     hasAttemptedSubmit: boolean;
-    hasValidCredentials: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -29,9 +28,6 @@ const emit = defineEmits<{
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<OAuthProviderDto | undefined>("provider");
-const localCredentials = defineModel<Auth0CredentialDto>("localCredentials", { required: true });
-
-const showCredentials = ref(false);
 
 // Image upload refs
 const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
@@ -72,45 +68,35 @@ const handleFileChange = () => {
     }
 };
 
-// Watch for modal visibility changes
-watch(isVisible, (visible) => {
-    if (visible) {
-        showCredentials.value = false;
-    }
-});
-
-function closeModal() {
+const closeModal = () => {
     isVisible.value = false;
-}
+};
 
-function handleSave() {
+const handleSave = () => {
     emit("save");
-}
+};
 
-function handleDelete() {
+const handleDelete = () => {
     emit("delete");
-}
-const scrollContainer = ref<HTMLElement | null>(null);
-
-function toggleCredentials() {
-    showCredentials.value = !showCredentials.value;
-    if (showCredentials.value) {
-        // Wait for DOM update then scroll to bottom
-        nextTick(() => {
-            if (scrollContainer.value) {
-                scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
-            }
-        });
-    }
-}
+};
 </script>
 
 <template>
-    <LModal v-model:isVisible="isVisible" :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'">
-        <div ref="scrollContainer" class="max-h-[500px] overflow-auto scrollbar-hide">
+    <LModal
+        v-model:isVisible="isVisible"
+        :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'"
+    >
+        <div
+            ref="scrollContainer"
+            class="max-h-[500px] overflow-auto scrollbar-hide"
+        >
             <!-- Error display -->
             <div v-if="errors" class="mb-3">
-                <div v-for="(error, idx) in errors" :key="idx" class="mb-1 flex items-center gap-2">
+                <div
+                    v-for="(error, idx) in errors"
+                    :key="idx"
+                    class="mb-1 flex items-center gap-2"
+                >
                     <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
                     <p class="text-xs text-zinc-700">{{ error }}</p>
                 </div>
@@ -152,7 +138,9 @@ function toggleCredentials() {
                 <!-- Provider Icon -->
                 <div>
                     <div class="mb-1 flex items-center justify-between">
-                        <label class="block text-xs font-medium text-gray-700">Icon</label>
+                        <label class="block text-xs font-medium text-gray-700"
+                            >Icon</label
+                        >
                         <LButton
                             v-if="isBucketSelected"
                             :icon="ArrowUpOnSquareIcon"
@@ -174,7 +162,9 @@ function toggleCredentials() {
                     <div class="rounded-md border border-gray-200 bg-white p-2">
                         <ImageEditor
                             ref="imageEditorRef"
-                            v-model:parent="provider as unknown as ContentParentDto"
+                            v-model:parent="
+                                provider as unknown as ContentParentDto
+                            "
                             :disabled="isLoading"
                         />
                     </div>
@@ -197,12 +187,17 @@ function toggleCredentials() {
                                 :disabled="isLoading"
                                 @input="
                                     (e) =>
-                                        (provider!.iconOpacity = (e.target as HTMLInputElement)
-                                            .valueAsNumber)
+                                        (provider!.iconOpacity = (
+                                            e.target as HTMLInputElement
+                                        ).valueAsNumber)
                                 "
                             />
                             <span class="w-10 text-right text-xs text-gray-600">
-                                {{ Math.round((provider.iconOpacity ?? 1) * 100) }}%
+                                {{
+                                    Math.round(
+                                        (provider.iconOpacity ?? 1) * 100,
+                                    )
+                                }}%
                             </span>
                         </div>
                     </div>
@@ -210,10 +205,13 @@ function toggleCredentials() {
 
                 <!-- Appearance -->
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
-                    <h3 class="mb-2 text-sm font-medium text-gray-900">Appearance</h3>
+                    <h3 class="mb-2 text-sm font-medium text-gray-900">
+                        Appearance
+                    </h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-700"
+                            <label
+                                class="mb-1 block text-xs font-medium text-gray-700"
                                 >Text Color</label
                             >
                             <div class="flex items-center gap-2">
@@ -235,7 +233,8 @@ function toggleCredentials() {
                                     <div
                                         class="h-full w-full"
                                         :style="{
-                                            backgroundColor: provider.textColor || '#000000',
+                                            backgroundColor:
+                                                provider.textColor || '#000000',
                                         }"
                                     ></div>
                                 </div>
@@ -250,7 +249,8 @@ function toggleCredentials() {
                             </div>
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-700"
+                            <label
+                                class="mb-1 block text-xs font-medium text-gray-700"
                                 >Background Color</label
                             >
                             <div class="flex items-center gap-2">
@@ -259,7 +259,10 @@ function toggleCredentials() {
                                 >
                                     <input
                                         type="color"
-                                        :value="provider.backgroundColor || '#ffffff'"
+                                        :value="
+                                            provider.backgroundColor ||
+                                            '#ffffff'
+                                        "
                                         @input="
                                             (e) =>
                                                 (provider!.backgroundColor = (
@@ -272,7 +275,9 @@ function toggleCredentials() {
                                     <div
                                         class="h-full w-full"
                                         :style="{
-                                            backgroundColor: provider.backgroundColor || '#ffffff',
+                                            backgroundColor:
+                                                provider.backgroundColor ||
+                                                '#ffffff',
                                         }"
                                     ></div>
                                 </div>
@@ -312,65 +317,26 @@ function toggleCredentials() {
                 <div class="border-t pt-2">
                     <div class="mb-2 flex items-center justify-between">
                         <h3 class="text-sm font-medium text-gray-900">
-                            Auth0 Credentials
-                            <span v-if="!isEditing" class="text-red-500">*</span>
+                            Auth0 Configuration
                         </h3>
-                        <LButton @click="toggleCredentials" variant="tertiary" size="sm">
-                            {{ showCredentials ? "Hide" : isEditing ? "Update" : "Set" }}
-                        </LButton>
                     </div>
 
-                    <!-- Required notice for new providers -->
-                    <div
-                        v-if="
-                            !isEditing &&
-                            !showCredentials &&
-                            hasAttemptedSubmit &&
-                            !hasValidCredentials
-                        "
-                        class="mb-2 rounded-md border border-red-200 bg-red-50 p-2"
-                    >
-                        <div class="flex gap-2">
-                            <div class="flex-shrink-0">
-                                <ExclamationTriangleIcon class="h-4 w-4 text-red-400" />
-                            </div>
-                            <div>
-                                <h3 class="text-xs font-medium text-red-800">
-                                    Credentials Required
-                                </h3>
-                                <p class="mt-0.5 text-xs text-red-700">
-                                    Click "Set" above to provide Auth0 credentials.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="showCredentials" class="space-y-2">
-                        <!-- Security Notice -->
-                        <div class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
-                            <div class="flex gap-2">
-                                <ExclamationTriangleIcon
-                                    class="h-4 w-4 flex-shrink-0 text-yellow-600"
-                                />
-                                <p class="text-[11px] text-yellow-800">
-                                    Credentials are encrypted and not retrievable after storage.
-                                    {{ isEditing ? "Leave empty to keep existing." : "" }}
-                                </p>
-                            </div>
-                        </div>
-
+                    <div class="space-y-2">
                         <!-- Domain -->
                         <div>
                             <label
                                 for="domain"
                                 class="mb-1 block text-xs font-medium text-gray-700"
                             >
-                                Domain <span v-if="!isEditing" class="text-red-500">*</span>
+                                Domain
+                                <span v-if="!isEditing" class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="domain"
                                 name="domain"
-                                v-model="localCredentials.domain"
+                                v-model="provider.domain"
                                 type="text"
                                 placeholder="your-tenant.auth0.com"
                                 :disabled="isLoading"
@@ -384,33 +350,17 @@ function toggleCredentials() {
                                 for="clientId"
                                 class="mb-1 block text-xs font-medium text-gray-700"
                             >
-                                Client ID <span v-if="!isEditing" class="text-red-500">*</span>
+                                Client ID
+                                <span v-if="!isEditing" class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="clientId"
                                 name="clientId"
-                                v-model="localCredentials.clientId"
+                                v-model="provider.clientId"
                                 type="text"
                                 placeholder="Your Auth0 Client ID"
-                                :disabled="isLoading"
-                                :required="!isEditing"
-                            />
-                        </div>
-
-                        <!-- Client Secret -->
-                        <div>
-                            <label
-                                for="clientSecret"
-                                class="mb-1 block text-xs font-medium text-gray-700"
-                            >
-                                Client Secret <span v-if="!isEditing" class="text-red-500">*</span>
-                            </label>
-                            <LInput
-                                id="clientSecret"
-                                name="clientSecret"
-                                v-model="localCredentials.clientSecret"
-                                type="password"
-                                placeholder="Your Auth0 Client Secret"
                                 :disabled="isLoading"
                                 :required="!isEditing"
                             />
@@ -422,12 +372,15 @@ function toggleCredentials() {
                                 for="audience"
                                 class="mb-1 block text-xs font-medium text-gray-700"
                             >
-                                Audience <span v-if="!isEditing" class="text-red-500">*</span>
+                                Audience
+                                <span v-if="!isEditing" class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="audience"
                                 name="audience"
-                                v-model="localCredentials.audience"
+                                v-model="provider.audience"
                                 type="text"
                                 placeholder="https://your-api.example.com"
                                 :disabled="isLoading"
@@ -455,8 +408,8 @@ function toggleCredentials() {
                                 :disabled="isLoading"
                             />
                             <p class="mt-0.5 text-[11px] text-gray-500">
-                                The custom claim namespace configured in your Auth0 tenant's
-                                Actions/Rules
+                                The custom claim namespace configured in your
+                                Auth0 tenant's Actions/Rules
                             </p>
                         </div>
                     </div>
@@ -479,7 +432,12 @@ function toggleCredentials() {
                 </LButton>
             </div>
             <div class="flex gap-2">
-                <LButton @click="closeModal" variant="secondary" size="sm" :disabled="isLoading">
+                <LButton
+                    @click="closeModal"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="isLoading"
+                >
                     Cancel
                 </LButton>
                 <LButton

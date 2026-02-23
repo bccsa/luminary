@@ -62,7 +62,9 @@ describe("OAuthProviderOverview", () => {
         });
         await wait(50);
         expect(wrapper.text()).toContain("No OAuth configured");
-        expect(wrapper.text()).toContain("Get started by creating your first OAuth configuration");
+        expect(wrapper.text()).toContain(
+            "Get started by creating your first OAuth configuration",
+        );
     });
 
     it("prefills domain, clientId, audience when opening edit modal", async () => {
@@ -73,22 +75,26 @@ describe("OAuthProviderOverview", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.findAllComponents(OAuthProviderDisplayCard).length).toBe(1);
+            expect(
+                wrapper.findAllComponents(OAuthProviderDisplayCard).length,
+            ).toBe(1);
         });
         const card = wrapper.findComponent(OAuthProviderDisplayCard);
         await card.vm.$emit("edit", mockData.mockOAuthProviderDto);
         await wrapper.vm.$nextTick();
         const modal = wrapper.findComponent(OAuthProviderFormModal);
-        expect(modal.props("localCredentials")).toMatchObject({
+        expect(modal.props("provider")).toMatchObject({
             domain: "tenant.auth0.com",
             clientId: "client123",
             audience: "https://api.example.com",
         });
-        expect(modal.props("localCredentials").clientSecret).toBe("");
     });
 
     it("save without new secret updates only public fields", async () => {
-        const provider = { ...mockData.mockOAuthProviderDto, credential_id: "cred-1" };
+        const provider = {
+            ...mockData.mockOAuthProviderDto,
+            credential_id: "cred-1",
+        };
         await db.docs.add(provider);
         const upsertSpy = vi.spyOn(db, "upsert");
         const wrapper = mount(OAuthProviderOverview, {
@@ -97,25 +103,28 @@ describe("OAuthProviderOverview", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.findAllComponents(OAuthProviderDisplayCard).length).toBe(1);
+            expect(
+                wrapper.findAllComponents(OAuthProviderDisplayCard).length,
+            ).toBe(1);
         });
         const card = wrapper.findComponent(OAuthProviderDisplayCard);
         await card.vm.$emit("edit", provider);
         await wrapper.vm.$nextTick();
         const modal = wrapper.findComponent(OAuthProviderFormModal);
-        await modal.vm.$emit("update:localCredentials", {
+        await modal.vm.$emit("update:provider", {
+            ...provider,
             domain: "updated-domain.auth0.com",
-            clientId: provider.clientId,
-            clientSecret: "",
-            audience: provider.audience,
         });
         await wrapper.vm.$nextTick();
         await modal.vm.$emit("save");
         await waitForExpect(() => {
             expect(upsertSpy).toHaveBeenCalled();
         });
-        const upsertCall = upsertSpy.mock.calls[upsertSpy.mock.calls.length - 1];
-        const doc = upsertCall[0]?.doc as { domain?: string; credential?: unknown } | undefined;
+        const upsertCall =
+            upsertSpy.mock.calls[upsertSpy.mock.calls.length - 1];
+        const doc = upsertCall[0]?.doc as
+            | { domain?: string; credential?: unknown }
+            | undefined;
         expect(doc).toBeDefined();
         expect(doc?.domain).toBe("updated-domain.auth0.com");
         expect(doc?.credential).toBeUndefined();
@@ -131,17 +140,18 @@ describe("OAuthProviderOverview", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.findAllComponents(OAuthProviderDisplayCard).length).toBe(1);
+            expect(
+                wrapper.findAllComponents(OAuthProviderDisplayCard).length,
+            ).toBe(1);
         });
         const card = wrapper.findComponent(OAuthProviderDisplayCard);
         await card.vm.$emit("edit", mockData.mockOAuthProviderDto);
         await wrapper.vm.$nextTick();
         const modal = wrapper.findComponent(OAuthProviderFormModal);
-        await modal.vm.$emit("update:localCredentials", {
+        await modal.vm.$emit("update:provider", {
+            ...mockData.mockOAuthProviderDto,
             domain: "tenant.auth0.com",
-            clientId: "client123",
-            clientSecret: "newSecret",
-            audience: "",
+            clientId: "",
         });
         await wrapper.vm.$nextTick();
         await modal.vm.$emit("save");
@@ -165,11 +175,11 @@ describe("OAuthProviderOverview", () => {
         expect(upsertSpy).not.toHaveBeenCalled();
 
         const provider = modal.props("provider");
-        await modal.vm.$emit("update:provider", { ...provider, label: "New Provider" });
-        await modal.vm.$emit("update:localCredentials", {
+        await modal.vm.$emit("update:provider", {
+            ...provider,
+            label: "New Provider",
             domain: "tenant.auth0.com",
             clientId: "client123",
-            clientSecret: "secret456",
             audience: "https://api.example.com",
         });
         await wrapper.vm.$nextTick();

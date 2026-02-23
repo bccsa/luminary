@@ -137,13 +137,9 @@ export const changeRequest_oAuthProvider = () => {
             memberOf: [],
             label: "Test Auth0",
             providerType: "auth0",
-            credential: {
-                domain: "tenant.auth0.com",
-                clientId: "client123",
-                clientSecret: "secret456",
-                audience: "https://api.example.com",
-            },
-            credential_id: undefined,
+            domain: "tenant.auth0.com",
+            clientId: "client123",
+            audience: "https://api.example.com",
             updatedTimeUtc: Date.now(),
         } as OAuthProviderDto,
     };

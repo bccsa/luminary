@@ -6,7 +6,6 @@ import {
     db,
     DocType,
     type OAuthProviderDto,
-    type Auth0CredentialDto,
     useDexieLiveQuery,
     type GroupDto,
     AclPermission,
@@ -87,12 +86,9 @@ const newProvider = ref<OAuthProviderDto>({
     memberOf: [],
     label: "",
     providerType: "auth0",
-    credential: {
-        domain: "",
-        clientId: "",
-        clientSecret: "",
-        audience: "",
-    } as Auth0CredentialDto,
+    domain: "",
+    clientId: "",
+    audience: "",
 });
 
 const editableProvider = ref<OAuthProviderDto | undefined>(undefined);
@@ -102,13 +98,6 @@ const existingProvider = ref<OAuthProviderDto | undefined>(undefined);
 const isEditing = computed(() => {
     if (!canEdit.value) return false;
     return !!editableProvider.value;
-});
-
-const localCredentials = ref<Auth0CredentialDto>({
-    domain: "",
-    clientId: "",
-    clientSecret: "",
-    audience: "",
 });
 
 // Current provider being edited/created (writable computed for v-model binding)
@@ -124,46 +113,35 @@ const currentProvider = computed({
 const hasAttemptedSubmit = ref(false);
 
 const hasValidCredentials = computed(() => {
-    const c = localCredentials.value;
+    const p = currentProvider.value;
+    if (!p) return false;
     return Boolean(
-        c.domain.trim() &&
-            c.clientId.trim() &&
-            c.clientSecret.trim() &&
-            c.audience.trim(),
+        (p.domain || "").trim() &&
+            (p.clientId || "").trim() &&
+            (p.audience || "").trim(),
     );
 });
 
-// Any non-empty credential field (for dirty checking).
-const hasAnyCredentialInput = computed(() => {
-    const c = localCredentials.value;
-    return !!(
-        (c.domain ?? "").trim() ||
-        (c.clientId ?? "").trim() ||
-        (c.clientSecret ?? "").trim() ||
-        (c.audience ?? "").trim()
-    );
-});
-
-// Dirty checking: provider fields deep-compared against snapshot, credentials checked for any input.
+// Dirty checking: provider fields deep-compared against snapshot
 const isDirty = ref(false);
 watch(
-    [editableProvider, localCredentials],
+    [editableProvider, currentProvider],
     () => {
         if (!isEditing.value) {
             isDirty.value = true;
             return;
         }
-        if (!existingProvider.value) {
+        if (!existingProvider.value || !currentProvider.value) {
             isDirty.value = false;
             return;
         }
 
         const providerChanged = !_.isEqual(
-            { ...toRaw(editableProvider.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(currentProvider.value), updatedTimeUtc: 0, _rev: "" },
             { ...toRaw(existingProvider.value), updatedTimeUtc: 0, _rev: "" },
         );
 
-        isDirty.value = providerChanged || hasAnyCredentialInput.value;
+        isDirty.value = providerChanged;
     },
     { deep: true, immediate: true },
 );
@@ -175,17 +153,8 @@ const isFormValid = computed(() => {
     // Label is required
     if (!(provider.label ?? "").trim()) return false;
 
-    // For new providers, credentials are required
-    if (!isEditing.value && !hasValidCredentials.value) return false;
-
-    // When editing, if user entered a new secret they must provide all four credential fields
-    if (
-        isEditing.value &&
-        (localCredentials.value.clientSecret ?? "").trim() !== "" &&
-        !hasValidCredentials.value
-    ) {
-        return false;
-    }
+    // Credentials are required for all providers
+    if (!hasValidCredentials.value) return false;
 
     // When editing, require at least one change to enable Update
     if (isEditing.value && !isDirty.value) return false;
@@ -196,15 +165,6 @@ const isFormValid = computed(() => {
 // Centralised modal open/close helpers instead of relying on watcher ordering
 function openModal() {
     hasAttemptedSubmit.value = false;
-
-    // Only clientSecret is stored encrypted; domain, clientId, audience are on the doc. Prefill those when editing.
-    const p = editableProvider.value;
-    localCredentials.value = {
-        domain: p?.domain ?? "",
-        clientId: p?.clientId ?? "",
-        clientSecret: "", // Has to be re-entered to change the secret
-        audience: p?.audience ?? "",
-    };
 
     // Capture clean snapshot for dirty checking when editing
     if (editableProvider.value) {
@@ -257,12 +217,9 @@ function resetNewProvider() {
         memberOf: [],
         label: "",
         providerType: "auth0",
-        credential: {
-            domain: "",
-            clientId: "",
-            clientSecret: "",
-            audience: "",
-        } as Auth0CredentialDto,
+        domain: "",
+        clientId: "",
+        audience: "",
     };
 }
 
@@ -355,44 +312,6 @@ const saveProvider = async () => {
             : newProvider.value;
         if (!provider) return;
 
-        // For new providers, credentials are required
-        if (!isEditing.value && !hasValidCredentials.value) {
-            notification.addNotification({
-                title: "Auth0 credentials are required when creating a new provider",
-                state: "error",
-            });
-            return;
-        }
-
-        // When editing: if user entered a new secret they must provide all four fields
-        if (
-            isEditing.value &&
-            (localCredentials.value.clientSecret ?? "").trim() !== "" &&
-            !hasValidCredentials.value
-        ) {
-            notification.addNotification({
-                title: "Invalid Auth0 credentials",
-                description:
-                    "Please provide domain, client ID, and audience when changing the client secret.",
-                state: "error",
-            });
-            return;
-        }
-
-        // Always sync public fields from form to doc (domain, clientId, audience live on the doc)
-        provider.domain = localCredentials.value.domain?.trim() || undefined;
-        provider.clientId =
-            localCredentials.value.clientId?.trim() || undefined;
-        provider.audience =
-            localCredentials.value.audience?.trim() || undefined;
-
-        // Only send credential when user provided a new secret (API encrypts clientSecret only)
-        if (hasValidCredentials.value) {
-            provider.credential = { ...localCredentials.value };
-        } else {
-            delete provider.credential;
-        }
-
         if (!Array.isArray(provider.memberOf)) {
             provider.memberOf = [];
         } else {
@@ -471,7 +390,6 @@ const saveProvider = async () => {
     <OAuthProviderFormModal
         v-model:isVisible="showModal"
         v-model:provider="currentProvider"
-        v-model:localCredentials="localCredentials"
         :isEditing="isEditing"
         :isLoading="isLoading"
         :errors="errors"
@@ -479,7 +397,6 @@ const saveProvider = async () => {
         :canDelete="canDelete"
         :isFormValid="isFormValid"
         :hasAttemptedSubmit="hasAttemptedSubmit"
-        :hasValidCredentials="hasValidCredentials"
         @save="saveProvider"
         @delete="deleteProvider"
     />

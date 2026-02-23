@@ -1,7 +1,5 @@
 import { OAuthProviderDto } from "../../dto/OAuthProviderDto";
 import { DbService } from "../../db/db.service";
-import { storeCryptoData } from "../../util/encryption";
-import { Auth0CredentialSecretsDto } from "../../dto/Auth0CredentialsDto";
 import { processImage } from "./processImageDto";
 
 /** Group that grants public (logged-out) view access; OAuthProvider docs must include it so providers are listable before login. */
@@ -24,17 +22,6 @@ export default async function processOAuthProviderDto(
 
     // Handle deletion
     if (doc.deleteReq) {
-        // Delete the encrypted credential storage if it exists
-        if (prevDoc?.credential_id) {
-            try {
-                await db.deleteDoc(prevDoc.credential_id);
-            } catch (error) {
-                warnings.push(
-                    `Warning: Failed to delete encrypted credential storage: ${error.message}`,
-                );
-            }
-        }
-
         // Remove images from S3
         if (doc.imageData) {
             const imageResult = await processImage(
@@ -49,54 +36,6 @@ export default async function processOAuthProviderDto(
         }
 
         return warnings;
-    }
-
-    // Handle credential updates for existing providers
-    if (doc.credential && doc.credential_id && prevDoc?.credential_id) {
-        // Delete the old encrypted credential document (best-effort: conflicts are fine
-        // since the document is being replaced regardless)
-        await db.deleteDoc(prevDoc.credential_id);
-
-        // Remove the old credential_id reference so new credentials will be processed
-        delete doc.credential_id;
-    }
-
-    // If both are provided (but not an update), prefer embedded credentials
-    if (doc.credential && doc.credential_id) {
-        warnings.push(
-            "The previous credentials will be deleted and replaced with new ones.",
-        );
-        delete doc.credential_id;
-    }
-
-    // Validate that we have credentials
-    if (!doc.credential && !doc.credential_id) {
-        throw new Error("Missing OAuth provider credentials");
-    }
-
-    // Process new embedded credentials if provided
-    if (doc.credential && !doc.credential_id) {
-        try {
-            // Store only the secret in the crypto document; public config stays on the doc
-            const cryptoPayload = { clientSecret: doc.credential.clientSecret };
-            const savedId = await storeCryptoData<Auth0CredentialSecretsDto>(
-                db,
-                cryptoPayload,
-            );
-
-            doc.credential_id = savedId;
-
-            // Set public fields on the document (already on OAuthProviderDto)
-            doc.domain = doc.credential.domain;
-            doc.clientId = doc.credential.clientId;
-            doc.audience = doc.credential.audience;
-
-            delete doc.credential;
-        } catch (error) {
-            throw new Error(
-                `Failed to encrypt OAuth credentials: ${error.message}`,
-            );
-        }
     }
 
     // Process image uploads
