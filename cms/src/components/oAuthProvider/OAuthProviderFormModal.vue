@@ -86,10 +86,7 @@ const handleDelete = () => {
         v-model:isVisible="isVisible"
         :heading="isEditing ? 'Edit OAuth' : 'Add OAuth'"
     >
-        <div
-            ref="scrollContainer"
-            class="max-h-[500px] overflow-auto scrollbar-hide"
-        >
+        <div ref="scrollContainer" class="max-h-[70vh] overflow-auto">
             <!-- Error display -->
             <div v-if="errors" class="mb-3">
                 <div

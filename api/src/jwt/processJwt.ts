@@ -101,6 +101,30 @@ export function clearJwksClients() {
 }
 
 /**
+ * Normalize a domain string for comparison.
+ * Strips protocol, trailing slashes, paths, and lowercases.
+ * Handles formats like "dev-xxx.us.auth0.com", "https://dev-xxx.us.auth0.com/", etc.
+ */
+function normalizeDomain(raw: string): string {
+    let cleaned = raw
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "");
+
+    // If there's still a path (e.g. "domain.com/some/path"), extract just the hostname
+    if (cleaned.includes("/")) {
+        try {
+            cleaned = new URL(`https://${cleaned}`).hostname;
+        } catch {
+            // Not a valid URL after prepending protocol — use as-is
+        }
+    }
+
+    return cleaned;
+}
+
+/**
  * Process a JWT token against the JWT_MAPPINGS (environmental variable) and return mapped groups and user details
  * @param jwt - Javascript Web Token
  * @param logger - Logger instance
@@ -141,46 +165,58 @@ export async function processJwt(
             const iss = payload?.iss;
 
             if (iss) {
-                const issuerUrl = new URL(iss);
-                const domain = issuerUrl.hostname;
+                // Parse the issuer URL to extract the hostname
+                let domain: string;
+                try {
+                    const issuerUrl = new URL(iss);
+                    domain = issuerUrl.hostname.toLowerCase();
+                } catch {
+                    logger?.error(
+                        `Malformed JWT issuer claim, cannot parse as URL: "${iss}"`,
+                    );
+                    // Skip JWKS verification — will fall through to JWT_SECRET
+                    domain = "";
+                }
 
-                // Validate this is a trusted provider registered in the database
-                const providerResult = await db.getDocsByType(
-                    DocType.OAuthProvider,
-                );
-                const trustedProvider = providerResult.docs?.find(
-                    (p: Record<string, unknown>) => {
-                        // Normalize the stored domain: strip protocol and trailing slashes
-                        // to handle both "dev-xxx.us.auth0.com" and "https://dev-xxx.us.auth0.com/"
-                        const storedDomain = String(p.domain || "")
-                            .replace(/^https?:\/\//, "")
-                            .replace(/\/+$/, "");
-                        return storedDomain === domain;
-                    },
-                );
+                if (domain) {
+                    // Validate this is a trusted provider registered in the database
+                    const providerResult = await db.getDocsByType(
+                        DocType.OAuthProvider,
+                    );
 
-                if (trustedProvider) {
-                    try {
-                        jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-                        matchedProvider = trustedProvider as {
-                            claimNamespace?: string;
-                        };
-                    } catch (err) {
-                        // TODO: Remove debug logging after fixing auth issue
-                        logger?.error(
-                            `JWKS verification failed for domain ${domain}, kid ${kid}:`,
-                            err,
+                    const trustedProvider = providerResult.docs?.find(
+                        (p: Record<string, unknown>) => {
+                            return (
+                                normalizeDomain(String(p.domain || "")) ===
+                                domain
+                            );
+                        },
+                    );
+
+                    if (trustedProvider) {
+                        try {
+                            jwtPayload = await verifyJwtWithJwks(
+                                jwt,
+                                domain,
+                                kid,
+                            );
+                            matchedProvider = trustedProvider as {
+                                claimNamespace?: string;
+                            };
+                        } catch (err) {
+                            logger?.error(
+                                `JWKS verification failed for domain ${domain}, kid ${kid}:`,
+                                err,
+                            );
+                        }
+                    } else {
+                        logger?.warn(
+                            `No trusted provider found for issuer domain: "${domain}". ` +
+                                `${
+                                    providerResult.docs?.length ?? 0
+                                } provider(s) in DB.`,
                         );
-                        console.error(`[DEBUG] JWKS verification failed:`, err);
                     }
-                } else {
-                    // TODO: Remove debug logging after fixing auth issue
-                    logger?.warn(
-                        `No trusted provider found for domain: ${domain}`,
-                    );
-                    console.warn(
-                        `[DEBUG] No trusted provider for domain: ${domain}`,
-                    );
                 }
             }
         }
@@ -196,9 +232,7 @@ export async function processJwt(
                 );
                 jwtPayload = JWT.verify(jwt, secret) as JWT.JwtPayload;
             } catch (err) {
-                // TODO: Remove debug logging after fixing auth issue
                 logger?.error(`JWT_SECRET verification also failed:`, err);
-                console.error(`[DEBUG] JWT_SECRET fallback failed:`, err);
             }
         }
     }
