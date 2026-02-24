@@ -3,15 +3,14 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import auth, { clearAuth0Cache } from "./auth";
-import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
+import auth from "./auth";
+import { DocType, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initLanguageSync } from "./sync";
-import { useNotificationStore } from "./stores/notification";
 
 export const app = createApp(App);
 
@@ -62,31 +61,6 @@ async function Startup() {
     }).catch((err) => {
         console.error(err);
         Sentry?.captureException(err);
-    });
-
-    // Handle API authentication failures – clear stale auth state and stay in guest mode
-    // rather than aggressively redirecting (which causes a redirect loop).
-    getSocket().on("apiAuthFailed", (errors?: string[]) => {
-        Sentry?.captureMessage("API authentication failed, falling back to guest mode");
-
-        // Clear any cached tokens and selected provider so the next explicit
-        // login attempt starts fresh.
-        clearAuth0Cache();
-        localStorage.removeItem("selectedOAuthProviderId");
-
-        // Build a description from the server-reported auth errors
-        const description = errors?.length
-            ? errors.join(" | ")
-            : "We couldn't verify your login credentials. Please try signing in again.";
-
-        // Show a notification so the user understands what happened.
-        useNotificationStore().addNotification({
-            title: "Authentication failed",
-            description,
-            state: "error",
-            type: "toast",
-            timeout: 10000,
-        });
     });
 
     initLanguageSync();

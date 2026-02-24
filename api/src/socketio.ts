@@ -32,6 +32,7 @@ type ClientDataReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    accessMap?: AccessMap;
 };
 
 /**
@@ -51,7 +52,6 @@ type EmitEvents = {
     accessMap: (c: AccessMap) => void;
     version: (d: number) => void;
     clientConfig: (e: ClientConfig) => void;
-    apiAuthFailed: (errors?: string[]) => void;
 };
 
 /**
@@ -117,8 +117,7 @@ export class Socketio implements OnGatewayInit {
             );
 
             if (socket.handshake.auth.token && !userDetails.jwtPayload) {
-                // Token provided but could not be verified — send details to client
-                socket.emit("apiAuthFailed", userDetails.authErrors);
+                // Token provided but could not be verified
                 socket.disconnect(true);
                 return;
             }

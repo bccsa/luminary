@@ -85,6 +85,30 @@ const removeClaimMapping = (idx: number) => {
     provider.value.claimMappings.splice(idx, 1);
 };
 
+/**
+ * Strip protocol, trailing slashes, and paths so the domain is always
+ * stored as a bare hostname (e.g. "your-tenant.auth0.com").
+ */
+const normalizeDomain = () => {
+    if (!provider.value?.domain) return;
+    let cleaned = provider.value.domain
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "");
+
+    // Strip any leftover path segments
+    if (cleaned.includes("/")) {
+        try {
+            cleaned = new URL(`https://${cleaned}`).hostname;
+        } catch {
+            // Not a valid URL — use as-is
+        }
+    }
+
+    provider.value.domain = cleaned;
+};
+
 const handleSave = () => {
     emit("save");
 };
@@ -351,6 +375,7 @@ const handleDelete = () => {
                                 placeholder="your-tenant.auth0.com"
                                 :disabled="isLoading"
                                 :required="!isEditing"
+                                @blur="normalizeDomain"
                             />
                         </div>
 

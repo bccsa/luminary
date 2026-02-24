@@ -8,7 +8,8 @@ import NotificationManager from "./components/notifications/NotificationManager.
 import router from "./router";
 import MobileSideBar from "@/components/navigation/MobileSideBar.vue";
 import SideBar from "@/components/navigation/SideBar.vue";
-import { isAuthBypassed } from "@/auth";
+import ProviderSelectionModal from "@/components/navigation/ProviderSelectionModal.vue";
+import { isAuthBypassed, showProviderSelectionModal } from "@/auth";
 
 // In auth bypass mode, always treat as authenticated
 const auth0 = isAuthBypassed ? null : useAuth0();
@@ -69,4 +70,6 @@ const routeKey = computed(() => {
     <Teleport to="body">
         <NotificationManager />
     </Teleport>
+
+    <ProviderSelectionModal v-model:open="showProviderSelectionModal" />
 </template>

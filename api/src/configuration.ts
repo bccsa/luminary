@@ -52,6 +52,14 @@ export type SocketIoConfig = {
     maxMediaUploadFileSize?: number; // Optional for media uploads
 };
 
+export type SeedConfig = {
+    oauthDomain?: string;
+    oauthClientId?: string;
+    oauthAudience?: string;
+    oauthLabel?: string;
+    oauthClaimNamespace?: string;
+};
+
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
@@ -62,6 +70,7 @@ export type Configuration = {
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
+    seed?: SeedConfig;
 };
 
 export default () =>
@@ -83,18 +92,39 @@ export default () =>
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
         s3Audio: {
-            endpoint: process.env.S3_MEDIA_ENDPOINT || process.env.S3_ENDPOINT || "localhost",
-            port: parseInt(process.env.S3_MEDIA_PORT || process.env.S3_PORT || "9000", 10),
-            useSSL: process.env.S3_MEDIA_USE_SSL === "true" || process.env.S3_USE_SSL === "true",
-            accessKey: process.env.S3_MEDIA_ACCESS_KEY || process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_MEDIA_SECRET_KEY || process.env.S3_SECRET_KEY,
-            audioBucket: process.env.S3_MEDIA_BUCKET || process.env.S3_AUDIO_BUCKET,
+            endpoint:
+                process.env.S3_MEDIA_ENDPOINT ||
+                process.env.S3_ENDPOINT ||
+                "localhost",
+            port: parseInt(
+                process.env.S3_MEDIA_PORT || process.env.S3_PORT || "9000",
+                10,
+            ),
+            useSSL:
+                process.env.S3_MEDIA_USE_SSL === "true" ||
+                process.env.S3_USE_SSL === "true",
+            accessKey:
+                process.env.S3_MEDIA_ACCESS_KEY || process.env.S3_ACCESS_KEY,
+            secretKey:
+                process.env.S3_MEDIA_SECRET_KEY || process.env.S3_SECRET_KEY,
+            audioBucket:
+                process.env.S3_MEDIA_BUCKET || process.env.S3_AUDIO_BUCKET,
         } as AudioS3Config,
         socketIo: {
-            maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
-            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
+            maxHttpBufferSize:
+                parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+            maxMediaUploadFileSize:
+                parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
         } as SocketIoConfig,
         validation: {
-            bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
+            bypassTemplateValidation:
+                process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,
+        seed: {
+            oauthDomain: process.env.SEED_OAUTH_DOMAIN,
+            oauthClientId: process.env.SEED_OAUTH_CLIENT_ID,
+            oauthAudience: process.env.SEED_OAUTH_AUDIENCE,
+            oauthLabel: process.env.SEED_OAUTH_LABEL,
+            oauthClaimNamespace: process.env.SEED_OAUTH_CLAIM_NAMESPACE,
+        } as SeedConfig,
     }) as Configuration;

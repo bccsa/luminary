@@ -128,18 +128,18 @@ async function getProviderConfig(): Promise<{
 }
 
 /**
- * Get available OAuth providers from the local DB.
- */
-/**
- * Get available OAuth providers from the local DB.
+ * Get available OAuth providers from the local DB (synced; OAuthProvider has public view access).
  */
 export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
     try {
-        let docs: any[] = [];
+        let docs: OAuthProviderDto[] = [];
         if (db) {
-            docs = await db.docs.where("type").equals(DocType.OAuthProvider).toArray();
+            docs = (await db.docs
+                .where("type")
+                .equals(DocType.OAuthProvider)
+                .toArray()) as OAuthProviderDto[];
         } else {
-            docs = await new Promise<any[]>((resolve, reject) => {
+            docs = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
                 const request = indexedDB.open("luminary-db");
                 request.onerror = () => reject(request.error);
                 request.onsuccess = () => {
@@ -152,10 +152,9 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
                     const store = transaction.objectStore("docs");
                     const index = store.index("type");
                     const query = index.getAll("oAuthProvider");
-
                     query.onsuccess = () => {
                         database.close();
-                        resolve(query.result);
+                        resolve(query.result as OAuthProviderDto[]);
                     };
                     query.onerror = () => {
                         database.close();
@@ -164,13 +163,12 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
                 };
             });
         }
-
-        return docs.map((d: any) => ({
+        return docs.map((d) => ({
             id: d._id,
             label: d.label,
-            domain: d.domain,
-            clientId: d.clientId,
-            audience: d.audience,
+            domain: d.domain ?? "",
+            clientId: d.clientId ?? "",
+            audience: d.audience ?? "",
             icon: d.icon,
             iconOpacity: d.iconOpacity,
             textColor: d.textColor,
@@ -245,7 +243,10 @@ async function setupAuth(app: App<Element>, router: Router) {
             error: ref(undefined),
             loginWithRedirect: async () => {
                 const providers = await getAvailableProviders();
-                if (providers.length === 0) return;
+                if (providers.length === 0) {
+                    showProviderSelectionModal.value = true;
+                    return;
+                }
                 if (providers.length > 1) {
                     showProviderSelectionModal.value = true;
                     return;
