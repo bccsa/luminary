@@ -83,10 +83,11 @@ export class QueryService {
                 permissionCheckTypes.push(parentType as DocType, DocType.Language);
                 break;
             case DocType.DeleteCmd:
-                docType == DocType.Content
-                    ? // Include both Post and Tag doc types permission checks for content deletions
-                      permissionCheckTypes.push(DocType.Post, DocType.Tag)
-                    : permissionCheckTypes.push(docType as DocType);
+                if (docType === DocType.Content) {
+                    permissionCheckTypes.push(DocType.Post, DocType.Tag);
+                } else {
+                    permissionCheckTypes.push(docType as DocType);
+                }
                 break;
             default:
                 permissionCheckTypes.push(type as DocType);

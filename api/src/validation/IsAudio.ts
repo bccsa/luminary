@@ -32,7 +32,7 @@ export function IsAudio() {
                         const formatInfo = getAudioFormatInfo(metadata);
 
                         return formatInfo.isValidAudio;
-                    } catch (error) {
+                    } catch {
                         // Validation failed - return false without logging
                         // The validation message will be shown through the decorator's message option
                         return false;

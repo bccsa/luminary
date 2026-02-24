@@ -335,7 +335,7 @@ async function processMediaUpload(
                     const metadata = await parseBuffer(new Uint8Array(uploadData.fileData));
                     const formatInfo = getAudioFormatInfo(metadata);
                     detectedMimetype = formatInfo.mime;
-                } catch (_err) {
+                } catch {
                     // Fall back to default
                 }
 
@@ -404,7 +404,7 @@ async function uploadMediaFile(
             // Use robust format detection
             formatInfo = getAudioFormatInfo(metadata);
             bitrate = Math.round(metadata.format.bitrate || 0);
-        } catch (_err) {
+        } catch {
             // Fall back; format/bitrate unknown in this environment
         }
 
