@@ -28,6 +28,41 @@ let jwtMap: JwtMap;
 // Cache JWKS clients per provider domain to avoid repeated OIDC discovery requests
 const jwksClients = new Map<string, JwksClient>();
 
+// Cache group name→ID map to avoid querying the DB on every JWT processing call
+const GROUP_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let groupNameCache: Map<string, string> | undefined;
+let groupCacheTimestamp = 0;
+
+async function getGroupNameToIdMap(
+    db: DbService,
+): Promise<Map<string, string>> {
+    const now = Date.now();
+    if (groupNameCache && now - groupCacheTimestamp < GROUP_CACHE_TTL_MS) {
+        return groupNameCache;
+    }
+
+    const groupDocs = await db.getDocsByType(DocType.Group);
+    const map = new Map<string, string>();
+    for (const g of groupDocs.docs ?? []) {
+        const group = g as Record<string, unknown>;
+        if (group.name && group._id) {
+            map.set(String(group.name).toLowerCase(), String(group._id));
+        }
+    }
+
+    groupNameCache = map;
+    groupCacheTimestamp = now;
+    return map;
+}
+
+/**
+ * Clear the group name cache. Useful for testing.
+ */
+export function clearGroupNameCache() {
+    groupNameCache = undefined;
+    groupCacheTimestamp = 0;
+}
+
 function getOrCreateJwksClient(domain: string): JwksClient {
     if (!jwksClients.has(domain)) {
         jwksClients.set(
@@ -159,7 +194,12 @@ export async function processJwt(
 
     // Verify the JWT token (skip verification if no JWT provided – group mappings still run below)
     let jwtPayload: JWT.JwtPayload;
-    let matchedProvider: { claimNamespace?: string } | undefined;
+    let matchedProvider:
+        | {
+              claimNamespace?: string;
+              claimMappings?: Array<{ claim: string; target: string }>;
+          }
+        | undefined;
 
     if (jwt) {
         const decoded = JWT.decode(jwt, { complete: true });
@@ -208,6 +248,10 @@ export async function processJwt(
                             );
                             matchedProvider = trustedProvider as {
                                 claimNamespace?: string;
+                                claimMappings?: Array<{
+                                    claim: string;
+                                    target: string;
+                                }>;
                             };
                         } catch (err) {
                             const msg = `JWKS verification failed for domain ${domain}: ${
@@ -251,30 +295,59 @@ export async function processJwt(
         }
     }
 
-    // Extract user details: use provider's claimNamespace if available, otherwise global jwtMap
+    // Extract user details and group mappings
     try {
-        // Group mappings always use the global jwtMap
-        if (jwtMap["groups"]) {
-            Object.keys(jwtMap["groups"]).forEach((groupId) => {
-                if (jwtMap["groups"][groupId](jwtPayload))
-                    groupSet.add(groupId);
-            });
-        }
+        if (matchedProvider && jwtPayload) {
+            // OIDC provider path: extract user details from provider-specific
+            // namespace or standard OIDC claims.
+            const nsPayload = matchedProvider.claimNamespace
+                ? jwtPayload[matchedProvider.claimNamespace]
+                : undefined;
 
-        if (matchedProvider?.claimNamespace && jwtPayload) {
-            // Extract claims from the provider-specific namespace
-            const ns = jwtPayload[matchedProvider.claimNamespace];
-            if (ns && typeof ns === "object") {
-                userId = ns.userId;
-                email = ns.email || jwtPayload.email;
-                name = ns.username || ns.name || jwtPayload.name;
+            // Extract user details from namespace first, then top-level OIDC claims
+            if (nsPayload && typeof nsPayload === "object") {
+                userId = nsPayload.userId;
+                email = nsPayload.email || jwtPayload.email;
+                name = nsPayload.username || nsPayload.name || jwtPayload.name;
             }
+
             // Standard OIDC claim fallbacks
             if (!email) email = jwtPayload.email;
             if (!name) name = jwtPayload.name;
             if (!userId) userId = jwtPayload.sub;
+
+            // Process generic claim mappings from provider config
+            if (matchedProvider.claimMappings?.length) {
+                for (const mapping of matchedProvider.claimMappings) {
+                    // Read the claim value — check namespace first, then top-level
+                    const claimSource = nsPayload ?? jwtPayload;
+                    const claimValue = claimSource[mapping.claim];
+
+                    if (
+                        mapping.target === "groups" &&
+                        Array.isArray(claimValue)
+                    ) {
+                        // Match claim values against Group document names (cached)
+                        const groupNameToId = await getGroupNameToIdMap(db);
+
+                        for (const entry of claimValue) {
+                            const groupName = String(entry).toLowerCase();
+                            const groupId = groupNameToId.get(groupName);
+                            if (groupId) groupSet.add(groupId);
+                        }
+                    }
+                    // Unknown target types are silently skipped (future-proof)
+                }
+            }
         } else {
-            // Fallback: use global JWT_MAPPINGS functions
+            // Legacy / JWT_SECRET path: use global JWT_MAPPINGS functions
+            if (jwtMap["groups"]) {
+                Object.keys(jwtMap["groups"]).forEach((groupId) => {
+                    if (jwtMap["groups"][groupId](jwtPayload))
+                        groupSet.add(groupId);
+                });
+            }
+
             if (jwtMap["userId"]) {
                 userId = jwtMap["userId"](jwtPayload);
             }

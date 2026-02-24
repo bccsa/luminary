@@ -89,4 +89,14 @@ export class OAuthProviderDto extends _contentBaseDto {
      * e.g. "https://your-tenant.com/metadata"
      */
     claimNamespace?: string;
+
+    @IsOptional()
+    @Expose()
+    /**
+     * Generic claim-to-system-concept mappings.
+     * Each entry maps a JWT claim field to a system target.
+     * e.g. [{ claim: "groups", target: "groups" }]
+     * or   [{ claim: "hasMembership", target: "groups" }]
+     */
+    claimMappings?: Array<{ claim: string; target: string }>;
 }

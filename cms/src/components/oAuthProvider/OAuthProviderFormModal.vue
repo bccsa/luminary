@@ -72,6 +72,19 @@ const closeModal = () => {
     isVisible.value = false;
 };
 
+const addClaimMapping = () => {
+    if (!provider.value) return;
+    if (!provider.value.claimMappings) {
+        provider.value.claimMappings = [];
+    }
+    provider.value.claimMappings.push({ claim: "", target: "groups" });
+};
+
+const removeClaimMapping = (idx: number) => {
+    if (!provider.value?.claimMappings) return;
+    provider.value.claimMappings.splice(idx, 1);
+};
+
 const handleSave = () => {
     emit("save");
 };
@@ -408,6 +421,61 @@ const handleDelete = () => {
                                 The custom claim namespace configured in your
                                 Auth0 tenant's Actions/Rules
                             </p>
+                        </div>
+
+                        <!-- Claim Mappings -->
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label
+                                    class="block text-xs font-medium text-gray-700"
+                                >
+                                    Claim Mappings
+                                </label>
+                                <LButton
+                                    size="sm"
+                                    variant="tertiary"
+                                    :disabled="isLoading"
+                                    @click="addClaimMapping"
+                                >
+                                    + Add
+                                </LButton>
+                            </div>
+                            <p class="mb-2 text-[11px] text-gray-500">
+                                Map JWT claim fields to system concepts (e.g.
+                                map a "hasMembership" claim to "groups")
+                            </p>
+                            <div
+                                v-for="(
+                                    mapping, idx
+                                ) in provider.claimMappings ?? []"
+                                :key="idx"
+                                class="mb-2 flex items-center gap-2"
+                            >
+                                <LInput
+                                    :name="`claimMapping-claim-${idx}`"
+                                    v-model="mapping.claim"
+                                    type="text"
+                                    placeholder="groups"
+                                    :disabled="isLoading"
+                                    class="flex-1"
+                                />
+                                <span class="text-xs text-gray-400">→</span>
+                                <select
+                                    v-model="mapping.target"
+                                    :disabled="isLoading"
+                                    class="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700"
+                                >
+                                    <option value="groups">groups</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    class="text-gray-400 hover:text-red-500"
+                                    :disabled="isLoading"
+                                    @click="removeClaimMapping(idx)"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

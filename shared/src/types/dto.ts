@@ -267,4 +267,5 @@ export type OAuthProviderDto = ContentBaseDto & {
     imageData?: ImageDto;
     imageBucketId?: Uuid;
     claimNamespace?: string; // e.g. "https://your-tenant.com/metadata"
+    claimMappings?: Array<{ claim: string; target: string }>; // e.g. [{ claim: "groups", target: "groups" }]
 };
