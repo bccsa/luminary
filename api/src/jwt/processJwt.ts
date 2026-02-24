@@ -19,6 +19,8 @@ export type JwtUserDetails = {
     name?: string;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
+    /** Human-readable auth processing errors for debugging (surfaced to client). */
+    authErrors?: string[];
 };
 
 let jwtMap: JwtMap;
@@ -136,6 +138,7 @@ export async function processJwt(
     logger?: Logger,
 ): Promise<JwtUserDetails> {
     const groupSet = new Set<Uuid>();
+    const authErrors: string[] = [];
     let userId: string;
     let email: string;
     let name: string;
@@ -146,7 +149,10 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
+            return {
+                groups: [],
+                authErrors: ["JWT_MAPPINGS environment variable is not set"],
+            };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
@@ -171,9 +177,9 @@ export async function processJwt(
                     const issuerUrl = new URL(iss);
                     domain = issuerUrl.hostname.toLowerCase();
                 } catch {
-                    logger?.error(
-                        `Malformed JWT issuer claim, cannot parse as URL: "${iss}"`,
-                    );
+                    const msg = `Malformed JWT issuer claim: "${iss}"`;
+                    logger?.error(msg);
+                    authErrors.push(msg);
                     // Skip JWKS verification — will fall through to JWT_SECRET
                     domain = "";
                 }
@@ -204,18 +210,22 @@ export async function processJwt(
                                 claimNamespace?: string;
                             };
                         } catch (err) {
-                            logger?.error(
-                                `JWKS verification failed for domain ${domain}, kid ${kid}:`,
-                                err,
-                            );
+                            const msg = `JWKS verification failed for domain ${domain}: ${
+                                err instanceof Error ? err.message : String(err)
+                            }`;
+                            logger?.error(msg);
+                            authErrors.push(msg);
                         }
                     } else {
-                        logger?.warn(
-                            `No trusted provider found for issuer domain: "${domain}". ` +
-                                `${
-                                    providerResult.docs?.length ?? 0
-                                } provider(s) in DB.`,
-                        );
+                        const storedDomains =
+                            providerResult.docs
+                                ?.map((p: Record<string, unknown>) =>
+                                    String(p.domain || ""),
+                                )
+                                .join(", ") || "(none)";
+                        const msg = `No trusted provider found for issuer domain: "${domain}". Stored domains: [${storedDomains}]`;
+                        logger?.warn(msg);
+                        authErrors.push(msg);
                     }
                 }
             }
@@ -232,7 +242,11 @@ export async function processJwt(
                 );
                 jwtPayload = JWT.verify(jwt, secret) as JWT.JwtPayload;
             } catch (err) {
-                logger?.error(`JWT_SECRET verification also failed:`, err);
+                const msg = `JWT_SECRET verification failed: ${
+                    err instanceof Error ? err.message : String(err)
+                }`;
+                logger?.error(msg);
+                authErrors.push(msg);
             }
         }
     }
@@ -273,8 +287,12 @@ export async function processJwt(
                 name = jwtMap["name"](jwtPayload);
             }
         }
-    } catch {
-        return { groups: [] };
+    } catch (err) {
+        const msg = `User detail extraction failed: ${
+            err instanceof Error ? err.message : String(err)
+        }`;
+        authErrors.push(msg);
+        return { groups: [], authErrors };
     }
 
     // If userId is set, get the user details from the database using the userId
@@ -325,5 +343,13 @@ export async function processJwt(
     if (!userId) userId = email || "";
     userId = userId.toString();
 
-    return { groups, userId, email, name, jwtPayload, accessMap };
+    return {
+        groups,
+        userId,
+        email,
+        name,
+        jwtPayload,
+        accessMap,
+        ...(authErrors.length > 0 ? { authErrors } : {}),
+    };
 }

@@ -51,7 +51,7 @@ type EmitEvents = {
     accessMap: (c: AccessMap) => void;
     version: (d: number) => void;
     clientConfig: (e: ClientConfig) => void;
-    apiAuthFailed: () => void;
+    apiAuthFailed: (errors?: string[]) => void;
 };
 
 /**
@@ -75,7 +75,12 @@ interface SocketData {
     userDetails: JwtUserDetails;
 }
 
-type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>;
+type ClientSocket = Socket<
+    ReceiveEvents,
+    EmitEvents,
+    InterServerEvents,
+    SocketData
+>;
 
 @WebSocketGateway({
     cors: {
@@ -94,7 +99,14 @@ export class Socketio implements OnGatewayInit {
         private s3: S3Service,
     ) {}
 
-    afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
+    afterInit(
+        server: Server<
+            ReceiveEvents,
+            EmitEvents,
+            InterServerEvents,
+            SocketData
+        >,
+    ) {
         // Handle authentication
         server.use(async (socket, next) => {
             // Get automatically assigned group access
@@ -105,10 +117,8 @@ export class Socketio implements OnGatewayInit {
             );
 
             if (socket.handshake.auth.token && !userDetails.jwtPayload) {
-                // Assume that the user's token is expired.
-                // Prompt the user to re-authenticate when an invalid token is provided.
-                socket.emit("apiAuthFailed");
-                // Disconnect the client to prevent further communication.
+                // Token provided but could not be verified — send details to client
+                socket.emit("apiAuthFailed", userDetails.authErrors);
                 socket.disconnect(true);
                 return;
             }
@@ -135,12 +145,19 @@ export class Socketio implements OnGatewayInit {
             let refDoc = update;
 
             // Extract reference document info from change documents
-            if (refDoc.type == "change" && refDoc.changes) refDoc = update.changes;
+            if (refDoc.type == "change" && refDoc.changes)
+                refDoc = update.changes;
 
             // Get parent document as reference document for content documents
             if (refDoc.type == "content") {
                 const res = await this.db.getDoc(refDoc.parentId);
-                if (!(res.docs && Array.isArray(res.docs) && res.docs.length > 0)) {
+                if (
+                    !(
+                        res.docs &&
+                        Array.isArray(res.docs) &&
+                        res.docs.length > 0
+                    )
+                ) {
                     this.logger.warn(
                         `Parent document not found for content document: ${refDoc._id}`,
                     );
@@ -150,7 +167,8 @@ export class Socketio implements OnGatewayInit {
             }
 
             // Get groups of reference document
-            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf || [];
+            const refGroups =
+                refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf || [];
 
             // Create room names to emit to
             const rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
@@ -159,7 +177,9 @@ export class Socketio implements OnGatewayInit {
             if (rooms.length > 0)
                 server.to(rooms).emit("data", {
                     docs: [update],
-                    version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
+                    version: update.updatedTimeUtc
+                        ? update.updatedTimeUtc
+                        : undefined,
                 });
         });
     }
@@ -177,7 +197,8 @@ export class Socketio implements OnGatewayInit {
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
-            maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
+            maxMediaUploadFileSize:
+                this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
@@ -203,7 +224,9 @@ export class Socketio implements OnGatewayInit {
         }
 
         // Join deleted documents rooms
-        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+        const userAccessibleGroups = [
+            ...new Set(Object.values(userViewGroups).flat()),
+        ];
         for (const group of userAccessibleGroups) {
             socket.join(`${DocType.DeleteCmd}-${group}`);
         }

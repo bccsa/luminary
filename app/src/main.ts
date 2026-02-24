@@ -66,8 +66,7 @@ async function Startup() {
 
     // Handle API authentication failures – clear stale auth state and stay in guest mode
     // rather than aggressively redirecting (which causes a redirect loop).
-    getSocket().on("apiAuthFailed", () => {
-        console.error("API authentication failed, falling back to guest mode");
+    getSocket().on("apiAuthFailed", (errors?: string[]) => {
         Sentry?.captureMessage("API authentication failed, falling back to guest mode");
 
         // Clear any cached tokens and selected provider so the next explicit
@@ -75,13 +74,18 @@ async function Startup() {
         clearAuth0Cache();
         localStorage.removeItem("selectedOAuthProviderId");
 
+        // Build a description from the server-reported auth errors
+        const description = errors?.length
+            ? errors.join(" | ")
+            : "We couldn't verify your login credentials. Please try signing in again.";
+
         // Show a notification so the user understands what happened.
         useNotificationStore().addNotification({
-            title: "Login did not grant access",
-            description:
-                "We couldn't find any permissions for this login. Please sign in with a different provider.",
-            state: "warning",
+            title: "Authentication failed",
+            description,
+            state: "error",
             type: "toast",
+            timeout: 10000,
         });
     });
 
