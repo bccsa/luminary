@@ -9,6 +9,7 @@ import {
     ArrowLeftCircleIcon,
     ArrowRightCircleIcon,
 } from "@heroicons/vue/24/outline";
+import BaseModal from "../form/BaseModal.vue";
 
 // Props
 type Props = {
@@ -313,9 +314,9 @@ onMounted(() => {
 </script>
 
 <template>
-    <div
-        class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
-        @click.self="closeModal"
+    <BaseModal
+        :isVisible="true"
+        @close="closeModal"
     >
         <!-- Close -->
         <XCircleIcon
@@ -412,5 +413,5 @@ onMounted(() => {
                 "
             ></span>
         </div>
-    </div>
+    </BaseModal>
 </template>
