@@ -159,6 +159,7 @@ describe("processJwt", () => {
 
         expect(evaluated.groups).toContain("group-public-editors");
         expect(evaluated.groups).toContain("group-private-editors");
-        expect(evaluated.groups.length).toBe(2);
+        expect(evaluated.groups).toContain("group-public-users"); // always added for public view access
+        expect(evaluated.groups.length).toBe(3);
     });
 });
