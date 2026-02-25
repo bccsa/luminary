@@ -19,20 +19,27 @@ const createNew = () => {
 <template>
     <BasePage title="Language overview" :should-show-page-title="false" :is-full-width="true">
         <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew">
+            <div
+                v-if="canCreateNew"
+                role="button"
+                tabindex="0"
+                data-testid="create-language-btn"
+                class="flex gap-4 cursor-pointer"
+                @click="createNew"
+                @keydown.enter.prevent="createNew"
+                @keydown.space.prevent="createNew"
+            >
                 <LButton
-                    v-if="canCreateNew && !isSmallScreen"
+                    v-if="!isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
                     name="createLanguageBtn"
                 >
                     Create language
                 </LButton>
                 <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
+                    v-else-if="isSmallScreen"
                     class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="createNew"
                 />
             </div>
         </template>

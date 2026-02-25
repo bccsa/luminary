@@ -7,6 +7,16 @@ import NotFoundPage from "@/pages/NotFoundPage.vue";
 import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
+import { isAuthBypassed } from "@/auth";
+
+function routeGuard(
+    to: import("vue-router").RouteLocationNormalized,
+    from: import("vue-router").RouteLocationNormalized,
+    next: import("vue-router").NavigationGuardNext,
+) {
+    if (isAuthBypassed) return next();
+    return authGuard(to, from, next);
+}
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -27,7 +37,7 @@ export const router = createRouter({
     routes: [
         {
             path: "/",
-            beforeEnter: authGuard,
+            beforeEnter: routeGuard,
             redirect:
                 typeof import.meta.env.VITE_INITIAL_PAGE === "string" &&
                 import.meta.env.VITE_INITIAL_PAGE.trim() !== ""
