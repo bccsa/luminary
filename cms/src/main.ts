@@ -4,12 +4,29 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import { DocType, getSocket, init } from "luminary-shared";
+import {
+    DocType,
+    getSocket,
+    init,
+    db,
+    isConnected,
+    accessMap,
+    type AccessMap,
+    type GroupDto,
+} from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initLanguageSync, initSync } from "./sync";
+import { E2E_ACCESS_MAP } from "./e2e/accessMap";
+
+type E2eHelpers = {
+    setConnected: (v: boolean) => void;
+    setAccessMap: (map: AccessMap) => void;
+    seedGroup: (group: GroupDto) => Promise<void>;
+    getLocalChanges: () => Promise<Array<{ doc?: { type?: string }; docId?: string }>>;
+};
 
 const app = createApp(App);
 
@@ -79,6 +96,26 @@ async function Startup() {
         console.error(err);
         Sentry.captureException(err);
     });
+
+    // E2E-only: give mock user full super-admin access and expose hooks for sync/seed
+    if (isAuthBypassed && typeof window !== "undefined") {
+        accessMap.value = E2E_ACCESS_MAP;
+        (window as unknown as { __e2e?: E2eHelpers }).__e2e = {
+            setConnected: (v: boolean) => {
+                isConnected.value = v;
+            },
+            setAccessMap: (map: AccessMap) => {
+                accessMap.value = map;
+            },
+            seedGroup: async (group: GroupDto) => {
+                await db.docs.put(group);
+            },
+            getLocalChanges: () =>
+                db.localChanges.toArray() as unknown as Promise<
+                    Array<{ doc?: { type?: string }; docId?: string }>
+                >,
+        };
+    }
 
     const socket = getSocket();
 
