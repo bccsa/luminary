@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { defineProps, defineModel, toRaw } from "vue";
+import { toRaw, computed } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission } from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 import { validDocTypes } from "./permissions";
 import _ from "lodash";
+import { isMobileScreen } from "@/globalConfig";
 
 type Props = {
     /**
@@ -35,6 +36,18 @@ const duplicateGroup = (targetGroup: GroupDto) => {
             })),
     );
 };
+
+const visibleAclEntries = computed(() => {
+    return (
+        group.value?.acl
+            .filter((g) => g.groupId == props.assignedGroup._id && validDocTypes.includes(g.type))
+            .sort((a, b) => {
+                if (a.type < b.type) return -1;
+                if (a.type > b.type) return 1;
+                return 0;
+            }) || []
+    );
+});
 </script>
 
 <template>
@@ -64,7 +77,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                 </div>
             </h3>
 
-            <table class="w-full">
+            <table v-if="!isMobileScreen" class="w-full">
                 <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
                     <tr>
                         <th></th>
@@ -85,17 +98,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     <!-- :aclEntry is a defineModel in EditAclEntry.
                     Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
                     <EditAclEntry
-                        v-for="aclEntry in group?.acl
-                            .filter(
-                                (g) =>
-                                    g.groupId == assignedGroup._id &&
-                                    validDocTypes.includes(g.type),
-                            )
-                            .sort((a, b) => {
-                                if (a.type < b.type) return -1;
-                                if (a.type > b.type) return 1;
-                                return 0;
-                            })"
+                        v-for="aclEntry in visibleAclEntries"
                         :aclEntry="aclEntry"
                         :key="aclEntry.type"
                         :originalGroup="originalGroup"
@@ -103,6 +106,18 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     />
                 </tbody>
             </table>
+            <div v-else class="space-y-4 p-4">
+                <EditAclEntry
+                    v-for="aclEntry in visibleAclEntries"
+                    :aclEntry="aclEntry"
+                    :key="aclEntry.type"
+                    :originalGroup="originalGroup"
+                    :disabled="disabled"
+                />
+                <div v-if="visibleAclEntries.length === 0" class="py-6 text-center text-zinc-500">
+                    No permissions defined for this group
+                </div>
+            </div>
         </div>
     </div>
 </template>
