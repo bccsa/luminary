@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { type Component } from "vue";
+import { isTestEnviroment } from "@/globalConfig";
 
 type Props = {
     to?: string | Component;
 };
 
 defineProps<Props>();
-
-const isTestEnviroment = import.meta.env.MODE === "test";
 </script>
 
 <template>
