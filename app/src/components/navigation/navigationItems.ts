@@ -1,8 +1,9 @@
-import { BookOpenIcon, HomeIcon, PlayIcon } from "@heroicons/vue/24/outline";
+import { BookOpenIcon, HomeIcon, PlayIcon, MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import {
     BookOpenIcon as FilledBookOpenIcon,
     HomeIcon as FilledHomeIcon,
     PlayIcon as FilledPlayIcon,
+    MagnifyingGlassIcon as FilledMagnifyingGlassIcon,
 } from "@heroicons/vue/24/solid";
 import { useI18n } from "vue-i18n";
 
@@ -27,6 +28,12 @@ export function getNavigationItems() {
             defaultIcon: PlayIcon,
             selectedIcon: FilledPlayIcon,
             to: { name: "watch" },
+        },
+        {
+            name: t("menu.search"),
+            defaultIcon: MagnifyingGlassIcon,
+            selectedIcon: FilledMagnifyingGlassIcon,
+            to: {},
         },
     ];
 
