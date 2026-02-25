@@ -49,11 +49,14 @@ import { db, DocType, type OAuthProviderDto } from "luminary-shared";
  * Get OAuth provider config from local DB.
  * Returns undefined when no provider is available yet (guest mode).
  */
-async function getProviderConfig(): Promise<{
-    domain: string;
-    clientId: string;
-    audience: string;
-} | undefined> {
+async function getProviderConfig(): Promise<
+    | {
+          domain: string;
+          clientId: string;
+          audience: string;
+      }
+    | undefined
+> {
     try {
         let providers: OAuthProviderDto[] = [];
 
@@ -256,7 +259,8 @@ async function setupAuth(app: App<Element>, router: Router) {
             logout: async () => {},
             getAccessTokenSilently: async () => undefined as unknown as string,
             loginWithPopup: async () => {},
-            handleRedirectCallback: async () => ({} as unknown as ReturnType<AuthPlugin["handleRedirectCallback"]>),
+            handleRedirectCallback: async () =>
+                ({}) as unknown as ReturnType<AuthPlugin["handleRedirectCallback"]>,
             checkSession: async () => {},
         } as unknown as AuthPlugin;
         app.provide(AUTH0_INJECTION_KEY, fallbackAuth);
@@ -314,14 +318,22 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         const to = getRedirectTo() || "/";
 
-        // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
-        // Login successful! Commit the proposed provider to permanent storage if it exists
+        // Remove query string parameters which were included in the callback...
         const proposedId = url.searchParams.get("providerId");
         if (proposedId) {
             localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
         }
 
-        router.push(to);
+        // Clean the browser URL of auth parameters to prevent them from showing after login
+        window.history.replaceState({}, document.title, to);
+
+        // Explicitly parse the target route to prevent vue-router from carrying over the
+        // initial auth callback query parameters (like providerId, code) when evaluating redirects.
+        const targetUrl = new URL(to, window.location.origin);
+        router.push({
+            path: targetUrl.pathname,
+            query: Object.fromEntries(targetUrl.searchParams),
+        });
 
         return true;
     }

@@ -1,4 +1,8 @@
-import { Auth0Plugin, createAuth0, AUTH0_INJECTION_KEY } from "@auth0/auth0-vue";
+import {
+    Auth0Plugin,
+    createAuth0,
+    AUTH0_INJECTION_KEY,
+} from "@auth0/auth0-vue";
 import { Auth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
@@ -40,7 +44,9 @@ export function clearAuth0Cache(): void {
 /**
  * Get available OAuth providers from the local DB (synced; OAuthProvider has public view access).
  */
-export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
+export async function getAvailableProviders(): Promise<
+    OAuthProviderPublicDto[]
+> {
     try {
         let docs: OAuthProviderDto[] = [];
         if (db) {
@@ -58,7 +64,10 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
                         database.close();
                         return resolve([]);
                     }
-                    const transaction = database.transaction("docs", "readonly");
+                    const transaction = database.transaction(
+                        "docs",
+                        "readonly",
+                    );
                     const store = transaction.objectStore("docs");
                     const index = store.index("type");
                     const query = index.getAll("oAuthProvider");
@@ -110,7 +119,9 @@ export async function loginWithProvider(
         },
     });
     await client.loginWithRedirect({
-        authorizationParams: options?.prompt ? { prompt: options.prompt } : undefined,
+        authorizationParams: options?.prompt
+            ? { prompt: options.prompt }
+            : undefined,
     });
 }
 
@@ -164,8 +175,13 @@ async function getProviderConfig(): Promise<ProviderConfig | undefined> {
     const providers = await getAvailableProviders();
     const providerIdInUrl = urlParams.get("providerId");
     const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-    const idToUse = providerIdInUrl ?? selectedId ?? (providers.length === 1 ? providers[0].id : undefined);
-    const provider = idToUse ? providers.find((p) => p.id === idToUse) : undefined;
+    const idToUse =
+        providerIdInUrl ??
+        selectedId ??
+        (providers.length === 1 ? providers[0].id : undefined);
+    const provider = idToUse
+        ? providers.find((p) => p.id === idToUse)
+        : undefined;
 
     if (provider?.domain && provider?.clientId) {
         return {
@@ -227,7 +243,10 @@ async function setupAuth(app: App<Element>, router: Router) {
             logout: async () => {},
             getAccessTokenSilently: async () => undefined as unknown as string,
             loginWithPopup: async () => {},
-            handleRedirectCallback: async () => ({} as unknown as ReturnType<AuthPlugin["handleRedirectCallback"]>),
+            handleRedirectCallback: async () =>
+                ({}) as unknown as ReturnType<
+                    AuthPlugin["handleRedirectCallback"]
+                >,
             checkSession: async () => {},
         } as unknown as AuthPlugin;
         app.provide(AUTH0_INJECTION_KEY, fallbackAuth);
@@ -262,8 +281,11 @@ async function setupAuth(app: App<Element>, router: Router) {
         const route = router.currentRoute.value;
         return (
             (route.query.redirect_to as string) ||
-            (new URLSearchParams(location.search).get("redirect_to") as string)
-        ) || "/";
+            (new URLSearchParams(location.search).get(
+                "redirect_to",
+            ) as string) ||
+            "/"
+        );
     }
 
     async function redirectCallback(_url: string) {
@@ -280,7 +302,20 @@ async function setupAuth(app: App<Element>, router: Router) {
         await oauth.handleRedirectCallback(url.toString()).catch(() => null);
         const proposedId = url.searchParams.get("providerId");
         if (proposedId) localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
-        router.push(getRedirectTo());
+
+        const to = getRedirectTo();
+
+        // Clean the browser URL of auth parameters to prevent them from showing after login
+        window.history.replaceState({}, document.title, to);
+
+        // Explicitly parse the target route to prevent vue-router from carrying over the
+        // initial auth callback query parameters (like providerId, code) when evaluating redirects.
+        const targetUrl = new URL(to, window.location.origin);
+        router.push({
+            path: targetUrl.pathname,
+            query: Object.fromEntries(targetUrl.searchParams),
+        });
+
         return true;
     }
 
@@ -292,14 +327,18 @@ async function setupAuth(app: App<Element>, router: Router) {
         clearAuth0Cache();
         if (!retrying) localStorage.removeItem(SELECTED_PROVIDER_KEY);
         return _Logout({
-            logoutParams: { returnTo: retrying ? webOrigin : `${webOrigin}?loggedOut` },
+            logoutParams: {
+                returnTo: retrying ? webOrigin : `${webOrigin}?loggedOut`,
+            },
         });
     };
 
     const _LoginWithRedirect = oauth.loginWithRedirect;
     oauth.loginWithRedirect = () => {
         return _LoginWithRedirect({
-            authorizationParams: location.search.includes("loggedOut") ? { prompt: "login" } : undefined,
+            authorizationParams: location.search.includes("loggedOut")
+                ? { prompt: "login" }
+                : undefined,
         });
     };
 
@@ -325,10 +364,15 @@ async function loginRedirect(oauth: AuthPlugin) {
 
     const { loginWithRedirect, logout } = oauth;
     const usedConnection = localStorage.getItem("usedAuth0Connection");
-    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
+    const retryCount = parseInt(
+        localStorage.getItem("auth0AuthFailedRetryCount") || "0",
+    );
 
     if (retryCount < 2) {
-        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
+        localStorage.setItem(
+            "auth0AuthFailedRetryCount",
+            (retryCount + 1).toString(),
+        );
         await loginWithRedirect({
             authorizationParams: {
                 connection: usedConnection ?? undefined,

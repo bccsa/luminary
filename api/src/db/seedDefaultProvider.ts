@@ -21,15 +21,15 @@ export async function seedDefaultProvider(db: DbService): Promise<void> {
 
     const domain = process.env.SEED_OAUTH_DOMAIN;
     const clientId = process.env.SEED_OAUTH_CLIENT_ID;
+    const audience = process.env.SEED_OAUTH_AUDIENCE;
 
-    if (!domain || !clientId) {
+    if (!domain || !clientId || !audience) {
         console.warn(
-            "No default OAuth provider seeded: SEED_OAUTH_DOMAIN and SEED_OAUTH_CLIENT_ID must be set",
+            "No default OAuth provider seeded: SEED_OAUTH_DOMAIN, SEED_OAUTH_CLIENT_ID, and SEED_OAUTH_AUDIENCE must be set",
         );
         return;
     }
 
-    const audience = process.env.SEED_OAUTH_AUDIENCE || "";
     const label = process.env.SEED_OAUTH_LABEL || "Default Provider";
     const claimNamespace = process.env.SEED_OAUTH_CLAIM_NAMESPACE || undefined;
 
