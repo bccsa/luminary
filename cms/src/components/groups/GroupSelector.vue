@@ -84,7 +84,7 @@ const showEditModal = ref(false);
 </script>
 
 <template>
-    <div>
+    <div class="relative">
         <!-- Group selection component using LCombobox -->
         <LCombobox
             :disabled="disabled"

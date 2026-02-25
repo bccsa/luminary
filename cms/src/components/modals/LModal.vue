@@ -36,7 +36,7 @@ watch(modalRef, (el) => {
                 ref="modalRef"
                 :class="
                     largeModal
-                        ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 p-2 shadow-xl focus:outline-none'
                         : 'relative z-50 flex max-h-screen w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                 "
             >
@@ -50,7 +50,7 @@ watch(modalRef, (el) => {
                     <slot />
                 </div>
 
-                <div v-if="$slots.footer" class="shrink-0 px-5 pb-5 pt-4">
+                <div v-if="$slots.footer" class="shrink-0">
                     <slot name="footer" />
                 </div>
             </div>

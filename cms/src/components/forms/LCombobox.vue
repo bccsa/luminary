@@ -159,6 +159,7 @@ onUnmounted(() => {
         <component
             :is="$slots.actions ? LDialog : 'div'"
             :primaryAction="() => (showEditModal = false)"
+            class="relative"
             primaryButtonText="Close"
             title="Edit Selection"
             v-model:open="showEditModal"
@@ -167,8 +168,9 @@ onUnmounted(() => {
             <LDropdown
                 v-model:show="showDropdown"
                 placement="bottom-start"
-                :width="'full'"
+                width="full"
                 padding="none"
+                class=""
             >
                 <template #trigger>
                     <div
@@ -259,7 +261,7 @@ onUnmounted(() => {
 
                 <div
                     ref="dropdown"
-                    class="max-h-48 w-11/12 overflow-y-auto"
+                    class="max-h-48 w-full"
                     :class="{ 'w-96': $slots.actions && !isSmallScreen }"
                     data-test="options"
                     @wheel.stop
@@ -271,7 +273,7 @@ onUnmounted(() => {
                         :key="option.id"
                         :disabled="option.selected"
                         role="menuitem"
-                        class="w-full list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100"
+                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
