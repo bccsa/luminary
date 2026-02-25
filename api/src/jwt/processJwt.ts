@@ -107,23 +107,22 @@ export async function processJwt(
                 if (groupsMap[groupId](jwtPayload)) groupSet.add(groupId);
             }
         }
-        if (jwtPayload) {
-            const userIdFn = map["userId"] as
-                | ((p: JWT.JwtPayload) => string)
-                | undefined;
-            const emailFn = map["email"] as
-                | ((p: JWT.JwtPayload) => string)
-                | undefined;
-            const nameFn = map["name"] as
-                | ((p: JWT.JwtPayload) => string)
-                | undefined;
-            try {
-                if (userIdFn) userId = userIdFn(jwtPayload);
-                if (emailFn) email = emailFn(jwtPayload);
-                if (nameFn) name = nameFn(jwtPayload);
-            } catch {
-                // JWT_MAPPINGS extractors may assume a specific claim shape (e.g. custom namespace); leave undefined for OIDC fallback
-            }
+        const payloadForMapping = jwtPayload ?? ({} as JWT.JwtPayload);
+        const userIdFn = map["userId"] as
+            | ((p: JWT.JwtPayload) => string)
+            | undefined;
+        const emailFn = map["email"] as
+            | ((p: JWT.JwtPayload) => string)
+            | undefined;
+        const nameFn = map["name"] as
+            | ((p: JWT.JwtPayload) => string)
+            | undefined;
+        try {
+            if (userIdFn) userId = userIdFn(payloadForMapping);
+            if (emailFn) email = emailFn(payloadForMapping);
+            if (nameFn) name = nameFn(payloadForMapping);
+        } catch {
+            // JWT_MAPPINGS extractors may assume a specific claim shape (e.g. custom namespace); leave undefined for OIDC fallback
         }
 
         // Step 2: If a provider matched, layer on provider-specific extraction
