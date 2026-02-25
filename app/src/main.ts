@@ -72,6 +72,18 @@ async function Startup() {
     await initLanguage();
     initSync();
 
+    // Initialize search index after sync has had time to populate data
+    // Use setTimeout to allow initial sync to complete
+    // Use initializeWithAutoSync for proper singleton initialization
+    setTimeout(() => {
+        import("@/composables/useSearch").then(({ useSearch }) => {
+            const { initializeWithAutoSync } = useSearch();
+            initializeWithAutoSync().catch((err) => {
+                console.error("Failed to initialize search index:", err);
+            });
+        });
+    }, 3000);
+
     const i18n = await initI18n();
     await loadPlugins();
 
