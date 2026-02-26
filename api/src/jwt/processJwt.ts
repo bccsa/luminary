@@ -74,7 +74,7 @@ export async function processJwt(
     if (!jwtMap) {
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
-            logger?.error(`JWT_MAPPING environment variable is not set`);
+            logger?.error(`JWT_MAPPINGS environment variable is not set`);
             return { groups: [] };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
@@ -85,7 +85,7 @@ export async function processJwt(
 
     if (jwt) {
         try {
-            const verified = await verifyJwtAndMatchProvider(jwt, db);
+            const verified = await verifyJwtAndMatchProvider(jwt, db, logger);
             if (verified) {
                 jwtPayload = verified.jwtPayload;
                 matchedProvider = verified.matchedProvider;
@@ -217,6 +217,11 @@ export async function processJwt(
 
     const groups = [...groupSet];
     const finalUserId = (userIdStr ?? email ?? "").toString();
+    logger?.info("processJwt", {
+        groupCount: groups.length,
+        hasJwtPayload: !!jwtPayload,
+        hasMatchedProvider: !!matchedProvider,
+    });
     const accessMap = PermissionSystem.getAccessMap(groups);
 
     return {

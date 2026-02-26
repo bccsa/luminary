@@ -1,3 +1,4 @@
+import { Logger } from "winston";
 import { DocType } from "../enums";
 import * as JWT from "jsonwebtoken";
 import { JwksClient } from "jwks-rsa";
@@ -56,6 +57,7 @@ function tryVerifyWithSecret(
 export async function verifyJwtAndMatchProvider(
     jwt: string,
     db: DbService,
+    logger?: Logger,
 ): Promise<
     | { jwtPayload: JWT.JwtPayload; matchedProvider?: TrustedProviderShape }
     | undefined
@@ -88,7 +90,12 @@ export async function verifyJwtAndMatchProvider(
         try {
             const jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
             return { jwtPayload, matchedProvider: trustedProvider };
-        } catch {
+        } catch (err) {
+            logger?.warn("JWKS verification failed, falling back to JWT_SECRET", {
+                domain,
+                kid,
+                message: err instanceof Error ? err.message : String(err),
+            });
             // fall through to JWT_SECRET
         }
     }
