@@ -3,6 +3,25 @@ import { ref, computed } from "vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import { type OAuthProviderDto, type GroupDto } from "luminary-shared";
+
+/** Condition for group assignment (AND). Matches shared GroupAssignmentCondition. */
+type GroupAssignmentCondition =
+    | { type: "always" }
+    | { type: "authenticated" }
+    | { type: "claimEquals"; claimPath: string; value: string }
+    | { type: "claimIn"; claimPath: string; values: string[] };
+
+type GroupAssignment = {
+    groupId: string;
+    conditions: GroupAssignmentCondition[];
+};
+
+/** Provider with JWT mapping fields (OAuthProviderDto from shared may not yet expose these in CMS build). */
+type OAuthProviderWithMapping = OAuthProviderDto & {
+    userFieldMappings?: { userId?: string; email?: string; name?: string };
+    groupAssignments?: GroupAssignment[];
+    isGuestProvider?: boolean;
+};
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -27,7 +46,7 @@ const emit = defineEmits<{
 }>();
 
 const isVisible = defineModel<boolean>("isVisible");
-const provider = defineModel<OAuthProviderDto | undefined>("provider");
+const provider = defineModel<OAuthProviderWithMapping | undefined>("provider");
 
 // Image upload refs
 const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
@@ -84,6 +103,65 @@ const removeClaimMapping = (idx: number) => {
     if (!provider.value?.claimMappings) return;
     provider.value.claimMappings.splice(idx, 1);
 };
+
+const CONDITION_TYPES: { value: GroupAssignmentCondition["type"]; label: string }[] = [
+    { value: "always", label: "Always" },
+    { value: "authenticated", label: "Authenticated" },
+    { value: "claimEquals", label: "Claim equals" },
+    { value: "claimIn", label: "Claim in" },
+];
+
+function addGroupAssignment() {
+    if (!provider.value) return;
+    if (!provider.value.groupAssignments) {
+        provider.value.groupAssignments = [];
+    }
+    provider.value.groupAssignments.push({
+        groupId: "",
+        conditions: [{ type: "always" }],
+    });
+}
+
+function removeGroupAssignment(idx: number) {
+    if (!provider.value?.groupAssignments) return;
+    provider.value.groupAssignments.splice(idx, 1);
+}
+
+function addCondition(assignmentIdx: number) {
+    const list = provider.value?.groupAssignments?.[assignmentIdx]?.conditions;
+    if (!list) return;
+    list.push({ type: "always" });
+}
+
+function removeCondition(assignmentIdx: number, conditionIdx: number) {
+    const list = provider.value?.groupAssignments?.[assignmentIdx]?.conditions;
+    if (!list) return;
+    list.splice(conditionIdx, 1);
+}
+
+function setConditionType(
+    assignmentIdx: number,
+    conditionIdx: number,
+    type: GroupAssignmentCondition["type"],
+) {
+    const list = provider.value?.groupAssignments?.[assignmentIdx]?.conditions;
+    if (!list || !list[conditionIdx]) return;
+    const c = list[conditionIdx];
+    if (type === "claimEquals") {
+        list[conditionIdx] = { type: "claimEquals", claimPath: "", value: "" };
+    } else if (type === "claimIn") {
+        list[conditionIdx] = { type: "claimIn", claimPath: "", values: [] };
+    } else {
+        list[conditionIdx] = { type };
+    }
+}
+
+function ensureUserFieldMappings() {
+    if (!provider.value) return;
+    if (!provider.value.userFieldMappings) {
+        provider.value.userFieldMappings = {};
+    }
+}
 
 /**
  * Strip protocol, trailing slashes, and paths so the domain is always
@@ -167,6 +245,29 @@ const handleDelete = () => {
                     <p class="mt-0.5 text-[11px] text-gray-500">
                         Currently only Auth0 is supported
                     </p>
+                </div>
+
+                <!-- Guest provider (hidden from app login list) -->
+                <div class="flex items-center gap-2">
+                    <input
+                        id="isGuestProvider"
+                        type="checkbox"
+                        :checked="!!provider.isGuestProvider"
+                        :disabled="isLoading"
+                        class="h-4 w-4 rounded border-gray-300 text-gray-700 focus:ring-gray-600"
+                        @change="
+                            (e) =>
+                                (provider!.isGuestProvider = (
+                                    e.target as HTMLInputElement
+                                ).checked)
+                        "
+                    />
+                    <label
+                        for="isGuestProvider"
+                        class="text-xs font-medium text-gray-700"
+                    >
+                        Guest provider (hidden from login list; used for no-JWT mapping)
+                    </label>
                 </div>
 
                 <!-- Provider Icon -->
@@ -448,6 +549,89 @@ const handleDelete = () => {
                             </p>
                         </div>
 
+                        <!-- User field mappings (keys inside claimNamespace) -->
+                        <div class="rounded-md border border-zinc-200 bg-white p-2">
+                            <h4 class="mb-2 text-xs font-medium text-gray-900">
+                                User field names (inside claim namespace)
+                            </h4>
+                            <p class="mb-2 text-[11px] text-gray-500">
+                                Optional. Field names for userId, email, name
+                                under the claim namespace (e.g. userId, email,
+                                username).
+                            </p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label
+                                        for="userFieldUserId"
+                                        class="mb-0.5 block text-[11px] text-gray-600"
+                                        >userId</label
+                                    >
+                                    <LInput
+                                        id="userFieldUserId"
+                                        name="userFieldUserId"
+                                        :value="
+                                            provider.userFieldMappings?.userId ?? ''
+                                        "
+                                        type="text"
+                                        placeholder="userId"
+                                        :disabled="isLoading"
+                                        @input="
+                                            ensureUserFieldMappings();
+                                            (provider!.userFieldMappings!.userId = (
+                                                $event.target as HTMLInputElement
+                                            ).value || undefined)
+                                        "
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        for="userFieldEmail"
+                                        class="mb-0.5 block text-[11px] text-gray-600"
+                                        >email</label
+                                    >
+                                    <LInput
+                                        id="userFieldEmail"
+                                        name="userFieldEmail"
+                                        :value="
+                                            provider.userFieldMappings?.email ?? ''
+                                        "
+                                        type="text"
+                                        placeholder="email"
+                                        :disabled="isLoading"
+                                        @input="
+                                            ensureUserFieldMappings();
+                                            (provider!.userFieldMappings!.email = (
+                                                $event.target as HTMLInputElement
+                                            ).value || undefined)
+                                        "
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        for="userFieldName"
+                                        class="mb-0.5 block text-[11px] text-gray-600"
+                                        >name</label
+                                    >
+                                    <LInput
+                                        id="userFieldName"
+                                        name="userFieldName"
+                                        :value="
+                                            provider.userFieldMappings?.name ?? ''
+                                        "
+                                        type="text"
+                                        placeholder="username"
+                                        :disabled="isLoading"
+                                        @input="
+                                            ensureUserFieldMappings();
+                                            (provider!.userFieldMappings!.name = (
+                                                $event.target as HTMLInputElement
+                                            ).value || undefined)
+                                        "
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Claim Mappings -->
                         <div>
                             <div class="mb-1 flex items-center justify-between">
@@ -500,6 +684,151 @@ const handleDelete = () => {
                                 >
                                     ✕
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Group assignments: Assign [group] if [condition1] and [condition2] -->
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="block text-xs font-medium text-gray-700">
+                                    Group assignments
+                                </label>
+                                <LButton
+                                    size="sm"
+                                    variant="tertiary"
+                                    :disabled="isLoading"
+                                    @click="addGroupAssignment"
+                                >
+                                    + Add
+                                </LButton>
+                            </div>
+                            <p class="mb-2 text-[11px] text-gray-500">
+                                Assign a group when all conditions are true (AND). e.g. Assign "St Mary's Editors" if Authenticated and churchName equals "St Mary's".
+                            </p>
+                            <div
+                                v-for="(assignment, aIdx) in provider.groupAssignments ?? []"
+                                :key="aIdx"
+                                class="mb-4 rounded-md border border-gray-200 bg-gray-50/80 p-2"
+                            >
+                                <div class="mb-2 flex items-center gap-2">
+                                    <span class="text-xs text-gray-600">Assign</span>
+                                    <LCombobox
+                                        :selected-options="assignment.groupId ? [assignment.groupId] : []"
+                                        :options="
+                                            availableGroups.map((g: GroupDto) => ({
+                                                id: g._id,
+                                                label: g.name,
+                                                value: g._id,
+                                            }))
+                                        "
+                                        :show-selected-in-dropdown="false"
+                                        :showSelectedLabels="true"
+                                        class="flex-1"
+                                        :disabled="isLoading"
+                                        @update:selectedOptions="
+                                            (v: (string | number)[]) =>
+                                                (assignment.groupId = (v?.[0] != null ? String(v[0]) : ''))
+                                        "
+                                    />
+                                    <span class="text-xs text-gray-600">if</span>
+                                    <button
+                                        type="button"
+                                        class="text-gray-400 hover:text-red-500"
+                                        :disabled="isLoading"
+                                        @click="removeGroupAssignment(aIdx)"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <div
+                                    v-for="(cond, cIdx) in assignment.conditions"
+                                    :key="cIdx"
+                                    class="ml-2 flex flex-wrap items-center gap-2 border-l-2 border-gray-300 pl-2"
+                                >
+                                    <select
+                                        :value="cond.type"
+                                        :disabled="isLoading"
+                                        class="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                                        @change="
+                                            setConditionType(
+                                                aIdx,
+                                                cIdx,
+                                                ($event.target as HTMLSelectElement)
+                                                    .value as GroupAssignmentCondition['type'],
+                                            )
+                                        "
+                                    >
+                                        <option
+                                            v-for="opt in CONDITION_TYPES"
+                                            :key="opt.value"
+                                            :value="opt.value"
+                                        >
+                                            {{ opt.label }}
+                                        </option>
+                                    </select>
+                                    <template v-if="cond.type === 'claimEquals'">
+                                        <LInput
+                                            v-model="cond.claimPath"
+                                            name="claimPath"
+                                            type="text"
+                                            placeholder="claim path (e.g. churchName)"
+                                            :disabled="isLoading"
+                                            class="max-w-[140px]"
+                                        />
+                                        <span class="text-xs text-gray-400">=</span>
+                                        <LInput
+                                            v-model="cond.value"
+                                            name="claimValue"
+                                            type="text"
+                                            placeholder="value"
+                                            :disabled="isLoading"
+                                            class="max-w-[120px]"
+                                        />
+                                    </template>
+                                    <template v-else-if="cond.type === 'claimIn'">
+                                        <LInput
+                                            v-model="cond.claimPath"
+                                            name="claimPathIn"
+                                            type="text"
+                                            placeholder="claim path"
+                                            :disabled="isLoading"
+                                            class="max-w-[120px]"
+                                        />
+                                        <LInput
+                                            name="claimValuesIn"
+                                            :value="(cond.values ?? []).join(', ')"
+                                            type="text"
+                                            placeholder="value1, value2"
+                                            :disabled="isLoading"
+                                            class="max-w-[160px]"
+                                            @input="
+                                                cond.values = (
+                                                    ($event.target as HTMLInputElement).value || ''
+                                                )
+                                                    .split(',')
+                                                    .map((s) => s.trim())
+                                                    .filter(Boolean)
+                                            "
+                                        />
+                                    </template>
+                                    <button
+                                        type="button"
+                                        class="text-gray-400 hover:text-red-500"
+                                        :disabled="isLoading"
+                                        @click="removeCondition(aIdx, cIdx)"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <LButton
+                                    size="sm"
+                                    variant="tertiary"
+                                    class="mt-1 ml-2"
+                                    :disabled="isLoading"
+                                    @click="addCondition(aIdx)"
+                                >
+                                    + And condition
+                                </LButton>
                             </div>
                         </div>
                     </div>

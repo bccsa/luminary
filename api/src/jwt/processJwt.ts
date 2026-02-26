@@ -11,9 +11,11 @@ import {
 import { getGroupNameToIdMap, clearGroupNameCache } from "./groupCache";
 import {
     verifyJwtAndMatchProvider,
+    getGuestProvider,
     clearJwksClients,
     type TrustedProviderShape,
 } from "./verifyJwt";
+import type { GroupAssignmentCondition } from "../dto/OAuthProviderDto";
 
 export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
 
@@ -56,9 +58,34 @@ export function clearJwtMap() {
     jwtMap = undefined;
 }
 
+function evaluateGroupCondition(
+    condition: GroupAssignmentCondition,
+    claimSource: Record<string, unknown> | undefined,
+    hasJwt: boolean,
+): boolean {
+    switch (condition.type) {
+        case "always":
+            return true;
+        case "authenticated":
+            return hasJwt;
+        case "claimEquals": {
+            const v = claimSource?.[condition.claimPath];
+            return String(v ?? "") === condition.value;
+        }
+        case "claimIn": {
+            const v = claimSource?.[condition.claimPath];
+            const str = v != null ? String(v) : undefined;
+            return str != null && condition.values.includes(str);
+        }
+        default:
+            return false;
+    }
+}
+
 /**
- * Process a JWT token: JWT_MAPPINGS always runs first; when a provider matches, provider claimNamespace/claimMappings
- * supplement it. OIDC standard claims fallback then User doc lookup and memberOf merge.
+ * Process a JWT token: always resolve to a provider (real or Guest). Apply provider userFieldMappings,
+ * groupAssignments (AND conditions), and claimMappings. OIDC fallback then User doc lookup and memberOf merge.
+ * When no provider matches and no Guest is configured, falls back to JWT_MAPPINGS env (migration).
  */
 export async function processJwt(
     jwt: string,
@@ -70,15 +97,6 @@ export async function processJwt(
     let email: string | undefined;
     let name: string | undefined;
     const lastLogin = Date.now();
-
-    if (!jwtMap) {
-        const jwtMapEnv = configuration().auth.jwtMappings;
-        if (!jwtMapEnv) {
-            logger?.error(`JWT_MAPPINGS environment variable is not set`);
-            return { groups: [] };
-        }
-        jwtMap = parseJwtMap(jwtMapEnv, logger);
-    }
 
     let jwtPayload: JWT.JwtPayload | undefined;
     let matchedProvider: TrustedProviderShape | undefined;
@@ -93,66 +111,61 @@ export async function processJwt(
         } catch (err) {
             logger?.error(`Unable to verify JWT`, err);
         }
+    } else {
+        matchedProvider = await getGuestProvider(db);
     }
 
+    const hasProvider = !!matchedProvider;
+
     try {
-        const map = jwtMap as unknown as Record<string, unknown>;
+        if (hasProvider && matchedProvider) {
+            const ns =
+                matchedProvider.claimNamespace && jwtPayload
+                    ? (jwtPayload[matchedProvider.claimNamespace] as
+                          | Record<string, unknown>
+                          | undefined)
+                    : undefined;
+            const claimSource =
+                (ns && typeof ns === "object" ? ns : jwtPayload) as
+                    | Record<string, unknown>
+                    | undefined;
 
-        // Step 1: Always run JWT_MAPPINGS (groups, userId, email, name)
-        const groupsMap = map["groups"] as
-            | Record<string, (p: JWT.JwtPayload | undefined) => boolean>
-            | undefined;
-        if (groupsMap) {
-            for (const groupId of Object.keys(groupsMap)) {
-                if (groupsMap[groupId](jwtPayload)) groupSet.add(groupId);
-            }
-        }
-        const payloadForMapping = jwtPayload ?? ({} as JWT.JwtPayload);
-        const userIdFn = map["userId"] as
-            | ((p: JWT.JwtPayload) => string)
-            | undefined;
-        const emailFn = map["email"] as
-            | ((p: JWT.JwtPayload) => string)
-            | undefined;
-        const nameFn = map["name"] as
-            | ((p: JWT.JwtPayload) => string)
-            | undefined;
-        try {
-            if (userIdFn) userId = userIdFn(payloadForMapping);
-            if (emailFn) email = emailFn(payloadForMapping);
-            if (nameFn) name = nameFn(payloadForMapping);
-        } catch {
-            // JWT_MAPPINGS extractors may assume a specific claim shape (e.g. custom namespace); leave undefined for OIDC fallback
-        }
-
-        // Step 2: If a provider matched, layer on provider-specific extraction
-        if (matchedProvider && jwtPayload) {
-            const ns = matchedProvider.claimNamespace
-                ? jwtPayload[matchedProvider.claimNamespace]
-                : undefined;
-
-            if (ns && typeof ns === "object") {
+            // User fields from userFieldMappings + claimNamespace
+            const mappings = matchedProvider.userFieldMappings;
+            if (ns && typeof ns === "object" && mappings) {
                 const nsObj = ns as Record<string, unknown>;
-                userId = (nsObj.userId as string) ?? userId;
-                email =
-                    (nsObj.email as string) ?? email ?? jwtPayload.email;
-                name =
-                    (nsObj.username as string) ??
-                    (nsObj.name as string) ??
-                    name ??
-                    jwtPayload.name;
+                if (mappings.userId) userId = nsObj[mappings.userId] as string;
+                if (mappings.email) email = nsObj[mappings.email] as string;
+                if (mappings.name) name = nsObj[mappings.name] as string;
             }
-            email ??= jwtPayload.email;
-            name ??= jwtPayload.name;
-            userId ??= jwtPayload.sub;
+            if (jwtPayload) {
+                email ??= jwtPayload.email;
+                name ??= jwtPayload.name;
+                userId ??= jwtPayload.sub;
+                email ??= (jwtPayload as Record<string, unknown>).email as
+                    | string
+                    | undefined;
+            }
 
-            if (matchedProvider.claimMappings?.length) {
+            // groupAssignments: add group when all conditions pass (AND). Invalid groupIds are no-ops.
+            const assignments = matchedProvider.groupAssignments;
+            if (assignments?.length) {
+                for (const assignment of assignments) {
+                    const allPass = assignment.conditions.every((c) =>
+                        evaluateGroupCondition(
+                            c,
+                            claimSource,
+                            !!jwtPayload,
+                        ),
+                    );
+                    if (allPass && assignment.groupId)
+                        groupSet.add(assignment.groupId as Uuid);
+                }
+            }
+
+            // claimMappings (claim array → group names)
+            if (matchedProvider.claimMappings?.length && claimSource) {
                 const groupNameToId = await getGroupNameToIdMap(db);
-                const claimSource =
-                    (ns && typeof ns === "object"
-                        ? ns
-                        : jwtPayload) as Record<string, unknown>;
-
                 for (const mapping of matchedProvider.claimMappings) {
                     const claimValue = claimSource[mapping.claim];
                     if (
@@ -168,14 +181,44 @@ export async function processJwt(
                     }
                 }
             }
-        }
-
-        // Step 3: OIDC standard-claims fallback
-        if (jwtPayload) {
-            userId ??= jwtPayload.sub;
-            email ??= (jwtPayload as Record<string, unknown>).email as
-                | string
-                | undefined;
+        } else {
+            // Fallback: no provider (no Guest configured) — use JWT_MAPPINGS env (migration)
+            const jwtMapEnv = configuration().auth?.jwtMappings;
+            if (jwtMapEnv) {
+                if (!jwtMap) jwtMap = parseJwtMap(jwtMapEnv, logger);
+                const map = jwtMap as unknown as Record<string, unknown>;
+                const groupsMap = map["groups"] as
+                    | Record<string, (p: JWT.JwtPayload | undefined) => boolean>
+                    | undefined;
+                if (groupsMap) {
+                    for (const groupId of Object.keys(groupsMap)) {
+                        if (groupsMap[groupId](jwtPayload)) groupSet.add(groupId);
+                    }
+                }
+                const payloadForMapping = jwtPayload ?? ({} as JWT.JwtPayload);
+                const userIdFn = map["userId"] as
+                    | ((p: JWT.JwtPayload) => string)
+                    | undefined;
+                const emailFn = map["email"] as
+                    | ((p: JWT.JwtPayload) => string)
+                    | undefined;
+                const nameFn = map["name"] as
+                    | ((p: JWT.JwtPayload) => string)
+                    | undefined;
+                try {
+                    if (userIdFn) userId = userIdFn(payloadForMapping);
+                    if (emailFn) email = emailFn(payloadForMapping);
+                    if (nameFn) name = nameFn(payloadForMapping);
+                } catch {
+                    // leave undefined for OIDC fallback
+                }
+            }
+            if (jwtPayload) {
+                userId ??= jwtPayload.sub;
+                email ??= (jwtPayload as Record<string, unknown>).email as
+                    | string
+                    | undefined;
+            }
         }
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
@@ -211,7 +254,6 @@ export async function processJwt(
         groupSet.add(groupId);
     }
 
-    // OAuthProvider (and other public doc types) always have public view access
     const PUBLIC_USERS_GROUP_ID = "group-public-users";
     groupSet.add(PUBLIC_USERS_GROUP_ID);
 

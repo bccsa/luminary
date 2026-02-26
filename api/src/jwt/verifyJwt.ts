@@ -7,8 +7,26 @@ import type { OAuthProviderDto } from "../dto/OAuthProviderDto";
 
 export type TrustedProviderShape = Pick<
     OAuthProviderDto,
-    "claimNamespace" | "claimMappings"
+    | "claimNamespace"
+    | "claimMappings"
+    | "userFieldMappings"
+    | "groupAssignments"
+    | "isGuestProvider"
 >;
+
+/**
+ * Get the Guest provider (isGuestProvider === true). Used when no JWT or no domain match.
+ * Returns undefined if none configured.
+ */
+export async function getGuestProvider(
+    db: DbService,
+): Promise<TrustedProviderShape | undefined> {
+    const result = await db.getDocsByType(DocType.OAuthProvider);
+    const guest = result.docs?.find(
+        (p: Record<string, unknown>) => p.isGuestProvider === true,
+    ) as TrustedProviderShape | undefined;
+    return guest;
+}
 
 const jwksClients = new Map<string, JwksClient>();
 
@@ -81,15 +99,20 @@ export async function verifyJwtAndMatchProvider(
     if (!domain) return tryVerifyWithSecret(jwt);
 
     const providerResult = await db.getDocsByType(DocType.OAuthProvider);
-    const trustedProvider = providerResult.docs?.find(
+    const matchingDomain = (providerResult.docs ?? []).filter(
         (p: Record<string, unknown>) =>
             String(p.domain ?? "").toLowerCase() === domain,
-    ) as TrustedProviderShape | undefined;
+    );
+    // Prefer non-Guest provider when multiple share the same domain
+    const trustedProvider = matchingDomain.find(
+        (p: Record<string, unknown>) => !p.isGuestProvider,
+    ) ?? matchingDomain[0];
+    const provider = trustedProvider as TrustedProviderShape | undefined;
 
-    if (trustedProvider) {
+    if (provider) {
         try {
             const jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-            return { jwtPayload, matchedProvider: trustedProvider };
+            return { jwtPayload, matchedProvider: provider };
         } catch (err) {
             logger?.warn("JWKS verification failed, falling back to JWT_SECRET", {
                 domain,
@@ -99,7 +122,19 @@ export async function verifyJwtAndMatchProvider(
             // fall through to JWT_SECRET
         }
     }
-    return tryVerifyWithSecret(jwt);
+
+    // No domain match: if JWT verifies with secret, treat as Guest provider so single path
+    const secretResult = tryVerifyWithSecret(jwt);
+    if (secretResult) {
+        const guestProvider = await getGuestProvider(db);
+        if (guestProvider) {
+            return {
+                jwtPayload: secretResult.jwtPayload,
+                matchedProvider: guestProvider,
+            };
+        }
+    }
+    return secretResult;
 }
 
 export function clearJwksClients() {

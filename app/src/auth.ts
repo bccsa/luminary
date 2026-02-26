@@ -166,7 +166,11 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
                 };
             });
         }
-        return docs.map((d) => ({
+        // Exclude Guest provider so it is never shown on the login list
+        const visible = docs.filter(
+            (d) => !(d as Record<string, unknown>).isGuestProvider,
+        );
+        return visible.map((d) => ({
             id: d._id,
             label: d.label,
             domain: d.domain ?? "",
@@ -176,6 +180,7 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
             iconOpacity: d.iconOpacity,
             textColor: d.textColor,
             backgroundColor: d.backgroundColor,
+            isGuestProvider: (d as Record<string, unknown>).isGuestProvider,
         })) as OAuthProviderPublicDto[];
     } catch {
         return [];

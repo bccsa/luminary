@@ -1,6 +1,7 @@
 export type AuthConfig = {
     jwtSecret: string;
-    jwtMappings: string;
+    /** Optional during migration when Guest provider is used; fallback for no-provider requests. */
+    jwtMappings?: string;
 };
 
 export type DatabaseConfig = {

@@ -1,4 +1,5 @@
 import {
+    IsBoolean,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -10,6 +11,24 @@ import { Expose } from "class-transformer";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Uuid } from "../enums";
 import { ImageDto } from "./ImageDto";
+
+/** Condition for group assignment (AND semantics). */
+export type GroupAssignmentCondition =
+    | { type: "always" }
+    | { type: "authenticated" }
+    | { type: "claimEquals"; claimPath: string; value: string }
+    | { type: "claimIn"; claimPath: string; values: string[] };
+
+export type GroupAssignment = {
+    groupId: string;
+    conditions: GroupAssignmentCondition[];
+};
+
+export type UserFieldMappings = {
+    userId?: string;
+    email?: string;
+    name?: string;
+};
 
 /**
  * OAuthProviderDto represents an OAuth provider configuration.
@@ -99,4 +118,26 @@ export class OAuthProviderDto extends _contentBaseDto {
      * or   [{ claim: "hasMembership", target: "groups" }]
      */
     claimMappings?: Array<{ claim: string; target: string }>;
+
+    @IsOptional()
+    @Expose()
+    /**
+     * Field names inside claimNamespace for userId, email, name.
+     */
+    userFieldMappings?: UserFieldMappings;
+
+    @IsOptional()
+    @Expose()
+    /**
+     * Assign groups when all conditions pass (AND). Invalid groupIds are no-ops.
+     */
+    groupAssignments?: GroupAssignment[];
+
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    /**
+     * When true, used for no-JWT (guest) and excluded from domain match when JWT present.
+     */
+    isGuestProvider?: boolean;
 }
