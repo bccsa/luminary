@@ -92,46 +92,37 @@ const handleKeydown = (event: KeyboardEvent) => {
         return;
     }
 
-    if (!showResults.value || results.value.length === 0) return;
-
-    switch (event.key) {
-        case "ArrowDown":
-            event.preventDefault();
-            selectedIndex.value = Math.min(selectedIndex.value + 1, results.value.length - 1);
-            scrollToSelected();
-            break;
-        case "ArrowUp":
-            event.preventDefault();
-            selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
-            scrollToSelected();
-            break;
-        case "Enter":
-            event.preventDefault();
-            if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
-                goToResult(results.value[selectedIndex.value]);
-            }
-            break;
-        case "Escape":
-            event.preventDefault();
-            closeSearch();
-            break;
-    }
-};
-
-// Handle keydown in input - allow arrow keys to bubble to modal for navigation
-const handleInputKeydown = (event: KeyboardEvent) => {
-    if (["ArrowDown", "ArrowUp", "Escape"].includes(event.key)) {
-        // Let these keys bubble up to the modal
+    // Handle Escape to close search
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeSearch();
         return;
     }
-    // Other keys will be handled normally by the input
+
+    // Handle Enter when we have results (on the modal div)
+    if (showResults.value && results.value.length > 0 && event.key === "Enter") {
+        event.preventDefault();
+        if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
+            goToResult(results.value[selectedIndex.value]);
+        }
+    }
 };
 
-const scrollToSelected = () => {
-    const container = document.getElementById("search-results-container");
-    const selected = document.getElementById(`search-result-${selectedIndex.value}`);
-    if (container && selected) {
-        selected.scrollIntoView({ block: "nearest", behavior: "smooth" });
+// Handle keydown in input
+const handleInputKeydown = (event: KeyboardEvent) => {
+    // Handle Escape in input
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeSearch();
+        return;
+    }
+
+    // Handle Enter when we have results
+    if (showResults.value && results.value.length > 0 && event.key === "Enter") {
+        event.preventDefault();
+        if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
+            goToResult(results.value[selectedIndex.value]);
+        }
     }
 };
 
@@ -177,24 +168,18 @@ onMounted(() => {
         // Handle Cmd/Ctrl+K to toggle search
         if ((event.metaKey || event.ctrlKey) && event.key === "k") {
             // Only handle when search is not open
-            // When search is open, the modal's handleKeydown handles it
             if (!isOpen.value) {
                 event.preventDefault();
                 isSearchOpen.value = true;
-                // Focus will be handled by the watcher
             }
+            return;
         }
 
-        // Handle arrow keys and escape when search is open
-        // This ensures navigation works even when input has focus
-        if (isOpen.value && inputRef.value?.contains(document.activeElement)) {
-            if (["ArrowDown", "ArrowUp", "Escape", "Enter"].includes(event.key)) {
-                // Prevent default behavior for these keys in the input
-                event.preventDefault();
-
-                // Dispatch the event to the modal's handler
-                handleKeydown(event);
-            }
+        // Handle Escape to close search when open
+        if (event.key === "Escape" && isOpen.value) {
+            event.preventDefault();
+            closeSearch();
+            return;
         }
     };
 
