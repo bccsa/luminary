@@ -106,7 +106,7 @@ const visibleAclEntries = computed(() => {
                     />
                 </tbody>
             </table>
-            <div v-else class="space-y-4 p-4">
+            <div v-else class="grid grid-cols-2 gap-2 p-4">
                 <EditAclEntry
                     v-for="aclEntry in visibleAclEntries"
                     :aclEntry="aclEntry"
