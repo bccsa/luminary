@@ -97,7 +97,7 @@ const setPermission = (aclPermission: AclPermission) => {
         <div class="mb-3 font-medium text-zinc-900">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
                 v-for="aclPermission in AclPermission"
                 :key="aclPermission"
