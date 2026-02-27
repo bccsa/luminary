@@ -20,6 +20,8 @@ import {
     type ApiLiveQueryAsEditable,
     AclPermission,
 } from "luminary-shared";
+import AddGroupAclButton from "./AddGroupAclButton.vue";
+import waitForExpect from "wait-for-expect";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -500,6 +502,24 @@ describe("EditGroup", () => {
 
             // If click worked, we should see the input field
             expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
+        });
+
+        it.only("should be able to add new groups", async () => {
+            const wrapper = createWrapper();
+            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
+
+            // Find a group to add (one that is not the current group and not already assigned)
+            const groupToAdd = allGroups.find(
+                (g) => g._id !== testGroup._id && !testGroup.acl.some((a) => a.groupId === g._id),
+            );
+
+            await wrapper.findComponent(AddGroupAclButton).vm.$emit("select", groupToAdd);
+
+            await waitForExpect(() => {
+                expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
+                    initialCount + 1,
+                );
+            });
         });
 
         it("stops propagation for input events when editing", async () => {
