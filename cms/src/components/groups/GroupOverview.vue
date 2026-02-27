@@ -82,11 +82,18 @@ const canCreateGroup = computed(() => {
 });
 
 const selectedGroup = computed(() => editable.value.find((g) => g._id === newGroupId.value));
+
+const props = defineProps<{ onOpenMobileSidebar?: () => void }>();
 </script>
 
 <template>
     <div>
-        <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
+        <BasePage
+            title="Groups"
+            :is-full-width="true"
+            :loading="isLoading"
+            :onOpenMobileSidebar="props.onOpenMobileSidebar"
+        >
             <template #pageNav>
                 <LButton
                     v-if="canCreateGroup"

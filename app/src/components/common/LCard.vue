@@ -23,6 +23,7 @@ function collapse() {
 
     collapsed.value = !collapsed.value;
 }
+
 </script>
 
 <template>
