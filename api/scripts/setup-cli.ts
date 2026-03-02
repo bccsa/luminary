@@ -6,8 +6,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
-import nanoImport from "nano";
-const nano = (nanoImport as any).default || nanoImport;
+import * as nano from "nano";
+const nanoFn =
+    typeof nano === "function"
+        ? nano
+        : (nano as { default?: typeof nano }).default ?? nano;
 
 function loadEnv(): void {
     const envPath = path.join(process.cwd(), ".env");
@@ -68,7 +71,7 @@ function connectDbFromEnv(dbName: string): DbScope {
             "DB_CONNECTION_STRING must be set and valid (e.g. http://user:pass@127.0.0.1:5984)",
         );
     }
-    const client = nano(url);
+    const client = nanoFn(url);
     return client.use(dbName);
 }
 
@@ -92,7 +95,7 @@ async function connectDb(
                   },
               }
             : {};
-    const client = nano({ url, ...auth });
+    const client = nanoFn({ url, ...auth });
     return client.use(dbName);
 }
 
