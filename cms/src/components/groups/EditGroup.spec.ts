@@ -504,7 +504,7 @@ describe("EditGroup", () => {
             expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
         });
 
-        it.only("should be able to add new groups", async () => {
+        it("should be able to add new groups", async () => {
             const wrapper = createWrapper();
             const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
 
