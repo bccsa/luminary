@@ -1,4 +1,4 @@
-import { type Uuid, type MangoSelector } from "luminary-shared";
+import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
 
 /**
  * Builds Mango selector conditions for the "isPublished" check.
@@ -28,10 +28,9 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
 
     return [
         // Status must be published, but we do not need to check this as draft documents are not synced to the app client.
-
+        { status: PublishStatus.Published },
         // Publish date must exist and be in the past or now
         { publishDate: { $exists: true, $lte: now } },
-
         // Expiry date check: either doesn't exist, is null, or is in the future
         {
             $or: [
