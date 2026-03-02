@@ -1,39 +1,22 @@
 <script lang="ts" setup>
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
-import { generateHTML } from "@tiptap/html";
-import StarterKit from "@tiptap/starter-kit";
 import { useDexieLiveQuery, db, mangoToDexie, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 
-const copyright = useDexieLiveQuery(
-    () =>
-        mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: import.meta.env.VITE_COPYRIGHT_ID },
-                    ...mangoIsPublished(appLanguageIdsAsRef.value),
-                ],
-            },
-            $limit: 1,
-        }).then((docs) => docs[0] as ContentDto | undefined),
+const copyright = useDexieLiveQuery(() =>
+    mangoToDexie<ContentDto>(db.docs, {
+        selector: {
+            $and: [
+                { parentId: import.meta.env.VITE_COPYRIGHT_ID },
+                ...mangoIsPublished(appLanguageIdsAsRef.value),
+            ],
+        },
+        $limit: 1,
+    }).then((docs) => docs[0] as ContentDto | undefined),
 );
 
-const copyrightContent = computed(() => {
-    if (!copyright.value || !copyright.value.text) {
-        return "";
-    }
-
-    let text;
-
-    // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
-    try {
-        text = JSON.parse(copyright.value.text);
-    } catch {
-        return copyright.value.text;
-    }
-    return generateHTML(text, [StarterKit]);
-});
+const copyrightContent = computed(() => copyright.value?.text ?? "");
 </script>
 
 <template>

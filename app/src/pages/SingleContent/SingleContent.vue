@@ -21,8 +21,7 @@ import {
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
-import { generateHTML } from "@tiptap/html";
-import StarterKit from "@tiptap/starter-kit";
+
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import {
@@ -39,7 +38,7 @@ import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
-import Link from "@tiptap/extension-link";
+
 import LImage from "@/components/images/LImage.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
@@ -366,56 +365,7 @@ watch([content, is404], () => {
     metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
 });
 
-const text = computed(() => {
-    // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
-    if (!content.value?.text) return "";
-    try {
-        const json = JSON.parse(content.value.text);
-        return generateHTML(json, [StarterKit, Link]);
-    } catch {
-        return content.value.text;
-    }
-});
-
-/**
- * Parses the content text as JSON if it's valid JSON format (TipTap editor format).
- * Returns undefined if the content is missing, has no text, or is not valid JSON.
- *
- * @returns {Object|undefined} The parsed JSON content object, or undefined if parsing fails or content is missing
- */
-const parsedContent = computed(() => {
-    if (!content.value || !content.value.text) {
-        return undefined;
-    }
-
-    try {
-        return JSON.parse(content.value.text);
-    } catch {
-        return undefined;
-    }
-});
-
-/**
- * Converts the parsed TipTap content into individual HTML blocks.
- * Each block contains the generated HTML, the original node data, and a unique ID.
- * This is used for rendering content with highlighting support (via LHighlightable).
- *
- * @returns {Array<{id: string, html: string, node: any}>} Array of content blocks with:
- *   - id: Unique identifier for the block (format: "block-{index}")
- *   - html: Generated HTML string from the TipTap node
- *   - node: Original TipTap node data
- * @returns {Array} Empty array if parsedContent is undefined or has no content property
- */
-const contentBlocks = computed(() => {
-    if (!parsedContent.value || !parsedContent.value.content) {
-        return [];
-    }
-
-    return parsedContent.value.content.map((node: any, index: number) => {
-        const html = generateHTML({ type: "doc", content: [node] }, [StarterKit, Link]);
-        return { id: `block-${index}`, html, node };
-    });
-});
+const text = computed(() => content.value?.text ?? "");
 
 // Select the first category in the content by category list on load
 watch(tags, () => {
@@ -847,11 +797,7 @@ const playAudio = () => {
                         :content-id="content._id"
                     >
                         <div
-                            v-html="
-                                content.text && contentBlocks.length > 0
-                                    ? contentBlocks.map((block: any) => block.html).join('')
-                                    : text
-                            "
+                            v-html="text"
                             class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
                             :class="{
                                 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
