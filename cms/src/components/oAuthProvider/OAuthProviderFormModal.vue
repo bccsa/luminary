@@ -104,7 +104,10 @@ const removeClaimMapping = (idx: number) => {
     provider.value.claimMappings.splice(idx, 1);
 };
 
-const CONDITION_TYPES: { value: GroupAssignmentCondition["type"]; label: string }[] = [
+const CONDITION_TYPES: {
+    value: GroupAssignmentCondition["type"];
+    label: string;
+}[] = [
     { value: "always", label: "Always" },
     { value: "authenticated", label: "Authenticated" },
     { value: "claimEquals", label: "Claim equals" },
@@ -146,7 +149,6 @@ function setConditionType(
 ) {
     const list = provider.value?.groupAssignments?.[assignmentIdx]?.conditions;
     if (!list || !list[conditionIdx]) return;
-    const c = list[conditionIdx];
     if (type === "claimEquals") {
         list[conditionIdx] = { type: "claimEquals", claimPath: "", value: "" };
     } else if (type === "claimIn") {
@@ -266,7 +268,8 @@ const handleDelete = () => {
                         for="isGuestProvider"
                         class="text-xs font-medium text-gray-700"
                     >
-                        Guest provider (hidden from login list; used for no-JWT mapping)
+                        Guest provider (hidden from login list; used for no-JWT
+                        mapping)
                     </label>
                 </div>
 
@@ -550,7 +553,9 @@ const handleDelete = () => {
                         </div>
 
                         <!-- User field mappings (keys inside claimNamespace) -->
-                        <div class="rounded-md border border-zinc-200 bg-white p-2">
+                        <div
+                            class="rounded-md border border-zinc-200 bg-white p-2"
+                        >
                             <h4 class="mb-2 text-xs font-medium text-gray-900">
                                 User field names (inside claim namespace)
                             </h4>
@@ -570,16 +575,18 @@ const handleDelete = () => {
                                         id="userFieldUserId"
                                         name="userFieldUserId"
                                         :value="
-                                            provider.userFieldMappings?.userId ?? ''
+                                            provider.userFieldMappings
+                                                ?.userId ?? ''
                                         "
                                         type="text"
                                         placeholder="userId"
                                         :disabled="isLoading"
                                         @input="
                                             ensureUserFieldMappings();
-                                            (provider!.userFieldMappings!.userId = (
-                                                $event.target as HTMLInputElement
-                                            ).value || undefined)
+                                            provider!.userFieldMappings!.userId =
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value || undefined;
                                         "
                                     />
                                 </div>
@@ -593,16 +600,18 @@ const handleDelete = () => {
                                         id="userFieldEmail"
                                         name="userFieldEmail"
                                         :value="
-                                            provider.userFieldMappings?.email ?? ''
+                                            provider.userFieldMappings?.email ??
+                                            ''
                                         "
                                         type="text"
                                         placeholder="email"
                                         :disabled="isLoading"
                                         @input="
                                             ensureUserFieldMappings();
-                                            (provider!.userFieldMappings!.email = (
-                                                $event.target as HTMLInputElement
-                                            ).value || undefined)
+                                            provider!.userFieldMappings!.email =
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value || undefined;
                                         "
                                     />
                                 </div>
@@ -616,16 +625,18 @@ const handleDelete = () => {
                                         id="userFieldName"
                                         name="userFieldName"
                                         :value="
-                                            provider.userFieldMappings?.name ?? ''
+                                            provider.userFieldMappings?.name ??
+                                            ''
                                         "
                                         type="text"
                                         placeholder="username"
                                         :disabled="isLoading"
                                         @input="
                                             ensureUserFieldMappings();
-                                            (provider!.userFieldMappings!.name = (
-                                                $event.target as HTMLInputElement
-                                            ).value || undefined)
+                                            provider!.userFieldMappings!.name =
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value || undefined;
                                         "
                                     />
                                 </div>
@@ -690,7 +701,9 @@ const handleDelete = () => {
                         <!-- Group assignments: Assign [group] if [condition1] and [condition2] -->
                         <div>
                             <div class="mb-1 flex items-center justify-between">
-                                <label class="block text-xs font-medium text-gray-700">
+                                <label
+                                    class="block text-xs font-medium text-gray-700"
+                                >
                                     Group assignments
                                 </label>
                                 <LButton
@@ -703,23 +716,35 @@ const handleDelete = () => {
                                 </LButton>
                             </div>
                             <p class="mb-2 text-[11px] text-gray-500">
-                                Assign a group when all conditions are true (AND). e.g. Assign "St Mary's Editors" if Authenticated and churchName equals "St Mary's".
+                                Assign a group when all conditions are true
+                                (AND). e.g. Assign "St Mary's Editors" if
+                                Authenticated and churchName equals "St Mary's".
                             </p>
                             <div
-                                v-for="(assignment, aIdx) in provider.groupAssignments ?? []"
+                                v-for="(
+                                    assignment, aIdx
+                                ) in provider.groupAssignments ?? []"
                                 :key="aIdx"
                                 class="mb-4 rounded-md border border-gray-200 bg-gray-50/80 p-2"
                             >
                                 <div class="mb-2 flex items-center gap-2">
-                                    <span class="text-xs text-gray-600">Assign</span>
+                                    <span class="text-xs text-gray-600"
+                                        >Assign</span
+                                    >
                                     <LCombobox
-                                        :selected-options="assignment.groupId ? [assignment.groupId] : []"
+                                        :selected-options="
+                                            assignment.groupId
+                                                ? [assignment.groupId]
+                                                : []
+                                        "
                                         :options="
-                                            availableGroups.map((g: GroupDto) => ({
-                                                id: g._id,
-                                                label: g.name,
-                                                value: g._id,
-                                            }))
+                                            availableGroups.map(
+                                                (g: GroupDto) => ({
+                                                    id: g._id,
+                                                    label: g.name,
+                                                    value: g._id,
+                                                }),
+                                            )
                                         "
                                         :show-selected-in-dropdown="false"
                                         :showSelectedLabels="true"
@@ -727,10 +752,15 @@ const handleDelete = () => {
                                         :disabled="isLoading"
                                         @update:selectedOptions="
                                             (v: (string | number)[]) =>
-                                                (assignment.groupId = (v?.[0] != null ? String(v[0]) : ''))
+                                                (assignment.groupId =
+                                                    v?.[0] != null
+                                                        ? String(v[0])
+                                                        : '')
                                         "
                                     />
-                                    <span class="text-xs text-gray-600">if</span>
+                                    <span class="text-xs text-gray-600"
+                                        >if</span
+                                    >
                                     <button
                                         type="button"
                                         class="text-gray-400 hover:text-red-500"
@@ -741,7 +771,9 @@ const handleDelete = () => {
                                     </button>
                                 </div>
                                 <div
-                                    v-for="(cond, cIdx) in assignment.conditions"
+                                    v-for="(
+                                        cond, cIdx
+                                    ) in assignment.conditions"
                                     :key="cIdx"
                                     class="ml-2 flex flex-wrap items-center gap-2 border-l-2 border-gray-300 pl-2"
                                 >
@@ -753,7 +785,9 @@ const handleDelete = () => {
                                             setConditionType(
                                                 aIdx,
                                                 cIdx,
-                                                ($event.target as HTMLSelectElement)
+                                                (
+                                                    $event.target as HTMLSelectElement
+                                                )
                                                     .value as GroupAssignmentCondition['type'],
                                             )
                                         "
@@ -766,7 +800,9 @@ const handleDelete = () => {
                                             {{ opt.label }}
                                         </option>
                                     </select>
-                                    <template v-if="cond.type === 'claimEquals'">
+                                    <template
+                                        v-if="cond.type === 'claimEquals'"
+                                    >
                                         <LInput
                                             v-model="cond.claimPath"
                                             name="claimPath"
@@ -775,7 +811,9 @@ const handleDelete = () => {
                                             :disabled="isLoading"
                                             class="max-w-[140px]"
                                         />
-                                        <span class="text-xs text-gray-400">=</span>
+                                        <span class="text-xs text-gray-400"
+                                            >=</span
+                                        >
                                         <LInput
                                             v-model="cond.value"
                                             name="claimValue"
@@ -785,7 +823,9 @@ const handleDelete = () => {
                                             class="max-w-[120px]"
                                         />
                                     </template>
-                                    <template v-else-if="cond.type === 'claimIn'">
+                                    <template
+                                        v-else-if="cond.type === 'claimIn'"
+                                    >
                                         <LInput
                                             v-model="cond.claimPath"
                                             name="claimPathIn"
@@ -796,14 +836,18 @@ const handleDelete = () => {
                                         />
                                         <LInput
                                             name="claimValuesIn"
-                                            :value="(cond.values ?? []).join(', ')"
+                                            :value="
+                                                (cond.values ?? []).join(', ')
+                                            "
                                             type="text"
                                             placeholder="value1, value2"
                                             :disabled="isLoading"
                                             class="max-w-[160px]"
                                             @input="
                                                 cond.values = (
-                                                    ($event.target as HTMLInputElement).value || ''
+                                                    (
+                                                        $event.target as HTMLInputElement
+                                                    ).value || ''
                                                 )
                                                     .split(',')
                                                     .map((s) => s.trim())
@@ -823,7 +867,7 @@ const handleDelete = () => {
                                 <LButton
                                     size="sm"
                                     variant="tertiary"
-                                    class="mt-1 ml-2"
+                                    class="ml-2 mt-1"
                                     :disabled="isLoading"
                                     @click="addCondition(aIdx)"
                                 >

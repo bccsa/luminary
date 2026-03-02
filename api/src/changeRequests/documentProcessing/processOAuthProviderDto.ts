@@ -65,14 +65,13 @@ export default async function processOAuthProviderDto(
                                 let filename: string | undefined;
                                 const allImageFiles =
                                     doc.imageData.fileCollections?.flatMap(
-                                        (c: any) => c.imageFiles,
+                                        (c) => c.imageFiles ?? [],
                                     ) ?? [];
 
                                 if (allImageFiles.length > 0) {
                                     // Find smallest image
                                     const smallest = allImageFiles.reduce(
-                                        (a: any, b: any) =>
-                                            a.width <= b.width ? a : b,
+                                        (a, b) => (a.width <= b.width ? a : b),
                                     );
                                     filename = smallest.filename;
                                 } else if (

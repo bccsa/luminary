@@ -31,8 +31,7 @@ const groups = useDexieLiveQuery(
 
 // Filter groups to only show those where user has both Edit and Assign permissions
 const availableGroups = computed(() => {
-    console.log("All Groups:", groups.value);
-    const filtered = groups.value.filter((group) => {
+    return groups.value.filter((group) => {
         const canEdit = verifyAccess(
             [group._id],
             DocType.Group,
@@ -43,13 +42,8 @@ const availableGroups = computed(() => {
             DocType.Group,
             AclPermission.Assign,
         );
-        console.log(
-            `Group ${group.name} (${group._id}): Edit=${canEdit}, Assign=${canAssign}`,
-        );
         return canEdit && canAssign;
     });
-    console.log("Filtered Available Groups:", filtered);
-    return filtered;
 });
 
 const providers = useDexieLiveQuery(

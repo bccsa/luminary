@@ -125,10 +125,9 @@ export async function processJwt(
                           | Record<string, unknown>
                           | undefined)
                     : undefined;
-            const claimSource =
-                (ns && typeof ns === "object" ? ns : jwtPayload) as
-                    | Record<string, unknown>
-                    | undefined;
+            const claimSource = (
+                ns && typeof ns === "object" ? ns : jwtPayload
+            ) as Record<string, unknown> | undefined;
 
             // User fields from userFieldMappings + claimNamespace
             const mappings = matchedProvider.userFieldMappings;
@@ -142,9 +141,6 @@ export async function processJwt(
                 email ??= jwtPayload.email;
                 name ??= jwtPayload.name;
                 userId ??= jwtPayload.sub;
-                email ??= (jwtPayload as Record<string, unknown>).email as
-                    | string
-                    | undefined;
             }
 
             // groupAssignments: add group when all conditions pass (AND). Invalid groupIds are no-ops.
@@ -152,11 +148,7 @@ export async function processJwt(
             if (assignments?.length) {
                 for (const assignment of assignments) {
                     const allPass = assignment.conditions.every((c) =>
-                        evaluateGroupCondition(
-                            c,
-                            claimSource,
-                            !!jwtPayload,
-                        ),
+                        evaluateGroupCondition(c, claimSource, !!jwtPayload),
                     );
                     if (allPass && assignment.groupId)
                         groupSet.add(assignment.groupId as Uuid);
@@ -192,7 +184,8 @@ export async function processJwt(
                     | undefined;
                 if (groupsMap) {
                     for (const groupId of Object.keys(groupsMap)) {
-                        if (groupsMap[groupId](jwtPayload)) groupSet.add(groupId);
+                        if (groupsMap[groupId](jwtPayload))
+                            groupSet.add(groupId);
                     }
                 }
                 const payloadForMapping = jwtPayload ?? ({} as JWT.JwtPayload);

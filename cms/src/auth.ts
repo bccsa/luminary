@@ -48,41 +48,18 @@ export async function getAvailableProviders(): Promise<
     OAuthProviderPublicDto[]
 > {
     try {
-        let docs: OAuthProviderDto[] = [];
-        if (db) {
-            docs = (await db.docs
-                .where("type")
-                .equals(DocType.OAuthProvider)
-                .toArray()) as OAuthProviderDto[];
-        } else {
-            docs = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
-                const request = indexedDB.open("luminary-db");
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    const database = request.result;
-                    if (!database.objectStoreNames.contains("docs")) {
-                        database.close();
-                        return resolve([]);
-                    }
-                    const transaction = database.transaction(
-                        "docs",
-                        "readonly",
-                    );
-                    const store = transaction.objectStore("docs");
-                    const index = store.index("type");
-                    const query = index.getAll("oAuthProvider");
-                    query.onsuccess = () => {
-                        database.close();
-                        resolve(query.result as OAuthProviderDto[]);
-                    };
-                    query.onerror = () => {
-                        database.close();
-                        reject(query.error);
-                    };
-                };
-            });
-        }
-        return docs.map((d) => ({
+        if (!db) return [];
+
+        const docs = (await db.docs
+            .where("type")
+            .equals(DocType.OAuthProvider)
+            .toArray()) as OAuthProviderDto[];
+
+        // Exclude Guest provider so it is never shown on the login list
+        const visible = docs.filter(
+            (d) => !(d as Record<string, unknown>).isGuestProvider,
+        );
+        return visible.map((d) => ({
             id: d._id,
             label: d.label,
             domain: d.domain ?? "",
@@ -160,17 +137,13 @@ function createMockAuth(): AuthPlugin {
 type ProviderConfig = { domain: string; clientId: string; audience: string };
 
 /**
- * Resolve which OAuth provider config to use (API, then env fallback).
- * Only returns config when we are in an OAuth callback (state in URL) so that we create the Auth0 plugin
- * only to handle the redirect; otherwise we use fallback auth and show the provider selection modal first.
+ * Resolve which OAuth provider config to use.
+ * Returns config when a provider can be identified from synced IndexedDB data
+ * (via URL params, stored selection, or single-provider auto-select).
+ * This allows the Auth0 plugin to be created on refresh, restoring the session.
  */
 async function getProviderConfig(): Promise<ProviderConfig | undefined> {
     const urlParams = new URLSearchParams(window.location.search);
-    const isCallback = urlParams.has("state");
-
-    if (!isCallback) {
-        return undefined;
-    }
 
     const providers = await getAvailableProviders();
     const providerIdInUrl = urlParams.get("providerId");
@@ -191,15 +164,6 @@ async function getProviderConfig(): Promise<ProviderConfig | undefined> {
         };
     }
 
-    const domain = import.meta.env.VITE_AUTH0_DOMAIN;
-    const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
-    if (domain && clientId) {
-        return {
-            domain,
-            clientId,
-            audience: import.meta.env.VITE_AUTH0_AUDIENCE ?? "",
-        };
-    }
     return undefined;
 }
 

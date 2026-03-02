@@ -173,7 +173,7 @@ export type StorageDto = ContentBaseDto & {
 };
 
 export type CryptoDto = BaseDocumentDto & {
-    data: any;
+    data: unknown;
 };
 
 export type MediaDto = {

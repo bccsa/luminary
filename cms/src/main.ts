@@ -76,6 +76,11 @@ async function Startup() {
                 syncPriority: 1,
                 skipWaitForLanguageSync: true,
             },
+            {
+                type: DocType.OAuthProvider,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
         ],
     }).catch((err) => {
         console.error(err);

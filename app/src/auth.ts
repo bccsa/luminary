@@ -39,7 +39,6 @@ export function clearAuth0Cache(): void {
     // Clear connection and retry state from previous provider
     localStorage.removeItem("usedAuth0Connection");
     localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem("auth0AuthFailedRetryCount");
     // Do NOT remove SELECTED_PROVIDER_KEY here, as we want to persist it until explicitly changed or login with new provider succeeds
 }
 
@@ -58,42 +57,12 @@ async function getProviderConfig(): Promise<
     | undefined
 > {
     try {
-        let providers: OAuthProviderDto[] = [];
+        if (!db) return undefined;
 
-        // Try to get providers from local DB (synced)
-        if (db) {
-            providers = (await db.docs
-                .where("type")
-                .equals(DocType.OAuthProvider)
-                .toArray()) as OAuthProviderDto[];
-        } else {
-            // DB not initialized yet (bootstrap), try raw IndexedDB
-            providers = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
-                const request = indexedDB.open("luminary-db");
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    const database = request.result;
-                    if (!database.objectStoreNames.contains("docs")) {
-                        database.close();
-                        return resolve([]);
-                    }
-                    const transaction = database.transaction("docs", "readonly");
-                    const store = transaction.objectStore("docs");
-                    // We assume 'type' index exists as per schema
-                    const index = store.index("type");
-                    const query = index.getAll("oAuthProvider"); // DocType.OAuthProvider value
-
-                    query.onsuccess = () => {
-                        database.close();
-                        resolve(query.result as OAuthProviderDto[]);
-                    };
-                    query.onerror = () => {
-                        database.close();
-                        reject(query.error);
-                    };
-                };
-            });
-        }
+        const providers = (await db.docs
+            .where("type")
+            .equals(DocType.OAuthProvider)
+            .toArray()) as OAuthProviderDto[];
 
         if (providers.length > 0) {
             // Check for saved selection
@@ -135,41 +104,15 @@ async function getProviderConfig(): Promise<
  */
 export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
     try {
-        let docs: OAuthProviderDto[] = [];
-        if (db) {
-            docs = (await db.docs
-                .where("type")
-                .equals(DocType.OAuthProvider)
-                .toArray()) as OAuthProviderDto[];
-        } else {
-            docs = await new Promise<OAuthProviderDto[]>((resolve, reject) => {
-                const request = indexedDB.open("luminary-db");
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    const database = request.result;
-                    if (!database.objectStoreNames.contains("docs")) {
-                        database.close();
-                        return resolve([]);
-                    }
-                    const transaction = database.transaction("docs", "readonly");
-                    const store = transaction.objectStore("docs");
-                    const index = store.index("type");
-                    const query = index.getAll("oAuthProvider");
-                    query.onsuccess = () => {
-                        database.close();
-                        resolve(query.result as OAuthProviderDto[]);
-                    };
-                    query.onerror = () => {
-                        database.close();
-                        reject(query.error);
-                    };
-                };
-            });
-        }
+        if (!db) return [];
+
+        const docs = (await db.docs
+            .where("type")
+            .equals(DocType.OAuthProvider)
+            .toArray()) as OAuthProviderDto[];
+
         // Exclude Guest provider so it is never shown on the login list
-        const visible = docs.filter(
-            (d) => !(d as Record<string, unknown>).isGuestProvider,
-        );
+        const visible = docs.filter((d) => !(d as Record<string, unknown>).isGuestProvider);
         return visible.map((d) => ({
             id: d._id,
             label: d.label,
