@@ -10,6 +10,7 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
 
 /**
  * Reactive flag to show/hide the provider selection modal.
@@ -48,16 +49,34 @@ import { db, DocType, type OAuthProviderDto } from "luminary-shared";
  * Get OAuth provider config from local DB.
  * Returns undefined when no provider is available yet (guest mode).
  */
-async function getProviderConfig(): Promise<
-    | {
-          domain: string;
-          clientId: string;
-          audience: string;
-      }
-    | undefined
-> {
+type ProviderConfig = { domain: string; clientId: string; audience: string };
+
+/**
+ * Cache provider config to localStorage so page refreshes can restore
+ * the Auth0 session before IndexedDB is ready.
+ */
+function cacheProviderConfig(config: ProviderConfig) {
+    localStorage.setItem(PROVIDER_CONFIG_CACHE_KEY, JSON.stringify(config));
+}
+
+function getCachedProviderConfig(): ProviderConfig | undefined {
+    const raw = localStorage.getItem(PROVIDER_CONFIG_CACHE_KEY);
+    if (!raw) return undefined;
     try {
-        if (!db) return undefined;
+        const parsed = JSON.parse(raw);
+        if (parsed.domain && parsed.clientId) return parsed as ProviderConfig;
+    } catch {
+        /* corrupted cache — ignore */
+    }
+    return undefined;
+}
+
+async function getProviderConfig(): Promise<ProviderConfig | undefined> {
+    try {
+        if (!db) {
+            // db not initialised yet — fall back to localStorage cache
+            return getCachedProviderConfig();
+        }
 
         const providers = (await db.docs
             .where("type")
@@ -65,14 +84,9 @@ async function getProviderConfig(): Promise<
             .toArray()) as OAuthProviderDto[];
 
         if (providers.length > 0) {
-            // Check for saved selection
             const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-
-            // Check for proposed selection from URL (query param) - used during login flow
             const urlParams = new URLSearchParams(window.location.search);
             const proposedId = urlParams.get("providerId");
-
-            // If we are in the middle of a login flow (triggerLogin or callback), prefer the proposed ID
             const isLoginFlow =
                 urlParams.has("providerId") || urlParams.has("code") || urlParams.has("state");
 
@@ -85,18 +99,21 @@ async function getProviderConfig(): Promise<
             const provider = selected ?? providers[0];
 
             if (provider.domain && provider.clientId && provider.audience) {
-                return {
+                const config: ProviderConfig = {
                     domain: provider.domain,
                     clientId: provider.clientId,
                     audience: provider.audience,
                 };
+                cacheProviderConfig(config);
+                return config;
             }
         }
     } catch (e) {
         console.warn("Failed to load providers from DB", e);
     }
 
-    return undefined;
+    // Final fallback: localStorage cache from a previous session
+    return getCachedProviderConfig();
 }
 
 /**
@@ -305,6 +322,7 @@ async function setupAuth(app: App<Element>, router: Router) {
     (oauth as AuthPlugin).logout = () => {
         clearAuth0Cache();
         localStorage.removeItem(SELECTED_PROVIDER_KEY);
+        localStorage.removeItem(PROVIDER_CONFIG_CACHE_KEY);
 
         return _Logout({
             logoutParams: {

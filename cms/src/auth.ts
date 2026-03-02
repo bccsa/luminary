@@ -19,6 +19,7 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
 
 /**
  * Reactive flag to show/hide the provider selection modal.
@@ -137,34 +138,58 @@ function createMockAuth(): AuthPlugin {
 type ProviderConfig = { domain: string; clientId: string; audience: string };
 
 /**
+ * Cache provider config to localStorage so page refreshes can restore
+ * the Auth0 session before IndexedDB is ready.
+ */
+function cacheProviderConfig(config: ProviderConfig) {
+    localStorage.setItem(PROVIDER_CONFIG_CACHE_KEY, JSON.stringify(config));
+}
+
+function getCachedProviderConfig(): ProviderConfig | undefined {
+    const raw = localStorage.getItem(PROVIDER_CONFIG_CACHE_KEY);
+    if (!raw) return undefined;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed.domain && parsed.clientId) return parsed as ProviderConfig;
+    } catch {
+        /* corrupted cache — ignore */
+    }
+    return undefined;
+}
+
+/**
  * Resolve which OAuth provider config to use.
- * Returns config when a provider can be identified from synced IndexedDB data
- * (via URL params, stored selection, or single-provider auto-select).
- * This allows the Auth0 plugin to be created on refresh, restoring the session.
+ * Tries IndexedDB first, then falls back to a localStorage cache
+ * so page refreshes work before init() has opened the database.
  */
 async function getProviderConfig(): Promise<ProviderConfig | undefined> {
     const urlParams = new URLSearchParams(window.location.search);
-
     const providers = await getAvailableProviders();
-    const providerIdInUrl = urlParams.get("providerId");
-    const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-    const idToUse =
-        providerIdInUrl ??
-        selectedId ??
-        (providers.length === 1 ? providers[0].id : undefined);
-    const provider = idToUse
-        ? providers.find((p) => p.id === idToUse)
-        : undefined;
 
-    if (provider?.domain && provider?.clientId) {
-        return {
-            domain: provider.domain,
-            clientId: provider.clientId,
-            audience: provider.audience ?? "",
-        };
+    if (providers.length > 0) {
+        const providerIdInUrl = urlParams.get("providerId");
+        const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
+        const idToUse =
+            providerIdInUrl ??
+            selectedId ??
+            (providers.length === 1 ? providers[0].id : undefined);
+        const provider = idToUse
+            ? providers.find((p) => p.id === idToUse)
+            : undefined;
+
+        if (provider?.domain && provider?.clientId) {
+            const config: ProviderConfig = {
+                domain: provider.domain,
+                clientId: provider.clientId,
+                audience: provider.audience ?? "",
+            };
+            cacheProviderConfig(config);
+            return config;
+        }
     }
 
-    return undefined;
+    // db not ready or no providers synced yet — fall back to localStorage cache
+    return getCachedProviderConfig();
 }
 
 /**
@@ -289,7 +314,10 @@ async function setupAuth(app: App<Element>, router: Router) {
     const _Logout = oauth.logout;
     (oauth as AuthPlugin).logout = (retrying = false) => {
         clearAuth0Cache();
-        if (!retrying) localStorage.removeItem(SELECTED_PROVIDER_KEY);
+        if (!retrying) {
+            localStorage.removeItem(SELECTED_PROVIDER_KEY);
+            localStorage.removeItem(PROVIDER_CONFIG_CACHE_KEY);
+        }
         return _Logout({
             logoutParams: {
                 returnTo: retrying ? webOrigin : `${webOrigin}?loggedOut`,
