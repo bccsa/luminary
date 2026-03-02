@@ -6,7 +6,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
-import * as nano from "nano";
+import nanoImport from "nano";
+const nano = (nanoImport as any).default || nanoImport;
 
 function loadEnv(): void {
     const envPath = path.join(process.cwd(), ".env");
@@ -19,7 +20,10 @@ function loadEnv(): void {
                 if (eq > 0) {
                     const key = trimmed.slice(0, eq).trim();
                     let val = trimmed.slice(eq + 1).trim();
-                    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                    if (
+                        (val.startsWith('"') && val.endsWith('"')) ||
+                        (val.startsWith("'") && val.endsWith("'"))
+                    ) {
                         val = val.slice(1, -1);
                     }
                     if (!(key in process.env)) process.env[key] = val;
@@ -60,7 +64,9 @@ function normalizeBaseUrl(input: string): string {
 function connectDbFromEnv(dbName: string): DbScope {
     const url = (process.env.DB_CONNECTION_STRING ?? "").trim();
     if (!url || !/^https?:/.test(url)) {
-        throw new Error("DB_CONNECTION_STRING must be set and valid (e.g. http://user:pass@127.0.0.1:5984)");
+        throw new Error(
+            "DB_CONNECTION_STRING must be set and valid (e.g. http://user:pass@127.0.0.1:5984)",
+        );
     }
     const client = nano(url);
     return client.use(dbName);
@@ -78,7 +84,10 @@ async function connectDb(
             ? {
                   requestDefaults: {
                       headers: {
-                          Authorization: `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`,
+                          Authorization: `Basic ${Buffer.from(
+                              `${username}:${password}`,
+                              "utf8",
+                          ).toString("base64")}`,
                       },
                   },
               }
@@ -87,33 +96,67 @@ async function connectDb(
     return client.use(dbName);
 }
 
-async function getDoc(db: DbScope, id: string): Promise<{ _id: string; _rev?: string; [k: string]: unknown } | null> {
+async function getDoc(
+    db: DbScope,
+    id: string,
+): Promise<{ _id: string; _rev?: string; [k: string]: unknown } | null> {
     try {
         const doc = await db.get(id);
         return doc as { _id: string; _rev?: string; [k: string]: unknown };
     } catch (err: unknown) {
-        if (err && typeof err === "object" && "statusCode" in err && (err as { statusCode: number }).statusCode === 404) {
+        if (
+            err &&
+            typeof err === "object" &&
+            "statusCode" in err &&
+            (err as { statusCode: number }).statusCode === 404
+        ) {
             return null;
         }
         throw err;
     }
 }
 
-async function getUserByEmail(db: DbScope, email: string): Promise<{ _id: string; _rev?: string; memberOf?: string[]; [k: string]: unknown } | null> {
-    const res = (await db.view(VIEW_DESIGN, VIEW_NAME, { keys: [email], include_docs: true })) as { rows: { doc?: unknown }[] };
+async function getUserByEmail(
+    db: DbScope,
+    email: string,
+): Promise<{
+    _id: string;
+    _rev?: string;
+    memberOf?: string[];
+    [k: string]: unknown;
+} | null> {
+    const res = (await db.view(VIEW_DESIGN, VIEW_NAME, {
+        keys: [email],
+        include_docs: true,
+    })) as { rows: { doc?: unknown }[] };
     const rows = res.rows ?? [];
     const byId = new Map<string, unknown>();
     for (const row of rows) {
         const doc = row.doc;
-        if (doc && typeof doc === "object" && "_id" in doc && !byId.has((doc as { _id: string })._id)) {
+        if (
+            doc &&
+            typeof doc === "object" &&
+            "_id" in doc &&
+            !byId.has((doc as { _id: string })._id)
+        ) {
             byId.set((doc as { _id: string })._id, doc);
         }
     }
     const first = byId.values().next().value;
-    return first != null ? (first as { _id: string; _rev?: string; memberOf?: string[]; [k: string]: unknown }) : null;
+    return first != null
+        ? (first as {
+              _id: string;
+              _rev?: string;
+              memberOf?: string[];
+              [k: string]: unknown;
+          })
+        : null;
 }
 
-async function upsertDoc(db: DbScope, doc: Record<string, unknown>): Promise<void> {
+async function upsertDoc(
+    db: DbScope,
+    doc: Record<string, unknown>,
+): Promise<void> {
     const existing = await getDoc(db, doc._id as string);
     if (existing && existing._rev) {
         (doc as { _rev?: string })._rev = existing._rev;
@@ -155,7 +198,9 @@ function parseJwtMappingsJson(raw: string): JwtMappingsParsed | null {
         defaultProviderGroupIds: [],
         claimMappings: [],
     };
-    const nsFromExpr = (expr: string): { namespace?: string; field?: string } => {
+    const nsFromExpr = (
+        expr: string,
+    ): { namespace?: string; field?: string } => {
         const m = expr.match(/jwt\s*\[\s*["']([^"']+)["']\s*\]\s*\.\s*(\w+)/);
         return m ? { namespace: m[1], field: m[2] } : {};
     };
@@ -184,7 +229,11 @@ function parseJwtMappingsJson(raw: string): JwtMappingsParsed | null {
     return result;
 }
 
-async function grantGroups(db: DbScope, email: string, groupIds: string[]): Promise<void> {
+async function grantGroups(
+    db: DbScope,
+    email: string,
+    groupIds: string[],
+): Promise<void> {
     const user = await getUserByEmail(db, email);
     if (!user) {
         console.error(`No user found for email: ${email}`);
@@ -193,7 +242,9 @@ async function grantGroups(db: DbScope, email: string, groupIds: string[]): Prom
     const memberOf = Array.isArray(user.memberOf) ? [...user.memberOf] : [];
     const toAdd = groupIds.filter((g) => !memberOf.includes(g));
     if (toAdd.length === 0) {
-        console.log(`User ${email} already has access to: ${groupIds.join(", ")}.`);
+        console.log(
+            `User ${email} already has access to: ${groupIds.join(", ")}.`,
+        );
         return;
     }
     memberOf.push(...toAdd);
@@ -215,10 +266,12 @@ async function setupAuthProviders(
     claimMappings: Array<{ claim: string; target: string }>,
     defaultProviderGroupIds: string[],
 ): Promise<void> {
-    const defaultProviderGroupAssignments = defaultProviderGroupIds.map((groupId) => ({
-        groupId,
-        conditions: [{ type: "authenticated" as const }],
-    }));
+    const defaultProviderGroupAssignments = defaultProviderGroupIds.map(
+        (groupId) => ({
+            groupId,
+            conditions: [{ type: "authenticated" as const }],
+        }),
+    );
     const memberOf = [...new Set([PROVIDER_PUBLIC_GROUP, ...providerMemberOf])];
     const defaultDoc: Record<string, unknown> = {
         _id: OAUTH_PROVIDER_DEFAULT,
@@ -232,11 +285,17 @@ async function setupAuthProviders(
         updatedTimeUtc: Date.now(),
     };
     if (claimNamespace) defaultDoc.claimNamespace = claimNamespace;
-    if (userFieldMappings && (userFieldMappings.userId || userFieldMappings.email || userFieldMappings.name)) {
+    if (
+        userFieldMappings &&
+        (userFieldMappings.userId ||
+            userFieldMappings.email ||
+            userFieldMappings.name)
+    ) {
         defaultDoc.userFieldMappings = userFieldMappings;
     }
     if (claimMappings.length) defaultDoc.claimMappings = claimMappings;
-    if (defaultProviderGroupAssignments.length) defaultDoc.groupAssignments = defaultProviderGroupAssignments;
+    if (defaultProviderGroupAssignments.length)
+        defaultDoc.groupAssignments = defaultProviderGroupAssignments;
     await upsertDoc(db, defaultDoc);
     console.log(`Default OAuth provider updated (domain: ${domain}).`);
 
@@ -247,9 +306,13 @@ async function setupAuthProviders(
         providerType: "auth0",
         isGuestProvider: true,
         memberOf,
-        groupAssignments:
-            guestAssignmentGroupId ?
-                [{ groupId: guestAssignmentGroupId, conditions: [{ type: "always" }] }]
+        groupAssignments: guestAssignmentGroupId
+            ? [
+                  {
+                      groupId: guestAssignmentGroupId,
+                      conditions: [{ type: "always" }],
+                  },
+              ]
             : [],
         updatedTimeUtc: Date.now(),
     };
@@ -258,7 +321,10 @@ async function setupAuthProviders(
 }
 
 async function main(): Promise<void> {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
 
     console.log("\nSetup CLI\n");
     console.log("1. Give super-admin access to initial user (by email)");
@@ -272,11 +338,16 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
-    const useEnv = !!(process.env.DB_CONNECTION_STRING && process.env.DB_CONNECTION_STRING.trim());
+    const useEnv = !!(
+        process.env.DB_CONNECTION_STRING &&
+        process.env.DB_CONNECTION_STRING.trim()
+    );
     let db: DbScope;
     if (useEnv) {
         const dbName = process.env.DB_DATABASE?.trim() || DEFAULT_DB;
-        console.log("Using DB_CONNECTION_STRING and DB_DATABASE from environment.");
+        console.log(
+            "Using DB_CONNECTION_STRING and DB_DATABASE from environment.",
+        );
         try {
             db = connectDbFromEnv(dbName);
         } catch (err) {
@@ -285,10 +356,18 @@ async function main(): Promise<void> {
             process.exit(1);
         }
     } else {
-        const baseUrl = await question(rl, "CouchDB URL (e.g. http://127.0.0.1:5984): ") || "http://127.0.0.1:5984";
+        const baseUrl =
+            (await question(
+                rl,
+                "CouchDB URL (e.g. http://127.0.0.1:5984): ",
+            )) || "http://127.0.0.1:5984";
         const username = await question(rl, "CouchDB Username: ");
         const password = await question(rl, "CouchDB Password: ");
-        const dbName = await question(rl, `CouchDB Database (default ${DEFAULT_DB}): `) || DEFAULT_DB;
+        const dbName =
+            (await question(
+                rl,
+                `CouchDB Database (default ${DEFAULT_DB}): `,
+            )) || DEFAULT_DB;
         try {
             db = await connectDb(baseUrl, username, password, dbName);
         } catch (err) {
@@ -299,11 +378,20 @@ async function main(): Promise<void> {
     }
 
     if (choice === "2" || choice === "3") {
-        console.log("\nPaste your JWT_MAPPINGS JSON (from .env or API docs) to auto-fill claim namespace, user fields, and groups. Or press Enter to answer prompts instead.");
-        const jwtMappingsInput = await question(rl, "JWT_MAPPINGS (optional): ");
+        console.log(
+            "\nPaste your JWT_MAPPINGS JSON (from .env or API docs) to auto-fill claim namespace, user fields, and groups. Or press Enter to answer prompts instead.",
+        );
+        const jwtMappingsInput = await question(
+            rl,
+            "JWT_MAPPINGS (optional): ",
+        );
         const parsed = parseJwtMappingsJson(jwtMappingsInput);
         let claimNamespace: string | undefined;
-        let userFieldMappings: { userId?: string; email?: string; name?: string } = {};
+        let userFieldMappings: {
+            userId?: string;
+            email?: string;
+            name?: string;
+        } = {};
         let claimMappings: Array<{ claim: string; target: string }> = [];
         let defaultProviderGroupIds: string[];
         let guestAssignmentGroupId: string;
@@ -313,39 +401,106 @@ async function main(): Promise<void> {
             claimMappings = parsed.claimMappings;
             defaultProviderGroupIds = parsed.defaultProviderGroupIds.length
                 ? parsed.defaultProviderGroupIds
-                : parseGroupIds(await question(rl, "Group ID(s) to assign when users log in (comma-separated): "));
+                : parseGroupIds(
+                      await question(
+                          rl,
+                          "Group ID(s) to assign when users log in (comma-separated): ",
+                      ),
+                  );
             guestAssignmentGroupId =
                 parsed.guestGroupId ??
-                (await question(rl, "Group ID to assign to guest users (optional): ")).trim();
-            console.log("  Derived: claim namespace:", claimNamespace ?? "(none)");
-            if (Object.keys(userFieldMappings).length) console.log("  Derived user fields:", userFieldMappings);
-            if (defaultProviderGroupIds.length) console.log("  Derived groups when logged in:", defaultProviderGroupIds.join(", "));
-            if (guestAssignmentGroupId) console.log("  Derived guest group:", guestAssignmentGroupId);
+                (
+                    await question(
+                        rl,
+                        "Group ID to assign to guest users (optional): ",
+                    )
+                ).trim();
+            console.log(
+                "  Derived: claim namespace:",
+                claimNamespace ?? "(none)",
+            );
+            if (Object.keys(userFieldMappings).length)
+                console.log("  Derived user fields:", userFieldMappings);
+            if (defaultProviderGroupIds.length)
+                console.log(
+                    "  Derived groups when logged in:",
+                    defaultProviderGroupIds.join(", "),
+                );
+            if (guestAssignmentGroupId)
+                console.log("  Derived guest group:", guestAssignmentGroupId);
         } else {
-            claimNamespace = (await question(rl, "Claim namespace (optional, e.g. https://your-tenant.com/metadata): ")).trim() || undefined;
-            const userFieldUserId = (await question(rl, "  User field for userId inside namespace (optional): ")).trim() || undefined;
-            const userFieldEmail = (await question(rl, "  User field for email inside namespace (optional): ")).trim() || undefined;
-            const userFieldName = (await question(rl, "  User field for name inside namespace (optional): ")).trim() || undefined;
+            claimNamespace =
+                (
+                    await question(
+                        rl,
+                        "Claim namespace (optional, e.g. https://your-tenant.com/metadata): ",
+                    )
+                ).trim() || undefined;
+            const userFieldUserId =
+                (
+                    await question(
+                        rl,
+                        "  User field for userId inside namespace (optional): ",
+                    )
+                ).trim() || undefined;
+            const userFieldEmail =
+                (
+                    await question(
+                        rl,
+                        "  User field for email inside namespace (optional): ",
+                    )
+                ).trim() || undefined;
+            const userFieldName =
+                (
+                    await question(
+                        rl,
+                        "  User field for name inside namespace (optional): ",
+                    )
+                ).trim() || undefined;
             userFieldMappings =
                 userFieldUserId || userFieldEmail || userFieldName
-                    ? { userId: userFieldUserId, email: userFieldEmail, name: userFieldName }
+                    ? {
+                          userId: userFieldUserId,
+                          email: userFieldEmail,
+                          name: userFieldName,
+                      }
                     : {};
             const claimMappingInput = await question(
                 rl,
                 "Claim names that map to groups, comma-separated (e.g. groups,hasMembership): ",
             );
-            claimMappings = parseGroupIds(claimMappingInput).map((claim) => ({ claim, target: "groups" as const }));
+            claimMappings = parseGroupIds(claimMappingInput).map((claim) => ({
+                claim,
+                target: "groups" as const,
+            }));
             defaultProviderGroupIds = parseGroupIds(
-                await question(rl, "Group ID(s) to assign when users log in with this provider (comma-separated): "),
+                await question(
+                    rl,
+                    "Group ID(s) to assign when users log in with this provider (comma-separated): ",
+                ),
             );
-            guestAssignmentGroupId = (await question(rl, "Group ID to assign to guest users (optional): ")).trim();
+            guestAssignmentGroupId = (
+                await question(
+                    rl,
+                    "Group ID to assign to guest users (optional): ",
+                )
+            ).trim();
         }
-        const domain = await question(rl, "Auth Domain (e.g. tenant.auth0.com): ");
+        const domain = await question(
+            rl,
+            "Auth Domain (e.g. tenant.auth0.com): ",
+        );
         const clientId = await question(rl, "Auth Client ID: ");
         const audience = await question(rl, "Auth Audience: ");
-        const label = await question(rl, "Provider label (optional, default: Default Provider): ");
+        const label = await question(
+            rl,
+            "Provider label (optional, default: Default Provider): ",
+        );
         const providerMemberOf = parseGroupIds(
-            await question(rl, "Group ID(s) for provider visibility, comma-separated (always includes group-public-content): "),
+            await question(
+                rl,
+                "Group ID(s) for provider visibility, comma-separated (always includes group-public-content): ",
+            ),
         );
         if (!domain || !clientId || !audience) {
             console.error("Domain, Client ID, and Audience are required.");
@@ -368,7 +523,10 @@ async function main(): Promise<void> {
     }
 
     if (choice === "1" || choice === "3") {
-        const groupInput = await question(rl, "Group ID(s) to add to user, comma-separated: ");
+        const groupInput = await question(
+            rl,
+            "Group ID(s) to add to user, comma-separated: ",
+        );
         const groupIds = parseGroupIds(groupInput);
         if (groupIds.length === 0) {
             console.error("At least one group ID is required.");
