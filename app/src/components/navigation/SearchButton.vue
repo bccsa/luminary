@@ -8,6 +8,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useSearch } from "@/composables/useSearch";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import type { LuminarySearchResult } from "@/search";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
@@ -75,7 +76,10 @@ watch(searchQuery, (newQuery) => {
     isSearching.value = true;
     searchTimeout = setTimeout(() => {
         if (isInitialized.value) {
-            const searchResults = performSearch(newQuery);
+            const searchResults = performSearch(newQuery, {
+                languages:
+                    appLanguageIdsAsRef.value.length > 0 ? appLanguageIdsAsRef.value : undefined,
+            });
             results.value = searchResults;
             showResults.value = searchResults.length > 0;
             selectedIndex.value = searchResults.length > 0 ? 0 : -1;
@@ -358,6 +362,19 @@ defineExpose({
                             />
                             <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                                 {{ $t("search.noIndex") || "Search index is empty" }}
+                            </p>
+                        </div>
+
+                        <!-- No Results -->
+                        <div
+                            v-else-if="isInitialized && searchQuery && !isSearching && results.length === 0"
+                            class="p-8 text-center md:p-10"
+                        >
+                            <MagnifyingGlassIcon
+                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
+                            />
+                            <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                                {{ $t("search.noResults") || "No results found" }}
                             </p>
                         </div>
 
