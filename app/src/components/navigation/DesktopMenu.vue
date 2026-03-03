@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
+import { useI18n } from "vue-i18n";
 
 // Use global search overlay
 const { openSearch } = useSearchOverlay();
+
+const { t } = useI18n();
 
 const handleSearchClick = () => {
     openSearch();
@@ -20,7 +23,7 @@ const handleSearchClick = () => {
             custom
         >
             <span
-                v-if="item.name === $t('menu.search')"
+                v-if="item.name === t('menu.search')"
                 @click="handleSearchClick"
                 class="flex cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-200 dark:hover:bg-slate-700"
             >
