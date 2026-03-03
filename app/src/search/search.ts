@@ -139,25 +139,28 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Pre-extracted plain text for a result (avoids re-parsing TipTap JSON in sort/highlight).
+ */
+interface PlainTextCache {
+    text: string;
+    summary: string;
+}
+
+/**
  * Extract and highlight matching terms from search results
  * @param result - The search result from MiniSearch
  * @param query - The original search query
  * @param maxLength - Maximum length of the highlighted snippet (default: 150)
+ * @param plainText - Optional pre-extracted text/summary to avoid re-parsing
  * @returns HTML string with matched terms highlighted, or undefined if no text field
  */
 function createHighlight(
     result: SearchResult,
     query: string,
     maxLength: number = 150,
+    plainText?: PlainTextCache,
 ): string | undefined {
-    // Get the text field from the result
-    const rawText = result.text;
-    if (!rawText) {
-        return undefined;
-    }
-
-    // Extract plain text from TipTap JSON or use as-is
-    const text = extractPlainText(rawText);
+    const text = plainText?.text ?? (result.text ? extractPlainText(result.text) : "");
     if (!text) {
         return undefined;
     }
@@ -178,8 +181,7 @@ function createHighlight(
         return undefined;
     }
 
-    // Extract plain text from summary for fallback
-    const summaryText = result.summary ? extractPlainText(result.summary) : "";
+    const summaryText = plainText?.summary ?? (result.summary ? extractPlainText(result.summary) : "");
 
     // Determine which field to excerpt from (prefer matched field over others)
     let searchText = text;
@@ -297,6 +299,9 @@ function isValidDocument(doc: unknown): doc is ContentDto {
 }
 
 const INDEX_LOAD_BATCH_SIZE = 100;
+
+/** Max results to re-rank and highlight; avoids O(n log n) work on huge result sets. */
+const SEARCH_RESULT_LIMIT = 20;
 
 /**
  * Initialize the search index from IndexedDB
@@ -508,6 +513,20 @@ export function search(
             return true;
         });
 
+        // Cap before expensive re-rank + highlight (UI only shows top N anyway)
+        const toProcess = filteredResults.slice(0, SEARCH_RESULT_LIMIT);
+
+        // Pre-compute plain text once per result (avoids O(n log n) extractPlainText in sort)
+        const plainTextById = new Map<string, PlainTextCache>();
+        for (const r of toProcess) {
+            if (r._id) {
+                plainTextById.set(r._id, {
+                    text: r.text ? extractPlainText(r.text) : "",
+                    summary: r.summary ? extractPlainText(r.summary) : "",
+                });
+            }
+        }
+
         // Re-rank: exact phrase matches first (title, then body), then by MiniSearch score
         const normalizedPhrase = normalizedQuery
             .toLowerCase()
@@ -515,12 +534,13 @@ export function search(
             .filter((t) => t.length > 0)
             .join(" ");
         if (normalizedPhrase) {
-            filteredResults.sort((a, b) => {
-                const phraseRank = (r: (typeof filteredResults)[0]): number => {
+            toProcess.sort((a, b) => {
+                const phraseRank = (r: (typeof toProcess)[0]): number => {
                     const titleLower = r.title ? String(r.title).toLowerCase() : "";
                     if (titleLower.includes(normalizedPhrase)) return 0;
-                    const textPlain = r.text ? extractPlainText(r.text) : "";
-                    const summaryPlain = r.summary ? extractPlainText(r.summary) : "";
+                    const cached = r._id ? plainTextById.get(r._id) : undefined;
+                    const textPlain = cached?.text ?? "";
+                    const summaryPlain = cached?.summary ?? "";
                     const body = (textPlain + " " + summaryPlain).toLowerCase();
                     return body.includes(normalizedPhrase) ? 1 : 2;
                 };
@@ -531,15 +551,20 @@ export function search(
             });
         }
 
-        // Add highlighting to results
-        const resultsWithHighlights = filteredResults
-            .map((result) => {
-                const highlight = createHighlight(result, normalizedQuery);
-                return {
-                    ...result,
-                    highlight,
-                } as LuminarySearchResult;
-            });
+        // Add highlighting (reuses pre-computed plain text)
+        const resultsWithHighlights = toProcess.map((result) => {
+            const cached = result._id ? plainTextById.get(result._id) : undefined;
+            const highlight = createHighlight(
+                result,
+                normalizedQuery,
+                150,
+                cached ? { text: cached.text, summary: cached.summary } : undefined,
+            );
+            return {
+                ...result,
+                highlight,
+            } as LuminarySearchResult;
+        });
 
         return resultsWithHighlights;
     } catch (error) {
