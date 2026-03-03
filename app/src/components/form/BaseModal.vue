@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LTeleport from "../common/LTeleport.vue";
+import LTeleport from "@/components/common/LTeleport.vue";
 
 const isVisible = defineModel<boolean>("isVisible");
 const emit = defineEmits(["close"]);

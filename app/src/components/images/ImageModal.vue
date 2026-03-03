@@ -9,7 +9,7 @@ import {
     ArrowLeftCircleIcon,
     ArrowRightCircleIcon,
 } from "@heroicons/vue/24/outline";
-import BaseModal from "../form/BaseModal.vue";
+import BaseModal from "@/components/form/BaseModal.vue";
 
 // Props
 type Props = {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseModal from "./BaseModal.vue";
+import BaseModal from "@/components/form/BaseModal.vue";
 
 type Props = {
     heading: string;
