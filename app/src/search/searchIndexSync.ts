@@ -53,7 +53,7 @@ function flush(): void {
     }
 
     if (toUpdate.length > 0) {
-        void Promise.all(
+        Promise.all(
             toUpdate.map((id) =>
                 db.docs.get(id).then((doc) => {
                     if (doc && doc.type === DocType.Content) {
@@ -61,7 +61,9 @@ function flush(): void {
                     }
                 }),
             ),
-        );
+        ).catch((err) => {
+            console.error("Search index sync: error applying updates:", err);
+        });
     }
 }
 
@@ -102,10 +104,12 @@ export function registerSearchIndexSync(): void {
         }
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Dexie hook signature
-    db.docs.hook("deleting", (primKey, _obj) => {
-        pendingDeletes.push(String(primKey));
-        scheduleFlush();
+    db.docs.hook("deleting", (primKey, obj) => {
+        const doc = obj as BaseDocumentLike;
+        if (doc?.type === DocType.Content) {
+            pendingDeletes.push(String(primKey));
+            scheduleFlush();
+        }
     });
 }
 
