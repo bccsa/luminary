@@ -380,26 +380,15 @@ defineExpose({
                                     @mouseenter="selectedIndex = index"
                                 >
                                     <div class="flex min-w-0 gap-2 self-center md:gap-3">
-                                        <!-- Thumbnail -->
+                                        <!-- Thumbnail (same as SingleContent: LImage shows image or fallback) -->
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
-                                                v-if="
-                                                    result.parentImageData?.fileCollections?.length
-                                                "
                                                 :image="result.parentImageData"
                                                 :content-parent-id="result.parentId"
                                                 :parent-image-bucket-id="result.parentImageBucketId"
                                                 size="small"
                                                 aspect-ratio="video"
                                             />
-                                            <!-- <div
-                                                v-else
-                                                class="flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200/50 dark:bg-slate-700 dark:ring-slate-600/50 md:h-16 md:w-24"
-                                            >
-                                                <DocumentTextIcon
-                                                    class="h-6 w-6 text-zinc-400 dark:text-slate-500 md:h-8 md:w-8"
-                                                />
-                                            </div> -->
                                         </div>
                                         <!-- Content -->
                                         <div class="min-w-0 flex-1">
