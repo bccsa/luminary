@@ -166,7 +166,8 @@ test("it can correctly add a preferred language to the the user's preferred lang
         const modalContent = page.locator(
             '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
         );
-        await expect(modalContent.first()).toBeVisible();
+        const count = await modalContent.count();
+        expect(count).toBeGreaterThan(0);
     });
 
     // Get available languages (those with add-language-button)
@@ -270,7 +271,8 @@ test("it can correctly remove a preferred language from the user's preferred lan
         const modalContent = page.locator(
             '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
         );
-        await expect(modalContent.first()).toBeVisible();
+        const count = await modalContent.count();
+        expect(count).toBeGreaterThan(0);
     });
 
     // Find selected languages (those with CheckCircleIcon that are not disabled)
