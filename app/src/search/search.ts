@@ -1,5 +1,9 @@
 import MiniSearch, { type SearchOptions, type SearchResult } from "minisearch";
 import { DocType, type ContentDto, db } from "luminary-shared";
+import { ref } from "vue";
+
+/** Reactive document count — updated by every mutating operation so consumers stay in sync. */
+export const searchIndexSizeRef = ref(0);
 
 export interface LuminarySearchResult extends SearchResult {
     doc: ContentDto;
@@ -331,8 +335,12 @@ export async function initializeSearchIndex(): Promise<void> {
             }
         } while (batch.length === INDEX_LOAD_BATCH_SIZE);
 
+        searchIndexSizeRef.value = miniSearch.documentCount;
         console.log(`Search index initialized with ${totalIndexed} documents`);
     } catch (error) {
+        // Reset so the next call can attempt a fresh initialization
+        miniSearch = null;
+        searchIndexSizeRef.value = 0;
         console.error("Failed to initialize search index:", error);
         throw error;
     }
@@ -353,6 +361,7 @@ export function addToSearchIndex(doc: ContentDto): void {
     }
 
     miniSearch.add(doc);
+    searchIndexSizeRef.value = miniSearch.documentCount;
 }
 
 /**
@@ -372,6 +381,7 @@ export function addAllToSearchIndex(docs: ContentDto[]): void {
     const validDocs = docs.filter((doc) => doc.type === DocType.Content && isValidDocument(doc));
     if (validDocs.length > 0) {
         miniSearch.addAll(validDocs);
+        searchIndexSizeRef.value = miniSearch.documentCount;
     }
 }
 
@@ -388,7 +398,12 @@ export function removeFromSearchIndex(docId: string): void {
         return;
     }
 
-    miniSearch.discard(docId);
+    try {
+        miniSearch.discard(docId);
+        searchIndexSizeRef.value = miniSearch.documentCount;
+    } catch {
+        // Document was not in the index (e.g. non-Content doc deleted after a rebuild)
+    }
 }
 
 /**
@@ -407,9 +422,14 @@ export function removeAllFromSearchIndex(docIds: string[]): void {
 
     for (const docId of docIds) {
         if (docId) {
-            miniSearch.discard(docId);
+            try {
+                miniSearch.discard(docId);
+            } catch {
+                // Document was not in the index (e.g. non-Content doc deleted after a rebuild)
+            }
         }
     }
+    searchIndexSizeRef.value = miniSearch.documentCount;
 }
 
 /**
@@ -549,9 +569,8 @@ export function getSearchIndexSize(): number {
  * Clear the search index
  */
 export function clearSearchIndex(): void {
-    if (miniSearch) {
-        miniSearch = null;
-    }
+    miniSearch = null;
+    searchIndexSizeRef.value = 0;
 }
 
 /**
