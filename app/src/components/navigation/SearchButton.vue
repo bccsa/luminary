@@ -372,14 +372,14 @@ defineExpose({
                                     v-for="(result, index) in results"
                                     :key="result.id"
                                     :id="`search-result-${index}`"
-                                    class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-0 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3"
+                                    class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
                                     :class="{
                                         'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
                                     }"
                                     @click="goToResult(result)"
                                     @mouseenter="selectedIndex = index"
                                 >
-                                    <div class="flex min-w-0 gap-3 self-center md:gap-4">
+                                    <div class="flex min-w-0 gap-2 self-center md:gap-3">
                                         <!-- Thumbnail -->
                                         <div
                                             class="flex h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200/50 dark:bg-slate-700 dark:ring-slate-600/50 md:h-16 md:w-24"
