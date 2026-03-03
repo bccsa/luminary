@@ -1,9 +1,9 @@
-import { initConfig, SharedConfig } from "./config";
+import { config, initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
 import { HttpReq } from "./rest/http";
 import { getRest } from "./rest/RestApi";
-import { initSync } from "./rest/sync2/sync";
-import { getSocket } from "./socket/socketio";
+import { initSync, updateSyncToken } from "./rest/sync2/sync";
+import { getSocket, reconnectWithToken } from "./socket/socketio";
 
 /**
  * Initialize the Luminary database
@@ -26,3 +26,15 @@ export async function init(config: SharedConfig) {
     const http = new HttpReq(config.apiUrl || "", config.token);
     initSync(http);
 }
+
+/**
+ * Update the auth token on all connections (socket, REST, sync).
+ * Used after authenticating to upgrade from guest to full access.
+ */
+export function updateAuthToken(token: string) {
+    if (config) config.token = token;
+    reconnectWithToken(token);
+    updateSyncToken(token);
+    getRest({ reset: true });
+}
+

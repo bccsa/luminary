@@ -160,13 +160,8 @@ class Database extends Dexie {
             navigator?.storage?.persisted && (await navigator?.storage?.persisted());
 
         if (!isPersistent) {
-            navigator?.storage?.persist().then((granted) => {
-                if (granted) {
-                    console.log("Permission to change storage persistence was granted");
-                } else {
-                    console.log("Permission to change storage persistence was denied");
-                }
-            });
+            void navigator?.storage?.persist();
+            // Grant/deny not logged; app continues with best-effort storage either way.
         }
     }
 

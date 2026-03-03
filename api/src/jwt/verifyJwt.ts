@@ -11,22 +11,7 @@ export type TrustedProviderShape = Pick<
     | "claimMappings"
     | "userFieldMappings"
     | "groupAssignments"
-    | "isGuestProvider"
 >;
-
-/**
- * Get the Guest provider (isGuestProvider === true). Used when no JWT or no domain match.
- * Returns undefined if none configured.
- */
-export async function getGuestProvider(
-    db: DbService,
-): Promise<TrustedProviderShape | undefined> {
-    const result = await db.getDocsByType(DocType.OAuthProvider);
-    const guest = result.docs?.find(
-        (p: Record<string, unknown>) => p.isGuestProvider === true,
-    ) as TrustedProviderShape | undefined;
-    return guest;
-}
 
 const jwksClients = new Map<string, JwksClient>();
 
@@ -57,20 +42,9 @@ async function verifyJwtWithJwks(
     }) as JWT.JwtPayload;
 }
 
-function tryVerifyWithSecret(
-    jwt: string,
-): { jwtPayload: JWT.JwtPayload } | undefined {
-    try {
-        const secret = (process.env.JWT_SECRET ?? "").replace(/\\n/g, "\n");
-        const jwtPayload = JWT.verify(jwt, secret) as JWT.JwtPayload;
-        return { jwtPayload };
-    } catch {
-        return undefined;
-    }
-}
-
 /**
- * Verify JWT via JWKS (trusted OIDC provider) or fallback JWT_SECRET. Returns payload and matched provider when applicable.
+ * Verify JWT via JWKS against a trusted OAuthProvider. The token's issuer domain
+ * must match a configured provider. Returns the verified payload and matched provider.
  */
 export async function verifyJwtAndMatchProvider(
     jwt: string,
@@ -82,59 +56,49 @@ export async function verifyJwtAndMatchProvider(
 > {
     const decoded = JWT.decode(jwt, { complete: true });
     if (!decoded || typeof decoded === "string" || !decoded.header.kid) {
-        return tryVerifyWithSecret(jwt);
+        logger?.warn("JWT missing kid header — cannot verify via JWKS");
+        return undefined;
     }
 
     const kid = decoded.header.kid;
     const payload = decoded.payload as JWT.JwtPayload;
     const iss = payload?.iss;
-    if (!iss) return tryVerifyWithSecret(jwt);
+    if (!iss) {
+        logger?.warn("JWT missing issuer claim");
+        return undefined;
+    }
 
     let domain: string;
     try {
         domain = new URL(iss).hostname.toLowerCase();
     } catch {
-        return tryVerifyWithSecret(jwt);
+        logger?.warn("JWT issuer is not a valid URL", { iss });
+        return undefined;
     }
-    if (!domain) return tryVerifyWithSecret(jwt);
+    if (!domain) return undefined;
 
     const providerResult = await db.getDocsByType(DocType.OAuthProvider);
-    const matchingDomain = (providerResult.docs ?? []).filter(
+    const provider = (providerResult.docs ?? []).find(
         (p: Record<string, unknown>) =>
             String(p.domain ?? "").toLowerCase() === domain,
-    );
-    // Prefer non-Guest provider when multiple share the same domain
-    const trustedProvider = matchingDomain.find(
-        (p: Record<string, unknown>) => !p.isGuestProvider,
-    ) ?? matchingDomain[0];
-    const provider = trustedProvider as TrustedProviderShape | undefined;
+    ) as TrustedProviderShape | undefined;
 
-    if (provider) {
-        try {
-            const jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-            return { jwtPayload, matchedProvider: provider };
-        } catch (err) {
-            logger?.warn("JWKS verification failed, falling back to JWT_SECRET", {
-                domain,
-                kid,
-                message: err instanceof Error ? err.message : String(err),
-            });
-            // fall through to JWT_SECRET
-        }
+    if (!provider) {
+        logger?.warn("No OAuthProvider configured for domain", { domain });
+        return undefined;
     }
 
-    // No domain match: if JWT verifies with secret, treat as Guest provider so single path
-    const secretResult = tryVerifyWithSecret(jwt);
-    if (secretResult) {
-        const guestProvider = await getGuestProvider(db);
-        if (guestProvider) {
-            return {
-                jwtPayload: secretResult.jwtPayload,
-                matchedProvider: guestProvider,
-            };
-        }
+    try {
+        const jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
+        return { jwtPayload, matchedProvider: provider };
+    } catch (err) {
+        logger?.error("JWKS verification failed", {
+            domain,
+            kid,
+            message: err instanceof Error ? err.message : String(err),
+        });
+        return undefined;
     }
-    return secretResult;
 }
 
 export function clearJwksClients() {

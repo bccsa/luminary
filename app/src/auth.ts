@@ -9,7 +9,7 @@ export type AuthPlugin = Auth0Plugin & {
     logout: () => Promise<void>;
 };
 
-const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
+const SESSION_PROVIDER_KEY = "sessionOAuthProviderId";
 const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
 
 /**
@@ -36,11 +36,9 @@ export function clearAuth0Cache(): void {
     }
 
     keysToRemove.forEach((key) => localStorage.removeItem(key));
-
-    // Clear connection and retry state from previous provider
     localStorage.removeItem("usedAuth0Connection");
     localStorage.removeItem("auth0AuthFailedRetryCount");
-    // Do NOT remove SELECTED_PROVIDER_KEY here, as we want to persist it until explicitly changed or login with new provider succeeds
+    sessionStorage.removeItem(SESSION_PROVIDER_KEY);
 }
 
 import { db, DocType, type OAuthProviderDto } from "luminary-shared";
@@ -84,16 +82,8 @@ async function getProviderConfig(): Promise<ProviderConfig | undefined> {
             .toArray()) as OAuthProviderDto[];
 
         if (providers.length > 0) {
-            const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-            const urlParams = new URLSearchParams(window.location.search);
-            const proposedId = urlParams.get("providerId");
-            const isLoginFlow =
-                urlParams.has("providerId") || urlParams.has("code") || urlParams.has("state");
-
-            let idToUse = selectedId;
-            if (isLoginFlow && proposedId) {
-                idToUse = proposedId;
-            }
+            const selectedId = sessionStorage.getItem(SESSION_PROVIDER_KEY);
+            const idToUse = selectedId ?? undefined;
 
             const selected = idToUse ? providers.find((p) => p._id === idToUse) : providers[0];
             const provider = selected ?? providers[0];
@@ -118,6 +108,7 @@ async function getProviderConfig(): Promise<ProviderConfig | undefined> {
 
 /**
  * Get available OAuth providers from the local DB (synced; OAuthProvider has public view access).
+ * Providers with isGuestProvider are excluded so only real login options (e.g. Auth0) are shown.
  */
 export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]> {
     try {
@@ -128,20 +119,19 @@ export async function getAvailableProviders(): Promise<OAuthProviderPublicDto[]>
             .equals(DocType.OAuthProvider)
             .toArray()) as OAuthProviderDto[];
 
-        // Exclude Guest provider so it is never shown on the login list
-        const visible = docs.filter((d) => !(d as Record<string, unknown>).isGuestProvider);
-        return visible.map((d) => ({
-            id: d._id,
-            label: d.label,
-            domain: d.domain ?? "",
-            clientId: d.clientId ?? "",
-            audience: d.audience ?? "",
-            icon: d.icon,
-            iconOpacity: d.iconOpacity,
-            textColor: d.textColor,
-            backgroundColor: d.backgroundColor,
-            isGuestProvider: (d as Record<string, unknown>).isGuestProvider,
-        })) as OAuthProviderPublicDto[];
+        return docs
+            .filter((d) => !d.isGuestProvider)
+            .map((d) => ({
+                id: d._id,
+                label: d.label,
+                domain: d.domain ?? "",
+                clientId: d.clientId ?? "",
+                audience: d.audience ?? "",
+                icon: d.icon,
+                iconOpacity: d.iconOpacity,
+                textColor: d.textColor,
+                backgroundColor: d.backgroundColor,
+            })) as OAuthProviderPublicDto[];
     } catch {
         return [];
     }
@@ -155,6 +145,13 @@ export async function loginWithProvider(
     provider: OAuthProviderPublicDto,
     options?: { prompt?: "login" },
 ) {
+    // Cache provider config so Auth0 SDK can initialize after the redirect page reload
+    cacheProviderConfig({
+        domain: provider.domain,
+        clientId: provider.clientId,
+        audience: provider.audience,
+    });
+
     const web_origin = window.location.origin;
 
     const client = new Auth0Client({
@@ -166,43 +163,31 @@ export async function loginWithProvider(
         authorizationParams: {
             audience: provider.audience,
             scope: "openid profile email offline_access",
-            redirect_uri: `${web_origin}?providerId=${encodeURIComponent(provider.id)}`,
+            redirect_uri: web_origin,
         },
     });
 
     await client.loginWithRedirect({
+        appState: { providerId: provider.id },
         authorizationParams: options?.prompt ? { prompt: options.prompt } : undefined,
     });
 }
 
-/**
- * Get the currently selected OAuth provider ID.
- */
+/** Provider ID for the current session (not in URL or localStorage). */
 export function getSelectedProviderId(): string | undefined {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasProviderId = urlParams.has("providerId");
-    const isCallback = urlParams.has("code") || urlParams.has("state");
-
-    if (hasProviderId && !isCallback) {
-        return undefined;
-    }
-
-    return localStorage.getItem(SELECTED_PROVIDER_KEY) ?? undefined;
+    return sessionStorage.getItem(SESSION_PROVIDER_KEY) ?? undefined;
 }
 
 /**
- * Setup the Auth0 plugin.
+ * Install the Auth0 plugin (or fallback) so useAuth0() is available before the router runs.
+ * Call this before app.use(router).
  */
-async function setupAuth(app: App<Element>, router: Router) {
-    app.config.globalProperties.$auth = null; // Clear existing auth
+export async function installAuth(app: App<Element>): Promise<AuthPlugin> {
+    app.config.globalProperties.$auth = null;
     const web_origin = window.location.origin;
-
     const config = await getProviderConfig();
 
     if (!config) {
-        // No provider config at startup (e.g. sync not run yet). Provide minimal auth so useAuth0() is defined.
-        // Public access is handled by the API permission map (group-public-users), not by this object.
-        // loginWithRedirect triggers real login via getAvailableProviders + loginWithProvider so the Login button works.
         const fallbackAuth = {
             isAuthenticated: ref(false),
             isLoading: ref(false),
@@ -234,13 +219,6 @@ async function setupAuth(app: App<Element>, router: Router) {
         return fallbackAuth;
     }
 
-    // Determine the redirect_uri that was used (must match exactly for code exchange)
-    const urlParams = new URLSearchParams(window.location.search);
-    const providerIdInUrl = urlParams.get("providerId");
-    const redirect_uri = providerIdInUrl
-        ? `${web_origin}?providerId=${encodeURIComponent(providerIdInUrl)}`
-        : web_origin;
-
     const oauth = createAuth0(
         {
             domain: config.domain,
@@ -251,19 +229,26 @@ async function setupAuth(app: App<Element>, router: Router) {
             authorizationParams: {
                 audience: config.audience,
                 scope: "openid profile email offline_access",
-                redirect_uri,
+                redirect_uri: web_origin,
             },
         },
         {
             skipRedirectCallback: true,
         },
     );
+    app.use(oauth);
+    return oauth as AuthPlugin;
+}
 
-    // Handle redirects (Save token to local storage)
+/**
+ * Finish auth setup (redirect callback, logout/login wrappers). Requires router; call after app.use(router).
+ */
+export async function finishAuth(app: App<Element>, router: Router, oauth: AuthPlugin): Promise<void> {
+    const web_origin = window.location.origin;
+
     async function redirectCallback(_url: string) {
         const url = new URL(_url);
         if (!url.searchParams.has("state")) return false;
-
         if (url.searchParams.has("error")) {
             const error = url.searchParams.get("error");
             const errorDescription = url.searchParams.get("error_description");
@@ -271,80 +256,53 @@ async function setupAuth(app: App<Element>, router: Router) {
             alert(`Login error: ${error}\n${errorDescription || ""}`);
             return false;
         }
-
         if (!url.searchParams.has("code")) return false;
 
+        const callbackUrl = url.toString();
+
+        window.history.replaceState({}, document.title, "/");
+
         try {
-            await oauth.handleRedirectCallback(url.toString());
+            const result = await oauth.handleRedirectCallback(callbackUrl);
+            const providerId = (result?.appState as { providerId?: string })?.providerId;
+            if (providerId) {
+                sessionStorage.setItem(SESSION_PROVIDER_KEY, providerId);
+            }
         } catch (err) {
             console.error("Auth0 callback handling failed:", err);
-            // Don't block the app, but log the error
         }
 
-        const to = getRedirectTo() || "/";
-
-        // Remove query string parameters which were included in the callback...
-        const proposedId = url.searchParams.get("providerId");
-        if (proposedId) {
-            localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
-        }
-
-        // Clean the browser URL of auth parameters to prevent them from showing after login
-        window.history.replaceState({}, document.title, to);
-
-        // Explicitly parse the target route to prevent vue-router from carrying over the
-        // initial auth callback query parameters (like providerId, code) when evaluating redirects.
-        const targetUrl = new URL(to, window.location.origin);
-        router.push({
-            path: targetUrl.pathname,
-            query: Object.fromEntries(targetUrl.searchParams),
-        });
-
+        router.push("/");
         return true;
     }
 
-    // Handle redirects, if user needs to login and open the app via link with slug
-    function getRedirectTo(): string {
-        const route = router.currentRoute.value;
-        return (
-            (route.query.redirect_to as string) ||
-            (new URLSearchParams(location.search).get("redirect_to") as string)
-        );
-    }
-
-    app.use(oauth);
-
-    // Handle login
     await redirectCallback(location.href);
 
-    // Handle logout
     const _Logout = oauth.logout;
     (oauth as AuthPlugin).logout = () => {
         clearAuth0Cache();
-        localStorage.removeItem(SELECTED_PROVIDER_KEY);
-        localStorage.removeItem(PROVIDER_CONFIG_CACHE_KEY);
-
         return _Logout({
-            logoutParams: {
-                returnTo: web_origin,
-            },
+            logoutParams: { returnTo: web_origin },
         });
     };
 
-    // Handle login – never pass prompt so Auth0 can use SSO on return-from-logout
     const _LoginWithRedirect = oauth.loginWithRedirect;
-    oauth.loginWithRedirect = () => {
-        return _LoginWithRedirect();
-    };
+    oauth.loginWithRedirect = () => _LoginWithRedirect();
 
     if (oauth.isLoading.value) {
-        // await while loading:
-        await new Promise((resolve) => {
-            watch(oauth.isLoading, () => resolve(void 0), { once: true });
+        await new Promise<void>((resolve) => {
+            watch(oauth.isLoading, () => resolve(), { once: true });
         });
     }
+}
 
-    return oauth as AuthPlugin;
+/**
+ * Setup the Auth0 plugin (install + finish). Call installAuth before app.use(router), then finishAuth after.
+ */
+async function setupAuth(app: App<Element>, router: Router) {
+    const oauth = await installAuth(app);
+    await finishAuth(app, router, oauth);
+    return oauth;
 }
 
 /**
@@ -410,6 +368,9 @@ setTimeout(() => {
 
 export default {
     setupAuth,
+    installAuth,
+    finishAuth,
     loginRedirect,
     getToken,
+    getSelectedProviderId,
 };

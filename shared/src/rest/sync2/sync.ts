@@ -34,6 +34,13 @@ export async function initSync(httpService: HttpReq<any>) {
     await db.getSyncList();
 }
 
+/** Update the token on the sync HTTP service for subsequent requests. */
+export function updateSyncToken(token: string) {
+    if (_httpService) {
+        _httpService.updateToken(token);
+    }
+}
+
 /**
  * Set the cancellation flag to stop all running sync operations.
  * @param value - true to cancel / block sync, false to allow sync
@@ -60,9 +67,11 @@ export function setCancelSync(value: boolean): void {
  * The synchronization runs backwards in time from the latest updatedTimeUtc to older data.
  */
 export async function sync(options: SyncRunnerOptions): Promise<void> {
-    if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
+    if (!_httpService)
+        throw new Error("Sync module not initialized with HTTP service");
 
-    const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+    const deleteCmdSubType =
+        options.type === DocType.Content ? options.subType : options.type;
 
     // Trim and merge syncList before starting sync. We are merging before starting the sync to help
     // prevent issues with the syncList not being properly merged due to e.g. disconnection / app closure
@@ -100,7 +109,9 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         const existingLanguages = getLanguages();
 
         const newLanguages =
-            options.languages.filter((lang) => !existingLanguages.includes(lang)) || [];
+            options.languages.filter(
+                (lang) => !existingLanguages.includes(lang),
+            ) || [];
 
         // Get the unique languages sets from the syncList for the passed language list. This is used to continue syncing
         // partial language sets that has not yet been merged (e.g. if a new language was added and the sync was
@@ -125,7 +136,9 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     // Compare passed memberOf groups with existing groups in the syncList for the given type
     const existingGroups = getGroups(options);
-    const newGroups = options.memberOf.filter((g) => !existingGroups.includes(g));
+    const newGroups = options.memberOf.filter(
+        (g) => !existingGroups.includes(g),
+    );
 
     // Get the unique memberOf group sets from the syncList for the given type. This is used
     // to continue syncing partial group sets that has not yet been merged (e.g. if a new group
@@ -155,7 +168,8 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     });
 
     if (options.includeDeleteCmds && syncResult) {
-        const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+        const deleteCmdSubType =
+            options.type === DocType.Content ? options.subType : options.type;
 
         // Check if there are deleteCmd entries in the syncList for the given type and memberOf groups.
         const hasDeleteCmdEntries = syncList.value.some(
@@ -173,7 +187,10 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             // To prevent issues due to disconnection / app closure while syncing, we are checking if there are deleteCmd entries
             // on every sync run.
             syncList.value.push({
-                chunkType: getChunkTypeString(DocType.DeleteCmd, deleteCmdSubType),
+                chunkType: getChunkTypeString(
+                    DocType.DeleteCmd,
+                    deleteCmdSubType,
+                ),
                 memberOf: options.memberOf,
                 languages: options.languages,
                 blockStart: syncResult.blockStart,
@@ -181,7 +198,11 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
                 eof: syncResult.eof,
             });
 
-            merge({ ...options, type: DocType.DeleteCmd, subType: deleteCmdSubType });
+            merge({
+                ...options,
+                type: DocType.DeleteCmd,
+                subType: deleteCmdSubType,
+            });
         }
 
         // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)

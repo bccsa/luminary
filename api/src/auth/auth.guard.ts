@@ -4,12 +4,13 @@ import {
     Injectable,
     UnauthorizedException,
 } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { FastifyRequest } from "fastify";
+import { DbService } from "../db/db.service";
+import { verifyJwtAndMatchProvider } from "../jwt/verifyJwt";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService) {}
+    constructor(private db: DbService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest<FastifyRequest>();
@@ -17,15 +18,14 @@ export class AuthGuard implements CanActivate {
         if (!token) {
             throw new UnauthorizedException();
         }
-        try {
-            const payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_SECRET,
-            });
 
-            (request as any)["user"] = payload;
-        } catch {
+        const result = await verifyJwtAndMatchProvider(token, this.db);
+        if (!result?.jwtPayload) {
             throw new UnauthorizedException();
         }
+
+        (request as unknown as Record<string, unknown>)["user"] =
+            result.jwtPayload;
         return true;
     }
 

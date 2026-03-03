@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
@@ -17,6 +17,15 @@ const isAuthenticated = computed(
     () => isAuthBypassed || auth0?.isAuthenticated.value,
 );
 const sidebarOpen = ref(false);
+
+// Close login modal when user becomes authenticated (e.g. after returning from OAuth)
+watch(
+    isAuthenticated,
+    (authenticated) => {
+        if (authenticated) showProviderSelectionModal.value = false;
+    },
+    { immediate: true },
+);
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;

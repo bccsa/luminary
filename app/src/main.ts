@@ -35,7 +35,11 @@ async function Startup() {
     // cold-start compilation latency for IndexedDB queries.
     warmMangoCaches();
 
-    const oauth = await auth.setupAuth(app, router);
+    app.use(createPinia());
+    // Install Auth0 plugin before router so useAuth0() is available when router runs (fixes "plugin correctly installed" on refresh)
+    const oauth = await auth.installAuth(app);
+    app.use(router);
+    await auth.finishAuth(app, router, oauth);
 
     const token = await auth.getToken(oauth);
 
@@ -70,8 +74,6 @@ async function Startup() {
     const i18n = await initI18n();
     await loadPlugins();
 
-    app.use(createPinia());
-    app.use(router);
     app.use(i18n);
     app.mount("#app");
     initAppTitle(i18n);

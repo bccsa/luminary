@@ -1,8 +1,4 @@
-import {
-    Auth0Plugin,
-    createAuth0,
-    AUTH0_INJECTION_KEY,
-} from "@auth0/auth0-vue";
+import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
 import { Auth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
@@ -18,8 +14,13 @@ export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
 };
 
-const SELECTED_PROVIDER_KEY = "selectedOAuthProviderId";
-const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
+const SESSION_PROVIDER_KEY = "sessionOAuthProviderId";
+
+/** In-memory only: avoid processing the same callback twice in one page load. */
+const processedCallbackStates = new Set<string>();
+
+/** Set by installAuth so the route guard can access the plugin without redirecting to Auth0. */
+let currentOauth: AuthPlugin | null = null;
 
 /**
  * Reactive flag to show/hide the provider selection modal.
@@ -27,23 +28,40 @@ const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
 export const showProviderSelectionModal = ref(false);
 
 /**
- * Clear Auth0 SDK's localStorage cache and related keys.
+ * Route guard that waits for Auth0 to finish loading, then allows navigation.
+ * If not authenticated, shows the provider selection modal and still allows navigation
+ * (no redirect to Auth0), avoiding an infinite redirect loop after login.
+ */
+export async function cmsAuthGuard(): Promise<boolean | void> {
+    const oauth = currentOauth;
+    if (!oauth || isAuthBypassed) return true;
+    if (oauth.isLoading.value) {
+        await new Promise<void>((resolve) => {
+            watch(oauth.isLoading, (v) => {
+                if (!v) resolve();
+            }, { once: true });
+        });
+    }
+    if (oauth.isAuthenticated.value) return true;
+    // Re-check after a tick (SDK can lag after OAuth callback); only show modal if still not authenticated
+    await Promise.resolve();
+    if (oauth.isAuthenticated.value) return true;
+    showProviderSelectionModal.value = true;
+    return true; // allow navigation; user sees loading state + modal, no redirect to Auth0
+}
+
+/**
+ * Clear app auth state from sessionStorage on logout.
+ * Auth0 SDK uses memory-only cache, so no Auth0 keys are stored.
  */
 export function clearAuth0Cache(): void {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (key.startsWith("@@auth0spajs@@")) keysToRemove.push(key);
-        if (key.startsWith("a0.spajs.txs")) keysToRemove.push(key);
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
-    localStorage.removeItem("usedAuth0Connection");
-    localStorage.removeItem("auth0AuthFailedRetryCount");
+    sessionStorage.removeItem(SESSION_PROVIDER_KEY);
+    processedCallbackStates.clear();
 }
 
 /**
  * Get available OAuth providers from the local DB (synced; OAuthProvider has public view access).
+ * Providers with isGuestProvider are excluded so only real login options (e.g. Auth0) are shown.
  */
 export async function getAvailableProviders(): Promise<
     OAuthProviderPublicDto[]
@@ -56,21 +74,19 @@ export async function getAvailableProviders(): Promise<
             .equals(DocType.OAuthProvider)
             .toArray()) as OAuthProviderDto[];
 
-        // Exclude Guest provider so it is never shown on the login list
-        const visible = docs.filter(
-            (d) => !(d as Record<string, unknown>).isGuestProvider,
-        );
-        return visible.map((d) => ({
-            id: d._id,
-            label: d.label,
-            domain: d.domain ?? "",
-            clientId: d.clientId ?? "",
-            audience: d.audience ?? "",
-            icon: d.icon,
-            iconOpacity: d.iconOpacity,
-            textColor: d.textColor,
-            backgroundColor: d.backgroundColor,
-        })) as OAuthProviderPublicDto[];
+        return docs
+            .filter((d) => !d.isGuestProvider)
+            .map((d) => ({
+                id: d._id,
+                label: d.label,
+                domain: d.domain ?? "",
+                clientId: d.clientId ?? "",
+                audience: d.audience ?? "",
+                icon: d.icon,
+                iconOpacity: d.iconOpacity,
+                textColor: d.textColor,
+                backgroundColor: d.backgroundColor,
+            })) as OAuthProviderPublicDto[];
     } catch {
         return [];
     }
@@ -78,25 +94,29 @@ export async function getAvailableProviders(): Promise<
 
 /**
  * Login with a specific provider.
+ * Stores only provider id in sessionStorage so after redirect we can load config from DB.
  */
 export async function loginWithProvider(
     provider: OAuthProviderPublicDto,
     options?: { prompt?: "login" },
 ): Promise<void> {
+    sessionStorage.setItem(SESSION_PROVIDER_KEY, provider.id);
+
     const webOrigin = window.location.origin;
     const client = new Auth0Client({
         domain: provider.domain,
         clientId: provider.clientId,
         useRefreshTokens: true,
         useRefreshTokensFallback: true,
-        cacheLocation: "localstorage",
+        cacheLocation: "memory",
         authorizationParams: {
             audience: provider.audience,
             scope: "openid profile email offline_access",
-            redirect_uri: `${webOrigin}?providerId=${encodeURIComponent(provider.id)}`,
+            redirect_uri: webOrigin,
         },
     });
     await client.loginWithRedirect({
+        appState: { providerId: provider.id },
         authorizationParams: options?.prompt
             ? { prompt: options.prompt }
             : undefined,
@@ -137,187 +157,131 @@ function createMockAuth(): AuthPlugin {
 
 type ProviderConfig = { domain: string; clientId: string; audience: string };
 
-/**
- * Cache provider config to localStorage so page refreshes can restore
- * the Auth0 session before IndexedDB is ready.
- */
-function cacheProviderConfig(config: ProviderConfig) {
-    localStorage.setItem(PROVIDER_CONFIG_CACHE_KEY, JSON.stringify(config));
+/** Provider ID for the current session (from sessionStorage, set before redirect). */
+export function getSelectedProviderId(): string | undefined {
+    return sessionStorage.getItem(SESSION_PROVIDER_KEY) ?? undefined;
 }
 
-function getCachedProviderConfig(): ProviderConfig | undefined {
-    const raw = localStorage.getItem(PROVIDER_CONFIG_CACHE_KEY);
-    if (!raw) return undefined;
-    try {
-        const parsed = JSON.parse(raw);
-        if (parsed.domain && parsed.clientId) return parsed as ProviderConfig;
-    } catch {
-        /* corrupted cache — ignore */
+/**
+ * Resolve which OAuth provider config to use from IndexedDB only.
+ * Caller must run init() and wait for providers before setupAuth() so DB is ready.
+ */
+async function getProviderConfig(): Promise<ProviderConfig | undefined> {
+    const providers = await getAvailableProviders();
+    if (providers.length === 0) return undefined;
+
+    const selectedId = sessionStorage.getItem(SESSION_PROVIDER_KEY);
+    const idToUse =
+        selectedId ?? (providers.length === 1 ? providers[0].id : undefined);
+    const provider = idToUse
+        ? providers.find((p) => p.id === idToUse)
+        : undefined;
+
+    if (provider?.domain && provider?.clientId) {
+        return {
+            domain: provider.domain,
+            clientId: provider.clientId,
+            audience: provider.audience ?? "",
+        };
     }
     return undefined;
 }
 
 /**
- * Resolve which OAuth provider config to use.
- * Tries IndexedDB first, then falls back to a localStorage cache
- * so page refreshes work before init() has opened the database.
+ * Install the Auth0 plugin before the router so useAuth0() is available when the router runs.
+ * Call installAuth(app), then app.use(router), then finishAuth(app, router, oauth).
+ * Returns null when no provider config is available (e.g. no provider selected yet).
  */
-async function getProviderConfig(): Promise<ProviderConfig | undefined> {
-    const urlParams = new URLSearchParams(window.location.search);
-    const providers = await getAvailableProviders();
-
-    if (providers.length > 0) {
-        const providerIdInUrl = urlParams.get("providerId");
-        const selectedId = localStorage.getItem(SELECTED_PROVIDER_KEY);
-        const idToUse =
-            providerIdInUrl ??
-            selectedId ??
-            (providers.length === 1 ? providers[0].id : undefined);
-        const provider = idToUse
-            ? providers.find((p) => p.id === idToUse)
-            : undefined;
-
-        if (provider?.domain && provider?.clientId) {
-            const config: ProviderConfig = {
-                domain: provider.domain,
-                clientId: provider.clientId,
-                audience: provider.audience ?? "",
-            };
-            cacheProviderConfig(config);
-            return config;
-        }
-    }
-
-    // db not ready or no providers synced yet — fall back to localStorage cache
-    return getCachedProviderConfig();
-}
-
-/**
- * Setup the Auth0 plugin.
- */
-async function setupAuth(app: App<Element>, router: Router) {
-    // If auth bypass is enabled, return a mock auth plugin
+async function installAuth(app: App<Element>): Promise<AuthPlugin | null> {
     if (isAuthBypassed) {
         console.warn(
             "⚠️ Auth bypass mode enabled - this should only be used for development/E2E testing",
         );
         const mockAuth = createMockAuth();
         app.config.globalProperties.$auth = mockAuth;
+        currentOauth = mockAuth;
         return mockAuth;
     }
 
-    app.config.globalProperties.$auth = null;
-    const webOrigin = window.location.origin;
     const config = await getProviderConfig();
+    if (!config) return null;
 
-    if (!config) {
-        const fallbackAuth = {
-            isAuthenticated: ref(false),
-            isLoading: ref(false),
-            user: ref(undefined),
-            idTokenClaims: ref(undefined),
-            error: ref(undefined),
-            loginWithRedirect: async () => {
-                const providers = await getAvailableProviders();
-                if (providers.length === 0) {
-                    showProviderSelectionModal.value = true;
-                    return;
-                }
-                if (providers.length > 1) {
-                    showProviderSelectionModal.value = true;
-                    return;
-                }
-                await loginWithProvider(providers[0], { prompt: "login" });
-            },
-            logout: async () => {},
-            getAccessTokenSilently: async () => undefined as unknown as string,
-            loginWithPopup: async () => {},
-            handleRedirectCallback: async () =>
-                ({}) as unknown as ReturnType<
-                    AuthPlugin["handleRedirectCallback"]
-                >,
-            checkSession: async () => {},
-        } as unknown as AuthPlugin;
-        app.provide(AUTH0_INJECTION_KEY, fallbackAuth);
-        app.config.globalProperties.$auth = fallbackAuth;
-        app.config.globalProperties.$auth0 = fallbackAuth;
-        return fallbackAuth;
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const providerIdInUrl = urlParams.get("providerId");
-    const redirectUri = providerIdInUrl
-        ? `${webOrigin}?providerId=${encodeURIComponent(providerIdInUrl)}`
-        : webOrigin;
-
+    const webOrigin = window.location.origin;
     const oauth = createAuth0(
         {
             domain: config.domain,
             clientId: config.clientId,
             useRefreshTokens: true,
             useRefreshTokensFallback: true,
-            cacheLocation: "localstorage",
+            cacheLocation: "memory",
             authorizationParams: {
                 audience: config.audience,
                 scope: "openid profile email offline_access",
-                redirect_uri: redirectUri,
+                redirect_uri: webOrigin,
             },
         },
         { skipRedirectCallback: true },
     );
+    app.use(oauth);
+    currentOauth = oauth as AuthPlugin;
+    return oauth as AuthPlugin;
+}
 
-    function getRedirectTo(): string {
-        const route = router.currentRoute.value;
-        return (
-            (route.query.redirect_to as string) ||
-            (new URLSearchParams(location.search).get(
-                "redirect_to",
-            ) as string) ||
-            "/"
-        );
-    }
+/**
+ * Finish auth setup (redirect callback, logout/login wrappers). Requires router; call after app.use(router).
+ * Runs the OAuth callback and strips code/state from the URL once the router is active.
+ */
+async function finishAuth(
+    _app: App<Element>,
+    router: Router,
+    oauth: AuthPlugin,
+): Promise<void> {
+    const webOrigin = window.location.origin;
 
     async function redirectCallback(_url: string) {
         const url = new URL(_url);
         if (!url.searchParams.has("state")) return false;
         if (url.searchParams.has("error")) {
             const error = url.searchParams.get("error");
-            console.error(error);
-            alert(error);
+            const errorDescription = url.searchParams.get("error_description");
+            console.error("Auth0 callback error:", error, errorDescription);
+            alert(`Login error: ${error}\n${errorDescription ?? ""}`);
             return false;
         }
         if (!url.searchParams.has("code")) return false;
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
-        const proposedId = url.searchParams.get("providerId");
-        if (proposedId) localStorage.setItem(SELECTED_PROVIDER_KEY, proposedId);
+        const callbackUrl = url.toString();
+        const pathWithoutQuery = url.pathname || "/";
 
-        const to = getRedirectTo();
+        // Strip callback params from the address bar immediately (and when we won't process, e.g. duplicate state)
+        window.history.replaceState({}, document.title, pathWithoutQuery);
 
-        // Clean the browser URL of auth parameters to prevent them from showing after login
-        window.history.replaceState({}, document.title, to);
+        const state = url.searchParams.get("state") ?? "";
+        if (processedCallbackStates.has(state)) return false;
+        processedCallbackStates.add(state);
 
-        // Explicitly parse the target route to prevent vue-router from carrying over the
-        // initial auth callback query parameters (like providerId, code) when evaluating redirects.
-        const targetUrl = new URL(to, window.location.origin);
-        router.push({
-            path: targetUrl.pathname,
-            query: Object.fromEntries(targetUrl.searchParams),
-        });
+        try {
+            const result = await oauth.handleRedirectCallback(callbackUrl);
+            const providerId = (result?.appState as { providerId?: string })
+                ?.providerId;
+            if (providerId) {
+                sessionStorage.setItem(SESSION_PROVIDER_KEY, providerId);
+            }
+        } catch (err) {
+            console.error("Auth0 callback handling failed:", err);
+        }
 
+        // Clean URL again in case the SDK overwrote it
+        window.history.replaceState({}, document.title, pathWithoutQuery);
+        router.push(pathWithoutQuery);
         return true;
     }
 
-    app.use(oauth);
     await redirectCallback(location.href);
 
     const _Logout = oauth.logout;
     (oauth as AuthPlugin).logout = (retrying = false) => {
         clearAuth0Cache();
-        if (!retrying) {
-            localStorage.removeItem(SELECTED_PROVIDER_KEY);
-            localStorage.removeItem(PROVIDER_CONFIG_CACHE_KEY);
-        }
         return _Logout({
             logoutParams: {
                 returnTo: retrying ? webOrigin : `${webOrigin}?loggedOut`,
@@ -339,71 +303,61 @@ async function setupAuth(app: App<Element>, router: Router) {
             watch(oauth.isLoading, () => resolve(), { once: true });
         });
     }
-
-    return oauth as AuthPlugin;
 }
 
 /**
  * Redirect the user to the login page.
- * Always shows the provider selection modal first when any providers exist; redirect to Auth0 only after the user selects a provider.
+ * Always shows the provider selection modal first; redirect to Auth0 only after the user selects a provider.
+ * When there are no providers (e.g. only guest or sync not ready), show the modal and do not redirect.
  */
-async function loginRedirect(oauth: AuthPlugin) {
+async function loginRedirect(_oauth: AuthPlugin) {
     const providers = await getAvailableProviders();
     if (providers.length >= 1) {
         showProviderSelectionModal.value = true;
         return;
     }
 
-    const { loginWithRedirect, logout } = oauth;
-    const usedConnection = localStorage.getItem("usedAuth0Connection");
-    const retryCount = parseInt(
-        localStorage.getItem("auth0AuthFailedRetryCount") || "0",
-    );
-
-    if (retryCount < 2) {
-        localStorage.setItem(
-            "auth0AuthFailedRetryCount",
-            (retryCount + 1).toString(),
-        );
-        await loginWithRedirect({
-            authorizationParams: {
-                connection: usedConnection ?? undefined,
-                redirect_uri: window.location.origin,
-            },
-        });
-        return;
-    }
-
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem("usedAuth0Connection");
-    await logout();
+    // No providers to choose from (e.g. only guest in DB or sync not ready). Show modal so we do not redirect with a stale cached config.
+    showProviderSelectionModal.value = true;
+    return;
 }
 
 /**
  * Get the user's auth token. Redirect to login if necessary.
+ * Waits for Auth0 to finish loading, then tries getAccessTokenSilently before showing the login modal
+ * so we don't flash the modal on refresh or when returning from OAuth callback.
  */
 async function getToken(oauth: AuthPlugin) {
-    const { isAuthenticated, getAccessTokenSilently } = oauth;
+    const { getAccessTokenSilently, isLoading } = oauth;
 
-    if (isAuthenticated.value) {
+    if (isLoading.value) {
+        await new Promise<void>((resolve) => {
+            watch(isLoading, (v) => {
+                if (!v) resolve();
+            }, { once: true });
+        });
+    }
+    await Promise.resolve();
+
+    const tryGetToken = () => getAccessTokenSilently();
+
+    try {
+        return await tryGetToken();
+    } catch {
+        // Retry once after a short delay (SDK can lag after OAuth callback or refresh)
+        await new Promise((r) => setTimeout(r, 150));
         try {
-            return await getAccessTokenSilently();
+            return await tryGetToken();
         } catch (err) {
             Sentry.captureException(err);
             await loginRedirect(oauth);
         }
-    } else {
-        await loginRedirect(oauth);
     }
 }
 
-// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
-setTimeout(() => {
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-}, 10000);
-
 export default {
-    setupAuth,
+    installAuth,
+    finishAuth,
     loginRedirect,
     getToken,
 };

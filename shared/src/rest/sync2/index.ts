@@ -1,3 +1,8 @@
-export { sync, initSync, setCancelSync } from "./sync";
+export {
+    sync,
+    initSync,
+    setCancelSync,
+    updateSyncToken,
+} from "./sync";
 export { trim } from "./trim";
 export * from "./types";
