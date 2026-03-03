@@ -11,6 +11,7 @@ import {
     updateSearchIndex,
     getSearchIndexSize,
     rebuildSearchIndex,
+    registerSearchIndexSync,
     type LuminarySearchResult,
     type LuminarySearchOptions,
 } from "../search";
@@ -220,6 +221,7 @@ export function useSearch() {
     async function initializeWithAutoSync(): Promise<void> {
         setupAutoSync();
         await initialize();
+        registerSearchIndexSync();
     }
 
     // Computed properties using global state
