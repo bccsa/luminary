@@ -164,16 +164,26 @@ describe("UserOverview", () => {
             expect(saveButton.exists()).toBe(true);
         });
 
-        // const saveSpy = vi
-        //     .spyOn(restModule.getRest(), "changeRequest")
-        //     .mockResolvedValue({ ack: "Accepted" });
+        const originalChangeRequest = restModule.getRest().changeRequest;
+        let changeRequestCalled = false;
+        let changeRequestCallArgs: any = null;
 
-        // await saveButton!.trigger("click");
+        restModule.getRest().changeRequest = vi.fn(async (args) => {
+            changeRequestCalled = true;
+            changeRequestCallArgs = args;
+            return { ack: "Accepted" };
+        });
 
-        // await waitForExpect(() => {
-        //     expect(saveSpy).toHaveBeenCalled();
-        //     expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
-        // });
+        try {
+            await saveButton!.trigger("click");
+
+            await waitForExpect(() => {
+                expect(changeRequestCalled).toBe(true);
+                expect(changeRequestCallArgs).toEqual(expect.objectContaining({ id: 1 }));
+            });
+        } finally {
+            restModule.getRest().changeRequest = originalChangeRequest;
+        }
     });
 
     it("can correctly query the api", async () => {
