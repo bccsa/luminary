@@ -9,9 +9,9 @@ import {
     removeFromSearchIndex,
     removeAllFromSearchIndex,
     updateSearchIndex,
-    getSearchIndexSize,
     rebuildSearchIndex,
     registerSearchIndexSync,
+    searchIndexSizeRef,
     type LuminarySearchResult,
     type LuminarySearchOptions,
 } from "../search";
@@ -19,8 +19,8 @@ import {
 // Singleton state - shared across all components using useSearch()
 const globalIsInitialized = ref(false);
 const globalIsInitializing = ref(false);
-const globalIndexSize = ref(0);
 const globalError = ref<string | null>(null);
+const globalIsRebuilding = ref(false);
 
 // Track if we've set up the auto-sync watcher
 const autoSyncWatcherSetUp = ref(false);
@@ -49,8 +49,7 @@ export function useSearch() {
         try {
             await initializeSearchIndex();
             globalIsInitialized.value = true;
-            globalIndexSize.value = getSearchIndexSize();
-            console.log(`Search index initialized with ${globalIndexSize.value} documents`);
+            console.log(`Search index initialized with ${searchIndexSizeRef.value} documents`);
         } catch (err) {
             console.error("Failed to initialize search index:", err);
             globalError.value =
@@ -106,7 +105,6 @@ export function useSearch() {
         }
 
         addToSearchIndex(doc);
-        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
@@ -123,7 +121,6 @@ export function useSearch() {
         }
 
         addAllToSearchIndex(docs);
-        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
@@ -136,7 +133,6 @@ export function useSearch() {
         }
 
         removeFromSearchIndex(docId);
-        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
@@ -153,7 +149,6 @@ export function useSearch() {
         }
 
         removeAllFromSearchIndex(docIds);
-        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
@@ -166,21 +161,26 @@ export function useSearch() {
         }
 
         updateSearchIndex(doc);
-        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
      * Rebuild the search index from scratch
      */
     async function rebuild(): Promise<void> {
+        if (globalIsRebuilding.value) return;
+        globalIsRebuilding.value = true;
         globalIsInitialized.value = false;
         results.value = [];
         query.value = "";
 
-        await rebuildSearchIndex();
-
-        globalIsInitialized.value = true;
-        globalIndexSize.value = getSearchIndexSize();
+        try {
+            await rebuildSearchIndex();
+            globalIsInitialized.value = true;
+        } catch (err) {
+            console.error("Failed to rebuild search index:", err);
+        } finally {
+            globalIsRebuilding.value = false;
+        }
     }
 
     /**
@@ -227,7 +227,7 @@ export function useSearch() {
     // Computed properties using global state
     const isInitialized = computed(() => globalIsInitialized.value);
     const isInitializing = computed(() => globalIsInitializing.value);
-    const indexSize = computed(() => globalIndexSize.value);
+    const indexSize = computed(() => searchIndexSizeRef.value);
     const error = computed(() => globalError.value);
     const hasResults = computed(() => results.value.length > 0);
     const resultCount = computed(() => results.value.length);
