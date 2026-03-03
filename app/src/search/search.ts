@@ -313,10 +313,10 @@ export async function initializeSearchIndex(): Promise<void> {
             return;
         }
 
-        // Filter valid documents and add them
+        // Filter valid documents and add them (async to avoid blocking main thread with large doc sets)
         const validDocs = docs.filter(isValidDocument);
         if (validDocs.length > 0) {
-            miniSearch.addAll(validDocs);
+            await miniSearch.addAllAsync(validDocs, { chunkSize: 100 });
         }
 
         console.log(
