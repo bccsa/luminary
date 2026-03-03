@@ -1,15 +1,19 @@
 import { INestApplication } from "@nestjs/common";
-import { processJwt, parseJwtMap, clearJwtMap } from "./processJwt";
+import {
+    processJwt,
+    clearGroupNameCache,
+    clearJwksClients,
+} from "./processJwt";
 import { createTestingModule } from "../test/testingModule";
 import { DbService } from "../db/db.service";
-import configuration from "../configuration";
 import { UserDto } from "src/dto/UserDto";
 
 describe("processJwt", () => {
     let db: DbService;
 
     async function createNestApp(): Promise<INestApplication> {
-        const { testingModule, dbService } = await createTestingModule("process-jwt");
+        const { testingModule, dbService } =
+            await createTestingModule("process-jwt");
         db = dbService;
         return testingModule.createNestApplication();
     }
@@ -20,27 +24,8 @@ describe("processJwt", () => {
 
     afterEach(() => {
         jest.clearAllMocks();
-        clearJwtMap();
-    });
-
-    it("can parse a jwt map", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "groups": {
-                        "group-super-admins": "() => true"
-                    },
-                    "userId": "() => '12345678'",
-                    "email": "() => 'editor1@users.test'",
-                    "name": "() => 'Test User'"
-                }`,
-            },
-        });
-
-        const parsed = parseJwtMap(configuration().auth.jwtMappings);
-
-        expect(parsed["groups"]["group-super-admins"]("any jwt data")).toBe(true);
+        clearGroupNameCache();
+        clearJwksClients();
     });
 
     it("can process a JWT token and return mapped groups and extracted user details", async () => {
@@ -116,7 +101,10 @@ describe("processJwt", () => {
 
         await processJwt("any jwt data", db);
 
-        const res = await db.getUserByIdOrEmail("updated@email.address", "editor1");
+        const res = await db.getUserByIdOrEmail(
+            "updated@email.address",
+            "editor1",
+        );
         const userDocs = res.docs as UserDto[];
 
         expect(userDocs.length).toBe(1); // We have not yet added another user with the same email address
