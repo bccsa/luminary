@@ -98,6 +98,18 @@ export function initSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
+            if (access[DocType.OAuthProvider] && access[DocType.OAuthProvider].length) {
+                sync({
+                    type: DocType.OAuthProvider,
+                    memberOf: access[DocType.OAuthProvider],
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    console.error("Error during oauth provider sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync post content docs
             if (access[DocType.Post] && access[DocType.Post].length) {
                 sync({
@@ -150,19 +162,6 @@ export function initSync() {
                     cms: false,
                 }).catch((err) => {
                     console.error("Error during storage sync:", err);
-                    Sentry?.captureException(err);
-                });
-            }
-
-            // Sync OAuth Providers
-            if (access[DocType.OAuthProvider] && access[DocType.OAuthProvider].length) {
-                sync({
-                    type: DocType.OAuthProvider,
-                    memberOf: access[DocType.OAuthProvider],
-                    limit: 100,
-                    cms: false,
-                }).catch((err) => {
-                    console.error("Error during OAuth provider sync:", err);
                     Sentry?.captureException(err);
                 });
             }
