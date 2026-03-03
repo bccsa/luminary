@@ -476,6 +476,29 @@ export function search(
             return true;
         });
 
+        // Re-rank: exact phrase matches first (title, then body), then by MiniSearch score
+        const normalizedPhrase = normalizedQuery
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((t) => t.length > 0)
+            .join(" ");
+        if (normalizedPhrase) {
+            filteredResults.sort((a, b) => {
+                const phraseRank = (r: (typeof filteredResults)[0]): number => {
+                    const titleLower = r.title ? String(r.title).toLowerCase() : "";
+                    if (titleLower.includes(normalizedPhrase)) return 0;
+                    const textPlain = r.text ? extractPlainText(r.text) : "";
+                    const summaryPlain = r.summary ? extractPlainText(r.summary) : "";
+                    const body = (textPlain + " " + summaryPlain).toLowerCase();
+                    return body.includes(normalizedPhrase) ? 1 : 2;
+                };
+                const ra = phraseRank(a);
+                const rb = phraseRank(b);
+                if (ra !== rb) return ra - rb;
+                return (b.score ?? 0) - (a.score ?? 0);
+            });
+        }
+
         // Add highlighting to results
         const resultsWithHighlights = filteredResults
             .map((result) => {
