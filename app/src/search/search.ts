@@ -43,6 +43,8 @@ function createMiniSearch(): MiniSearch<ContentDto> {
             "language",
             "status",
             "parentId",
+            "parentImageData",
+            "parentImageBucketId",
         ],
         // Default search options
         searchOptions: {

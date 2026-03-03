@@ -10,6 +10,7 @@ import { useSearch } from "@/composables/useSearch";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import type { LuminarySearchResult } from "@/search";
 import { useRouter } from "vue-router";
+import LImage from "@/components/images/LImage.vue";
 
 const router = useRouter();
 
@@ -238,7 +239,7 @@ const overlayClasses = computed(() => {
 });
 
 const modalClasses = computed(() => {
-    return "md:rounded-xl md:shadow-2xl md:max-w-2xl w-full md:h-auto h-full md:max-h-[70vh]";
+    return "md:rounded-xl md:shadow-2xl w-full md:max-w-3xl md:h-auto h-full md:max-h-[75vh]";
 });
 
 // Expose toggle for parent components
@@ -274,15 +275,15 @@ defineExpose({
                 >
                     <!-- Search Header -->
                     <div
-                        class="flex items-center gap-3 border-b border-zinc-200 p-4 dark:border-slate-700"
+                        class="flex items-center gap-3 border-b border-zinc-200 p-4 md:p-5 dark:border-slate-700"
                     >
-                        <MagnifyingGlassIcon class="h-5 w-5 flex-shrink-0 text-zinc-400" />
+                        <MagnifyingGlassIcon class="h-5 w-5 md:h-6 md:w-6 flex-shrink-0 text-zinc-400" />
                         <input
                             ref="inputRef"
                             v-model="searchQuery"
                             type="text"
                             :placeholder="$t('search.placeholder') || 'Search content...'"
-                            class="flex-1 bg-transparent text-lg text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100"
+                            class="flex-1 bg-transparent text-base md:text-lg text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100"
                             autocomplete="off"
                             @keydown="handleInputKeydown"
                         />
@@ -307,26 +308,26 @@ defineExpose({
                         <!-- Loading State -->
                         <div
                             v-if="isSearching"
-                            class="p-4"
+                            class="p-4 md:p-5"
                         >
-                            <div class="space-y-3">
+                            <div class="space-y-3 md:space-y-4">
                                 <div
                                     v-for="i in 3"
                                     :key="i"
-                                    class="flex gap-3"
+                                    class="flex gap-3 md:gap-4"
                                 >
                                     <div
-                                        class="h-16 w-24 flex-shrink-0 animate-pulse rounded-md bg-zinc-200 dark:bg-slate-700"
+                                        class="h-12 w-16 md:h-16 md:w-24 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700"
                                     ></div>
                                     <div class="flex-1 space-y-2">
                                         <div
-                                            class="h-4 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
+                                            class="h-4 md:h-5 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
                                         ></div>
                                         <div
-                                            class="h-3 w-full animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
+                                            class="h-3 md:h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
                                         ></div>
                                         <div
-                                            class="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
+                                            class="h-3 md:h-4 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-slate-700"
                                         ></div>
                                     </div>
                                 </div>
@@ -336,24 +337,24 @@ defineExpose({
                         <!-- No Index / Not Initialized -->
                         <div
                             v-else-if="!isInitialized && searchQuery"
-                            class="p-8 text-center"
+                            class="p-8 md:p-10 text-center"
                         >
                             <DocumentTextIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600"
+                                class="mx-auto h-12 w-12 md:h-14 md:w-14 text-zinc-300 dark:text-slate-600"
                             />
-                            <p class="mt-2 text-sm text-zinc-500">
+                            <p class="mt-2 text-sm md:text-base text-zinc-500 dark:text-slate-400">
                                 {{ $t("search.initializing") || "Initializing search index..." }}
                             </p>
                         </div>
 
                         <div
                             v-else-if="isInitialized && indexSize === 0"
-                            class="p-8 text-center"
+                            class="p-8 md:p-10 text-center"
                         >
                             <DocumentTextIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600"
+                                class="mx-auto h-12 w-12 md:h-14 md:w-14 text-zinc-300 dark:text-slate-600"
                             />
-                            <p class="mt-2 text-sm text-zinc-500">
+                            <p class="mt-2 text-sm md:text-base text-zinc-500 dark:text-slate-400">
                                 {{ $t("search.noIndex") || "Search index is empty" }}
                             </p>
                         </div>
@@ -362,70 +363,91 @@ defineExpose({
                         <div
                             v-else-if="showResults && results.length > 0"
                             id="search-results-container"
-                            class="max-h-[60vh] overflow-y-auto"
+                            class="max-h-[60vh] md:max-h-[65vh] overflow-y-auto py-2 md:py-3"
                         >
-                            <ul class="divide-y divide-zinc-100 dark:divide-slate-800">
+                            <ul class="divide-y divide-zinc-200 dark:divide-slate-700">
                                 <li
                                     v-for="(result, index) in results"
                                     :key="result.id"
                                     :id="`search-result-${index}`"
-                                    class="cursor-pointer px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-slate-800"
+                                    class="group cursor-pointer px-3 py-2.5 md:px-4 md:py-3 transition-colors first:pt-0 last:pb-0 hover:bg-zinc-50 dark:hover:bg-slate-800/70"
                                     :class="{
-                                        'bg-yellow-50 dark:bg-yellow-900/20':
+                                        'bg-zinc-50 dark:bg-slate-800/70':
                                             index === selectedIndex,
                                     }"
                                     @click="goToResult(result)"
                                     @mouseenter="selectedIndex = index"
                                 >
-                                    <div class="flex gap-3">
-                                        <!-- Thumbnail placeholder -->
+                                    <div class="flex gap-3 md:gap-4 items-start min-w-0">
+                                        <!-- Thumbnail -->
                                         <div
-                                            class="flex h-16 w-24 flex-shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-slate-700"
+                                            class="flex h-12 w-16 md:h-16 md:w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-slate-700 ring-1 ring-zinc-200/50 dark:ring-slate-600/50"
                                         >
+                                            <LImage
+                                                v-if="result.parentImageData?.fileCollections?.length"
+                                                :image="result.parentImageData"
+                                                :content-parent-id="result.parentId"
+                                                :parent-image-bucket-id="result.parentImageBucketId"
+                                                size="small"
+                                                aspect-ratio="video"
+                                                class="h-full w-full object-cover"
+                                            />
                                             <DocumentTextIcon
-                                                class="h-8 w-8 text-zinc-300 dark:text-slate-500"
+                                                v-else
+                                                class="h-6 w-6 md:h-8 md:w-8 text-zinc-400 dark:text-slate-500"
                                             />
                                         </div>
-                                        <div class="flex-1 overflow-hidden">
+                                        <!-- Content -->
+                                        <div class="flex-1 min-w-0">
                                             <h3
-                                                class="font-medium text-zinc-900 dark:text-slate-100"
+                                                class="truncate font-semibold text-zinc-900 dark:text-slate-100 text-sm md:text-base leading-tight"
                                                 :class="{
-                                                    'text-yellow-700 dark:text-yellow-400':
+                                                    'text-amber-600 dark:text-amber-400':
                                                         index === selectedIndex,
                                                 }"
                                             >
                                                 {{ result.title }}
                                             </h3>
+                                            <!-- Snippet: highlight when available, else summary -->
                                             <p
-                                                v-if="result.summary"
-                                                class="mt-1 line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+                                                v-if="result.highlight"
+                                                class="mt-0.5 md:mt-1 line-clamp-2 text-xs md:text-sm text-zinc-600 dark:text-slate-400 leading-snug"
+                                                v-html="result.highlight"
+                                            ></p>
+                                            <p
+                                                v-else-if="result.summary"
+                                                class="mt-0.5 md:mt-1 line-clamp-2 text-xs md:text-sm text-zinc-600 dark:text-slate-400 leading-snug"
                                             >
                                                 {{ result.summary }}
                                             </p>
-                                            <!-- Highlighted text snippet -->
-                                            <p
-                                                v-if="result.highlight"
-                                                class="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-slate-300"
-                                                v-html="result.highlight"
-                                            ></p>
+                                            <!-- Meta -->
                                             <div
-                                                class="mt-2 flex items-center gap-3 text-xs text-zinc-400"
+                                                v-if="result.author || result.language"
+                                                class="mt-1 flex items-center gap-1.5 text-[11px] md:text-xs text-zinc-400 dark:text-slate-500"
                                             >
-                                                <span v-if="result.author">{{
+                                                <span v-if="result.author" class="truncate">{{
                                                     result.author
                                                 }}</span>
                                                 <span
+                                                    v-if="result.author && result.language"
+                                                    class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
+                                                    aria-hidden="true"
+                                                >·</span>
+                                                <span
                                                     v-if="result.language"
-                                                    class="uppercase"
+                                                    class="flex-shrink-0 uppercase tracking-wide"
                                                     >{{ result.language }}</span
                                                 >
                                             </div>
                                         </div>
+                                        <!-- Arrow -->
                                         <div
-                                            v-if="index === selectedIndex"
-                                            class="flex items-center text-zinc-400"
+                                            class="flex flex-shrink-0 items-center pt-0.5 text-zinc-400 dark:text-slate-500"
+                                            :class="{
+                                                'text-amber-500 dark:text-amber-400': index === selectedIndex,
+                                            }"
                                         >
-                                            <ArrowRightIcon class="h-4 w-4" />
+                                            <ArrowRightIcon class="h-4 w-4 md:h-5 md:w-5" />
                                         </div>
                                     </div>
                                 </li>
@@ -435,7 +457,7 @@ defineExpose({
 
                     <!-- Search Footer -->
                     <div
-                        class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex"
+                        class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 md:px-5 md:py-2.5 text-xs md:text-sm text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex"
                     >
                         <div class="flex items-center gap-4">
                             <span class="flex items-center gap-1">
