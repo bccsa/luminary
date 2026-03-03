@@ -5,7 +5,9 @@ import {
     initializeSearchIndex,
     search as doSearch,
     addToSearchIndex,
+    addAllToSearchIndex,
     removeFromSearchIndex,
+    removeAllFromSearchIndex,
     updateSearchIndex,
     getSearchIndexSize,
     rebuildSearchIndex,
@@ -14,43 +16,47 @@ import {
 } from "../search";
 
 // Singleton state - shared across all components using useSearch()
-const query = ref("");
-const results = ref<LuminarySearchResult[]>([]);
-const isInitialized = ref(false);
-const isInitializing = ref(false);
-const indexSize = ref(0);
-const error = ref<string | null>(null);
+const globalIsInitialized = ref(false);
+const globalIsInitializing = ref(false);
+const globalIndexSize = ref(0);
+const globalError = ref<string | null>(null);
 
 // Track if we've set up the auto-sync watcher
 const autoSyncWatcherSetUp = ref(false);
 
 /**
  * Composable for using MiniSearch functionality in Vue components
- * Uses singleton pattern - all components share the same initialized state
+ * Uses singleton pattern for initialization, but provides local state for queries/results
  */
 export function useSearch() {
+    // Local state per component instance
+    const query = ref("");
+    const results = ref<LuminarySearchResult[]>([]);
+
     /**
      * Initialize the search index
      * Call this after the app has synced data from the server
      */
     async function initialize(): Promise<void> {
-        if (isInitialized.value || isInitializing.value) {
+        if (globalIsInitialized.value || globalIsInitializing.value) {
             return;
         }
 
-        isInitializing.value = true;
-        error.value = null;
+        globalIsInitializing.value = true;
+        globalError.value = null;
 
         try {
             await initializeSearchIndex();
-            isInitialized.value = true;
-            indexSize.value = getSearchIndexSize();
-            console.log(`Search index initialized with ${indexSize.value} documents`);
+            globalIsInitialized.value = true;
+            globalIndexSize.value = getSearchIndexSize();
+            console.log(`Search index initialized with ${globalIndexSize.value} documents`);
         } catch (err) {
             console.error("Failed to initialize search index:", err);
-            error.value = err instanceof Error ? err.message : "Failed to initialize search index";
+            globalError.value =
+                err instanceof Error ? err.message : "Failed to initialize search index";
+            throw err;
         } finally {
-            isInitializing.value = false;
+            globalIsInitializing.value = false;
         }
     }
 
@@ -65,16 +71,27 @@ export function useSearch() {
         options: LuminarySearchOptions = {},
     ): LuminarySearchResult[] {
         // Auto-initialize if not initialized and we have a query
-        if (!isInitialized.value && !isInitializing.value && searchQuery.trim()) {
+        if (!globalIsInitialized.value && !globalIsInitializing.value && searchQuery.trim()) {
             // Initialize asynchronously, but still perform search
             initialize();
         }
 
-        if (!isInitialized.value) {
+        if (!globalIsInitialized.value) {
             return [];
         }
 
-        const searchResults = doSearch(searchQuery, options);
+        return doSearch(searchQuery, options);
+    }
+
+    /**
+     * Perform a search and update local results
+     */
+    function performSearch(
+        searchQuery: string,
+        options: LuminarySearchOptions = {},
+    ): LuminarySearchResult[] {
+        const searchResults = search(searchQuery, options);
+        results.value = searchResults;
         return searchResults;
     }
 
@@ -82,49 +99,87 @@ export function useSearch() {
      * Add a document to the search index
      */
     function addDocument(doc: ContentDto): void {
-        if (!isInitialized.value) {
+        if (!globalIsInitialized.value) {
             console.warn("Search index not initialized. Call initialize() first.");
             return;
         }
 
         addToSearchIndex(doc);
-        indexSize.value = getSearchIndexSize();
+        globalIndexSize.value = getSearchIndexSize();
+    }
+
+    /**
+     * Add multiple documents to the search index
+     */
+    function addDocuments(docs: ContentDto[]): void {
+        if (!globalIsInitialized.value) {
+            console.warn("Search index not initialized. Call initialize() first.");
+            return;
+        }
+
+        if (!docs || docs.length === 0) {
+            return;
+        }
+
+        addAllToSearchIndex(docs);
+        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
      * Remove a document from the search index
      */
     function removeDocument(docId: string): void {
-        if (!isInitialized.value) {
+        if (!globalIsInitialized.value) {
             console.warn("Search index not initialized. Call initialize() first.");
             return;
         }
 
         removeFromSearchIndex(docId);
-        indexSize.value = getSearchIndexSize();
+        globalIndexSize.value = getSearchIndexSize();
+    }
+
+    /**
+     * Remove multiple documents from the search index
+     */
+    function removeDocuments(docIds: string[]): void {
+        if (!globalIsInitialized.value) {
+            console.warn("Search index not initialized. Call initialize() first.");
+            return;
+        }
+
+        if (!docIds || docIds.length === 0) {
+            return;
+        }
+
+        removeAllFromSearchIndex(docIds);
+        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
      * Update a document in the search index
      */
     function updateDocument(doc: ContentDto): void {
-        if (!isInitialized.value) {
+        if (!globalIsInitialized.value) {
             console.warn("Search index not initialized. Call initialize() first.");
             return;
         }
 
         updateSearchIndex(doc);
-        indexSize.value = getSearchIndexSize();
+        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
      * Rebuild the search index from scratch
      */
     async function rebuild(): Promise<void> {
-        isInitialized.value = false;
+        globalIsInitialized.value = false;
+        results.value = [];
+        query.value = "";
+
         await rebuildSearchIndex();
-        isInitialized.value = true;
-        indexSize.value = getSearchIndexSize();
+
+        globalIsInitialized.value = true;
+        globalIndexSize.value = getSearchIndexSize();
     }
 
     /**
@@ -136,7 +191,7 @@ export function useSearch() {
 
         // Watch for connection status - reinitialize when coming back online
         watch(isConnected, async (connected) => {
-            if (connected && !isInitialized.value && !isInitializing.value) {
+            if (connected && !globalIsInitialized.value && !globalIsInitializing.value) {
                 // Wait a bit for sync to populate data
                 setTimeout(() => {
                     initialize();
@@ -148,7 +203,7 @@ export function useSearch() {
         watch(
             appLanguageIdsAsRef,
             async () => {
-                if (isInitialized.value) {
+                if (globalIsInitialized.value) {
                     await rebuild();
                 }
             },
@@ -167,27 +222,36 @@ export function useSearch() {
         await initialize();
     }
 
-    // Computed properties
+    // Computed properties using global state
+    const isInitialized = computed(() => globalIsInitialized.value);
+    const isInitializing = computed(() => globalIsInitializing.value);
+    const indexSize = computed(() => globalIndexSize.value);
+    const error = computed(() => globalError.value);
     const hasResults = computed(() => results.value.length > 0);
     const resultCount = computed(() => results.value.length);
 
     return {
-        // State
+        // Local state
         query,
         results,
-        isInitialized: computed(() => isInitialized.value),
-        isInitializing: computed(() => isInitializing.value),
-        indexSize: computed(() => indexSize.value),
-        error: computed(() => error.value),
         hasResults,
         resultCount,
+
+        // Global state
+        isInitialized,
+        isInitializing,
+        indexSize,
+        error,
 
         // Methods
         initialize,
         initializeWithAutoSync,
         search,
+        performSearch,
         addDocument,
+        addDocuments,
         removeDocument,
+        removeDocuments,
         updateDocument,
         rebuild,
         setupAutoSync,

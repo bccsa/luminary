@@ -13,7 +13,7 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const { search, isInitialized, indexSize } = useSearch();
+const { performSearch, isInitialized, indexSize } = useSearch();
 
 // Use global search overlay state
 const { isSearchOpen, closeSearch } = useSearchOverlay();
@@ -28,31 +28,39 @@ const modalRef = ref<HTMLDivElement | null>(null);
 const selectedIndex = ref(-1);
 const isSearching = ref(false);
 
+// Debounce timer
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Clean up debounce timer
+function clearSearchTimeout(): void {
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+    }
+}
+
 // Watch global state and sync local state
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
         // Clear search when closed
+        clearSearchTimeout();
         searchQuery.value = "";
         results.value = [];
         showResults.value = false;
         selectedIndex.value = -1;
+        isSearching.value = false;
     } else {
         // Focus input when opened so user can type immediately
-        setTimeout(() => {
+        nextTick(() => {
             inputRef.value?.focus();
-        }, 100);
+        });
     }
 });
 
-// Debounce timer
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-
 // Watch for search query changes and perform search
 watch(searchQuery, (newQuery) => {
-    if (searchTimeout) {
-        clearTimeout(searchTimeout);
-    }
+    clearSearchTimeout();
 
     if (!newQuery.trim()) {
         results.value = [];
@@ -63,23 +71,19 @@ watch(searchQuery, (newQuery) => {
     }
 
     // Debounce search
+    isSearching.value = true;
     searchTimeout = setTimeout(() => {
         if (isInitialized.value) {
-            isSearching.value = true;
-            results.value = search(newQuery, {
-                status: "published",
-            });
-            showResults.value = results.value.length > 0;
-            selectedIndex.value = results.value.length > 0 ? 0 : -1;
-            // Reset searching after a small delay to show loading state
-            setTimeout(() => {
-                isSearching.value = false;
-            }, 100);
+            const searchResults = performSearch(newQuery);
+            results.value = searchResults;
+            showResults.value = searchResults.length > 0;
+            selectedIndex.value = searchResults.length > 0 ? 0 : -1;
         }
+        isSearching.value = false;
     }, 150);
 });
 
-// Keyboard navigation
+// Handle arrow key navigation
 const handleKeydown = (event: KeyboardEvent) => {
     // Handle Cmd/Ctrl+K to toggle search
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
@@ -99,11 +103,27 @@ const handleKeydown = (event: KeyboardEvent) => {
         return;
     }
 
-    // Handle Enter when we have results (on the modal div)
-    if (showResults.value && results.value.length > 0 && event.key === "Enter") {
-        event.preventDefault();
-        if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
-            goToResult(results.value[selectedIndex.value]);
+    // Arrow navigation in results
+    if (showResults.value && results.value.length > 0) {
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
+            return;
+        }
+
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
+            return;
+        }
+
+        // Handle Enter to select current result
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
+                goToResult(results.value[selectedIndex.value]);
+            }
+            return;
         }
     }
 };
@@ -117,16 +137,33 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         return;
     }
 
-    // Handle Enter when we have results
-    if (showResults.value && results.value.length > 0 && event.key === "Enter") {
-        event.preventDefault();
-        if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
-            goToResult(results.value[selectedIndex.value]);
+    // Arrow navigation
+    if (showResults.value && results.value.length > 0) {
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
+            return;
+        }
+
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
+            return;
+        }
+
+        // Handle Enter when we have results
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
+                goToResult(results.value[selectedIndex.value]);
+            }
+            return;
         }
     }
 };
 
 const clearSearch = () => {
+    clearSearchTimeout();
     searchQuery.value = "";
     results.value = [];
     showResults.value = false;
@@ -152,19 +189,20 @@ const goToResult = (result: LuminarySearchResult) => {
 const toggleSearch = () => {
     isOpen.value = !isOpen.value;
     if (isOpen.value) {
-        setTimeout(() => {
+        nextTick(() => {
             inputRef.value?.focus();
-        }, 100);
+        });
     } else {
         closeSearch();
     }
 };
 
-// Global keyboard shortcut (Cmd/Ctrl + K) - handled in onMounted
+// Global keyboard shortcut (Cmd/Ctrl + K)
+let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
     // Global keyboard listener for Cmd/Ctrl+K when search is closed
-    const handleGlobalKeydown = (event: KeyboardEvent) => {
+    handleGlobalKeydown = (event: KeyboardEvent) => {
         // Handle Cmd/Ctrl+K to toggle search
         if ((event.metaKey || event.ctrlKey) && event.key === "k") {
             // Only handle when search is not open
@@ -184,11 +222,14 @@ onMounted(() => {
     };
 
     document.addEventListener("keydown", handleGlobalKeydown);
+});
 
-    // Cleanup
-    onUnmounted(() => {
+// Cleanup
+onUnmounted(() => {
+    if (handleGlobalKeydown) {
         document.removeEventListener("keydown", handleGlobalKeydown);
-    });
+    }
+    clearSearchTimeout();
 });
 
 // Computed for responsive classes
@@ -389,30 +430,6 @@ defineExpose({
                                     </div>
                                 </li>
                             </ul>
-                        </div>
-
-                        <!-- No Results -->
-                        <div
-                            v-else-if="searchQuery.trim() && isInitialized && results.length === 0"
-                            class="p-8 text-center"
-                        >
-                            <MagnifyingGlassIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600"
-                            />
-                            <p class="mt-2 text-sm text-zinc-500">
-                                {{ $t("search.noResults") || "No results found" }}
-                            </p>
-                            <p class="mt-1 text-xs text-zinc-400">Try different keywords</p>
-                        </div>
-
-                        <!-- Empty State -->
-                        <div
-                            v-else-if="!searchQuery"
-                            class="p-8 text-center"
-                        >
-                            <p class="text-sm text-zinc-500">
-                                {{ $t("search.startTyping") || "Start typing to search..." }}
-                            </p>
                         </div>
                     </div>
 
