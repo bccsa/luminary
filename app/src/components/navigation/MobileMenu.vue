@@ -2,9 +2,12 @@
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 // Use global search overlay
 const { isSearchOpen, openSearch } = useSearchOverlay();
+
+const { t } = useI18n();
 
 // Check if search is currently active (overlay is open)
 const isSearchActive = computed(() => isSearchOpen.value);
@@ -70,7 +73,7 @@ const handleSearchClick = () => {
                     { 'text-yellow-700 dark:text-yellow-400': isSearchActive },
                 ]"
             >
-                {{ $t("menu.search") }}
+                {{ t("menu.search") }}
             </span>
         </div>
     </div>
