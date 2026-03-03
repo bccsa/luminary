@@ -153,8 +153,14 @@ describe("UserOverview", () => {
             expect(emailInput.exists()).toBe(true);
         });
 
+        const nameInput = editUserComp.find('[name="userName"]');
+        await waitForExpect(() => {
+            expect(nameInput.exists()).toBe(true);
+        });
+
         await emailInput.setValue("test@example.com");
-        await emailInput.trigger("change");
+
+        await nameInput.setValue("New Test User");
 
         let saveButton;
         await waitForExpect(() => {
