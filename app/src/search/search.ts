@@ -18,10 +18,6 @@ export interface LuminarySearchOptions extends SearchOptions {
      * Filter by languages. If not specified, all languages are included.
      */
     languages?: string[];
-    /**
-     * Filter by publish status. Defaults to published only.
-     */
-    status?: "published" | "draft" | "all";
 }
 
 let miniSearch: MiniSearch<ContentDto> | null = null;
@@ -38,6 +34,7 @@ function createMiniSearch(): MiniSearch<ContentDto> {
         // Store fields so we can return them in search results
         storeFields: [
             "_id",
+            "type",
             "title",
             "author",
             "summary",
@@ -124,6 +121,18 @@ function extractPlainTextFromObject(obj: unknown): string {
 }
 
 /**
+ * Escape HTML special characters so content can be safely used in v-html
+ */
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+/**
  * Extract and highlight matching terms from search results
  * @param result - The search result from MiniSearch
  * @param query - The original search query
@@ -147,55 +156,69 @@ function createHighlight(
         return undefined;
     }
 
-    // Get matched terms from MiniSearch result
-    const match = result.match as Record<string, string[]> | undefined;
-    if (!match) {
+    // Get matched terms from MiniSearch result - ensure it's an object
+    const match = result.match;
+    if (!match || typeof match !== "object" || Object.keys(match).length === 0) {
         return undefined;
     }
 
-    // Get all matched terms (keys from the match object)
-    const matchedTerms = Object.keys(match);
-    if (matchedTerms.length === 0) {
+    // Get the original query terms exactly once and cache them
+    const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+
+    if (queryTerms.length === 0) {
         return undefined;
     }
 
-    // Also extract plain text from summary for fallback
+    // Extract plain text from summary for fallback
     const summaryText = result.summary ? extractPlainText(result.summary) : "";
 
-    // Find the best position to excerpt from the text
-    // Priority: text field matches > summary matches > title matches
+    // Determine which field to excerpt from (prefer matched field over others)
     let searchText = text;
-    if (match.text) {
-        // Use the full text if text field matched
+    const matchHasText = "text" in match && (Array.isArray(match.text) ? match.text.length > 0 : match.text);
+    const matchHasSummary = "summary" in match && (Array.isArray(match.summary) ? match.summary.length > 0 : match.summary);
+    if (matchHasText) {
         searchText = text;
-    } else if (match.summary && summaryText) {
-        // Use summary if that matched
+    } else if (matchHasSummary && summaryText) {
         searchText = summaryText;
+    } else if ("author" in match && result.author) {
+        searchText = String(result.author);
     }
 
-    // Find the earliest occurrence of any matched term in the search text
+    // Find the earliest occurrence of any query term in the search text
     let bestPosition = -1;
-    for (const term of matchedTerms) {
+    for (const term of queryTerms) {
         const position = searchText.toLowerCase().indexOf(term.toLowerCase());
         if (position !== -1 && (bestPosition === -1 || position < bestPosition)) {
             bestPosition = position;
         }
     }
 
-    // If no match found in text, try to find in title
-    if (bestPosition === -1 && match.title && result.title) {
-        bestPosition = (result.title as string)
-            .toLowerCase()
-            .indexOf(matchedTerms[0].toLowerCase());
-        if (bestPosition !== -1) {
-            searchText = result.title as string;
+    // Fallback: try title if no match found in primary text
+    if (bestPosition === -1 && "title" in match && result.title) {
+        const titleText = String(result.title).toLowerCase();
+        const termPos = titleText.indexOf(queryTerms[0]);
+        if (termPos !== -1) {
+            bestPosition = 0;
+            searchText = String(result.title);
         }
     }
 
-    // If still no match, just use the beginning of the text
+    // Fallback: try author if no match found in text/summary/title
+    if (bestPosition === -1 && "author" in match && result.author) {
+        const authorText = String(result.author).toLowerCase();
+        const termPos = authorText.indexOf(queryTerms[0]);
+        if (termPos !== -1) {
+            bestPosition = 0;
+            searchText = String(result.author);
+        }
+    }
+
+    // Last resort: use the beginning of text
     if (bestPosition === -1) {
         bestPosition = 0;
-        searchText = text;
     }
 
     // Calculate the excerpt window around the match
@@ -203,78 +226,68 @@ function createHighlight(
     const start = Math.max(0, bestPosition - contextBefore);
     let excerpt = searchText.substring(start, start + maxLength);
 
-    // Add ellipsis if we're not at the beginning
+    // Add ellipsis markers
     if (start > 0) {
         excerpt = "..." + excerpt;
     }
 
-    // Add ellipsis if we're not at the end
-    const actualText = match.text ? text : searchText;
-    if (start + maxLength < actualText.length) {
+    // Check if there's more content after our excerpt
+    if (start + maxLength < searchText.length) {
         excerpt = excerpt + "...";
     }
 
-    // Highlight consecutive query terms together, including ALL words between them
-    // This handles cases like searching for "Oliver moved" where text has "Oliver quickly moved"
-
-    // Get the original query terms
-    const queryTerms = query
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((t) => t.length > 0);
-
-    // Only highlight terms that actually exist in the excerpt (case-insensitive check)
+    // Identify which terms appear in the excerpt for highlighting
     const excerptLower = excerpt.toLowerCase();
-    const termsToHighlight = queryTerms.filter((term) => {
-        return excerptLower.includes(term);
-    });
+    const termsToHighlight = queryTerms.filter((term) => excerptLower.includes(term));
 
-    let highlightedExcerpt = excerpt;
+    if (termsToHighlight.length === 0) {
+        return escapeHtml(excerpt); // Safe plain excerpt for v-html
+    }
 
-    // If we have 2+ terms, highlight the entire span from first to last term
-    if (termsToHighlight.length >= 2) {
-        // Find position of first term
-        let firstPos = -1;
-        let lastPos = -1;
-
-        for (const term of termsToHighlight) {
-            const pos = excerptLower.indexOf(term);
-            if (pos !== -1) {
-                if (firstPos === -1 || pos < firstPos) {
-                    firstPos = pos;
-                }
-                if (pos + term.length > lastPos) {
-                    lastPos = pos + term.length;
-                }
-            }
-        }
-
-        if (firstPos !== -1 && lastPos !== -1) {
-            // Get the text before, the highlighted span (from first to last term), and the text after
-            const beforeSpan = excerpt.substring(0, firstPos);
-            const highlightedSpan = excerpt.substring(firstPos, lastPos);
-            const afterSpan = excerpt.substring(lastPos);
-
-            // Wrap the entire span (including gap words) in one highlight
-            highlightedExcerpt =
-                beforeSpan +
-                '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">' +
-                highlightedSpan +
-                "</mark>" +
-                afterSpan;
-        }
-    } else if (termsToHighlight.length === 1) {
-        // Single term - highlight it
-        const term = termsToHighlight[0];
-        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regex = new RegExp(`(${escaped})`, "gi");
-        highlightedExcerpt = excerpt.replace(
-            regex,
-            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">$1</mark>',
+    // Prefer exact phrase match: if the full query appears in the excerpt, highlight it as one continuous span
+    const normalizedPhrase = queryTerms.join(" ");
+    const phrasePos = excerptLower.indexOf(normalizedPhrase);
+    if (phrasePos !== -1) {
+        const before = excerpt.substring(0, phrasePos);
+        const phrase = excerpt.substring(phrasePos, phrasePos + normalizedPhrase.length);
+        const after = excerpt.substring(phrasePos + normalizedPhrase.length);
+        return (
+            escapeHtml(before) +
+            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">' +
+            escapeHtml(phrase) +
+            "</mark>" +
+            escapeHtml(after)
         );
     }
 
-    return highlightedExcerpt;
+    // Otherwise highlight each query term as whole words only (word boundaries avoid "in" inside "missing")
+    const pattern = termsToHighlight
+        .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+    const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
+    let built = "";
+    let lastIndex = 0;
+    for (const m of excerpt.matchAll(regex)) {
+        built +=
+            escapeHtml(excerpt.slice(lastIndex, m.index)) +
+            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">' +
+            escapeHtml(m[0]) +
+            "</mark>";
+        lastIndex = (m.index ?? 0) + m[0].length;
+    }
+    built += escapeHtml(excerpt.slice(lastIndex));
+    return built;
+}
+
+/**
+ * Validate that a document is suitable for indexing
+ */
+function isValidDocument(doc: unknown): doc is ContentDto {
+    if (!doc || typeof doc !== "object") {
+        return false;
+    }
+    const d = doc as Record<string, unknown>;
+    return !!(d._id && d.title);
 }
 
 /**
@@ -289,16 +302,28 @@ export async function initializeSearchIndex(): Promise<void> {
 
     miniSearch = createMiniSearch();
 
-    // Get all content documents from IndexedDB
-    const docs = await db.docs.where("type").equals(DocType.Content).toArray();
+    try {
+        // Get all content documents from IndexedDB
+        const docs = await db.docs.where("type").equals(DocType.Content).toArray();
 
-    // Add all documents to the index
-    if (docs.length > 0) {
-        const contentDocs = docs as ContentDto[];
-        miniSearch.addAll(contentDocs);
+        if (!docs || docs.length === 0) {
+            console.log("Search index initialized with 0 documents");
+            return;
+        }
+
+        // Filter valid documents and add them
+        const validDocs = docs.filter(isValidDocument);
+        if (validDocs.length > 0) {
+            miniSearch.addAll(validDocs);
+        }
+
+        console.log(
+            `Search index initialized with ${validDocs.length} of ${docs.length} documents`,
+        );
+    } catch (error) {
+        console.error("Failed to initialize search index:", error);
+        throw error;
     }
-
-    console.log(`Search index initialized with ${docs.length} documents`);
 }
 
 /**
@@ -310,12 +335,32 @@ export function addToSearchIndex(doc: ContentDto): void {
         return;
     }
 
-    // Only index content documents
-    if (doc.type !== DocType.Content) {
+    // Only index content documents with required fields
+    if (doc.type !== DocType.Content || !isValidDocument(doc)) {
         return;
     }
 
     miniSearch.add(doc);
+}
+
+/**
+ * Add multiple documents to the search index
+ * More efficient than calling addToSearchIndex multiple times
+ */
+export function addAllToSearchIndex(docs: ContentDto[]): void {
+    if (!miniSearch) {
+        console.warn("Search index not initialized. Call initializeSearchIndex first.");
+        return;
+    }
+
+    if (!docs || docs.length === 0) {
+        return;
+    }
+
+    const validDocs = docs.filter((doc) => doc.type === DocType.Content && isValidDocument(doc));
+    if (validDocs.length > 0) {
+        miniSearch.addAll(validDocs);
+    }
 }
 
 /**
@@ -327,13 +372,42 @@ export function removeFromSearchIndex(docId: string): void {
         return;
     }
 
+    if (!docId) {
+        return;
+    }
+
     miniSearch.discard(docId);
+}
+
+/**
+ * Remove multiple documents from the search index
+ * More efficient than calling removeFromSearchIndex multiple times
+ */
+export function removeAllFromSearchIndex(docIds: string[]): void {
+    if (!miniSearch) {
+        console.warn("Search index not initialized. Call initializeSearchIndex first.");
+        return;
+    }
+
+    if (!docIds || docIds.length === 0) {
+        return;
+    }
+
+    for (const docId of docIds) {
+        if (docId) {
+            miniSearch.discard(docId);
+        }
+    }
 }
 
 /**
  * Update a document in the search index (remove then add)
  */
 export function updateSearchIndex(doc: ContentDto): void {
+    if (!isValidDocument(doc)) {
+        return;
+    }
+
     removeFromSearchIndex(doc._id);
     addToSearchIndex(doc);
 }
@@ -344,54 +418,73 @@ export function updateSearchIndex(doc: ContentDto): void {
  * @param options - Search options
  * @returns Array of search results with document
  */
-export function search(query: string, options: LuminarySearchOptions = {}): LuminarySearchResult[] {
+export function search(
+    query: string,
+    options: LuminarySearchOptions = {},
+): LuminarySearchResult[] {
     if (!miniSearch) {
         console.warn("Search index not initialized. Call initializeSearchIndex first.");
         return [];
     }
 
-    if (!query || !query.trim()) {
+    // Normalize and validate query
+    const normalizedQuery = query ? query.trim() : "";
+    if (!normalizedQuery) {
         return [];
     }
 
     try {
-        // Default options for MiniSearch
-        const searchOptions: SearchOptions = {
-            fuzzy: options.fuzzy ?? 0.2,
-            prefix: options.prefix ?? true,
-        };
+        // Build search options, only including provided values
+        const searchOptions: SearchOptions = {};
 
-        // Only add boost if it's provided and not empty
+        if (options.fuzzy !== undefined) {
+            searchOptions.fuzzy = options.fuzzy;
+        }
+
+        if (options.prefix !== undefined) {
+            searchOptions.prefix = options.prefix;
+        } else {
+            searchOptions.prefix = true; // Default to true
+        }
+
         if (options.boost && Object.keys(options.boost).length > 0) {
             searchOptions.boost = options.boost;
         }
 
-        // Only add combineWith if it's provided
         if (options.combineWith) {
             searchOptions.combineWith = options.combineWith;
         }
 
-        const results = miniSearch.search(query.trim(), searchOptions);
+        // Perform the search
+        const rawResults = miniSearch.search(normalizedQuery, searchOptions);
 
-        // MiniSearch returns stored fields directly on the result object, not in a 'doc' property
-        // Filter results after search
-        const filteredResults = results.filter((result) => {
-            // Check if result has the required fields
-            if (!result._id || !result.title) {
+        // Apply Luminary filters (types, languages). Docs from API are already filtered by status.
+        const typesFilter = options.types ?? [DocType.Content];
+        const languagesFilter = options.languages;
+
+        const filteredResults = rawResults.filter((result) => {
+            if (!result._id || !result.title) return false;
+            if (result.type !== undefined && !typesFilter.includes(result.type as DocType)) return false;
+            if (
+                languagesFilter &&
+                languagesFilter.length > 0 &&
+                result.language !== undefined &&
+                !languagesFilter.includes(String(result.language))
+            ) {
                 return false;
             }
-
             return true;
         });
 
         // Add highlighting to results
-        const resultsWithHighlights = filteredResults.map((result) => {
-            const highlight = createHighlight(result, query.trim());
-            return {
-                ...result,
-                highlight,
-            } as LuminarySearchResult;
-        });
+        const resultsWithHighlights = filteredResults
+            .map((result) => {
+                const highlight = createHighlight(result, normalizedQuery);
+                return {
+                    ...result,
+                    highlight,
+                } as LuminarySearchResult;
+            });
 
         return resultsWithHighlights;
     } catch (error) {
