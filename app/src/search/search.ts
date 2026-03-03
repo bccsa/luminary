@@ -292,9 +292,12 @@ function isValidDocument(doc: unknown): doc is ContentDto {
     return !!(d._id && d.title);
 }
 
+const INDEX_LOAD_BATCH_SIZE = 100;
+
 /**
  * Initialize the search index from IndexedDB
- * Call this after the app has synced data from the server
+ * Loads content in batches to avoid holding all documents in memory at once.
+ * Call this after the app has synced data from the server.
  */
 export async function initializeSearchIndex(): Promise<void> {
     if (miniSearch) {
@@ -305,23 +308,30 @@ export async function initializeSearchIndex(): Promise<void> {
     miniSearch = createMiniSearch();
 
     try {
-        // Get all content documents from IndexedDB
-        const docs = await db.docs.where("type").equals(DocType.Content).toArray();
+        let totalIndexed = 0;
+        let offset = 0;
 
-        if (!docs || docs.length === 0) {
-            console.log("Search index initialized with 0 documents");
-            return;
-        }
+        // Load content in batches from IndexedDB so we never hold all docs in memory
+        let batch: ContentDto[];
+        do {
+            batch = (await db.docs
+                .where("type")
+                .equals(DocType.Content)
+                .offset(offset)
+                .limit(INDEX_LOAD_BATCH_SIZE)
+                .toArray()) as ContentDto[];
 
-        // Filter valid documents and add them (async to avoid blocking main thread with large doc sets)
-        const validDocs = docs.filter(isValidDocument);
-        if (validDocs.length > 0) {
-            await miniSearch.addAllAsync(validDocs, { chunkSize: 100 });
-        }
+            if (batch.length > 0) {
+                const validDocs = batch.filter(isValidDocument);
+                if (validDocs.length > 0) {
+                    await miniSearch.addAllAsync(validDocs, { chunkSize: 50 });
+                    totalIndexed += validDocs.length;
+                }
+                offset += INDEX_LOAD_BATCH_SIZE;
+            }
+        } while (batch.length === INDEX_LOAD_BATCH_SIZE);
 
-        console.log(
-            `Search index initialized with ${validDocs.length} of ${docs.length} documents`,
-        );
+        console.log(`Search index initialized with ${totalIndexed} documents`);
     } catch (error) {
         console.error("Failed to initialize search index:", error);
         throw error;
