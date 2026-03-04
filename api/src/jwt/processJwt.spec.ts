@@ -1,12 +1,26 @@
 import { INestApplication } from "@nestjs/common";
-import {
-    processJwt,
-    clearGroupNameCache,
-    clearJwksClients,
-} from "./processJwt";
+import { processJwt, clearGroupNameCache } from "./processJwt";
+import * as verifyJwt from "./verifyJwt";
 import { createTestingModule } from "../test/testingModule";
 import { DbService } from "../db/db.service";
 import { UserDto } from "src/dto/UserDto";
+import type { TrustedProviderShape } from "./verifyJwt";
+import type { JwtPayload } from "jsonwebtoken";
+
+jest.mock("./verifyJwt", () => ({
+    verifyJwtAndMatchProvider: jest.fn(),
+    clearJwksClients: jest.fn(),
+}));
+
+function mockVerified(
+    jwtPayload: JwtPayload,
+    matchedProvider: TrustedProviderShape,
+) {
+    (verifyJwt.verifyJwtAndMatchProvider as jest.Mock).mockResolvedValue({
+        jwtPayload,
+        matchedProvider,
+    });
+}
 
 describe("processJwt", () => {
     let db: DbService;
@@ -25,79 +39,67 @@ describe("processJwt", () => {
     afterEach(() => {
         jest.clearAllMocks();
         clearGroupNameCache();
-        clearJwksClients();
+        (verifyJwt.clearJwksClients as jest.Mock).mockClear();
     });
 
     it("can process a JWT token and return mapped groups and extracted user details", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "groups": {
-                        "group-super-admins": "() => true"
+        mockVerified(
+            {
+                sub: "editor1",
+                email: "editor1@users.test",
+                name: "Test User",
+            } as JwtPayload,
+            {
+                groupAssignments: [
+                    {
+                        groupId: "group-super-admins",
+                        conditions: [{ type: "always" as const }],
                     },
-                    "userId": "() => 'editor1'",
-                    "email": "() => 'editor1@users.test'",
-                    "name": "() => 'Test User'"
-                }`,
+                ],
             },
-        });
+        );
 
-        // await createNestApp("process-jwt" + i);
         const evaluated = await processJwt("any jwt data", db);
 
         expect(evaluated.groups).toContain("group-super-admins");
-        expect(evaluated.userId).toBe("editor1"); // included in the JWT_MAPPINGS
+        expect(evaluated.userId).toBe("editor1");
         expect(evaluated.email).toBe("editor1@users.test");
         expect(evaluated.name).toBe("Test User");
     });
 
     it("can identify a user by email", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "email": "() => 'editor1@users.test'"
-                }`,
-            },
-        });
+        mockVerified(
+            { email: "editor1@users.test" } as JwtPayload,
+            {},
+        );
 
-        // await createNestApp("process-jwt" + i);
         const evaluated = await processJwt("any jwt data", db);
 
-        expect(evaluated.groups).toContain("group-public-editors"); // included in the database user document
-        expect(evaluated.groups).toContain("group-private-editors"); // included in the database user document
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
     });
 
     it("can identify a user by external id", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "userId": "() => 'editor1'",
-                    "email": "() => 'non-valid-email'"
-                }`,
-            },
-        });
+        mockVerified(
+            { sub: "editor1", email: "non-valid-email" } as JwtPayload,
+            {},
+        );
 
-        // It should prefer the userId mapping over the email mapping
         const evaluated = await processJwt("any jwt data", db);
 
-        expect(evaluated.groups).toContain("group-public-editors"); // included in the database user document
-        expect(evaluated.groups).toContain("group-private-editors"); // included in the database user document
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
     });
 
     it("can update the user name and email in the database from mapped JWT data", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "userId": "() => 'editor1'",
-                    "email": "() => 'updated@email.address'",
-                    "name": "() => 'Updated User Name'"
-                }`,
-            },
-        });
+        mockVerified(
+            {
+                sub: "editor1",
+                email: "updated@email.address",
+                name: "Updated User Name",
+            } as JwtPayload,
+            {},
+        );
 
         await processJwt("any jwt data", db);
 
@@ -107,23 +109,17 @@ describe("processJwt", () => {
         );
         const userDocs = res.docs as UserDto[];
 
-        expect(userDocs.length).toBe(1); // We have not yet added another user with the same email address
+        expect(userDocs.length).toBe(1);
         expect(userDocs[0].name).toBe("Updated User Name");
         expect(userDocs[0].email).toBe("updated@email.address");
     });
 
     it("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
-        const actual = jest.requireActual("../configuration");
-        jest.spyOn(actual, "default").mockReturnValue({
-            auth: {
-                jwtMappings: `{
-                    "userId": "() => 'testUser1'",
-                    "email": "() => 'test@email.1'"
-                }`,
-            },
-        });
+        mockVerified(
+            { sub: "testUser1", email: "test@email.1" } as JwtPayload,
+            {},
+        );
 
-        // Create two users with the same email. Only one of them has an ID set. The two users have different groups.
         await db.upsertDoc({
             _id: "testUser1",
             type: "user",
@@ -142,12 +138,11 @@ describe("processJwt", () => {
             memberOf: ["group-private-editors", "group-public-editors"],
         } as UserDto);
 
-        // It should prefer the userId mapping over the email mapping
         const evaluated = await processJwt("any jwt data", db);
 
         expect(evaluated.groups).toContain("group-public-editors");
         expect(evaluated.groups).toContain("group-private-editors");
-        expect(evaluated.groups).toContain("group-public-users"); // always added for public view access
+        expect(evaluated.groups).toContain("group-public-users");
         expect(evaluated.groups.length).toBe(3);
     });
 });
