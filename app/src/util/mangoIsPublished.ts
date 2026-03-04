@@ -6,7 +6,7 @@ import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
  *
  * The conditions check:
  * 1. status === "published"
- * 2. publishDate exists and is <= now (not in the future)
+ * 2. publishDate: missing, null, or <= now (if present and in the future, doc is not published)
  * 3. expiryDate is either missing, null, or >= now (not expired)
  * 4. language matches the first available language from the user's preferences
  *
@@ -29,14 +29,6 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
     return [
         // Status must be published, but we do not need to check this as draft documents are not synced to the app client.
         { status: PublishStatus.Published },
-        // Publish date: missing/null = considered published; otherwise must be <= now
-        {
-            $or: [
-                { publishDate: { $exists: false } },
-                { publishDate: null },
-                { publishDate: { $lte: now } },
-            ],
-        },
         // Expiry date check: either doesn't exist, is null, or is in the future
         {
             $or: [
