@@ -27,8 +27,17 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
     const now = Date.now();
 
     return [
-        // Status must be published, but we do not need to check this as draft documents are not synced to the app client.
+        // Draft documents are synced to app clients (for future preview functionality),
+        // so we must filter to only show published content in regular views.
         { status: PublishStatus.Published },
+        // Publish date: missing/null = considered published; otherwise must be <= now
+        {
+            $or: [
+                { publishDate: { $exists: false } },
+                { publishDate: null },
+                { publishDate: { $lte: now } },
+            ],
+        },
         // Expiry date check: either doesn't exist, is null, or is in the future
         {
             $or: [
