@@ -163,9 +163,7 @@ test("it can correctly add a preferred language to the the user's preferred lang
 
     // Wait for the language modal content to be visible
     await waitForExpect(async () => {
-        const modalContent = page.locator(
-            '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
-        );
+        const modalContent = page.locator('[data-test="add-language-button"] svg');
         const count = await modalContent.count();
         expect(count).toBeGreaterThan(0);
     });
@@ -268,9 +266,7 @@ test("it can correctly remove a preferred language from the user's preferred lan
     // Wait for the language modal content to be visible
     // The modal might be teleported, so we wait for actual content inside it
     await waitForExpect(async () => {
-        const modalContent = page.locator(
-            '[name="lModal-languages"] [data-test="add-language-button"], [name="lModal-languages"] .flex.w-full.items-center.p-3',
-        );
+        const modalContent = page.locator('[data-test="add-language-button"] svg');
         const count = await modalContent.count();
         expect(count).toBeGreaterThan(0);
     });
