@@ -117,10 +117,9 @@ async function Startup() {
     // Mount first so the loading state (logo + loading bar) is visible before getToken may open the login modal
     app.mount("#app");
 
-    initLanguageSync();
-    await initLanguage();
-    initSync();
-
+    // Acquire the auth token BEFORE starting sync so the socket connects with the
+    // real JWT. Without this, the socket's first connection is unauthenticated and
+    // the API assigns public-only permissions, overriding the user's actual groups.
     const token = isAuthBypassed
         ? "mock-token-for-e2e-testing"
         : await auth.getToken(oauth);
@@ -128,6 +127,10 @@ async function Startup() {
     if (token) {
         updateAuthToken(token);
     }
+
+    initLanguageSync();
+    await initLanguage();
+    initSync();
 
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
