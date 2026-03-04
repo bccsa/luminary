@@ -6,6 +6,7 @@ import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { createI18n } from "vue-i18n";
+import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -57,6 +58,8 @@ describe("LanguageModal.vue", () => {
     });
 
     it("stores the selected language", async () => {
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
             global: {
@@ -64,11 +67,16 @@ describe("LanguageModal.vue", () => {
             },
         });
 
-        //@ts-expect-error -- valid code
-        wrapper.vm.languages = await db.docs.toArray();
+        await waitForExpect(async () => {
+            const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
+            expect(languageButtons.length).toBeGreaterThan(0);
+        });
 
-        const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
-        await languageButtons[0].trigger("click");
+        const frenchButton = (await wrapper.findAll('[data-test="add-language-button"]')).find((el) =>
+            el.text().includes(mockLanguageDtoFra.name),
+        );
+        expect(frenchButton).toBeDefined();
+        await frenchButton!.trigger("click");
 
         expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
     });

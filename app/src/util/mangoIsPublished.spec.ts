@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mangoIsPublished } from "./mangoIsPublished";
-import { mangoCompile, type MangoSelector } from "luminary-shared";
+import { mangoCompile, type MangoSelector, PublishStatus } from "luminary-shared";
 
 /**
  * Helper: compile mangoIsPublished conditions into a predicate.
@@ -16,6 +16,7 @@ function buildPredicate(languageIds: string[]) {
 /** Helper: create a minimal document with the given overrides. */
 function makeDoc(overrides: Record<string, unknown> = {}) {
     return {
+        status: PublishStatus.Published,
         publishDate: Date.now() - 100_000, // in the past
         language: "lang-eng",
         availableTranslations: ["lang-eng"],
@@ -51,17 +52,24 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(false);
         });
 
-        it("rejects a document with no publishDate", () => {
+        it("matches a document with no publishDate (treated as published)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc();
             delete (doc as any).publishDate;
 
-            expect(pred(doc)).toBe(false);
+            expect(pred(doc)).toBe(true);
         });
 
-        it("rejects a document with publishDate set to null", () => {
+        it("matches a document with publishDate set to null (treated as published)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc({ publishDate: null });
+
+            expect(pred(doc)).toBe(true);
+        });
+
+        it("rejects a document with status draft", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({ status: PublishStatus.Draft });
 
             expect(pred(doc)).toBe(false);
         });
@@ -185,7 +193,7 @@ describe("mangoIsPublished", () => {
             const conditions = mangoIsPublished(["lang-eng"]);
 
             expect(Array.isArray(conditions)).toBe(true);
-            expect(conditions.length).toBe(3); // publishDate, expiryDate, language priority
+            expect(conditions.length).toBe(4); // status, publishDate, expiryDate, language priority
         });
 
         it("conditions can be spread into an $and clause", () => {
