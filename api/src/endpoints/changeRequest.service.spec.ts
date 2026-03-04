@@ -3,6 +3,18 @@ import { createTestingModule } from "../test/testingModule";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
+import type { JwtUserDetails } from "../jwt/processJwt";
+
+const mockJwtUserDetails: JwtUserDetails = {
+    groups: ["group-super-admins", "group-public-users"],
+    userId: "user-super-admin",
+    email: "test@123.com",
+    name: "Test User",
+};
+
+jest.mock("../jwt/processJwt", () => ({
+    processJwt: jest.fn(() => Promise.resolve(mockJwtUserDetails)),
+}));
 
 describe("ChangeRequest service", () => {
     const oldEnv = process.env;
@@ -11,15 +23,6 @@ describe("ChangeRequest service", () => {
 
     beforeAll(async () => {
         process.env = { ...oldEnv }; // Make a copy of the old environment variables
-
-        process.env.JWT_MAPPINGS = `{
-            "groups": {
-                "group-super-admins": "() => true"
-            },
-            "userId": "() => 'user-super-admin'",
-            "email": "() => 'test@123.com'",
-            "name": "() => 'Test User'"
-        }`;
 
         service = (await createTestingModule("changereq-service")).dbService;
         changeRequestService = new ChangeRequestService(undefined, service);

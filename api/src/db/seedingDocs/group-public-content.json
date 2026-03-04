@@ -37,6 +37,41 @@
         },
         {
             "type": "post",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "translate", "publish"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+        },
+        {
+            "type": "language",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign", "translate"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+        },
+        {
+            "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
+        },
+        {
+            "type": "group",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
+        },
+        {
+            "type": "oAuthProvider",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign"]
+        },
+        {
+            "type": "post",
             "groupId": "group-public-editors",
             "permission": ["view", "edit", "translate", "publish"]
         },
