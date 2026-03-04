@@ -9,6 +9,9 @@ import Link from "@tiptap/extension-link";
  * TipTap JSON always has a root object with type "doc" and a content array.
  */
 function isTipTapJson(text: string): boolean {
+    if (text.trimStart().charAt(0) !== "{") {
+        return false;
+    }
     try {
         const parsed = JSON.parse(text);
         return (
