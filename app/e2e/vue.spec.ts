@@ -266,8 +266,8 @@ test("it can correctly remove a preferred language from the user's preferred lan
     // Wait for the language modal content to be visible
     // The modal might be teleported, so we wait for actual content inside it
     await waitForExpect(async () => {
-        const modalContent = page.locator('[data-test="add-language-button"] svg');
-        const count = await modalContent.count();
+        const modalContent = page.locator('[name="lModal-languages"] svg').textContent;
+        const count = await modalContent.length;
         expect(count).toBeGreaterThan(0);
     });
 
