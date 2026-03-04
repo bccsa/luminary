@@ -1,6 +1,6 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
-import { generateHTML } from "@tiptap/html";
+import { generateHTML } from "@tiptap/html/server";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 
