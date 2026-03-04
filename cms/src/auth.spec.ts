@@ -9,6 +9,7 @@ describe("auth", () => {
             const oauth = {
                 isAuthenticated: ref(true),
                 getAccessTokenSilently,
+                isLoading: ref(false),
             };
 
             const token = await auth.getToken(oauth as any);
@@ -16,19 +17,16 @@ describe("auth", () => {
             expect(token).toBe("token");
         });
 
-        it("does not call getAccessTokenSilently when isAuthenticated is false", async () => {
-            const getAccessTokenSilently = vi.fn();
-            const loginWithRedirect = vi.fn().mockResolvedValue(undefined);
-            const logout = vi.fn().mockResolvedValue(undefined);
+        it("returns undefined when getAccessTokenSilently returns undefined", async () => {
+            const getAccessTokenSilently = vi.fn().mockResolvedValue(undefined);
             const oauth = {
                 isAuthenticated: ref(false),
                 getAccessTokenSilently,
-                loginWithRedirect,
-                logout,
+                isLoading: ref(false),
             };
 
             const token = await auth.getToken(oauth as any);
-            expect(getAccessTokenSilently).not.toHaveBeenCalled();
+            expect(getAccessTokenSilently).toHaveBeenCalled();
             expect(token).toBeUndefined();
         });
     });
