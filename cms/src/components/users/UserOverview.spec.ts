@@ -1,5 +1,13 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from "vitest";
+import {
+    describe,
+    it,
+    expect,
+    vi,
+    afterEach,
+    beforeEach,
+    beforeAll,
+} from "vitest";
 import { mount } from "@vue/test-utils";
 import UserOverview from "./UserOverview.vue";
 import CreateOrEditUser from "./CreateOrEditUser.vue";
@@ -7,9 +15,19 @@ import LCombobox from "../forms/LCombobox.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import express from "express";
-import * as restModule from "luminary-shared";
-import { mockGroupDtoSuperAdmins, mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig, isConnected, db } from "luminary-shared";
+import {
+    mockGroupDtoSuperAdmins,
+    mockUserDto,
+    superAdminAccessMap,
+} from "@/tests/mockdata";
+import {
+    accessMap,
+    DocType,
+    getRest,
+    initConfig,
+    isConnected,
+    db,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 import LDialog from "../common/LDialog.vue";
@@ -74,7 +92,10 @@ describe("UserOverview", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            syncList: [{ type: DocType.User, contentOnly: true, syncPriority: 10 }, { type: DocType.Group, contentOnly: true, syncPriority: 20 }],
+            syncList: [
+                { type: DocType.User, contentOnly: true, syncPriority: 10 },
+                { type: DocType.Group, contentOnly: true, syncPriority: 20 },
+            ],
         });
 
         // Reset the rest api client to use the new config
@@ -86,14 +107,14 @@ describe("UserOverview", () => {
 
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
-        await db.bulkPut([mockGroupDtoSuperAdmins])
+        await db.bulkPut([mockGroupDtoSuperAdmins]);
         await db.localChanges.clear();
         isConnected.value = true; // Simulate a connected state
     });
 
     afterEach(async () => {
-        await db.docs.clear()
-        await db.localChanges.clear()
+        await db.docs.clear();
+        await db.localChanges.clear();
         vi.clearAllMocks();
     });
 
@@ -124,11 +145,13 @@ describe("UserOverview", () => {
         });
 
         await waitForExpect(() => {
-        const LComboComp = editUserComp.findComponent(LCombobox);
-        expect(LComboComp.exists()).toBe(true);
+            const LComboComp = editUserComp.findComponent(LCombobox);
+            expect(LComboComp.exists()).toBe(true);
         });
 
-        const groupMemberInput = editUserComp.findComponent(LCombobox).find('[name="option-search"]');
+        const groupMemberInput = editUserComp
+            .findComponent(LCombobox)
+            .find('[name="option-search"]');
 
         await waitForExpect(() => {
             expect(groupMemberInput.exists()).toBe(true);
@@ -136,14 +159,13 @@ describe("UserOverview", () => {
 
         await groupMemberInput.setValue("Super Admins");
         await groupMemberInput.trigger("keydown.enter");
-        
-        
+
         await waitForExpect(() => {
             const tags = editUserComp.findAll('[data-test="selected-tag"]');
             expect(tags.length).toBe(1);
             expect(tags[0].text()).toBe("Super Admins");
         });
-        
+
         const emailInput = editUserComp.find('[name="userEmail"]');
         await waitForExpect(() => {
             expect(emailInput.exists()).toBe(true);
@@ -152,21 +174,26 @@ describe("UserOverview", () => {
         await emailInput.setValue("test@example.com");
         await emailInput.trigger("change");
 
-
         let saveButton;
         await waitForExpect(() => {
-        saveButton = editUserComp.findComponent(LDialog).find('[data-test="modal-primary-button"]');
-        expect(saveButton.exists()).toBe(true);
+            saveButton = editUserComp
+                .findComponent(LDialog)
+                .find('[data-test="modal-primary-button"]');
+            expect(saveButton.exists()).toBe(true);
+            expect(saveButton.attributes("disabled")).toBeUndefined();
         });
-        
-        const saveSpy = vi.spyOn(restModule.getRest(), 'changeRequest')
-        .mockResolvedValue({ ack: 'Accepted' });
-        
+
+        const saveSpy = vi
+            .spyOn(getRest(), "changeRequest")
+            .mockResolvedValue({ ack: "Accepted" });
+
         await saveButton!.trigger("click");
 
         await waitForExpect(() => {
             expect(saveSpy).toHaveBeenCalled();
-            expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+            expect(saveSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 1 }),
+            );
         });
     });
 
