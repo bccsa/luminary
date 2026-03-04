@@ -8,8 +8,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, ref, watch, onUnmounted, type ComputedRef } from "vue";
-import { onClickOutside } from "@vueuse/core";
+import { computed, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
@@ -27,6 +26,7 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import DropdownMenu from "../common/DropdownMenu.vue";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -35,27 +35,10 @@ const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 const menuOpen = ref(false);
-const menuContainerRef = ref<HTMLElement | null>(null);
 
 function closeMenu() {
     menuOpen.value = false;
 }
-
-onClickOutside(menuContainerRef, closeMenu);
-
-function onEscape(e: KeyboardEvent) {
-    if (e.key === "Escape") closeMenu();
-}
-
-watch(menuOpen, (open) => {
-    if (open) {
-        requestAnimationFrame(() => document.addEventListener("keydown", onEscape));
-    } else {
-        document.removeEventListener("keydown", onEscape);
-    }
-});
-
-onUnmounted(() => document.removeEventListener("keydown", onEscape));
 
 const { t } = useI18n();
 
@@ -163,90 +146,80 @@ const userNavigation = computed(() => {
 </script>
 
 <template>
-    <div
-        ref="menuContainerRef"
-        class="relative"
-    >
-        <button
-            type="button"
-            name="profile-menu-btn"
-            class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
-            :aria-expanded="menuOpen"
-            aria-haspopup="true"
-            aria-label="Open user menu"
-            @click="menuOpen = !menuOpen"
-        >
-            <img
-                class="h-8 min-w-8 rounded-full bg-slate-50"
-                :src="user?.picture"
-                v-if="isAuthenticated && user?.picture"
-                alt=""
-            />
-            <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
-                v-else
-            >
-                <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
-            </div>
-            <span class="hidden lg:flex lg:items-center">
-                <span
-                    class="ml-3 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
-                    aria-hidden="true"
-                    v-if="isAuthenticated"
-                    >{{ user?.name }}</span
-                >
-                <span
-                    class="ml-3 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
-                    aria-hidden="true"
-                    v-else
-                    >Menu</span
-                >
-                <ChevronUpIcon
-                    v-if="menuOpen"
-                    class="h-5 w-5 text-zinc-400 dark:text-slate-100"
-                    aria-hidden="true"
-                />
-                <ChevronDownIcon
-                    v-else
-                    class="h-5 w-5 text-zinc-400 dark:text-slate-100"
-                    aria-hidden="true"
-                />
-            </span>
-        </button>
-
-        <div
-            v-show="menuOpen"
-            class="absolute right-0 z-50 mb-10 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
-            role="menu"
-        >
+    <DropdownMenu v-model:open="menuOpen" panel-class="mb-10">
+        <template #trigger>
             <button
-                v-for="item in userNavigation"
-                :key="item.name"
                 type="button"
-                role="menuitem"
-                class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 hover:bg-zinc-50 dark:bg-transparent dark:text-white dark:hover:bg-slate-600"
-                @click="
-                    item.action();
-                    closeMenu();
-                "
+                name="profile-menu-btn"
+                class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
+                aria-label="Open user menu"
             >
-                <component
-                    :is="item.icon"
-                    class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
-                    aria-hidden="true"
+                <img
+                    class="h-8 min-w-8 rounded-full bg-slate-50"
+                    :src="user?.picture"
+                    v-if="isAuthenticated && user?.picture"
+                    alt=""
                 />
-                <div class="flex flex-col text-nowrap leading-none">
-                    {{ item.name }}
-                    <span
-                        v-if="'language' in item && item.language"
-                        class="mt-1 text-[12px] text-zinc-500 dark:text-white"
-                        >{{ item.language }}</span
-                    >
+                <div
+                    class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
+                    v-else
+                >
+                    <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
                 </div>
+                <span class="hidden lg:flex lg:items-center">
+                    <span
+                        class="ml-3 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
+                        aria-hidden="true"
+                        v-if="isAuthenticated"
+                        >{{ user?.name }}</span
+                    >
+                    <span
+                        class="ml-3 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
+                        aria-hidden="true"
+                        v-else
+                        >Menu</span
+                    >
+                    <ChevronUpIcon
+                        v-if="menuOpen"
+                        class="h-5 w-5 text-zinc-400 dark:text-slate-100"
+                        aria-hidden="true"
+                    />
+                    <ChevronDownIcon
+                        v-else
+                        class="h-5 w-5 text-zinc-400 dark:text-slate-100"
+                        aria-hidden="true"
+                    />
+                </span>
             </button>
-        </div>
+        </template>
+        <button
+            v-for="item in userNavigation"
+            :key="item.name"
+            type="button"
+            role="menuitem"
+            class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 hover:bg-zinc-50 dark:bg-transparent dark:text-white dark:hover:bg-slate-600"
+            @click="
+                item.action();
+                closeMenu();
+            "
+        >
+            <component
+                :is="item.icon"
+                class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                aria-hidden="true"
+            />
+            <div class="flex flex-col text-nowrap leading-none">
+                {{ item.name }}
+                <span
+                    v-if="'language' in item && item.language"
+                    class="mt-1 text-[12px] text-zinc-500 dark:text-white"
+                    >{{ item.language }}</span
+                >
+            </div>
+        </button>
+    </DropdownMenu>
 
-        <LanguageModal
+    <LanguageModal
             :isVisible="showLanguageModal"
             @close="showLanguageModal = false"
         />
@@ -264,5 +237,4 @@ const userNavigation = computed(() => {
             :secondaryAction="() => (showLogoutDialog = false)"
             :secondaryButtonText="t('logout.modal.button_cancel')"
         />
-    </div>
 </template>
