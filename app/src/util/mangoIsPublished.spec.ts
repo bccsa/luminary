@@ -52,19 +52,19 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(false);
         });
 
-        it("rejects a document with no publishDate", () => {
+        it("matches a document with no publishDate (treated as published)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc();
             delete (doc as any).publishDate;
 
-            expect(pred(doc)).toBe(false);
+            expect(pred(doc)).toBe(true);
         });
 
-        it("rejects a document with publishDate set to null", () => {
+        it("matches a document with publishDate set to null (treated as published)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc({ publishDate: null });
 
-            expect(pred(doc)).toBe(false);
+            expect(pred(doc)).toBe(true);
         });
 
         it("rejects a document with status draft", () => {
