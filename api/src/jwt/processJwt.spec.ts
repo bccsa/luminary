@@ -68,10 +68,7 @@ describe("processJwt", () => {
     });
 
     it("can identify a user by email", async () => {
-        mockVerified(
-            { email: "editor1@users.test" } as JwtPayload,
-            {},
-        );
+        mockVerified({ email: "editor1@users.test" } as JwtPayload, {});
 
         const evaluated = await processJwt("any jwt data", db);
 
@@ -144,5 +141,24 @@ describe("processJwt", () => {
         expect(evaluated.groups).toContain("group-private-editors");
         expect(evaluated.groups).toContain("group-public-users");
         expect(evaluated.groups.length).toBe(3);
+    });
+
+    it("still returns DB groups when JWT verification fails (expired token)", async () => {
+        // Simulate verifyJwtAndMatchProvider returning an unverified payload
+        // (matchedProvider is undefined because JWKS verification failed)
+        (verifyJwt.verifyJwtAndMatchProvider as jest.Mock).mockResolvedValue({
+            jwtPayload: { sub: "editor1", email: "editor1@users.test" },
+            matchedProvider: undefined,
+            verified: false,
+        });
+
+        const evaluated = await processJwt("expired-jwt", db);
+
+        // Should still have DB groups from the user document
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
+        expect(evaluated.groups).toContain("group-public-users");
+        // Should NOT have provider-assigned groups (no verified provider)
+        expect(evaluated.groups).not.toContain("group-super-admins");
     });
 });

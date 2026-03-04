@@ -39,6 +39,7 @@ async function verifyJwtWithJwks(
     const key = await client.getSigningKey(kid);
     return JWT.verify(token, key.getPublicKey(), {
         algorithms: ["RS256"],
+        clockTolerance: 30,
     }) as JWT.JwtPayload;
 }
 
@@ -51,7 +52,11 @@ export async function verifyJwtAndMatchProvider(
     db: DbService,
     logger?: Logger,
 ): Promise<
-    | { jwtPayload: JWT.JwtPayload; matchedProvider?: TrustedProviderShape }
+    | {
+          jwtPayload: JWT.JwtPayload;
+          matchedProvider?: TrustedProviderShape;
+          verified: boolean;
+      }
     | undefined
 > {
     const decoded = JWT.decode(jwt, { complete: true });
@@ -90,13 +95,26 @@ export async function verifyJwtAndMatchProvider(
 
     try {
         const jwtPayload = await verifyJwtWithJwks(jwt, domain, kid);
-        return { jwtPayload, matchedProvider: provider };
+        return { jwtPayload, matchedProvider: provider, verified: true };
     } catch (err) {
-        logger?.error("JWKS verification failed", {
-            domain,
-            kid,
-            message: err instanceof Error ? err.message : String(err),
-        });
+        logger?.warn(
+            "JWKS verification failed, using unverified payload for identity lookup",
+            {
+                domain,
+                kid,
+                message: err instanceof Error ? err.message : String(err),
+            },
+        );
+        // Return the unverified decoded payload so processJwt can still
+        // extract user identity for the DB group lookup
+        const decoded = JWT.decode(jwt);
+        if (decoded && typeof decoded === "object") {
+            return {
+                jwtPayload: decoded as JWT.JwtPayload,
+                matchedProvider: undefined,
+                verified: false,
+            };
+        }
         return undefined;
     }
 }

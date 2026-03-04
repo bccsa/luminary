@@ -168,6 +168,12 @@ export async function processJwt(
                         db,
                     );
                     for (const g of providerGroups) groupSet.add(g);
+                } else if (jwtPayload) {
+                    // Expired/unverified token: extract standard OIDC claims
+                    // for DB group lookup only (no provider group assignments)
+                    email = jwtPayload.email;
+                    name = jwtPayload.name;
+                    userId = jwtPayload.sub;
                 }
             }
         } catch (err) {

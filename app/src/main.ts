@@ -4,7 +4,7 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { DocType, init, warmMangoCaches } from "luminary-shared";
+import { DocType, init, updateAuthToken, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
@@ -70,6 +70,15 @@ async function Startup() {
     initLanguageSync();
     await initLanguage();
     initSync();
+
+    // Refresh the auth token periodically to prevent expiry.
+    // Auth0 access tokens typically last 24h; refreshing every 50 minutes
+    // ensures connections always use a valid token.
+    const TOKEN_REFRESH_MS = 50 * 60 * 1000;
+    setInterval(async () => {
+        const freshToken = await auth.getToken(oauth);
+        if (freshToken) updateAuthToken(freshToken);
+    }, TOKEN_REFRESH_MS);
 
     const i18n = await initI18n();
     await loadPlugins();

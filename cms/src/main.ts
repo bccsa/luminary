@@ -132,6 +132,17 @@ async function Startup() {
     await initLanguage();
     initSync();
 
+    // Refresh the auth token periodically to prevent expiry.
+    // Auth0 access tokens typically last 24h; refreshing every 50 minutes
+    // ensures the socket always has a valid token.
+    const TOKEN_REFRESH_MS = 50 * 60 * 1000;
+    if (!isAuthBypassed && oauth) {
+        setInterval(async () => {
+            const freshToken = await auth.getToken(oauth);
+            if (freshToken) updateAuthToken(freshToken);
+        }, TOKEN_REFRESH_MS);
+    }
+
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
         if (warnings.length > 0) {
