@@ -1,9 +1,11 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "../SingleContent.vue";
+import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import {
     mockPostDto,
     mockEnglishContentDto,
@@ -248,6 +250,7 @@ describe("SingleContent 404 Page", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
             expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
         });
+        await flushPromises();
 
         // Track if 404 page appears at any point during language switch
         let notFoundPageAppeared = false;
@@ -258,20 +261,21 @@ describe("SingleContent 404 Page", () => {
             },
         );
 
-        // Open the language dropdown
-        const translationSelector = wrapper.find("[data-test='translationSelector']");
-        await translationSelector.trigger("click");
-
-        // Wait for options to render
+        // Wait for language dropdown to be available
         await waitForExpect(() => {
-            expect(wrapper.findAll("[data-test='translationOption']").length).toBeGreaterThan(1);
+            expect(wrapper.find("[data-test='translationSelector']").exists()).toBe(true);
         });
 
-        // Click on French translation
-        const options = wrapper.findAll("[data-test='translationOption']");
+        // Open the language dropdown (DropdownMenu trigger)
+        const dropdownMenu = wrapper.findComponent(DropdownMenu);
+        await dropdownMenu.find("[role='button']").trigger("click");
+        await nextTick();
+
+        // Click on French translation (options are in the dropdown panel)
+        const options = wrapper.findAll("[role='menu'] button");
+        expect(options.length).toBeGreaterThan(1);
         const frenchOption =
             options.find((o) => o.text().includes(mockLanguageDtoFra.name)) || options[1];
-
         await frenchOption.trigger("click");
 
         // Wait for French content to be shown

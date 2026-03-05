@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import {
     ChevronDownIcon,
+    ChevronUpIcon,
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
@@ -26,6 +26,7 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import DropdownMenu from "../common/DropdownMenu.vue";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -33,6 +34,11 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const menuOpen = ref(false);
+
+function closeMenu() {
+    menuOpen.value = false;
+}
 
 const { t } = useI18n();
 
@@ -140,10 +146,14 @@ const userNavigation = computed(() => {
 </script>
 
 <template>
-    <div>
-        <Menu as="div" class="relative z-[70]">
-            <MenuButton name="profile-menu-btn" class="-m-1.5 flex items-center p-1.5">
-                <span class="sr-only">Open user menu</span>
+    <DropdownMenu v-model:open="menuOpen" panel-class="mb-10">
+        <template #trigger>
+            <button
+                type="button"
+                name="profile-menu-btn"
+                class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
+                aria-label="Open user menu"
+            >
                 <img
                     class="h-8 min-w-8 rounded-full bg-slate-50"
                     :src="user?.picture"
@@ -158,64 +168,65 @@ const userNavigation = computed(() => {
                 </div>
                 <span class="hidden lg:flex lg:items-center">
                     <span
-                        class="ml-4 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
+                        class="ml-3 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                         aria-hidden="true"
                         v-if="isAuthenticated"
                         >{{ user?.name }}</span
                     >
                     <span
-                        class="ml-2 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
+                        class="ml-3 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                         aria-hidden="true"
                         v-else
                         >Menu</span
                     >
+                    <ChevronUpIcon
+                        v-if="menuOpen"
+                        class="h-5 w-5 text-zinc-400 dark:text-slate-100"
+                        aria-hidden="true"
+                    />
                     <ChevronDownIcon
+                        v-else
                         class="h-5 w-5 text-zinc-400 dark:text-slate-100"
                         aria-hidden="true"
                     />
                 </span>
-            </MenuButton>
-            <transition
-                enter-active-class="transition ease-out duration-100"
-                enter-from-class="transform opacity-0 scale-95"
-                enter-to-class="transform opacity-100 scale-100"
-                leave-active-class="transition ease-in duration-75"
-                leave-from-class="transform opacity-100 scale-100"
-                leave-to-class="transform opacity-0 scale-95"
-            >
-                <MenuItems
-                    name="menu-items"
-                    class="absolute right-0 z-[60] mb-10 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
+            </button>
+        </template>
+        <button
+            v-for="item in userNavigation"
+            :key="item.name"
+            type="button"
+            role="menuitem"
+            class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 hover:bg-zinc-50 dark:bg-transparent dark:text-white dark:hover:bg-slate-600"
+            @click="
+                item.action();
+                closeMenu();
+            "
+        >
+            <component
+                :is="item.icon"
+                class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                aria-hidden="true"
+            />
+            <div class="flex flex-col text-nowrap leading-none">
+                {{ item.name }}
+                <span
+                    v-if="'language' in item && item.language"
+                    class="mt-1 text-[12px] text-zinc-500 dark:text-white"
+                    >{{ item.language }}</span
                 >
-                    <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                        <button
-                            :class="[
-                                active ? 'bg-zinc-50 dark:bg-slate-800' : '',
-                                'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
-                            ]"
-                            @click="item.action"
-                        >
-                            <component
-                                :is="item.icon"
-                                class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
-                                aria-hidden="true"
-                            />
-                            <div class="flex flex-col text-nowrap leading-none">
-                                {{ item.name }}
-                                <span
-                                    v-if="'language' in item && item.language"
-                                    class="mt-1 text-[12px] text-zinc-500 dark:text-white"
-                                    >{{ item.language }}</span
-                                >
-                            </div>
-                        </button>
-                    </MenuItem>
-                </MenuItems>
-            </transition>
-        </Menu>
+            </div>
+        </button>
+    </DropdownMenu>
 
-        <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
-        <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+    <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
 
         <LDialog
             v-model:open="showLogoutDialog"
@@ -226,5 +237,4 @@ const userNavigation = computed(() => {
             :secondaryAction="() => (showLogoutDialog = false)"
             :secondaryButtonText="t('logout.modal.button_cancel')"
         />
-    </div>
 </template>

@@ -57,6 +57,7 @@ import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
+import DropdownMenu from "@/components/common/DropdownMenu.vue";
 
 const router = useRouter();
 
@@ -455,7 +456,6 @@ const openedFromExternalLink = ref(false);
 
 onMounted(() => {
     openedFromExternalLink.value = isExternalNavigation();
-    window.addEventListener("click", onClickOutside);
 });
 
 // Track whether the user explicitly switched language via the quick selector
@@ -526,17 +526,6 @@ watch(
 
 const showDropdown = ref(false);
 
-function onClickOutside(event: MouseEvent) {
-    const dropdown = document.querySelector("[name='translationSelector']");
-    if (showDropdown.value && dropdown && !dropdown.contains(event.target as Node)) {
-        showDropdown.value = false;
-    }
-}
-
-onMounted(() => {
-    window.addEventListener("click", onClickOutside);
-});
-
 const selectedLanguageCode = computed(() => {
     if (!selectedLanguageId.value || !languages.value.length) return null;
     const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
@@ -583,50 +572,53 @@ const playAudio = () => {
             #quickControls
             v-if="!is404"
         >
-            <div class="relative w-auto">
-                <button
-                    v-show="
-                        !isLoading && !isLoadingTranslations && availableTranslations.length > 1
-                    "
-                    name="translationSelector"
-                    @click="showDropdown = !showDropdown"
-                    class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
-                    data-test="translationSelector"
-                >
-                    <span class="hidden sm:inline">
-                        {{
-                            languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
-                                ?.name
-                        }}
-                    </span>
-                    <span class="inline sm:hidden">
-                        {{
-                            languages
-                                .find((lang: LanguageDto) => lang._id === selectedLanguageId)
-                                ?.languageCode.toUpperCase()
-                        }}
-                    </span>
-                </button>
-                <div
-                    v-if="showDropdown"
-                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
-                >
-                    <div
-                        v-for="language in languages"
-                        :key="language._id"
-                        @click="quickLanguageSwitch(language._id)"
-                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                        data-test="translationOption"
+            <DropdownMenu
+                v-if="
+                    !isLoading && !isLoadingTranslations && availableTranslations.length > 1
+                "
+                v-model:open="showDropdown"
+                panel-class="py-1"
+            >
+                <template #trigger>
+                    <button
+                        type="button"
+                        name="translationSelector"
+                        class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
+                        data-test="translationSelector"
                     >
-                        {{ language.name }}
-                        <CheckCircleIcon
-                            v-if="selectedLanguageId === language._id"
-                            class="h-5 w-5 text-yellow-500"
-                            aria-hidden="true"
-                        />
-                    </div>
-                </div>
-            </div>
+                        <span class="hidden sm:inline">
+                            {{
+                                languages.find(
+                                    (lang: LanguageDto) => lang._id === selectedLanguageId,
+                                )?.name
+                            }}
+                        </span>
+                        <span class="inline sm:hidden">
+                            {{
+                                languages
+                                    .find((lang: LanguageDto) => lang._id === selectedLanguageId)
+                                    ?.languageCode.toUpperCase()
+                            }}
+                        </span>
+                    </button>
+                </template>
+                <button
+                    v-for="language in languages"
+                    :key="language._id"
+                    type="button"
+                    role="menuitem"
+                    @click="quickLanguageSwitch(language._id)"
+                    class="flex w-full cursor-pointer select-none items-center gap-2 px-4 py-2 text-left text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                    data-test="translationOption"
+                >
+                    {{ language.name }}
+                    <CheckCircleIcon
+                        v-if="selectedLanguageId === language._id"
+                        class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                        aria-hidden="true"
+                    />
+                </button>
+            </DropdownMenu>
             <div
                 class="text-zinc-400 dark:text-slate-300"
                 data-test="themeButton"
