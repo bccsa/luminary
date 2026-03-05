@@ -197,6 +197,12 @@ export async function processJwt(
         );
         const userDocs = (res.docs ?? []) as UserDto[];
 
+        logger?.info("processJwt DB lookup", {
+            lookupEmail,
+            lookupIdStr,
+            docsFound: userDocs.length,
+        });
+
         // Update user records with latest login info
         for (const doc of userDocs) {
             await db.upsertDoc({
