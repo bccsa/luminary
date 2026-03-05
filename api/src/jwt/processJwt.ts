@@ -120,7 +120,9 @@ async function resolveProviderGroups(
         for (const mapping of provider.claimMappings) {
             const claimValue = claimSource[mapping.claim];
             if (mapping.target === "groups" && claimValue != null) {
-                const entries = Array.isArray(claimValue) ? claimValue : [claimValue];
+                const entries = Array.isArray(claimValue)
+                    ? claimValue
+                    : [claimValue];
                 for (const entry of entries) {
                     const id = groupNameToId.get(String(entry).toLowerCase());
                     if (id) groupSet.add(id);
@@ -187,19 +189,15 @@ export async function processJwt(
     // Field-mapped values are still stored on the user doc for display/update purposes.
     const userIdStr = userId?.toString();
     const lookupEmail = (jwtPayload?.email as string | undefined) ?? email;
-    const lookupUserId = jwtPayload?.sub ?? userId;
-    const lookupIdStr = lookupUserId?.toString();
 
-    if (lookupIdStr || lookupEmail) {
-        const res = await db.getUserByIdOrEmail(
+    if (lookupEmail) {
+        const res = await db.getUsersByEmail(
             typeof lookupEmail === "string" ? lookupEmail : "",
-            lookupIdStr,
         );
         const userDocs = (res.docs ?? []) as UserDto[];
 
         logger?.info("processJwt DB lookup", {
             lookupEmail,
-            lookupIdStr,
             docsFound: userDocs.length,
         });
 

@@ -76,18 +76,6 @@ describe("processJwt", () => {
         expect(evaluated.groups).toContain("group-private-editors");
     });
 
-    it("can identify a user by external id", async () => {
-        mockVerified(
-            { sub: "editor1", email: "non-valid-email" } as JwtPayload,
-            {},
-        );
-
-        const evaluated = await processJwt("any jwt data", db);
-
-        expect(evaluated.groups).toContain("group-public-editors");
-        expect(evaluated.groups).toContain("group-private-editors");
-    });
-
     it("can update the user name and email in the database from mapped JWT data", async () => {
         mockVerified(
             {
@@ -100,10 +88,7 @@ describe("processJwt", () => {
 
         await processJwt("any jwt data", db);
 
-        const res = await db.getUserByIdOrEmail(
-            "updated@email.address",
-            "editor1",
-        );
+        const res = await db.getUsersByEmail("updated@email.address");
         const userDocs = res.docs as UserDto[];
 
         expect(userDocs.length).toBe(1);
