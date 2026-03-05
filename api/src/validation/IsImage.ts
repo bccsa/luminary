@@ -15,7 +15,7 @@ export function IsImage() {
                         // Allow any format that Sharp can process as an image
                         // This includes: jpeg, png, webp, gif, tiff, avif, heif, etc.
                         return !!metadata.format && !!metadata.width && !!metadata.height;
-                    } catch (error) {
+                    } catch {
                         // If Sharp can't process it, it's not a valid image
                         return false;
                     }

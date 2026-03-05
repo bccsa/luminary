@@ -66,13 +66,13 @@ describe("processMediaDto", () => {
         if (removeFiles.length > 0) {
             try {
                 await s3Service.removeObjects(removeFiles);
-            } catch (e) {
+            } catch {
                 // Ignore errors during cleanup
             }
         }
         try {
             await s3Service.removeBucket();
-        } catch (e) {
+        } catch {
             // Ignore errors if bucket is not empty or doesn't exist
         }
 

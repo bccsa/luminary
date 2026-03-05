@@ -243,7 +243,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             if (sourceService) {
                 await sourceService.removeBucket();
             }
-        } catch (e) {
+        } catch {
             // Bucket might have files or already be deleted
         }
 
@@ -251,7 +251,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             if (targetService) {
                 await targetService.removeBucket();
             }
-        } catch (e) {
+        } catch {
             // Bucket might have files or already be deleted
         }
 
@@ -586,7 +586,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             if (restrictedService) {
                 await restrictedService.removeBucket();
             }
-        } catch (e) {
+        } catch {
             // Bucket might have files or already be deleted
         }
         S3Service.clearCache();

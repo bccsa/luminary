@@ -333,7 +333,7 @@ export class S3Service {
         try {
             await this.client.listBuckets();
             return true;
-        } catch (_) {
+        } catch {
             return false;
         }
     }
@@ -346,7 +346,7 @@ export class S3Service {
         try {
             await this.client.statObject(this.bucketName, key);
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
@@ -367,8 +367,8 @@ export class S3Service {
             await this.client.statObject(this.bucketName, key);
 
             return { success: true };
-        } catch (error) {
-            return { success: false, error: `Image validation failed: ${error.message}` };
+        } catch (err) {
+            return { success: false, error: `Image validation failed: ${(err as Error).message}` };
         }
     }
 
@@ -382,7 +382,7 @@ export class S3Service {
         for (const key of keys) {
             try {
                 await this.client.statObject(this.bucketName, key);
-            } catch (error) {
+            } catch {
                 inaccessibleImages.push(key);
             }
         }

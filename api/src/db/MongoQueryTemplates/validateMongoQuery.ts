@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Use require for sanitize-filename to avoid import issues
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const sanitize = require("sanitize-filename");
 
 type ValidationResult = {
@@ -84,12 +84,12 @@ export function validateMongoQuery(
                     };
                 }
 
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
                 const mod = require(resolvedPath);
                 template = mod?.default ?? mod;
                 break;
             }
-        } catch (e) {
+        } catch {
             // If require fails (e.g., ESM syntax), ignore and continue to JSON fallback
         }
     }
@@ -117,11 +117,10 @@ function validate(object: any, template: any): { valid: boolean; error: string }
             // Support function-string validators from JSON templates
             try {
                 const fixed = template.replace(/\.each\(/g, ".every(");
-                // eslint-disable-next-line no-new-func
                 const fn = new Function(`return (${fixed});`)();
                 const valid = typeof fn === "function" ? !!fn(object) : false;
                 return { valid, error: valid ? "" : "Function-string validation failed" };
-            } catch (e: any) {
+            } catch {
                 return { valid: false, error: "Function-string validation failed" };
             }
         }
@@ -132,7 +131,7 @@ function validate(object: any, template: any): { valid: boolean; error: string }
         try {
             const ok = !!template(object);
             return { valid: ok, error: ok ? "" : "Function validation failed" };
-        } catch (e: any) {
+        } catch {
             return { valid: false, error: "Function validation failed" };
         }
     }

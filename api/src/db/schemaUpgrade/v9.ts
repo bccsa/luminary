@@ -68,7 +68,7 @@ export default async function (db: DbService) {
                         console.info(`Found existing image storage document: ${imageStorageId}`);
                     }
                 }
-            } catch (error) {
+            } catch {
                 // Query failed, but that's okay - we'll try to create a new one
                 console.info("Could not query for existing storage documents, will create new one");
             }
