@@ -223,9 +223,10 @@ const saveChanges = async () => {
         secondaryButtonText="Cancel"
         @close="emit('close')"
         largeModal
+        overflowY="scroll"
     >
         <div :class="['w-full rounded-md bg-white p-6 shadow', { 'bg-zinc-100': disabled }]">
-            <div class="mb-6 flex items-center justify-between">
+            <div class="mb-6 mt-2 flex items-center justify-between">
                 <div
                     v-if="!isEditingGroupName"
                     :class="[
@@ -325,7 +326,7 @@ const saveChanges = async () => {
                         <AddGroupAclButton
                             v-if="!disabled"
                             :groups="availableGroups"
-                            @s\elect="addAssignedGroup"
+                            @select="addAssignedGroup"
                         />
                     </div>
                     <LButton

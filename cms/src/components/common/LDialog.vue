@@ -12,24 +12,29 @@ type Props = {
     context?: "default" | "danger";
     primaryButtonDisabled?: boolean;
     largeModal?: boolean;
+    overflowY?: "scroll" | "hidden";
 };
 
 const open = defineModel<boolean>("open");
 
 withDefaults(defineProps<Props>(), {
     context: "default",
+    overflowY: "hidden",
 });
 </script>
 
 <template>
     <LModal v-model:isVisible="open" :heading="title" :noDivider="true" :largeModal="largeModal">
         <p v-if="description" class="shrink-0 text-sm text-gray-500">{{ description }}</p>
-        <div class="min-h-0 flex-1 overflow-y-scroll scrollbar-hide">
+        <div
+            class="min-h-0 flex-1 pb-3"
+            :class="{ 'overflow-y-scroll scrollbar-hide': overflowY === 'scroll' }"
+        >
             <slot name="default" />
         </div>
 
         <template #footer>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between pt-2">
                 <div>
                     <slot name="footer-extra" />
                 </div>
