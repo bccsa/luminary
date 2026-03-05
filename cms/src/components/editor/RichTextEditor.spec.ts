@@ -61,10 +61,7 @@ describe("RichTextEditor", () => {
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
-                text: JSON.stringify({
-                    type: "doc",
-                    content: [{ type: "paragraph", content: [{ type: "text", text: "Test" }] }],
-                }),
+                text: "<p>Test</p>",
                 textLanguage: "lang-eng",
             },
         });
@@ -82,16 +79,13 @@ describe("RichTextEditor", () => {
         await waitForExpect(() => {
             const textValue = wrapper.vm.text;
             expect(textValue).toBeDefined();
-            const updatedText = JSON.parse(textValue!);
-            expect(updatedText.content[0].content[0].text).toBe("Testing Testing 123");
+            expect(textValue).toContain("Testing Testing 123");
+            expect(textValue!.startsWith("<")).toBe(true);
         });
     });
 
     it("updates editor content when text prop changes externally (from page size change - where formatting of text may change", async () => {
-        const initialText = JSON.stringify({
-            type: "doc",
-            content: [{ type: "paragraph", content: [{ type: "text", text: "Initial text" }] }],
-        });
+        const initialText = "<p>Initial text</p>";
 
         const wrapper = mount(RichTextEditor, {
             props: {
@@ -116,18 +110,12 @@ describe("RichTextEditor", () => {
 
         // Simulate external text prop change (e.g., from another editor instance)
         // Since editor is a single instance, manually update the editor content
-        const newText = JSON.stringify({
-            type: "doc",
-            content: [
-                { type: "paragraph", content: [{ type: "text", text: "Updated externally" }] },
-            ],
-        });
+        const newText = "<p>Updated externally</p>";
 
         await wrapper.setProps({ text: newText });
 
         // Manually update editor content since single instance doesn't watch text prop
-        const parsed = JSON.parse(newText);
-        editor?.commands.setContent(parsed);
+        editor?.commands.setContent(newText);
 
         // Verify editor content updated
         await waitForExpect(() => {
@@ -137,10 +125,7 @@ describe("RichTextEditor", () => {
     });
 
     it("does not update editor when text prop changes to same content (avoids infinite loops)", async () => {
-        const textContent = JSON.stringify({
-            type: "doc",
-            content: [{ type: "paragraph", content: [{ type: "text", text: "Same content" }] }],
-        });
+        const textContent = "<p>Same content</p>";
 
         const wrapper = mount(RichTextEditor, {
             props: {
@@ -173,10 +158,7 @@ describe("RichTextEditor", () => {
     });
 
     it("clears editor content when text prop becomes empty", async () => {
-        const initialText = JSON.stringify({
-            type: "doc",
-            content: [{ type: "paragraph", content: [{ type: "text", text: "Some content" }] }],
-        });
+        const initialText = "<p>Some content</p>";
 
         const wrapper = mount(RichTextEditor, {
             props: {
@@ -212,11 +194,11 @@ describe("RichTextEditor", () => {
         });
     });
 
-    it("handles invalid JSON in text prop gracefully", async () => {
+    it("handles plain text in text prop gracefully", async () => {
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
-                text: "Invalid JSON string",
+                text: "Plain text string",
                 textLanguage: "lang-eng",
             },
         });
@@ -228,7 +210,7 @@ describe("RichTextEditor", () => {
 
         // Should not throw error and should set content as plain text
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Invalid JSON string");
+            expect(wrapper.text()).toContain("Plain text string");
         });
     });
 });
