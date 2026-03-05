@@ -303,6 +303,35 @@ const INDEX_LOAD_BATCH_SIZE = 100;
 /** Max results to re-rank and highlight; avoids O(n log n) work on huge result sets. */
 const SEARCH_RESULT_LIMIT = 20;
 
+/** Common words to ignore when requiring a "meaningful" match (e.g. "who is jesus" → require "jesus" in doc). */
+const STOPWORDS = new Set(
+    "a an and are be but by for had has have he her his i in is it of on or that the they this to was were what who will with".split(
+        " ",
+    ),
+);
+
+function getSignificantTerms(normalizedQuery: string): string[] {
+    const tokens = normalizedQuery
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+    return tokens.filter((t) => t.length >= 2 && !STOPWORDS.has(t));
+}
+
+function documentContainsTerm(
+    result: SearchResult,
+    term: string,
+    plainTextCache: Map<string, PlainTextCache>,
+): boolean {
+    const titleLower = result.title ? String(result.title).toLowerCase() : "";
+    if (titleLower.includes(term)) return true;
+    const cached = result._id ? plainTextCache.get(result._id) : undefined;
+    const textPlain = cached?.text ?? (result.text ? extractPlainText(result.text) : "");
+    const summaryPlain = cached?.summary ?? (result.summary ? extractPlainText(result.summary) : "");
+    const body = (textPlain + " " + summaryPlain).toLowerCase();
+    return body.includes(term);
+}
+
 /**
  * Initialize the search index from IndexedDB
  * Loads content in batches to avoid holding all documents in memory at once.
@@ -513,8 +542,19 @@ export function search(
             return true;
         });
 
+        // Require at least one significant (non-stopword) term in the doc so we don't surface e.g. Copyright/Privacy for "Who is jesus?"
+        const significantTerms = getSignificantTerms(normalizedQuery);
+        const relevanceFiltered =
+            significantTerms.length > 0
+                ? filteredResults.filter((result) =>
+                      significantTerms.some((term) =>
+                          documentContainsTerm(result, term, new Map()),
+                      ),
+                  )
+                : filteredResults;
+
         // Cap before expensive re-rank + highlight (UI only shows top N anyway)
-        const toProcess = filteredResults.slice(0, SEARCH_RESULT_LIMIT);
+        const toProcess = relevanceFiltered.slice(0, SEARCH_RESULT_LIMIT);
 
         // Pre-compute plain text once per result (avoids O(n log n) extractPlainText in sort)
         const plainTextById = new Map<string, PlainTextCache>();

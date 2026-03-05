@@ -10,6 +10,7 @@ import { useSearch } from "@/composables/useSearch";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import type { LuminarySearchResult } from "@/search";
+import { isMeaningOrQuestionQuery } from "@/search/isMeaningOrQuestionQuery";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 
@@ -376,6 +377,14 @@ defineExpose({
                             <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                                 {{ $t("search.noResults") || "No results found" }}
                             </p>
+                            <router-link
+                                v-if="isMeaningOrQuestionQuery(searchQuery.trim())"
+                                :to="{ name: 'search', query: { q: searchQuery.trim() } }"
+                                class="mt-3 inline-block text-sm font-medium text-amber-600 hover:underline dark:text-amber-400"
+                                @click="closeSearch"
+                            >
+                                {{ $t("search.seeAllResults") || "See all results" }} →
+                            </router-link>
                         </div>
 
                         <!-- Search Results -->
@@ -492,6 +501,14 @@ defineExpose({
                                 >
                                 to select
                             </span>
+                            <router-link
+                                v-if="searchQuery.trim() && (results.length > 0 || isMeaningOrQuestionQuery(searchQuery.trim()))"
+                                :to="{ name: 'search', query: { q: searchQuery.trim() } }"
+                                class="text-amber-600 hover:underline dark:text-amber-400"
+                                @click="closeSearch"
+                            >
+                                {{ $t("search.seeAllResults") || "See all results" }}
+                            </router-link>
                         </div>
                         <div v-if="isInitialized">
                             <span
