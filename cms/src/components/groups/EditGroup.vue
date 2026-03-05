@@ -325,7 +325,7 @@ const saveChanges = async () => {
                         <AddGroupAclButton
                             v-if="!disabled"
                             :groups="availableGroups"
-                            @s\elect="addAssignedGroup"
+                            @select="addAssignedGroup"
                         />
                     </div>
                     <LButton
