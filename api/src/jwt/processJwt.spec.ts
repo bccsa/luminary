@@ -76,11 +76,11 @@ describe("processJwt", () => {
         expect(evaluated.groups).toContain("group-private-editors");
     });
 
-    it("can update the user name and email in the database from mapped JWT data", async () => {
+    it("can update the user name in the database from mapped JWT data", async () => {
         mockVerified(
             {
                 sub: "editor1",
-                email: "updated@email.address",
+                email: "editor1@users.test",
                 name: "Updated User Name",
             } as JwtPayload,
             {},
@@ -88,12 +88,12 @@ describe("processJwt", () => {
 
         await processJwt("any jwt data", db);
 
-        const res = await db.getUsersByEmail("updated@email.address");
+        const res = await db.getUsersByEmail("editor1@users.test");
         const userDocs = res.docs as UserDto[];
 
         expect(userDocs.length).toBe(1);
         expect(userDocs[0].name).toBe("Updated User Name");
-        expect(userDocs[0].email).toBe("updated@email.address");
+        expect(userDocs[0].email).toBe("editor1@users.test");
     });
 
     it("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
@@ -188,6 +188,16 @@ describe("processJwt", () => {
         // the namespace value ("wrong@namespace.value")
         expect(evaluated.groups).toContain("group-public-editors");
         expect(evaluated.groups).toContain("group-private-editors");
+
+        // Restore the original email for subsequent tests, since this test mutated the
+        // DB document to have the 'wrong' email through upsertDoc.
+        const res = await db.getUsersByEmail("wrong@namespace.value");
+        if (res.docs && res.docs.length > 0) {
+            await db.upsertDoc({
+                ...res.docs[0],
+                email: "editor1@users.test",
+            });
+        }
     });
 
     it("still returns DB groups when JWT verification fails (expired token)", async () => {
