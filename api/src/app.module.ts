@@ -29,12 +29,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         ),
     });
 } else {
-    winstonTransport = new winston.transports.File({
-        filename: "api.log",
-        maxFiles: 5,
-        maxsize: 1000000,
-        tailable: true,
-    });
+    winstonTransport = new winston.transports.Console();
 }
 
 @Module({
