@@ -143,6 +143,41 @@ describe("processJwt", () => {
         expect(evaluated.groups.length).toBe(3);
     });
 
+    it("can map a single-string JWT claim value to a group (not just arrays)", async () => {
+        mockVerified(
+            {
+                sub: "editor1",
+                email: "editor1@users.test",
+                role: "Editors Public", // single string, not an array
+            } as JwtPayload,
+            {
+                claimMappings: [{ claim: "role", target: "groups" }],
+            },
+        );
+
+        const evaluated = await processJwt("any jwt data", db);
+
+        expect(evaluated.groups).toContain("group-public-editors");
+    });
+
+    it("can map an array JWT claim value to groups via claimMappings", async () => {
+        mockVerified(
+            {
+                sub: "editor1",
+                email: "editor1@users.test",
+                roles: ["Editors Public", "Editors Private"],
+            } as JwtPayload,
+            {
+                claimMappings: [{ claim: "roles", target: "groups" }],
+            },
+        );
+
+        const evaluated = await processJwt("any jwt data", db);
+
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
+    });
+
     it("still returns DB groups when JWT verification fails (expired token)", async () => {
         // Simulate verifyJwtAndMatchProvider returning an unverified payload
         // (matchedProvider is undefined because JWKS verification failed)

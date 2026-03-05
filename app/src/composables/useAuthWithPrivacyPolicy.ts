@@ -1,7 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { computed, ref } from "vue";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { getAvailableProviders, getSelectedProviderId, showProviderSelectionModal } from "@/auth";
+import { getAvailableProviders, showProviderSelectionModal } from "@/auth";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);
@@ -41,15 +41,12 @@ export function useAuthWithPrivacyPolicy() {
     // Function to perform the actual login (either via provider selection or direct)
     const performLogin = async () => {
         const providers = await getAvailableProviders();
-        const selectedProviderId = getSelectedProviderId();
 
-        // If multiple providers and none selected, show provider selection modal
-        if (providers.length > 1 && !selectedProviderId) {
+        if (providers.length > 1) {
             showProviderSelectionModal.value = true;
             return;
         }
 
-        // Otherwise proceed with Auth0 login
         originalLoginWithRedirect();
     };
 

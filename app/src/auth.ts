@@ -9,9 +9,6 @@ export type AuthPlugin = Auth0Plugin & {
     logout: () => Promise<void>;
 };
 
-const SESSION_PROVIDER_KEY = "sessionOAuthProviderId";
-const PROVIDER_CONFIG_CACHE_KEY = "oAuthProviderConfigCache";
-
 /**
  * Reactive flag to show/hide the provider selection modal.
  */
@@ -38,72 +35,84 @@ export function clearAuth0Cache(): void {
     keysToRemove.forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem("usedAuth0Connection");
     localStorage.removeItem("auth0AuthFailedRetryCount");
-    sessionStorage.removeItem(SESSION_PROVIDER_KEY);
 }
 
-import { db, DocType, type OAuthProviderDto } from "luminary-shared";
+import { db, DocType, type OAuthProviderDto, useDexieLiveQuery } from "luminary-shared";
 
-/**
- * Get OAuth provider config from local DB.
- * Returns undefined when no provider is available yet (guest mode).
- */
 type ProviderConfig = { domain: string; clientId: string; audience: string };
 
-/**
- * Cache provider config to localStorage so page refreshes can restore
- * the Auth0 session before IndexedDB is ready.
- */
-function cacheProviderConfig(config: ProviderConfig) {
-    localStorage.setItem(PROVIDER_CONFIG_CACHE_KEY, JSON.stringify(config));
-}
+function detectConfig(providers: OAuthProviderDto[]): ProviderConfig | undefined {
+    if (providers.length === 0) return undefined;
 
-function getCachedProviderConfig(): ProviderConfig | undefined {
-    const raw = localStorage.getItem(PROVIDER_CONFIG_CACHE_KEY);
-    if (!raw) return undefined;
-    try {
-        const parsed = JSON.parse(raw);
-        if (parsed.domain && parsed.clientId) return parsed as ProviderConfig;
-    } catch {
-        /* corrupted cache — ignore */
+    const toConfig = (p: OAuthProviderDto): ProviderConfig | undefined =>
+        p.domain && p.clientId && p.audience
+            ? { domain: p.domain, clientId: p.clientId, audience: p.audience }
+            : undefined;
+
+    // 1. Auth0 PKCE transaction key — present in sessionStorage during the
+    //    OAuth callback window. Identifies the provider that initiated login.
+    for (const p of providers) {
+        if (p.clientId && sessionStorage.getItem(`a0.spajs.txs.${p.clientId}`) !== null) {
+            const cfg = toConfig(p);
+            if (cfg) return cfg;
+        }
     }
+
+    // 2. Auth0 token cache in localStorage (cacheLocation: "localstorage") —
+    //    present when the user returns after closing and reopening the browser.
+    for (const p of providers) {
+        for (let i = 0; i < localStorage.length; i++) {
+            if (localStorage.key(i)?.startsWith(`@@auth0spajs@@::${p.clientId}`)) {
+                const cfg = toConfig(p);
+                if (cfg) return cfg;
+            }
+        }
+    }
+
+    // 3. Single provider — use it automatically.
+    if (providers.length === 1) return toConfig(providers[0]);
+
     return undefined;
 }
 
-async function getProviderConfig(): Promise<ProviderConfig | undefined> {
-    try {
-        if (!db) {
-            // db not initialised yet — fall back to localStorage cache
-            return getCachedProviderConfig();
-        }
+/**
+ * Resolve the active OAuth provider config using Dexie's liveQuery for reactivity.
+ * Reacts immediately when IndexedDB changes — no polling needed.
+ *
+ * @param waitMs - If > 0, waits up to this many ms for a valid config to appear
+ *                 (use during an OAuth callback when providers may still be syncing).
+ *                 If 0 (default), resolves after the first DB read regardless of result.
+ */
+async function getProviderConfig(waitMs = 0): Promise<ProviderConfig | undefined> {
+    if (!db) return undefined;
 
-        const providers = (await db.docs
-            .where("type")
-            .equals(DocType.OAuthProvider)
-            .toArray()) as OAuthProviderDto[];
+    const providers = useDexieLiveQuery(
+        () => db!.docs.where("type").equals(DocType.OAuthProvider).toArray(),
+    );
 
-        if (providers.length > 0) {
-            const selectedId = sessionStorage.getItem(SESSION_PROVIDER_KEY);
-            const idToUse = selectedId ?? undefined;
+    return new Promise<ProviderConfig | undefined>((resolve) => {
+        const deadline =
+            waitMs > 0
+                ? setTimeout(() => {
+                      stopWatch();
+                      resolve(undefined);
+                  }, waitMs)
+                : undefined;
 
-            const selected = idToUse ? providers.find((p) => p._id === idToUse) : providers[0];
-            const provider = selected ?? providers[0];
-
-            if (provider.domain && provider.clientId && provider.audience) {
-                const config: ProviderConfig = {
-                    domain: provider.domain,
-                    clientId: provider.clientId,
-                    audience: provider.audience,
-                };
-                cacheProviderConfig(config);
-                return config;
-            }
-        }
-    } catch (e) {
-        console.warn("Failed to load providers from DB", e);
-    }
-
-    // Final fallback: localStorage cache from a previous session
-    return getCachedProviderConfig();
+        const stopWatch = watch(
+            providers,
+            (docs) => {
+                if (docs === undefined) return; // liveQuery hasn't emitted yet — wait
+                const cfg = detectConfig(docs as OAuthProviderDto[]);
+                if (cfg !== undefined || waitMs === 0) {
+                    clearTimeout(deadline);
+                    stopWatch();
+                    resolve(cfg);
+                }
+            },
+            { immediate: true },
+        );
+    });
 }
 
 /**
@@ -145,13 +154,6 @@ export async function loginWithProvider(
     provider: OAuthProviderPublicDto,
     options?: { prompt?: "login" },
 ) {
-    // Cache provider config so Auth0 SDK can initialize after the redirect page reload
-    cacheProviderConfig({
-        domain: provider.domain,
-        clientId: provider.clientId,
-        audience: provider.audience,
-    });
-
     const web_origin = window.location.origin;
 
     const client = new Auth0Client({
@@ -173,11 +175,6 @@ export async function loginWithProvider(
     });
 }
 
-/** Provider ID for the current session (not in URL or localStorage). */
-export function getSelectedProviderId(): string | undefined {
-    return sessionStorage.getItem(SESSION_PROVIDER_KEY) ?? undefined;
-}
-
 /**
  * Install the Auth0 plugin (or fallback) so useAuth0() is available before the router runs.
  * Call this before app.use(router).
@@ -185,7 +182,13 @@ export function getSelectedProviderId(): string | undefined {
 export async function installAuth(app: App<Element>): Promise<AuthPlugin> {
     app.config.globalProperties.$auth = null;
     const web_origin = window.location.origin;
-    const config = await getProviderConfig();
+
+    // On an OAuth callback (?code=&state=) providers may still be syncing from
+    // the API, so wait up to 5 s for a valid config to appear via liveQuery.
+    // On a normal page load, resolve immediately after the first DB read.
+    const url = new URL(location.href);
+    const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
+    const config = await getProviderConfig(isCallback ? 5000 : 0);
 
     if (!config) {
         const fallbackAuth = {
@@ -263,11 +266,7 @@ export async function finishAuth(app: App<Element>, router: Router, oauth: AuthP
         window.history.replaceState({}, document.title, "/");
 
         try {
-            const result = await oauth.handleRedirectCallback(callbackUrl);
-            const providerId = (result?.appState as { providerId?: string })?.providerId;
-            if (providerId) {
-                sessionStorage.setItem(SESSION_PROVIDER_KEY, providerId);
-            }
+            await oauth.handleRedirectCallback(callbackUrl);
         } catch (err) {
             console.error("Auth0 callback handling failed:", err);
         }
@@ -311,18 +310,10 @@ async function setupAuth(app: App<Element>, router: Router) {
 async function loginRedirect(oauth: AuthPlugin) {
     const { loginWithRedirect, logout } = oauth;
 
-    // Check if we have a selected provider
-    const selectedProviderId = getSelectedProviderId();
-
-    // If no provider selected, check availability
-    if (!selectedProviderId) {
-        const providers = await getAvailableProviders();
-        if (providers.length > 1) {
-            // Multiple providers and none selected - show provider selection modal
-            showProviderSelectionModal.value = true;
-            return;
-        }
-        // If 0 or 1 provider, fall through to default behavior (auto-login with default/env vars)
+    const providers = await getAvailableProviders();
+    if (providers.length > 1) {
+        showProviderSelectionModal.value = true;
+        return;
     }
 
     const usedConnection = localStorage.getItem("usedAuth0Connection");
@@ -372,5 +363,4 @@ export default {
     finishAuth,
     loginRedirect,
     getToken,
-    getSelectedProviderId,
 };

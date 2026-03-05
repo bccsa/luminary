@@ -28,7 +28,6 @@ const { mockProviderSelectionModal } = vi.hoisted(() => {
 // Mock auth module - return 0 providers so performLogin falls through to originalLoginWithRedirect
 vi.mock("@/auth", () => ({
     getAvailableProviders: vi.fn(() => Promise.resolve([])),
-    getSelectedProviderId: vi.fn(() => undefined),
     showProviderSelectionModal: mockProviderSelectionModal,
 }));
 

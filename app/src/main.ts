@@ -36,19 +36,14 @@ async function Startup() {
     warmMangoCaches();
 
     app.use(createPinia());
-    // Install Auth0 plugin before router so useAuth0() is available when router runs (fixes "plugin correctly installed" on refresh)
-    const oauth = await auth.installAuth(app);
-    app.use(router);
-    await auth.finishAuth(app, router, oauth);
 
-    const token = await auth.getToken(oauth);
-
+    // Initialize DB and start sync before auth so getProviderConfig() can read
+    // OAuthProvider docs from IndexedDB. Token is applied after auth is ready.
     await init({
         cms: false,
         docsIndex:
             "type, parentId, [parentId+status], slug, language, docType, redirect, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType], [parentType+parentTagType], [type+status+parentTagType], [type+parentType]",
         apiUrl,
-        token,
         appLanguageIdsAsRef,
         syncList: [
             { type: DocType.OAuthProvider, contentOnly: false, syncPriority: 1 },
@@ -66,6 +61,15 @@ async function Startup() {
         console.error(err);
         Sentry?.captureException(err);
     });
+
+    // Install Auth0 plugin before router so useAuth0() is available when router runs.
+    // DB is now ready so getProviderConfig() can resolve the active provider from IndexedDB.
+    const oauth = await auth.installAuth(app);
+    app.use(router);
+    await auth.finishAuth(app, router, oauth);
+
+    const token = await auth.getToken(oauth);
+    if (token) updateAuthToken(token);
 
     initLanguageSync();
     await initLanguage();

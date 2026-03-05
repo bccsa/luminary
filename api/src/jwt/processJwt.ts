@@ -119,8 +119,9 @@ async function resolveProviderGroups(
         const groupNameToId = await getGroupNameToIdMap(db);
         for (const mapping of provider.claimMappings) {
             const claimValue = claimSource[mapping.claim];
-            if (mapping.target === "groups" && Array.isArray(claimValue)) {
-                for (const entry of claimValue) {
+            if (mapping.target === "groups" && claimValue != null) {
+                const entries = Array.isArray(claimValue) ? claimValue : [claimValue];
+                for (const entry of entries) {
                     const id = groupNameToId.get(String(entry).toLowerCase());
                     if (id) groupSet.add(id);
                 }
