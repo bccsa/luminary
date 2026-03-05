@@ -32,7 +32,10 @@ export async function syncBatch(options: SyncOptions) {
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
-            "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
+            "sync-" +
+            (options.subType ? options.subType + "-" : "") +
+            options.type +
+            "-index",
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };
@@ -65,15 +68,21 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
-    if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+    if (!res) throw new Error("API request failed (no response)");
+    if (!res.docs || !Array.isArray(res.docs))
+        throw new Error("Invalid API response format");
     if (res.warning) console.warn("API warning received: ", res.warning);
     if (res.warnings && Array.isArray(res.warnings))
-        res.warnings.forEach((w: string) => console.warn("API warning received: ", w));
+        res.warnings.forEach((w: string) =>
+            console.warn("API warning received: ", w),
+        );
 
     // Get the block start and end timestamps
     const fetchedDocs = res.docs as Array<BaseDocumentDto>;
     const blockStart = fetchedDocs.length ? fetchedDocs[0].updatedTimeUtc : 0;
-    const blockEnd = fetchedDocs.length ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc : 0;
+    const blockEnd = fetchedDocs.length
+        ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc
+        : 0;
     const blockLength = fetchedDocs.length;
 
     // Upsert to IndexedDB

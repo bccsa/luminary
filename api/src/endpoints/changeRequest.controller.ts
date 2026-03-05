@@ -112,7 +112,10 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(changeRequest, token);
+            const result = await this.changeRequestService.changeRequest(
+                changeRequest,
+                token,
+            );
 
             return result;
         }
@@ -121,7 +124,10 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, token);
+        const result = await this.changeRequestService.changeRequest(
+            cleanedBody,
+            token,
+        );
 
         return result;
     }

@@ -173,7 +173,7 @@ export type StorageDto = ContentBaseDto & {
 };
 
 export type CryptoDto = BaseDocumentDto & {
-    data: any;
+    data: unknown;
 };
 
 export type MediaDto = {
@@ -237,4 +237,61 @@ export type ApiQueryResult<T> = {
     group?: string;
     type?: DocType;
     contentOnly?: boolean;
+};
+
+/** Condition for group assignment: assign group when all conditions in the array are true (AND). */
+export type GroupAssignmentCondition =
+    | { type: "always" }
+    | { type: "authenticated" }
+    | { type: "claimEquals"; claimPath: string; value: string }
+    | { type: "claimIn"; claimPath: string; values: string[] };
+
+export type GroupAssignment = {
+    groupId: string;
+    conditions: GroupAssignmentCondition[];
+};
+
+export type UserFieldMappings = {
+    userId?: string;
+    email?: string;
+    name?: string;
+};
+
+export type OAuthProviderPublicDto = {
+    id: string;
+    label: string;
+    domain: string;
+    clientId: string;
+    audience: string;
+    icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
+    textColor?: string;
+    backgroundColor?: string;
+    /** When true, provider is hidden from login list (guest mapping only). */
+    isGuestProvider?: boolean;
+};
+
+export type OAuthProviderDto = ContentBaseDto & {
+    label: string;
+    providerType: "auth0";
+    textColor?: string;
+    backgroundColor?: string;
+    /** Public config (synced to app). */
+    clientId?: string;
+    domain?: string;
+    audience?: string;
+    icon?: string;
+    /** Icon opacity 0–1; applied when displaying the icon. */
+    iconOpacity?: number;
+    imageData?: ImageDto;
+    imageBucketId?: Uuid;
+    claimNamespace?: string; // e.g. "https://your-tenant.com/metadata"
+    claimMappings?: Array<{ claim: string; target: string }>; // e.g. [{ claim: "groups", target: "groups" }]
+    /** Field names inside claimNamespace for userId, email, name. */
+    userFieldMappings?: UserFieldMappings;
+    /** Assign groups when all conditions pass (AND). Invalid groupIds are no-ops. */
+    groupAssignments?: GroupAssignment[];
+    /** When true, used for no-JWT (guest) and excluded from domain match when JWT present. */
+    isGuestProvider?: boolean;
 };

@@ -62,6 +62,7 @@ describe("sync.ts", () => {
             [DocType.DeleteCmd]: [],
             [DocType.Storage]: [],
             [DocType.Crypto]: [],
+            [DocType.OAuthProvider]: [],
         });
     });
 
@@ -116,6 +117,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initLanguageSync();
@@ -139,6 +141,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initLanguageSync();
@@ -162,6 +165,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initLanguageSync();
@@ -191,6 +195,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initLanguageSync();
@@ -215,6 +220,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initLanguageSync();
@@ -274,6 +280,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             cmsLanguages.value = [
@@ -339,6 +346,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initSync();
@@ -368,6 +376,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             initSync();
@@ -400,6 +409,7 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.OAuthProvider]: [],
             });
 
             cmsLanguages.value = [

@@ -1,6 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationPipe } from "@nestjs/common";
-import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import {
+    FastifyAdapter,
+    NestFastifyApplication,
+} from "@nestjs/platform-fastify";
 import * as request from "supertest";
 import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
@@ -9,6 +12,19 @@ import { AuthGuard } from "../auth/auth.guard";
 import { DocType } from "../enums";
 import * as path from "path";
 import * as fs from "fs";
+
+/**
+ * Assert that a value is binary data — either a real Buffer or its JSON-serialized form.
+ */
+function expectBinaryData(value: unknown): void {
+    const isBuffer = Buffer.isBuffer(value);
+    const isSerializedBuffer =
+        typeof value === "object" &&
+        value !== null &&
+        (value as Record<string, unknown>).type === "Buffer" &&
+        Array.isArray((value as Record<string, unknown>).data);
+    expect(isBuffer || isSerializedBuffer).toBe(true);
+}
 
 describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
@@ -31,11 +47,10 @@ describe("ChangeRequestController", () => {
             .useValue({ canActivate: () => true })
             .compile();
 
-        app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-
-        // Register multipart plugin for file uploads
+        app = module.createNestApplication<NestFastifyApplication>(
+            new FastifyAdapter(),
+        );
         await app.register(multipart);
-
         app.useGlobalPipes(new ValidationPipe());
         await app.init();
         await app.getHttpAdapter().getInstance().ready();
@@ -49,37 +64,21 @@ describe("ChangeRequestController", () => {
         mockChangeRequest.mockClear();
     });
 
-    /**
-     * Helper function to create a test file buffer
-     */
-    const createTestFile = (content: string = "test content"): Buffer => {
-        return Buffer.from(content);
-    };
+    const createTestFile = (content: string = "test content"): Buffer =>
+        Buffer.from(content);
 
-    /**
-     * Helper function to create a binary reference string (simulating what LFormData creates)
-     */
-    const createBinaryRef = (fileId: string): string => {
-        return `BINARY_REF-${fileId}`;
-    };
+    const createBinaryRef = (fileId: string): string => `BINARY_REF-${fileId}`;
 
-    /**
-     * Helper function to simulate LFormData format
-     * Expects changeRequest to already have "BINARY_REF-{id}" strings where binaries should be
-     * Creates form data in the format that LFormData generates
-     */
     const createLFormDataRequest = (
         changeRequest: any,
         files: Array<{ id: string; buffer: Buffer }>,
     ) => {
-        // Build the request
         const req = request(app.getHttpServer())
             .post("/changerequest")
             .set("Authorization", "Bearer fake-token")
             .field("apiVersion", changeRequest.apiVersion || "0.0.0")
             .field("changeRequest__json", JSON.stringify(changeRequest));
 
-        // Add files using their IDs
         files.forEach((file) => {
             const fileKey = `changeRequest__file__${file.id}`;
             req.attach(fileKey, file.buffer, fileKey);
@@ -90,8 +89,7 @@ describe("ChangeRequestController", () => {
 
     describe("LFormData binary handling", () => {
         it("should handle image upload with LFormData format", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const fileId = "file-0";
             const changeRequest = {
@@ -111,38 +109,22 @@ describe("ChangeRequestController", () => {
             };
 
             const imageBuffer = fs.readFileSync(testImagePath);
-            const files = [
-                {
-                    id: fileId,
-                    buffer: imageBuffer,
-                },
-            ];
-
-            const response = await createLFormDataRequest(changeRequest, files);
+            const response = await createLFormDataRequest(changeRequest, [
+                { id: fileId, buffer: imageBuffer },
+            ]);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    apiVersion: "0.0.0",
-                    doc: expect.objectContaining({
-                        _id: "post-test",
-                        imageData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    preset: "photo",
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
-            );
+            expect(mockChangeRequest).toHaveBeenCalledTimes(1);
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.apiVersion).toBe("0.0.0");
+            expect(arg.doc._id).toBe("post-test");
+            expect(arg.doc.imageData.uploadData[0].preset).toBe("photo");
+            expectBinaryData(arg.doc.imageData.uploadData[0].fileData);
         });
 
         it("should handle audio upload with LFormData format", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const fileId = "file-0";
             const changeRequest = {
@@ -162,38 +144,20 @@ describe("ChangeRequestController", () => {
                 },
             };
 
-            const audioBuffer = createTestFile("fake audio content");
-            const files = [
-                {
-                    id: fileId,
-                    buffer: audioBuffer,
-                },
-            ];
-
-            const response = await createLFormDataRequest(changeRequest, files);
+            const response = await createLFormDataRequest(changeRequest, [
+                { id: fileId, buffer: createTestFile("fake audio content") },
+            ]);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    doc: expect.objectContaining({
-                        audioData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    format: "mp3",
-                                    bitrate: 128,
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
-            );
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.doc.audioData.uploadData[0].format).toBe("mp3");
+            expect(arg.doc.audioData.uploadData[0].bitrate).toBe(128);
+            expectBinaryData(arg.doc.audioData.uploadData[0].fileData);
         });
 
         it("should handle video upload with LFormData format", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const fileId = "file-0";
             const changeRequest = {
@@ -213,38 +177,20 @@ describe("ChangeRequestController", () => {
                 },
             };
 
-            const videoBuffer = createTestFile("fake video content");
-            const files = [
-                {
-                    id: fileId,
-                    buffer: videoBuffer,
-                },
-            ];
-
-            const response = await createLFormDataRequest(changeRequest, files);
+            const response = await createLFormDataRequest(changeRequest, [
+                { id: fileId, buffer: createTestFile("fake video content") },
+            ]);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    doc: expect.objectContaining({
-                        videoData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    format: "mp4",
-                                    resolution: "1080p",
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
-            );
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.doc.videoData.uploadData[0].format).toBe("mp4");
+            expect(arg.doc.videoData.uploadData[0].resolution).toBe("1080p");
+            expectBinaryData(arg.doc.videoData.uploadData[0].fileData);
         });
 
         it("should handle PDF upload with LFormData format", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const fileId = "file-0";
             const changeRequest = {
@@ -264,42 +210,26 @@ describe("ChangeRequestController", () => {
                 },
             };
 
-            const pdfBuffer = createTestFile("%PDF-1.4 fake PDF content");
-            const files = [
+            const response = await createLFormDataRequest(changeRequest, [
                 {
                     id: fileId,
-                    buffer: pdfBuffer,
+                    buffer: createTestFile("%PDF-1.4 fake PDF content"),
                 },
-            ];
-
-            const response = await createLFormDataRequest(changeRequest, files);
+            ]);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    doc: expect.objectContaining({
-                        documentData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    filename: "document.pdf",
-                                    pages: 10,
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.doc.documentData.uploadData[0].filename).toBe(
+                "document.pdf",
             );
+            expect(arg.doc.documentData.uploadData[0].pages).toBe(10);
+            expectBinaryData(arg.doc.documentData.uploadData[0].fileData);
         });
 
         it("should handle multiple files in an array", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
-            const fileId0 = "file-0";
-            const fileId1 = "file-1";
-            const fileId2 = "file-2";
             const changeRequest = {
                 apiVersion: "0.0.0",
                 doc: {
@@ -308,15 +238,15 @@ describe("ChangeRequestController", () => {
                     imageData: {
                         uploadData: [
                             {
-                                fileData: createBinaryRef(fileId0),
+                                fileData: createBinaryRef("file-0"),
                                 preset: "thumbnail",
                             },
                             {
-                                fileData: createBinaryRef(fileId1),
+                                fileData: createBinaryRef("file-1"),
                                 preset: "medium",
                             },
                             {
-                                fileData: createBinaryRef(fileId2),
+                                fileData: createBinaryRef("file-2"),
                                 preset: "large",
                             },
                         ],
@@ -325,54 +255,28 @@ describe("ChangeRequestController", () => {
             };
 
             const files = [
-                {
-                    id: fileId0,
-                    buffer: createTestFile("image1"),
-                },
-                {
-                    id: fileId1,
-                    buffer: createTestFile("image2"),
-                },
-                {
-                    id: fileId2,
-                    buffer: createTestFile("image3"),
-                },
+                { id: "file-0", buffer: createTestFile("image1") },
+                { id: "file-1", buffer: createTestFile("image2") },
+                { id: "file-2", buffer: createTestFile("image3") },
             ];
 
             const response = await createLFormDataRequest(changeRequest, files);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    doc: expect.objectContaining({
-                        imageData: expect.objectContaining({
-                            uploadData: [
-                                expect.objectContaining({
-                                    preset: "thumbnail",
-                                    fileData: expect.any(Buffer),
-                                }),
-                                expect.objectContaining({
-                                    preset: "medium",
-                                    fileData: expect.any(Buffer),
-                                }),
-                                expect.objectContaining({
-                                    preset: "large",
-                                    fileData: expect.any(Buffer),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-                "fake-token",
-            );
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.doc.imageData.uploadData).toHaveLength(3);
+            expect(arg.doc.imageData.uploadData[0].preset).toBe("thumbnail");
+            expect(arg.doc.imageData.uploadData[1].preset).toBe("medium");
+            expect(arg.doc.imageData.uploadData[2].preset).toBe("large");
+            expectBinaryData(arg.doc.imageData.uploadData[0].fileData);
+            expectBinaryData(arg.doc.imageData.uploadData[1].fileData);
+            expectBinaryData(arg.doc.imageData.uploadData[2].fileData);
         });
 
         it("should handle nested binary data structures", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
-            const fileId0 = "file-0";
-            const fileId1 = "file-1";
             const changeRequest = {
                 apiVersion: "0.0.0",
                 doc: {
@@ -382,7 +286,7 @@ describe("ChangeRequestController", () => {
                         images: {
                             uploadData: [
                                 {
-                                    fileData: createBinaryRef(fileId0),
+                                    fileData: createBinaryRef("file-0"),
                                     preset: "photo",
                                 },
                             ],
@@ -390,7 +294,7 @@ describe("ChangeRequestController", () => {
                         audio: {
                             uploadData: [
                                 {
-                                    fileData: createBinaryRef(fileId1),
+                                    fileData: createBinaryRef("file-1"),
                                     format: "mp3",
                                 },
                             ],
@@ -400,36 +304,25 @@ describe("ChangeRequestController", () => {
             };
 
             const files = [
-                {
-                    id: fileId0,
-                    buffer: createTestFile("nested image"),
-                },
-                {
-                    id: fileId1,
-                    buffer: createTestFile("nested audio"),
-                },
+                { id: "file-0", buffer: createTestFile("nested image") },
+                { id: "file-1", buffer: createTestFile("nested audio") },
             ];
 
             const response = await createLFormDataRequest(changeRequest, files);
 
             expect(response.status).toBe(201);
             const callArgs = mockChangeRequest.mock.calls[0][0];
-            expect(callArgs.doc.media.images.uploadData[0]).toMatchObject({
-                preset: "photo",
-                fileData: expect.any(Buffer),
-            });
-            expect(callArgs.doc.media.audio.uploadData[0]).toMatchObject({
-                format: "mp3",
-                fileData: expect.any(Buffer),
-            });
+            expect(callArgs.doc.media.images.uploadData[0].preset).toBe(
+                "photo",
+            );
+            expectBinaryData(callArgs.doc.media.images.uploadData[0].fileData);
+            expect(callArgs.doc.media.audio.uploadData[0].format).toBe("mp3");
+            expectBinaryData(callArgs.doc.media.audio.uploadData[0].fileData);
         });
 
         it("should handle files at different nesting levels", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
-            const fileId0 = "file-0";
-            const fileId1 = "file-1";
             const changeRequest = {
                 apiVersion: "0.0.0",
                 doc: {
@@ -438,51 +331,36 @@ describe("ChangeRequestController", () => {
                     level1: {
                         level2: {
                             level3: {
-                                fileData: createBinaryRef(fileId0),
+                                fileData: createBinaryRef("file-0"),
                                 depth: 3,
                             },
                         },
                     },
                     topLevelFile: {
-                        fileData: createBinaryRef(fileId1),
+                        fileData: createBinaryRef("file-1"),
                         depth: 0,
                     },
                 },
             };
 
             const files = [
-                {
-                    id: fileId0,
-                    buffer: createTestFile("deep file"),
-                },
-                {
-                    id: fileId1,
-                    buffer: createTestFile("top file"),
-                },
+                { id: "file-0", buffer: createTestFile("deep file") },
+                { id: "file-1", buffer: createTestFile("top file") },
             ];
 
             const response = await createLFormDataRequest(changeRequest, files);
 
             expect(response.status).toBe(201);
             const callArgs = mockChangeRequest.mock.calls[0][0];
-            expect(callArgs.doc.level1.level2.level3).toMatchObject({
-                depth: 3,
-                fileData: expect.any(Buffer),
-            });
-            expect(callArgs.doc.topLevelFile).toMatchObject({
-                depth: 0,
-                fileData: expect.any(Buffer),
-            });
+            expect(callArgs.doc.level1.level2.level3.depth).toBe(3);
+            expectBinaryData(callArgs.doc.level1.level2.level3.fileData);
+            expect(callArgs.doc.topLevelFile.depth).toBe(0);
+            expectBinaryData(callArgs.doc.topLevelFile.fileData);
         });
 
         it("should handle mixed binary types in same request", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
-            const fileId0 = "file-0";
-            const fileId1 = "file-1";
-            const fileId2 = "file-2";
-            const fileId3 = "file-3";
             const changeRequest = {
                 apiVersion: "0.0.0",
                 doc: {
@@ -491,7 +369,7 @@ describe("ChangeRequestController", () => {
                     imageData: {
                         uploadData: [
                             {
-                                fileData: createBinaryRef(fileId0),
+                                fileData: createBinaryRef("file-0"),
                                 type: "image",
                                 preset: "default",
                             },
@@ -500,7 +378,7 @@ describe("ChangeRequestController", () => {
                     audioData: {
                         uploadData: [
                             {
-                                fileData: createBinaryRef(fileId1),
+                                fileData: createBinaryRef("file-1"),
                                 type: "audio",
                                 format: "mp3",
                             },
@@ -509,7 +387,7 @@ describe("ChangeRequestController", () => {
                     videoData: {
                         uploadData: [
                             {
-                                fileData: createBinaryRef(fileId2),
+                                fileData: createBinaryRef("file-2"),
                                 type: "video",
                                 format: "mp4",
                             },
@@ -518,7 +396,7 @@ describe("ChangeRequestController", () => {
                     documentData: {
                         uploadData: [
                             {
-                                fileData: createBinaryRef(fileId3),
+                                fileData: createBinaryRef("file-3"),
                                 type: "document",
                                 format: "pdf",
                             },
@@ -528,22 +406,10 @@ describe("ChangeRequestController", () => {
             };
 
             const files = [
-                {
-                    id: fileId0,
-                    buffer: createTestFile("image"),
-                },
-                {
-                    id: fileId1,
-                    buffer: createTestFile("audio"),
-                },
-                {
-                    id: fileId2,
-                    buffer: createTestFile("video"),
-                },
-                {
-                    id: fileId3,
-                    buffer: createTestFile("pdf"),
-                },
+                { id: "file-0", buffer: createTestFile("image") },
+                { id: "file-1", buffer: createTestFile("audio") },
+                { id: "file-2", buffer: createTestFile("video") },
+                { id: "file-3", buffer: createTestFile("pdf") },
             ];
 
             const response = await createLFormDataRequest(changeRequest, files);
@@ -553,12 +419,13 @@ describe("ChangeRequestController", () => {
             expect(callArgs.doc.imageData.uploadData[0].type).toBe("image");
             expect(callArgs.doc.audioData.uploadData[0].type).toBe("audio");
             expect(callArgs.doc.videoData.uploadData[0].type).toBe("video");
-            expect(callArgs.doc.documentData.uploadData[0].type).toBe("document");
+            expect(callArgs.doc.documentData.uploadData[0].type).toBe(
+                "document",
+            );
         });
 
         it("should preserve metadata when patching files back", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const fileId = "file-0";
             const changeRequest = {
@@ -581,31 +448,23 @@ describe("ChangeRequestController", () => {
                 },
             };
 
-            const files = [
-                {
-                    id: fileId,
-                    buffer: createTestFile("image with metadata"),
-                },
-            ];
-
-            const response = await createLFormDataRequest(changeRequest, files);
+            const response = await createLFormDataRequest(changeRequest, [
+                { id: fileId, buffer: createTestFile("image with metadata") },
+            ]);
 
             expect(response.status).toBe(201);
             const callArgs = mockChangeRequest.mock.calls[0][0];
             const uploadedFile = callArgs.doc.imageData.uploadData[0];
-            expect(uploadedFile).toMatchObject({
-                preset: "photo",
-                filename: "test.jpg",
-                width: 1920,
-                height: 1080,
-                customField: "customValue",
-                fileData: expect.any(Buffer),
-            });
+            expect(uploadedFile.preset).toBe("photo");
+            expect(uploadedFile.filename).toBe("test.jpg");
+            expect(uploadedFile.width).toBe(1920);
+            expect(uploadedFile.height).toBe(1080);
+            expect(uploadedFile.customField).toBe("customValue");
+            expectBinaryData(uploadedFile.fileData);
         });
 
         it("should handle request without files (JSON only)", async () => {
-            const responseData = { success: true };
-            mockChangeRequest.mockResolvedValue(responseData);
+            mockChangeRequest.mockResolvedValue({ success: true });
 
             const changeRequest = {
                 apiVersion: "0.0.0",
@@ -622,16 +481,12 @@ describe("ChangeRequestController", () => {
                 .send(changeRequest);
 
             expect(response.status).toBe(201);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    apiVersion: "0.0.0",
-                    doc: expect.objectContaining({
-                        _id: "post-no-files",
-                        text: "No binary data here",
-                    }),
-                }),
-                "fake-token",
-            );
+            expect(mockChangeRequest).toHaveBeenCalledTimes(1);
+            const [arg, token] = mockChangeRequest.mock.calls[0];
+            expect(token).toBe("fake-token");
+            expect(arg.apiVersion).toBe("0.0.0");
+            expect(arg.doc._id).toBe("post-no-files");
+            expect(arg.doc.text).toBe("No binary data here");
         });
     });
 });

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
+import { cmsAuthGuard } from "@/auth";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -27,11 +27,11 @@ export const router = createRouter({
     routes: [
         {
             path: "/",
-            beforeEnter: authGuard,
+            beforeEnter: cmsAuthGuard,
             redirect:
                 typeof import.meta.env.VITE_INITIAL_PAGE === "string" &&
                 import.meta.env.VITE_INITIAL_PAGE.trim() !== ""
-                    ? { path: import.meta.env.VITE_INITIAL_PAGE }
+                    ? { path: "/" + import.meta.env.VITE_INITIAL_PAGE.replace(/^\//, "") }
                     : { name: "dashboard" },
             children: [
                 {
@@ -140,6 +140,19 @@ export const router = createRouter({
                         title: "Storage",
                         canAccess: {
                             docType: DocType.Storage,
+                            permission: AclPermission.View,
+                        },
+                        onlineOnly: true,
+                    },
+                },
+                {
+                    path: "oauth-providers",
+                    name: "oAuthProviders",
+                    component: () => import("../pages/OAuthProviderPage.vue"),
+                    meta: {
+                        title: "OAuth Providers",
+                        canAccess: {
+                            docType: DocType.OAuthProvider,
                             permission: AclPermission.View,
                         },
                         onlineOnly: true,

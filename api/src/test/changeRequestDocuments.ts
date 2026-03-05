@@ -2,6 +2,8 @@
 
 import { StorageDto } from "../dto/StorageDto";
 import { ContentDto } from "../dto/ContentDto";
+import { OAuthProviderDto } from "../dto/OAuthProviderDto";
+import { DocType } from "../enums";
 
 function randomString() {
     return Math.random().toString(36).substring(7);
@@ -124,5 +126,21 @@ export const changeRequest_storage = () => {
             },
             credential_id: undefined,
         } as StorageDto,
+    };
+};
+
+export const changeRequest_oAuthProvider = () => {
+    return {
+        doc: {
+            _id: "oauth-provider-1",
+            type: DocType.OAuthProvider,
+            memberOf: [],
+            label: "Test Auth0",
+            providerType: "auth0",
+            domain: "tenant.auth0.com",
+            clientId: "client123",
+            audience: "https://api.example.com",
+            updatedTimeUtc: Date.now(),
+        } as OAuthProviderDto,
     };
 };

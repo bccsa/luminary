@@ -173,7 +173,10 @@ export class DbService extends EventEmitter {
      * @param {number} maxRetries - Safety net to prevent infinite loops (default 50)
      * @returns - Promise containing the insert result
      */
-    async insertDoc(doc: any, maxRetries: number = 50): Promise<DbUpsertResult> {
+    async insertDoc(
+        doc: any,
+        maxRetries: number = 50,
+    ): Promise<DbUpsertResult> {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 const insertResult = await this.db.insert(doc);
@@ -183,16 +186,23 @@ export class DbService extends EventEmitter {
                     rev: insertResult.rev,
                 };
             } catch (err) {
-                if (err.reason === "Document update conflict." && attempt < maxRetries) {
+                if (
+                    err.reason === "Document update conflict." &&
+                    attempt < maxRetries
+                ) {
                     // Random delay to stagger concurrent writers and reduce repeated collisions
-                    const jitter = Math.floor(Math.random() * 10 * (attempt + 1));
+                    const jitter = Math.floor(
+                        Math.random() * 10 * (attempt + 1),
+                    );
                     await new Promise((r) => setTimeout(r, jitter));
 
                     const existing = await this.getDoc(doc._id);
                     if (existing.docs?.length > 0) {
                         doc._rev = existing.docs[0]._rev;
                     } else {
-                        throw new Error(err.message || err.reason || String(err));
+                        throw new Error(
+                            err.message || err.reason || String(err),
+                        );
                     }
                 } else {
                     throw new Error(err.message || err.reason || String(err));
@@ -213,7 +223,9 @@ export class DbService extends EventEmitter {
         }
 
         if (doc.type === DocType.Group && doc.type === DocType.User) {
-            throw new Error(`Delete command is not implemented for ${doc.type} documents`);
+            throw new Error(
+                `Delete command is not implemented for ${doc.type} documents`,
+            );
         }
 
         const res = await this.getDoc(doc._id);
@@ -328,7 +340,10 @@ export class DbService extends EventEmitter {
                         resolve({ docs: [], warnings: ["Document not found"] });
                     }
                     if (err.reason == "deleted") {
-                        resolve({ docs: [], warnings: ["Document is deleted"] });
+                        resolve({
+                            docs: [],
+                            warnings: ["Document is deleted"],
+                        });
                     } else {
                         reject(err);
                     }
@@ -345,14 +360,20 @@ export class DbService extends EventEmitter {
     getDocs(docIds: Uuid[], types: DocType[]): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
             if (!docIds || docIds.length < 1 || !types || types.length < 1) {
-                resolve({ docs: [], warnings: ["No document IDs or document types specified"] });
+                resolve({
+                    docs: [],
+                    warnings: ["No document IDs or document types specified"],
+                });
             }
             this.db
                 .fetch({ keys: docIds })
                 .then((res: nano.DocumentFetchResponse<unknown>) => {
                     // reduce the result to only include valid documents that match the passed types
                     const docs = res.rows
-                        .filter((row: any) => row.doc && types.includes(row.doc.type))
+                        .filter(
+                            (row: any) =>
+                                row.doc && types.includes(row.doc.type),
+                        )
                         .map((row: any) => row.doc);
                     resolve({ docs });
                 })
@@ -378,7 +399,8 @@ export class DbService extends EventEmitter {
             return {
                 id: "",
                 ok: true,
-                message: "No delete command needed as the document does not exist in the database",
+                message:
+                    "No delete command needed as the document does not exist in the database",
             } as DbUpsertResult;
         }
 
@@ -419,7 +441,9 @@ export class DbService extends EventEmitter {
 
         if (options.reason === DeleteReason.StatusChange) {
             if (options.doc.type !== DocType.Content) {
-                throw new Error("Status change delete command is only valid for content documents");
+                throw new Error(
+                    "Status change delete command is only valid for content documents",
+                );
             }
 
             const contentDoc = options.doc as unknown as ContentDto;
@@ -444,7 +468,8 @@ export class DbService extends EventEmitter {
                     id: "",
                     ok: true,
                     rev: "",
-                    message: "No delete command needed as no groups were removed",
+                    message:
+                        "No delete command needed as no groups were removed",
                 } as DbUpsertResult;
             }
 
@@ -513,15 +538,25 @@ export class DbService extends EventEmitter {
             docs.length < 1
                 ? 0
                 : docs.reduce(
-                      (prev: { updatedTimeUtc: number }, curr: { updatedTimeUtc: number }) =>
-                          prev.updatedTimeUtc > curr.updatedTimeUtc ? prev : curr,
+                      (
+                          prev: { updatedTimeUtc: number },
+                          curr: { updatedTimeUtc: number },
+                      ) =>
+                          prev.updatedTimeUtc > curr.updatedTimeUtc
+                              ? prev
+                              : curr,
                   ).updatedTimeUtc;
         const blockEnd: number =
             docs.length < 1
                 ? 0
                 : docs.reduce(
-                      (prev: { updatedTimeUtc: number }, curr: { updatedTimeUtc: number }) =>
-                          prev.updatedTimeUtc < curr.updatedTimeUtc ? prev : curr,
+                      (
+                          prev: { updatedTimeUtc: number },
+                          curr: { updatedTimeUtc: number },
+                      ) =>
+                          prev.updatedTimeUtc < curr.updatedTimeUtc
+                              ? prev
+                              : curr,
                   ).updatedTimeUtc;
 
         return { blockStart, blockEnd };
@@ -550,7 +585,8 @@ export class DbService extends EventEmitter {
      */
     search(options: SearchOptions): Promise<DbQueryResult> {
         if (options.slug) return this.searchBySlug(options);
-        if (options.parentId) return this.getContentByParentId(options.parentId);
+        if (options.parentId)
+            return this.getContentByParentId(options.parentId);
 
         // TODO: move queries to separate functions similar to searchBySlug
         return new Promise(async (resolve, reject) => {
@@ -582,7 +618,9 @@ export class DbService extends EventEmitter {
             const docIdSelector = options.docId ? [{ _id: options.docId }] : [];
 
             const languageSelector =
-                options.languages?.length > 0 ? [{ language: { $in: options.languages } }] : [];
+                options.languages?.length > 0
+                    ? [{ language: { $in: options.languages } }]
+                    : [];
 
             const docQuery = {
                 selector: { $and: [...timeSelector, ...docIdSelector] },
@@ -601,7 +639,10 @@ export class DbService extends EventEmitter {
 
                 if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({
-                        $and: [{ type: { $in: [docType] } }, { memberOf: { $in: groups } }],
+                        $and: [
+                            { type: { $in: [docType] } },
+                            { memberOf: { $in: groups } },
+                        ],
                     });
 
                 // content only docs
@@ -646,7 +687,9 @@ export class DbService extends EventEmitter {
             if ($or.length < 1)
                 resolve({
                     docs: [],
-                    warnings: ["User does not have access to view any documents"],
+                    warnings: [
+                        "User does not have access to view any documents",
+                    ],
                 });
             docQuery.selector["$and"].push({ $or });
 
@@ -675,7 +718,11 @@ export class DbService extends EventEmitter {
                 doc.type == DocType.Content &&
                 options.userAccess[(doc as ContentDto).parentType] &&
                 doc.memberOf.some((m: string) =>
-                    (options.userAccess[(doc as ContentDto).parentType] as string[]).includes(m),
+                    (
+                        options.userAccess[
+                            (doc as ContentDto).parentType
+                        ] as string[]
+                    ).includes(m),
                 )
             ) {
                 return true;
@@ -694,9 +741,11 @@ export class DbService extends EventEmitter {
         });
 
         // sort the result by updatedTimeUtc in descending order
-        res.docs.sort((a: ContentDto | RedirectDto, b: ContentDto | RedirectDto) => {
-            return b.updatedTimeUtc - a.updatedTimeUtc;
-        });
+        res.docs.sort(
+            (a: ContentDto | RedirectDto, b: ContentDto | RedirectDto) => {
+                return b.updatedTimeUtc - a.updatedTimeUtc;
+            },
+        );
 
         // Check if a redirect document is found, and return the first match. Else, return the first content document.
         const redirects = res.docs.filter(
@@ -727,7 +776,10 @@ export class DbService extends EventEmitter {
             this.db
                 .find(query)
                 .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                    resolve({
+                        docs: res.docs,
+                        warnings: res.warning ? [res.warning] : undefined,
+                    });
                 })
                 .catch((err) => {
                     reject(err);
@@ -740,7 +792,9 @@ export class DbService extends EventEmitter {
      * @param parentId - Single or array of parent IDs
      * @returns
      */
-    async getContentByParentId(parentId: Uuid | Uuid[]): Promise<DbQueryResult> {
+    async getContentByParentId(
+        parentId: Uuid | Uuid[],
+    ): Promise<DbQueryResult> {
         if (!Array.isArray(parentId)) parentId = [parentId];
 
         const queryRes = await this.db.view("parentId", "parentId", {
@@ -749,7 +803,9 @@ export class DbService extends EventEmitter {
         });
 
         return {
-            docs: queryRes.rows.map((row) => row.doc).filter((doc) => doc.type == DocType.Content),
+            docs: queryRes.rows
+                .map((row) => row.doc)
+                .filter((doc) => doc.type == DocType.Content),
             warnings: queryRes.warnings,
         } as DbQueryResult;
     }
@@ -774,7 +830,10 @@ export class DbService extends EventEmitter {
             this.db
                 .find(query)
                 .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                    resolve({
+                        docs: res.docs,
+                        warnings: res.warning ? [res.warning] : undefined,
+                    });
                 })
                 .catch((err) => {
                     reject(err);
@@ -807,7 +866,10 @@ export class DbService extends EventEmitter {
             this.db
                 .find(query)
                 .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                    resolve({
+                        docs: res.docs,
+                        warnings: res.warning ? [res.warning] : undefined,
+                    });
                 })
                 .catch((err) => {
                     reject(err);
@@ -816,19 +878,21 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Get a user document by userId or email
+     * Get user documents by email
      * @param email
-     * @param userId
      * @returns
      */
-    async getUserByIdOrEmail(email: string, userId?: string): Promise<DbQueryResult> {
+    async getUsersByEmail(email: string): Promise<DbQueryResult> {
         const keys = [email];
-        if (userId) keys.push(userId);
 
-        const res = await this.db.view("view-user-email-userId", "view-user-email-userId", {
-            keys,
-            include_docs: true,
-        });
+        const res = await this.db.view(
+            "view-user-email-userId",
+            "view-user-email-userId",
+            {
+                keys,
+                include_docs: true,
+            },
+        );
 
         // Merge docs and ensure uniqueness by _id
         const allDocs = res.rows.map((row) => row.doc);
@@ -855,14 +919,17 @@ export class DbService extends EventEmitter {
         docType: DocType = DocType.Content,
     ): Promise<boolean> {
         return new Promise((resolve) => {
-            this.db.view("slug", "slug", { key: [docType, slug] }).then((res) => {
-                if (res.rows.length > 1) resolve(false);
+            this.db
+                .view("slug", "slug", { key: [docType, slug] })
+                .then((res) => {
+                    if (res.rows.length > 1) resolve(false);
 
-                // Skip the check if the only result is the document itself
-                if (res.rows.length == 1 && res.rows[0].id != documentId) resolve(false);
+                    // Skip the check if the only result is the document itself
+                    if (res.rows.length == 1 && res.rows[0].id != documentId)
+                        resolve(false);
 
-                resolve(true);
-            });
+                    resolve(true);
+                });
         });
     }
 
@@ -876,7 +943,9 @@ export class DbService extends EventEmitter {
         callback: (doc: any) => void | Promise<void>,
     ): Promise<any> {
         if (!docTypes.length)
-            throw new Error("docTypes must be an array with at least one element");
+            throw new Error(
+                "docTypes must be an array with at least one element",
+            );
 
         let bookmark: string | undefined = undefined;
         let completed = false;

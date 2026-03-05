@@ -1,65 +1,144 @@
 import { Logger } from "winston";
 import { Uuid } from "../enums";
-import * as JWT from "jsonwebtoken";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
-import configuration from "../configuration";
-import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
-
-export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
+import {
+    AccessMap,
+    PermissionSystem,
+} from "../permissions/permissions.service";
+import { getGroupNameToIdMap, clearGroupNameCache } from "./groupCache";
+import {
+    verifyJwtAndMatchProvider,
+    clearJwksClients,
+    type TrustedProviderShape,
+} from "./verifyJwt";
+import type { GroupAssignmentCondition } from "../dto/OAuthProviderDto";
+import type { JwtPayload } from "jsonwebtoken";
 
 export type JwtUserDetails = {
     groups: Array<Uuid>;
     userId?: Uuid;
     email?: string;
     name?: string;
-    jwtPayload?: JWT.JwtPayload;
+    jwtPayload?: JwtPayload;
     accessMap?: AccessMap;
 };
 
-let jwtMap: JwtMap;
+export { clearGroupNameCache, clearJwksClients };
 
-/**
- * Parse the permission map from the JWT_MAPPINGS environmental variable to an object
- * @param permissionMap - Configuration instance
- * @returns - Parsed permissions map
- */
-export function parseJwtMap(permissionMap: string, logger?: Logger): JwtMap {
-    // Parse permission map
-    try {
-        const map = JSON.parse(permissionMap);
+const PUBLIC_USERS_GROUP_ID = "group-public-users";
 
-        // Evaluate stringified functions
-        if (map.groups) {
-            Object.keys(map.groups).forEach((key) => {
-                map.groups[key] = eval(map.groups[key]);
-            });
+// --- Helpers ---
+
+function evaluateGroupCondition(
+    condition: GroupAssignmentCondition,
+    claimSource: Record<string, unknown> | undefined,
+    hasJwt: boolean,
+): boolean {
+    switch (condition.type) {
+        case "always":
+            return true;
+        case "authenticated":
+            return hasJwt;
+        case "claimEquals": {
+            const v = claimSource?.[condition.claimPath];
+            return String(v ?? "") === condition.value;
         }
-
-        if (map.userId) map.userId = eval(map.userId);
-        if (map.email) map.email = eval(map.email);
-        if (map.name) map.name = eval(map.name);
-
-        return map as JwtMap;
-    } catch (err) {
-        logger?.error(`Unable to parse permission map`, err);
-        return new Map();
+        case "claimIn": {
+            const v = claimSource?.[condition.claimPath];
+            const str = v != null ? String(v) : undefined;
+            return str != null && condition.values.includes(str);
+        }
+        default:
+            return false;
     }
 }
 
-/**
- * Clear the JWT map. This is useful for testing purposes to ensure that the JWT map is reloaded
- * @returns - void
- */
-export function clearJwtMap() {
-    jwtMap = undefined;
+/** Extract userId, email, name from the JWT payload using the provider's field mappings. */
+function extractUserFields(
+    provider: TrustedProviderShape,
+    jwtPayload: JwtPayload,
+): { userId?: string; email?: string; name?: string } {
+    const ns = provider.claimNamespace
+        ? (jwtPayload[provider.claimNamespace] as
+              | Record<string, unknown>
+              | undefined)
+        : undefined;
+
+    let userId: string | undefined;
+    let email: string | undefined;
+    let name: string | undefined;
+
+    // Try custom field mappings from the namespace object first
+    const mappings = provider.userFieldMappings;
+    if (ns && typeof ns === "object" && mappings) {
+        if (mappings.userId) userId = ns[mappings.userId] as string;
+        if (mappings.email) email = ns[mappings.email] as string;
+        if (mappings.name) name = ns[mappings.name] as string;
+    }
+
+    // Fall back to standard OIDC claims
+    email ??= jwtPayload.email;
+    name ??= jwtPayload.name;
+    userId ??= jwtPayload.sub;
+
+    return { userId, email, name };
 }
 
+/** Resolve groups from provider groupAssignments and claimMappings. */
+async function resolveProviderGroups(
+    provider: TrustedProviderShape,
+    jwtPayload: JwtPayload,
+    db: DbService,
+): Promise<Set<Uuid>> {
+    const groupSet = new Set<Uuid>();
+
+    const ns = provider.claimNamespace
+        ? (jwtPayload[provider.claimNamespace] as
+              | Record<string, unknown>
+              | undefined)
+        : undefined;
+    const claimSource = (ns && typeof ns === "object" ? ns : jwtPayload) as
+        | Record<string, unknown>
+        | undefined;
+
+    // Static/conditional group assignments
+    if (provider.groupAssignments?.length) {
+        for (const assignment of provider.groupAssignments) {
+            const allPass = assignment.conditions.every((c) =>
+                evaluateGroupCondition(c, claimSource, true),
+            );
+            if (allPass && assignment.groupId) {
+                groupSet.add(assignment.groupId as Uuid);
+            }
+        }
+    }
+
+    // Claim-based group mappings (claim array values → group names → group IDs)
+    if (provider.claimMappings?.length && claimSource) {
+        const groupNameToId = await getGroupNameToIdMap(db);
+        for (const mapping of provider.claimMappings) {
+            const claimValue = claimSource[mapping.claim];
+            if (mapping.target === "groups" && claimValue != null) {
+                const entries = Array.isArray(claimValue)
+                    ? claimValue
+                    : [claimValue];
+                for (const entry of entries) {
+                    const id = groupNameToId.get(String(entry).toLowerCase());
+                    if (id) groupSet.add(id);
+                }
+            }
+        }
+    }
+
+    return groupSet;
+}
+
+// --- Main ---
+
 /**
- * Process a JWT token against the JWT_MAPPINGS (environmental variable) and return mapped groups and user details
- * @param jwt - Javascript Web Token
- * @param logger - Logger instance
- * @returns - Array with JWT verified groups
+ * Verify a JWT, resolve user identity and group memberships, and return
+ * the combined access details. Unauthenticated requests get public access only.
  */
 export async function processJwt(
     jwt: string,
@@ -67,99 +146,89 @@ export async function processJwt(
     logger?: Logger,
 ): Promise<JwtUserDetails> {
     const groupSet = new Set<Uuid>();
-    let userId: string;
-    let email: string;
-    let name: string;
-    const lastLogin = Date.now();
+    let userId: string | undefined;
+    let email: string | undefined;
+    let name: string | undefined;
+    let jwtPayload: JwtPayload | undefined;
 
-    // Load the JWT mappings if not already loaded
-    if (!jwtMap) {
-        const jwtMapEnv = configuration().auth.jwtMappings;
-        if (!jwtMapEnv) {
-            logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
-        }
-        jwtMap = parseJwtMap(jwtMapEnv, logger);
-    }
+    // 1. Verify JWT and match to a provider
+    if (jwt) {
+        try {
+            const verified = await verifyJwtAndMatchProvider(jwt, db, logger);
+            if (verified) {
+                jwtPayload = verified.jwtPayload;
+                const provider = verified.matchedProvider;
 
-    // Verify the JWT token
-    let jwtPayload: JWT.JwtPayload;
-    try {
-        jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
-    } catch (err) {
-        logger?.error(`Unable to verify JWT`, err);
-    }
+                if (provider && jwtPayload) {
+                    ({ userId, email, name } = extractUserFields(
+                        provider,
+                        jwtPayload,
+                    ));
 
-    // Get JWT mapped groups and user details
-    try {
-        if (jwtMap["groups"]) {
-            Object.keys(jwtMap["groups"]).forEach((groupId) => {
-                if (jwtMap["groups"][groupId](jwtPayload)) groupSet.add(groupId);
-            });
-        }
-
-        if (jwtMap["userId"]) {
-            userId = jwtMap["userId"](jwtPayload);
-        }
-
-        if (jwtMap["email"]) {
-            email = jwtMap["email"](jwtPayload);
-        }
-
-        if (jwtMap["name"]) {
-            name = jwtMap["name"](jwtPayload);
-        }
-    } catch (err) {
-        logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
-    }
-
-    // If userId is set, get the user details from the database using the userId
-    if (userId) {
-        userId = userId.toString();
-    }
-
-    const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
-
-    // Update user details in the database if either userId or email is set
-    if (userId) {
-        for (const d of userDocs) {
-            // Only update userId if it was actually mapped from JWT (not email fallback)
-            const updated = { ...d, userId, lastLogin };
-            // Update email if it was mapped from JWT
-            if (email) {
-                updated.email = email;
+                    const providerGroups = await resolveProviderGroups(
+                        provider,
+                        jwtPayload,
+                        db,
+                    );
+                    for (const g of providerGroups) groupSet.add(g);
+                } else if (jwtPayload) {
+                    // Expired/unverified token: extract standard OIDC claims
+                    // for DB group lookup only (no provider group assignments)
+                    email = jwtPayload.email;
+                    name = jwtPayload.name;
+                    userId = jwtPayload.sub;
+                }
             }
-            // Update name if it was mapped from JWT
-            if (name) {
-                updated.name = name;
-            }
-            await db.upsertDoc(updated);
-        }
-    } else if (email) {
-        for (const d of userDocs) {
-            // When signing in with email only, don't update userId field
-            const updated = { ...d, lastLogin, email };
-            // Update name if it was mapped from JWT
-            if (name) {
-                updated.name = name;
-            }
-            await db.upsertDoc(updated);
+        } catch (err) {
+            logger?.error("Unable to verify JWT", err);
         }
     }
 
-    userDocs
-        .map((d) => d.memberOf)
-        .flat()
-        .forEach((groupId) => {
-            groupSet.add(groupId);
+    // 2. Merge groups from existing User docs in the database
+    // Use raw JWT claims for DB lookup (most reliable, independent of field mapping config).
+    // Field-mapped values are still stored on the user doc for display/update purposes.
+    const userIdStr = userId?.toString();
+    const lookupEmail = (jwtPayload?.email as string | undefined) ?? email;
+
+    if (lookupEmail) {
+        const res = await db.getUsersByEmail(
+            typeof lookupEmail === "string" ? lookupEmail : "",
+        );
+        const userDocs = (res.docs ?? []) as UserDto[];
+
+        logger?.info("processJwt DB lookup", {
+            lookupEmail,
+            docsFound: userDocs.length,
         });
+
+        // Update user records with latest login info
+        for (const doc of userDocs) {
+            await db.upsertDoc({
+                ...doc,
+                lastLogin: Date.now(),
+                ...(userIdStr && { userId: userIdStr }),
+                ...(email && { email }),
+                ...(name && { name }),
+            });
+
+            for (const groupId of doc.memberOf ?? []) {
+                groupSet.add(groupId);
+            }
+        }
+    }
+
+    // 3. Everyone gets public access
+    groupSet.add(PUBLIC_USERS_GROUP_ID);
 
     const groups = [...groupSet];
     const accessMap = PermissionSystem.getAccessMap(groups);
 
-    if (!userId) userId = email || "";
-    userId = userId.toString();
-
-    return { groups, userId, email, name, jwtPayload, accessMap };
+    return {
+        groups,
+        userId: (userIdStr ?? email ?? "").toString(),
+        email,
+        name,
+        jwtPayload,
+        accessMap,
+    };
 }

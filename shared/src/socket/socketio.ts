@@ -28,7 +28,10 @@ export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 /**
  * Maximum file size for media uploads in bytes as a Vue ref
  */
-export const maxMediaUploadFileSize = useLocalStorage("maxMediaUploadFileSize", 0);
+export const maxMediaUploadFileSize = useLocalStorage(
+    "maxMediaUploadFileSize",
+    0,
+);
 
 class SocketIO {
     private socket: Socket;
@@ -39,7 +42,9 @@ class SocketIO {
      */
     constructor(config: SharedConfig) {
         const token = config.token;
-        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
+        this.socket = io(config.apiUrl, {
+            auth: token ? { token } : undefined,
+        });
 
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds
@@ -61,8 +66,12 @@ class SocketIO {
                 if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
                 return config.syncList?.some((entry) => {
                     if (!entry.sync) return false; // Do not save documents to indexedDB that should not be synced
-                    if (!entry.contentOnly && entry.type === doc.type) return true;
-                    if (doc.type == DocType.Content && doc.parentType === entry.type) {
+                    if (!entry.contentOnly && entry.type === doc.type)
+                        return true;
+                    if (
+                        doc.type == DocType.Content &&
+                        doc.parentType === entry.type
+                    ) {
                         // Include content documents for all languages if no language filter is set
                         if (
                             !config.appLanguageIdsAsRef ||
@@ -72,7 +81,12 @@ class SocketIO {
                             return true;
 
                         // Filter content documents by language if a language filter is set
-                        if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
+                        if (
+                            doc.language &&
+                            config.appLanguageIdsAsRef.value.includes(
+                                doc.language,
+                            )
+                        )
                             return true;
                     }
                     return false;
@@ -83,8 +97,10 @@ class SocketIO {
         });
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
-            if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
-            if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
+            if (c.maxUploadFileSize)
+                maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.maxMediaUploadFileSize)
+                maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
@@ -127,6 +143,14 @@ class SocketIO {
         isConnected.value = false;
         this.socket.connect();
     }
+
+    /**
+     * Update the auth token and reconnect to get fresh permissions.
+     */
+    public updateAuth(token: string) {
+        this.socket.auth = { token };
+        this.reconnect();
+    }
 }
 
 let socket: SocketIO;
@@ -155,4 +179,14 @@ export function getSocket(
     } else if (options.reconnect) socket.reconnect();
 
     return socket;
+}
+
+/**
+ * Reconnect the existing socket with a new auth token.
+ * Used when auth completes after the initial guest connection.
+ */
+export function reconnectWithToken(token: string) {
+    if (socket) {
+        socket.updateAuth(token);
+    }
 }

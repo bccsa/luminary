@@ -1,7 +1,11 @@
 import { NestFactory } from "@nestjs/core";
-import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import {
+    FastifyAdapter,
+    NestFastifyApplication,
+} from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
+import { seedDefaultProvider } from "./db/seedDefaultProvider";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
@@ -10,9 +14,13 @@ import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 
 async function bootstrap() {
-    const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-        bufferLogs: true,
-    });
+    const app = await NestFactory.create<NestFastifyApplication>(
+        AppModule,
+        new FastifyAdapter(),
+        {
+            bufferLogs: true,
+        },
+    );
 
     // Register multipart plugin for file uploads
     await app.register(multipart, {
@@ -30,6 +38,9 @@ async function bootstrap() {
 
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
+
+    // Seed the default OAuth provider if one doesn't exist yet
+    await seedDefaultProvider(dbService);
 
     // Seed database with default data if requested
     if (process.argv.length >= 3 && process.argv[2] === "seed") {

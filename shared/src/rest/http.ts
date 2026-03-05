@@ -7,19 +7,32 @@ export class HttpReq<T> {
         this.apiUrl = apiUrl;
     }
 
+    /** Update the auth token for subsequent requests. */
+    updateToken(token: string) {
+        this.token = token;
+    }
+
+    private authHeaders(): Record<string, string> {
+        const h: Record<string, string> = {};
+        if (this.token) h.Authorization = `Bearer ${this.token}`;
+        return h;
+    }
+
     async get(endpoint: string, query: T) {
         console.warn(
             "The API GET call containing an X-Query header is deprecated and should be replaced with POST calls containing a MangoQuery",
         );
         const headers: any = {
             "X-Query": JSON.stringify(query),
+            ...this.authHeaders(),
         };
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
 
         try {
             const schema = "https://";
             const regex = /^https?:\/\//;
-            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const url = regex.test(this.apiUrl)
+                ? this.apiUrl
+                : `${schema}${this.apiUrl}`;
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "GET",
                 headers: headers,
@@ -34,13 +47,14 @@ export class HttpReq<T> {
     }
 
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
-        const headers: any = {};
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
+        const headers: any = { ...this.authHeaders() };
 
         try {
             const schema = "https://";
             const regex = /^https?:\/\//;
-            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const url = regex.test(this.apiUrl)
+                ? this.apiUrl
+                : `${schema}${this.apiUrl}`;
             const queryParams = new URLSearchParams(params);
             const res = await fetch(`${url}/${endpoint}?${queryParams}`, {
                 method: "GET",
@@ -61,12 +75,14 @@ export class HttpReq<T> {
         try {
             const schema = "https://";
             const regex = /^https?:\/\//;
-            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const url = regex.test(this.apiUrl)
+                ? this.apiUrl
+                : `${schema}${this.apiUrl}`;
             const isFormData = query instanceof FormData;
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
                 headers: {
-                    Authorization: this.token ? `Bearer ${this.token}` : "",
+                    ...this.authHeaders(),
                     ...(!isFormData && { "Content-Type": "application/json" }),
                 },
                 body: isFormData ? query : JSON.stringify(query),

@@ -206,9 +206,9 @@ describe("QueryService", () => {
             (s as any).parentType = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
-        );
+        await expect(service.query(query, "token")).rejects.toMatchObject({
+            status: HttpStatus.FORBIDDEN,
+        });
     });
 
     it("throws 400 when multiple types are specified", async () => {
@@ -311,9 +311,9 @@ describe("QueryService", () => {
             (s as any).type = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
-        );
+        await expect(service.query(query, "token")).rejects.toMatchObject({
+            status: HttpStatus.FORBIDDEN,
+        });
     });
 
     it("supports top-level $or by wrapping in $and", async () => {
@@ -433,9 +433,9 @@ describe("QueryService", () => {
             (s as any).docType = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
-        );
+        await expect(service.query(query, "token")).rejects.toMatchObject({
+            status: HttpStatus.FORBIDDEN,
+        });
     });
 
     it("combines Post and Tag view groups for DeleteCmd with Content docType", async () => {
@@ -513,8 +513,8 @@ describe("QueryService", () => {
             (s as any).docType = DocType.Content;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
-        );
+        await expect(service.query(query, "token")).rejects.toMatchObject({
+            status: HttpStatus.FORBIDDEN,
+        });
     });
 });

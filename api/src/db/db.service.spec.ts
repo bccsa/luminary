@@ -40,9 +40,15 @@ describe("DbService", () => {
             expect(res2.docs.length).toBe(0);
             expect(res3.docs.length).toBe(0);
 
-            expect(res1.warnings).toContain("No document IDs or document types specified");
-            expect(res2.warnings).toContain("No document IDs or document types specified");
-            expect(res3.warnings).toContain("No document IDs or document types specified");
+            expect(res1.warnings).toContain(
+                "No document IDs or document types specified",
+            );
+            expect(res2.warnings).toContain(
+                "No document IDs or document types specified",
+            );
+            expect(res3.warnings).toContain(
+                "No document IDs or document types specified",
+            );
         });
 
         it("can get a list of documents filtered by document ID and document type", async () => {
@@ -71,8 +77,12 @@ describe("DbService", () => {
             const res: any = await service.getContentByParentId("post-blog1");
 
             expect(res.docs.length).toBe(2);
-            expect(res.docs.some((d) => d._id == "content-blog1-eng")).toBe(true);
-            expect(res.docs.some((d) => d._id == "content-blog1-fra")).toBe(true);
+            expect(res.docs.some((d) => d._id == "content-blog1-eng")).toBe(
+                true,
+            );
+            expect(res.docs.some((d) => d._id == "content-blog1-fra")).toBe(
+                true,
+            );
         });
 
         it("does not return indexing warnings on getGroups queries", async () => {
@@ -89,31 +99,17 @@ describe("DbService", () => {
         it("can retrieve all content documents of a specific language", async () => {
             const res = await service.getContentByLanguage("lang-eng", 1);
             expect(res.docs.length).toBe(1);
-            expect(res.docs.every((d) => d.type === DocType.Content)).toBe(true);
+            expect(res.docs.every((d) => d.type === DocType.Content)).toBe(
+                true,
+            );
             expect(res.docs.every((d) => d.language === "lang-eng")).toBe(true);
         });
 
         it("can get a user document by email", async () => {
-            const res = await service.getUserByIdOrEmail("editor1@users.test", undefined);
+            const res = await service.getUsersByEmail("editor1@users.test");
             expect(res.docs.length).toBe(1);
             expect(res.docs[0].type === DocType.User).toBe(true);
             expect(res.docs[0].userId).toBe("editor1");
-        });
-
-        it("can get a user document by userId", async () => {
-            const res = await service.getUserByIdOrEmail("outdated@email.address", "editor1");
-            expect(res.docs.length).toBe(1);
-            expect(res.docs[0].type === DocType.User).toBe(true);
-            expect(res.docs[0].email).toBe("editor1@users.test");
-        });
-
-        it("can get a user document by userId and email", async () => {
-            // Only one result should be returned. This test checks that the uniqueness filter is applied correctly (as the index is not unique)
-            const res = await service.getUserByIdOrEmail("editor1@users.test", "editor1");
-            expect(res.docs.length).toBe(1);
-            expect(res.docs[0].type === DocType.User).toBe(true);
-            expect(res.docs[0].userId).toBe("editor1");
-            expect(res.docs[0].email).toBe("editor1@users.test");
         });
     });
 
@@ -136,11 +132,18 @@ describe("DbService", () => {
             const uuid = randomUUID();
 
             // Insert a document to establish an initial revision
-            const firstInsert = await service.insertDoc({ _id: uuid, testData: "v1" });
+            const firstInsert = await service.insertDoc({
+                _id: uuid,
+                testData: "v1",
+            });
             expect(firstInsert.ok).toBe(true);
 
             // Update the document to advance the revision
-            await service.insertDoc({ _id: uuid, _rev: firstInsert.rev, testData: "v2" });
+            await service.insertDoc({
+                _id: uuid,
+                _rev: firstInsert.rev,
+                testData: "v2",
+            });
 
             // Attempt to insert with the stale (first) revision -- this should conflict
             // but insertDoc should auto-resolve by fetching the latest _rev and retrying
@@ -165,7 +168,13 @@ describe("DbService", () => {
             // Fire 20 parallel inserts all using the same stale _rev
             const promises = [];
             for (let i = 1; i <= 20; i++) {
-                promises.push(service.insertDoc({ _id: uuid, _rev: firstRev, counter: i }));
+                promises.push(
+                    service.insertDoc({
+                        _id: uuid,
+                        _rev: firstRev,
+                        counter: i,
+                    }),
+                );
             }
 
             await Promise.all(promises);
@@ -283,7 +292,9 @@ describe("DbService", () => {
             // Update the document with the same data
             const res = await service.upsertDoc(changedDoc);
 
-            expect(res.message).toBe("Document is identical to the one in the database");
+            expect(res.message).toBe(
+                "Document is identical to the one in the database",
+            );
         });
 
         it("can get the latest document updated time", async () => {
@@ -307,7 +318,9 @@ describe("DbService", () => {
             };
             await service.upsertDoc(doc);
             const res: any = await service.upsertDoc(doc);
-            expect(res.message).toBe("Document is identical to the one in the database");
+            expect(res.message).toBe(
+                "Document is identical to the one in the database",
+            );
         });
 
         it("can handle simultaneous updates to a single existing document", async () => {
@@ -318,7 +331,12 @@ describe("DbService", () => {
             const pList = new Array<Promise<any>>();
 
             for (let index = 1; index <= 50; index++) {
-                pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
+                pList.push(
+                    service.upsertDoc({
+                        _id: "simultaneousTest",
+                        testVal: index,
+                    }),
+                );
             }
 
             let res: boolean = false;
@@ -468,7 +486,9 @@ describe("DbService", () => {
                 expect(deleteCmdEventReceived).toBe(true);
                 expect(receivedDeleteCmd.type).toBe(DocType.DeleteCmd);
                 expect(receivedDeleteCmd.docId).toBe("lang-delete-event-test");
-                expect(receivedDeleteCmd.deleteReason).toBe(DeleteReason.Deleted);
+                expect(receivedDeleteCmd.deleteReason).toBe(
+                    DeleteReason.Deleted,
+                );
             });
 
             service.off("languageUpdate", languageDeleteHandler);
@@ -500,8 +520,17 @@ describe("DbService", () => {
             ];
             const options = {
                 userAccess: userAccess,
-                types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                types: [
+                    DocType.Post,
+                    DocType.Tag,
+                    DocType.Language,
+                    DocType.Group,
+                ],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
                 limit: 10,
             };
 
@@ -528,8 +557,17 @@ describe("DbService", () => {
             ];
             const options = {
                 userAccess: userAccess,
-                types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                types: [
+                    DocType.Post,
+                    DocType.Tag,
+                    DocType.Language,
+                    DocType.Group,
+                ],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
                 limit: 30,
                 to: undefined,
                 from: undefined,
@@ -563,8 +601,17 @@ describe("DbService", () => {
             ];
             const options = {
                 userAccess: userAccess,
-                types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                types: [
+                    DocType.Post,
+                    DocType.Tag,
+                    DocType.Language,
+                    DocType.Group,
+                ],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
                 limit: 10,
                 sort: [{ updatedTimeUtc: "asc" }],
             } as SearchOptions;
@@ -574,16 +621,29 @@ describe("DbService", () => {
             options.sort = [{ updatedTimeUtc: "desc" }];
             const res2 = await service.search(options);
 
-            expect(res.docs[9]?.updatedTimeUtc).toBeGreaterThan(res.docs[0]?.updatedTimeUtc);
-            expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(res2.docs[9]?.updatedTimeUtc);
+            expect(res.docs[9]?.updatedTimeUtc).toBeGreaterThan(
+                res.docs[0]?.updatedTimeUtc,
+            );
+            expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(
+                res2.docs[9]?.updatedTimeUtc,
+            );
         });
 
         it("returns no data if user has no access (queryDocs)", async () => {
             const userAccess = new Map<DocType, Uuid[]>();
             const options = {
                 userAccess: userAccess,
-                types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                types: [
+                    DocType.Post,
+                    DocType.Tag,
+                    DocType.Language,
+                    DocType.Group,
+                ],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
             };
 
             const res = await service.search(options);
@@ -639,11 +699,17 @@ describe("DbService", () => {
                 userAccess: userAccess,
                 types: [DocType.Post, DocType.Tag, DocType.Language], // need to exclude group type, since it does not check the groups array for this
                 contentOnly: true,
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
             };
 
             const res = await service.search(options);
-            const notContentDocs = res.docs.filter((d) => d.type !== DocType.Content);
+            const notContentDocs = res.docs.filter(
+                (d) => d.type !== DocType.Content,
+            );
 
             expect(notContentDocs.length).toBeLessThan(1);
         });
@@ -669,12 +735,18 @@ describe("DbService", () => {
                 userAccess: userAccess,
                 types: [DocType.Post, DocType.Tag], // need to exclude group type, since it does not check the groups array for this
                 contentOnly: true,
-                groups: ["group-super-admins", "group-public-content", "group-private-content"],
+                groups: [
+                    "group-super-admins",
+                    "group-public-content",
+                    "group-private-content",
+                ],
                 languages: ["lang-eng"],
             };
 
             const res = await service.search(options);
-            const notEnglishDocs = res.docs.filter((d) => d.language !== "lang-eng");
+            const notEnglishDocs = res.docs.filter(
+                (d) => d.language !== "lang-eng",
+            );
 
             expect(res.docs.length).toBeGreaterThan(1);
             expect(notEnglishDocs.length).toBeLessThan(1);
@@ -823,7 +895,11 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc, prevDoc: doc })
+                .insertDeleteCmd({
+                    reason: DeleteReason.Deleted,
+                    doc: doc,
+                    prevDoc: doc,
+                })
                 .catch((e) => e);
 
             expect(err.message).toBe(
@@ -866,7 +942,11 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
+                .insertDeleteCmd({
+                    reason: DeleteReason.StatusChange,
+                    doc: doc,
+                    prevDoc: doc,
+                })
                 .catch((e) => e);
 
             expect(err.message).toBe(
@@ -883,7 +963,11 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
+                .insertDeleteCmd({
+                    reason: DeleteReason.StatusChange,
+                    doc: doc,
+                    prevDoc: doc,
+                })
                 .catch((e) => e);
 
             expect(err.message).toBe(
@@ -902,7 +986,10 @@ describe("DbService", () => {
             const insertResult = await service.insertDeleteCmd({
                 reason: DeleteReason.PermissionChange,
                 doc: doc,
-                prevDoc: { ...doc, memberOf: ["group-public-content", "group-private-content"] },
+                prevDoc: {
+                    ...doc,
+                    memberOf: ["group-public-content", "group-private-content"],
+                },
             });
 
             expect(insertResult.ok).toBe(true);
@@ -911,7 +998,9 @@ describe("DbService", () => {
             const res = await service.getDoc(insertResult.id);
 
             expect(res.docs.length).toBe(1);
-            expect(res.docs[0].deleteReason).toBe(DeleteReason.PermissionChange);
+            expect(res.docs[0].deleteReason).toBe(
+                DeleteReason.PermissionChange,
+            );
             expect(res.docs[0].memberOf).toEqual(["group-private-content"]); // only the removed groups should get the delete command
             expect(res.docs[0].type).toBe(DocType.DeleteCmd);
             expect(res.docs[0].docType).toBe(doc.type);
@@ -934,7 +1023,9 @@ describe("DbService", () => {
 
             expect(insertResult.id).toBe("");
             expect(insertResult.ok).toBe(true);
-            expect(insertResult.message).toBe("No delete command needed as no groups were removed");
+            expect(insertResult.message).toBe(
+                "No delete command needed as no groups were removed",
+            );
             expect(insertResult.rev).toBe("");
         });
 
@@ -973,9 +1064,15 @@ describe("DbService", () => {
                 await waitForExpect(() => {
                     expect(updateEventDoc).toBeDefined();
                     expect(updateEventDoc.docId).toBe("delete-test");
-                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.PermissionChange);
-                    expect(updateEventDoc.memberOf).toEqual(["group-private-content"]); // only the removed groups should get the delete command
-                    expect(updateEventDoc.newMemberOf).toEqual(["group-public-content"]);
+                    expect(updateEventDoc.deleteReason).toBe(
+                        DeleteReason.PermissionChange,
+                    );
+                    expect(updateEventDoc.memberOf).toEqual([
+                        "group-private-content",
+                    ]); // only the removed groups should get the delete command
+                    expect(updateEventDoc.newMemberOf).toEqual([
+                        "group-public-content",
+                    ]);
                 });
             });
 
@@ -1014,9 +1111,15 @@ describe("DbService", () => {
 
                 await waitForExpect(() => {
                     expect(updateEventDoc).toBeDefined();
-                    expect(updateEventDoc.docId).toBe("delete-test-statusChange");
-                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.StatusChange);
-                    expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
+                    expect(updateEventDoc.docId).toBe(
+                        "delete-test-statusChange",
+                    );
+                    expect(updateEventDoc.deleteReason).toBe(
+                        DeleteReason.StatusChange,
+                    );
+                    expect(updateEventDoc.memberOf).toEqual([
+                        "group-public-content",
+                    ]);
                 });
             });
 
@@ -1055,8 +1158,12 @@ describe("DbService", () => {
                 await waitForExpect(() => {
                     expect(updateEventDoc).toBeDefined();
                     expect(updateEventDoc.docId).toBe("delete-test-deleted");
-                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.Deleted);
-                    expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
+                    expect(updateEventDoc.deleteReason).toBe(
+                        DeleteReason.Deleted,
+                    );
+                    expect(updateEventDoc.memberOf).toEqual([
+                        "group-public-content",
+                    ]);
                 });
 
                 const res: any = await service.getDoc(updatedDoc._id);
@@ -1114,15 +1221,23 @@ describe("DbService", () => {
                 await waitForExpect(() => {
                     expect(updateEventDoc1).toBeDefined();
                     expect(updateEventDoc1.docId).toBe("delete-test-combined");
-                    expect(updateEventDoc1.deleteReason).toBe(DeleteReason.PermissionChange);
-                    expect(updateEventDoc1.memberOf).toEqual(["group-public-content"]);
+                    expect(updateEventDoc1.deleteReason).toBe(
+                        DeleteReason.PermissionChange,
+                    );
+                    expect(updateEventDoc1.memberOf).toEqual([
+                        "group-public-content",
+                    ]);
                 });
 
                 await waitForExpect(() => {
                     expect(updateEventDoc2).toBeDefined();
                     expect(updateEventDoc2.docId).toBe("delete-test-combined");
-                    expect(updateEventDoc2.deleteReason).toBe(DeleteReason.StatusChange);
-                    expect(updateEventDoc2.memberOf).toEqual(["group-private-content"]);
+                    expect(updateEventDoc2.deleteReason).toBe(
+                        DeleteReason.StatusChange,
+                    );
+                    expect(updateEventDoc2.memberOf).toEqual([
+                        "group-private-content",
+                    ]);
                 });
             }, 10000000);
 

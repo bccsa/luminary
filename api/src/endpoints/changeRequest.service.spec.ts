@@ -3,6 +3,18 @@ import { createTestingModule } from "../test/testingModule";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
+import type { JwtUserDetails } from "../jwt/processJwt";
+
+const mockJwtUserDetails: JwtUserDetails = {
+    groups: ["group-super-admins", "group-public-users"],
+    userId: "user-super-admin",
+    email: "test@123.com",
+    name: "Test User",
+};
+
+jest.mock("../jwt/processJwt", () => ({
+    processJwt: jest.fn(() => Promise.resolve(mockJwtUserDetails)),
+}));
 
 describe("ChangeRequest service", () => {
     const oldEnv = process.env;
@@ -11,15 +23,6 @@ describe("ChangeRequest service", () => {
 
     beforeAll(async () => {
         process.env = { ...oldEnv }; // Make a copy of the old environment variables
-
-        process.env.JWT_MAPPINGS = `{
-            "groups": {
-                "group-super-admins": "() => true"
-            },
-            "userId": "() => 'user-super-admin'",
-            "email": "() => 'test@123.com'",
-            "name": "() => 'Test User'"
-        }`;
 
         service = (await createTestingModule("changereq-service")).dbService;
         changeRequestService = new ChangeRequestService(undefined, service);
@@ -30,7 +33,7 @@ describe("ChangeRequest service", () => {
     });
 
     it("can query the api endpoint", async () => {
-        const res = await changeRequestService.changeRequest(changeRequest_post(), "");
+        const res = await changeRequestService.changeRequest(changeRequest_post(), "fake-token");
 
         expect(res.ack).toBe(AckStatus.Accepted);
     });
@@ -49,7 +52,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
@@ -60,7 +63,7 @@ describe("ChangeRequest service", () => {
         };
 
         // @ts-expect-error - we are testing invalid input
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
         expect(res.ack).toBe("rejected");
         expect(res.message).toContain("Change request validation failed");
     });
@@ -76,7 +79,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
 
         expect(res.message).toContain("Invalid document type");
         expect(res.ack).toBe("rejected");
@@ -96,7 +99,7 @@ describe("ChangeRequest service", () => {
             doc: { ...postDoc, deleteReq: 1 },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, "fake-token");
 
         expect(res.message).toBe("No 'Delete' access to document");
         expect(res.ack).toBe("rejected");

@@ -93,7 +93,7 @@ export class QueryService {
                 permissionCheckTypes.push(type as DocType);
         }
 
-        // Get user accessible groups
+        // Get user accessible groups (no JWT → public/anonymous permissions)
         const userDetails = await processJwt(authToken, this.db, this.logger);
 
         // TODO: Get view permissions based CMS access if CMS view permissions are set (future)
@@ -120,7 +120,10 @@ export class QueryService {
 
             // If no accessible languages, user cannot view any content
             if (accessibleLanguages.length === 0)
-                throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+                throw new HttpException(
+                    "Forbidden: no view access to any language (check Group ACLs and Language memberOf)",
+                    HttpStatus.FORBIDDEN,
+                );
 
             // If the CMS flag is not set, add additional filters for published content
             if (!query.cms) {
@@ -159,7 +162,11 @@ export class QueryService {
         delete query.cms;
 
         // User has no access to any of the requested types/groups
-        if (viewGroups.length === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+        if (viewGroups.length === 0)
+            throw new HttpException(
+                "Forbidden: no view groups for this document type (check OAuth provider group assignments and Group ACLs)",
+                HttpStatus.FORBIDDEN,
+            );
 
         // Add memberOf filter to the $and array
         query.selector.$and.push({
