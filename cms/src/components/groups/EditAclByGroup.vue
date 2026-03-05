@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toRaw, computed } from "vue";
+import { toRaw, computed, ref } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission } from "luminary-shared";
@@ -7,6 +7,8 @@ import { capitaliseFirstLetter } from "@/util/string";
 import { validDocTypes } from "./permissions";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
+import DisplayCard from "@/components/common/DisplayCard.vue";
+import LModal from "../modals/LModal.vue";
 
 type Props = {
     /**
@@ -36,6 +38,8 @@ const duplicateGroup = (targetGroup: GroupDto) => {
             })),
     );
 };
+
+const isVisible = ref(false);
 
 const visibleAclEntries = computed(() => {
     return (
@@ -106,7 +110,7 @@ const visibleAclEntries = computed(() => {
                     />
                 </tbody>
             </table>
-            <div v-else class="grid grid-cols-2 gap-2 p-4">
+            <!-- <div v-else class="grid grid-cols-2 gap-2 p-4">
                 <EditAclEntry
                     v-for="aclEntry in visibleAclEntries"
                     :aclEntry="aclEntry"
@@ -117,7 +121,47 @@ const visibleAclEntries = computed(() => {
                 <div v-if="visibleAclEntries.length === 0" class="py-6 text-center text-zinc-500">
                     No permissions defined for this group
                 </div>
-            </div>
+            </div> -->
+            <DisplayCard
+                v-else
+                :title="``"
+                :updatedTimeUtc="0"
+                class="mt-4 rounded-md border py-2"
+                @click="isVisible = true"
+            >
+                <template #content>
+                    <div class="flex items-center">
+                        <span class="whitespace-nowrap">{{ assignedGroup.name }}&nbsp;:</span>
+                        <div
+                            class="ml-2 flex w-full justify-between overflow-x-scroll rounded-md border border-zinc-400 border-x-zinc-500 py-2 pr-2 scrollbar-hide"
+                        >
+                            <div
+                                v-for="aclEntry in visibleAclEntries"
+                                :key="aclEntry.type"
+                                class="ml-2 flex items-center gap-1 rounded-md border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                            >
+                                {{ capitaliseFirstLetter(aclEntry.type) }}
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </DisplayCard>
         </div>
     </div>
+
+    <LModal v-model:isVisible="isVisible" :heading="`Edit permissions for ${assignedGroup.name}`">
+        <table>
+            <tbody>
+                <!-- :aclEntry is a defineModel in EditAclEntry.
+                Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
+                <EditAclEntry
+                    v-for="aclEntry in visibleAclEntries"
+                    :aclEntry="aclEntry"
+                    :key="aclEntry.type"
+                    :originalGroup="originalGroup"
+                    :disabled="disabled"
+                />
+            </tbody>
+        </table>
+    </LModal>
 </template>

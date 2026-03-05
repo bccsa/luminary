@@ -93,7 +93,25 @@ const setPermission = (aclPermission: AclPermission) => {
         </td>
     </tr>
 
-    <div v-else-if="aclEntry" class="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
+    <table
+        v-else-if="aclEntry"
+        class="flex w-full border-collapse border border-zinc-200 bg-white shadow-sm"
+    >
+        <tbody>
+            <tr>
+                <th scope="row" class="py-2 pl-6 pr-10 text-left font-medium">
+                    {{ capitaliseFirstLetter(aclEntry.type) }}
+                </th>
+                <td class="flex items-center gap-2 overflow-scroll p-2 scrollbar-hide">
+                    <div v-for="aclPermission in AclPermission" :key="aclPermission">
+                        {{ capitaliseFirstLetter(aclPermission) }}
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- <div v-else-if="aclEntry" class="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
         <div class="mb-3 font-medium text-zinc-900">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
@@ -125,5 +143,5 @@ const setPermission = (aclPermission: AclPermission) => {
                 {{ capitaliseFirstLetter(aclPermission) }}
             </button>
         </div>
-    </div>
+    </div> -->
 </template>
