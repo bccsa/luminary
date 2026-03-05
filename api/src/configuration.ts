@@ -13,6 +13,10 @@ export type SyncConfig = {
     tolerance: number;
 };
 
+export type GeminiConfig = {
+    apiKey: string | undefined;
+};
+
 export type ValidationConfig = {
     /**
      * When set to true, query template validation will log warnings instead of throwing exceptions.
@@ -54,6 +58,7 @@ export type SocketIoConfig = {
 
 export type Configuration = {
     permissionMap: string;
+    gemini?: GeminiConfig;
     s3?: S3Config;
     s3Audio?: AudioS3Config;
     auth?: AuthConfig;
@@ -97,4 +102,7 @@ export default () =>
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,
+        gemini: {
+            apiKey: process.env.GEMINI_API_KEY,
+        } as GeminiConfig,
     }) as Configuration;
