@@ -178,6 +178,33 @@ describe("processJwt", () => {
         expect(evaluated.groups).toContain("group-private-editors");
     });
 
+    it("uses raw JWT claims (sub/email) for DB lookup even when userFieldMappings overrides them", async () => {
+        // Simulate a provider with claimNamespace and userFieldMappings that extracts
+        // different values from the namespace — the DB lookup should still find the user
+        // via jwtPayload.sub and jwtPayload.email (raw claims).
+        mockVerified(
+            {
+                sub: "editor1",
+                email: "editor1@users.test",
+                "https://myapp.com/claims": {
+                    // namespace has different email than top-level
+                    customEmail: "wrong@namespace.value",
+                },
+            } as unknown as JwtPayload,
+            {
+                claimNamespace: "https://myapp.com/claims",
+                userFieldMappings: { email: "customEmail" },
+            },
+        );
+
+        const evaluated = await processJwt("any jwt data", db);
+
+        // DB user was found via raw jwtPayload.email ("editor1@users.test"), not
+        // the namespace value ("wrong@namespace.value")
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
+    });
+
     it("still returns DB groups when JWT verification fails (expired token)", async () => {
         // Simulate verifyJwtAndMatchProvider returning an unverified payload
         // (matchedProvider is undefined because JWKS verification failed)

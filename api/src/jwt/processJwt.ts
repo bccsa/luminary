@@ -183,11 +183,17 @@ export async function processJwt(
     }
 
     // 2. Merge groups from existing User docs in the database
+    // Use raw JWT claims for DB lookup (most reliable, independent of field mapping config).
+    // Field-mapped values are still stored on the user doc for display/update purposes.
     const userIdStr = userId?.toString();
-    if (userIdStr ?? email) {
+    const lookupEmail = (jwtPayload?.email as string | undefined) ?? email;
+    const lookupUserId = jwtPayload?.sub ?? userId;
+    const lookupIdStr = lookupUserId?.toString();
+
+    if (lookupIdStr || lookupEmail) {
         const res = await db.getUserByIdOrEmail(
-            typeof email === "string" ? email : "",
-            userIdStr,
+            typeof lookupEmail === "string" ? lookupEmail : "",
+            lookupIdStr,
         );
         const userDocs = (res.docs ?? []) as UserDto[];
 
