@@ -416,7 +416,11 @@ defineExpose({
                                                         index === selectedIndex,
                                                 }"
                                             >
-                                                {{ result.title }}
+                                                <span
+                                                    v-if="result.titleHighlight"
+                                                    v-html="result.titleHighlight"
+                                                />
+                                                <template v-else>{{ result.title }}</template>
                                             </h3>
                                             <!-- Snippet: highlight when available, else summary -->
                                             <p
