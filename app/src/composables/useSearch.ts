@@ -30,9 +30,14 @@ const autoSyncWatcherSetUp = ref(false);
  * Uses singleton pattern for initialization, but provides local state for queries/results
  */
 export function useSearch() {
-    // Local state per component instance
     const query = ref("");
     const results = ref<LuminarySearchResult[]>([]);
+
+    function requireInitialized(): boolean {
+        if (globalIsInitialized.value) return true;
+        console.warn("Search index not initialized. Call initialize() first.");
+        return false;
+    }
 
     /**
      * Initialize the search index
@@ -95,71 +100,28 @@ export function useSearch() {
         return searchResults;
     }
 
-    /**
-     * Add a document to the search index
-     */
     function addDocument(doc: ContentDto): void {
-        if (!globalIsInitialized.value) {
-            console.warn("Search index not initialized. Call initialize() first.");
-            return;
-        }
-
+        if (!requireInitialized()) return;
         addToSearchIndex(doc);
     }
 
-    /**
-     * Add multiple documents to the search index
-     */
     function addDocuments(docs: ContentDto[]): void {
-        if (!globalIsInitialized.value) {
-            console.warn("Search index not initialized. Call initialize() first.");
-            return;
-        }
-
-        if (!docs || docs.length === 0) {
-            return;
-        }
-
+        if (!requireInitialized() || !docs?.length) return;
         addAllToSearchIndex(docs);
     }
 
-    /**
-     * Remove a document from the search index
-     */
     function removeDocument(docId: string): void {
-        if (!globalIsInitialized.value) {
-            console.warn("Search index not initialized. Call initialize() first.");
-            return;
-        }
-
+        if (!requireInitialized()) return;
         removeFromSearchIndex(docId);
     }
 
-    /**
-     * Remove multiple documents from the search index
-     */
     function removeDocuments(docIds: string[]): void {
-        if (!globalIsInitialized.value) {
-            console.warn("Search index not initialized. Call initialize() first.");
-            return;
-        }
-
-        if (!docIds || docIds.length === 0) {
-            return;
-        }
-
+        if (!requireInitialized() || !docIds?.length) return;
         removeAllFromSearchIndex(docIds);
     }
 
-    /**
-     * Update a document in the search index
-     */
     function updateDocument(doc: ContentDto): void {
-        if (!globalIsInitialized.value) {
-            console.warn("Search index not initialized. Call initialize() first.");
-            return;
-        }
-
+        if (!requireInitialized()) return;
         updateSearchIndex(doc);
     }
 
