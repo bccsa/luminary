@@ -26,45 +26,54 @@ export interface LuminarySearchOptions extends SearchOptions {
 
 let miniSearch: MiniSearch<ContentDto> | null = null;
 
-/**
- * Create and configure the MiniSearch instance
- */
-function createMiniSearch(): MiniSearch<ContentDto> {
-    return new MiniSearch<ContentDto>({
-        // Field that uniquely identifies a document
+const INDEX_LOAD_BATCH_SIZE = 100;
+const SEARCH_RESULT_LIMIT = 20;
+const SEARCH_INDEX_KEY = "searchIndex";
+
+const STORED_FIELDS = [
+    "_id",
+    "type",
+    "title",
+    "author",
+    "summary",
+    "text",
+    "slug",
+    "language",
+    "status",
+    "parentId",
+    "parentImageData",
+    "parentImageBucketId",
+] as const;
+
+interface StoredSearchIndex {
+    version: number;
+    documentCount: number;
+    indexJson: string;
+}
+
+function getMiniSearchOptions() {
+    return {
         idField: "_id",
-        // Fields to index for full-text search
         fields: ["title", "author", "summary", "text"],
-        // Store fields so we can return them in search results
-        storeFields: [
-            "_id",
-            "type",
-            "title",
-            "author",
-            "summary",
-            "text",
-            "slug",
-            "language",
-            "status",
-            "parentId",
-            "parentImageData",
-            "parentImageBucketId",
-        ],
-        // Default search options
+        storeFields: [...STORED_FIELDS],
         searchOptions: {
-            // Enable fuzzy search with typo tolerance
             fuzzy: 0.2,
-            // Enable prefix search for autocomplete
             prefix: true,
-            // Field boosting - title matches are more important
-            boost: {
-                title: 2,
-                summary: 1.5,
-                text: 1,
-                author: 1,
-            },
+            boost: { title: 2, summary: 1.5, text: 1, author: 1 },
         },
-    });
+    };
+}
+
+function createMiniSearch(): MiniSearch<ContentDto> {
+    return new MiniSearch<ContentDto>(getMiniSearchOptions());
+}
+
+async function invalidateSearchIndexCache(): Promise<void> {
+    try {
+        await db.luminaryInternals.delete(SEARCH_INDEX_KEY);
+    } catch {
+        // Ignore if key did not exist
+    }
 }
 
 /**
@@ -141,10 +150,10 @@ function escapeHtml(s: string): string {
 /**
  * Pre-extracted plain text for a result (avoids re-parsing TipTap JSON in sort/highlight).
  */
-interface PlainTextCache {
+type PlainTextCache = {
     text: string;
     summary: string;
-}
+};
 
 /**
  * Extract and highlight matching terms from search results
@@ -181,12 +190,16 @@ function createHighlight(
         return undefined;
     }
 
-    const summaryText = plainText?.summary ?? (result.summary ? extractPlainText(result.summary) : "");
+    const summaryText =
+        plainText?.summary ?? (result.summary ? extractPlainText(result.summary) : "");
 
     // Determine which field to excerpt from (prefer matched field over others)
     let searchText = text;
-    const matchHasText = "text" in match && (Array.isArray(match.text) ? match.text.length > 0 : match.text);
-    const matchHasSummary = "summary" in match && (Array.isArray(match.summary) ? match.summary.length > 0 : match.summary);
+    const matchHasText =
+        "text" in match && (Array.isArray(match.text) ? match.text.length > 0 : match.text);
+    const matchHasSummary =
+        "summary" in match &&
+        (Array.isArray(match.summary) ? match.summary.length > 0 : match.summary);
     if (matchHasText) {
         searchText = text;
     } else if (matchHasSummary && summaryText) {
@@ -269,9 +282,7 @@ function createHighlight(
     }
 
     // Otherwise highlight each query term as whole words only (word boundaries avoid "in" inside "missing")
-    const pattern = termsToHighlight
-        .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-        .join("|");
+    const pattern = termsToHighlight.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
     const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
     let built = "";
     let lastIndex = 0;
@@ -298,30 +309,37 @@ function isValidDocument(doc: unknown): doc is ContentDto {
     return !!(d._id && d.title);
 }
 
-const INDEX_LOAD_BATCH_SIZE = 100;
-
-/** Max results to re-rank and highlight; avoids O(n log n) work on huge result sets. */
-const SEARCH_RESULT_LIMIT = 20;
-
 /**
- * Initialize the search index from IndexedDB
- * Loads content in batches to avoid holding all documents in memory at once.
- * Call this after the app has synced data from the server.
+ * Initialize the search index: restore from IndexedDB cache if valid, otherwise build from docs and save.
  */
 export async function initializeSearchIndex(): Promise<void> {
     if (miniSearch) {
-        console.warn("Search index already initialized");
         return;
     }
 
+    const contentCount = await db.docs.where("type").equals(DocType.Content).count();
+    const stored = (await db.getLuminaryInternals(SEARCH_INDEX_KEY)) as
+        | StoredSearchIndex
+        | undefined;
+
+    if (stored?.indexJson && stored.documentCount === contentCount) {
+        try {
+            miniSearch = (await MiniSearch.loadJSONAsync(
+                stored.indexJson,
+                getMiniSearchOptions(),
+            )) as MiniSearch<ContentDto>;
+            searchIndexSizeRef.value = miniSearch.documentCount;
+            return;
+        } catch {
+            // Fall through to rebuild
+        }
+    }
+
     miniSearch = createMiniSearch();
-
     try {
-        let totalIndexed = 0;
         let offset = 0;
-
-        // Load content in batches from IndexedDB so we never hold all docs in memory
         let batch: ContentDto[];
+
         do {
             batch = (await db.docs
                 .where("type")
@@ -333,17 +351,19 @@ export async function initializeSearchIndex(): Promise<void> {
             if (batch.length > 0) {
                 const validDocs = batch.filter(isValidDocument);
                 if (validDocs.length > 0) {
-                    await miniSearch.addAllAsync(validDocs, { chunkSize: 50 });
-                    totalIndexed += validDocs.length;
+                    await miniSearch!.addAllAsync(validDocs, { chunkSize: 50 });
                 }
                 offset += INDEX_LOAD_BATCH_SIZE;
             }
         } while (batch.length === INDEX_LOAD_BATCH_SIZE);
 
-        searchIndexSizeRef.value = miniSearch.documentCount;
-        console.log(`Search index initialized with ${totalIndexed} documents`);
+        searchIndexSizeRef.value = miniSearch!.documentCount;
+        await db.setLuminaryInternals(SEARCH_INDEX_KEY, {
+            version: 1,
+            documentCount: miniSearch!.documentCount,
+            indexJson: JSON.stringify(miniSearch),
+        } as StoredSearchIndex);
     } catch (error) {
-        // Reset so the next call can attempt a fresh initialization
         miniSearch = null;
         searchIndexSizeRef.value = 0;
         console.error("Failed to initialize search index:", error);
@@ -351,138 +371,74 @@ export async function initializeSearchIndex(): Promise<void> {
     }
 }
 
-/**
- * Add a document to the search index
- */
 export function addToSearchIndex(doc: ContentDto): void {
-    if (!miniSearch) {
-        console.warn("Search index not initialized. Call initializeSearchIndex first.");
-        return;
-    }
-
-    // Only index content documents with required fields
-    if (doc.type !== DocType.Content || !isValidDocument(doc)) {
-        return;
-    }
+    if (!miniSearch) return;
+    if (doc.type !== DocType.Content || !isValidDocument(doc)) return;
 
     miniSearch.add(doc);
     searchIndexSizeRef.value = miniSearch.documentCount;
+    void invalidateSearchIndexCache();
 }
 
-/**
- * Add multiple documents to the search index
- * More efficient than calling addToSearchIndex multiple times
- */
 export function addAllToSearchIndex(docs: ContentDto[]): void {
-    if (!miniSearch) {
-        console.warn("Search index not initialized. Call initializeSearchIndex first.");
-        return;
-    }
+    if (!miniSearch || !docs?.length) return;
 
-    if (!docs || docs.length === 0) {
-        return;
-    }
-
-    const validDocs = docs.filter((doc) => doc.type === DocType.Content && isValidDocument(doc));
+    const validDocs = docs.filter((d) => d.type === DocType.Content && isValidDocument(d));
     if (validDocs.length > 0) {
         miniSearch.addAll(validDocs);
         searchIndexSizeRef.value = miniSearch.documentCount;
+        void invalidateSearchIndexCache();
     }
 }
 
-/**
- * Remove a document from the search index
- */
 export function removeFromSearchIndex(docId: string): void {
-    if (!miniSearch) {
-        console.warn("Search index not initialized. Call initializeSearchIndex first.");
-        return;
-    }
-
-    if (!docId) {
-        return;
-    }
+    if (!miniSearch || !docId) return;
 
     try {
         miniSearch.discard(docId);
         searchIndexSizeRef.value = miniSearch.documentCount;
+        void invalidateSearchIndexCache();
     } catch {
-        // Document was not in the index (e.g. non-Content doc deleted after a rebuild)
+        // Document was not in the index
     }
 }
 
-/**
- * Remove multiple documents from the search index
- * More efficient than calling removeFromSearchIndex multiple times
- */
 export function removeAllFromSearchIndex(docIds: string[]): void {
-    if (!miniSearch) {
-        console.warn("Search index not initialized. Call initializeSearchIndex first.");
-        return;
-    }
-
-    if (!docIds || docIds.length === 0) {
-        return;
-    }
+    if (!miniSearch || !docIds?.length) return;
 
     for (const docId of docIds) {
         if (docId) {
             try {
                 miniSearch.discard(docId);
             } catch {
-                // Document was not in the index (e.g. non-Content doc deleted after a rebuild)
+                // Document was not in the index
             }
         }
     }
     searchIndexSizeRef.value = miniSearch.documentCount;
+    void invalidateSearchIndexCache();
 }
 
-/**
- * Update a document in the search index (remove then add)
- */
 export function updateSearchIndex(doc: ContentDto): void {
-    if (!isValidDocument(doc)) {
-        return;
-    }
-
+    if (!isValidDocument(doc)) return;
     removeFromSearchIndex(doc._id);
     addToSearchIndex(doc);
 }
 
-/**
- * Search the index
- * @param query - Search query string
- * @param options - Search options
- * @returns Array of search results with document
- */
-export function search(
-    query: string,
-    options: LuminarySearchOptions = {},
-): LuminarySearchResult[] {
-    if (!miniSearch) {
-        console.warn("Search index not initialized. Call initializeSearchIndex first.");
-        return [];
-    }
+export function search(query: string, options: LuminarySearchOptions = {}): LuminarySearchResult[] {
+    if (!miniSearch) return [];
 
-    // Normalize and validate query
-    const normalizedQuery = query ? query.trim() : "";
-    if (!normalizedQuery) {
-        return [];
-    }
+    const normalizedQuery = query?.trim() ?? "";
+    if (!normalizedQuery) return [];
 
     try {
-        // Build search options, only including provided values
         const searchOptions: SearchOptions = {};
 
         if (options.fuzzy !== undefined) {
             searchOptions.fuzzy = options.fuzzy;
         }
 
-        if (options.prefix !== undefined) {
-            searchOptions.prefix = options.prefix;
-        } else {
-            searchOptions.prefix = true; // Default to true
-        }
+        searchOptions.prefix = options.prefix ?? true;
 
         if (options.boost && Object.keys(options.boost).length > 0) {
             searchOptions.boost = options.boost;
@@ -492,16 +448,14 @@ export function search(
             searchOptions.combineWith = options.combineWith;
         }
 
-        // Perform the search
         const rawResults = miniSearch.search(normalizedQuery, searchOptions);
-
-        // Apply Luminary filters (types, languages). Docs from API are already filtered by status.
         const typesFilter = options.types ?? [DocType.Content];
         const languagesFilter = options.languages;
 
         const filteredResults = rawResults.filter((result) => {
             if (!result._id || !result.title) return false;
-            if (result.type !== undefined && !typesFilter.includes(result.type as DocType)) return false;
+            if (result.type !== undefined && !typesFilter.includes(result.type as DocType))
+                return false;
             if (
                 languagesFilter &&
                 languagesFilter.length > 0 &&
@@ -513,10 +467,7 @@ export function search(
             return true;
         });
 
-        // Cap before expensive re-rank + highlight (UI only shows top N anyway)
         const toProcess = filteredResults.slice(0, SEARCH_RESULT_LIMIT);
-
-        // Pre-compute plain text once per result (avoids O(n log n) extractPlainText in sort)
         const plainTextById = new Map<string, PlainTextCache>();
         for (const r of toProcess) {
             if (r._id) {
@@ -527,7 +478,6 @@ export function search(
             }
         }
 
-        // Re-rank: exact phrase matches first (title, then body), then by MiniSearch score
         const normalizedPhrase = normalizedQuery
             .toLowerCase()
             .split(/\s+/)
@@ -573,34 +523,20 @@ export function search(
     }
 }
 
-/**
- * Check if the search index is initialized
- */
 export function isSearchIndexInitialized(): boolean {
     return miniSearch !== null;
 }
 
-/**
- * Get the number of documents in the search index
- */
 export function getSearchIndexSize(): number {
-    if (!miniSearch) {
-        return 0;
-    }
-    return miniSearch.documentCount;
+    return miniSearch?.documentCount ?? 0;
 }
 
-/**
- * Clear the search index
- */
 export function clearSearchIndex(): void {
     miniSearch = null;
     searchIndexSizeRef.value = 0;
+    void invalidateSearchIndexCache();
 }
 
-/**
- * Rebuild the search index from scratch
- */
 export async function rebuildSearchIndex(): Promise<void> {
     clearSearchIndex();
     await initializeSearchIndex();
