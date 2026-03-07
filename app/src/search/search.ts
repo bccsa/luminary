@@ -274,7 +274,7 @@ function createHighlight(
         const after = excerpt.substring(phrasePos + normalizedPhrase.length);
         return (
             escapeHtml(before) +
-            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">' +
+            '<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-0">' +
             escapeHtml(phrase) +
             "</mark>" +
             escapeHtml(after)
@@ -289,7 +289,7 @@ function createHighlight(
     for (const m of excerpt.matchAll(regex)) {
         built +=
             escapeHtml(excerpt.slice(lastIndex, m.index)) +
-            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">' +
+            '<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-0">' +
             escapeHtml(m[0]) +
             "</mark>";
         lastIndex = (m.index ?? 0) + m[0].length;
