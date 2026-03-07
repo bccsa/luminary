@@ -5,12 +5,14 @@ import { ref } from "vue";
 /** Reactive document count — updated by every mutating operation so consumers stay in sync. */
 export const searchIndexSizeRef = ref(0);
 
+const MARK_CLASS = "bg-yellow-200 dark:bg-yellow-800 rounded px-0";
+
 export interface LuminarySearchResult extends SearchResult {
     doc: ContentDto;
-    /**
-     * Highlighted text snippet showing the matching context
-     */
+    /** Highlighted text snippet showing the matching context */
     highlight?: string;
+    /** Title with matching query terms wrapped in <mark> for display (safe for v-html) */
+    titleHighlight?: string;
 }
 
 export interface LuminarySearchOptions extends SearchOptions {
@@ -28,6 +30,9 @@ let miniSearch: MiniSearch<ContentDto> | null = null;
 
 const INDEX_LOAD_BATCH_SIZE = 100;
 const SEARCH_RESULT_LIMIT = 20;
+/** For long queries, consider more candidates so phrase matches can rank first. */
+const SEARCH_CANDIDATE_LIMIT_LONG_QUERY = 150;
+const LONG_QUERY_WORD_THRESHOLD = 5;
 const SEARCH_INDEX_KEY = "searchIndex";
 
 const STORED_FIELDS = [
@@ -148,6 +153,50 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Apply phrase or word-boundary highlights to text. Returns HTML safe for v-html.
+ * Shared by snippet highlighting and title highlighting.
+ */
+function applyTermHighlights(text: string, query: string): string {
+    if (!query?.trim()) return escapeHtml(text);
+    const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+    if (queryTerms.length === 0) return escapeHtml(text);
+    const textLower = text.toLowerCase();
+    const normalizedPhrase = queryTerms.join(" ");
+    const phrasePos = textLower.indexOf(normalizedPhrase);
+    if (phrasePos !== -1) {
+        const before = text.substring(0, phrasePos);
+        const phrase = text.substring(phrasePos, phrasePos + normalizedPhrase.length);
+        const after = text.substring(phrasePos + normalizedPhrase.length);
+        return (
+            escapeHtml(before) +
+            `<mark class="${MARK_CLASS}">` +
+            escapeHtml(phrase) +
+            "</mark>" +
+            escapeHtml(after)
+        );
+    }
+    const termsInText = queryTerms.filter((t) => textLower.includes(t));
+    if (termsInText.length === 0) return escapeHtml(text);
+    const pattern = termsInText.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
+    let built = "";
+    let lastIndex = 0;
+    for (const m of text.matchAll(regex)) {
+        built +=
+            escapeHtml(text.slice(lastIndex, m.index)) +
+            `<mark class="${MARK_CLASS}">` +
+            escapeHtml(m[0]) +
+            "</mark>";
+        lastIndex = (m.index ?? 0) + m[0].length;
+    }
+    built += escapeHtml(text.slice(lastIndex));
+    return built;
+}
+
+/**
  * Pre-extracted plain text for a result (avoids re-parsing TipTap JSON in sort/highlight).
  */
 type PlainTextCache = {
@@ -193,16 +242,11 @@ function createHighlight(
     const summaryText =
         plainText?.summary ?? (result.summary ? extractPlainText(result.summary) : "");
 
-    // Determine which field to excerpt from (prefer matched field over others)
     let searchText = text;
-    const matchHasText =
-        "text" in match && (Array.isArray(match.text) ? match.text.length > 0 : match.text);
     const matchHasSummary =
         "summary" in match &&
         (Array.isArray(match.summary) ? match.summary.length > 0 : match.summary);
-    if (matchHasText) {
-        searchText = text;
-    } else if (matchHasSummary && summaryText) {
+    if (matchHasSummary && summaryText) {
         searchText = summaryText;
     } else if ("author" in match && result.author) {
         searchText = String(result.author);
@@ -257,45 +301,13 @@ function createHighlight(
         excerpt = excerpt + "...";
     }
 
-    // Identify which terms appear in the excerpt for highlighting
-    const excerptLower = excerpt.toLowerCase();
-    const termsToHighlight = queryTerms.filter((term) => excerptLower.includes(term));
+    return applyTermHighlights(excerpt, query);
+}
 
-    if (termsToHighlight.length === 0) {
-        return escapeHtml(excerpt); // Safe plain excerpt for v-html
-    }
-
-    // Prefer exact phrase match: if the full query appears in the excerpt, highlight it as one continuous span
-    const normalizedPhrase = queryTerms.join(" ");
-    const phrasePos = excerptLower.indexOf(normalizedPhrase);
-    if (phrasePos !== -1) {
-        const before = excerpt.substring(0, phrasePos);
-        const phrase = excerpt.substring(phrasePos, phrasePos + normalizedPhrase.length);
-        const after = excerpt.substring(phrasePos + normalizedPhrase.length);
-        return (
-            escapeHtml(before) +
-            '<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-0">' +
-            escapeHtml(phrase) +
-            "</mark>" +
-            escapeHtml(after)
-        );
-    }
-
-    // Otherwise highlight each query term as whole words only (word boundaries avoid "in" inside "missing")
-    const pattern = termsToHighlight.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-    const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
-    let built = "";
-    let lastIndex = 0;
-    for (const m of excerpt.matchAll(regex)) {
-        built +=
-            escapeHtml(excerpt.slice(lastIndex, m.index)) +
-            '<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-0">' +
-            escapeHtml(m[0]) +
-            "</mark>";
-        lastIndex = (m.index ?? 0) + m[0].length;
-    }
-    built += escapeHtml(excerpt.slice(lastIndex));
-    return built;
+/** Highlight query terms in a short string (e.g. title). Returns HTML safe for v-html. */
+function highlightQueryInText(text: string, query: string): string {
+    if (!text) return "";
+    return applyTermHighlights(text, query);
 }
 
 /**
@@ -467,7 +479,12 @@ export function search(query: string, options: LuminarySearchOptions = {}): Lumi
             return true;
         });
 
-        const toProcess = filteredResults.slice(0, SEARCH_RESULT_LIMIT);
+        const queryWordCount = normalizedQuery.split(/\s+/).filter((t) => t.length > 0).length;
+        const candidateLimit =
+            queryWordCount >= LONG_QUERY_WORD_THRESHOLD
+                ? SEARCH_CANDIDATE_LIMIT_LONG_QUERY
+                : SEARCH_RESULT_LIMIT;
+        const toProcess = filteredResults.slice(0, candidateLimit);
         const plainTextById = new Map<string, PlainTextCache>();
         for (const r of toProcess) {
             if (r._id) {
@@ -501,8 +518,8 @@ export function search(query: string, options: LuminarySearchOptions = {}): Lumi
             });
         }
 
-        // Add highlighting (reuses pre-computed plain text)
-        const resultsWithHighlights = toProcess.map((result) => {
+        const topResults = toProcess.slice(0, SEARCH_RESULT_LIMIT);
+        const resultsWithHighlights = topResults.map((result) => {
             const cached = result._id ? plainTextById.get(result._id) : undefined;
             const highlight = createHighlight(
                 result,
@@ -510,9 +527,14 @@ export function search(query: string, options: LuminarySearchOptions = {}): Lumi
                 150,
                 cached ? { text: cached.text, summary: cached.summary } : undefined,
             );
+            const titleHighlight = highlightQueryInText(
+                String(result.title ?? ""),
+                normalizedQuery,
+            );
             return {
                 ...result,
                 highlight,
+                titleHighlight,
             } as LuminarySearchResult;
         });
 
