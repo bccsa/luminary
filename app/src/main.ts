@@ -56,6 +56,13 @@ async function Startup() {
             { type: DocType.Redirect, contentOnly: false, syncPriority: 3 },
             { type: DocType.Storage, contentOnly: false, syncPriority: 3 },
         ],
+        ftsDocType: DocType.Content,
+        ftsFields: [
+            { name: "title" },
+            { name: "summary" },
+            { name: "text", isHtml: true },
+            { name: "author" },
+        ],
     }).catch((err) => {
         console.error(err);
         Sentry?.captureException(err);

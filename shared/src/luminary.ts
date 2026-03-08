@@ -1,5 +1,6 @@
 import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
+import { initFts } from "./fts/ftsManager";
 import { HttpReq } from "./rest/http";
 import { getRest } from "./rest/RestApi";
 import { initSync } from "./rest/sync2/sync";
@@ -25,4 +26,13 @@ export async function init(config: SharedConfig) {
     // Create HTTP service instance for use in sync operations
     const http = new HttpReq(config.apiUrl || "", config.token);
     initSync(http);
+
+    // Initialize full-text search indexing if field config is provided
+    if (config.ftsFields && config.ftsFields.length > 0 && config.ftsDocType) {
+        initFts({
+            fields: config.ftsFields,
+            docType: config.ftsDocType,
+            maxTrigramDocPercent: config.ftsMaxTrigramDocPercent,
+        });
+    }
 }

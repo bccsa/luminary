@@ -15,6 +15,8 @@ import {
     TagType,
     Uuid,
 } from "../types";
+import type { FtsIndexEntry, FtsReverseEntry, FtsMetaEntry } from "../fts/types";
+import { ftsNotifyDeleted, ftsNotifyUpdated } from "../fts/ftsManager";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { ref, type Ref, toRaw, watch } from "vue";
@@ -56,6 +58,9 @@ type dbIndex = {
     localChanges: string;
     queryCache: string;
     luminaryInternals: string;
+    ftsIndex: string;
+    ftsReverse: string;
+    ftsMeta: string;
 };
 
 export type QueryOptions = {
@@ -122,6 +127,9 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
+    ftsIndex!: Table<FtsIndexEntry>;
+    ftsReverse!: Table<FtsReverseEntry>;
+    ftsMeta!: Table<FtsMetaEntry>;
 
     /**
      * Luminary Shared Database class
@@ -133,7 +141,7 @@ class Database extends Dexie {
         this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
-            "_id,type,parentType,language,expiryDate,parentId,publishDate,parentPinned,[type+tagType],[type+postType]",
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,parentPinned,[type+tagType],[type+postType],[type+updatedTimeUtc]",
             docsIndex,
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
@@ -141,6 +149,9 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
+            ftsIndex: "++id, [token+negPublishDate], docId",
+            ftsReverse: "docId",
+            ftsMeta: "id",
         };
 
         const version: number = bumpDBVersion(
@@ -292,7 +303,14 @@ class Database extends Dexie {
         }
 
         // Insert all documents except delete commands
-        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
+        const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
+
+        // Notify FTS that new docs are available for indexing (fire-and-forget)
+        if (nonDeleteDocs.length > 0) {
+            ftsNotifyUpdated();
+        }
+
+        return this.docs.bulkPut(nonDeleteDocs);
     }
 
     /**
@@ -841,6 +859,9 @@ class Database extends Dexie {
             this.localChanges.clear(),
             this.queryCache.clear(),
             this.luminaryInternals.clear(),
+            this.ftsIndex.clear(),
+            this.ftsReverse.clear(),
+            this.ftsMeta.clear(),
         ]);
     }
 }
@@ -869,6 +890,22 @@ export async function initDatabase() {
 
     db.on("blocked", () => {
         console.error("Database blocked");
+    });
+
+    // FTS cleanup: collect deleted doc IDs and notify FTS in batches
+    let ftsDeleteBatch: string[] = [];
+    let ftsDeleteScheduled = false;
+    db.docs.hook("deleting", (primKey) => {
+        ftsDeleteBatch.push(primKey as string);
+        if (!ftsDeleteScheduled) {
+            ftsDeleteScheduled = true;
+            queueMicrotask(() => {
+                const batch = ftsDeleteBatch;
+                ftsDeleteBatch = [];
+                ftsDeleteScheduled = false;
+                if (batch.length > 0) ftsNotifyDeleted(batch);
+            });
+        }
     });
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
