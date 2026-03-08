@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
-import { toRaw } from "vue";
+import { toRaw, computed } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import { isPermissionAvailable, hasChangedPermission, validateAclEntry } from "./permissions";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
+import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -33,6 +34,15 @@ const setPermission = (aclPermission: AclPermission) => {
     aclEntry.value.permission.push(aclPermission);
     validateAclEntry(aclEntry.value, prev);
 };
+
+const activePermissions = computed(() => {
+    if (!aclEntry.value) return [];
+    return Object.values(AclPermission).filter(
+        (p) =>
+            isPermissionAvailable.value(aclEntry.value!.type, p) &&
+            aclEntry.value!.permission.includes(p),
+    );
+});
 </script>
 
 <template>
@@ -93,55 +103,28 @@ const setPermission = (aclPermission: AclPermission) => {
         </td>
     </tr>
 
-    <table
+    <div
         v-else-if="aclEntry"
-        class="flex w-full border-collapse border border-zinc-200 bg-white shadow-sm"
+        class="flex w-full items-start border-b border-zinc-200 bg-white last:border-none"
     >
-        <tbody>
-            <tr>
-                <th scope="row" class="py-2 pl-6 pr-10 text-left font-medium">
-                    {{ capitaliseFirstLetter(aclEntry.type) }}
-                </th>
-                <td class="flex items-center gap-2 overflow-scroll p-2 scrollbar-hide">
-                    <div v-for="aclPermission in AclPermission" :key="aclPermission">
-                        {{ capitaliseFirstLetter(aclPermission) }}
-                    </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <!-- <div v-else-if="aclEntry" class="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 font-medium text-zinc-900">
+        <div class="whitespace-nowrap py-3 pl-6 pr-4 font-medium">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-                v-for="aclPermission in AclPermission"
-                :key="aclPermission"
-                v-show="isPermissionAvailable(aclEntry.type, aclPermission)"
-                @click="
-                    () => {
-                        if (!disabled) setPermission(aclPermission);
-                    }
-                "
-                :disabled="disabled"
-                class="flex items-center gap-1 rounded-md border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
-            >
-                <CheckCircleIcon
-                    v-if="aclEntry.permission.includes(aclPermission)"
-                    :class="[
-                        'inline h-3 w-3',
-                        isPermissionAvailable(aclEntry.type, aclPermission)
-                            ? disabled
-                                ? 'text-zinc-300'
-                                : 'text-zinc-500'
-                            : 'text-zinc-200',
-                    ]"
-                />
-                <div v-else class="h-3 w-3 rounded-md border border-zinc-400"></div>
-                {{ capitaliseFirstLetter(aclPermission) }}
+        <div class="min-w-0 flex-1 p-3">
+            <div class="flex items-start gap-4 overflow-x-auto scrollbar-hide">
+                <div
+                    v-for="aclPermission in activePermissions"
+                    :key="aclPermission"
+                    class="flex flex-shrink-0 flex-col items-center gap-1 p-1"
+                >
+                    <span class="text-xs uppercase">{{ aclPermission }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center py-3">
+            <button class="text-zinc-700">
+                <PencilSquareIcon class="h-5 w-5" />
             </button>
         </div>
-    </div> -->
+    </div>
 </template>

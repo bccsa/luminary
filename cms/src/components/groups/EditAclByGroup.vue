@@ -9,6 +9,7 @@ import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LModal from "../modals/LModal.vue";
+import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -51,6 +52,12 @@ const visibleAclEntries = computed(() => {
                 return 0;
             }) || []
     );
+});
+
+const typesWithActivePermissions = computed(() => {
+    return visibleAclEntries.value
+        .filter((aclEntry) => aclEntry.permission.length > 0)
+        .map((aclEntry) => aclEntry.type);
 });
 </script>
 
@@ -110,18 +117,6 @@ const visibleAclEntries = computed(() => {
                     />
                 </tbody>
             </table>
-            <!-- <div v-else class="grid grid-cols-2 gap-2 p-4">
-                <EditAclEntry
-                    v-for="aclEntry in visibleAclEntries"
-                    :aclEntry="aclEntry"
-                    :key="aclEntry.type"
-                    :originalGroup="originalGroup"
-                    :disabled="disabled"
-                />
-                <div v-if="visibleAclEntries.length === 0" class="py-6 text-center text-zinc-500">
-                    No permissions defined for this group
-                </div>
-            </div> -->
             <DisplayCard
                 v-else
                 :title="``"
@@ -133,14 +128,14 @@ const visibleAclEntries = computed(() => {
                     <div class="flex items-center">
                         <span class="whitespace-nowrap">{{ assignedGroup.name }}&nbsp;:</span>
                         <div
-                            class="ml-2 flex w-full justify-between overflow-x-scroll rounded-md border border-zinc-400 border-x-zinc-500 py-2 pr-2 scrollbar-hide"
+                            class="ml-2 flex w-full justify-start overflow-x-scroll rounded-md border border-zinc-400 border-x-zinc-500 py-2 pr-2 scrollbar-hide"
                         >
                             <div
-                                v-for="aclEntry in visibleAclEntries"
-                                :key="aclEntry.type"
+                                v-for="aclEntry in typesWithActivePermissions"
+                                :key="aclEntry"
                                 class="ml-2 flex items-center gap-1 rounded-md border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
                             >
-                                {{ capitaliseFirstLetter(aclEntry.type) }}
+                                {{ capitaliseFirstLetter(aclEntry) }}
                             </div>
                         </div>
                     </div>
@@ -149,19 +144,20 @@ const visibleAclEntries = computed(() => {
         </div>
     </div>
 
-    <LModal v-model:isVisible="isVisible" :heading="`Edit permissions for ${assignedGroup.name}`">
-        <table>
-            <tbody>
-                <!-- :aclEntry is a defineModel in EditAclEntry.
-                Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
-                <EditAclEntry
-                    v-for="aclEntry in visibleAclEntries"
-                    :aclEntry="aclEntry"
-                    :key="aclEntry.type"
-                    :originalGroup="originalGroup"
-                    :disabled="disabled"
-                />
-            </tbody>
-        </table>
+    <LModal
+        v-model:isVisible="isVisible"
+        :heading="`Edit permissions for ${assignedGroup.name}`"
+        largeModal
+    >
+        <EditAclEntry
+            v-for="aclEntry in visibleAclEntries"
+            :aclEntry="aclEntry"
+            :key="aclEntry.type"
+            :originalGroup="originalGroup"
+            :disabled="disabled"
+        />
+        <button class="text-zinc-700">
+            <PencilSquareIcon class="h-5 w-5" />
+        </button>
     </LModal>
 </template>
