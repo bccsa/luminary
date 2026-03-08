@@ -37,7 +37,7 @@ watch(modalRef, (el) => {
                 :class="
                     largeModal
                         ? 'relative z-50 flex max-h-[95vh] max-w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
-                        : 'relative z-50 flex max-h-screen w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        : 'relative z-50 flex max-h-[95vh] w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                 "
             >
                 <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
