@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { defineProps, defineModel, toRaw } from "vue";
+import { toRaw, computed, ref } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission } from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 import { validDocTypes } from "./permissions";
 import _ from "lodash";
+import { isMobileScreen } from "@/globalConfig";
+import DisplayCard from "@/components/common/DisplayCard.vue";
+import LModal from "../modals/LModal.vue";
+import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -35,6 +39,26 @@ const duplicateGroup = (targetGroup: GroupDto) => {
             })),
     );
 };
+
+const isVisible = ref(false);
+
+const visibleAclEntries = computed(() => {
+    return (
+        group.value?.acl
+            .filter((g) => g.groupId == props.assignedGroup._id && validDocTypes.includes(g.type))
+            .sort((a, b) => {
+                if (a.type < b.type) return -1;
+                if (a.type > b.type) return 1;
+                return 0;
+            }) || []
+    );
+});
+
+const typesWithActivePermissions = computed(() => {
+    return visibleAclEntries.value
+        .filter((aclEntry) => aclEntry.permission.length > 0)
+        .map((aclEntry) => aclEntry.type);
+});
 </script>
 
 <template>
@@ -64,7 +88,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                 </div>
             </h3>
 
-            <table class="w-full">
+            <table v-if="!isMobileScreen" class="w-full">
                 <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
                     <tr>
                         <th></th>
@@ -85,17 +109,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     <!-- :aclEntry is a defineModel in EditAclEntry.
                     Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
                     <EditAclEntry
-                        v-for="aclEntry in group?.acl
-                            .filter(
-                                (g) =>
-                                    g.groupId == assignedGroup._id &&
-                                    validDocTypes.includes(g.type),
-                            )
-                            .sort((a, b) => {
-                                if (a.type < b.type) return -1;
-                                if (a.type > b.type) return 1;
-                                return 0;
-                            })"
+                        v-for="aclEntry in visibleAclEntries"
                         :aclEntry="aclEntry"
                         :key="aclEntry.type"
                         :originalGroup="originalGroup"
@@ -103,6 +117,47 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     />
                 </tbody>
             </table>
+            <DisplayCard
+                v-else
+                :title="``"
+                :updatedTimeUtc="0"
+                class="mt-4 rounded-md border py-2"
+                @click="isVisible = true"
+            >
+                <template #content>
+                    <div class="flex items-center">
+                        <span class="whitespace-nowrap">{{ assignedGroup.name }}&nbsp;:</span>
+                        <div
+                            class="ml-2 flex w-full justify-start overflow-x-scroll rounded-md border border-zinc-400 border-x-zinc-500 py-2 pr-2 scrollbar-hide"
+                        >
+                            <div
+                                v-for="aclEntry in typesWithActivePermissions"
+                                :key="aclEntry"
+                                class="ml-2 flex items-center gap-1 rounded-md border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                            >
+                                {{ capitaliseFirstLetter(aclEntry) }}
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </DisplayCard>
         </div>
     </div>
+
+    <LModal
+        v-model:isVisible="isVisible"
+        :heading="`Edit permissions for ${assignedGroup.name}`"
+        largeModal
+    >
+        <EditAclEntry
+            v-for="aclEntry in visibleAclEntries"
+            :aclEntry="aclEntry"
+            :key="aclEntry.type"
+            :originalGroup="originalGroup"
+            :disabled="disabled"
+        />
+        <button class="text-zinc-700">
+            <PencilSquareIcon class="h-5 w-5" />
+        </button>
+    </LModal>
 </template>

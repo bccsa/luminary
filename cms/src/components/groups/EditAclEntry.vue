@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
-import { defineModel, defineProps, toRaw } from "vue";
+import { toRaw, computed } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import { isPermissionAvailable, hasChangedPermission, validateAclEntry } from "./permissions";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
+import { isMobileScreen } from "@/globalConfig";
+import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -32,10 +34,19 @@ const setPermission = (aclPermission: AclPermission) => {
     aclEntry.value.permission.push(aclPermission);
     validateAclEntry(aclEntry.value, prev);
 };
+
+const activePermissions = computed(() => {
+    if (!aclEntry.value) return [];
+    return Object.values(AclPermission).filter(
+        (p) =>
+            isPermissionAvailable.value(aclEntry.value!.type, p) &&
+            aclEntry.value!.permission.includes(p),
+    );
+});
 </script>
 
 <template>
-    <tr v-if="aclEntry" class="border-b border-zinc-200 last:border-none">
+    <tr v-if="aclEntry && !isMobileScreen" class="border-b border-zinc-200 last:border-none">
         <th
             scope="row"
             :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
@@ -91,4 +102,29 @@ const setPermission = (aclPermission: AclPermission) => {
             </template>
         </td>
     </tr>
+
+    <div
+        v-else-if="aclEntry"
+        class="flex w-full items-start border-b border-zinc-200 bg-white last:border-none"
+    >
+        <div class="whitespace-nowrap py-3 pl-6 pr-4 font-medium">
+            {{ capitaliseFirstLetter(aclEntry.type) }}
+        </div>
+        <div class="min-w-0 flex-1 p-3">
+            <div class="flex items-start gap-4 overflow-x-auto scrollbar-hide">
+                <div
+                    v-for="aclPermission in activePermissions"
+                    :key="aclPermission"
+                    class="flex flex-shrink-0 flex-col items-center gap-1 p-1"
+                >
+                    <span class="text-xs uppercase">{{ aclPermission }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center py-3">
+            <button class="text-zinc-700">
+                <PencilSquareIcon class="h-5 w-5" />
+            </button>
+        </div>
+    </div>
 </template>
