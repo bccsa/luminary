@@ -10,6 +10,18 @@ import auth, { isAuthBypassed, showProviderSelectionModal } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initLanguageSync, initSync } from "./sync";
+import { selectedProviderId } from "./stores/authProvider";
+
+// Inject X-Query (provider ID) header on every fetch request to the API so the
+// auth guard can resolve the correct OAuthProvider by ID rather than guessing by domain.
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (selectedProviderId.value && url.startsWith(apiUrl)) {
+        init = { ...init, headers: { ...((init?.headers as Record<string, string>) ?? {}), "X-Query": selectedProviderId.value } };
+    }
+    return _nativeFetch(input, init);
+};
 
 const app = createApp(App);
 
@@ -34,6 +46,7 @@ async function Startup() {
 
     await init({
         cms: true,
+        providerId: selectedProviderId.value ?? undefined,
         docsIndex:
             "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language], [type+parentTagType]",
         apiUrl,

@@ -116,19 +116,34 @@ export class Socketio implements OnGatewayInit {
             }
 
             try {
-                // Decode without verification to extract the issuer domain
+                // Decode without verification to extract the issuer domain (needed for JWKS URL)
                 const decoded = jwtLib.decode(token) as jwtLib.JwtPayload | null;
                 if (!decoded?.iss) throw new Error("Missing iss claim");
 
-                const domain = new URL(decoded.iss).hostname;
+                // Prefer the explicit provider ID sent by the client over domain-based guessing.
+                // This avoids ambiguity when multiple OAuthProvider documents share the same domain.
+                const explicitProviderId = socket.handshake.auth.providerId as string | undefined;
+                let provider: OAuthProviderDto | undefined;
 
-                // Find the OAuthProvider by domain
-                const providerResult = await this.db.executeFindQuery({
-                    selector: { type: DocType.OAuthProvider, domain },
-                    limit: 1,
-                });
-                const provider = providerResult.docs?.[0] as OAuthProviderDto | undefined;
-                if (!provider) throw new Error(`No OAuthProvider found for domain: ${domain}`);
+                if (explicitProviderId) {
+                    const res = await this.db.executeFindQuery({
+                        selector: { _id: explicitProviderId, type: DocType.OAuthProvider },
+                        limit: 1,
+                    });
+                    provider = res.docs?.[0] as OAuthProviderDto | undefined;
+                }
+
+                if (!provider) {
+                    // Fall back to domain-based lookup
+                    const domain = new URL(decoded.iss).hostname;
+                    const res = await this.db.executeFindQuery({
+                        selector: { type: DocType.OAuthProvider, domain },
+                        limit: 1,
+                    });
+                    provider = res.docs?.[0] as OAuthProviderDto | undefined;
+                }
+
+                if (!provider) throw new Error(`No OAuthProvider found`);
 
                 // Verify the token using the provider's JWKS
                 const payload = await this.verifyToken(token, provider);

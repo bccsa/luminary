@@ -39,7 +39,10 @@ class SocketIO {
      */
     constructor(config: SharedConfig) {
         const token = config.token;
-        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
+        const authPayload: Record<string, string> = {};
+        if (token) authPayload.token = token;
+        if (config.providerId) authPayload.providerId = config.providerId;
+        this.socket = io(config.apiUrl, Object.keys(authPayload).length ? { auth: authPayload } : undefined);
 
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds

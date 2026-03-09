@@ -130,6 +130,21 @@ export class AuthIdentityService {
             });
         }
 
+        // 3. Fallback: find by email + provider pre-authorisation ("first login" for new-style users).
+        //    The admin assigns providers to a user in the CMS (user.providers array) but cannot
+        //    know the external userId in advance. On first login we locate the user by their
+        //    verified JWT email and confirm the provider is in their allowed list, then auto-link.
+        if (!result.docs?.length && email) {
+            result = await this.db.executeFindQuery({
+                selector: {
+                    type: DocType.User,
+                    email,
+                    providers: { $elemMatch: { $eq: providerId } },
+                },
+                limit: 1,
+            });
+        }
+
         if (!result.docs?.length) {
             throw new UnauthorizedException(
                 "No user found for this provider identity. Please contact an administrator.",
