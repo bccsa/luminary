@@ -512,6 +512,7 @@ const deleteLanguage = async () => {
                                             )
                                         "
                                         :required="true"
+                                        :disabled="!canEditOrCreate"
                                         class="w-full"
                                     />
                                 </td>
