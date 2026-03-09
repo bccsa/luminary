@@ -1,14 +1,27 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { INestApplication, UnauthorizedException, ValidationPipe } from "@nestjs/common";
+import { ExecutionContext } from "@nestjs/common";
 import * as request from "supertest";
 import { StorageStatusController } from "./storageStatus.controller";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
 import * as jwtModule from "../jwt/processJwt";
 import * as permissionsService from "../permissions/permissions.service";
 import { DocType } from "../enums";
 import { v4 as uuidv4 } from "uuid";
+
+const defaultTestIdentity: ResolvedIdentity = {
+    user: {
+        _id: "test-user",
+        type: DocType.User,
+        email: "test@test",
+        name: "Test",
+        memberOf: ["group-public-users"],
+    } as any,
+    groupIds: ["group-public-users"],
+};
 
 describe("StorageController", () => {
     let app: INestApplication;
@@ -31,7 +44,16 @@ describe("StorageController", () => {
             ],
         })
             .overrideGuard(AuthGuard)
-            .useValue({ canActivate: () => true })
+            .useValue({
+                canActivate(context: ExecutionContext) {
+                    const req = context.switchToHttp().getRequest();
+                    if (!req.headers?.authorization) {
+                        throw new UnauthorizedException("Authorization token required");
+                    }
+                    (req as any).user = defaultTestIdentity;
+                    return true;
+                },
+            })
             .compile();
 
         app = testingModule.createNestApplication();
