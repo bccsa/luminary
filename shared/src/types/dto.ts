@@ -71,6 +71,10 @@ export type UserDto = ContentBaseDto & {
     email: string;
     name: string;
     lastLogin?: number;
+    /** IDs of OAuthProvider documents this user belongs to (for CMS display and "add on login"). */
+    providers?: string[];
+    /** One entry per provider: the external user ID within that provider. Used for identity lookup. */
+    providerIdentifiers?: Array<{ providerId: string; userId: string }>;
 };
 
 export type ContentDto = ContentBaseDto & {

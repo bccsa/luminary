@@ -1,6 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtPayload } from "jsonwebtoken";
-import { randomUUID } from "crypto";
 import { DbService } from "../db/db.service";
 import { DocType } from "../enums";
 import { GroupAssignment, GroupAssignmentCondition, OAuthProviderDto } from "../dto/OAuthProviderDto";
@@ -12,7 +11,7 @@ import { UserDto } from "../dto/UserDto";
  */
 export type ResolvedIdentity = {
     user: UserDto;
-    /** Group IDs that passed all conditions in groupAssignments. Falls back to the guest group. */
+    /** Effective group IDs: union of provider-derived groups and user.memberOf. Falls back to the guest group. */
     groupIds: string[];
 };
 
@@ -25,12 +24,17 @@ export class AuthIdentityService {
 
     /**
      * Main entry point.  Given a verified JWT payload and the matching OAuthProvider document,
-     * resolves the user identity (find-or-provision) and evaluates all groupAssignment rules.
+     * resolves the user identity and evaluates all groupAssignment rules.
+     *
+     * Effective groupIds = union of user.memberOf (DB-assigned) and provider-derived groups.
      */
     async resolveIdentity(payload: JwtPayload, provider: OAuthProviderDto): Promise<ResolvedIdentity> {
         const { userId, email, name } = this.extractUserFields(payload, provider);
-        const user = await this.findOrProvisionUser({ userId, email, name, providerId: provider._id });
-        const groupIds = this.evaluateGroupAssignments(payload, provider.groupAssignments ?? []);
+        const user = await this.findUser({ userId, email, name, providerId: provider._id });
+        const providerGroupIds = this.evaluateGroupAssignments(payload, provider.groupAssignments ?? []);
+
+        // Merge DB-assigned groups with provider-derived groups
+        const groupIds = [...new Set([...(user.memberOf ?? []), ...providerGroupIds])];
 
         return { user, groupIds };
     }
@@ -88,10 +92,16 @@ export class AuthIdentityService {
     }
 
     /**
-     * Looks up an existing user by (oAuthProviderId, userId) or creates a new one.
-     * The combination of provider ID + external user ID is globally unique.
+     * Resolves a user by (providerId, userId) using the new providerIdentifiers structure,
+     * with a fallback to the legacy oAuthProviderId + userId compound key.
+     *
+     * If no user is found, throws UnauthorizedException — users must be created in the CMS
+     * before they can log in.
+     *
+     * If the user is found but the current provider is not yet in their providers list,
+     * the provider is added to providers and providerIdentifiers ("add on login").
      */
-    private async findOrProvisionUser(opts: {
+    private async findUser(opts: {
         userId: string;
         email: string;
         name: string;
@@ -99,54 +109,66 @@ export class AuthIdentityService {
     }): Promise<UserDto> {
         const { userId, email, name, providerId } = opts;
 
-        // Query by the compound key (oAuthProviderId + userId)
-        const result = await this.db.executeFindQuery({
+        // 1. Primary lookup: providerIdentifiers $elemMatch
+        let result = await this.db.executeFindQuery({
             selector: {
                 type: DocType.User,
-                oAuthProviderId: providerId,
-                userId,
+                providerIdentifiers: { $elemMatch: { providerId, userId } },
             },
             limit: 1,
         });
 
-        if (result.docs?.length > 0) {
-            const existing = result.docs[0] as UserDto;
-
-            // Refresh mutable fields that may have changed in the identity provider
-            const needsUpdate =
-                (email && existing.email !== email) ||
-                (name  && existing.name  !== name);
-
-            if (needsUpdate) {
-                const updated: UserDto = {
-                    ...existing,
-                    ...(email ? { email } : {}),
-                    ...(name  ? { name  } : {}),
-                    lastLogin: Date.now(),
-                };
-                await this.db.upsertDoc(updated);
-                return updated;
-            }
-
-            // Touch lastLogin without triggering a full update cycle
-            await this.db.upsertDoc({ ...existing, lastLogin: Date.now() });
-            return existing;
+        // 2. Fallback: legacy oAuthProviderId + userId compound key
+        if (!result.docs?.length) {
+            result = await this.db.executeFindQuery({
+                selector: {
+                    type: DocType.User,
+                    oAuthProviderId: providerId,
+                    userId,
+                },
+                limit: 1,
+            });
         }
 
-        // Provision a new user document
-        const newUser: UserDto = {
-            _id: randomUUID(),
-            type: DocType.User,
-            memberOf: [],
-            oAuthProviderId: providerId,
-            userId,
-            email: email || `${userId}@unknown`,
-            name:  name  || userId,
-            lastLogin: Date.now(),
-        };
+        if (!result.docs?.length) {
+            throw new UnauthorizedException(
+                "No user found for this provider identity. Please contact an administrator.",
+            );
+        }
 
-        await this.db.upsertDoc(newUser);
-        return newUser;
+        let user = result.docs[0] as UserDto;
+
+        // Determine which fields need updating
+        const needsEmailUpdate = email && user.email !== email;
+        const needsNameUpdate  = name  && user.name  !== name;
+
+        // Check if this provider is already recorded on the user
+        const alreadyLinked =
+            user.providerIdentifiers?.some((pi) => pi.providerId === providerId && pi.userId === userId) ?? false;
+
+        if (needsEmailUpdate || needsNameUpdate || !alreadyLinked) {
+            user = {
+                ...user,
+                ...(needsEmailUpdate ? { email } : {}),
+                ...(needsNameUpdate  ? { name  } : {}),
+                lastLogin: Date.now(),
+            };
+
+            if (!alreadyLinked) {
+                user.providers = [...new Set([...(user.providers ?? []), providerId])];
+                user.providerIdentifiers = [
+                    ...(user.providerIdentifiers ?? []),
+                    { providerId, userId },
+                ];
+            }
+
+            await this.db.upsertDoc(user);
+            return user;
+        }
+
+        // Touch lastLogin
+        await this.db.upsertDoc({ ...user, lastLogin: Date.now() });
+        return user;
     }
 
     // -------------------------------------------------------------------------
