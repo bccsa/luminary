@@ -1,4 +1,4 @@
-import { Controller, Headers, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
+import { Controller, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";

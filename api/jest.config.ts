@@ -7,6 +7,7 @@ const config: Config = {
     transform: {
         "^.+\\.(t|j)s$": "ts-jest",
     },
+    transformIgnorePatterns: ["/node_modules/(?!jose|jwks-rsa)/"],
     moduleNameMapper: {
         "^src/(.*)$": "<rootDir>/$1",
     },

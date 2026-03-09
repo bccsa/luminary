@@ -1,5 +1,4 @@
 import { DbService } from "./db.service";
-import v9 from "./schemaUpgrade/v9";
 import v10 from "./schemaUpgrade/v10";
 import v11 from "./schemaUpgrade/v11";
 import v12 from "./schemaUpgrade/v12";

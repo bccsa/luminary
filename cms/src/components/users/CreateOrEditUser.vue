@@ -224,7 +224,8 @@ const saveDisabled = computed(() => {
             />
 
             <LCombobox
-                v-model:selected-options="editable.memberOf as string[]"
+                :selected-options="editable.memberOf ?? []"
+                @update:selected-options="(val: string[]) => (editable.memberOf = val)"
                 :label="`Group Membership`"
                 :options="
                     groups.map((group: GroupDto) => ({
@@ -240,7 +241,7 @@ const saveDisabled = computed(() => {
             />
 
             <LCombobox
-                v-model:selected-options="(editable.providers as string[]) ?? []"
+                :selected-options="editable.providers ?? []"
                 @update:selected-options="(val: string[]) => (editable.providers = val)"
                 label="OAuth Providers"
                 :options="

@@ -1,5 +1,6 @@
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
+import { MOCK_IDENTITY } from "../test/testIdentity";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
@@ -22,7 +23,7 @@ describe("ChangeRequest service", () => {
         }`;
 
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service);
+        changeRequestService = new ChangeRequestService(service);
     });
 
     afterAll(async () => {
@@ -30,7 +31,7 @@ describe("ChangeRequest service", () => {
     });
 
     it("can query the api endpoint", async () => {
-        const res = await changeRequestService.changeRequest(changeRequest_post(), "");
+        const res = await changeRequestService.changeRequest(changeRequest_post(), MOCK_IDENTITY);
 
         expect(res.ack).toBe(AckStatus.Accepted);
     });
@@ -49,7 +50,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, MOCK_IDENTITY);
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
@@ -60,7 +61,7 @@ describe("ChangeRequest service", () => {
         };
 
         // @ts-expect-error - we are testing invalid input
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, MOCK_IDENTITY);
         expect(res.ack).toBe("rejected");
         expect(res.message).toContain("Change request validation failed");
     });
@@ -76,7 +77,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, MOCK_IDENTITY);
 
         expect(res.message).toContain("Invalid document type");
         expect(res.ack).toBe("rejected");
@@ -96,7 +97,7 @@ describe("ChangeRequest service", () => {
             doc: { ...postDoc, deleteReq: 1 },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, MOCK_IDENTITY);
 
         expect(res.message).toBe("No 'Delete' access to document");
         expect(res.ack).toBe("rejected");
