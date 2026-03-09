@@ -467,6 +467,7 @@ const deleteLanguage = async () => {
                                         placeholder="Enter key (e.g., 'menu.home')"
                                         class="w-full"
                                         data-test="key-input"
+                                        :disabled="!canEditOrCreate"
                                     />
                                 </td>
                                 <td
@@ -478,6 +479,7 @@ const deleteLanguage = async () => {
                                         placeholder="Enter value (e.g., 'Home Page')"
                                         class="w-full"
                                         data-test="value-input"
+                                        :disabled="!canEditOrCreate"
                                     />
                                 </td>
 

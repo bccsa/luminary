@@ -11,6 +11,7 @@ import {
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
     superAdminAccessMap,
+    viewAccessToAllContentMap,
 } from "@/tests/mockdata";
 import { PlusCircleIcon } from "@heroicons/vue/20/solid";
 import { ref } from "vue";
@@ -242,5 +243,31 @@ describe("EditLanguage.vue", () => {
 
             expect(deletedLanguage.length).toBe(0);
         });
+    });
+
+    it("user cannot add translation without create or edit permission: add UI is hidden and inputs disabled", async () => {
+        accessMap.value = viewAccessToAllContentMap as typeof accessMap.value;
+
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        const addButton = wrapper.find("button[data-test='add-key-button']");
+        expect(addButton.exists()).toBe(false);
+
+        const keyInput = wrapper.find("input[data-test='key-input']");
+        const valueInput = wrapper.find("input[data-test='value-input']");
+
+        expect(keyInput.exists()).toBe(true);
+        expect(valueInput.exists()).toBe(true);
+
+        expect(keyInput.attributes("disabled")).toBeDefined();
+        expect(valueInput.attributes("disabled")).toBeDefined();
     });
 });
