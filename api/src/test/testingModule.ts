@@ -10,6 +10,7 @@ import { PermissionSystem } from "../permissions/permissions.service";
 import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
+import { AuthIdentityService } from "../auth/auth-identity.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -47,6 +48,7 @@ export async function createTestingModule(testName: string) {
         ],
         providers: [
             DbService,
+            AuthIdentityService,
             Socketio,
             S3Service,
             {

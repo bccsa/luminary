@@ -1,11 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ValidationPipe } from "@nestjs/common";
+import { ExecutionContext, ValidationPipe } from "@nestjs/common";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import * as request from "supertest";
 import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AuthGuard } from "../auth/auth.guard";
+import { MOCK_IDENTITY } from "../test/testIdentity";
 import { DocType } from "../enums";
 import * as path from "path";
 import * as fs from "fs";
@@ -28,7 +29,13 @@ describe("ChangeRequestController", () => {
             ],
         })
             .overrideGuard(AuthGuard)
-            .useValue({ canActivate: () => true })
+            .useValue({
+                canActivate: (context: ExecutionContext) => {
+                    const req = context.switchToHttp().getRequest();
+                    (req as any).user = MOCK_IDENTITY;
+                    return true;
+                },
+            })
             .compile();
 
         app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -136,7 +143,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
 
@@ -187,7 +194,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
 
@@ -238,7 +245,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
 
@@ -289,7 +296,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
 
@@ -363,7 +370,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
 
@@ -630,7 +637,7 @@ describe("ChangeRequestController", () => {
                         text: "No binary data here",
                     }),
                 }),
-                "fake-token",
+                MOCK_IDENTITY,
             );
         });
     });
