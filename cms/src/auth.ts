@@ -150,191 +150,65 @@ async function setupAuth(app: App<Element>, router: Router) {
         return mockAuth;
     }
 
-    // If Auth0 env vars are not configured, use the provider selection modal for login
-    if (!import.meta.env.VITE_AUTH0_DOMAIN || !import.meta.env.VITE_AUTH0_CLIENT_ID) {
-        console.warn(
-            "Auth0 env vars (VITE_AUTH0_DOMAIN / VITE_AUTH0_CLIENT_ID) are not set — provider selection modal will handle authentication",
+    const storedCredsJson = localStorage.getItem(SELECTED_PROVIDER_CREDS_KEY);
+    if (storedCredsJson) {
+        // We have persisted provider credentials — use them to create a real Auth0 plugin.
+        // This handles both the post-redirect callback (code+state in URL) and subsequent
+        // loads where we need silent token refresh from localStorage.
+        const creds: PersistedProviderCredentials = JSON.parse(storedCredsJson);
+        const web_origin = window.location.origin;
+
+        const oauth = createAuth0(
+            {
+                domain: creds.domain,
+                clientId: creds.clientId,
+                useRefreshTokens: true,
+                useRefreshTokensFallback: true,
+                cacheLocation: "localstorage",
+                authorizationParams: {
+                    audience: creds.audience,
+                    scope: "openid profile email offline_access",
+                    redirect_uri: web_origin,
+                },
+            },
+            { skipRedirectCallback: true },
         );
 
-        const storedCredsJson = localStorage.getItem(SELECTED_PROVIDER_CREDS_KEY);
-        if (storedCredsJson) {
-            // We have persisted provider credentials — use them to create a real Auth0 plugin.
-            // This handles both the post-redirect callback (code+state in URL) and subsequent
-            // loads where we need silent token refresh from localStorage.
-            const creds: PersistedProviderCredentials = JSON.parse(storedCredsJson);
-            const web_origin = window.location.origin;
+        app.use(oauth);
 
-            const oauth = createAuth0(
-                {
-                    domain: creds.domain,
-                    clientId: creds.clientId,
-                    useRefreshTokens: true,
-                    useRefreshTokensFallback: true,
-                    cacheLocation: "localstorage",
-                    authorizationParams: {
-                        audience: creds.audience,
-                        scope: "openid profile email offline_access",
-                        redirect_uri: web_origin,
-                    },
-                },
-                { skipRedirectCallback: true },
-            );
-
-            app.use(oauth);
-
-            // Handle the redirect callback if Auth0 returned a code+state
-            const url = new URL(location.href);
-            if (url.searchParams.has("code") && url.searchParams.has("state")) {
-                if (url.searchParams.has("error")) {
-                    console.error("Auth0 redirect error:", url.searchParams.get("error"));
-                } else {
-                    await oauth.handleRedirectCallback(location.href).catch((err) => {
-                        console.error("Failed to handle Auth0 redirect callback", err);
-                    });
-                }
-                router.push("/");
-            }
-
-            if (oauth.isLoading.value) {
-                await new Promise((resolve) => {
-                    watch(oauth.isLoading, () => resolve(void 0), { once: true });
+        // Handle the redirect callback if Auth0 returned a code+state
+        const url = new URL(location.href);
+        if (url.searchParams.has("code") && url.searchParams.has("state")) {
+            if (url.searchParams.has("error")) {
+                console.error("Auth0 redirect error:", url.searchParams.get("error"));
+            } else {
+                await oauth.handleRedirectCallback(location.href).catch((err) => {
+                    console.error("Failed to handle Auth0 redirect callback", err);
                 });
             }
-
-            const _Logout = oauth.logout;
-            (oauth as AuthPlugin).logout = (retrying = false) => {
-                localStorage.removeItem(SELECTED_PROVIDER_CREDS_KEY);
-                let returnTo = web_origin;
-                if (!retrying) returnTo += "?loggedOut";
-                return _Logout({ logoutParams: { returnTo } });
-            };
-
-            return oauth as AuthPlugin;
+            router.push("/");
         }
 
-        const noAuth = createNoAuthPlugin();
-        app.config.globalProperties.$auth = noAuth;
-        return noAuth;
-    }
-
-    app.config.globalProperties.$auth = null; // Clear existing auth
-    const web_origin = window.location.origin;
-
-    const oauth = createAuth0(
-        {
-            domain: import.meta.env.VITE_AUTH0_DOMAIN,
-            clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-            useRefreshTokens: true,
-            useRefreshTokensFallback: true,
-            cacheLocation: "localstorage",
-            authorizationParams: {
-                audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-                scope: "openid profile email offline_access",
-                redirect_uri: web_origin,
-            },
-        },
-        {
-            skipRedirectCallback: true,
-        },
-    );
-
-    // Handle redirects (Save token to local storage)
-    async function redirectCallback(_url: string) {
-        const url = new URL(_url);
-        if (!url.searchParams.has("state")) return false;
-
-        if (url.searchParams.has("error")) {
-            const error = url.searchParams.get("error");
-            console.error(error);
-            alert(error);
-            return false;
+        if (oauth.isLoading.value) {
+            await new Promise((resolve) => {
+                watch(oauth.isLoading, () => resolve(void 0), { once: true });
+            });
         }
 
-        if (!url.searchParams.has("code")) return false;
+        const _Logout = oauth.logout;
+        (oauth as AuthPlugin).logout = (retrying = false) => {
+            localStorage.removeItem(SELECTED_PROVIDER_CREDS_KEY);
+            let returnTo = web_origin;
+            if (!retrying) returnTo += "?loggedOut";
+            return _Logout({ logoutParams: { returnTo } });
+        };
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
-
-        const to = getRedirectTo() || "/";
-
-        // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
-        router.push(to);
-
-        return true;
+        return oauth as AuthPlugin;
     }
 
-    // Handle redirects, if user needs to login and open the app via link with slug
-    function getRedirectTo(): string {
-        const route = router.currentRoute.value;
-        return (
-            (route.query.redirect_to as string) ||
-            (new URLSearchParams(location.search).get("redirect_to") as string)
-        );
-    }
-
-    app.use(oauth);
-
-    // Handle login
-    await redirectCallback(location.href);
-
-    // Handle logout
-    const _Logout = oauth.logout;
-    (oauth as AuthPlugin).logout = (retrying = false) => {
-        let returnTo = web_origin;
-        if (!retrying) returnTo += "?loggedOut";
-
-        return _Logout({
-            logoutParams: {
-                returnTo,
-            },
-        });
-    };
-
-    // Handle login
-    const _LoginWithRedirect = oauth.loginWithRedirect;
-    oauth.loginWithRedirect = () => {
-        return _LoginWithRedirect({
-            authorizationParams: location.search.includes("loggedOut")
-                ? {
-                      prompt: "login",
-                  }
-                : undefined,
-        });
-    };
-
-    if (oauth.isLoading.value) {
-        // await while loading:
-        await new Promise((resolve) => {
-            watch(oauth.isLoading, () => resolve(void 0), { once: true });
-        });
-    }
-
-    return oauth as AuthPlugin;
-}
-
-/**
- * Redirect the user to the login page.
- */
-async function loginRedirect(oauth: AuthPlugin) {
-    const { loginWithRedirect, logout } = oauth;
-
-    const usedConnection = localStorage.getItem("usedAuth0Connection");
-    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
-
-    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
-    if (retryCount < 2) {
-        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
-        await loginWithRedirect({
-            authorizationParams: {
-                connection: usedConnection ? usedConnection : undefined,
-                redirect_uri: window.location.origin,
-            },
-        });
-        return;
-    }
-
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    const noAuth = createNoAuthPlugin();
+    app.config.globalProperties.$auth = noAuth;
+    return noAuth;
 }
 
 /**
@@ -354,13 +228,7 @@ async function getToken(oauth: AuthPlugin) {
     }
 }
 
-// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
-setTimeout(() => {
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-}, 10000);
-
 export default {
     setupAuth,
-    loginRedirect,
     getToken,
 };
