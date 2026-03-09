@@ -3,7 +3,7 @@ import {
     Get,
     Query,
     UseGuards,
-    Headers,
+    Req,
     HttpException,
     HttpStatus,
 } from "@nestjs/common";
@@ -11,9 +11,10 @@ import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
-import { processJwt } from "../jwt/processJwt";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AclPermission, DocType } from "../enums";
+import { FastifyRequest } from "fastify";
 
 export type StorageStatusResponseDto = {
     status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
@@ -29,17 +30,11 @@ export class StorageStatusController {
     async getStorageStatus(
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
-        @Headers("Authorization") authHeader: string,
+        @Req() request: FastifyRequest,
     ): Promise<StorageStatusResponseDto> {
         await validateApiVersion(apiVersion);
 
-        // Extract and process JWT token
-        const token = authHeader?.replace("Bearer ", "") ?? "";
-        if (!token) {
-            throw new HttpException("Authorization token required", HttpStatus.UNAUTHORIZED);
-        }
-
-        const userDetails = await processJwt(token, this.dbService, undefined);
+        const identity = (request as any).user as ResolvedIdentity;
 
         // Validate bucketId parameter
         if (!bucketId) {
@@ -64,7 +59,7 @@ export class StorageStatusController {
                 bucket.memberOf,
                 DocType.Storage,
                 AclPermission.View,
-                userDetails.groups,
+                identity.groupIds,
             );
 
             if (!hasPermission) {

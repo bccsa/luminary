@@ -6,6 +6,7 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -16,9 +17,8 @@ export class ChangeRequestController {
     @UsePipes()
     async handleChangeRequest(
         @Req() request: FastifyRequest,
-        @Headers("Authorization") authHeader: string,
     ) {
-        const token = authHeader?.replace("Bearer ", "") ?? "";
+        const identity = (request as any).user as ResolvedIdentity;
 
         // Check if the request is multipart
         const isMultipartRequest =
@@ -112,7 +112,7 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(changeRequest, token);
+            const result = await this.changeRequestService.changeRequest(changeRequest, identity);
 
             return result;
         }
@@ -121,7 +121,7 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, token);
+        const result = await this.changeRequestService.changeRequest(cleanedBody, identity);
 
         return result;
     }

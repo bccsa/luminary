@@ -6,7 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth, { isAuthBypassed } from "./auth";
+import auth, { isAuthBypassed, showProviderSelectionModal } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initLanguageSync, initSync } from "./sync";
@@ -39,6 +39,11 @@ async function Startup() {
         apiUrl,
         token,
         syncList: [
+            {
+                type: DocType.OAuthProvider,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
             {
                 type: DocType.Tag,
                 syncPriority: 2,
@@ -82,12 +87,12 @@ async function Startup() {
 
     const socket = getSocket();
 
-    // Redirect to login if the API authentication fails (skip in auth bypass mode)
+    // Show login modal if the API authentication fails (skip in auth bypass mode)
     if (!isAuthBypassed) {
-        socket.on("apiAuthFailed", async () => {
-            console.error("API authentication failed, redirecting to login");
-            Sentry.captureMessage("API authentication failed, redirecting to login");
-            await auth.loginRedirect(oauth);
+        socket.on("apiAuthFailed", () => {
+            console.error("API authentication failed, showing login modal");
+            Sentry.captureMessage("API authentication failed, showing login modal");
+            showProviderSelectionModal.value = true;
         });
     }
 
@@ -121,6 +126,11 @@ async function Startup() {
     app.use(createPinia());
     app.use(router);
     app.mount("#app");
+
+    // Show the provider selection modal on startup if the user is not authenticated
+    if (!isAuthBypassed && !oauth.isAuthenticated.value) {
+        showProviderSelectionModal.value = true;
+    }
 }
 
 Startup();

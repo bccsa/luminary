@@ -77,6 +77,16 @@
             "type": "storage",
             "groupId": "group-private-users",
             "permission": ["view"]
+        },
+        {
+            "type": "oAuthProvider",
+            "groupId": "group-public-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "oAuthProvider",
+            "groupId": "group-private-users",
+            "permission": ["view"]
         }
     ]
 }

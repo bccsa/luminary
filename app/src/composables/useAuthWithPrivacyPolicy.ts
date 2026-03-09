@@ -1,6 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { computed, ref } from "vue";
 import { userPreferencesAsRef } from "@/globalConfig";
+import { showProviderSelectionModal } from "@/auth";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);
@@ -30,7 +31,7 @@ export function useAuthWithPrivacyPolicy() {
         };
     }
 
-    const { isAuthenticated, user, loginWithRedirect: originalLoginWithRedirect, logout } = auth0;
+    const { isAuthenticated, user, logout } = auth0;
 
     // Check if privacy policy is accepted
     const isPrivacyPolicyAccepted = computed(() => {
@@ -40,11 +41,11 @@ export function useAuthWithPrivacyPolicy() {
     // Enhanced login function that checks privacy policy first
     const loginWithRedirect = () => {
         if (isPrivacyPolicyAccepted.value) {
-            // Privacy policy is already accepted, proceed with login
-            originalLoginWithRedirect();
+            // Privacy policy is already accepted, show provider selection
+            showProviderSelectionModal.value = true;
         } else {
             // Privacy policy not accepted, show modal first
-            pendingLoginAction = () => originalLoginWithRedirect();
+            pendingLoginAction = () => { showProviderSelectionModal.value = true; };
             hasPendingLogin.value = true;
             showPrivacyPolicyModal.value = true;
         }

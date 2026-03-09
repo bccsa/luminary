@@ -20,6 +20,7 @@ import {
     StorageType,
     MediaType,
     type MediaFileDto,
+    type OAuthProviderDto,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -865,6 +866,12 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        oAuthProvider: {
+            view: true,
+            edit: true,
+            assign: true,
+            delete: true,
+        },
     },
     "group-private-content": {
         post: {
@@ -1442,6 +1449,18 @@ export const mockStorageDtoGeneral: StorageDto = {
     publicUrl: "http://localhost:9000/general",
     credential: mockS3Credentials,
     mimeTypes: ["image/*", "video/mp4", "application/pdf"],
+};
+
+export const mockOAuthProviderDto: OAuthProviderDto = {
+    _id: "oauth-provider-1",
+    type: DocType.OAuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-super-admins"],
+    label: "Production Auth0",
+    providerType: "auth0",
+    domain: "tenant.auth0.com",
+    clientId: "client123",
+    audience: "https://api.example.com",
 };
 
 // Alias for backward compatibility

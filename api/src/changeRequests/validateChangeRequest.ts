@@ -14,6 +14,7 @@ import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
+import { OAuthProviderDto } from "../dto/OAuthProviderDto";
 
 /**
  * DocType to DTO map
@@ -27,6 +28,7 @@ const DocTypeMap = {
     tag: TagDto,
     user: UserDto,
     storage: StorageDto,
+    oAuthProvider: OAuthProviderDto,
 };
 
 /**

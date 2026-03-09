@@ -77,7 +77,10 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
+            return {
+                groups: [],
+                accessMap: PermissionSystem.getAccessMap([]),
+            };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
@@ -111,14 +114,17 @@ export async function processJwt(
         }
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
+        return {
+            groups: [],
+            accessMap: PermissionSystem.getAccessMap([]),
+        };
     }
 
     // If userId is set, get the user details from the database using the userId
     if (userId) {
         userId = userId.toString();
     }
-
+    
     const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
     // Update user details in the database if either userId or email is set

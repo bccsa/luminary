@@ -4,7 +4,7 @@ import { AclPermission, DocType } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { processJwt } from "../jwt/processJwt";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
 import { SearchReqDto } from "../dto/SearchReqDto";
 import { SearchOptions } from "../db/db.searchFunctions";
 
@@ -21,8 +21,8 @@ export class SearchService {
      * @param req - api request
      * @returns
      */
-    async processReq(query: SearchReqDto, token: string): Promise<DbQueryResult> {
-        const userDetails = await processJwt(token, this.db, this.logger);
+    async processReq(query: SearchReqDto, identity: ResolvedIdentity): Promise<DbQueryResult> {
+        const accessMap = PermissionSystem.getAccessMap(identity.groupIds);
 
         // Validate request
         if (!query.slug && (!query.types || query.types.length < 1)) {
@@ -52,7 +52,7 @@ export class SearchService {
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            userDetails.accessMap,
+            accessMap,
             AclPermission.View,
             [...query.types, DocType.Language],
         );
@@ -93,7 +93,7 @@ export class SearchService {
                 }
             })
             .catch((err) => {
-                this.logger.error(`Error getting data for client: ${userDetails.userId}`, err);
+                this.logger.error(`Error getting data for client: ${identity.user.userId}`, err);
             });
         return _res;
     }

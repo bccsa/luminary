@@ -37,6 +37,11 @@
             "type": "storage",
             "groupId": "group-super-admins",
             "permission": ["view", "edit"]
+        },
+        {
+            "type": "OAuthProvider",
+            "groupId": "group-super-admins",
+            "permission": ["view"]
         }
     ]
 }

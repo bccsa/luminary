@@ -1,5 +1,6 @@
 import "./assets/main.css";
 import { createApp } from "vue";
+import { selectedProviderId } from "./stores/authProvider";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -11,6 +12,16 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initLanguageSync } from "./sync";
+
+// Inject X-Query (provider ID) header on every fetch request to the API
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (selectedProviderId.value && url.startsWith(apiUrl)) {
+        init = { ...init, headers: { ...((init?.headers as Record<string, string>) ?? {}), "X-Query": selectedProviderId.value } };
+    }
+    return _nativeFetch(input, init);
+};
 
 export const app = createApp(App);
 
@@ -46,6 +57,7 @@ async function Startup() {
         token,
         appLanguageIdsAsRef,
         syncList: [
+            { type: DocType.OAuthProvider, syncPriority: 1 },
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {

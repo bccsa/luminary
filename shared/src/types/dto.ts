@@ -225,6 +225,66 @@ export type RedirectDto = ContentBaseDto & {
     toSlug?: string;
 };
 
+export type GroupAssignmentCondition =
+    | { type: "always" }
+    | { type: "authenticated" }
+    | { type: "claimEquals"; claimPath: string; value: string }
+    | { type: "claimIn"; claimPath: string; values: string[] };
+
+export type GroupAssignment = {
+    groupId: string;
+    conditions: GroupAssignmentCondition[];
+};
+
+export type UserFieldMappings = {
+    userId?: string;
+    email?: string;
+    name?: string;
+};
+
+export type OAuthProviderDto = ContentBaseDto & {
+    label: string;
+    providerType: "auth0";
+    textColor?: string;
+    backgroundColor?: string;
+    clientId?: string;
+    domain?: string;
+    audience?: string;
+    icon?: string;
+    iconOpacity?: number;
+    imageData?: ImageDto;
+    imageBucketId?: Uuid;
+    claimNamespace?: string;
+    claimMappings?: Array<{ claim: string; target: string }>;
+    userFieldMappings?: UserFieldMappings;
+    groupAssignments?: GroupAssignment[];
+    isGuestProvider?: boolean;
+};
+
+/**
+ * Public-facing subset of OAuthProviderDto for client-side display and authentication.
+ * Excludes internal claim mapping configuration.
+ */
+export type OAuthProviderPublicDto = Pick<
+    OAuthProviderDto,
+    | "_id"
+    | "type"
+    | "updatedTimeUtc"
+    | "memberOf"
+    | "label"
+    | "providerType"
+    | "textColor"
+    | "backgroundColor"
+    | "clientId"
+    | "domain"
+    | "audience"
+    | "icon"
+    | "iconOpacity"
+    | "imageData"
+    | "imageBucketId"
+    | "isGuestProvider"
+>;
+
 /**
  * This type is an exact copy of the API's DbQueryResult, which is passed to the client when querying the Search API endpoint
  */

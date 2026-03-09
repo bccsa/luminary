@@ -42,6 +42,11 @@
             "type": "redirect",
             "groupId": "group-private-editors",
             "permission": ["view", "edit"]
+        },
+        {
+            "type": "OAuthProvider",
+            "groupId": "group-private-editors",
+            "permission": ["view"]
         }
     ]
 }

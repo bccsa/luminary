@@ -15,6 +15,8 @@ import * as winston from "winston";
 import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
+import { AuthIdentityService } from "./auth/auth-identity.service";
+import { AuthGuard } from "./auth/auth.guard";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -63,6 +65,8 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         SearchService,
         QueryService,
         ChangeRequestService,
+        AuthIdentityService,
+        AuthGuard,
     ],
 })
 export class AppModule {}
