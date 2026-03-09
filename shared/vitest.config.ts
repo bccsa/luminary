@@ -10,6 +10,8 @@ export default mergeConfig(
             environment: "jsdom",
             exclude: [...configDefaults.exclude, "e2e/*"],
             root: fileURLToPath(new URL("./", import.meta.url)),
+            // Forks give each worker its own process → own fake-indexeddb, so parallel files don't race.
+            pool: "forks",
         },
     }),
 );
