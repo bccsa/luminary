@@ -145,6 +145,18 @@ export class AuthIdentityService {
             });
         }
 
+        // 4. Fallback: bare userId field (oldest legacy format — user was created before oAuthProviderId
+        //    was introduced). Auto-links the provider on success so subsequent logins use path 1.
+        if (!result.docs?.length) {
+            result = await this.db.executeFindQuery({
+                selector: {
+                    type: DocType.User,
+                    userId,
+                },
+                limit: 1,
+            });
+        }
+
         if (!result.docs?.length) {
             throw new UnauthorizedException(
                 "No user found for this provider identity. Please contact an administrator.",
