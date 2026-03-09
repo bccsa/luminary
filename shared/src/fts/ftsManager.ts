@@ -9,6 +9,8 @@ export const ftsIndexing = ref(false);
 
 /**
  * Initialize the FTS system. Creates the worker bridge and starts background indexing.
+ * Uses setTimeout to break out of any inherited Dexie PSD zone from initDatabase(),
+ * preventing transaction scope conflicts during FTS initialization.
  */
 export function initFts(config: FtsConfig): void {
     if (bridge) {
@@ -19,7 +21,7 @@ export function initFts(config: FtsConfig): void {
     bridge.setOnRunningChange((running) => {
         ftsIndexing.value = running;
     });
-    bridge.start(config);
+    setTimeout(() => bridge?.start(config), 0);
 }
 
 /**

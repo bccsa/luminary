@@ -15,7 +15,8 @@ import {
     TagType,
     Uuid,
 } from "../types";
-import { recomputeCorpusStats, scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+import type { FtsIndexEntry, FtsMetaEntry } from "../fts/types";
+import { ftsNotifyDeleted, ftsNotifyUpdated } from "../fts/ftsManager";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { ref, type Ref, toRaw, watch } from "vue";
@@ -57,6 +58,9 @@ type dbIndex = {
     localChanges: string;
     queryCache: string;
     luminaryInternals: string;
+    ftsIndex: string;
+    ftsMeta: string;
+    ftsReverse?: null;
 };
 
 export type QueryOptions = {
@@ -123,6 +127,8 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
+    ftsIndex!: Table<FtsIndexEntry>;
+    ftsMeta!: Table<FtsMetaEntry>;
 
     /**
      * Luminary Shared Database class
@@ -134,7 +140,7 @@ class Database extends Dexie {
         this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
-            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],*fts",
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,parentPinned,[type+tagType],[type+postType],[type+updatedTimeUtc]",
             docsIndex,
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
@@ -142,6 +148,9 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
+            ftsIndex: "++id, token, docId",
+            ftsMeta: "id",
+            ftsReverse: null,
         };
 
         const version: number = bumpDBVersion(
@@ -276,29 +285,31 @@ class Database extends Dexie {
     }
 
     /**
-     * Bulk insert documents into the database, and delete documents that are marked for deletion.
+     * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
-    async bulkPut(docs: BaseDocumentDto[]) {
+    bulkPut(docs: BaseDocumentDto[]) {
+        // Delete documents that are marked for deletion
         const toDeleteIds = docs
             .filter((doc) => {
                 if (doc.type !== DocType.DeleteCmd) return false;
+
                 return this.validateDeleteCommand(doc as DeleteCmdDto);
             })
             .map((doc) => (doc as DeleteCmdDto).docId);
 
         if (toDeleteIds.length > 0) {
-            await this.docs.bulkDelete(toDeleteIds);
+            this.docs.bulkDelete(toDeleteIds);
         }
 
+        // Insert all documents except delete commands
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
-        const result = await this.docs.bulkPut(nonDeleteDocs);
 
-        // Update corpus stats if this batch contained ContentDtos
-        if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {
-            await recomputeCorpusStats();
+        // Notify FTS that new docs are available for indexing (fire-and-forget)
+        if (nonDeleteDocs.length > 0) {
+            ftsNotifyUpdated();
         }
 
-        return result;
+        return this.docs.bulkPut(nonDeleteDocs);
     }
 
     /**
@@ -789,15 +800,13 @@ class Database extends Dexie {
                     await this.docs.where("language").anyOf(revokedlanguageIds).delete();
                 }
 
-                const revokedIds = (await revokedDocs.primaryKeys()) as string[];
-
-                if (revokedIds.length > 0) {
+                // Clear the query cache if any documents are to be deleted
+                if ((await revokedDocs.count()) > 0) {
                     await this.queryCache.clear();
-                    await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
                 }
-            });
 
-        scheduleCorpusStatsRecompute();
+                await revokedDocs.delete();
+            });
     }
 
     /**
@@ -809,15 +818,7 @@ class Database extends Dexie {
             return;
         }
 
-        const expiredIds = (await this.docs
-            .where("expiryDate")
-            .belowOrEqual(DateTime.now().toMillis())
-            .primaryKeys()) as string[];
-
-        if (expiredIds.length > 0) {
-            await this.docs.bulkDelete(expiredIds);
-            scheduleCorpusStatsRecompute();
-        }
+        await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
     }
 
     /**
@@ -857,6 +858,8 @@ class Database extends Dexie {
             this.localChanges.clear(),
             this.queryCache.clear(),
             this.luminaryInternals.clear(),
+            this.ftsIndex.clear(),
+            this.ftsMeta.clear(),
         ]);
     }
 }
@@ -887,11 +890,21 @@ export async function initDatabase() {
         console.error("Database blocked");
     });
 
-    // Compute FTS corpus stats on startup.
-    // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
-    setTimeout(() => {
-        recomputeCorpusStats();
-    }, 0);
+    // FTS cleanup: collect deleted doc IDs and notify FTS in batches
+    let ftsDeleteBatch: string[] = [];
+    let ftsDeleteScheduled = false;
+    db.docs.hook("deleting", (primKey) => {
+        ftsDeleteBatch.push(primKey as string);
+        if (!ftsDeleteScheduled) {
+            ftsDeleteScheduled = true;
+            queueMicrotask(() => {
+                const batch = ftsDeleteBatch;
+                ftsDeleteBatch = [];
+                ftsDeleteScheduled = false;
+                if (batch.length > 0) ftsNotifyDeleted(batch);
+            });
+        }
+    });
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
     setTimeout(() => {
