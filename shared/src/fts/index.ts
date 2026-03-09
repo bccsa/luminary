@@ -4,10 +4,16 @@ export type {
     FtsSearchOptions,
     FtsSearchResult,
     FtsIndexEntry,
-    FtsReverseEntry,
     FtsMetaEntry,
+    FtsCorpusStats,
 } from "./types";
-export { stripHtml, normalizeText, generateTrigrams, generateSearchTrigrams } from "./trigram";
+export {
+    stripHtml,
+    normalizeText,
+    generateTrigrams,
+    generateTrigramCounts,
+    generateSearchTrigrams,
+} from "./trigram";
 export { ftsSearch } from "./ftsSearch";
 export { useFtsSearch } from "./useFtsSearch";
 export type { UseFtsSearchOptions } from "./useFtsSearch";
@@ -19,5 +25,7 @@ export {
     indexBatch,
     getCheckpoint,
     setCheckpoint,
+    getCorpusStats,
+    setCorpusStats,
     checkAndResetIfConfigChanged,
 } from "./ftsIndexer";

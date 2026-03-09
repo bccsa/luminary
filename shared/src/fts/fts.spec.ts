@@ -18,6 +18,8 @@ import {
     indexBatch,
     getCheckpoint,
     setCheckpoint,
+    getCorpusStats,
+    setCorpusStats,
     checkAndResetIfConfigChanged,
 } from "./ftsIndexer";
 import { ftsSearch } from "./ftsSearch";
@@ -28,6 +30,13 @@ const testFields: FtsFieldConfig[] = [
     { name: "summary" },
     { name: "text", isHtml: true },
     { name: "author" },
+];
+
+const boostedFields: FtsFieldConfig[] = [
+    { name: "title", boost: 3.0 },
+    { name: "summary", boost: 1.5 },
+    { name: "text", isHtml: true, boost: 1.0 },
+    { name: "author", boost: 1.0 },
 ];
 
 function makeContentDoc(overrides: Partial<ContentDto> & { _id: string }): ContentDto {
@@ -63,42 +72,30 @@ describe("FTS Indexer and Search", () => {
     beforeEach(async () => {
         // Clear all FTS tables between tests
         await db.ftsIndex.clear();
-        await db.ftsReverse.clear();
         await db.ftsMeta.clear();
         await db.docs.clear();
     });
 
     describe("indexDocument", () => {
-        it("indexes a document and creates trigrams", async () => {
+        it("indexes a document and creates trigrams with TF", async () => {
             const doc = makeContentDoc({
                 _id: "doc-1",
                 title: "Searching for truth",
             });
 
-            const count = await indexDocument(doc, testFields);
-            expect(count).toBeGreaterThan(0);
+            const { trigramCount, tokenCount } = await indexDocument(doc, testFields);
+            expect(trigramCount).toBeGreaterThan(0);
+            expect(tokenCount).toBeGreaterThan(0);
 
-            // Check that ftsIndex entries were created
+            // Check that ftsIndex entries were created with tf values
             const entries = await db.ftsIndex.where("docId").equals("doc-1").toArray();
             expect(entries.length).toBeGreaterThan(0);
+            expect(entries[0].tf).toBeGreaterThan(0);
 
-            // Check that ftsReverse entry was created
-            const reverse = await db.ftsReverse.get("doc-1");
-            expect(reverse).toBeDefined();
-            expect(reverse!.tokens.length).toBeGreaterThan(0);
-        });
-
-        it("stores negative publish date for date ordering", async () => {
-            const publishDate = 1704114000000;
-            const doc = makeContentDoc({
-                _id: "doc-2",
-                publishDate,
-            });
-
-            await indexDocument(doc, testFields);
-
-            const entries = await db.ftsIndex.where("docId").equals("doc-2").toArray();
-            expect(entries[0].negPublishDate).toBe(0 - publishDate);
+            // Check that doc length was stored in ftsMeta
+            const docLenEntry = await db.ftsMeta.get("docLen:doc-1");
+            expect(docLenEntry).toBeDefined();
+            expect(docLenEntry!.value).toBe(tokenCount);
         });
 
         it("strips HTML from fields marked as isHtml", async () => {
@@ -129,8 +126,6 @@ describe("FTS Indexer and Search", () => {
             });
             await indexDocument(doc1, testFields);
 
-            const entriesBefore = await db.ftsIndex.where("docId").equals("doc-4").count();
-
             const doc2 = makeContentDoc({
                 _id: "doc-4",
                 title: "Updated title completely different",
@@ -138,9 +133,33 @@ describe("FTS Indexer and Search", () => {
             });
             await indexDocument(doc2, testFields);
 
-            // Should have new entries, not duplicates
-            const reverse = await db.ftsReverse.get("doc-4");
-            expect(reverse!.indexedAt).toBe(2000);
+            // Should have new entries, not duplicates — verify doc length was updated
+            const docLenEntry = await db.ftsMeta.get("docLen:doc-4");
+            expect(docLenEntry).toBeDefined();
+        });
+
+        it("applies field boost to TF values", async () => {
+            const doc = makeContentDoc({
+                _id: "doc-boost",
+                title: "quantum",
+                summary: "",
+                text: "",
+                author: "",
+            });
+
+            // Index with no boost (default 1.0)
+            const { trigramCount: countNoBost } = await indexDocument(doc, [{ name: "title" }]);
+            const entriesNoBoost = await db.ftsIndex.where("docId").equals("doc-boost").toArray();
+            const tfNoBoost = entriesNoBoost.find((e) => e.token === "qua")?.tf || 0;
+
+            // Re-index with boost 3.0
+            const { trigramCount: countBoosted } = await indexDocument(doc, [
+                { name: "title", boost: 3.0 },
+            ]);
+            const entriesBoosted = await db.ftsIndex.where("docId").equals("doc-boost").toArray();
+            const tfBoosted = entriesBoosted.find((e) => e.token === "qua")?.tf || 0;
+
+            expect(tfBoosted).toBe(tfNoBoost * 3);
         });
     });
 
@@ -151,12 +170,24 @@ describe("FTS Indexer and Search", () => {
 
             // Verify entries exist
             expect(await db.ftsIndex.where("docId").equals("doc-5").count()).toBeGreaterThan(0);
-            expect(await db.ftsReverse.get("doc-5")).toBeDefined();
+            expect(await db.ftsMeta.get("docLen:doc-5")).toBeDefined();
 
             await removeDocumentFromIndex("doc-5");
 
             expect(await db.ftsIndex.where("docId").equals("doc-5").count()).toBe(0);
-            expect(await db.ftsReverse.get("doc-5")).toBeUndefined();
+            expect(await db.ftsMeta.get("docLen:doc-5")).toBeUndefined();
+        });
+
+        it("decrements corpus stats on removal", async () => {
+            const doc = makeContentDoc({ _id: "doc-stats-rm" });
+            const { tokenCount } = await indexDocument(doc, testFields);
+            await setCorpusStats({ totalTokenCount: tokenCount, docCount: 1 });
+
+            await removeDocumentFromIndex("doc-stats-rm");
+
+            const stats = await getCorpusStats();
+            expect(stats.docCount).toBe(0);
+            expect(stats.totalTokenCount).toBe(0);
         });
     });
 
@@ -177,6 +208,38 @@ describe("FTS Indexer and Search", () => {
             await removeDocumentsFromIndex([]);
             // Should not throw
         });
+
+        it("decrements corpus stats for all removed documents", async () => {
+            const doc1 = makeContentDoc({ _id: "doc-bulk-rm-1" });
+            const doc2 = makeContentDoc({ _id: "doc-bulk-rm-2" });
+            const r1 = await indexDocument(doc1, testFields);
+            const r2 = await indexDocument(doc2, testFields);
+            await setCorpusStats({
+                totalTokenCount: r1.tokenCount + r2.tokenCount,
+                docCount: 2,
+            });
+
+            await removeDocumentsFromIndex(["doc-bulk-rm-1", "doc-bulk-rm-2"]);
+
+            const stats = await getCorpusStats();
+            expect(stats.docCount).toBe(0);
+            expect(stats.totalTokenCount).toBe(0);
+        });
+    });
+
+    describe("corpus stats", () => {
+        it("defaults to zeros when no stats exist", async () => {
+            const stats = await getCorpusStats();
+            expect(stats.totalTokenCount).toBe(0);
+            expect(stats.docCount).toBe(0);
+        });
+
+        it("persists corpus stats", async () => {
+            await setCorpusStats({ totalTokenCount: 500, docCount: 10 });
+            const stats = await getCorpusStats();
+            expect(stats.totalTokenCount).toBe(500);
+            expect(stats.docCount).toBe(10);
+        });
     });
 
     describe("checkpoint", () => {
@@ -191,16 +254,21 @@ describe("FTS Indexer and Search", () => {
     });
 
     describe("checkAndResetIfConfigChanged", () => {
-        it("wipes index when config changes", async () => {
+        it("wipes index and corpus stats when config changes", async () => {
             const doc = makeContentDoc({ _id: "doc-8" });
             await indexDocument(doc, testFields);
             await setCheckpoint(1000);
+            await setCorpusStats({ totalTokenCount: 100, docCount: 1 });
 
             const wiped = await checkAndResetIfConfigChanged([{ name: "title" }]);
             expect(wiped).toBe(true);
 
             expect(await db.ftsIndex.count()).toBe(0);
             expect(await getCheckpoint()).toBe(0);
+
+            const stats = await getCorpusStats();
+            expect(stats.totalTokenCount).toBe(0);
+            expect(stats.docCount).toBe(0);
         });
 
         it("does not wipe index when config is unchanged", async () => {
@@ -219,8 +287,7 @@ describe("FTS Indexer and Search", () => {
     });
 
     describe("indexBatch", () => {
-        it("indexes a batch of documents from the docs table", async () => {
-            // Insert docs into the main docs table
+        it("indexes a batch of documents and updates corpus stats", async () => {
             const doc1 = makeContentDoc({
                 _id: "batch-1",
                 title: "First document",
@@ -238,6 +305,10 @@ describe("FTS Indexer and Search", () => {
             expect(result.processedCount).toBe(2);
             expect(result.newCheckpoint).toBe(200);
             expect(result.hasMore).toBe(false);
+
+            const stats = await getCorpusStats();
+            expect(stats.docCount).toBe(2);
+            expect(stats.totalTokenCount).toBeGreaterThan(0);
         });
 
         it("respects batch size limit", async () => {
@@ -280,12 +351,52 @@ describe("FTS Indexer and Search", () => {
             );
             expect(result2.processedCount).toBe(1);
             expect(result2.hasMore).toBe(false);
+
+            const stats = await getCorpusStats();
+            expect(stats.docCount).toBe(3);
+        });
+
+        it("handles re-indexing without double-counting corpus stats", async () => {
+            const doc = makeContentDoc({
+                _id: "reindex-1",
+                title: "Original content",
+                updatedTimeUtc: 100,
+            });
+            await db.docs.bulkPut([doc]);
+
+            await indexBatch(10, 0, testFields, DocType.Content);
+            const statsAfterFirst = await getCorpusStats();
+
+            // Update the doc and re-index
+            const updatedDoc = makeContentDoc({
+                _id: "reindex-1",
+                title: "Updated content",
+                updatedTimeUtc: 200,
+            });
+            await db.docs.put(updatedDoc);
+
+            await indexBatch(10, 100, testFields, DocType.Content);
+            const statsAfterSecond = await getCorpusStats();
+
+            // Should still be 1 doc, not 2
+            expect(statsAfterSecond.docCount).toBe(1);
         });
     });
 
     describe("ftsSearch", () => {
+        async function indexDocsWithCorpusStats(
+            docs: ContentDto[],
+            fields: FtsFieldConfig[] = testFields,
+        ) {
+            let totalTokenCount = 0;
+            for (const doc of docs) {
+                const { tokenCount } = await indexDocument(doc, fields);
+                totalTokenCount += tokenCount;
+            }
+            await setCorpusStats({ totalTokenCount, docCount: docs.length });
+        }
+
         beforeEach(async () => {
-            // Index some test documents
             const docs = [
                 makeContentDoc({
                     _id: "search-1",
@@ -317,9 +428,7 @@ describe("FTS Indexer and Search", () => {
                 }),
             ];
 
-            for (const doc of docs) {
-                await indexDocument(doc, testFields);
-            }
+            await indexDocsWithCorpusStats(docs);
         });
 
         it("finds documents matching search query", async () => {
@@ -330,12 +439,13 @@ describe("FTS Indexer and Search", () => {
             expect(ids).toContain("search-3");
         });
 
-        it("returns results sorted by score then date (newest first)", async () => {
+        it("returns BM25 float scores", async () => {
             const results = await ftsSearch({ query: "quantum" });
-            // Both have similar scores, so newer should come first
-            if (results[0].score === results[1].score) {
-                // search-3 is newer
-                expect(results[0].docId).toBe("search-3");
+            expect(results.length).toBeGreaterThan(0);
+            // BM25 scores should be positive floats
+            for (const r of results) {
+                expect(r.score).toBeGreaterThan(0);
+                expect(typeof r.score).toBe("number");
             }
         });
 
@@ -368,12 +478,55 @@ describe("FTS Indexer and Search", () => {
         });
 
         it("handles fuzzy matching (typos)", async () => {
-            // "quantm" (missing 'u') should still partially match "quantum"
-            // "qua", "uan" missing, but "ant", "ntm" from "quantm" won't match
-            // "qua" from "quantm" matches "qua" from "quantum"
+            // "quantm" (missing 'u') should still partially match via shared trigrams
             const results = await ftsSearch({ query: "quantm" });
-            // At least some trigrams should match
             expect(results.length).toBeGreaterThanOrEqual(0);
+        });
+
+        it("ranks title-boosted matches higher than body-only matches", async () => {
+            // Clear and re-index with boosted fields
+            await db.ftsIndex.clear();
+            await db.ftsMeta.clear();
+
+            const docs = [
+                makeContentDoc({
+                    _id: "boost-title",
+                    title: "quantum physics explained",
+                    summary: "An article about science",
+                    text: "<p>General science content</p>",
+                    publishDate: 1704114000000,
+                }),
+                makeContentDoc({
+                    _id: "boost-body",
+                    title: "Science article",
+                    summary: "An article about science",
+                    text: "<p>This discusses quantum physics in detail</p>",
+                    publishDate: 1704114000000,
+                }),
+                // Extra docs so frequency filter doesn't remove all quantum trigrams
+                makeContentDoc({
+                    _id: "boost-filler-1",
+                    title: "Unrelated gardening tips",
+                    summary: "How to grow vegetables",
+                    text: "<p>Plant seeds in spring</p>",
+                    publishDate: 1704114000000,
+                }),
+                makeContentDoc({
+                    _id: "boost-filler-2",
+                    title: "Travel destinations",
+                    summary: "Best places to visit",
+                    text: "<p>Explore the world</p>",
+                    publishDate: 1704114000000,
+                }),
+            ];
+
+            await indexDocsWithCorpusStats(docs, boostedFields);
+
+            const results = await ftsSearch({ query: "quantum" });
+            expect(results.length).toBe(2);
+            // Title-boosted doc should rank first
+            expect(results[0].docId).toBe("boost-title");
+            expect(results[0].score).toBeGreaterThan(results[1].score);
         });
     });
 });

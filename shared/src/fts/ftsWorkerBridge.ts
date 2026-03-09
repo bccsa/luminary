@@ -97,7 +97,7 @@ export class FtsWorkerBridge {
         this.running = true;
         this.pendingTrigger = false;
 
-        const { batchSize = 10, throttleMs = 100, fields, docType } = this.config;
+        const { batchSize = 3, throttleMs = 200, fields, docType } = this.config;
         let signalledIndexing = false;
 
         try {

@@ -58,10 +58,10 @@ async function Startup() {
         ],
         ftsDocType: DocType.Content,
         ftsFields: [
-            { name: "title" },
-            { name: "summary" },
-            { name: "text", isHtml: true },
-            { name: "author" },
+            { name: "title", boost: 3.0 },
+            { name: "summary", boost: 1.5 },
+            { name: "text", isHtml: true, boost: 1.0 },
+            { name: "author", boost: 1.0 },
         ],
     }).catch((err) => {
         console.error(err);

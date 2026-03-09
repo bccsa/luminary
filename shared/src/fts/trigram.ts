@@ -129,6 +129,7 @@ export function normalizeText(text: string): string {
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\w\s]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
 }
@@ -155,6 +156,35 @@ export function generateTrigrams(text: string): Set<string> {
     }
 
     return trigrams;
+}
+
+/**
+ * Generate trigrams with frequency counts from text.
+ * Returns a Map of trigram -> occurrence count, plus totalCount for document length.
+ * Same 5000-char cap as generateTrigrams.
+ */
+export function generateTrigramCounts(text: string): {
+    counts: Map<string, number>;
+    totalCount: number;
+} {
+    const counts = new Map<string, number>();
+    let totalCount = 0;
+    const normalized = normalizeText(text);
+    if (!normalized) return { counts, totalCount };
+
+    const capped = normalized.length > 5000 ? normalized.substring(0, 5000) : normalized;
+    const words = capped.split(" ");
+
+    for (const word of words) {
+        if (word.length <= 2) continue;
+        for (let i = 0; i <= word.length - 3; i++) {
+            const trigram = word.substring(i, i + 3);
+            counts.set(trigram, (counts.get(trigram) || 0) + 1);
+            totalCount++;
+        }
+    }
+
+    return { counts, totalCount };
 }
 
 /**

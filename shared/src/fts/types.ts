@@ -6,6 +6,8 @@ export type FtsFieldConfig = {
     name: string;
     /** If true, strip HTML tags before indexing */
     isHtml?: boolean;
+    /** Boost multiplier for this field (default: 1.0). Higher values make matches in this field more important. */
+    boost?: number;
 };
 
 /** Options for initializing the FTS system */
@@ -16,10 +18,14 @@ export type FtsConfig = {
     docType: DocType;
     /** Max percentage of total indexed docs a trigram can appear in before being skipped (default: 50) */
     maxTrigramDocPercent?: number;
-    /** Number of documents to index per batch (default: 10) */
+    /** Number of documents to index per batch (default: 3) */
     batchSize?: number;
-    /** Milliseconds to wait between batches (default: 100) */
+    /** Milliseconds to wait between batches (default: 200) */
     throttleMs?: number;
+    /** BM25 k1 parameter controlling term frequency saturation (default: 1.2) */
+    bm25k1?: number;
+    /** BM25 b parameter controlling document length normalization (default: 0.75) */
+    bm25b?: number;
 };
 
 /** A single entry in the FTS forward index */
@@ -29,22 +35,10 @@ export type FtsIndexEntry = {
     token: string;
     /** The document ID this entry belongs to */
     docId: Uuid;
-    /** 0 - publishDate, for descending sort via ascending index */
-    negPublishDate: number;
-    /** Parent post/tag ID */
-    parentId: Uuid;
     /** Language ID for filtering */
     language: Uuid;
-};
-
-/** Reverse index: maps a document to its indexed tokens for efficient deletion */
-export type FtsReverseEntry = {
-    /** The document ID (primary key) */
-    docId: Uuid;
-    /** All unique trigrams stored for this doc */
-    tokens: string[];
-    /** updatedTimeUtc at time of indexing (to detect stale entries) */
-    indexedAt: number;
+    /** Boosted term frequency: sum of (raw count * field boost) across all fields */
+    tf: number;
 };
 
 /** Persistent FTS metadata entry */
@@ -69,8 +63,6 @@ export type FtsWorkerResponse =
 /** Search result returned to consumers */
 export type FtsSearchResult = {
     docId: Uuid;
-    parentId: Uuid;
-    negPublishDate: number;
     /** Number of matching trigrams */
     score: number;
     /** Number of full query words matched in the document */
@@ -87,4 +79,14 @@ export type FtsSearchOptions = {
     offset?: number;
     /** Max percentage of total indexed docs a trigram can appear in before being skipped (default: 50) */
     maxTrigramDocPercent?: number;
+    /** BM25 k1 parameter controlling term frequency saturation (default: 1.2) */
+    bm25k1?: number;
+    /** BM25 b parameter controlling document length normalization (default: 0.75) */
+    bm25b?: number;
+};
+
+/** Aggregate corpus statistics for BM25 scoring */
+export type FtsCorpusStats = {
+    totalTokenCount: number;
+    docCount: number;
 };

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { stripHtml, normalizeText, generateTrigrams, generateSearchTrigrams } from "./trigram";
+import {
+    stripHtml,
+    normalizeText,
+    generateTrigrams,
+    generateTrigramCounts,
+    generateSearchTrigrams,
+} from "./trigram";
 
 describe("stripHtml", () => {
     it("returns empty string for empty input", () => {
@@ -134,6 +140,52 @@ describe("generateTrigrams", () => {
         const trigrams = generateTrigrams(longText);
         // Should still produce trigrams but from capped text
         expect(trigrams.size).toBeGreaterThan(0);
+    });
+});
+
+describe("generateTrigramCounts", () => {
+    it("returns empty map for empty input", () => {
+        const { counts, totalCount } = generateTrigramCounts("");
+        expect(counts.size).toBe(0);
+        expect(totalCount).toBe(0);
+    });
+
+    it("returns accurate frequency counts", () => {
+        // "banana" → trigrams: "ban", "ana", "nan", "ana"
+        // "ana" appears twice, others once
+        const { counts, totalCount } = generateTrigramCounts("banana");
+        expect(counts.get("ban")).toBe(1);
+        expect(counts.get("ana")).toBe(2);
+        expect(counts.get("nan")).toBe(1);
+        expect(totalCount).toBe(4);
+    });
+
+    it("totalCount equals sum of all counts", () => {
+        const { counts, totalCount } = generateTrigramCounts("searching for something");
+        let sum = 0;
+        for (const count of counts.values()) {
+            sum += count;
+        }
+        expect(totalCount).toBe(sum);
+    });
+
+    it("skips words of 2 characters or less", () => {
+        const { counts, totalCount } = generateTrigramCounts("a of the");
+        expect(counts.has("the")).toBe(true);
+        expect(counts.size).toBe(1);
+        expect(totalCount).toBe(1);
+    });
+
+    it("normalizes text before counting", () => {
+        const { counts } = generateTrigramCounts("HELLO");
+        expect(counts.has("hel")).toBe(true);
+        expect(counts.has("HEL")).toBe(false);
+    });
+
+    it("caps text at 5000 characters", () => {
+        const longText = "abcdefghij ".repeat(1000);
+        const { counts } = generateTrigramCounts(longText);
+        expect(counts.size).toBeGreaterThan(0);
     });
 });
 

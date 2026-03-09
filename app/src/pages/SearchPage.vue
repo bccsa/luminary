@@ -12,7 +12,7 @@ const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 const { results, isSearching, loadMore, hasMore, totalLoaded } = useFtsSearch(query, {
     languageId,
     pageSize: 20,
-    maxTrigramDocPercent: 50,
+    maxTrigramDocPercent: 40,
 });
 
 // Resolve content docs from search results
@@ -64,16 +64,12 @@ watch(
         </div>
 
         <div class="flex flex-col gap-3">
-            <RouterLink
-                v-for="result in results"
-                :key="result.docId"
-                :to="resolvedDocs.get(result.docId)?.slug
-                    ? { name: 'content', params: { slug: resolvedDocs.get(result.docId)!.slug } }
-                    : ''"
-                class="block rounded-lg border border-zinc-200 p-4 transition-colors hover:border-blue-400 hover:bg-zinc-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-slate-750"
-            >
+            <RouterLink v-for="result in results" :key="result.docId" :to="resolvedDocs.get(result.docId)?.slug
+                ? { name: 'content', params: { slug: resolvedDocs.get(result.docId)!.slug } }
+                : ''"
+                class="block rounded-lg border border-zinc-200 p-4 transition-colors hover:border-blue-400 hover:bg-zinc-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-slate-750">
                 <div class="text-sm text-zinc-400 dark:text-slate-500">
-                    Score: {{ result.score }} | Doc: {{ result.docId.slice(0, 12) }}...
+                    Score: {{ result.score.toFixed(2) }} | Doc: {{ result.docId.slice(0, 12) }}...
                 </div>
                 <div v-if="resolvedDocs.get(result.docId)" class="mt-1">
                     <div class="font-medium text-zinc-800 dark:text-slate-200">

@@ -11,6 +11,7 @@ export type UseFtsSearchOptions = {
 
 /**
  * Vue composable for full-text search with debouncing and infinite scroll support.
+ * Search is fully async and non-blocking — each IndexedDB query yields to the event loop.
  */
 export function useFtsSearch(queryRef: Ref<string>, options: UseFtsSearchOptions = {}) {
     const { debounceMs = 300, pageSize = 20, maxTrigramDocPercent } = options;
@@ -22,6 +23,7 @@ export function useFtsSearch(queryRef: Ref<string>, options: UseFtsSearchOptions
 
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let currentQuery = "";
+    let searchGeneration = 0;
 
     async function doSearch(query: string, offset: number, append: boolean) {
         if (!query || query.length < 3) {
@@ -34,6 +36,9 @@ export function useFtsSearch(queryRef: Ref<string>, options: UseFtsSearchOptions
             return;
         }
 
+        // Track generation to discard stale results from superseded searches
+        const generation = ++searchGeneration;
+
         isSearching.value = true;
         try {
             const searchResults = await ftsSearch({
@@ -43,6 +48,9 @@ export function useFtsSearch(queryRef: Ref<string>, options: UseFtsSearchOptions
                 offset,
                 maxTrigramDocPercent,
             });
+
+            // Discard if a newer search was started while this one was running
+            if (generation !== searchGeneration) return;
 
             if (append) {
                 results.value = [...results.value, ...searchResults];
@@ -54,7 +62,10 @@ export function useFtsSearch(queryRef: Ref<string>, options: UseFtsSearchOptions
         } catch (e) {
             console.error("FTS search error:", e);
         } finally {
-            isSearching.value = false;
+            // Only clear searching state if this is still the active search
+            if (generation === searchGeneration) {
+                isSearching.value = false;
+            }
         }
     }
 

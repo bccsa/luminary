@@ -15,7 +15,7 @@ import {
     TagType,
     Uuid,
 } from "../types";
-import type { FtsIndexEntry, FtsReverseEntry, FtsMetaEntry } from "../fts/types";
+import type { FtsIndexEntry, FtsMetaEntry } from "../fts/types";
 import { ftsNotifyDeleted, ftsNotifyUpdated } from "../fts/ftsManager";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
@@ -59,8 +59,8 @@ type dbIndex = {
     queryCache: string;
     luminaryInternals: string;
     ftsIndex: string;
-    ftsReverse: string;
     ftsMeta: string;
+    ftsReverse?: null;
 };
 
 export type QueryOptions = {
@@ -128,7 +128,6 @@ class Database extends Dexie {
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
     ftsIndex!: Table<FtsIndexEntry>;
-    ftsReverse!: Table<FtsReverseEntry>;
     ftsMeta!: Table<FtsMetaEntry>;
 
     /**
@@ -149,9 +148,9 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
-            ftsIndex: "++id, [token+negPublishDate], docId",
-            ftsReverse: "docId",
+            ftsIndex: "++id, token, docId",
             ftsMeta: "id",
+            ftsReverse: null,
         };
 
         const version: number = bumpDBVersion(
@@ -860,7 +859,6 @@ class Database extends Dexie {
             this.queryCache.clear(),
             this.luminaryInternals.clear(),
             this.ftsIndex.clear(),
-            this.ftsReverse.clear(),
             this.ftsMeta.clear(),
         ]);
     }
