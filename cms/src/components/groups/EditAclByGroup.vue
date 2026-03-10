@@ -10,6 +10,8 @@ import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LModal from "../modals/LModal.vue";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
+import LDropdown from "@/components/common/LDropdown.vue";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     /**
@@ -54,11 +56,25 @@ const visibleAclEntries = computed(() => {
     );
 });
 
+const showSelector = ref(false);
+
 const typesWithActivePermissions = computed(() => {
     return visibleAclEntries.value
         .filter((aclEntry) => aclEntry.permission.length > 0)
         .map((aclEntry) => aclEntry.type);
 });
+
+const activeAclEntries = computed(() => {
+    return visibleAclEntries.value.filter((aclEntry) => aclEntry.permission.length > 0);
+});
+
+const toggleAclEntry = (aclEntry: any) => {
+    if (aclEntry.permission.length > 0) {
+        aclEntry.permission = [];
+    } else {
+        aclEntry.permission.push(AclPermission.View);
+    }
+};
 </script>
 
 <template>
@@ -149,15 +165,44 @@ const typesWithActivePermissions = computed(() => {
         :heading="`Edit permissions for ${assignedGroup.name}`"
         largeModal
     >
-        <EditAclEntry
-            v-for="aclEntry in visibleAclEntries"
-            :aclEntry="aclEntry"
-            :key="aclEntry.type"
-            :originalGroup="originalGroup"
-            :disabled="disabled"
-        />
-        <button class="text-zinc-700">
-            <PencilSquareIcon class="h-5 w-5" />
-        </button>
+        <div>
+            <EditAclEntry
+                v-for="aclEntry in activeAclEntries"
+                :key="aclEntry.type"
+                :originalGroup="originalGroup"
+                :aclEntry="aclEntry"
+                :disabled="disabled"
+            />
+        </div>
+        <div class="flex items-center">
+            <LDropdown
+                class="relative"
+                padding="none"
+                v-model:show="showSelector"
+                placement="top-start"
+                width="auto"
+            >
+                <template #trigger>
+                    <button
+                        class="flex w-[85px] items-center justify-center rounded-md border border-zinc-400 bg-white p-2 text-zinc-700"
+                    >
+                        <PencilSquareIcon class="h-5 w-5" />
+                    </button>
+                </template>
+                <button
+                    v-for="aclEntry in visibleAclEntries"
+                    :key="aclEntry.type"
+                    @click="toggleAclEntry(aclEntry)"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                >
+                    <CheckCircleIcon
+                        v-if="typesWithActivePermissions.includes(aclEntry.type)"
+                        class="inline h-3 w-3"
+                    />
+                    <div v-else class="h-3 w-3 rounded-md border border-zinc-400"></div>
+                    {{ capitaliseFirstLetter(aclEntry.type) }}
+                </button>
+            </LDropdown>
+        </div>
     </LModal>
 </template>

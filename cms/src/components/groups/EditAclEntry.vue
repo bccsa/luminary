@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
-import { toRaw, computed } from "vue";
+import { toRaw, computed, ref } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import { isPermissionAvailable, hasChangedPermission, validateAclEntry } from "./permissions";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
-
+import LDropdown from "@/components/common/LDropdown.vue";
 type Props = {
     /**
      * Original data from database for visual marking of changes
@@ -17,6 +17,8 @@ type Props = {
 };
 defineProps<Props>();
 const aclEntry = defineModel<GroupAclEntryDto>("aclEntry");
+
+const showSelector = ref(false);
 
 const setPermission = (aclPermission: AclPermission) => {
     if (!aclEntry.value) return;
@@ -104,13 +106,15 @@ const activePermissions = computed(() => {
     </tr>
 
     <div
-        v-else-if="aclEntry"
+        v-else-if="aclEntry && isMobileScreen"
         class="flex w-full items-start border-b border-zinc-200 bg-white last:border-none"
     >
-        <div class="whitespace-nowrap py-3 pl-6 pr-4 font-medium">
+        <div
+            class="w-[85px] flex-shrink-0 whitespace-nowrap border-r border-zinc-300 py-3 pl-1 pr-4 font-medium"
+        >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="min-w-0 flex-1 p-3">
+        <div class="min-w-0 flex-1 border-r border-zinc-300 p-1 pt-3">
             <div class="flex items-start gap-4 overflow-x-auto scrollbar-hide">
                 <div
                     v-for="aclPermission in activePermissions"
@@ -122,9 +126,45 @@ const activePermissions = computed(() => {
             </div>
         </div>
         <div class="flex items-center py-3">
-            <button class="text-zinc-700">
-                <PencilSquareIcon class="h-5 w-5" />
-            </button>
+            <LDropdown
+                class="relative"
+                padding="none"
+                v-model:show="showSelector"
+                placement="top-end"
+                width="auto"
+            >
+                <template #trigger>
+                    <button class="pl-2 text-zinc-700">
+                        <PencilSquareIcon class="h-5 w-5" />
+                    </button>
+                </template>
+                <button
+                    v-for="aclPermission in AclPermission"
+                    :key="aclPermission"
+                    v-show="isPermissionAvailable(aclEntry.type, aclPermission)"
+                    @click="
+                        () => {
+                            if (!disabled) setPermission(aclPermission);
+                        }
+                    "
+                    :disabled="disabled"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                >
+                    <CheckCircleIcon
+                        v-if="aclEntry.permission.includes(aclPermission)"
+                        :class="[
+                            'inline h-3 w-3',
+                            isPermissionAvailable(aclEntry.type, aclPermission)
+                                ? disabled
+                                    ? 'text-zinc-300'
+                                    : 'text-zinc-500'
+                                : 'text-zinc-200',
+                        ]"
+                    />
+                    <div v-else class="h-3 w-3 rounded-md border border-zinc-400"></div>
+                    {{ capitaliseFirstLetter(aclPermission) }}
+                </button>
+            </LDropdown>
         </div>
     </div>
 </template>
