@@ -5,6 +5,7 @@ import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
+import { AclPermission } from "../enums";
 import * as _ from "lodash";
 
 describe("validateChangeRequestAccess", () => {
@@ -507,7 +508,6 @@ describe("validateChangeRequestAccess", () => {
         });
 
         it("can validate: No 'Edit' access to document", async () => {
-            const { AclPermission } = require("../enums");
             const realVerify = PermissionSystem.verifyAccess;
             const verifySpy = jest.spyOn(PermissionSystem, "verifyAccess").mockImplementation(
                 (targetGroups, type, permission, memberOfGroups, validation?: "any" | "all") => {
