@@ -257,7 +257,7 @@ describe("applySocketData", () => {
         applySocketData(data, destination, query);
 
         expect(destination.value).toEqual([
-            { _id: "content1", type: DocType.Content, parentType: DocType.Tag },
+            { _id: "content1", type: DocType.Content, parentType: DocType.Post },
         ]);
     });
 });
