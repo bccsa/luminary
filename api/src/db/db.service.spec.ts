@@ -1020,6 +1020,56 @@ describe("DbService", () => {
                 });
             });
 
+            it("removes statusChange delete commands from database when content is set back to published", async () => {
+                const docId = "delete-test-statusChange-revert";
+                const publishedDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedDoc);
+
+                const draftDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "draft",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(draftDoc);
+
+                const statusChangeDeleteCmdsBefore = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: 10,
+                });
+                expect(statusChangeDeleteCmdsBefore.docs.length).toBeGreaterThanOrEqual(1);
+
+                const publishedAgainDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedAgainDoc);
+
+                const statusChangeDeleteCmdsAfter = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: 10,
+                });
+                expect(statusChangeDeleteCmdsAfter.docs).toHaveLength(0);
+            });
+
             it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {
                 const doc = {
                     _id: "delete-test-deleted",
