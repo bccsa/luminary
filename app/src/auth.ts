@@ -95,7 +95,14 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         if (!url.searchParams.has("code")) return false;
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
+        const handleResult = await oauth.handleRedirectCallback(url.toString()).catch((err) => {
+            // Invalid state (e.g. cookie cleared, new tab) or other callback errors: clean URL and go home
+            Sentry.captureException(err);
+            window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+            router.push("/");
+            return null;
+        });
+        if (handleResult === null) return false;
 
         const to = getRedirectTo() || "/";
 

@@ -41,6 +41,11 @@ if (import.meta.env.PROD && Sentry) {
 }
 
 async function Startup() {
+    // Install Pinia and router before auth so redirect callback and any plugin code
+    // that runs during setupAuth can use stores and router without "reading _s of undefined".
+    app.use(createPinia());
+    app.use(router);
+
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
     // cold-start compilation latency for IndexedDB queries.
@@ -87,8 +92,6 @@ async function Startup() {
     const i18n = await initI18n();
     await loadPlugins();
 
-    app.use(createPinia());
-    app.use(router);
     app.use(i18n);
     app.mount("#app");
     initAppTitle(i18n);
