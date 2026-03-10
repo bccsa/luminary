@@ -18,12 +18,19 @@ const _nativeFetch = window.fetch.bind(window);
 window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (selectedProviderId.value && url.startsWith(apiUrl)) {
-        init = { ...init, headers: { ...((init?.headers as Record<string, string>) ?? {}), "X-Query": selectedProviderId.value } };
+        init = {
+            ...init,
+            headers: {
+                ...((init?.headers as Record<string, string>) ?? {}),
+                "X-Query": selectedProviderId.value,
+            },
+        };
     }
     return _nativeFetch(input, init);
 };
 
 const app = createApp(App);
+app.use(createPinia());
 
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
@@ -136,7 +143,6 @@ async function Startup() {
     await initLanguage();
     initSync();
 
-    app.use(createPinia());
     app.use(router);
     app.mount("#app");
 
