@@ -274,6 +274,16 @@ export class DbService extends EventEmitter {
                     prevDoc: existing as _contentBaseDto,
                 });
             }
+
+            // Remove statusChange delete commands when content is set back to published (from draft/expired)
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status !== PublishStatus.Published &&
+                (doc as ContentDto).status === PublishStatus.Published
+            ) {
+                await this.removeStatusChangeDeleteCmdsForDoc(doc._id);
+            }
         }
 
         // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
@@ -453,6 +463,25 @@ export class DbService extends EventEmitter {
         }
 
         return await this.insertDoc(cmd);
+    }
+
+    /**
+     * Remove all statusChange delete commands from the database for a given content document.
+     * Used when a content doc is set back to published (from draft/expired) so clients no longer receive delete instructions for it.
+     * @param contentDocId - _id of the content document
+     */
+    async removeStatusChangeDeleteCmdsForDoc(contentDocId: string): Promise<void> {
+        const result = await this.db.find({
+            selector: {
+                type: DocType.DeleteCmd,
+                docId: contentDocId,
+                deleteReason: DeleteReason.StatusChange,
+            },
+            limit: Number.MAX_SAFE_INTEGER,
+        });
+        for (const deleteCmd of result.docs || []) {
+            await this.db.destroy(deleteCmd._id, deleteCmd._rev);
+        }
     }
 
     /**
