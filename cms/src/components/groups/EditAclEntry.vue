@@ -51,7 +51,7 @@ const activePermissions = computed(() => {
     <tr v-if="aclEntry && !isMobileScreen" class="border-b border-zinc-200 last:border-none">
         <th
             scope="row"
-            :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
+            :class="['py-4 pl-6 pr-4 text-left font-medium', { 'text-zinc-400': disabled }]"
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </th>
@@ -59,7 +59,7 @@ const activePermissions = computed(() => {
             v-for="aclPermission in AclPermission"
             :key="aclPermission"
             :class="[
-                'text-center',
+                'p-4 text-center',
                 !disabled && isPermissionAvailable(aclEntry.type, aclPermission)
                     ? 'cursor-pointer'
                     : '',
@@ -107,25 +107,23 @@ const activePermissions = computed(() => {
 
     <div
         v-else-if="aclEntry && isMobileScreen"
-        class="flex w-full items-start border-b border-zinc-200 bg-white last:border-none"
+        class="flex w-full items-center border-b border-zinc-200 bg-zinc-100 last:border-none"
     >
-        <div
-            class="w-[85px] flex-shrink-0 whitespace-nowrap border-r border-zinc-300 py-3 pl-1 pr-4 font-medium"
-        >
+        <div class="w-24 flex-shrink-0 px-4 text-sm font-medium">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="min-w-0 flex-1 border-r border-zinc-300 p-1 pt-3">
-            <div class="flex items-start gap-4 overflow-x-auto scrollbar-hide">
+        <div class="min-w-0 flex-1 border-x border-zinc-200 px-2 py-3">
+            <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
                 <div
                     v-for="aclPermission in activePermissions"
                     :key="aclPermission"
-                    class="flex flex-shrink-0 flex-col items-center gap-1 p-1"
+                    class="flex-shrink-0 rounded-md bg-zinc-200 px-2 py-0.5 text-xs uppercase"
                 >
-                    <span class="text-xs uppercase">{{ aclPermission }}</span>
+                    {{ aclPermission }}
                 </div>
             </div>
         </div>
-        <div class="flex items-center py-3">
+        <div class="flex items-center px-2">
             <LDropdown
                 class="relative"
                 padding="none"
@@ -134,7 +132,7 @@ const activePermissions = computed(() => {
                 width="auto"
             >
                 <template #trigger>
-                    <button class="pl-2 text-zinc-700">
+                    <button class="text-zinc-700">
                         <PencilSquareIcon class="h-5 w-5" />
                     </button>
                 </template>
