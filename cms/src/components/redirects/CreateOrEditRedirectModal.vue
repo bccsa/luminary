@@ -112,14 +112,17 @@ const original = apiLiveQuery.toRef();
 
 const isDirty = ref(false);
 watch(
-    [editable, original],
+    [editable, original, () => props.redirect],
     () => {
-        if (!original.value) {
+        // In edit mode, use `previous` (set synchronously when modal opens) to avoid
+        // briefly showing "Revert" while original from ApiLiveQuery is still loading.
+        const reference = props.redirect && previous.value ? previous.value : original.value;
+        if (!reference) {
             isDirty.value = true;
             return;
         }
         isDirty.value = !_.isEqual(
-            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(reference), updatedTimeUtc: 0, _rev: "" },
             { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
         );
     },
@@ -182,6 +185,14 @@ const deleteRedirect = () => {
         description: `The redirect was successfully deleted`,
         state: "success",
     });
+};
+
+const revertChanges = () => {
+    if (props.redirect && previous.value) {
+        editable.value = _.cloneDeep(previous.value);
+    } else if (original.value) {
+        editable.value = _.cloneDeep(original.value);
+    }
 };
 </script>
 
@@ -275,11 +286,7 @@ const deleteRedirect = () => {
                     type="button"
                     variant="secondary"
                     v-if="isDirty && !isNew"
-                    @click="
-                        () => {
-                            editable = _.cloneDeep(original) as RedirectDto;
-                        }
-                    "
+                    @click="revertChanges"
                     :icon="ArrowUturnLeftIcon"
                 >
                     Revert
