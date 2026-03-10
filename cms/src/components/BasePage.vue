@@ -32,6 +32,7 @@ const router = useRouter();
 const isEditContentPage = router.currentRoute.value.name === "edit";
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("lg");
+
 </script>
 
 <template>
