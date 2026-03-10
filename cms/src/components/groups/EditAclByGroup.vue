@@ -78,7 +78,7 @@ const toggleAclEntry = (aclEntry: any) => {
 </script>
 
 <template>
-    <div class="w-full">
+    <div v-if="!isMobileScreen" class="w-full">
         <div class="inline-block w-full rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
             <h3
                 :class="[
@@ -90,7 +90,7 @@ const toggleAclEntry = (aclEntry: any) => {
                 <!-- Add the duplicate ACL button -->
                 <div class="flex items-center justify-between">
                     <div></div>
-                    <div class="py-1">
+                    <div>
                         {{ assignedGroup.name }}
                     </div>
                     <div>
@@ -104,7 +104,7 @@ const toggleAclEntry = (aclEntry: any) => {
                 </div>
             </h3>
 
-            <table v-if="!isMobileScreen" class="w-full">
+            <table class="w-full">
                 <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
                     <tr>
                         <th></th>
@@ -133,32 +133,49 @@ const toggleAclEntry = (aclEntry: any) => {
                     />
                 </tbody>
             </table>
-            <DisplayCard
-                v-else
-                :title="``"
-                :updatedTimeUtc="0"
-                class="mt-4 rounded-md border py-2"
-                @click="isVisible = true"
-            >
-                <template #content>
-                    <div class="flex items-center">
-                        <span class="whitespace-nowrap">{{ assignedGroup.name }}&nbsp;:</span>
-                        <div
-                            class="ml-2 flex w-full justify-start overflow-x-scroll rounded-md border border-zinc-400 border-x-zinc-500 py-2 pr-2 scrollbar-hide"
-                        >
-                            <div
-                                v-for="aclEntry in typesWithActivePermissions"
-                                :key="aclEntry"
-                                class="ml-2 flex items-center gap-1 rounded-md border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
-                            >
-                                {{ capitaliseFirstLetter(aclEntry) }}
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </DisplayCard>
         </div>
     </div>
+    <DisplayCard
+        v-else
+        :title="``"
+        :updatedTimeUtc="0"
+        class="rounded-md border !px-0 !py-0"
+        @click="isVisible = true"
+    >
+        <template #content>
+            <div class="flex items-center">
+                <div class="flex-shrink-0 whitespace-nowrap px-1 text-xs font-medium">
+                    {{ assignedGroup.name }}
+                </div>
+                <div
+                    v-if="typesWithActivePermissions.length > 0"
+                    class="flex w-full items-center gap-1 overflow-x-scroll border-x border-zinc-200 px-2 scrollbar-hide"
+                >
+                    <div
+                        v-for="aclEntry in typesWithActivePermissions"
+                        :key="aclEntry"
+                        class="flex-shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                    >
+                        {{ capitaliseFirstLetter(aclEntry) }}
+                    </div>
+                </div>
+                <div
+                    v-else
+                    class="my-3 mr-1 w-full overflow-x-scroll whitespace-nowrap border-x border-zinc-200 px-2 text-xs text-zinc-600 scrollbar-hide"
+                >
+                    No active permissions, click to add!
+                </div>
+                <div v-if="typesWithActivePermissions.length > 0">
+                    <DuplicateGroupAclButton
+                        :groups="availableGroups"
+                        @select="duplicateGroup"
+                        data-test="duplicateAcl"
+                        v-if="!disabled"
+                    />
+                </div>
+            </div>
+        </template>
+    </DisplayCard>
 
     <LModal
         v-model:isVisible="isVisible"
@@ -174,7 +191,10 @@ const toggleAclEntry = (aclEntry: any) => {
                 :disabled="disabled"
             />
         </div>
-        <div class="flex items-center">
+        <div class="">
+            <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
+                No active permissions, use the selector to add!
+            </div>
             <LDropdown
                 class="relative"
                 padding="none"
@@ -184,7 +204,7 @@ const toggleAclEntry = (aclEntry: any) => {
             >
                 <template #trigger>
                     <button
-                        class="flex w-[85px] items-center justify-center rounded-md border border-zinc-400 bg-white p-2 text-zinc-700"
+                        class="mt-1 flex w-16 items-center justify-center rounded-md border border-zinc-400 bg-white text-zinc-700"
                     >
                         <PencilSquareIcon class="h-5 w-5" />
                     </button>

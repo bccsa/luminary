@@ -292,7 +292,7 @@ const saveChanges = async () => {
                     />
                 </div>
             </div>
-            <div class="space-y-6">
+            <div class="space-y-1">
                 <p>
                     <span v-if="!disabled">
                         Configure which permissions user members of the following groups have to
