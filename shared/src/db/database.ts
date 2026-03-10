@@ -222,59 +222,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
-     * @deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead
-     * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @returns Vue Ref
-     */
-    toRef<T extends BaseDocumentDto | BaseDocumentDto[] | boolean | LocalChangeDto[]>(
-        query: () => Promise<T>,
-        initialValue?: T,
-    ) {
-        console.log(
-            "toRef is deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead",
-        );
-        return useObservable(
-            liveQuery(async () => {
-                return await query();
-            }) as unknown as Observable<T>,
-            { initialValue },
-        ) as Ref<T>;
-    }
-
-    /**
-     * Get an IndexedDB document by its id
-     */
-    get<T extends BaseDocumentDto>(id: Uuid) {
-        return this.docs.get(id) as unknown as Promise<T>;
-    }
-
-    /**
-     * Get an IndexedDB document as Vue Ref by its id
-     * @deprecated Use useDexieLiveQuery instead
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
-        console.log("getAsRef is deprecated - use useDexieLiveQuery instead");
-        return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
-    }
-
-    /**
-     * Get an IndexedDB document by its slug as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
-     * @param slug - The slug of the document to get
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
-        console.log("getBySlugAsRef is deprecated - use useDexieLiveQuery instead");
-        return this.toRef<T>(
-            () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
-            initialValue,
-        );
-    }
-
-    /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
     bulkPut(docs: BaseDocumentDto[]) {
@@ -300,18 +247,6 @@ class Database extends Dexie {
      */
     async someByType(docType: DocType) {
         return (await this.docs.where("type").equals(docType).first()) != undefined;
-    }
-
-    /**
-     * Return true if there are some documents of the specified DocType as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
-     */
-    someByTypeAsRef(docType: DocType) {
-        console.log("someByTypeAsRef is deprecated - use useDexieLiveQuery instead");
-        return this.toRef<boolean>(
-            () => this.someByType(docType) as unknown as Promise<boolean>,
-            false,
-        );
     }
 
     /**
