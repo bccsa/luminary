@@ -116,9 +116,17 @@ class FakeTable<T extends Record<string, any>> {
     public lastClauseOp?: string;
     public lastBetweenArgs?: { lower: any; upper: any; includeLower: boolean; includeUpper: boolean };
     public lastBulkGetKeys?: any[];
-    public schema: { primKey: { keyPath: string } };
+    public schema: { primKey: { keyPath: string }; indexes: Array<{ keyPath: string }> };
     constructor(public data: T[], primaryKey = "id") {
-        this.schema = { primKey: { keyPath: primaryKey } };
+        // Collect all unique field names from data to simulate "all fields indexed"
+        const fieldSet = new Set<string>();
+        for (const row of data) {
+            for (const key in row) fieldSet.add(key);
+        }
+        this.schema = {
+            primKey: { keyPath: primaryKey },
+            indexes: Array.from(fieldSet).map((k) => ({ keyPath: k })),
+        };
     }
 
     orderBy(field: string) {

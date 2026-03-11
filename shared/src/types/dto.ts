@@ -101,6 +101,8 @@ export type ContentDto = ContentBaseDto & {
     parentImageBucketId?: Uuid;
     parentMedia?: MediaDto;
     parentMediaBucketId?: Uuid;
+    fts?: string[];
+    ftsTokenCount?: number;
 };
 
 export type ContentParentDto = ContentBaseDto & {

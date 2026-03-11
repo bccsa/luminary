@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref } from "vue";
-import { useFtsSearch, ftsIndexing, db } from "luminary-shared";
+import { useFtsSearch, db } from "luminary-shared";
 import type { ContentDto } from "luminary-shared";
 import BasePage from "@/components/BasePage.vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -44,11 +44,6 @@ watch(
         <h1 class="mb-4 text-xl font-medium text-zinc-700 dark:text-slate-100">
             FTS Search (Testing)
         </h1>
-
-        <div v-if="ftsIndexing"
-            class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-            Indexing in progress... Search results may be incomplete.
-        </div>
 
         <input v-model="query" type="text" placeholder="Search content... (min 3 characters)"
             class="mb-4 w-full rounded-lg border border-zinc-300 px-4 py-2 text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" />

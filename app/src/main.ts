@@ -41,7 +41,7 @@ async function Startup() {
     await init({
         cms: false,
         docsIndex:
-            "type, parentId, [parentId+status], slug, language, docType, redirect, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType], [parentType+parentTagType], [type+status+parentTagType], [type+parentType]",
+            "type, parentId, [parentId+status], slug, language, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType+status], [parentType+parentTagType+status], [type+status+parentTagType], [type+parentType+status], [parentType+status]",
         apiUrl,
         token,
         appLanguageIdsAsRef,
@@ -55,13 +55,6 @@ async function Startup() {
             },
             { type: DocType.Redirect, contentOnly: false, syncPriority: 3 },
             { type: DocType.Storage, contentOnly: false, syncPriority: 3 },
-        ],
-        ftsDocType: DocType.Content,
-        ftsFields: [
-            { name: "title", boost: 3.0 },
-            { name: "summary", boost: 1.5 },
-            { name: "text", isHtml: true, boost: 1.0 },
-            { name: "author", boost: 1.0 },
         ],
     }).catch((err) => {
         console.error(err);
