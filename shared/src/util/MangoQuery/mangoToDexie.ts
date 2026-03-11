@@ -558,10 +558,12 @@ function extractQueriedFields(selector: MangoSelector): string[] {
 
     const collect = (conditions: MangoSelector[]) => {
         for (const cond of conditions) {
+            if (cond.$and) {
+                collect(cond.$and);
+                continue;
+            }
             for (const key in cond) {
-                if (key === "$and") {
-                    collect(cond.$and!);
-                } else if (!COMBINATION_OPERATORS.has(key) && !seen.has(key)) {
+                if (!COMBINATION_OPERATORS.has(key) && !seen.has(key)) {
                     seen.add(key);
                     fields.push(key);
                 }
@@ -569,7 +571,12 @@ function extractQueriedFields(selector: MangoSelector): string[] {
         }
     };
 
-    collect([selector]);
+    if (selector.$and) {
+        collect(selector.$and);
+    } else {
+        collect([selector]);
+    }
+
     return fields;
 }
 
