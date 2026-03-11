@@ -274,7 +274,7 @@ const saveChanges = async () => {
                     class="mr-4 grow"
                     data-test="groupNameInput"
                 />
-                <div class="">
+                <div>
                     <LButton
                         v-if="
                             groupQuery.editable &&

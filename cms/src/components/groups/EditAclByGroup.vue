@@ -191,7 +191,7 @@ const toggleAclEntry = (aclEntry: any) => {
                 :disabled="disabled"
             />
         </div>
-        <div class="">
+        <div>
             <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
                 No active permissions, use the selector to add!
             </div>
