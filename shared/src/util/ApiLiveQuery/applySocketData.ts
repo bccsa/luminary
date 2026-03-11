@@ -41,25 +41,20 @@ export function applySocketData<T extends BaseDocumentDto>(
         })
         .map((doc) => doc.docId);
 
+    destination.value = destination.value?.filter(
+        (doc) => !toDeleteIds.includes(doc._id),
+    ) as Array<T>;
+
     // When contentOnly is set for Tag/Post, exclude Tag and Post docs from the live result (only Content is wanted)
-    const excludeTagPostIds =
+    if (
         query.contentOnly &&
         query.types?.length &&
         (query.types.includes(DocType.Post) || query.types.includes(DocType.Tag))
-            ? (data.docs as Array<BaseDocumentDto>)
-                  .filter(
-                      (doc) =>
-                          doc.type === DocType.Post ||
-                          doc.type === DocType.Tag,
-                  )
-                  .map((doc) => doc._id)
-            : [];
-
-    const idsToRemove = Array.from(new Set([...toDeleteIds, ...excludeTagPostIds]));
-
-    destination.value = destination.value?.filter(
-        (doc) => !idsToRemove.includes(doc._id),
-    ) as Array<T>;
+    ) {
+        destination.value = destination.value?.filter(
+            (doc) => doc.type !== DocType.Post && doc.type !== DocType.Tag,
+        );
+    }
 
     // Filter out delete commands from the result
     let docs = data.docs.filter((doc) => doc.type !== DocType.DeleteCmd);
