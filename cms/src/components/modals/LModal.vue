@@ -50,7 +50,7 @@ watch(modalRef, (el) => {
                     <slot />
                 </div>
 
-                <div v-if="$slots.footer" class="shrink-0 pb-5 pt-4">
+                <div v-if="$slots.footer" class="shrink-0 px-5 pt-3">
                     <slot name="footer" />
                 </div>
             </div>

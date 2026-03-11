@@ -10,6 +10,7 @@ import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LModal from "../modals/LModal.vue";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
+import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
@@ -143,27 +144,10 @@ const toggleAclEntry = (aclEntry: any) => {
         @click="isVisible = true"
     >
         <template #content>
-            <div class="flex items-center">
+            <div class="flex items-center justify-between">
+                <div></div>
                 <div class="flex-shrink-0 whitespace-nowrap px-1 text-xs font-medium">
                     {{ assignedGroup.name }}
-                </div>
-                <div
-                    v-if="typesWithActivePermissions.length > 0"
-                    class="flex w-full items-center gap-1 overflow-x-scroll border-x border-zinc-200 px-2 scrollbar-hide"
-                >
-                    <div
-                        v-for="aclEntry in typesWithActivePermissions"
-                        :key="aclEntry"
-                        class="flex-shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
-                    >
-                        {{ capitaliseFirstLetter(aclEntry) }}
-                    </div>
-                </div>
-                <div
-                    v-else
-                    class="my-3 mr-1 w-full overflow-x-scroll whitespace-nowrap border-x border-zinc-200 px-2 text-xs text-zinc-600 scrollbar-hide"
-                >
-                    No active permissions, click to add!
                 </div>
                 <div v-if="typesWithActivePermissions.length > 0">
                     <DuplicateGroupAclButton
@@ -173,6 +157,23 @@ const toggleAclEntry = (aclEntry: any) => {
                         v-if="!disabled"
                     />
                 </div>
+                <div v-if="typesWithActivePermissions.length == 0" class="py-3"></div>
+            </div>
+            <div v-if="typesWithActivePermissions.length > 0" class="py-1">
+                <div
+                    class="mx-1 flex gap-1 overflow-x-scroll border-x border-zinc-200 px-1 scrollbar-hide"
+                >
+                    <div
+                        v-for="aclEntry in typesWithActivePermissions"
+                        :key="aclEntry"
+                        class="flex-shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                    >
+                        {{ capitaliseFirstLetter(aclEntry) }}
+                    </div>
+                </div>
+            </div>
+            <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">
+                No active permissions, click to add!
             </div>
         </template>
     </DisplayCard>
@@ -181,8 +182,12 @@ const toggleAclEntry = (aclEntry: any) => {
         v-model:isVisible="isVisible"
         :heading="`Edit permissions for ${assignedGroup.name}`"
         largeModal
+        noDivider
     >
-        <div>
+        <div class="min-h-60">
+            <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
+                No active permissions, use the selector to add!
+            </div>
             <EditAclEntry
                 v-for="aclEntry in activeAclEntries"
                 :key="aclEntry.type"
@@ -192,9 +197,6 @@ const toggleAclEntry = (aclEntry: any) => {
             />
         </div>
         <div>
-            <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
-                No active permissions, use the selector to add!
-            </div>
             <LDropdown
                 class="relative"
                 padding="none"
@@ -203,11 +205,16 @@ const toggleAclEntry = (aclEntry: any) => {
                 width="auto"
             >
                 <template #trigger>
-                    <button
-                        class="mt-1 flex w-16 items-center justify-center rounded-md border border-zinc-400 bg-white text-zinc-700"
+                    <LButton
+                        :icon="PencilSquareIcon"
+                        variant="secondary"
+                        icon-right
+                        size="sm"
+                        class="mt-3"
+                        :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
                     >
-                        <PencilSquareIcon class="h-5 w-5" />
-                    </button>
+                        Edit
+                    </LButton>
                 </template>
                 <button
                     v-for="aclEntry in visibleAclEntries"
@@ -219,7 +226,7 @@ const toggleAclEntry = (aclEntry: any) => {
                         v-if="typesWithActivePermissions.includes(aclEntry.type)"
                         class="inline h-3 w-3"
                     />
-                    <div v-else class="h-3 w-3 rounded-md border border-zinc-400"></div>
+                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
                     {{ capitaliseFirstLetter(aclEntry.type) }}
                 </button>
             </LDropdown>

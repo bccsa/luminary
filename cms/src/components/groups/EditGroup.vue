@@ -20,6 +20,7 @@ import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
+import { isMobileScreen } from "@/globalConfig";
 
 const { addNotification } = useNotificationStore();
 
@@ -224,7 +225,7 @@ const saveChanges = async () => {
         @close="emit('close')"
         largeModal
     >
-        <div :class="['w-full rounded-md bg-white p-6 shadow', { 'bg-zinc-100': disabled }]">
+        <div :class="['w-full rounded-md bg-white p-3 shadow', { 'bg-zinc-100': disabled }]">
             <div class="mb-6 flex items-center justify-between">
                 <div
                     v-if="!isEditingGroupName"
@@ -294,12 +295,12 @@ const saveChanges = async () => {
             </div>
             <div class="space-y-1">
                 <p>
-                    <span v-if="!disabled">
+                    <span v-if="!disabled" :class="[{ 'text-sm': isMobileScreen }]">
                         Configure which permissions user members of the following groups have to
                         <strong>this</strong> group and its member documents.
                     </span>
                     <span v-else> No edit access. </span>
-                    <span class="text-sm italic">
+                    <span :class="['text-sm italic', { 'text-xs': isMobileScreen }]">
                         <br />User members of higher level groups may have more permissions (than
                         configured below) to this group and its members by inheritance, depending on
                         the permissions granted by the higher level groups.
@@ -320,7 +321,7 @@ const saveChanges = async () => {
                         :disabled="disabled"
                     />
                 </TransitionGroup>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between pt-4">
                     <div>
                         <AddGroupAclButton
                             v-if="!disabled"
@@ -334,6 +335,7 @@ const saveChanges = async () => {
                         context="default"
                         @click.prevent="() => copyGroupId(group)"
                         data-test="copyGroupId"
+                        :class="isMobileScreen ? 'text-xs' : ''"
                     >
                         Copy ID
                     </LButton>
