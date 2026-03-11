@@ -109,17 +109,17 @@ const activePermissions = computed(() => {
         v-else-if="aclEntry && isMobileScreen"
         class="flex w-full items-center border-b border-zinc-200 bg-zinc-100 last:border-none"
     >
-        <div class="w-24 flex-shrink-0 px-4 text-sm font-medium">
+        <div class="w-16 flex-shrink-0 text-[13px] font-medium">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="min-w-0 flex-1 border-x border-zinc-200 px-2 py-3">
+        <div class="min-w-0 flex-1 border-x border-zinc-200 px-1 py-1.5">
             <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
                 <div
                     v-for="aclPermission in activePermissions"
                     :key="aclPermission"
-                    class="flex-shrink-0 rounded-md bg-zinc-200 px-2 py-0.5 text-xs uppercase"
+                    class="flex-shrink-0 rounded-md bg-zinc-200 px-1 py-0.5 text-xs"
                 >
-                    {{ aclPermission }}
+                    {{ capitaliseFirstLetter(aclPermission) }}
                 </div>
             </div>
         </div>
@@ -133,7 +133,7 @@ const activePermissions = computed(() => {
             >
                 <template #trigger>
                     <button class="text-zinc-700">
-                        <PencilSquareIcon class="h-5 w-5" />
+                        <PencilSquareIcon class="h-4 w-4" />
                     </button>
                 </template>
                 <button
@@ -159,7 +159,7 @@ const activePermissions = computed(() => {
                                 : 'text-zinc-200',
                         ]"
                     />
-                    <div v-else class="h-3 w-3 rounded-md border border-zinc-400"></div>
+                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
                     {{ capitaliseFirstLetter(aclPermission) }}
                 </button>
             </LDropdown>
