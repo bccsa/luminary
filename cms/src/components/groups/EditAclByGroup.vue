@@ -90,7 +90,7 @@ const toggleAclEntry = (aclEntry: any) => {
                 <!-- Add the duplicate ACL button -->
                 <div class="flex items-center justify-between">
                     <div></div>
-                    <div>
+                    <div class="py-1">
                         {{ assignedGroup.name }}
                     </div>
                     <div>

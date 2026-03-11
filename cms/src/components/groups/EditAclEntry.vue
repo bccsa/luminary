@@ -51,7 +51,7 @@ const activePermissions = computed(() => {
     <tr v-if="aclEntry && !isMobileScreen" class="border-b border-zinc-200 last:border-none">
         <th
             scope="row"
-            :class="['py-4 pl-6 pr-4 text-left font-medium', { 'text-zinc-400': disabled }]"
+            :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </th>
@@ -59,7 +59,7 @@ const activePermissions = computed(() => {
             v-for="aclPermission in AclPermission"
             :key="aclPermission"
             :class="[
-                'p-4 text-center',
+                'text-center',
                 !disabled && isPermissionAvailable(aclEntry.type, aclPermission)
                     ? 'cursor-pointer'
                     : '',
