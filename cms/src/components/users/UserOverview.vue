@@ -88,6 +88,7 @@ const filteredUsers = computed(() => {
             const matchesSearch = email.includes(search) || name.includes(search);
             if (!matchesSearch) return false;
         }
+
         if (selectedGroups.length > 0) {
             const memberOf = user.memberOf ?? [];
             const inSelectedGroup = selectedGroups.some((g) => memberOf.includes(g));
