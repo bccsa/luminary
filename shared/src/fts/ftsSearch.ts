@@ -113,7 +113,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     // Step 5: Build per-doc trigram→tf map from fts array, compute BM25
     const usableTokens = new Set(usableTrigrams.map((t) => t.token));
-    let results: FtsSearchResult[] = [];
+    const results: FtsSearchResult[] = [];
 
     docMap.forEach((doc, docId) => {
         if (languageId && doc.language !== languageId) return;
