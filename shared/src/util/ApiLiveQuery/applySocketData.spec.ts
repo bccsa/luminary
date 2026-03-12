@@ -236,15 +236,13 @@ describe("applySocketData", () => {
         ]);
     });
 
-    it("excludes tag and post docs from destination when contentOnly is set and types include Tag or Post", () => {
-        const destination = ref<BaseDocumentDto[]>([
-            { _id: "post1", type: DocType.Post } as BaseDocumentDto,
-            { _id: "content1", type: DocType.Content, parentType: DocType.Post } as ContentDto,
-        ]);
+    it("filters incoming docs when contentOnly is set and types include Tag or Post (excludes Tag/Post from being added)", () => {
+        const destination = ref<BaseDocumentDto[]>([]);
 
         const data: ApiQueryResult<BaseDocumentDto> = {
             docs: [
                 { _id: "post1", type: DocType.Post } as BaseDocumentDto,
+                { _id: "tag1", type: DocType.Tag } as BaseDocumentDto,
                 { _id: "content1", type: DocType.Content, parentType: DocType.Post } as ContentDto,
             ],
         };
