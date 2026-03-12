@@ -262,46 +262,56 @@ const isDirty = computed(
 const isValid = ref(true);
 
 const createRedirect = async () => {
-    if (!selectedContent.value || !selectedContent_Existing.value) return;
-    if (selectedContent.value._id !== selectedContent_Existing.value._id) return;
-    if (
-        selectedContent.value.slug === selectedContent_Existing.value.slug ||
-        !verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Edit)
-    )
-        return;
-    if (
-        selectedContent_Existing.value.status !== PublishStatus.Published ||
-        selectedContent.value.status !== PublishStatus.Published
-    )
-        return;
-    if (
-        (selectedContent.value.publishDate && selectedContent.value.publishDate > Date.now()) ||
-        (selectedContent_Existing.value.publishDate &&
-            selectedContent_Existing.value.publishDate > Date.now())
-    )
-        return;
-    if (
-        (selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now()) ||
-        (selectedContent_Existing.value.expiryDate &&
-            selectedContent_Existing.value.expiryDate <= Date.now())
-    )
-        return;
+    if (!editableContent.value || !existingContent.value) return;
 
-    const newRedirect: RedirectDto = {
-        _id: db.uuid(),
-        type: DocType.Redirect,
-        updatedTimeUtc: Date.now(),
-        memberOf: [...selectedContent.value.memberOf],
-        slug: selectedContent_Existing.value.slug,
-        redirectType: RedirectType.Permanent,
-        toSlug: selectedContent.value.slug,
-    };
-    addNotification({
-        title: "Redirect created",
-        description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
-        state: "info",
+    const redirectsToCreate: RedirectDto[] = [];
+
+    for (const content of editableContent.value) {
+        if (content.deleteReq) continue;
+
+        const existingContentDoc = existingContent.value.find(
+            (c) => c._id === content._id && !c.deleteReq,
+        );
+
+        if (!existingContentDoc) continue;
+        if (content.slug === existingContentDoc.slug) continue;
+        if (!verifyAccess(content.memberOf, DocType.Redirect, AclPermission.Edit)) continue;
+        if (
+            existingContentDoc.status !== PublishStatus.Published ||
+            content.status !== PublishStatus.Published
+        )
+            continue;
+        if (
+            (content.publishDate && content.publishDate > Date.now()) ||
+            (existingContentDoc.publishDate && existingContentDoc.publishDate > Date.now())
+        )
+            continue;
+        if (
+            (content.expiryDate && content.expiryDate <= Date.now()) ||
+            (existingContentDoc.expiryDate && existingContentDoc.expiryDate <= Date.now())
+        )
+            continue;
+
+        redirectsToCreate.push({
+            _id: db.uuid(),
+            type: DocType.Redirect,
+            updatedTimeUtc: Date.now(),
+            memberOf: [...content.memberOf],
+            slug: existingContentDoc.slug,
+            redirectType: RedirectType.Permanent,
+            toSlug: content.slug,
+        });
+    }
+
+    await Promise.all(redirectsToCreate.map((redirect) => db.upsert({ doc: redirect })));
+
+    redirectsToCreate.forEach((redirect) => {
+        addNotification({
+            title: "Redirect created",
+            description: `A redirect was created from ${redirect.slug} to ${redirect.toSlug}`,
+            state: "info",
+        });
     });
-    await db.upsert({ doc: newRedirect });
 };
 
 const saveChanges = async () => {
