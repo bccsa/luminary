@@ -36,7 +36,7 @@ watch(modalRef, (el) => {
                 ref="modalRef"
                 :class="
                     largeModal
-                        ? 'relative z-50 flex max-h-[85vh] max-w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        ? 'relative z-50 flex max-h-[85vh] w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                         : 'relative z-50 flex max-h-[80vh] w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                 "
             >

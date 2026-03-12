@@ -2,9 +2,9 @@
 import { toRaw, computed, ref } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
-import { type GroupDto, AclPermission } from "luminary-shared";
-import { capitaliseFirstLetter } from "@/util/string";
-import { validDocTypes } from "./permissions";
+import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-shared";
+import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
+import { validDocTypes, isPermissionAvailable } from "./permissions";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
@@ -75,6 +75,13 @@ const toggleAclEntry = (aclEntry: any) => {
     } else {
         aclEntry.permission.push(AclPermission.View);
     }
+};
+
+const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
+    if (!aclEntry) return [];
+    return Object.values(AclPermission).filter(
+        (p) => isPermissionAvailable.value(aclEntry.type, p) && aclEntry.permission.includes(p),
+    );
 };
 </script>
 
@@ -164,11 +171,19 @@ const toggleAclEntry = (aclEntry: any) => {
                     class="mx-1 flex gap-1 overflow-x-scroll border-x border-zinc-200 px-1 scrollbar-hide"
                 >
                     <div
-                        v-for="aclEntry in typesWithActivePermissions"
-                        :key="aclEntry"
-                        class="flex-shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                        v-for="aclEntry in activeAclEntries"
+                        :key="aclEntry.type"
+                        class="flex flex-shrink-0 items-center rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
                     >
-                        {{ capitaliseFirstLetter(aclEntry) }}
+                        <span>{{ capitaliseFirstLetter(aclEntry.type) }}</span>
+                        <span class="ml-0.5 text-[10px]">
+                            (<span
+                                v-for="permission in activePermissions(aclEntry)"
+                                :key="permission"
+                            >
+                                {{ getTheFirstLetter(permission) }} </span
+                            >)
+                        </span>
                     </div>
                 </div>
             </div>
