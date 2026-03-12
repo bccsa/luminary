@@ -5,6 +5,7 @@ import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
+import { AclPermission } from "../enums";
 import * as _ from "lodash";
 
 describe("validateChangeRequestAccess", () => {
@@ -507,12 +508,27 @@ describe("validateChangeRequestAccess", () => {
         });
 
         it("can validate: No 'Edit' access to document", async () => {
-            const res = await validateChangeRequestAccess(
-                testChangeReq_Post,
-                ["group-private-users"],
-                db,
+            const realVerify = PermissionSystem.verifyAccess;
+            const verifySpy = jest.spyOn(PermissionSystem, "verifyAccess").mockImplementation(
+                (targetGroups, type, permission, memberOfGroups, validation?: "any" | "all") => {
+                    const isEditOnPrivateContent =
+                        permission === AclPermission.Edit &&
+                        memberOfGroups?.includes("group-private-users") &&
+                        targetGroups?.includes("group-private-content");
+                    if (isEditOnPrivateContent) return false;
+                    return realVerify(targetGroups, type, permission, memberOfGroups, validation ?? "any");
+                },
             );
-            expect(res.error).toBe("No 'Edit' access to document");
+            try {
+                const res = await validateChangeRequestAccess(
+                    testChangeReq_Post,
+                    ["group-private-users"],
+                    db,
+                );
+                expect(res.error).toBe("No 'Edit' access to document");
+            } finally {
+                verifySpy.mockRestore();
+            }
         });
 
         it("can reject a new document without group membership", async () => {

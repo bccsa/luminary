@@ -9,6 +9,7 @@ import router from "./router";
 import MobileSideBar from "@/components/navigation/MobileSideBar.vue";
 import SideBar from "@/components/navigation/SideBar.vue";
 import { isAuthBypassed } from "@/auth";
+import ProviderSelectionModal from "@/components/navigation/ProviderSelectionModal.vue";
 
 // In auth bypass mode, always treat as authenticated
 const auth0 = isAuthBypassed ? null : useAuth0();
@@ -61,5 +62,6 @@ const routeKey = computed(() => {
 
     <Teleport to="body">
         <NotificationManager />
+        <ProviderSelectionModal />
     </Teleport>
 </template>

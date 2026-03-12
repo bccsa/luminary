@@ -94,10 +94,14 @@ describe("Content query", () => {
             langSwa,
         ]);
 
-        // Verify database is ready
+        // Verify seed content docs are visible (avoids flakiness when run with full suite)
         await waitForExpect(async () => {
-            const dbDocs = await db.docs.toArray();
-            expect(dbDocs.length).toBeGreaterThan(0);
+            const doc1 = await db.docs.get("doc1Eng");
+            const doc2 = await db.docs.get("doc2Eng");
+            expect(doc1).toBeDefined();
+            expect(doc2).toBeDefined();
+            expect((doc1 as ContentDto).title).toBe("Doc 1 Eng");
+            expect((doc2 as ContentDto).title).toBe("Doc 2 Eng");
         });
     });
 
@@ -383,7 +387,9 @@ describe("Content query", () => {
             const res1DocsAsContent = res1.value?.docs as ContentDto[];
             expect(res1DocsAsContent).toHaveLength(1);
             expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
+        });
 
+        await waitForExpect(() => {
             const res2DocsAsContent = res2.value?.docs as ContentDto[];
             expect(res2DocsAsContent).toHaveLength(1);
             expect(res2DocsAsContent[0].title).toBe("Doc 2 Eng");

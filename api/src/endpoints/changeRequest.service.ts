@@ -1,45 +1,32 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
-import { WINSTON_MODULE_PROVIDER } from "nest-winston";
-import { Logger } from "winston";
-import { processJwt } from "../jwt/processJwt";
-import configuration, { Configuration } from "../configuration";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
 
 @Injectable()
 export class ChangeRequestService {
-    private readonly test: any = [];
-    private permissionMap: any;
-    private config: Configuration;
+    constructor(private db: DbService) {}
 
-    constructor(
-        @Inject(WINSTON_MODULE_PROVIDER)
-        private readonly logger: Logger,
-        private db: DbService,
-    ) {
-        // Create config object with environmental variables
-        this.config = configuration();
-    }
-
-    async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
-        const userDetails = await processJwt(token, this.db, this.logger);
+    async changeRequest(changeRequest: ChangeReqDto, identity: ResolvedIdentity): Promise<ChangeReqAckDto> {
+        const userId = identity.user.userId || identity.user._id;
+        const groups = identity.groupIds as Uuid[];
 
         // Process change request
         return await processChangeRequest(
-            userDetails.userId,
+            userId,
             changeRequest,
-            userDetails.groups,
+            groups,
             this.db,
         )
             .then(async (result) => {
                 const ack = await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Accepted,
-                    userDetails.groups,
+                    groups,
                 );
 
                 // Add warnings to the acknowledgment if any
@@ -53,7 +40,7 @@ export class ChangeRequestService {
                 return await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Rejected,
-                    userDetails.groups,
+                    groups,
                     err.message,
                 );
             });

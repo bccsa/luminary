@@ -1,5 +1,6 @@
 import "./assets/main.css";
 import { createApp } from "vue";
+import { selectedProviderId } from "./stores/authProvider";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -11,6 +12,16 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initLanguageSync } from "./sync";
+
+// Inject X-Query (provider ID) header on every fetch request to the API
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (selectedProviderId.value && url.startsWith(apiUrl)) {
+        init = { ...init, headers: { ...((init?.headers as Record<string, string>) ?? {}), "X-Query": selectedProviderId.value } };
+    }
+    return _nativeFetch(input, init);
+};
 
 export const app = createApp(App);
 
@@ -30,6 +41,11 @@ if (import.meta.env.PROD && Sentry) {
 }
 
 async function Startup() {
+    // Install Pinia and router before auth so redirect callback and any plugin code
+    // that runs during setupAuth can use stores and router without "reading _s of undefined".
+    app.use(createPinia());
+    app.use(router);
+
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
     // cold-start compilation latency for IndexedDB queries.
@@ -46,6 +62,7 @@ async function Startup() {
         token,
         appLanguageIdsAsRef,
         syncList: [
+            { type: DocType.OAuthProvider, syncPriority: 1 },
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
@@ -75,8 +92,6 @@ async function Startup() {
     const i18n = await initI18n();
     await loadPlugins();
 
-    app.use(createPinia());
-    app.use(router);
     app.use(i18n);
     app.mount("#app");
     initAppTitle(i18n);

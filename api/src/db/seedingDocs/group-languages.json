@@ -42,6 +42,11 @@
             "type": "storage",
             "groupId": "group-private-editors",
             "permission": ["view"]
+        },
+        {
+            "type": "OAuthProvider",
+            "groupId": "group-private-editors",
+            "permission": ["view"]
         }
     ]
 }

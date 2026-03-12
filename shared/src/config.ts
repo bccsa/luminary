@@ -26,6 +26,12 @@ export type SharedConfig = {
      */
     token?: string;
     /**
+     * Selected OAuthProvider document _id. When provided it is forwarded in the socket.io
+     * handshake auth payload so the server can resolve the exact provider without guessing
+     * by JWT issuer domain.
+     */
+    providerId?: string;
+    /**
      * Array of API Sync queries passed to the shared library, that the client needs to sync down
      */
     syncList?: Array<ApiSyncQuery>;

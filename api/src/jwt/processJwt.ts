@@ -58,13 +58,16 @@ export function clearJwtMap() {
 /**
  * Process a JWT token against the JWT_MAPPINGS (environmental variable) and return mapped groups and user details
  * @param jwt - Javascript Web Token
+ * @param db - Database service
  * @param logger - Logger instance
+ * @param providerId - Optional OAuthProvider _id; when supplied, added to the user's providers / providerIdentifiers on login
  * @returns - Array with JWT verified groups
  */
 export async function processJwt(
     jwt: string,
     db: DbService,
     logger?: Logger,
+    providerId?: string,
 ): Promise<JwtUserDetails> {
     const groupSet = new Set<Uuid>();
     let userId: string;
@@ -77,7 +80,10 @@ export async function processJwt(
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
             logger?.error(`JWT_MAPPING environment variable is not set`);
-            return { groups: [] };
+            return {
+                groups: [],
+                accessMap: PermissionSystem.getAccessMap([]),
+            };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
@@ -111,14 +117,17 @@ export async function processJwt(
         }
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
-        return { groups: [] };
+        return {
+            groups: [],
+            accessMap: PermissionSystem.getAccessMap([]),
+        };
     }
 
     // If userId is set, get the user details from the database using the userId
     if (userId) {
         userId = userId.toString();
     }
-
+    
     const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
     // Update user details in the database if either userId or email is set
@@ -133,6 +142,20 @@ export async function processJwt(
             // Update name if it was mapped from JWT
             if (name) {
                 updated.name = name;
+            }
+            // Add provider on login if not already linked
+            if (providerId) {
+                const alreadyLinked = updated.providerIdentifiers?.some(
+                    (pi: { providerId: string; userId: string }) =>
+                        pi.providerId === providerId && pi.userId === userId,
+                );
+                if (!alreadyLinked) {
+                    updated.providers = [...new Set([...(updated.providers ?? []), providerId])];
+                    updated.providerIdentifiers = [
+                        ...(updated.providerIdentifiers ?? []),
+                        { providerId, userId },
+                    ];
+                }
             }
             await db.upsertDoc(updated);
         }

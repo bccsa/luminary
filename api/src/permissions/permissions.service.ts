@@ -243,6 +243,9 @@ export class PermissionSystem extends EventEmitter {
         docTypes: DocType[],
     ): Map<DocType, Uuid[]> {
         const groups = new Map<DocType, Uuid[]>();
+        if (!accessMap || typeof accessMap !== "object") {
+            return groups;
+        }
         Object.keys(accessMap).forEach((groupId: Uuid) => {
             Object.keys(accessMap[groupId])
                 .filter((d: DocType) => docTypes.includes(d))

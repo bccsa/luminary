@@ -1,7 +1,56 @@
 import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
-import { type App, watch } from "vue";
+import { createAuth0Client } from "@auth0/auth0-spa-js";
+import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
+import type { OAuthProviderPublicDto } from "luminary-shared";
+import { useAuthProviderStore } from "./stores/authProvider";
+
+/**
+ * Controls visibility of the provider selection modal.
+ */
+export const showProviderSelectionModal = ref(false);
+
+/**
+ * Clear all Auth0 tokens from localStorage so the next login prompts fresh credentials.
+ */
+export function clearAuth0Cache() {
+    Object.keys(localStorage)
+        .filter((k) => k.startsWith("@@auth0spajs@@") || k.startsWith("a0.spajs"))
+        .forEach((k) => localStorage.removeItem(k));
+}
+
+/**
+ * Log in using a specific OAuthProvider. Creates a provider-scoped Auth0 client
+ * and redirects the user to Auth0 for authentication.
+ */
+export async function loginWithProvider(
+    provider: OAuthProviderPublicDto,
+    options: { prompt?: "none" | "login" | "consent" | "select_account" } = {},
+) {
+    if (!provider.domain || !provider.clientId) {
+        console.error("Provider is missing domain or clientId", provider._id);
+        return;
+    }
+
+    const store = useAuthProviderStore();
+    store.setProvider(provider);
+
+    const client = await createAuth0Client({
+        domain: provider.domain,
+        clientId: provider.clientId,
+        useRefreshTokens: true,
+        cacheLocation: "localstorage",
+        authorizationParams: {
+            audience: provider.audience,
+            scope: "openid profile email offline_access",
+            redirect_uri: window.location.origin,
+            ...(options.prompt ? { prompt: options.prompt } : {}),
+        },
+    });
+
+    await client.loginWithRedirect();
+}
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
@@ -46,7 +95,14 @@ async function setupAuth(app: App<Element>, router: Router) {
 
         if (!url.searchParams.has("code")) return false;
 
-        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
+        const handleResult = await oauth.handleRedirectCallback(url.toString()).catch((err) => {
+            // Invalid state (e.g. cookie cleared, new tab) or other callback errors: clean URL and go home
+            Sentry.captureException(err);
+            window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+            router.push("/");
+            return null;
+        });
+        if (handleResult === null) return false;
 
         const to = getRedirectTo() || "/";
 

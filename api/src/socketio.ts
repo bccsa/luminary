@@ -14,10 +14,13 @@ import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
-import { JwtUserDetails, processJwt } from "./jwt/processJwt";
+import { AuthIdentityService, ResolvedIdentity } from "./auth/auth-identity.service";
+import { OAuthProviderDto } from "./dto/OAuthProviderDto";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import * as jwtLib from "jsonwebtoken";
+import { JwksClient } from "jwks-rsa";
 
 /**
  * Data request from client type definition
@@ -68,11 +71,14 @@ interface ReceiveEvents {
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface InterServerEvents {}
 
+/** Guest identity used when no auth token is provided */
+const GUEST_GROUP_ID = "group-public-users";
+
 /**
  * Socket.io client socket.data type definition
  */
 interface SocketData {
-    userDetails: JwtUserDetails;
+    identity: ResolvedIdentity;
 }
 
 type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>;
@@ -92,25 +98,64 @@ export class Socketio implements OnGatewayInit {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
+        private identity: AuthIdentityService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
         // Handle authentication
         server.use(async (socket, next) => {
-            // Get automatically assigned group access
-            const userDetails = await processJwt(socket.handshake.auth.token, this.db, this.logger);
+            const token = socket.handshake.auth.token as string | undefined;
 
-            if (socket.handshake.auth.token && !userDetails.jwtPayload) {
-                // Assume that the user's token is expired.
-                // Prompt the user to re-authenticate when an invalid token is provided.
-                socket.emit("apiAuthFailed");
-                // Disconnect the client to prevent further communication.
-                socket.disconnect(true);
-                return;
+            // No token → guest access
+            if (!token) {
+                socket.data.identity = {
+                    user: { _id: "guest", type: DocType.User, email: "", name: "Guest", memberOf: [] } as any,
+                    groupIds: [GUEST_GROUP_ID],
+                };
+                return next();
             }
 
-            socket.data.userDetails = userDetails;
-            next();
+            try {
+                // Decode without verification to extract the issuer domain (needed for JWKS URL)
+                const decoded = jwtLib.decode(token) as jwtLib.JwtPayload | null;
+                if (!decoded?.iss) throw new Error("Missing iss claim");
+
+                // Prefer the explicit provider ID sent by the client over domain-based guessing.
+                // This avoids ambiguity when multiple OAuthProvider documents share the same domain.
+                const explicitProviderId = socket.handshake.auth.providerId as string | undefined;
+                let provider: OAuthProviderDto | undefined;
+
+                if (explicitProviderId) {
+                    const res = await this.db.executeFindQuery({
+                        selector: { _id: explicitProviderId, type: DocType.OAuthProvider },
+                        limit: 1,
+                    });
+                    provider = res.docs?.[0] as OAuthProviderDto | undefined;
+                }
+
+                if (!provider) {
+                    // Fall back to domain-based lookup
+                    const domain = new URL(decoded.iss).hostname;
+                    const res = await this.db.executeFindQuery({
+                        selector: { type: DocType.OAuthProvider, domain },
+                        limit: 1,
+                    });
+                    provider = res.docs?.[0] as OAuthProviderDto | undefined;
+                }
+
+                if (!provider) throw new Error(`No OAuthProvider found`);
+
+                // Verify the token using the provider's JWKS
+                const payload = await this.verifyToken(token, provider);
+
+                // Resolve full identity
+                socket.data.identity = await this.identity.resolveIdentity(payload, provider);
+                next();
+            } catch (err) {
+                this.logger.error("Socket authentication failed", err);
+                socket.emit("apiAuthFailed");
+                socket.disconnect(true);
+            }
         });
 
         // Create config object with environmental variables
@@ -160,6 +205,28 @@ export class Socketio implements OnGatewayInit {
         });
     }
 
+    private verifyToken(token: string, provider: OAuthProviderDto): Promise<jwtLib.JwtPayload> {
+        const jwksUri = `https://${provider.domain}/.well-known/jwks.json`;
+        const client = new JwksClient({ jwksUri });
+
+        const getKey: jwtLib.GetPublicKeyOrSecret = (header, callback) => {
+            client.getSigningKey(header.kid, (err, key) => {
+                if (err) return callback(err);
+                callback(null, key.getPublicKey());
+            });
+        };
+
+        const options: jwtLib.VerifyOptions = {};
+        if (provider.audience) options.audience = provider.audience;
+
+        return new Promise((resolve, reject) => {
+            jwtLib.verify(token, getKey, options, (err, decoded) => {
+                if (err) return reject(err);
+                resolve(decoded as jwtLib.JwtPayload);
+            });
+        });
+    }
+
     /**
      *  Join client to socket groups, to receive live updates
      * @param reqData
@@ -170,11 +237,14 @@ export class Socketio implements OnGatewayInit {
         @MessageBody() reqData: ClientDataReq,
         @ConnectedSocket() socket: ClientSocket,
     ) {
+        // Compute access map from resolved group IDs
+        const accessMap = PermissionSystem.getAccessMap(socket.data.identity.groupIds);
+
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
-            accessMap: socket.data.userDetails.accessMap,
+            accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
@@ -186,7 +256,7 @@ export class Socketio implements OnGatewayInit {
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            socket.data.userDetails.accessMap,
+            accessMap,
             AclPermission.View,
             docTypes,
         );

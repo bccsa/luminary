@@ -190,6 +190,20 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
+
+            // Sync OAuth providers
+            if (access[DocType.OAuthProvider] && access[DocType.OAuthProvider].length) {
+                sync({
+                    type: DocType.OAuthProvider,
+                    memberOf: access[DocType.OAuthProvider],
+                    limit: 1000,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during OAuth provider sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
         },
     );
 }

@@ -34,6 +34,8 @@ export default mergeConfig(
             exclude: [...configDefaults.exclude, "e2e/*"],
             root: fileURLToPath(new URL("./", import.meta.url)),
             setupFiles: ["vitest.setup.ts"],
+            // Forks give each worker its own process → own fake-indexeddb, so parallel files don't race.
+            pool: "forks",
         },
     }),
 );

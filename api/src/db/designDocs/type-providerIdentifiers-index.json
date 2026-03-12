@@ -1,0 +1,25 @@
+{
+    "_id": "_design/type-providerIdentifiers-index",
+    "language": "query",
+    "views": {
+        "type-providerIdentifiers-index": {
+            "map": {
+                "fields": {
+                    "type": "asc",
+                    "providerIdentifiers": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "user"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["type", "providerIdentifiers"]
+                }
+            }
+        }
+    }
+}

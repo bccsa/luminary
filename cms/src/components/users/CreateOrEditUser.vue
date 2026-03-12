@@ -18,6 +18,7 @@ import {
     useDexieLiveQuery,
     db,
     type GroupDto,
+    type OAuthProviderDto,
 } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 import _ from "lodash";
@@ -69,6 +70,11 @@ const originalLoadedHandler = watch(original, () => {
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
+);
+
+const oAuthProviders = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.OAuthProvider }).toArray() as unknown as Promise<OAuthProviderDto[]>,
+    { initialValue: [] as OAuthProviderDto[] },
 );
 
 // Check if the user is dirty (has unsaved changes)
@@ -218,7 +224,8 @@ const saveDisabled = computed(() => {
             />
 
             <LCombobox
-                v-model:selected-options="editable.memberOf as string[]"
+                :selected-options="editable.memberOf ?? []"
+                @update:selected-options="(val: string[]) => (editable.memberOf = val)"
                 :label="`Group Membership`"
                 :options="
                     groups.map((group: GroupDto) => ({
@@ -231,6 +238,24 @@ const saveDisabled = computed(() => {
                 :showSelectedLabels="true"
                 :disabled="!canEditOrCreate"
                 data-test="groupSelector"
+            />
+
+            <LCombobox
+                :selected-options="editable.providers ?? []"
+                @update:selected-options="(val: string[]) => (editable.providers = val)"
+                label="OAuth Providers"
+                :options="
+                    oAuthProviders.map((p: OAuthProviderDto) => ({
+                        id: p._id,
+                        label: p.label,
+                        value: p._id,
+                    }))
+                "
+                :show-selected-in-dropdown="false"
+                :showSelectedLabels="true"
+                :disabled="!canEditOrCreate"
+                data-test="providerSelector"
+                class="mt-4"
             />
         </LCard>
 

@@ -1,6 +1,7 @@
 import { SearchService } from "./search.service";
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
+import { MOCK_IDENTITY } from "../test/testIdentity";
 import { DeleteReason, DocType } from "../enums";
 import { SearchReqDto } from "../dto/SearchReqDto";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
@@ -37,7 +38,7 @@ describe("Search service", () => {
             types: [DocType.Post, DocType.Group],
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, MOCK_IDENTITY);
 
         expect(res.docs.length).toBe(10);
     });
@@ -49,7 +50,7 @@ describe("Search service", () => {
             types: [],
         };
 
-        await expect(searchService.processReq(req, "")).rejects.toThrow(
+        await expect(searchService.processReq(req, MOCK_IDENTITY)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -59,7 +60,7 @@ describe("Search service", () => {
             slug: "",
         };
 
-        await expect(searchService.processReq(req2, "")).rejects.toThrow(
+        await expect(searchService.processReq(req2, MOCK_IDENTITY)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -67,7 +68,7 @@ describe("Search service", () => {
             apiVersion: "0.0.0",
             limit: 10,
         };
-        await expect(searchService.processReq(req3, "")).rejects.toThrow(
+        await expect(searchService.processReq(req3, MOCK_IDENTITY)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -76,7 +77,7 @@ describe("Search service", () => {
             limit: 10,
             types: [DocType.Post],
         };
-        await expect(searchService.processReq(req4, "")).resolves.toBeDefined();
+        await expect(searchService.processReq(req4, MOCK_IDENTITY)).resolves.toBeDefined();
     });
 
     it("throws an error if invalid parameters are provided with slug", async () => {
@@ -87,7 +88,7 @@ describe("Search service", () => {
             types: [DocType.Post],
         };
 
-        await expect(searchService.processReq(req, "")).rejects.toThrow(
+        await expect(searchService.processReq(req, MOCK_IDENTITY)).rejects.toThrow(
             "Invalid parameters: A 'slug' search request is invalid when used together with limit, types",
         );
     });
@@ -110,7 +111,7 @@ describe("Search service", () => {
             includeDeleteCmds: true,
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, MOCK_IDENTITY);
 
         expect(res.docs.some((d) => d.type == DocType.DeleteCmd && d._id == "test-delete")).toBe(
             true,
@@ -134,7 +135,7 @@ describe("Search service", () => {
             types: [DocType.Post, DocType.Group],
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, MOCK_IDENTITY);
 
         expect(res.docs.some((d) => d.type == DocType.DeleteCmd && d._id == "test-delete")).toBe(
             false,

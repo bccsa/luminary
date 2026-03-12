@@ -1,21 +1,22 @@
 import {
     Controller,
-    Headers,
     Post,
     Body,
     BadRequestException,
     Inject,
     HttpCode,
+    UseGuards,
+    Req,
 } from "@nestjs/common";
-// import { validateApiVersion } from "../validation/apiVersion";
 import { QueryService } from "./query.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-// import { FindReqDto } from "../dto/FindReqDto";
-// import { plainToClass } from "class-transformer";
 import validateMongoQuery from "../db/MongoQueryTemplates/validateMongoQuery";
 import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { AuthGuard } from "../auth/auth.guard";
+import { ResolvedIdentity } from "../auth/auth-identity.service";
+import { FastifyRequest } from "fastify";
 
 /** Endpoint supporting MongoDB like queries (Mango Query) */
 @Controller("query")
@@ -29,9 +30,8 @@ export class QueryController {
 
     @Post()
     @HttpCode(200) // override the default 201 created status code to enable gzip compression by downstream reverse proxy servers
-    async processPostReq(@Body() body: any, @Headers("Authorization") auth: string): Promise<any> {
-        // TODO: add api version validation
-
+    @UseGuards(AuthGuard)
+    async processPostReq(@Body() body: any, @Req() request: FastifyRequest): Promise<any> {
         const bypassValidation =
             this.configService.get<boolean>("validation.bypassTemplateValidation") || false;
 
@@ -43,9 +43,7 @@ export class QueryController {
         }
 
         delete body.identifier;
-        return this.queryService.query(
-            body as MongoQueryDto,
-            auth !== undefined ? auth.replace("Bearer ", "") : "",
-        );
+        const identity = (request as any).user as ResolvedIdentity;
+        return this.queryService.query(body as MongoQueryDto, identity);
     }
 }
