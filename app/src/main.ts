@@ -11,6 +11,7 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initLanguageSync } from "./sync";
+import { APP_DOCS_INDEX } from "./docsIndex";
 
 export const app = createApp(App);
 
@@ -40,8 +41,7 @@ async function Startup() {
 
     await init({
         cms: false,
-        docsIndex:
-            "type, parentId, [parentId+status], slug, language, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType+status], [parentType+parentTagType+status], [type+status+parentTagType], [type+parentType+status], [parentType+status]",
+        docsIndex: APP_DOCS_INDEX,
         apiUrl,
         token,
         appLanguageIdsAsRef,
