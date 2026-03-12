@@ -1,16 +1,22 @@
-import "fake-indexeddb/auto";
-import { RouterLinkStub, config } from "@vue/test-utils";
-import { initDatabase, initConfig } from "luminary-shared";
-import { CMS_DOCS_INDEX } from "./src/docsIndex";
-import { afterEach, beforeAll, beforeEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 
-// ============================================================================
-// Indexing warning detection — fail tests that trigger missing index warnings
-// ============================================================================
+/**
+ * Fail tests that trigger Dexie or mangoToDexie indexing warnings.
+ *
+ * These warnings indicate missing indexes that cause full table scans,
+ * which is a performance bug. Any query exercised by tests should use
+ * a properly indexed path.
+ *
+ * Tests that intentionally verify warning behavior should spy on
+ * console.warn with mockImplementation — this suppresses the original
+ * so the hook below never sees those calls.
+ */
 
 const INDEXING_WARNING_PATTERNS = [
+    // mangoToDexie warnings
     /\[mangoToDexie\].*Missing index/,
     /\[mangoToDexie\].*Falling back to full table scan/,
+    // Dexie built-in compound index warnings
     /Performance warning:.*No compound index found/i,
     /would benefit from a compound index/i,
     /SchemaError.*not indexed/i,
@@ -38,24 +44,4 @@ afterEach(() => {
             `Indexing warning(s) detected — queries should use indexed fields:\n  ${messages}`,
         );
     }
-});
-
-config.global.stubs["RouterLink"] = RouterLinkStub;
-
-// Mock URL.createObjectURL and revokeObjectURL for browser APIs in tests
-global.URL.createObjectURL = () => {
-    return `blob:mock-url-${Math.random().toString(36).substring(2, 9)}`;
-};
-global.URL.revokeObjectURL = () => {
-    // No-op for tests
-};
-
-beforeAll(async () => {
-    initConfig({
-        cms: true,
-        docsIndex: CMS_DOCS_INDEX,
-        apiUrl: "http://localhost:12345",
-    });
-
-    await initDatabase();
 });

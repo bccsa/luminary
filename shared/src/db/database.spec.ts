@@ -34,7 +34,7 @@ describe("Database", async () => {
     beforeAll(async () => {
         initConfig({
             cms: true,
-            docsIndex: "",
+            docsIndex: "[type+postType]",
             apiUrl: "http://localhost:12345",
         });
 

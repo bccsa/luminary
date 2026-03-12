@@ -82,9 +82,12 @@ export function mangoCompile(q: MangoSelector): Predicate {
         return () => false;
     }
 
-    // Handle empty query (not cacheable, just return constant)
+    // Handle empty query (not cacheable, just return constant).
+    // Uses for...in with break instead of Object.keys().length to avoid
+    // array allocation on this hot path (runs per filter invocation).
     let hasKeys = false;
-    for (const _ in q) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const _key in q) {
         hasKeys = true;
         break;
     }

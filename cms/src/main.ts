@@ -10,6 +10,7 @@ import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initLanguageSync, initSync } from "./sync";
+import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
 
@@ -34,8 +35,7 @@ async function Startup() {
 
     await init({
         cms: true,
-        docsIndex:
-            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language], [type+parentTagType]",
+        docsIndex: CMS_DOCS_INDEX,
         apiUrl,
         token,
         syncList: [
