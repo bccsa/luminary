@@ -891,6 +891,71 @@ describe("DbService", () => {
             );
         });
 
+        it("can generate a delete instruction for an 'expired' reason", async () => {
+            const doc = {
+                _id: "delete-test-expired-insertCmd",
+                testData: "test123",
+                type: DocType.Content,
+                status: "published",
+                expiryDate: Date.now() - 1000,
+                memberOf: ["group-public-content"],
+            };
+
+            await service.upsertDoc(doc);
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Expired,
+                doc: doc,
+                prevDoc: doc,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            expect(insertResult.id).not.toBe(doc._id);
+
+            const res = await service.getDoc(insertResult.id);
+
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.Expired);
+            expect(res.docs[0].memberOf).toEqual(doc.memberOf);
+            expect(res.docs[0].type).toBe(DocType.DeleteCmd);
+            expect(res.docs[0].docId).toBe(doc._id);
+        });
+
+        it("fails when trying to insert an 'expired' delete command for a non-content document", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+                expiryDate: Date.now() - 1000,
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.Expired, doc: doc, prevDoc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Expired delete command is only valid for content documents",
+            );
+        });
+
+        it("fails when trying to insert an 'expired' delete command for content with a future expiryDate", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Content,
+                status: "published",
+                expiryDate: Date.now() + 60_000,
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.Expired, doc: doc, prevDoc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Expired delete command is only valid for content with a past expiry date",
+            );
+        });
+
         it("can generate a delete instruction for a 'permissionChange' reason", async () => {
             const doc = {
                 _id: "delete-test",
@@ -1018,6 +1083,179 @@ describe("DbService", () => {
                     expect(updateEventDoc.deleteReason).toBe(DeleteReason.StatusChange);
                     expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
                 });
+            });
+
+            it("removes statusChange delete commands from database when content is set back to published", async () => {
+                const docId = "delete-test-statusChange-revert";
+                const publishedDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedDoc);
+
+                const draftDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "draft",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(draftDoc);
+
+                const statusChangeDeleteCmdsBefore = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: 10,
+                });
+                expect(statusChangeDeleteCmdsBefore.docs.length).toBeGreaterThanOrEqual(1);
+
+                const publishedAgainDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedAgainDoc);
+
+                const statusChangeDeleteCmdsAfter = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: 10,
+                });
+                expect(statusChangeDeleteCmdsAfter.docs).toHaveLength(0);
+            });
+
+            it("generates an 'expired' delete command when a published content document's expiryDate transitions to a past date", async () => {
+                const docId = "delete-test-expired-transition";
+                const activeDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(activeDoc);
+
+                let updateEventDoc: DeleteCmdDto;
+                const deleteCmdHandler = (update: DeleteCmdDto) => {
+                    if (update.type === DocType.DeleteCmd && update.docId === docId) {
+                        service.off("update", deleteCmdHandler);
+                        updateEventDoc = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler);
+
+                const expiredDoc = { ...activeDoc, expiryDate: Date.now() - 1000 };
+                await service.upsertDoc(expiredDoc);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc).toBeDefined();
+                    expect(updateEventDoc.docId).toBe(docId);
+                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.Expired);
+                    expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
+                });
+            });
+
+            it("removes expired delete commands when a published content document's expiryDate is extended to the future", async () => {
+                const docId = "delete-test-expired-revert";
+                const expiredDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    expiryDate: Date.now() - 1000,
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(expiredDoc);
+                await service.insertDeleteCmd({
+                    reason: DeleteReason.Expired,
+                    doc: expiredDoc,
+                    prevDoc: expiredDoc,
+                });
+
+                const expiredDeleteCmdsBefore = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.Expired,
+                    },
+                    limit: 10,
+                });
+                expect(expiredDeleteCmdsBefore.docs.length).toBeGreaterThanOrEqual(1);
+
+                const extendedDoc = { ...expiredDoc, expiryDate: Date.now() + 60_000 };
+                await service.upsertDoc(extendedDoc);
+
+                const expiredDeleteCmdsAfter = await service.executeFindQuery({
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId,
+                        deleteReason: DeleteReason.Expired,
+                    },
+                    limit: 10,
+                });
+                expect(expiredDeleteCmdsAfter.docs).toHaveLength(0);
+            });
+
+            it("generates expired delete commands via generateExpiredDeleteCmds() for content not yet covered", async () => {
+                const docId = "delete-test-generate-expired";
+                const expiredDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    expiryDate: Date.now() - 1000,
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(expiredDoc);
+
+                // Ensure no expired deleteCmd exists yet
+                const before = await service.executeFindQuery({
+                    selector: { type: DocType.DeleteCmd, docId, deleteReason: DeleteReason.Expired },
+                    limit: 10,
+                });
+                expect(before.docs).toHaveLength(0);
+
+                await service.generateExpiredDeleteCmds();
+
+                const after = await service.executeFindQuery({
+                    selector: { type: DocType.DeleteCmd, docId, deleteReason: DeleteReason.Expired },
+                    limit: 10,
+                });
+                expect(after.docs.length).toBeGreaterThanOrEqual(1);
+                expect(after.docs[0].memberOf).toEqual(["group-public-content"]);
+            });
+
+            it("does not generate duplicate expired delete commands when generateExpiredDeleteCmds() is called multiple times", async () => {
+                const docId = "delete-test-generate-expired-deduplicate";
+                const expiredDoc = {
+                    _id: docId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    expiryDate: Date.now() - 1000,
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(expiredDoc);
+
+                await service.generateExpiredDeleteCmds();
+                await service.generateExpiredDeleteCmds();
+
+                const result = await service.executeFindQuery({
+                    selector: { type: DocType.DeleteCmd, docId, deleteReason: DeleteReason.Expired },
+                    limit: 10,
+                });
+                expect(result.docs).toHaveLength(1);
             });
 
             it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {

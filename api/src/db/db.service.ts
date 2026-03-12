@@ -274,6 +274,42 @@ export class DbService extends EventEmitter {
                     prevDoc: existing as _contentBaseDto,
                 });
             }
+
+            // Generate delete command if a published content document has just become expired
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (doc as ContentDto).status === PublishStatus.Published &&
+                this.isExpired(doc as ContentDto) &&
+                !this.isExpired(existing as ContentDto)
+            ) {
+                await this.insertDeleteCmd({
+                    reason: DeleteReason.Expired,
+                    doc: doc as ContentDto,
+                    prevDoc: existing as _contentBaseDto,
+                });
+            }
+
+            // Remove statusChange delete commands when content is set back to published (from draft)
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status !== PublishStatus.Published &&
+                (doc as ContentDto).status === PublishStatus.Published
+            ) {
+                await this.removeStatusChangeDeleteCmdsForDoc(doc._id);
+            }
+
+            // Remove expired delete commands when expiryDate is cleared or extended to the future
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (doc as ContentDto).status === PublishStatus.Published &&
+                this.isExpired(existing as ContentDto) &&
+                !this.isExpired(doc as ContentDto)
+            ) {
+                await this.removeExpiredDeleteCmdsForDoc(doc._id);
+            }
         }
 
         // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
@@ -417,6 +453,22 @@ export class DbService extends EventEmitter {
             cmd.memberOf = p.memberOf;
         }
 
+        if (options.reason === DeleteReason.Expired) {
+            if (options.doc.type !== DocType.Content) {
+                throw new Error("Expired delete command is only valid for content documents");
+            }
+
+            const contentDoc = options.doc as unknown as ContentDto;
+
+            if (!contentDoc.expiryDate || contentDoc.expiryDate > Date.now()) {
+                throw new Error(
+                    "Expired delete command is only valid for content with a past expiry date",
+                );
+            }
+
+            cmd.memberOf = d.memberOf;
+        }
+
         if (options.reason === DeleteReason.StatusChange) {
             if (options.doc.type !== DocType.Content) {
                 throw new Error("Status change delete command is only valid for content documents");
@@ -453,6 +505,89 @@ export class DbService extends EventEmitter {
         }
 
         return await this.insertDoc(cmd);
+    }
+
+    /**
+     * Returns true if the given content document has an expiryDate in the past.
+     */
+    private isExpired(doc: ContentDto): boolean {
+        return !!doc.expiryDate && doc.expiryDate <= Date.now();
+    }
+
+    /**
+     * Remove all statusChange delete commands from the database for a given content document.
+     * Used when a content doc is set back to published (from draft) so clients no longer receive delete instructions for it.
+     * @param contentDocId - _id of the content document
+     */
+    async removeStatusChangeDeleteCmdsForDoc(contentDocId: string): Promise<void> {
+        const result = await this.db.find({
+            selector: {
+                type: DocType.DeleteCmd,
+                docId: contentDocId,
+                deleteReason: DeleteReason.StatusChange,
+            },
+            limit: Number.MAX_SAFE_INTEGER,
+        });
+        for (const deleteCmd of result.docs || []) {
+            await this.db.destroy(deleteCmd._id, deleteCmd._rev);
+        }
+    }
+
+    /**
+     * Remove all expired delete commands from the database for a given content document.
+     * Used when a content doc's expiryDate is cleared or extended so clients no longer receive delete instructions for it.
+     * @param contentDocId - _id of the content document
+     */
+    async removeExpiredDeleteCmdsForDoc(contentDocId: string): Promise<void> {
+        const result = await this.db.find({
+            selector: {
+                type: DocType.DeleteCmd,
+                docId: contentDocId,
+                deleteReason: DeleteReason.Expired,
+            },
+            limit: Number.MAX_SAFE_INTEGER,
+        });
+        for (const deleteCmd of result.docs || []) {
+            await this.db.destroy(deleteCmd._id, deleteCmd._rev);
+        }
+    }
+
+    /**
+     * Finds all published content documents with a past expiryDate and generates expired delete
+     * commands for any that do not already have one. Optional backfill; the normal flow is
+     * reactive: expired delete commands are created only when a document is upserted and
+     * transitions to expired, so the API avoids startup or periodic scans.
+     */
+    async generateExpiredDeleteCmds(): Promise<void> {
+        const now = Date.now();
+
+        const expiredDocs = await this.db.find({
+            selector: {
+                type: DocType.Content,
+                status: PublishStatus.Published,
+                expiryDate: { $lte: now, $gt: 0 },
+            },
+            limit: Number.MAX_SAFE_INTEGER,
+        });
+
+        for (const doc of expiredDocs.docs || []) {
+            const existingDeleteCmd = await this.db.find({
+                selector: {
+                    type: DocType.DeleteCmd,
+                    docId: doc._id,
+                    deleteReason: DeleteReason.Expired,
+                },
+                limit: 1,
+            });
+
+            if (existingDeleteCmd.docs.length === 0) {
+                await this.insertDeleteCmd({
+                    reason: DeleteReason.Expired,
+                    doc,
+                    prevDoc: doc,
+                });
+            }
+        }
     }
 
     /**
