@@ -75,7 +75,37 @@ const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
 );
-const totalUsers = ref(0);
+
+const filteredUsers = computed(() => {
+    const list = users.value ?? [];
+    const search = (queryOptions.value.search ?? "").trim().toLowerCase();
+    const selectedGroups = queryOptions.value.groups ?? [];
+
+    return list.filter((user) => {
+        if (search) {
+            const email = (user.email ?? "").toLowerCase();
+            const name = (user.name ?? "").toLowerCase();
+            const matchesSearch = email.includes(search) || name.includes(search);
+            if (!matchesSearch) return false;
+        }
+
+        if (selectedGroups.length > 0) {
+            const memberOf = user.memberOf ?? [];
+            const inSelectedGroup = selectedGroups.some((g) => memberOf.includes(g));
+            if (!inSelectedGroup) return false;
+        }
+        return true;
+    });
+});
+
+const paginatedUsers = computed(() => {
+    const pageSize = queryOptions.value.pageSize ?? 20;
+    const pageIndex = queryOptions.value.pageIndex ?? 0;
+    const start = pageIndex * pageSize;
+    return filteredUsers.value.slice(start, start + pageSize);
+});
+
+const totalUsers = computed(() => filteredUsers.value.length);
 </script>
 
 <template>
@@ -112,7 +142,7 @@ const totalUsers = ref(0);
             individual for different groups they manage.
         </p>
         <UserDisplayCard
-            v-for="user in users"
+            v-for="user in paginatedUsers"
             :key="user._id"
             :usersDoc="user"
             v-model="isEditUserModalVisible"
