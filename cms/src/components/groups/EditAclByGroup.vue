@@ -173,10 +173,10 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
                     <div
                         v-for="aclEntry in activeAclEntries"
                         :key="aclEntry.type"
-                        class="flex flex-shrink-0 items-center rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                        class="flex flex-shrink-0 items-baseline rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
                     >
                         <span>{{ capitaliseFirstLetter(aclEntry.type) }}</span>
-                        <span class="ml-0.5 text-[10px]">
+                        <span class="ml-0.5 text-[8px]">
                             (<span
                                 v-for="permission in activePermissions(aclEntry)"
                                 :key="permission"
