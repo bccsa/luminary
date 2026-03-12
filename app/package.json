@@ -28,7 +28,6 @@
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "m3u8-parser": "^7.2.0",
-        "minisearch": "^7.2.0",
         "pinia": "^2.1.7",
         "rand-seed": "^2.1.7",
         "tailwind-scrollbar-hide": "^4.0.0",

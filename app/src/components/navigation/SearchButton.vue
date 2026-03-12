@@ -4,93 +4,76 @@ import {
     MagnifyingGlassIcon,
     XMarkIcon,
     ArrowRightIcon,
-    DocumentTextIcon,
 } from "@heroicons/vue/24/outline";
-import { useSearch } from "@/composables/useSearch";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import type { LuminarySearchResult } from "@/search";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
+import { useFtsSearch, db } from "luminary-shared";
+import type { ContentDto } from "luminary-shared";
 
 const router = useRouter();
 
-const { performSearch, isInitialized, indexSize } = useSearch();
-
-// Use global search overlay state
 const { isSearchOpen, closeSearch } = useSearchOverlay();
 
-// Local state synced with global
 const isOpen = ref(false);
 const searchQuery = ref("");
-const results = ref<LuminarySearchResult[]>([]);
-const showResults = ref(false);
-const inputRef = ref<HTMLInputElement | null>(null);
-const modalRef = ref<HTMLDivElement | null>(null);
 const selectedIndex = ref(-1);
-const isSearching = ref(false);
+const inputRef = ref<HTMLInputElement | null>(null);
 
-// Debounce timer
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-// Clean up debounce timer
-function clearSearchTimeout(): void {
-    if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
+const { results: ftsResults, isSearching } = useFtsSearch(searchQuery, {
+    languageId,
+    debounceMs: 150,
+    pageSize: 20,
+});
+
+// Resolved content docs keyed by docId
+const resolvedDocs = ref<Map<string, ContentDto>>(new Map());
+
+watch(ftsResults, async (newResults) => {
+    if (!newResults.length) {
+        resolvedDocs.value = new Map();
+        return;
     }
-}
+    const docIds = newResults.map((r) => r.docId);
+    const docs = await db.docs.where("_id").anyOf(docIds).toArray();
+    const map = new Map<string, ContentDto>();
+    for (const doc of docs) {
+        map.set(doc._id, doc as ContentDto);
+    }
+    resolvedDocs.value = map;
+});
 
-// Watch global state and sync local state
+// Enriched results: only items where the doc was successfully resolved
+const results = computed(() =>
+    ftsResults.value
+        .map((r) => resolvedDocs.value.get(r.docId))
+        .filter((doc): doc is ContentDto => !!doc),
+);
+
+const showResults = computed(() => results.value.length > 0 && !!searchQuery.value.trim());
+
+// Sync overlay open state
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
-        // Clear search when closed
-        clearSearchTimeout();
         searchQuery.value = "";
-        results.value = [];
-        showResults.value = false;
         selectedIndex.value = -1;
-        isSearching.value = false;
     } else {
-        // Focus input when opened so user can type immediately
         nextTick(() => {
             inputRef.value?.focus();
         });
     }
 });
 
-// Watch for search query changes and perform search
-watch(searchQuery, (newQuery) => {
-    clearSearchTimeout();
-
-    if (!newQuery.trim()) {
-        results.value = [];
-        showResults.value = false;
-        selectedIndex.value = -1;
-        isSearching.value = false;
-        return;
-    }
-
-    // Debounce search
-    isSearching.value = true;
-    searchTimeout = setTimeout(() => {
-        if (isInitialized.value) {
-            const searchResults = performSearch(newQuery, {
-                languages:
-                    appLanguageIdsAsRef.value.length > 0 ? appLanguageIdsAsRef.value : undefined,
-            });
-            results.value = searchResults;
-            showResults.value = searchResults.length > 0;
-            selectedIndex.value = searchResults.length > 0 ? 0 : -1;
-        }
-        isSearching.value = false;
-    }, 150);
+// Reset selection when results change
+watch(results, (newResults) => {
+    selectedIndex.value = newResults.length > 0 ? 0 : -1;
 });
 
-// Handle arrow key navigation
 const handleKeydown = (event: KeyboardEvent) => {
-    // Handle Cmd/Ctrl+K to toggle search
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         if (isOpen.value) {
@@ -101,28 +84,23 @@ const handleKeydown = (event: KeyboardEvent) => {
         return;
     }
 
-    // Handle Escape to close search
     if (event.key === "Escape") {
         event.preventDefault();
         closeSearch();
         return;
     }
 
-    // Arrow navigation in results
     if (showResults.value && results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
             return;
         }
-
         if (event.key === "ArrowDown") {
             event.preventDefault();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
             return;
         }
-
-        // Handle Enter to select current result
         if (event.key === "Enter") {
             event.preventDefault();
             if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
@@ -133,30 +111,23 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
 };
 
-// Handle keydown in input
 const handleInputKeydown = (event: KeyboardEvent) => {
-    // Handle Escape in input
     if (event.key === "Escape") {
         event.preventDefault();
         closeSearch();
         return;
     }
-
-    // Arrow navigation
     if (showResults.value && results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
             return;
         }
-
         if (event.key === "ArrowDown") {
             event.preventDefault();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
             return;
         }
-
-        // Handle Enter when we have results
         if (event.key === "Enter") {
             event.preventDefault();
             if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
@@ -168,93 +139,52 @@ const handleInputKeydown = (event: KeyboardEvent) => {
 };
 
 const clearSearch = () => {
-    clearSearchTimeout();
     searchQuery.value = "";
-    results.value = [];
-    showResults.value = false;
-    selectedIndex.value = -1;
     inputRef.value?.focus();
 };
 
-const goToResult = (result: LuminarySearchResult) => {
-    // MiniSearch returns stored fields directly on the result object
-    router.push({
-        name: "content",
-        params: {
-            slug: result.slug,
-        },
-    });
-
-    // Close and clear
-    showResults.value = false;
+const goToResult = (doc: ContentDto) => {
+    router.push({ name: "content", params: { slug: doc.slug } });
     searchQuery.value = "";
     closeSearch();
 };
 
-const toggleSearch = () => {
-    isOpen.value = !isOpen.value;
-    if (isOpen.value) {
-        nextTick(() => {
-            inputRef.value?.focus();
-        });
-    } else {
-        closeSearch();
-    }
-};
-
-// Global keyboard shortcut (Cmd/Ctrl + K)
 let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
-    // Global keyboard listener for Cmd/Ctrl+K when search is closed
     handleGlobalKeydown = (event: KeyboardEvent) => {
-        // Handle Cmd/Ctrl+K to toggle search
         if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-            // Only handle when search is not open
             if (!isOpen.value) {
                 event.preventDefault();
                 isSearchOpen.value = true;
             }
             return;
         }
-
-        // Handle Escape to close search when open
         if (event.key === "Escape" && isOpen.value) {
             event.preventDefault();
             closeSearch();
             return;
         }
     };
-
     document.addEventListener("keydown", handleGlobalKeydown);
 });
 
-// Cleanup
 onUnmounted(() => {
     if (handleGlobalKeydown) {
         document.removeEventListener("keydown", handleGlobalKeydown);
     }
-    clearSearchTimeout();
 });
 
-// Computed for responsive classes
-const overlayClasses = computed(() => {
-    return "md:pt-24 pt-16";
-});
+const overlayClasses = computed(() => "md:pt-24 pt-16");
+const modalClasses = computed(
+    () => "md:rounded-xl md:shadow-2xl w-full md:max-w-3xl md:h-auto h-full md:max-h-[75vh]",
+);
 
-const modalClasses = computed(() => {
-    return "md:rounded-xl md:shadow-2xl w-full md:max-w-3xl md:h-auto h-full md:max-h-[75vh]";
-});
-
-// Expose toggle for parent components
-defineExpose({
-    toggleSearch,
-});
+defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) });
 </script>
 
 <template>
     <div class="relative">
-        <!-- Search Overlay -->
         <Transition
             enter-active-class="transition duration-200 ease-out"
             enter-from-class="opacity-0"
@@ -267,23 +197,20 @@ defineExpose({
                 v-if="isOpen"
                 class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm md:p-4"
                 :class="overlayClasses"
-                @click.self="toggleSearch"
+                @click.self="closeSearch"
             >
                 <!-- Search Modal -->
                 <div
-                    ref="modalRef"
                     class="flex w-full flex-col overflow-hidden bg-white dark:bg-slate-900"
                     :class="modalClasses"
                     tabindex="-1"
                     @keydown="handleKeydown"
                 >
-                    <!-- Search Header -->
+                    <!-- Header -->
                     <div
                         class="flex items-center gap-3 border-b border-zinc-200 p-4 dark:border-slate-700 md:p-5"
                     >
-                        <MagnifyingGlassIcon
-                            class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
-                        />
+                        <MagnifyingGlassIcon class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6" />
                         <input
                             ref="inputRef"
                             v-model="searchQuery"
@@ -301,27 +228,20 @@ defineExpose({
                             </kbd>
                             <button
                                 v-if="searchQuery"
-                                @click="clearSearch"
                                 class="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                                @click="clearSearch"
                             >
                                 <XMarkIcon class="h-5 w-5" />
                             </button>
                         </div>
                     </div>
 
-                    <!-- Search Body -->
+                    <!-- Body -->
                     <div class="flex-1 overflow-y-auto">
-                        <!-- Loading State -->
-                        <div
-                            v-if="isSearching"
-                            class="p-4 md:p-5"
-                        >
+                        <!-- Loading -->
+                        <div v-if="isSearching" class="p-4 md:p-5">
                             <div class="space-y-3 md:space-y-4">
-                                <div
-                                    v-for="i in 3"
-                                    :key="i"
-                                    class="flex gap-3 md:gap-4"
-                                >
+                                <div v-for="i in 3" :key="i" class="flex gap-3 md:gap-4">
                                     <div
                                         class="h-12 w-16 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700 md:h-16 md:w-24"
                                     ></div>
@@ -340,34 +260,9 @@ defineExpose({
                             </div>
                         </div>
 
-                        <!-- No Index / Not Initialized -->
+                        <!-- No results -->
                         <div
-                            v-else-if="!isInitialized && searchQuery"
-                            class="p-8 text-center md:p-10"
-                        >
-                            <DocumentTextIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
-                            />
-                            <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.initializing") || "Initializing search index..." }}
-                            </p>
-                        </div>
-
-                        <div
-                            v-else-if="isInitialized && indexSize === 0"
-                            class="p-8 text-center md:p-10"
-                        >
-                            <DocumentTextIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
-                            />
-                            <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.noIndex") || "Search index is empty" }}
-                            </p>
-                        </div>
-
-                        <!-- No Results -->
-                        <div
-                            v-else-if="isInitialized && searchQuery && !isSearching && results.length === 0"
+                            v-else-if="searchQuery.trim() && !isSearching && results.length === 0"
                             class="p-8 text-center md:p-10"
                         >
                             <MagnifyingGlassIcon
@@ -378,31 +273,30 @@ defineExpose({
                             </p>
                         </div>
 
-                        <!-- Search Results -->
+                        <!-- Results -->
                         <div
-                            v-else-if="showResults && results.length > 0"
-                            id="search-results-container"
+                            v-else-if="showResults"
                             class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3"
                         >
                             <ul class="divide-y divide-zinc-200 dark:divide-slate-700">
                                 <li
-                                    v-for="(result, index) in results"
-                                    :key="result.id"
+                                    v-for="(doc, index) in results"
+                                    :key="doc._id"
                                     :id="`search-result-${index}`"
                                     class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
                                     :class="{
                                         'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
                                     }"
-                                    @click="goToResult(result)"
+                                    @click="goToResult(doc)"
                                     @mouseenter="selectedIndex = index"
                                 >
                                     <div class="flex min-w-0 gap-2 self-center md:gap-3">
-                                        <!-- Thumbnail (same as SingleContent: LImage shows image or fallback) -->
+                                        <!-- Thumbnail -->
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
-                                                :image="result.parentImageData"
-                                                :content-parent-id="result.parentId"
-                                                :parent-image-bucket-id="result.parentImageBucketId"
+                                                :image="doc.parentImageData"
+                                                :content-parent-id="doc.parentId"
+                                                :parent-image-bucket-id="doc.parentImageBucketId"
                                                 size="small"
                                                 aspect-ratio="video"
                                             />
@@ -416,45 +310,19 @@ defineExpose({
                                                         index === selectedIndex,
                                                 }"
                                             >
-                                                <span
-                                                    v-if="result.titleHighlight"
-                                                    v-html="result.titleHighlight"
-                                                />
-                                                <template v-else>{{ result.title }}</template>
+                                                {{ doc.title }}
                                             </h3>
-                                            <!-- Snippet: highlight when available, else summary -->
                                             <p
-                                                v-if="result.highlight"
-                                                class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
-                                                v-html="result.highlight"
-                                            ></p>
-                                            <p
-                                                v-else-if="result.summary"
+                                                v-if="doc.summary"
                                                 class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
                                             >
-                                                {{ result.summary }}
+                                                {{ doc.summary }}
                                             </p>
-                                            <!-- Meta -->
                                             <div
-                                                v-if="result.author || result.language"
+                                                v-if="doc.author"
                                                 class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
                                             >
-                                                <span
-                                                    v-if="result.author"
-                                                    class="truncate"
-                                                    >{{ result.author }}</span
-                                                >
-                                                <span
-                                                    v-if="result.author && result.language"
-                                                    class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
-                                                    aria-hidden="true"
-                                                    >·</span
-                                                >
-                                                <span
-                                                    v-if="result.language"
-                                                    class="flex-shrink-0 uppercase tracking-wide"
-                                                    >{{ result.language }}</span
-                                                >
+                                                <span class="truncate">{{ doc.author }}</span>
                                             </div>
                                         </div>
                                         <!-- Arrow -->
@@ -473,7 +341,7 @@ defineExpose({
                         </div>
                     </div>
 
-                    <!-- Search Footer -->
+                    <!-- Footer -->
                     <div
                         class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex md:px-5 md:py-2.5 md:text-sm"
                     >
@@ -497,11 +365,8 @@ defineExpose({
                                 to select
                             </span>
                         </div>
-                        <div v-if="isInitialized">
-                            <span
-                                >{{ indexSize }}
-                                {{ indexSize === 1 ? "item" : "items" }} indexed</span
-                            >
+                        <div v-if="showResults">
+                            <span>{{ results.length }} {{ results.length === 1 ? "result" : "results" }}</span>
                         </div>
                     </div>
                 </div>

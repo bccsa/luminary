@@ -74,15 +74,6 @@ const router = createRouter({
             },
         },
 
-        {
-            path: "/search",
-            component: () => SearchPage,
-            name: "search",
-            meta: {
-                title: "Search (FTS Testing)",
-            },
-        },
-
         // Note that this route should always come after all defined routes,
         // to prevent wrongly configured slugs from taking over pages
         {
