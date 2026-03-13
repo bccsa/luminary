@@ -11,9 +11,6 @@ export function mergeVertical(options: SyncBaseOptions) {
     // Filter chunks by type, memberOf, and languages (if provided)
     const filteredList = syncList.value.filter(filterByTypeMemberOf(options));
 
-    // Set the default eof value to the first chunk's eof status to handle cases with no merges (only 1 chunk)
-    let eof = filteredList.length ? filteredList[0].eof : false;
-
     // Sort in reverse order (newest first)
     filteredList.sort((a, b) => b.blockStart - a.blockStart);
 
@@ -27,10 +24,14 @@ export function mergeVertical(options: SyncBaseOptions) {
             // handle responses which did not return any data
             next.blockStart === 0
         ) {
-            // Merge chunks
-            current.blockEnd = next.blockEnd === 0 ? current.blockEnd : next.blockEnd; // If next blockEnd is 0 (no data), keep current blockEnd
+            // Merge chunks — use the older chunk's blockEnd to extend the range.
+            // Only preserve current blockEnd for legacy {0, 0} entries (truly empty chunks
+            // from before the fix that used queried boundaries for empty responses).
+            current.blockEnd =
+                next.blockStart === 0 && next.blockEnd === 0
+                    ? current.blockEnd
+                    : next.blockEnd;
             current.eof = next.eof;
-            if (next.eof) eof = true; // Set End of File flag
 
             // Remove next chunk from syncList
             const index = syncList.value.indexOf(next);
@@ -48,6 +49,12 @@ export function mergeVertical(options: SyncBaseOptions) {
     // Calculate the final blockStart and blockEnd from the merged chunks
     const blockStart = filteredList.length ? filteredList[0].blockStart : 0;
     const blockEnd = filteredList.length ? filteredList[0].blockEnd : 0;
+
+    // eof is true only when ALL remaining chunks have reached eof.
+    // This prevents prematurely stopping sync when a catch-up fetch (for new data)
+    // reaches eof but older incomplete chunks still exist from an interrupted sync.
+    const eof =
+        filteredList.length > 0 ? filteredList.every((chunk) => chunk.eof === true) : false;
 
     return { eof, blockStart, blockEnd };
 }

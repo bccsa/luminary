@@ -19,7 +19,6 @@ const emit = defineEmits(["close"]);
 
 <template>
     <LModal
-        name="lModal-languages"
         :heading="t('select_theme.title')"
         :is-visible="isVisible"
         @close="emit('close')"

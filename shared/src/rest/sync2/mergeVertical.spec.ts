@@ -648,7 +648,7 @@ describe("mergeVertical", () => {
         expect(syncList.value[0].blockEnd).toBe(3000);
     });
 
-    it("should return eof=true when first chunk has eof=true", () => {
+    it("should return eof=false when newest chunk has eof=true but oldest has eof=false", () => {
         syncList.value = [
             {
                 chunkType: "post",
@@ -670,7 +670,8 @@ describe("mergeVertical", () => {
 
         expect(syncList.value).toHaveLength(1);
         expect(syncList.value[0].eof).toBe(false);
-        expect(result.eof).toBe(true);
+        // eof should be false because the merged chunk's eof is false (older data not yet synced)
+        expect(result.eof).toBe(false);
     });
 
     it("should return eof=false when first chunk has eof=false and no merged chunks have eof=true", () => {
