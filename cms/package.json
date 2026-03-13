@@ -11,6 +11,7 @@
         "test:unit": "vitest",
         "test:e2e": "playwright test",
         "test:e2e:codegen": "playwright codegen http://localhost:4173",
+        "test:e2e:preview": "playwright test --ui",
         "build-only": "vite build",
         "type-check": "vue-tsc --build --force",
         "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",

@@ -2,6 +2,8 @@
 // https://playwright.dev/docs/intro
 import { test, expect } from "@playwright/test";
 
+const E2E_GROUP_ID = "group-super-admins";
+
 test.describe("CMS E2E Tests", () => {
     test("should load the CMS application", async ({ page }) => {
         await page.goto("/");
@@ -33,8 +35,57 @@ test.describe("CMS E2E Tests", () => {
         await page.waitForLoadState("networkidle");
         await page.waitForTimeout(1000);
 
-        // Check that the page has loaded successfully
-        // The exact content depends on the initial page configuration
-        await expect(page).toHaveURL(/\//);
+        await page.getByRole("link", { name: "Languages" }).click();
+        await page.waitForURL(/\/languages/);
+        await expect(page).toHaveURL(/\/languages/);
+    });
+
+    test("should queue a language change in localChanges when creating a language (offline)", async ({
+        page,
+    }) => {
+        await page.goto("/");
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(1000);
+
+        // Seed group for selector (offline: no API, no setConnected)
+        await page.evaluate(async (groupId: string) => {
+            const w = (window as unknown as {
+                __e2e?: { seedGroup: (g: Record<string, unknown>) => Promise<void> };
+            }).__e2e;
+            if (!w) return;
+            await w.seedGroup({
+                _id: groupId,
+                type: "group",
+                name: "Super Admins",
+                updatedTimeUtc: Date.now(),
+                acl: [],
+            });
+        }, E2E_GROUP_ID);
+
+        await page.getByRole("link", { name: "Languages" }).click();
+        await page.waitForURL(/\/languages/);
+        await page.getByTestId("create-language-btn").click();
+        await page.waitForURL(/\/languages\/[^/]+/);
+
+        await page.getByPlaceholder(/enter language name/i).fill("E2E Language");
+        await page.getByPlaceholder(/enter language code/i).fill("e2e");
+
+        await page.getByRole("button", { name: "edit" }).click();
+        await page.getByRole("dialog").locator("button[name='options-open-btn']").click();
+        await page.getByTestId("options").getByText("Super Admins").click();
+        await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+
+        await page.getByTestId("save-button").click();
+
+        await page.waitForTimeout(500);
+
+        const localChanges = await page.evaluate(async () => {
+            const w = (window as unknown as {
+                __e2e?: { getLocalChanges: () => Promise<Array<{ doc?: { type?: string } }>> };
+            }).__e2e;
+            if (!w?.getLocalChanges) return [];
+            return await w.getLocalChanges();
+        });
+        expect(localChanges.some((lc) => lc.doc?.type === "language")).toBe(true);
     });
 });
