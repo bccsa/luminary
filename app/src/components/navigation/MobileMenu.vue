@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 
 // Use global search overlay
-const { isSearchOpen, openSearch } = useSearchOverlay();
+const { isSearchOpen, openSearch, closeSearch } = useSearchOverlay();
 
 const { t } = useI18n();
+const route = useRoute();
+
+// Close search whenever the user navigates to another route
+watch(() => route.fullPath, () => {
+    closeSearch();
+});
 
 // Check if search is currently active (overlay is open)
 const isSearchActive = computed(() => isSearchOpen.value);

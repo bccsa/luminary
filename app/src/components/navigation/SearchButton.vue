@@ -5,6 +5,7 @@ import {
     XMarkIcon,
     ArrowRightIcon,
 } from "@heroicons/vue/24/outline";
+import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useRouter } from "vue-router";
@@ -24,11 +25,20 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
 // Cast refs to avoid cross-package Vue Ref type mismatch between app and shared
-const { results: ftsResults, isSearching } = useFtsSearch(searchQuery as any, {
+const { results: ftsResults, isSearching, loadMore, hasMore } = useFtsSearch(searchQuery as any, {
     languageId: languageId as any,
     debounceMs: 150,
     pageSize: 20,
 });
+
+const searchResultsContainerRef = ref<HTMLElement | null>(null);
+useInfiniteScroll(
+    searchResultsContainerRef,
+    () => {
+        if (hasMore.value && !isSearching.value) loadMore();
+    },
+    { distance: 10 },
+);
 
 // --- Highlight helpers (ported from original search.ts) ---
 
@@ -99,12 +109,14 @@ function applyTermHighlights(text: string, query: string): string {
         );
     }
 
-    // Fall back to word-boundary matches for each term
+    // Fall back to word-boundary matches for each term.
+    // Use Unicode-aware boundaries (lookbehind/lookahead for non-letter chars)
+    // so accented characters like é, è, ç are handled correctly.
     const termsInText = queryTerms.filter((t) => textLower.includes(t));
     if (!termsInText.length) return escapeHtml(text);
 
     const pattern = termsInText.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-    const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
+    const regex = new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})(?![\\p{L}\\p{N}])`, "giu");
     let built = "";
     let lastIndex = 0;
     for (const m of text.matchAll(regex)) {
@@ -267,6 +279,13 @@ watch(results, (newResults) => {
     selectedIndex.value = newResults.length > 0 ? 0 : -1;
 });
 
+watch(selectedIndex, (index) => {
+    if (index < 0) return;
+    nextTick(() => {
+        document.getElementById(`search-result-${index}`)?.scrollIntoView({ block: "nearest" });
+    });
+});
+
 // --- Keyboard handling ---
 
 const handleKeydown = (event: KeyboardEvent) => {
@@ -297,18 +316,22 @@ const handleKeydown = (event: KeyboardEvent) => {
 const handleInputKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         closeSearch();
         return;
     }
     if (showResults.value && results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
+            event.stopPropagation();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
         } else if (event.key === "ArrowDown") {
             event.preventDefault();
+            event.stopPropagation();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
         } else if (event.key === "Enter") {
             event.preventDefault();
+            event.stopPropagation();
             if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
         }
     }
@@ -344,11 +367,6 @@ onUnmounted(() => {
     if (handleGlobalKeydown) document.removeEventListener("keydown", handleGlobalKeydown);
 });
 
-const overlayClasses = computed(() => "md:pt-24 pt-16");
-const modalClasses = computed(
-    () => "md:rounded-xl md:shadow-2xl w-full md:max-w-3xl md:h-auto h-full md:max-h-[75vh]",
-);
-
 defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) });
 </script>
 
@@ -364,14 +382,15 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         >
             <div
                 v-if="isOpen"
-                class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm md:p-4"
-                :class="overlayClasses"
+                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900
+                       md:flex-row md:items-start md:justify-center md:bg-black/60 md:dark:bg-black/60 md:backdrop-blur-sm md:pt-24 md:px-4"
                 @click.self="closeSearch"
             >
-                <!-- Search Modal -->
+                <!-- Search Modal: full-screen on mobile, centered panel on desktop -->
                 <div
-                    class="flex w-full flex-col overflow-hidden bg-white dark:bg-slate-900"
-                    :class="modalClasses"
+                    class="flex h-full w-full flex-col overflow-hidden
+                           md:h-auto md:max-h-[75vh] md:max-w-3xl
+                           md:rounded-xl md:shadow-2xl md:bg-white md:dark:bg-slate-900"
                     tabindex="-1"
                     @keydown="handleKeydown"
                 >
@@ -392,17 +411,28 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             @keydown="handleInputKeydown"
                         />
                         <div class="flex items-center gap-2">
+                            <!-- Clear query button (both mobile and desktop when query exists) -->
+                            <button
+                                v-if="searchQuery"
+                                class="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                                :aria-label="$t('search.ariaLabel') || 'Clear'"
+                                @click="clearSearch"
+                            >
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                            <!-- ESC hint: desktop only -->
                             <kbd
                                 class="hidden rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-slate-800 dark:text-slate-400 md:inline-block"
                             >
                                 ESC
                             </kbd>
+                            <!-- Close button: mobile only, always visible -->
                             <button
-                                v-if="searchQuery"
-                                class="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                                @click="clearSearch"
+                                class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
+                                :aria-label="$t('search.close') || 'Close search'"
+                                @click="closeSearch"
                             >
-                                <XMarkIcon class="h-5 w-5" />
+                                <XMarkIcon class="h-6 w-6" />
                             </button>
                         </div>
                     </div>
@@ -447,6 +477,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <!-- Search Results -->
                         <div
                             v-else-if="showResults"
+                            ref="searchResultsContainerRef"
                             id="search-results-container"
                             class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3"
                         >
