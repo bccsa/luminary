@@ -21,6 +21,15 @@ export async function syncBatch(options: SyncOptions) {
     // that this is the first sync for this type and memberOf groups.
     const firstSync = chunk.blockEnd === 0;
 
+    // If the calculated range is inverted (blockStart < blockEnd), it means there are non-adjacent
+    // chunks with a tiny gap that can't be filled. This can happen when boundary documents don't
+    // overlap perfectly. Stop iteration to avoid infinite recursion.
+    if (chunk.blockStart < chunk.blockEnd) {
+        const mergeResult = merge(options);
+        mergeResult.eof = true;
+        return { ...mergeResult, firstSync };
+    }
+
     const mangoQuery = {
         selector: {
             type: options.type,
@@ -70,11 +79,22 @@ export async function syncBatch(options: SyncOptions) {
     if (res.warnings && Array.isArray(res.warnings))
         res.warnings.forEach((w: string) => console.warn("API warning received: ", w));
 
-    // Get the block start and end timestamps
+    // Get the block start and end timestamps.
+    // When no docs are returned, use the queried range boundaries so the chunk correctly
+    // represents the empty range that was checked, enabling proper merge with existing chunks.
     const fetchedDocs = res.docs as Array<BaseDocumentDto>;
-    const blockStart = fetchedDocs.length ? fetchedDocs[0].updatedTimeUtc : 0;
-    const blockEnd = fetchedDocs.length ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc : 0;
     const blockLength = fetchedDocs.length;
+    const blockStart = fetchedDocs.length ? fetchedDocs[0].updatedTimeUtc : chunk.blockStart;
+    let blockEnd = fetchedDocs.length
+        ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc
+        : chunk.blockEnd;
+
+    // When eof is reached (fewer docs than limit), extend blockEnd to cover the full
+    // queried range. This ensures the chunk represents the entire range that was verified
+    // to have no more data, which is critical for proper merging on sync resume.
+    if (blockLength < options.limit && blockLength > 0) {
+        blockEnd = Math.min(blockEnd, chunk.blockEnd);
+    }
 
     // Upsert to IndexedDB
     if (fetchedDocs.length) await db.bulkPut(fetchedDocs);

@@ -163,4 +163,14 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentMediaBucketId?: string; // Inherited from parent Post/Tag for media storage
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString({ each: true })
+    @Expose()
+    fts?: string[];
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsNumber()
+    @Expose()
+    ftsTokenCount?: number;
 }

@@ -108,10 +108,7 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
 
     // Fast path: bulkGet when $in targets the primary key.
     // Uses direct key lookups instead of cursor-based anyOf scan.
-    if (
-        analysis.push?.kind === "anyOf" &&
-        isPrimaryKeyField(table, analysis.push.field)
-    ) {
+    if (analysis.push?.kind === "anyOf" && isPrimaryKeyField(table, analysis.push.field)) {
         return executeBulkGet<T>(table, analysis, values, sort, limit);
     }
 
@@ -163,7 +160,7 @@ function buildFilteredCollection(
     analysis: AnalyzedTemplate,
     values: unknown[],
 ): Collection {
-    if (analysis.push) {
+    if (analysis.push && isPushdownValid(table, analysis.push, selector)) {
         // Apply the pushdown with actual values
         let col = applyTemplateWhere(table, analysis.push, values);
 
@@ -366,10 +363,7 @@ interface CollectedTemplatePushdownData {
     /** First $beginsWith found */
     startsWith: { field: string; prefixIdx: number } | null;
     /** Range bounds by field */
-    rangeMap: Record<
-        string,
-        { gteIdx?: number; lteIdx?: number; gtIdx?: number; ltIdx?: number }
-    >;
+    rangeMap: Record<string, { gteIdx?: number; lteIdx?: number; gtIdx?: number; ltIdx?: number }>;
     /** First $in found */
     anyOf: { field: string; valuesIdx: number } | null;
     /** First single comparator found */
@@ -504,14 +498,16 @@ function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown 
         }
     }
 
-    // Priority 1: multiEq - check without Object.keys() allocation
-    let hasEqFields = false;
+    // Priority 1: multiEq (compound index) - only when 2+ eq fields.
+    // A single eq field should not take priority over anyOf, which is typically
+    // more selective (e.g. $in on a foreign key vs eq on a status field).
+    let eqFieldCount = 0;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const _key in data.eqMap) {
-        hasEqFields = true;
-        break;
+        eqFieldCount++;
+        if (eqFieldCount > 1) break;
     }
-    if (hasEqFields) {
+    if (eqFieldCount >= 2 || (eqFieldCount === 1 && !data.anyOf)) {
         return { kind: "multiEq", fieldIndices: data.eqMap };
     }
 
@@ -549,14 +545,132 @@ function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown 
 }
 
 // ============================================================================
+// Pushdown Validation
+// ============================================================================
+
+/**
+ * Extract top-level field names from a Mango selector, flattening $and arrays.
+ * Used to suggest compound indexes covering all queried fields.
+ */
+function extractQueriedFields(selector: MangoSelector): string[] {
+    const fields: string[] = [];
+    const seen = new Set<string>();
+
+    const collect = (conditions: MangoSelector[]) => {
+        for (const cond of conditions) {
+            for (const key in cond) {
+                if (key === "$and") {
+                    collect(cond.$and!);
+                } else if (!COMBINATION_OPERATORS.has(key) && !seen.has(key)) {
+                    seen.add(key);
+                    fields.push(key);
+                }
+            }
+        }
+    };
+
+    collect([selector]);
+    return fields;
+}
+
+/**
+ * Check whether all fields referenced by a pushdown strategy are actually
+ * indexed on the target table. Returns false if any field is missing from
+ * the schema, which would cause Dexie to throw a SchemaError at query time.
+ */
+function isPushdownValid(
+    table: Table,
+    push: TemplatePushdown,
+    selector: MangoSelector,
+): boolean {
+    try {
+        const schema = table.schema;
+
+        // Collect single-field indexes
+        const singleIndexed = new Set<string>();
+        const pk = schema.primKey?.keyPath;
+        if (typeof pk === "string") singleIndexed.add(pk);
+
+        for (const idx of schema.indexes) {
+            if (typeof idx.keyPath === "string") {
+                singleIndexed.add(idx.keyPath);
+            }
+        }
+
+        // Collect compound indexes as sorted field sets for matching
+        const compoundIndexes: string[][] = [];
+        for (const idx of schema.indexes) {
+            if (Array.isArray(idx.keyPath)) {
+                compoundIndexes.push(idx.keyPath.slice().sort());
+            }
+        }
+
+        // Extract top-level queried fields from the selector for compound index suggestions
+        const queriedFields = extractQueriedFields(selector);
+        const compoundHint =
+            queriedFields.length > 1 ? `[${queriedFields.join("+")}]` : queriedFields[0] || "";
+
+        const warn = () => {
+            console.warn(
+                `[mangoToDexie] Missing index on table "${table.name}". ` +
+                    `Falling back to full table scan. Consider adding index: ${compoundHint}`,
+            );
+        };
+
+        if (push.kind === "multiEq") {
+            const fields = Object.keys(push.fieldIndices);
+
+            // Single field multiEq can use a single-field index
+            if (fields.length === 1) {
+                if (singleIndexed.has(fields[0])) return true;
+                warn();
+                return false;
+            }
+
+            // Check for a compound index covering exactly these fields (most efficient)
+            const sortedFields = fields.slice().sort();
+            const hasCompound = compoundIndexes.some(
+                (idx) =>
+                    idx.length === sortedFields.length &&
+                    idx.every((field, i) => field === sortedFields[i]),
+            );
+
+            if (hasCompound) return true;
+
+            // Dexie's where({...}) also works with single-field indexes — it picks the
+            // best index for one field and filters the rest in memory. Allow multiEq
+            // if at least one field has a single-field index.
+            const hasAnySingleIndex = fields.some((f) => singleIndexed.has(f));
+            if (hasAnySingleIndex) {
+                warn();
+                return true;
+            }
+
+            warn();
+            return false;
+        }
+
+        if (!singleIndexed.has(push.field)) {
+            warn();
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.warn(
+            `[mangoToDexie] Missing index on table "${table.name}". ` +
+                `Falling back to full table scan.`,
+            error,
+        );
+        return false;
+    }
+}
+
+// ============================================================================
 // Where Application with Values
 // ============================================================================
 
-function applyTemplateWhere(
-    table: Table,
-    push: TemplatePushdown,
-    values: unknown[],
-): Collection {
+function applyTemplateWhere(table: Table, push: TemplatePushdown, values: unknown[]): Collection {
     if (push.kind === "multiEq") {
         // Build the where object from field indices and actual values
         const whereObj: Record<string, unknown> = {};
@@ -619,10 +733,7 @@ interface DexieWhereClause {
 /**
  * Build residual template from conditions, removing the pushed parts.
  */
-function buildResidualTemplate(
-    conditions: MangoSelector[],
-    push: TemplatePushdown,
-): MangoSelector {
+function buildResidualTemplate(conditions: MangoSelector[], push: TemplatePushdown): MangoSelector {
     const residualConditions: MangoSelector[] = [];
 
     for (let i = 0; i < conditions.length; i++) {
@@ -655,10 +766,7 @@ function buildResidualTemplate(
 /**
  * Clean a single condition by removing pushed parts.
  */
-function cleanTemplateCondition(
-    cond: MangoSelector,
-    push: TemplatePushdown,
-): MangoSelector | null {
+function cleanTemplateCondition(cond: MangoSelector, push: TemplatePushdown): MangoSelector | null {
     let field: string | null = null;
     let keyCount = 0;
     for (const k in cond) {

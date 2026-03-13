@@ -1,6 +1,28 @@
 // Leaving link in file for reference to Playwright documentation
 // https://playwright.dev/docs/intro
-import { test, expect } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
+
+// Extend the default test fixture to capture API indexing warnings.
+// CouchDB returns warnings when queries don't use a valid index; these are
+// logged by syncBatch.ts as console.warn("API warning received: ", ...).
+const test = base.extend({
+    page: async ({ page }, use) => {
+        const apiWarnings: string[] = [];
+        page.on("console", (msg) => {
+            if (msg.type() === "warning" && msg.text().includes("API warning received:")) {
+                apiWarnings.push(msg.text());
+            }
+        });
+
+        await use(page);
+
+        if (apiWarnings.length > 0) {
+            throw new Error(
+                `API indexing warning(s) detected during E2E test — queries should use valid indexes:\n  ${apiWarnings.join("\n  ")}`,
+            );
+        }
+    },
+});
 
 test.describe("CMS E2E Tests", () => {
     test("should load the CMS application", async ({ page }) => {

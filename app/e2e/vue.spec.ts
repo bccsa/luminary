@@ -33,8 +33,28 @@ const test = base.extend({
             headless: true, // Respect the headless setting from playwright.config.ts
             locale: "en",
         });
+
+        // Capture API indexing warnings from all pages created in this context.
+        // CouchDB returns warnings when queries don't use a valid index; these are
+        // logged by syncBatch.ts as console.warn("API warning received: ", ...).
+        const apiWarnings: string[] = [];
+        context.on("page", (page) => {
+            page.on("console", (msg) => {
+                if (msg.type() === "warning" && msg.text().includes("API warning received:")) {
+                    apiWarnings.push(msg.text());
+                }
+            });
+        });
+
         await use(context);
+
         await context.close();
+
+        if (apiWarnings.length > 0) {
+            throw new Error(
+                `API indexing warning(s) detected during E2E test — queries should use valid indexes:\n  ${apiWarnings.join("\n  ")}`,
+            );
+        }
     },
 });
 

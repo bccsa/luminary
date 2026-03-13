@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mangoToDexie, clearDexieCache, getDexieCacheStats } from "./mangoToDexie";
 import { mangoCompile, clearMangoCache, getMangoCacheStats } from "./mangoCompile";
 import { clearAllMangoCache, getCacheStats } from "./queryCache";
@@ -116,9 +116,17 @@ class FakeTable<T extends Record<string, any>> {
     public lastClauseOp?: string;
     public lastBetweenArgs?: { lower: any; upper: any; includeLower: boolean; includeUpper: boolean };
     public lastBulkGetKeys?: any[];
-    public schema: { primKey: { keyPath: string } };
+    public schema: { primKey: { keyPath: string }; indexes: Array<{ keyPath: string | string[] }> };
     constructor(public data: T[], primaryKey = "id") {
-        this.schema = { primKey: { keyPath: primaryKey } };
+        // Collect all unique field names from data to simulate "all fields indexed"
+        const fieldSet = new Set<string>();
+        for (const row of data) {
+            for (const key in row) fieldSet.add(key);
+        }
+        this.schema = {
+            primKey: { keyPath: primaryKey },
+            indexes: Array.from(fieldSet).map((k) => ({ keyPath: k })),
+        };
     }
 
     orderBy(field: string) {
@@ -176,6 +184,8 @@ describe("mangoToDexie", () => {
                 { id: 4, a: 2, b: "x", c: 3, active: true },
             ];
             const table = new FakeTable(docs);
+            // Add compound index for the multiEq pushdown on [a, b, c]
+            table.schema.indexes.push({ keyPath: ["a", "b", "c"] });
             const query = { selector: { a: 1, b: "x", $and: [{ c: 3 }, { active: true }] } };
             const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
 
@@ -873,6 +883,8 @@ describe("mangoToDexie", () => {
         it("caches different queries separately", () => {
             const docs: Doc[] = [{ id: 1, a: 1, b: 2 }];
             const table = new FakeTable(docs);
+            // Add compound index for the multiEq pushdown on [a, b]
+            table.schema.indexes.push({ keyPath: ["a", "b"] });
 
             mangoToDexie(table as any, { selector: { a: 1 } } as any);
             mangoToDexie(table as any, { selector: { b: 2 } } as any);
@@ -883,7 +895,7 @@ describe("mangoToDexie", () => {
         });
 
         it("clearDexieCache removes all cached entries", () => {
-            const docs: Doc[] = [{ id: 1, a: 1 }];
+            const docs: Doc[] = [{ id: 1, a: 1, b: 1 }];
             const table = new FakeTable(docs);
 
             // With template-based caching, { a: 1 } and { a: 2 } share the same template
@@ -1011,6 +1023,165 @@ describe("mangoToDexie", () => {
             expect(getCacheStats().size).toBe(0);
             expect(getMangoCacheStats().size).toBe(0);
             expect(getDexieCacheStats().size).toBe(0);
+        });
+    });
+
+    // ============================================
+    // Index validation warnings
+    // ============================================
+
+    describe("index validation warnings", () => {
+        /**
+         * Helper: create a FakeTable with an explicit set of indexes
+         * instead of auto-indexing all fields from data.
+         */
+        function tableWithIndexes<T extends Record<string, any>>(
+            data: T[],
+            indexes: (string | string[])[],
+            primaryKey = "id",
+        ) {
+            const table = new FakeTable(data, primaryKey);
+            table.schema = {
+                primKey: { keyPath: primaryKey },
+                indexes: indexes.map((k) => ({ keyPath: k })),
+            };
+            return table;
+        }
+
+        beforeEach(() => {
+            clearDexieCache();
+        });
+
+        it("warns when a single equality field is not indexed", async () => {
+            const docs: Doc[] = [
+                { id: 1, status: 1, name: "Alice" },
+                { id: 2, status: 2, name: "Bob" },
+            ];
+            const table = tableWithIndexes(docs, ["name"]); // status is NOT indexed
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = (await mangoToDexie(table as any, {
+                selector: { status: 1 },
+            } as any)) as unknown as Doc[];
+
+            expect(res.map((d) => d.id)).toEqual([1]);
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Missing index"),
+            );
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Falling back to full table scan"),
+            );
+
+            warnSpy.mockRestore();
+        });
+
+        it("does not warn when the queried field is indexed", async () => {
+            const docs: Doc[] = [
+                { id: 1, name: "Alice" },
+                { id: 2, name: "Bob" },
+            ];
+            const table = tableWithIndexes(docs, ["name"]);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = (await mangoToDexie(table as any, {
+                selector: { name: "Alice" },
+            } as any)) as unknown as Doc[];
+
+            expect(res.map((d) => d.id)).toEqual([1]);
+            expect(warnSpy).not.toHaveBeenCalled();
+
+            warnSpy.mockRestore();
+        });
+
+        it("suggests a compound index when multiple fields are queried but not indexed together", async () => {
+            const docs: Doc[] = [
+                { id: 1, status: 1, type: "post", name: "Alice" },
+                { id: 2, status: 2, type: "page", name: "Bob" },
+            ];
+            // status and type indexed individually but no compound index
+            const table = tableWithIndexes(docs, ["status", "type"]);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = (await mangoToDexie(table as any, {
+                selector: { status: 1, type: "post" },
+            } as any)) as unknown as Doc[];
+
+            expect(res.map((d) => d.id)).toEqual([1]);
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Consider adding index"),
+            );
+
+            warnSpy.mockRestore();
+        });
+
+        it("does not warn when a matching compound index exists", async () => {
+            const docs: Doc[] = [
+                { id: 1, status: 1, type: "post" },
+                { id: 2, status: 2, type: "page" },
+            ];
+            const table = tableWithIndexes(docs, [["status", "type"]]);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = (await mangoToDexie(table as any, {
+                selector: { status: 1, type: "post" },
+            } as any)) as unknown as Doc[];
+
+            expect(res.map((d) => d.id)).toEqual([1]);
+            expect(warnSpy).not.toHaveBeenCalled();
+
+            warnSpy.mockRestore();
+        });
+
+        it("falls back to full table scan and still returns correct results", async () => {
+            const docs: Doc[] = [
+                { id: 1, status: 1, name: "Alice" },
+                { id: 2, status: 1, name: "Bob" },
+                { id: 3, status: 2, name: "Charlie" },
+            ];
+            const table = tableWithIndexes(docs, []); // no indexes at all
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = (await mangoToDexie(table as any, {
+                selector: { status: 1 },
+            } as any)) as unknown as Doc[];
+
+            expect(res.map((d) => d.id)).toEqual([1, 2]);
+            expect(warnSpy).toHaveBeenCalled();
+
+            warnSpy.mockRestore();
+        });
+
+        it("warning format matches vitest setup hook patterns", () => {
+            // Verify that the actual warning format produced by isPushdownValid
+            // matches the detection patterns used in vitest.setup.ts. If the
+            // warning format changes, this test will catch the mismatch.
+            const INDEXING_WARNING_PATTERNS = [
+                /\[mangoToDexie\].*Missing index/,
+                /\[mangoToDexie\].*Falling back to full table scan/,
+                /Performance warning:.*No compound index found/i,
+                /would benefit from a compound index/i,
+                /SchemaError.*not indexed/i,
+            ];
+
+            // mangoToDexie warning format
+            const mangoWarning =
+                '[mangoToDexie] Missing index on table "docs". ' +
+                "Falling back to full table scan. Consider adding index: [a+b]";
+            expect(INDEXING_WARNING_PATTERNS.some((p) => p.test(mangoWarning))).toBe(true);
+
+            // Dexie native compound index warning format
+            const dexieWarning =
+                "Performance warning: No compound index found for query criteria: " +
+                "firstName & lastName";
+            expect(INDEXING_WARNING_PATTERNS.some((p) => p.test(dexieWarning))).toBe(true);
+
+            // Dexie native "would benefit" warning format
+            const dexieBenefitWarning =
+                'The query {"type":"post","postType":"blog"} on docs ' +
+                "would benefit from a compound index [type+postType]";
+            expect(INDEXING_WARNING_PATTERNS.some((p) => p.test(dexieBenefitWarning))).toBe(
+                true,
+            );
         });
     });
 });

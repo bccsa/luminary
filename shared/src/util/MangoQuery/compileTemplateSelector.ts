@@ -621,9 +621,11 @@ export function compileTemplateSelector(template: MangoSelector): ParameterizedP
         return () => false;
     }
 
-    // Check for empty template without Object.keys() allocation
+    // Check for empty template. Uses for...in with break instead of
+    // Object.keys().length to avoid array allocation on this hot path.
     let hasKeys = false;
-    for (const _ in template) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const _key in template) {
         hasKeys = true;
         break;
     }

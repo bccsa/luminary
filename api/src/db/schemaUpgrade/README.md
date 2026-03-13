@@ -122,11 +122,9 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 10 (as of 2026-02-06)
+**Current Schema Version**: 13 (as of 2026-03-09)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
-
-All production databases are expected to be at version 9 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
 ## Testing Considerations
 
@@ -150,3 +148,9 @@ Historical schema upgrades that migrated data from the initial schema to version
 -   Various field additions and type changes
 
 These upgrades were removed after confirming all production databases were at version 9 or higher.
+
+## Current Upgrades
+
+### v13 — FTS backfill (2026-03-09)
+
+Backfills pre-calculated FTS (full-text search) index data on all Content documents. Previously FTS indexing was done client-side; it is now computed server-side and delivered as `fts` and `ftsTokenCount` fields on ContentDto. See ADR 0009 for details.

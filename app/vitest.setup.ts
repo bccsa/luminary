@@ -1,7 +1,44 @@
 import "fake-indexeddb/auto";
 import { RouterLinkStub, config } from "@vue/test-utils";
-import { beforeAll, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { initConfig, initDatabase } from "luminary-shared";
+import { APP_DOCS_INDEX } from "./src/docsIndex";
+
+// ============================================================================
+// Indexing warning detection — fail tests that trigger missing index warnings
+// ============================================================================
+
+const INDEXING_WARNING_PATTERNS = [
+    /\[mangoToDexie\].*Missing index/,
+    /\[mangoToDexie\].*Falling back to full table scan/,
+    /Performance warning:.*No compound index found/i,
+    /would benefit from a compound index/i,
+    /SchemaError.*not indexed/i,
+];
+
+let interceptedWarnings: string[] = [];
+const originalWarn = console.warn;
+
+beforeEach(() => {
+    interceptedWarnings = [];
+    console.warn = (...args: unknown[]) => {
+        const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
+        if (INDEXING_WARNING_PATTERNS.some((p) => p.test(message))) {
+            interceptedWarnings.push(message);
+        }
+        originalWarn.apply(console, args);
+    };
+});
+
+afterEach(() => {
+    console.warn = originalWarn;
+    if (interceptedWarnings.length > 0) {
+        const messages = interceptedWarnings.join("\n  ");
+        throw new Error(
+            `Indexing warning(s) detected — queries should use indexed fields:\n  ${messages}`,
+        );
+    }
+});
 
 // Work around mangoToDexie bulkGet+residual path returning [] for complex selectors
 // (e.g. _id $in + mangoIsPublished). Use full in-memory filter so all tests get correct results.
@@ -54,8 +91,7 @@ window.matchMedia = vi.fn().mockImplementation((query) => {
 beforeAll(async () => {
     initConfig({
         cms: false,
-        docsIndex:
-            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentPinned], [type+parentPinned+parentTagType], [parentType+parentTagType], [type+status+parentTagType], [type+parentType]",
+        docsIndex: APP_DOCS_INDEX,
         apiUrl: "http://localhost:12345",
     });
 

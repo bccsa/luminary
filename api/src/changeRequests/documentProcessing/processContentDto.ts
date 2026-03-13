@@ -4,6 +4,7 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, PublishStatus, Uuid } from "../../enums";
+import { computeFtsData } from "../../util/ftsIndexing";
 
 /**
  * Process Content DTO
@@ -55,5 +56,12 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
     for (const t of translations) {
         t.availableTranslations = availableTranslations;
         await db.upsertDoc(t);
+    }
+
+    // Compute pre-calculated FTS index data for the content document
+    const ftsData = computeFtsData(doc);
+    if (ftsData) {
+        doc.fts = ftsData.fts;
+        doc.ftsTokenCount = ftsData.ftsTokenCount;
     }
 }

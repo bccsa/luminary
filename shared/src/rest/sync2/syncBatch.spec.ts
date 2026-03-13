@@ -196,7 +196,9 @@ describe("syncBatch", () => {
         // After vertical merges only one chunk should remain (merged)
         expect(syncList.value.length).toBe(1);
         expect(syncList.value[0].blockStart).toBe(first[0].updatedTimeUtc);
-        expect(syncList.value[0].blockEnd).toBe(second[second.length - 1].updatedTimeUtc);
+        // blockEnd is extended to 0 (the queried lower bound) since eof was reached,
+        // indicating we've verified no more data exists in the full queried range
+        expect(syncList.value[0].blockEnd).toBe(0);
         expect(syncList.value[0].eof).toBe(true);
     });
 
@@ -241,7 +243,7 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response and sets blockStart/blockEnd to 0", async () => {
+    it("handles empty docs response using queried range boundaries", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         await syncBatch({
             type: DocType.Post,
@@ -250,8 +252,9 @@ describe("syncBatch", () => {
             initialSync: true,
             httpService: http as any,
         });
+        // Empty responses use queried boundaries so they merge correctly with existing chunks
         expect(syncList.value.length).toBe(1);
-        expect(syncList.value[0].blockStart).toBe(0);
+        expect(syncList.value[0].blockStart).toBe(Number.MAX_SAFE_INTEGER);
         expect(syncList.value[0].blockEnd).toBe(0);
     });
 
@@ -282,7 +285,8 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
         expect(result?.blockStart).toBe(docs[0].updatedTimeUtc);
-        expect(result?.blockEnd).toBe(docs[docs.length - 1].updatedTimeUtc);
+        // blockEnd extends to the queried lower bound (0) since eof was reached
+        expect(result?.blockEnd).toBe(0);
     });
 
     it("returns mergeResult after recursion with final eof state", async () => {
@@ -304,11 +308,10 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         // First call: eof: false since first batch is full (5 docs = limit)
         // Recursive call returns the final merged result with eof: true
-        // Now the return value is from the recursive call which has eof: true (after merging)
         expect(result?.eof).toBe(true);
         expect(result?.blockStart).toBe(first[0].updatedTimeUtc);
-        // blockEnd is from the merged result (both batches merged)
-        expect(result?.blockEnd).toBe(second[second.length - 1].updatedTimeUtc);
+        // blockEnd is extended to 0 (the queried lower bound) since eof was reached
+        expect(result?.blockEnd).toBe(0);
     });
 
     it("updates blockStart and blockEnd from horizontal merge when eof=true", async () => {
@@ -341,13 +344,8 @@ describe("syncBatch", () => {
         expect(resultB?.blockStart).toBe(
             Math.max(docsA[0].updatedTimeUtc, docsB[0].updatedTimeUtc),
         );
-        // blockEnd should be min of both groups
-        expect(resultB?.blockEnd).toBe(
-            Math.min(
-                docsA[docsA.length - 1].updatedTimeUtc,
-                docsB[docsB.length - 1].updatedTimeUtc,
-            ),
-        );
+        // blockEnd extends to 0 (the queried lower bound) since both groups reached eof
+        expect(resultB?.blockEnd).toBe(0);
     });
 
     it("returns undefined when cancelSync is set before starting", async () => {
@@ -364,7 +362,7 @@ describe("syncBatch", () => {
         setCancelSync(false);
     });
 
-    it("returns mergeResult with blockStart=0 and blockEnd=0 for empty docs", async () => {
+    it("returns mergeResult with queried boundaries for empty docs", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         const result = await syncBatch({
             type: DocType.Post,
@@ -376,7 +374,8 @@ describe("syncBatch", () => {
 
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
-        expect(result?.blockStart).toBe(0);
+        // Empty responses use the queried range boundaries (MAX_SAFE_INTEGER for initialSync blockStart, 0 for blockEnd)
+        expect(result?.blockStart).toBe(Number.MAX_SAFE_INTEGER);
         expect(result?.blockEnd).toBe(0);
     });
 
@@ -396,7 +395,8 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
         expect(result?.blockStart).toBe(docs[0].updatedTimeUtc);
-        expect(result?.blockEnd).toBe(docs[docs.length - 1].updatedTimeUtc);
+        // blockEnd extends to the queried lower bound (0) since eof was reached
+        expect(result?.blockEnd).toBe(0);
     });
 
     it("returns firstSync=true when initialSync is true and no existing chunks", async () => {
@@ -468,5 +468,70 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         // When there's only one chunk in syncList for this type/memberOf, blockEnd becomes 0
         expect(result?.firstSync).toBe(true);
+    });
+
+    it("continues syncing older data after resume when catch-up returns few docs", async () => {
+        // Simulate interrupted sync: existing chunk covers 5000→3000, eof not reached
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        // Catch-up batch returns 2 new docs (eof=true since 2 < limit)
+        const catchUpDocs = makeDocs(2, 5500, 100); // 5500, 5400
+        // Continuation batch returns older docs starting at the boundary (3000) for proper overlap merge
+        const olderDocs = makeDocs(3, 3000, 500); // 3000, 2500, 2000
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: catchUpDocs }))
+            .mockImplementationOnce(async () => ({ docs: olderDocs }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Should have made 2 API calls: catch-up + continuation for older data
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
+
+    it("continues syncing older data after resume when catch-up returns no docs", async () => {
+        // Simulate interrupted sync: existing chunk covers 5000→3000, eof not reached
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        // Catch-up returns no new docs (no updates since interruption)
+        // Continuation returns remaining older docs
+        const olderDocs = makeDocs(3, 3000, 500); // 3000, 2500, 2000
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: [] }))
+            .mockImplementationOnce(async () => ({ docs: olderDocs }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Should have made 2 API calls: empty catch-up + continuation for older data
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
     });
 });
