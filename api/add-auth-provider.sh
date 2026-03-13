@@ -247,14 +247,14 @@ if [ "$do_groups" = true ]; then
       exit 0
     fi
     now_ms=$(node -e "process.stdout.write(String(Date.now()))")
-  config_payload="{\"_id\":\"$existing_id\",\"_rev\":\"$existing_rev\",\"type\":\"globalConfig\",\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
+  config_payload="{\"_id\":\"$existing_id\",\"_rev\":\"$existing_rev\",\"type\":\"globalConfig\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
     config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$existing_id" \
       -H "Content-Type: application/json" \
       -d "$config_payload")
   else
     echo "No existing GlobalConfig document found. Creating a new one."
     now_ms=$(node -e "process.stdout.write(String(Date.now()))")
-    config_payload="{\"_id\":\"global-config\",\"type\":\"globalConfig\",\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
+    config_payload="{\"_id\":\"global-config\",\"type\":\"globalConfig\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
     config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/global-config" \
       -H "Content-Type: application/json" \
       -d "$config_payload")

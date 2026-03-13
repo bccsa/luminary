@@ -2,7 +2,11 @@ import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
 import * as jwksRsa from "jwks-rsa";
-import { AuthProviderCondition, AuthProviderDto, AuthProviderGroupMapping } from "../dto/AuthProviderDto";
+import {
+    AuthProviderCondition,
+    AuthProviderDto,
+    AuthProviderGroupMapping,
+} from "../dto/AuthProviderDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { DocType } from "../enums";
@@ -158,7 +162,7 @@ export class AuthIdentityService {
                 provider = providerRes.docs[0] as AuthProviderDto;
                 this.providerCache.set(providerId, {
                     data: provider,
-                    expiresAt: Date.now() + 5 * 60 * 1000,
+                    expiresAt: Date.now() + 60 * 60 * 1000,
                 });
             }
 
@@ -173,7 +177,9 @@ export class AuthIdentityService {
                 this.jwksClients.set(provider.domain, jwksClient);
             }
 
-            const decodedToken = this.jwtService.decode(token, { complete: true }) as { header?: { kid?: string } } | null;
+            const decodedToken = this.jwtService.decode(token, { complete: true }) as {
+                header?: { kid?: string };
+            } | null;
             if (!decodedToken?.header?.kid) {
                 this.logger.warn("Invalid token format or missing kid");
                 throw new UnauthorizedException();
@@ -189,7 +195,10 @@ export class AuthIdentityService {
                 algorithms: ["RS256"],
             });
 
-            const dynamicGroups = this.evaluateGroupAssignments(payload, provider.groupMappings ?? []);
+            const dynamicGroups = this.evaluateGroupAssignments(
+                payload,
+                provider.groupMappings ?? [],
+            );
 
             // ── Phase 3: Master user account linking ────────────────────────────────
             // Use configured claim paths, falling back to standard OIDC claim names
@@ -221,7 +230,10 @@ export class AuthIdentityService {
             if (primaryUser) {
                 // Fast path hit – fetch all sibling docs by email AND userId for group merging
                 // Using both keys ensures we find sibling docs even if email casing differs between sources
-                const siblings = await this.dbService.getUserByIdOrEmail(primaryUser.email, primaryUser.userId);
+                const siblings = await this.dbService.getUserByIdOrEmail(
+                    primaryUser.email,
+                    primaryUser.userId,
+                );
                 allUsers = siblings.docs as UserDto[];
             } else {
                 // Fallback – replicates main: finds ALL users by email OR legacy userId field
@@ -246,7 +258,11 @@ export class AuthIdentityService {
                             ...(primaryUser.identities ?? []),
                             { providerId, externalUserId },
                         ];
-                        primaryUser = { ...primaryUser, identities: updatedIdentities, lastLogin: Date.now() };
+                        primaryUser = {
+                            ...primaryUser,
+                            identities: updatedIdentities,
+                            lastLogin: Date.now(),
+                        };
                         await this.dbService.upsertDoc(primaryUser);
                         identityLinked = true;
                     }
@@ -263,10 +279,11 @@ export class AuthIdentityService {
                 await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
             }
 
-            // ── Final merge ─────────────────────────────────────────────────────────
-            // Merge memberOf from ALL sibling users (same email) to preserve multi-admin group assignments
+            // Merge memberOf from ALL sibling users (same email)
             const staticGroups = Array.from(new Set(allUsers.flatMap((u) => u.memberOf ?? [])));
-            const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]));
+            const mergedGroups = Array.from(
+                new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]),
+            );
             const accessMap = PermissionSystem.getAccessMap(mergedGroups);
 
             return {
@@ -279,20 +296,6 @@ export class AuthIdentityService {
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
-            if (error instanceof Error) {
-                if (error.name === "TokenExpiredError") {
-                    this.logger.warn(`JWT expired: ${error.message}`);
-                } else if (error.name === "JsonWebTokenError") {
-                    this.logger.warn(`JWT verification failed: ${error.message}`);
-                } else if (error.name === "JwksError" || error.message.toLowerCase().includes("jwks")) {
-                    this.logger.error(`JWKS public key retrieval failed: ${error.message}`);
-                } else {
-                    this.logger.error("Authentication failed", error.message);
-                }
-            } else {
-                this.logger.error("Authentication failed with unknown error", String(error));
-            }
-            throw new UnauthorizedException("Authentication failed");
         }
     }
 }

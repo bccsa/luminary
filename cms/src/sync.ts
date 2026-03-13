@@ -84,6 +84,20 @@ export function initLanguageSync() {
                 });
             }
 
+            // Sync global config
+            if (access[DocType.GlobalConfig] && access[DocType.GlobalConfig].length) {
+                sync({
+                    type: DocType.GlobalConfig,
+                    memberOf: access[DocType.GlobalConfig],
+                    limit: 1,
+                    cms: true,
+                    includeDeleteCmds: false,
+                }).catch((err) => {
+                    console.error("Error during global config sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
                 sync({
