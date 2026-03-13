@@ -10,7 +10,7 @@ import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db } from "luminary-shared";
-import type { ContentDto } from "luminary-shared";
+import type { ContentDto, FtsSearchResult } from "luminary-shared";
 
 const router = useRouter();
 
@@ -23,90 +23,273 @@ const inputRef = ref<HTMLInputElement | null>(null);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-const { results: ftsResults, isSearching } = useFtsSearch(searchQuery, {
-    languageId,
+// Cast refs to avoid cross-package Vue Ref type mismatch between app and shared
+const { results: ftsResults, isSearching } = useFtsSearch(searchQuery as any, {
+    languageId: languageId as any,
     debounceMs: 150,
     pageSize: 20,
 });
 
-// Resolved content docs keyed by docId
-const resolvedDocs = ref<Map<string, ContentDto>>(new Map());
+// --- Highlight helpers (ported from original search.ts) ---
 
-watch(ftsResults, async (newResults) => {
+const MARK_CLASS = "bg-yellow-200 dark:bg-yellow-800 rounded px-0";
+
+function extractPlainTextFromObject(obj: unknown): string {
+    if (typeof obj === "string") return obj;
+    if (!obj || typeof obj !== "object") return "";
+    const node = obj as Record<string, unknown>;
+    if (node.text && typeof node.text === "string") return node.text;
+    if (Array.isArray(node.content)) {
+        const texts = node.content.map((item) => extractPlainTextFromObject(item));
+        let result = texts.filter((t) => t).join(" ");
+        if (node.type === "paragraph" || node.type === "heading") result += "\n";
+        return result;
+    }
+    return "";
+}
+
+function extractPlainText(content: unknown): string {
+    if (!content) return "";
+    if (typeof content === "string") {
+        try {
+            return extractPlainTextFromObject(JSON.parse(content));
+        } catch {
+            return content;
+        }
+    }
+    return extractPlainTextFromObject(content);
+}
+
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+/**
+ * Highlight query terms in text — phrase match first, then word-boundary matches.
+ * Returns HTML-safe string for v-html.
+ */
+function applyTermHighlights(text: string, query: string): string {
+    if (!query?.trim()) return escapeHtml(text);
+    const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+    if (!queryTerms.length) return escapeHtml(text);
+
+    const textLower = text.toLowerCase();
+    const normalizedPhrase = queryTerms.join(" ");
+
+    // Try exact phrase match first
+    const phrasePos = textLower.indexOf(normalizedPhrase);
+    if (phrasePos !== -1) {
+        const before = text.substring(0, phrasePos);
+        const phrase = text.substring(phrasePos, phrasePos + normalizedPhrase.length);
+        const after = text.substring(phrasePos + normalizedPhrase.length);
+        return (
+            escapeHtml(before) +
+            `<mark class="${MARK_CLASS}">` +
+            escapeHtml(phrase) +
+            "</mark>" +
+            applyTermHighlights(after, query)
+        );
+    }
+
+    // Fall back to word-boundary matches for each term
+    const termsInText = queryTerms.filter((t) => textLower.includes(t));
+    if (!termsInText.length) return escapeHtml(text);
+
+    const pattern = termsInText.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const regex = new RegExp(`\\b(${pattern})\\b`, "gi");
+    let built = "";
+    let lastIndex = 0;
+    for (const m of text.matchAll(regex)) {
+        built +=
+            escapeHtml(text.slice(lastIndex, m.index)) +
+            `<mark class="${MARK_CLASS}">` +
+            escapeHtml(m[0]) +
+            "</mark>";
+        lastIndex = (m.index ?? 0) + m[0].length;
+    }
+    built += escapeHtml(text.slice(lastIndex));
+    return built;
+}
+
+/** Highlight query terms in a title string. Returns HTML safe for v-html. */
+function highlightQueryInText(text: string, query: string): string {
+    if (!text) return "";
+    return applyTermHighlights(text, query);
+}
+
+/**
+ * Count how many query terms appear in a text string.
+ */
+function countTermMatches(text: string, queryTerms: string[]): number {
+    const lower = text.toLowerCase();
+    return queryTerms.filter((t) => lower.includes(t)).length;
+}
+
+/**
+ * Find the position of the best match cluster in text:
+ * tries the full phrase first, then the earliest individual term.
+ */
+function findBestPosition(text: string, queryTerms: string[]): number {
+    const lower = text.toLowerCase();
+    // Try exact phrase first
+    const phrasePos = lower.indexOf(queryTerms.join(" "));
+    if (phrasePos !== -1) return phrasePos;
+    // Otherwise find the earliest individual term
+    let best = -1;
+    for (const term of queryTerms) {
+        const pos = lower.indexOf(term);
+        if (pos !== -1 && (best === -1 || pos < best)) best = pos;
+    }
+    return best;
+}
+
+/**
+ * Extract a highlighted snippet from a ContentDto.
+ *
+ * Picks the field that contains the most query term matches so that
+ * the snippet is always relevant — even when the match is in the body
+ * text and the doc also has a summary.
+ *
+ * Snippet length scales with query length so longer searches get more context.
+ */
+function createHighlight(doc: ContentDto, query: string): string | undefined {
+    if (!query?.trim()) return undefined;
+
+    const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+    if (!queryTerms.length) return undefined;
+
+    // Wider window for longer queries so the full phrase fits in the excerpt
+    const maxLength = Math.min(300, 150 + queryTerms.length * 15);
+
+    const candidates: { text: string; matches: number }[] = [
+        { text: extractPlainText(doc.summary), matches: 0 },
+        { text: extractPlainText(doc.text), matches: 0 },
+        { text: doc.author ?? "", matches: 0 },
+        { text: doc.title ?? "", matches: 0 },
+    ].map((c) => ({ ...c, matches: countTermMatches(c.text, queryTerms) }));
+
+    // Pick the field with the most term matches; fall back to first non-empty
+    const best =
+        candidates.find((c) => c.matches === Math.max(...candidates.map((x) => x.matches)) && c.matches > 0) ??
+        candidates.find((c) => c.text.length > 0);
+
+    if (!best?.text) return undefined;
+
+    const pos = findBestPosition(best.text, queryTerms);
+    const start = Math.max(0, (pos === -1 ? 0 : pos) - Math.floor(maxLength / 3));
+    let excerpt = best.text.substring(start, start + maxLength);
+    if (start > 0) excerpt = "..." + excerpt;
+    if (start + maxLength < best.text.length) excerpt += "...";
+
+    return applyTermHighlights(excerpt, query);
+}
+
+// --- Data resolution ---
+
+type EnrichedResult = ContentDto & {
+    highlight: string | undefined;
+    titleHighlight: string;
+    languageName: string;
+};
+
+const resolvedDocs = ref<Map<string, ContentDto>>(new Map());
+const languageNames = ref<Map<string, string>>(new Map());
+
+watch(
+    () => ftsResults.value as FtsSearchResult[],
+    async (newResults) => {
     if (!newResults.length) {
         resolvedDocs.value = new Map();
         return;
     }
     const docIds = newResults.map((r) => r.docId);
     const docs = await db.docs.where("_id").anyOf(docIds).toArray();
-    const map = new Map<string, ContentDto>();
-    for (const doc of docs) {
-        map.set(doc._id, doc as ContentDto);
-    }
-    resolvedDocs.value = map;
-});
 
-// Enriched results: only items where the doc was successfully resolved
-const results = computed(() =>
-    ftsResults.value
-        .map((r) => resolvedDocs.value.get(r.docId))
-        .filter((doc): doc is ContentDto => !!doc),
+    const docMap = new Map<string, ContentDto>();
+    const langIds = new Set<string>();
+    for (const doc of docs) {
+        docMap.set(doc._id, doc as ContentDto);
+        if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
+    }
+    resolvedDocs.value = docMap;
+
+    if (langIds.size) {
+        const langs = await db.docs.where("_id").anyOf([...langIds]).toArray();
+        const langMap = new Map<string, string>();
+        for (const lang of langs) {
+            const name = (lang as any).name;
+            if (name) langMap.set(lang._id, name);
+        }
+        languageNames.value = langMap;
+    }
+},
 );
+
+const results = computed<EnrichedResult[]>(() => {
+    const query = searchQuery.value;
+    return (ftsResults.value as FtsSearchResult[])
+        .map((r) => resolvedDocs.value.get(r.docId))
+        .filter((doc): doc is ContentDto => !!doc)
+        .map((doc) => ({
+            ...doc,
+            titleHighlight: highlightQueryInText(doc.title, query),
+            highlight: createHighlight(doc, query),
+            languageName: languageNames.value.get(doc.language) ?? "",
+        }));
+});
 
 const showResults = computed(() => results.value.length > 0 && !!searchQuery.value.trim());
 
-// Sync overlay open state
+// --- Overlay state ---
+
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
         searchQuery.value = "";
         selectedIndex.value = -1;
     } else {
-        nextTick(() => {
-            inputRef.value?.focus();
-        });
+        nextTick(() => inputRef.value?.focus());
     }
 });
 
-// Reset selection when results change
 watch(results, (newResults) => {
     selectedIndex.value = newResults.length > 0 ? 0 : -1;
 });
 
+// --- Keyboard handling ---
+
 const handleKeydown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
-        if (isOpen.value) {
-            closeSearch();
-        } else {
-            isSearchOpen.value = true;
-        }
+        isOpen.value ? closeSearch() : (isSearchOpen.value = true);
         return;
     }
-
     if (event.key === "Escape") {
         event.preventDefault();
         closeSearch();
         return;
     }
-
     if (showResults.value && results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
-            return;
-        }
-        if (event.key === "ArrowDown") {
+        } else if (event.key === "ArrowDown") {
             event.preventDefault();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
-            return;
-        }
-        if (event.key === "Enter") {
+        } else if (event.key === "Enter") {
             event.preventDefault();
-            if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
-                goToResult(results.value[selectedIndex.value]);
-            }
-            return;
+            if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
         }
     }
 };
@@ -121,19 +304,12 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
-            return;
-        }
-        if (event.key === "ArrowDown") {
+        } else if (event.key === "ArrowDown") {
             event.preventDefault();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
-            return;
-        }
-        if (event.key === "Enter") {
+        } else if (event.key === "Enter") {
             event.preventDefault();
-            if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
-                goToResult(results.value[selectedIndex.value]);
-            }
-            return;
+            if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
         }
     }
 };
@@ -143,8 +319,8 @@ const clearSearch = () => {
     inputRef.value?.focus();
 };
 
-const goToResult = (doc: ContentDto) => {
-    router.push({ name: "content", params: { slug: doc.slug } });
+const goToResult = (result: EnrichedResult) => {
+    router.push({ name: "content", params: { slug: result.slug } });
     searchQuery.value = "";
     closeSearch();
 };
@@ -153,26 +329,19 @@ let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
     handleGlobalKeydown = (event: KeyboardEvent) => {
-        if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-            if (!isOpen.value) {
-                event.preventDefault();
-                isSearchOpen.value = true;
-            }
-            return;
-        }
-        if (event.key === "Escape" && isOpen.value) {
+        if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
+            event.preventDefault();
+            isSearchOpen.value = true;
+        } else if (event.key === "Escape" && isOpen.value) {
             event.preventDefault();
             closeSearch();
-            return;
         }
     };
     document.addEventListener("keydown", handleGlobalKeydown);
 });
 
 onUnmounted(() => {
-    if (handleGlobalKeydown) {
-        document.removeEventListener("keydown", handleGlobalKeydown);
-    }
+    if (handleGlobalKeydown) document.removeEventListener("keydown", handleGlobalKeydown);
 });
 
 const overlayClasses = computed(() => "md:pt-24 pt-16");
@@ -210,7 +379,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     <div
                         class="flex items-center gap-3 border-b border-zinc-200 p-4 dark:border-slate-700 md:p-5"
                     >
-                        <MagnifyingGlassIcon class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6" />
+                        <MagnifyingGlassIcon
+                            class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
+                        />
                         <input
                             ref="inputRef"
                             v-model="searchQuery"
@@ -238,7 +409,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
 
                     <!-- Body -->
                     <div class="flex-1 overflow-y-auto">
-                        <!-- Loading -->
+                        <!-- Loading skeleton -->
                         <div v-if="isSearching" class="p-4 md:p-5">
                             <div class="space-y-3 md:space-y-4">
                                 <div v-for="i in 3" :key="i" class="flex gap-3 md:gap-4">
@@ -273,30 +444,31 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </p>
                         </div>
 
-                        <!-- Results -->
+                        <!-- Search Results -->
                         <div
                             v-else-if="showResults"
+                            id="search-results-container"
                             class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3"
                         >
                             <ul class="divide-y divide-zinc-200 dark:divide-slate-700">
                                 <li
-                                    v-for="(doc, index) in results"
-                                    :key="doc._id"
+                                    v-for="(result, index) in results"
+                                    :key="result._id"
                                     :id="`search-result-${index}`"
                                     class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
                                     :class="{
                                         'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
                                     }"
-                                    @click="goToResult(doc)"
+                                    @click="goToResult(result)"
                                     @mouseenter="selectedIndex = index"
                                 >
                                     <div class="flex min-w-0 gap-2 self-center md:gap-3">
                                         <!-- Thumbnail -->
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
-                                                :image="doc.parentImageData"
-                                                :content-parent-id="doc.parentId"
-                                                :parent-image-bucket-id="doc.parentImageBucketId"
+                                                :image="result.parentImageData"
+                                                :content-parent-id="result.parentId"
+                                                :parent-image-bucket-id="result.parentImageBucketId"
                                                 size="small"
                                                 aspect-ratio="video"
                                             />
@@ -310,19 +482,45 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                         index === selectedIndex,
                                                 }"
                                             >
-                                                {{ doc.title }}
+                                                <span
+                                                    v-if="result.titleHighlight"
+                                                    v-html="result.titleHighlight"
+                                                />
+                                                <template v-else>{{ result.title }}</template>
                                             </h3>
+                                            <!-- Snippet with highlights when available, else plain summary -->
                                             <p
-                                                v-if="doc.summary"
+                                                v-if="result.highlight"
+                                                class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
+                                                v-html="result.highlight"
+                                            ></p>
+                                            <p
+                                                v-else-if="result.summary"
                                                 class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
                                             >
-                                                {{ doc.summary }}
+                                                {{ result.summary }}
                                             </p>
+                                            <!-- Meta: author · language -->
                                             <div
-                                                v-if="doc.author"
+                                                v-if="result.author || result.languageName"
                                                 class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
                                             >
-                                                <span class="truncate">{{ doc.author }}</span>
+                                                <span
+                                                    v-if="result.author"
+                                                    class="truncate"
+                                                    >{{ result.author }}</span
+                                                >
+                                                <span
+                                                    v-if="result.author && result.languageName"
+                                                    class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
+                                                    aria-hidden="true"
+                                                    >·</span
+                                                >
+                                                <span
+                                                    v-if="result.languageName"
+                                                    class="flex-shrink-0 uppercase tracking-wide"
+                                                    >{{ result.languageName }}</span
+                                                >
                                             </div>
                                         </div>
                                         <!-- Arrow -->
@@ -366,7 +564,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </span>
                         </div>
                         <div v-if="showResults">
-                            <span>{{ results.length }} {{ results.length === 1 ? "result" : "results" }}</span>
+                            <span
+                                >{{ results.length }}
+                                {{ results.length === 1 ? "result" : "results" }}</span
+                            >
                         </div>
                     </div>
                 </div>
