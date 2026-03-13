@@ -8,6 +8,7 @@
     "translations": {
         "search.placeholder": "Rechercher...",
         "search.ariaLabel": "Rechercher",
+        "search.close": "Fermer la recherche",
         "search.initializing": "L'index de recherche est en cours d'initialisation...",
         "search.noIndex": "Aucun contenu indexé",
         "search.noResults": "Aucun résultat trouvé",
