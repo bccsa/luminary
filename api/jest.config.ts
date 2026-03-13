@@ -10,6 +10,7 @@ const config: Config = {
     moduleNameMapper: {
         "^src/(.*)$": "<rootDir>/$1",
     },
+    transformIgnorePatterns: ["/node_modules/(?!(jose|jwks-rsa)/)"],
     collectCoverageFrom: ["**/*.(t|j)s"],
     coveragePathIgnorePatterns: ["/db/schemaUpgrade/", "\\.d\\.ts$", "/test/"],
     coverageDirectory: "../coverage",

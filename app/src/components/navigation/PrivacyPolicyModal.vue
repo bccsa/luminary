@@ -19,17 +19,16 @@ const router = useRouter();
 const show = defineModel<boolean>("show");
 
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
-const privacyPolicy = useDexieLiveQuery(
-    () =>
-        mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
-                    ...mangoIsPublished(appLanguageIdsAsRef.value),
-                ],
-            },
-            $limit: 1,
-        }).then((docs) => docs[0] as ContentDto | undefined),
+const privacyPolicy = useDexieLiveQuery(() =>
+    mangoToDexie<ContentDto>(db.docs, {
+        selector: {
+            $and: [
+                { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
+                ...mangoIsPublished(appLanguageIdsAsRef.value),
+            ],
+        },
+        $limit: 1,
+    }).then((docs) => docs[0] as ContentDto | undefined),
 );
 
 // Logic for showing the "Necessary only" button

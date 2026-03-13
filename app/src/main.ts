@@ -3,7 +3,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import auth from "./auth";
+import { setupAuth, resolveProviderId, openProviderModal } from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
@@ -36,16 +36,19 @@ async function Startup() {
     // cold-start compilation latency for IndexedDB queries.
     warmMangoCaches();
 
-    const oauth = await auth.setupAuth(app, router);
-    const token = await auth.getToken(oauth);
-
     await init({
         cms: false,
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
-        token,
+        token: undefined,
         appLanguageIdsAsRef,
         syncList: [
+            {
+                type: DocType.AuthProvider,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
@@ -61,11 +64,13 @@ async function Startup() {
         Sentry?.captureException(err);
     });
 
-    // Redirect to login if the API authentication fails
-    getSocket().on("apiAuthFailed", async () => {
-        console.error("API authentication failed, redirecting to login");
-        Sentry?.captureMessage("API authentication failed, redirecting to login");
-        await auth.loginRedirect(oauth);
+    await setupAuth(app, router);
+    await resolveProviderId();
+
+    getSocket().on("apiAuthFailed", () => {
+        console.error("API authentication failed, opening provider selection");
+        Sentry?.captureMessage("API authentication failed, opening provider selection");
+        openProviderModal();
     });
 
     initLanguageSync();

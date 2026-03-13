@@ -1,0 +1,72 @@
+<script setup lang="ts">
+import LModal from "../modals/LModal.vue";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { showProviderSelectionModal, loginWithProvider } from "@/auth";
+import { db, DocType, mangoToDexie, useDexieLiveQuery, type AuthProviderDto } from "luminary-shared";
+import { computed } from "vue";
+
+const isVisible = defineModel<boolean>("isVisible");
+
+const allProviders = useDexieLiveQuery(
+    () => mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
+    { initialValue: [] as AuthProviderDto[] },
+);
+
+const providers = computed(() => allProviders.value ?? []);
+
+const handleProviderSelect = (provider: AuthProviderDto) => {
+    loginWithProvider(provider);
+};
+</script>
+
+<template>
+    <LModal heading="Sign in" v-model:isVisible="isVisible">
+        <div class="flex flex-col gap-3 py-2">
+            <button
+                v-for="provider in providers"
+                :key="provider._id"
+                class="group relative flex h-full w-full items-center justify-start overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 pl-12 hover:shadow-sm"
+                :style="
+                    provider.backgroundColor
+                        ? {
+                              backgroundColor: provider.backgroundColor,
+                              borderColor: provider.backgroundColor,
+                              color: provider.textColor,
+                          }
+                        : {}
+                "
+                @click="handleProviderSelect(provider)"
+            >
+                <div
+                    class="pointer-events-none absolute inset-0 bg-white opacity-0 group-hover:opacity-20"
+                ></div>
+                <div class="absolute left-4 flex shrink-0 items-center justify-center">
+                    <img
+                        v-if="provider.icon"
+                        :src="provider.icon"
+                        :alt="provider.label"
+                        class="h-5 w-5 object-contain"
+                        :style="{ opacity: provider.iconOpacity ?? 1 }"
+                    />
+                </div>
+                <span
+                    class="text-start text-[15px] font-medium text-zinc-700 group-hover:text-zinc-900"
+                    :style="provider.textColor ? { color: provider.textColor } : {}"
+                >
+                    Continue with {{ provider.label }}
+                </span>
+            </button>
+
+            <div
+                v-if="providers.length === 0"
+                class="flex flex-col items-center justify-center py-8 text-center"
+            >
+                <div class="mb-3 rounded-full bg-zinc-100 p-3">
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400" />
+                </div>
+                <p class="text-sm text-zinc-500">No sign-in methods available.</p>
+                <p class="mt-1 text-xs text-zinc-400">Please contact support for assistance.</p>
+            </div>
+        </div>
+    </LModal>
+</template>

@@ -6,37 +6,81 @@
         {
             "type": "post",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "translate", "publish"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "translate",
+                "publish"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign",
+                "translate",
+                "publish"
+            ]
         },
         {
             "type": "group",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign"
+            ]
         },
         {
             "type": "user",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit"]
+            "permission": [
+                "view",
+                "edit"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign",
+                "translate"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-super-admins",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-super-admins",
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign"
+            ]
         }
     ]
 }

@@ -30,15 +30,16 @@ if (import.meta.env.PROD) {
 }
 
 async function Startup() {
-    const oauth = await auth.setupAuth(app, router);
-    const token = isAuthBypassed ? "mock-token-for-e2e-testing" : await auth.getToken(oauth);
-
     await init({
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
-        token,
         syncList: [
+            {
+                type: DocType.AuthProvider,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
             {
                 type: DocType.Tag,
                 syncPriority: 2,
@@ -80,14 +81,18 @@ async function Startup() {
         Sentry.captureException(err);
     });
 
+    await auth.setupAuth(app, router);
+    await auth.resolveProviderId();
+
     const socket = getSocket();
 
-    // Redirect to login if the API authentication fails (skip in auth bypass mode)
+    // On auth failure: clear the stale cache and prompt the user to re-select a provider
     if (!isAuthBypassed) {
-        socket.on("apiAuthFailed", async () => {
-            console.error("API authentication failed, redirecting to login");
-            Sentry.captureMessage("API authentication failed, redirecting to login");
-            await auth.loginRedirect(oauth);
+        socket.on("apiAuthFailed", () => {
+            console.error("API authentication failed");
+            Sentry.captureMessage("API authentication failed");
+            auth.clearAuth0Cache();
+            auth.openProviderModal();
         });
     }
 

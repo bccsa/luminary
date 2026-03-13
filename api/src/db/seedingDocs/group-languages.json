@@ -6,42 +6,88 @@
         {
             "type": "language",
             "groupId": "group-public-content",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-public-content",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-private-content",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-private-content",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate"]
+            "permission": [
+                "view",
+                "translate"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate"]
+            "permission": [
+                "view",
+                "translate"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-private-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-content",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-private-content",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-editors",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-private-editors",
+            "permission": [
+                "view"
+            ]
         }
     ]
 }

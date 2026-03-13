@@ -14,10 +14,11 @@ import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
-import { JwtUserDetails, processJwt } from "./jwt/processJwt";
+import { JwtUserDetails } from "./jwt/processJwt";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { AuthIdentityService } from "./auth/authIdentity.service";
 
 /**
  * Data request from client type definition
@@ -92,24 +93,31 @@ export class Socketio implements OnGatewayInit {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
+        private authIdentityService: AuthIdentityService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
         // Handle authentication
         server.use(async (socket, next) => {
-            // Get automatically assigned group access
-            const userDetails = await processJwt(socket.handshake.auth.token, this.db, this.logger);
+            const token = socket.handshake.auth?.token as string | undefined;
+            const providerId = socket.handshake.auth?.providerId as string | undefined;
 
-            if (socket.handshake.auth.token && !userDetails.jwtPayload) {
-                // Assume that the user's token is expired.
-                // Prompt the user to re-authenticate when an invalid token is provided.
-                socket.emit("apiAuthFailed");
-                // Disconnect the client to prevent further communication.
-                socket.disconnect(true);
-                return;
+            if (token && providerId) {
+                try {
+                    const userDetails = await this.authIdentityService.resolveIdentity(token, providerId);
+                    socket.data.userDetails = userDetails;
+                } catch {
+                    socket.emit("apiAuthFailed");
+                    socket.disconnect(true);
+                    return;
+                }
+            } else {
+                const defaultGroups = await this.authIdentityService.getDefaultGroups();
+                socket.data.userDetails = {
+                    groups: defaultGroups,
+                    accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                } as JwtUserDetails;
             }
-
-            socket.data.userDetails = userDetails;
             next();
         });
 
