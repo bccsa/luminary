@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from "vue";
-import {
-    MagnifyingGlassIcon,
-    XMarkIcon,
-    ArrowRightIcon,
-} from "@heroicons/vue/24/outline";
+import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -25,7 +21,12 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
 // Cast refs to avoid cross-package Vue Ref type mismatch between app and shared
-const { results: ftsResults, isSearching, loadMore, hasMore } = useFtsSearch(searchQuery as any, {
+const {
+    results: ftsResults,
+    isSearching,
+    loadMore,
+    hasMore,
+} = useFtsSearch(searchQuery as any, {
     languageId: languageId as any,
     debounceMs: 150,
     pageSize: 20,
@@ -193,8 +194,9 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
 
     // Pick the field with the most term matches; fall back to first non-empty
     const best =
-        candidates.find((c) => c.matches === Math.max(...candidates.map((x) => x.matches)) && c.matches > 0) ??
-        candidates.find((c) => c.text.length > 0);
+        candidates.find(
+            (c) => c.matches === Math.max(...candidates.map((x) => x.matches)) && c.matches > 0,
+        ) ?? candidates.find((c) => c.text.length > 0);
 
     if (!best?.text) return undefined;
 
@@ -221,31 +223,34 @@ const languageNames = ref<Map<string, string>>(new Map());
 watch(
     () => ftsResults.value as FtsSearchResult[],
     async (newResults) => {
-    if (!newResults.length) {
-        resolvedDocs.value = new Map();
-        return;
-    }
-    const docIds = newResults.map((r) => r.docId);
-    const docs = await db.docs.where("_id").anyOf(docIds).toArray();
-
-    const docMap = new Map<string, ContentDto>();
-    const langIds = new Set<string>();
-    for (const doc of docs) {
-        docMap.set(doc._id, doc as ContentDto);
-        if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
-    }
-    resolvedDocs.value = docMap;
-
-    if (langIds.size) {
-        const langs = await db.docs.where("_id").anyOf([...langIds]).toArray();
-        const langMap = new Map<string, string>();
-        for (const lang of langs) {
-            const name = (lang as any).name;
-            if (name) langMap.set(lang._id, name);
+        if (!newResults.length) {
+            resolvedDocs.value = new Map();
+            return;
         }
-        languageNames.value = langMap;
-    }
-},
+        const docIds = newResults.map((r) => r.docId);
+        const docs = await db.docs.where("_id").anyOf(docIds).toArray();
+
+        const docMap = new Map<string, ContentDto>();
+        const langIds = new Set<string>();
+        for (const doc of docs) {
+            docMap.set(doc._id, doc as ContentDto);
+            if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
+        }
+        resolvedDocs.value = docMap;
+
+        if (langIds.size) {
+            const langs = await db.docs
+                .where("_id")
+                .anyOf([...langIds])
+                .toArray();
+            const langMap = new Map<string, string>();
+            for (const lang of langs) {
+                const name = (lang as any).name;
+                if (name) langMap.set(lang._id, name);
+            }
+            languageNames.value = langMap;
+        }
+    },
 );
 
 const results = computed<EnrichedResult[]>(() => {
@@ -382,15 +387,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         >
             <div
                 v-if="isOpen"
-                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900
-                       md:flex-row md:items-start md:justify-center md:bg-black/60 md:dark:bg-black/60 md:backdrop-blur-sm md:pt-24 md:px-4"
+                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
                 <!-- Search Modal: full-screen on mobile, centered panel on desktop -->
                 <div
-                    class="flex h-full w-full flex-col overflow-hidden
-                           md:h-auto md:max-h-[75vh] md:max-w-3xl
-                           md:rounded-xl md:shadow-2xl md:bg-white md:dark:bg-slate-900"
+                    class="flex h-full w-full flex-col overflow-hidden md:h-auto md:max-h-[75vh] md:max-w-3xl md:rounded-xl md:bg-white md:shadow-2xl md:dark:bg-slate-900"
                     tabindex="-1"
                     @keydown="handleKeydown"
                 >
@@ -440,9 +442,16 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     <!-- Body -->
                     <div class="flex-1 overflow-y-auto">
                         <!-- Loading skeleton -->
-                        <div v-if="isSearching" class="p-4 md:p-5">
+                        <div
+                            v-if="isSearching"
+                            class="p-4 md:p-5"
+                        >
                             <div class="space-y-3 md:space-y-4">
-                                <div v-for="i in 3" :key="i" class="flex gap-3 md:gap-4">
+                                <div
+                                    v-for="i in 3"
+                                    :key="i"
+                                    class="flex gap-3 md:gap-4"
+                                >
                                     <div
                                         class="h-12 w-16 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700 md:h-16 md:w-24"
                                     ></div>
