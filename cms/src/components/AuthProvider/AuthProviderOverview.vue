@@ -325,9 +325,9 @@ const saveProvider = async () => {
         </div>
 
         <div v-else-if="!providers.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No OAuth configured</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No auth provider configured</h3>
             <p class="mt-1 text-sm text-gray-500">
-                Get started by creating your first OAuth configuration.
+                Get started by creating your first OIDC auth provider.
             </p>
         </div>
 
@@ -366,7 +366,7 @@ const saveProvider = async () => {
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete Provider ${providerToDelete?.label}?`"
-        :description="`Are you sure you want to delete this OAuth provider? This action cannot be undone.`"
+        :description="`Are you sure you want to delete this auth provider? This action cannot be undone.`"
         :primaryAction="
             () => {
                 confirmDelete();

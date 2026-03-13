@@ -1,4 +1,4 @@
-import { DocType } from "../enums";
+import { DocType, Uuid } from "../enums";
 import { _baseDto } from "./_baseDto";
 
 import {
@@ -9,7 +9,6 @@ import {
     IsArray,
     IsObject,
     IsNumber,
-    IsBoolean,
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
 
@@ -29,7 +28,7 @@ export class AuthProviderCondition {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    type!: "always" | "authenticated" | "claimEquals" | "claimIn";
+    type!: "authenticated" | "claimEquals" | "claimIn";
 
     @IsOptional()
     @IsString()
@@ -68,7 +67,16 @@ export class AuthProviderDto extends _baseDto {
     }
 
     /**
-     * Auth0 Domain issuer (e.g. bccsa.eu.auth0.com)
+     * Group membership for sync and ACL (backfilled from groupMappings in schema v14).
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    public memberOf?: Uuid[];
+
+    /**
+     * OIDC issuer domain (e.g. auth.example.com)
      */
     @IsString()
     @IsNotEmpty()
@@ -76,7 +84,7 @@ export class AuthProviderDto extends _baseDto {
     public domain!: string;
 
     /**
-     * Auth0 Audience (e.g. https://api.bccsa.org)
+     * API audience / resource identifier (e.g. https://api.example.com)
      */
     @IsString()
     @IsNotEmpty()
@@ -84,7 +92,7 @@ export class AuthProviderDto extends _baseDto {
     public audience!: string;
 
     /**
-     * Auth0 Client ID
+     * OIDC client ID
      */
     @IsString()
     @IsNotEmpty()
@@ -111,16 +119,6 @@ export class AuthProviderDto extends _baseDto {
     public groupMappings!: AuthProviderGroupMapping[];
 
     /**
-     * Mapping rules to populate local user fields directly from JWT claims
-     */
-    @IsObject()
-    @IsOptional()
-    @Expose()
-    public userFieldMappings!: {
-        [userFieldName: string]: string; // Mapping standard internal fields to jwt payload paths
-    };
-
-    /**
      * Mapping rules for JWT claim fields to system concepts (e.g. "hasMembership" → "groups")
      */
     @IsArray()
@@ -129,6 +127,15 @@ export class AuthProviderDto extends _baseDto {
     @IsOptional()
     @Expose()
     public claimMappings!: AuthProviderClaimMapping[];
+
+    /**
+     * Override the standard OIDC claim paths used to identify a user.
+     * Defaults: externalUserId → "sub", email → "email", name → "name"
+     */
+    @IsObject()
+    @IsOptional()
+    @Expose()
+    public userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
 
     /** Display label shown in the login UI */
     @IsString()

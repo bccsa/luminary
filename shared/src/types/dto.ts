@@ -252,7 +252,7 @@ export type ApiQueryResult<T> = {
 
 /** Mirrors api/src/dto/AuthProviderDto.ts */
 export type AuthProviderCondition = {
-    type: "always" | "authenticated" | "claimEquals" | "claimIn";
+    type: "authenticated" | "claimEquals" | "claimIn";
     claimPath?: string;
     value?: string | string[];
     values?: string[];
@@ -275,8 +275,9 @@ export type AuthProviderDto = BaseDocumentDto & {
     clientId: string;
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
-    userFieldMappings?: Record<string, string>;
     claimMappings?: AuthProviderClaimMapping[];
+    /** Override standard OIDC claim paths (defaults: sub, email, name) */
+    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
     /** Optional display fields for login UI */
     label?: string;
     icon?: string;

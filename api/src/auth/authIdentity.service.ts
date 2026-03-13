@@ -75,7 +75,6 @@ export class AuthIdentityService {
 
     private evaluateCondition(jwtPayload: any, condition: AuthProviderCondition): boolean {
         switch (condition.type) {
-            case "always":
             case "authenticated":
                 return true;
 
@@ -193,13 +192,15 @@ export class AuthIdentityService {
             const dynamicGroups = this.evaluateGroupAssignments(payload, provider.groupMappings ?? []);
 
             // ── Phase 3: Master user account linking ────────────────────────────────
-            const externalUserIdPath = provider.userFieldMappings?.externalUserId ?? "sub";
-            const emailPath = provider.userFieldMappings?.email ?? "email";
-            const namePath = provider.userFieldMappings?.name ?? "name";
-
-            const externalUserId: string | undefined = this.extractClaimValue(payload, externalUserIdPath);
-            const email: string | undefined = this.extractClaimValue(payload, emailPath);
-            const name: string | undefined = this.extractClaimValue(payload, namePath) ?? email;
+            // Use configured claim paths, falling back to standard OIDC claim names
+            const externalUserId: string | undefined = this.extractClaimValue(
+                payload,
+                provider.userFieldMappings?.externalUserId ?? "sub",
+            );
+            const email: string | undefined = this.extractClaimValue(
+                payload,
+                provider.userFieldMappings?.email ?? "email",
+            );
 
             // Action 1: Fast path – lookup by externalUserId within identities[]
             let primaryUser: UserDto | null = null;

@@ -23,6 +23,7 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
+import { isConnected } from "../socket/socketio";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
@@ -900,8 +901,9 @@ export async function initDatabase() {
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
-        accessMap,
+        [accessMap, isConnected],
         () => {
+            if (!isConnected.value) return;
             db.deleteRevoked();
         },
         { immediate: true },
