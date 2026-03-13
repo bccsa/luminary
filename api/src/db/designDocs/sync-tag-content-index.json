@@ -5,7 +5,6 @@
         "sync-tag-content-index": {
             "map": {
                 "fields": {
-                    "language": "asc",
                     "updatedTimeUtc": "desc"
                 },
                 "partial_filter_selector": {
@@ -20,7 +19,7 @@
             "reduce": "_count",
             "options": {
                 "def": {
-                    "fields": ["language", "updatedTimeUtc"]
+                    "fields": ["updatedTimeUtc"]
                 }
             }
         }

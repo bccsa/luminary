@@ -70,6 +70,34 @@ export function initLanguageSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
+            // Sync auth providers
+            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
+                sync({
+                    type: DocType.AuthProvider,
+                    memberOf: access[DocType.AuthProvider],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during auth provider sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
+            // Sync global config
+            if (access[DocType.GlobalConfig] && access[DocType.GlobalConfig].length) {
+                sync({
+                    type: DocType.GlobalConfig,
+                    memberOf: access[DocType.GlobalConfig],
+                    limit: 1,
+                    cms: true,
+                    includeDeleteCmds: false,
+                }).catch((err) => {
+                    console.error("Error during global config sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
                 sync({
@@ -191,6 +219,7 @@ export function initSync() {
                 });
             }
         },
+        { immediate: true },
     );
 }
 

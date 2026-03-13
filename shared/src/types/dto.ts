@@ -66,11 +66,19 @@ export type LanguageDto = ContentBaseDto & {
     translations: Record<string, string>;
 };
 
+export type UserIdentityDto = {
+    providerId: string;
+    externalUserId: string;
+};
+
 export type UserDto = ContentBaseDto & {
     type: DocType.User;
     email: string;
     name: string;
     lastLogin?: number;
+    /** @deprecated Use identities[] instead */
+    userId?: string;
+    identities?: UserIdentityDto[];
 };
 
 export type ContentDto = ContentBaseDto & {
@@ -237,4 +245,48 @@ export type ApiQueryResult<T> = {
     group?: string;
     type?: DocType;
     contentOnly?: boolean;
+};
+
+export type GlobalConfigDto = BaseDocumentDto & {
+    type: DocType.GlobalConfig;
+    memberOf: Uuid[];
+    defaultGroups: Uuid[];
+};
+
+/** Mirrors api/src/dto/AuthProviderDto.ts */
+export type AuthProviderCondition = {
+    type: "authenticated" | "claimEquals" | "claimIn";
+    claimPath?: string;
+    value?: string | string[];
+    values?: string[];
+};
+
+export type AuthProviderGroupMapping = {
+    groupId: string;
+    conditions: AuthProviderCondition[];
+};
+
+export type AuthProviderClaimMapping = {
+    claim: string;   // JWT claim path
+    target: string;  // system concept (e.g. "groups")
+};
+
+export type AuthProviderDto = BaseDocumentDto & {
+    type: DocType.AuthProvider;
+    domain: string;
+    audience: string;
+    clientId: string;
+    claimNamespace?: string;
+    groupMappings?: AuthProviderGroupMapping[];
+    claimMappings?: AuthProviderClaimMapping[];
+    /** Override standard OIDC claim paths (defaults: sub, email, name) */
+    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
+    /** Optional display fields for login UI */
+    label?: string;
+    icon?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    iconOpacity?: number;
+    imageBucketId?: Uuid;
+    imageData?: ImageDto;
 };

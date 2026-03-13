@@ -93,6 +93,13 @@ export class QueryService {
                 permissionCheckTypes.push(type as DocType);
         }
 
+        // AuthProvider docs must be readable without authentication so the login modal can populate.
+        // They only contain public OAuth metadata (domain, clientId, audience) and are safe to expose.
+        if (type === DocType.AuthProvider) {
+            delete query.cms;
+            return this.db.executeFindQuery(query);
+        }
+
         // Get user accessible groups
         const userDetails = await processJwt(authToken, this.db, this.logger);
 

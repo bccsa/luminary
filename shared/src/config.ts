@@ -46,3 +46,9 @@ export function initConfig(newConfig: SharedConfig) {
 
     config = newConfig;
 }
+
+export function setTokenConfig(token: string) {
+    if (config) {
+        config.token = token;
+    }
+}

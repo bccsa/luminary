@@ -2,6 +2,8 @@
 import LButton from "../button/LButton.vue";
 import LModal from "../modals/LModal.vue";
 
+defineEmits<{ close: [] }>();
+
 type Props = {
     title: string;
     description?: string;

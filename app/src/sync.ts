@@ -2,6 +2,7 @@ import { ref, watch } from "vue";
 import {
     accessMap,
     AclPermission,
+    db,
     DocType,
     getAccessibleGroups,
     isConnected,
@@ -65,6 +66,28 @@ export function initLanguageSync() {
             setCancelSync(false);
 
             const access = getAccessibleGroups(AclPermission.View);
+
+            // Sync auth providers
+            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
+                sync({
+                    type: DocType.AuthProvider,
+                    memberOf: access[DocType.AuthProvider],
+                    limit: 100,
+                    cms: false,
+                })
+                    .then(async () => {
+                        console.log("Auth provider sync completed");
+                        const count = await db.docs
+                            .where("type")
+                            .equals(DocType.AuthProvider)
+                            .count();
+                        console.log("AuthProvider docs in DB after sync:", count);
+                    })
+                    .catch((err) => {
+                        console.error("Error during auth provider sync:", err);
+                        Sentry?.captureException(err);
+                    });
+            }
 
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {

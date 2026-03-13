@@ -1,26 +1,25 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
+import { AuthIdentityService } from "./authIdentity.service";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService) {}
+    private readonly logger = new Logger(AuthGuard.name);
+
+    constructor(private authIdentityService: AuthIdentityService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest<FastifyRequest>();
         const token = this.extractTokenFromHeader(request);
-        if (!token) {
-            throw new UnauthorizedException();
-        }
-        try {
-            const payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_SECRET,
-            });
+        const providerId = request.headers["x-auth-provider-id"] as string;
 
-            (request as any)["user"] = payload;
-        } catch {
+        if (!token || !providerId) {
+            if (!providerId) this.logger.warn("Missing x-auth-provider-id header");
             throw new UnauthorizedException();
         }
+
+        const userDetails = await this.authIdentityService.resolveIdentity(token, providerId);
+        (request as any)["user"] = userDetails;
         return true;
     }
 
