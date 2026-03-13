@@ -24,6 +24,7 @@ export default async function (db: DbService) {
                 if (ftsData) {
                     doc.fts = ftsData.fts;
                     doc.ftsTokenCount = ftsData.ftsTokenCount;
+                    doc.updatedTimeUtc = new Date().getTime();
                     // Use insertDoc to preserve the existing updatedTimeUtc
                     await db.insertDoc(doc);
                     indexedCount++;
