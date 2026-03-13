@@ -85,6 +85,7 @@ async function Startup() {
     await auth.resolveProviderId();
 
     const socket = getSocket();
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // On auth failure: clear the stale cache and prompt the user to re-select a provider
     if (!isAuthBypassed) {

@@ -65,6 +65,7 @@ async function Startup() {
     });
 
     await setupAuth(app, router);
+    getSocket().connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
     await resolveProviderId();
 
     getSocket().on("apiAuthFailed", () => {

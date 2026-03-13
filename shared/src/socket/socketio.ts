@@ -43,7 +43,9 @@ class SocketIO {
 
         this.socket = io(
             config.apiUrl,
-            token ? { auth: { token, providerId: getActiveProviderId() } } : undefined,
+            token
+                ? { auth: { token, providerId: getActiveProviderId() } }
+                : { autoConnect: false },
         );
 
         this.socket.on("connect", () => {
@@ -133,6 +135,13 @@ class SocketIO {
      */
     public setToken(token: string) {
         this.socket.auth = { token, providerId: getActiveProviderId() };
+    }
+
+    /**
+     * Connect to the socket server (no-op if already connected)
+     */
+    public connect() {
+        this.socket.connect();
     }
 
     /**
