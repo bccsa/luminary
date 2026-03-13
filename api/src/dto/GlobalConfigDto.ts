@@ -20,7 +20,7 @@ export class GlobalConfigDto extends _baseDto {
     public memberOf!: Uuid[];
 
     /**
-     * Group IDs automatically assigned to all users at login.
+     * Group IDs automatically assigned to all users unauthenticated or authenticated.
      */
     @IsArray()
     @IsString({ each: true })

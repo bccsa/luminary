@@ -86,7 +86,7 @@ const navigation = computed(() => [
         name: "Auth Providers",
         to: { name: "auth-providers" },
         icon: KeyIcon,
-        visible: hasAnyPermission(DocType.AuthProvider, AclPermission.View),
+        visible: hasAnyPermission(DocType.AuthProvider, AclPermission.Edit),
     },
 ]);
 

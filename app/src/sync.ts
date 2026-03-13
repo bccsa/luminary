@@ -75,16 +75,7 @@ export function initLanguageSync() {
                     limit: 100,
                     cms: false,
                 })
-                    .then(async () => {
-                        console.log("Auth provider sync completed");
-                        const count = await db.docs
-                            .where("type")
-                            .equals(DocType.AuthProvider)
-                            .count();
-                        console.log("AuthProvider docs in DB after sync:", count);
-                    })
                     .catch((err) => {
-                        console.error("Error during auth provider sync:", err);
                         Sentry?.captureException(err);
                     });
             }

@@ -107,9 +107,11 @@ export class Socketio implements OnGatewayInit {
                     const userDetails = await this.authIdentityService.resolveIdentity(token, providerId);
                     socket.data.userDetails = userDetails;
                 } catch {
-                    socket.emit("apiAuthFailed");
-                    socket.disconnect(true);
-                    return;
+                    const defaultGroups = await this.authIdentityService.getDefaultGroups();
+                    socket.data.userDetails = {
+                        groups: defaultGroups,
+                        accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                    } as JwtUserDetails;
                 }
             } else {
                 const defaultGroups = await this.authIdentityService.getDefaultGroups();

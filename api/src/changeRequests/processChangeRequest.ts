@@ -58,6 +58,8 @@ export async function processChangeRequest(
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
         [DocType.GlobalConfig]: () => processGlobalConfigDto(doc as GlobalConfigDto),
+        // AuthProvider documents require no post-processing; cache TTL in AuthIdentityService handles staleness
+        [DocType.AuthProvider]: () => Promise.resolve(),
     };
 
     if (docProcessMap[doc.type]) {
