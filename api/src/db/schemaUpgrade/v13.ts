@@ -11,8 +11,10 @@ import { computeFtsData } from "../../util/ftsIndexing";
 export default async function (db: DbService) {
     try {
         const schemaVersion = await db.getSchemaVersion();
-        if (schemaVersion === 12) {
-            console.info("Upgrading database schema from version 12 to 13");
+        if (schemaVersion !== 12) {
+            console.info(`Skipping schema upgrade v13: current version is ${schemaVersion}, expected 12`);
+            return;
+        }
 
             let indexedCount = 0;
             let skippedCount = 0;

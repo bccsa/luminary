@@ -95,6 +95,14 @@
                 "delete",
                 "assign"
             ]
+        },
+        {
+            "type": "globalConfig",
+            "groupId": "group-super-admins",
+            "permission": [
+                "view",
+                "edit"
+            ]
         }
     ]
 }

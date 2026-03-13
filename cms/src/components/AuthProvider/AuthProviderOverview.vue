@@ -7,6 +7,7 @@ import {
     db,
     DocType,
     type AuthProviderDto,
+    type GlobalConfigDto,
     useDexieLiveQuery,
     type GroupDto,
     AclPermission,
@@ -15,10 +16,11 @@ import {
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 import LButton from "@/components/button/LButton.vue";
+import LCombobox, { type ComboboxOption } from "@/components/forms/LCombobox.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import _ from "lodash";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
 import { isSmallScreen } from "@/globalConfig";
 
 // Reactive database queries
@@ -47,6 +49,95 @@ const providers = useDexieLiveQuery(
 // Delete permission check
 const canDelete = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Delete));
 const canEdit = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Edit));
+
+// GlobalConfig — default groups
+const globalConfig = useDexieLiveQuery(
+    () =>
+        db.docs.where({ type: DocType.GlobalConfig }).first() as unknown as Promise<
+            GlobalConfigDto | undefined
+        >,
+    { initialValue: undefined as GlobalConfigDto | undefined },
+);
+const canEditGlobalConfig = computed(() =>
+    hasAnyPermission(DocType.GlobalConfig, AclPermission.Edit),
+);
+const editableDefaultGroups = ref<string[]>([]);
+watch(
+    globalConfig,
+    (cfg) => {
+        if (cfg) editableDefaultGroups.value = [...(cfg.defaultGroups ?? [])];
+    },
+    { immediate: true },
+);
+const isDefaultGroupsDirty = computed(
+    () =>
+        !_.isEqual(
+            [...editableDefaultGroups.value].sort(),
+            [...(globalConfig.value?.defaultGroups ?? [])].sort(),
+        ),
+);
+
+const defaultGroupOptions = computed<ComboboxOption[]>(() =>
+    groups.value
+        .filter(
+            (g) =>
+                verifyAccess([g._id], DocType.Group, AclPermission.Edit) &&
+                verifyAccess([g._id], DocType.Group, AclPermission.Assign),
+        )
+        .map((g) => ({ id: g._id, label: g.name, value: g._id })),
+);
+
+const defaultGroupSelectedLabels = computed<ComboboxOption[]>(() =>
+    editableDefaultGroups.value.map((groupId) => {
+        const group = groups.value.find((g) => g._id === groupId);
+        const canAssign =
+            !!group &&
+            verifyAccess([group._id], DocType.Group, AclPermission.Assign) &&
+            verifyAccess([group._id], DocType.Group, AclPermission.Edit);
+        return {
+            id: groupId,
+            label: group?.name ?? groupId,
+            value: groupId,
+            isVisible: !!group,
+            isRemovable: canAssign,
+        };
+    }),
+);
+const showDefaultGroupsDialog = ref(false);
+const isSavingDefaultGroups = ref(false);
+
+function openDefaultGroupsDialog() {
+    // Reset editable copy to current saved state
+    editableDefaultGroups.value = [...(globalConfig.value?.defaultGroups ?? [])];
+    showDefaultGroupsDialog.value = true;
+}
+
+async function saveDefaultGroups() {
+    if (!globalConfig.value) return;
+    isSavingDefaultGroups.value = true;
+    try {
+        const doc = {
+            ...toRaw(globalConfig.value),
+            defaultGroups: [...editableDefaultGroups.value],
+            updatedTimeUtc: Date.now(),
+        };
+        await db.upsert({ doc });
+        showDefaultGroupsDialog.value = false;
+        notification.addNotification({
+            title: "Default groups saved",
+            description: "The default groups have been successfully updated.",
+            state: "success",
+        });
+    } catch (err) {
+        notification.addNotification({
+            title: "Failed to save default groups",
+            description: err instanceof Error ? err.message : "An unknown error occurred",
+            state: "error",
+        });
+    } finally {
+        isSavingDefaultGroups.value = false;
+    }
+}
 
 const isLoading = ref(false);
 const errors = ref<string[] | undefined>(undefined);
@@ -315,13 +406,24 @@ const saveProvider = async () => {
 </script>
 
 <template>
-    <BasePage
-        :is-full-width="true"
-        title="Auth providers overview"
-        :should-show-page-title="false"
-    >
+    <BasePage :is-full-width="true" title="Auth providers overview" :should-show-page-title="false">
         <template #pageNav>
-            <div>
+            <div class="flex items-center gap-2">
+                <GlobeAltIcon
+                    v-if="canEditGlobalConfig && globalConfig && isSmallScreen"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                    data-test="global-group-access"
+                    @click="openDefaultGroupsDialog"
+                />
+                <LButton
+                    v-if="canEditGlobalConfig && globalConfig && !isSmallScreen"
+                    variant="secondary"
+                    :icon="GlobeAltIcon"
+                    data-test="global-group-access"
+                    @click="openDefaultGroupsDialog"
+                >
+                    Global User Access
+                </LButton>
                 <LButton
                     v-if="canEdit && !isSmallScreen"
                     variant="primary"
@@ -348,9 +450,7 @@ const saveProvider = async () => {
             </div>
 
             <div v-else-if="!providers.length" class="px-6 py-8 text-center">
-                <h3 class="mt-2 text-sm font-medium text-gray-900">
-                    No auth provider configured
-                </h3>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No auth provider configured</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Get started by creating your first OIDC auth provider.
                 </p>
@@ -384,6 +484,29 @@ const saveProvider = async () => {
         @delete="deleteProvider"
     />
 
+    <LDialog
+        v-model:open="showDefaultGroupsDialog"
+        title="Global User Access"
+        primaryButtonText="Save"
+        secondaryButtonText="Cancel"
+        :primaryAction="saveDefaultGroups"
+        :secondaryAction="() => (showDefaultGroupsDialog = false)"
+        :primaryButtonDisabled="!isDefaultGroupsDirty || isSavingDefaultGroups"
+        data-test="default-groups-dialog"
+    >
+        <p class="text-sm text-gray-500">
+            Unauthenticated and authenticated users has access to these groups.
+        </p>
+        <div class="mt-4">
+            <LCombobox
+                v-model:selectedOptions="editableDefaultGroups"
+                :options="defaultGroupOptions"
+                :selectedLabels="defaultGroupSelectedLabels"
+                :showSelectedInDropdown="false"
+                badgeVariant="blue"
+            />
+        </div>
+    </LDialog>
 
     <LDialog
         v-model:open="showDeleteModal"

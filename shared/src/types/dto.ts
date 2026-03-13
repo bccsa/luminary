@@ -250,6 +250,12 @@ export type ApiQueryResult<T> = {
     contentOnly?: boolean;
 };
 
+export type GlobalConfigDto = BaseDocumentDto & {
+    type: DocType.GlobalConfig;
+    memberOf: Uuid[];
+    defaultGroups: Uuid[];
+};
+
 /** Mirrors api/src/dto/AuthProviderDto.ts */
 export type AuthProviderCondition = {
     type: "authenticated" | "claimEquals" | "claimIn";
