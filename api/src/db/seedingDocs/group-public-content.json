@@ -6,77 +6,133 @@
         {
             "type": "post",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "post",
             "groupId": "group-public-editors",
-            "permission": ["view", "edit", "translate", "publish"]
+            "permission": [
+                "view",
+                "edit",
+                "translate",
+                "publish"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate", "assign"]
+            "permission": [
+                "view",
+                "translate",
+                "assign"
+            ]
         },
         {
             "type": "group",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "post",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "storage",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-users",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-editors",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-private-users",
+            "permission": [
+                "view"
+            ]
         }
     ]
 }

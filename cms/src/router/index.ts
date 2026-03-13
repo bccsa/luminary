@@ -145,6 +145,19 @@ export const router = createRouter({
                         onlineOnly: true,
                     },
                 },
+                {
+                    path: "auth-providers",
+                    name: "auth-providers",
+                    component: () =>
+                        import("../components/AuthProvider/AuthProviderOverview.vue"),
+                    meta: {
+                        title: "Auth Providers",
+                        canAccess: {
+                            docType: DocType.AuthProvider,
+                            permission: AclPermission.View,
+                        },
+                    },
+                },
                 { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
             ],
         },

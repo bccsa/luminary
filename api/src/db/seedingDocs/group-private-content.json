@@ -6,42 +6,82 @@
         {
             "type": "post",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "language",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "post",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit", "translate", "publish", "delete"]
+            "permission": [
+                "view",
+                "edit",
+                "translate",
+                "publish",
+                "delete"
+            ]
         },
         {
             "type": "tag",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit", "translate", "publish", "delete", "assign"]
+            "permission": [
+                "view",
+                "edit",
+                "translate",
+                "publish",
+                "delete",
+                "assign"
+            ]
         },
         {
             "type": "group",
             "groupId": "group-private-editors",
-            "permission": ["view"]
+            "permission": [
+                "view"
+            ]
         },
         {
             "type": "redirect",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit"]
+            "permission": [
+                "view",
+                "edit"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-private-users",
+            "permission": [
+                "view"
+            ]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-private-editors",
+            "permission": [
+                "view"
+            ]
         }
     ]
 }

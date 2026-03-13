@@ -1,3 +1,15 @@
+import { config } from "../config";
+
+let activeProviderIdGetter: () => string | null = () => null;
+
+export function setAuthProviderGetter(getter: () => string | null) {
+    activeProviderIdGetter = getter;
+}
+
+export function getActiveProviderId(): string | null {
+    return activeProviderIdGetter();
+}
+
 export class HttpReq<T> {
     private apiUrl: string;
     private token?: string;
@@ -7,6 +19,11 @@ export class HttpReq<T> {
         this.apiUrl = apiUrl;
     }
 
+    /** Use config.token when set (e.g. after login), otherwise constructor token. */
+    private getToken(): string | undefined {
+        return config?.token ?? this.token;
+    }
+
     async get(endpoint: string, query: T) {
         console.warn(
             "The API GET call containing an X-Query header is deprecated and should be replaced with POST calls containing a MangoQuery",
@@ -14,7 +31,12 @@ export class HttpReq<T> {
         const headers: any = {
             "X-Query": JSON.stringify(query),
         };
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
+        const providerId = activeProviderIdGetter();
+        if (providerId) {
+            headers["x-auth-provider-id"] = providerId;
+        }
+        const token = this.getToken();
+        token && (headers.Authorization = `Bearer ${token}`);
 
         try {
             const schema = "https://";
@@ -35,7 +57,12 @@ export class HttpReq<T> {
 
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
         const headers: any = {};
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
+        const providerId = activeProviderIdGetter();
+        if (providerId) {
+            headers["x-auth-provider-id"] = providerId;
+        }
+        const token = this.getToken();
+        token && (headers.Authorization = `Bearer ${token}`);
 
         try {
             const schema = "https://";
@@ -63,12 +90,18 @@ export class HttpReq<T> {
             const regex = /^https?:\/\//;
             const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
             const isFormData = query instanceof FormData;
+            const token = this.getToken();
+            const headers: any = {
+                Authorization: token ? `Bearer ${token}` : "",
+                ...(!isFormData && { "Content-Type": "application/json" }),
+            };
+            const providerId = activeProviderIdGetter();
+            if (providerId) {
+                headers["x-auth-provider-id"] = providerId;
+            }
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
-                headers: {
-                    Authorization: this.token ? `Bearer ${this.token}` : "",
-                    ...(!isFormData && { "Content-Type": "application/json" }),
-                },
+                headers,
                 body: isFormData ? query : JSON.stringify(query),
             });
             if (!res.ok) {

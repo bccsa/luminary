@@ -1,18 +1,15 @@
 {
-    "_id": "_design/sync-tag-content-index",
+    "_id": "_design/sync-authProvider-index",
     "language": "query",
     "views": {
-        "sync-tag-content-index": {
+        "sync-authProvider-index": {
             "map": {
                 "fields": {
                     "updatedTimeUtc": "desc"
                 },
                 "partial_filter_selector": {
                     "type": {
-                        "$eq": "content"
-                    },
-                    "parentType": {
-                        "$eq": "tag"
+                        "$eq": "authProvider"
                     }
                 }
             },

@@ -5,6 +5,7 @@ import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
+import { getActiveProviderId } from "../rest/http";
 
 /**
  * Client configuration type definition
@@ -39,7 +40,11 @@ class SocketIO {
      */
     constructor(config: SharedConfig) {
         const token = config.token;
-        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
+
+        this.socket = io(
+            config.apiUrl,
+            token ? { auth: { token, providerId: getActiveProviderId() } } : undefined,
+        );
 
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds
@@ -117,6 +122,17 @@ class SocketIO {
         this.socket.disconnect();
         // Force the connection status to false without waiting for the disconnect event
         isConnected.value = false;
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server
+     */
+    /**
+     * Update the authentication token
+     * @param token - New JWT access token
+     */
+    public setToken(token: string) {
+        this.socket.auth = { token, providerId: getActiveProviderId() };
     }
 
     /**

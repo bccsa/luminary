@@ -81,13 +81,13 @@ export async function processJwt(
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
-
-    // Verify the JWT token
     let jwtPayload: JWT.JwtPayload;
-    try {
-        jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
-    } catch (err) {
-        logger?.error(`Unable to verify JWT`, err);
+    if (jwt) {
+        try {
+            jwtPayload = JWT.verify(jwt, process.env.JWT_SECRET) as JWT.JwtPayload;
+        } catch (err) {
+            logger?.error(`Unable to verify JWT`, err);
+        }
     }
 
     // Get JWT mapped groups and user details

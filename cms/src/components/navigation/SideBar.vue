@@ -10,6 +10,7 @@ import {
     ArrowUturnRightIcon,
     UsersIcon,
     CloudIcon,
+    KeyIcon,
 } from "@heroicons/vue/20/solid";
 
 import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
@@ -80,6 +81,12 @@ const navigation = computed(() => [
         to: { name: "users" },
         icon: UsersIcon,
         visible: hasAnyPermission(DocType.User, AclPermission.View),
+    },
+    {
+        name: "Auth Providers",
+        to: { name: "auth-providers" },
+        icon: KeyIcon,
+        visible: hasAnyPermission(DocType.AuthProvider, AclPermission.View),
     },
 ]);
 

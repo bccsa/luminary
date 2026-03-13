@@ -11,6 +11,8 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import { showProviderSelectionModal } from "@/auth";
+import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 
 const router = useRouter();
 const {
@@ -134,4 +136,5 @@ onErrorCaptured((err) => {
     </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
+    <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
 </template>
