@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, toRaw } from "vue";
+import BasePage from "@/components/BasePage.vue";
 import AuthProviderDisplayCard from "./AuthProviderDisplayCard.vue";
 import AuthProviderFormModal from "./AuthProviderFormModal.vue";
 import {
@@ -13,12 +14,12 @@ import {
     hasAnyPermission,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
+import LButton from "@/components/button/LButton.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import _ from "lodash";
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const emit = defineEmits(["openMobileSidebar"]);
+import { PlusIcon } from "@heroicons/vue/24/outline";
+import { isSmallScreen } from "@/globalConfig";
 
 // Reactive database queries
 const groups = useDexieLiveQuery(
@@ -314,38 +315,59 @@ const saveProvider = async () => {
 </script>
 
 <template>
-    <div>
-        <div class="border-b border-gray-200 py-1.5">
-            <div class="px-3 sm:px-0"></div>
-        </div>
+    <BasePage
+        :is-full-width="true"
+        title="Auth providers overview"
+        :should-show-page-title="false"
+    >
+        <template #pageNav>
+            <div>
+                <LButton
+                    v-if="canEdit && !isSmallScreen"
+                    variant="primary"
+                    :icon="PlusIcon"
+                    data-test="create-auth-provider"
+                    @click="openCreateModal"
+                >
+                    Create provider
+                </LButton>
+                <PlusIcon
+                    v-else-if="canEdit && isSmallScreen"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                    @click="openCreateModal"
+                />
+            </div>
+        </template>
 
-        <div v-if="isLoading && !providers.length" class="px-6 py-8 text-center">
-            <div class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
-            <p class="mt-2 text-sm text-gray-500">Loading providers...</p>
-        </div>
+        <div class="mt-1">
+            <div v-if="isLoading && !providers.length" class="px-6 py-8 text-center">
+                <div
+                    class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"
+                ></div>
+                <p class="mt-2 text-sm text-gray-500">Loading providers...</p>
+            </div>
 
-        <div v-else-if="!providers.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No auth provider configured</h3>
-            <p class="mt-1 text-sm text-gray-500">
-                Get started by creating your first OIDC auth provider.
-            </p>
-        </div>
+            <div v-else-if="!providers.length" class="px-6 py-8 text-center">
+                <h3 class="mt-2 text-sm font-medium text-gray-900">
+                    No auth provider configured
+                </h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Get started by creating your first OIDC auth provider.
+                </p>
+            </div>
 
-        <div v-else>
-            <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
+            <div v-else class="flex flex-col gap-[3px]">
                 <AuthProviderDisplayCard
                     v-for="(provider, i) in providers"
                     :key="provider._id || provider.label"
                     :provider="provider"
                     :groups="groups"
-                    :class="{
-                        'mb-4': i === providers.length - 1,
-                    }"
+                    :class="{ 'mb-4': i === providers.length - 1 }"
                     @edit="editProvider"
                 />
             </div>
         </div>
-    </div>
+    </BasePage>
 
     <!-- Create/Edit Provider Modal -->
     <AuthProviderFormModal
