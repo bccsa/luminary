@@ -61,13 +61,6 @@ describe("AuthIdentityService", () => {
     // ── evaluateGroupAssignments ─────────────────────────────────────────────────
 
     describe("evaluateGroupAssignments", () => {
-        it("should assign group if 'always' condition is met", () => {
-            const mappings: AuthProviderGroupMapping[] = [
-                { groupId: "group-always", conditions: [{ type: "always" }] },
-            ];
-            expect(service.evaluateGroupAssignments({}, mappings)).toContain("group-always");
-        });
-
         it("should assign group if 'authenticated' condition is met", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 { groupId: "group-auth", conditions: [{ type: "authenticated" }] },
@@ -192,7 +185,6 @@ describe("AuthGuard (Integrated)", () => {
     const baseProviderDoc = {
         domain: "bccsa.eu.auth0.com",
         audience: "https://api.bccsa.org",
-        userFieldMappings: { email: "email", externalUserId: "sub" },
         groupMappings: [],
     };
 

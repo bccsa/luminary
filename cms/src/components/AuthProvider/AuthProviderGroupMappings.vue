@@ -56,7 +56,6 @@ const CONDITION_TYPES: {
     value: AuthProviderCondition["type"];
     label: string;
 }[] = [
-    { value: "always", label: "Always" },
     { value: "authenticated", label: "Authenticated" },
     { value: "claimEquals", label: "Claim equals" },
     { value: "claimIn", label: "Claim in" },
@@ -66,7 +65,7 @@ function addGroupMapping() {
     const list = [...(props.modelValue ?? [])];
     list.push({
         groupId: "",
-        conditions: [{ type: "always" }],
+        conditions: [{ type: "authenticated" }],
     });
     emit("update:modelValue", list);
 }
@@ -86,7 +85,7 @@ function addCondition(mappingIdx: number) {
     const next = list.slice();
     next[mappingIdx] = {
         ...mapping,
-        conditions: [...mapping.conditions, { type: "always" }],
+        conditions: [...mapping.conditions, { type: "authenticated" }],
     };
     emit("update:modelValue", next);
 }
@@ -175,7 +174,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
 </script>
 
 <template>
-    <div>
+    <div class="rounded-md border border-zinc-200 bg-white p-2">
         <!-- Section header -->
         <div class="mb-1 flex items-start justify-between gap-2">
             <div>
@@ -255,11 +254,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                         size="sm"
                         class="shrink-0 [&>label]:mb-0"
                         @update:model-value="
-                            setConditionType(
-                                aIdx,
-                                cIdx,
-                                $event as AuthProviderCondition['type'],
-                            )
+                            setConditionType(aIdx, cIdx, $event as AuthProviderCondition['type'])
                         "
                     />
 
