@@ -425,6 +425,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             ref="inputRef"
                             v-model="searchQuery"
                             type="text"
+                            role="combobox"
+                            aria-haspopup="listbox"
+                            :aria-expanded="showResults"
+                            :aria-activedescendant="
+                                selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
+                            "
                             :placeholder="$t('search.placeholder')"
                             class="flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
                             autocomplete="off"
@@ -437,14 +443,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
                                 :aria-label="$t('search.ariaLabel')"
                                 @click="clearSearch"
-                            >
-                                <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
-                            </button>
-                            <!-- Close overlay: desktop only -->
-                            <button
-                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
-                                :aria-label="$t('search.close')"
-                                @click="closeSearch"
                             >
                                 <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
                             </button>
@@ -527,11 +525,17 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             id="search-results-container"
                             class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3"
                         >
-                            <ul class="divide-y divide-zinc-200 dark:divide-slate-700">
+                            <ul
+                                role="listbox"
+                                :aria-label="$t('search.ariaLabel')"
+                                class="divide-y divide-zinc-200 dark:divide-slate-700"
+                            >
                                 <li
                                     v-for="(result, index) in results"
                                     :key="result._id"
                                     :id="`search-result-${index}`"
+                                    role="option"
+                                    :aria-selected="index === selectedIndex"
                                     class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
                                     :class="{
                                         'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
@@ -613,6 +617,33 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     </div>
                                 </li>
                             </ul>
+                            <!-- Loading more indicator -->
+                            <div
+                                v-if="isSearching && results.length > 0"
+                                class="flex justify-center py-3"
+                            >
+                                <svg
+                                    class="h-5 w-5 animate-spin text-zinc-400 dark:text-slate-500"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    />
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                    />
+                                </svg>
+                            </div>
                         </div>
 
                         <!-- Initial empty state: hint when overlay just opened -->
@@ -665,9 +696,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         </div>
                         <div v-if="showResults">
                             <span>
-                                {{ results.length }}
+                                {{ results.length }}{{ hasMore ? "+" : "" }}
                                 {{
-                                    results.length === 1
+                                    results.length === 1 && !hasMore
                                         ? $t("search.resultOne")
                                         : $t("search.resultsMany")
                                 }}
