@@ -20,6 +20,9 @@ import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
+import { isMobileScreen } from "@/globalConfig";
+import { InformationCircleIcon } from "@heroicons/vue/24/solid";
+import LDropdown from "../common/LDropdown.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -193,6 +196,8 @@ const copyGroupId = (group: GroupDto) => {
 
 let res = ref<undefined | any>(undefined);
 
+const showSelector = ref(false);
+
 const saveChanges = async () => {
     res.value = await save(group.value._id);
 
@@ -224,7 +229,7 @@ const saveChanges = async () => {
         @close="emit('close')"
         largeModal
     >
-        <div :class="['w-full rounded-md bg-white p-6 shadow', { 'bg-zinc-100': disabled }]">
+        <div :class="['w-full rounded-md bg-white p-3 shadow', { 'bg-zinc-100': disabled }]">
             <div class="mb-6 flex items-center justify-between">
                 <div
                     v-if="!isEditingGroupName"
@@ -259,6 +264,23 @@ const saveChanges = async () => {
                     >
                         {{ group.name }}
                     </h2>
+                    <LButton
+                        v-if="
+                            groupQuery.editable &&
+                            groupQuery.editable.value.length > 0 &&
+                            !isDirty &&
+                            !disabled &&
+                            !isNewGroup &&
+                            isMobileScreen
+                        "
+                        variant="muted"
+                        size="sm"
+                        title="Duplicate"
+                        :icon="DocumentDuplicateIcon"
+                        @click="duplicateGroup"
+                        data-test="duplicateGroup"
+                        class="ml-2"
+                    />
                 </div>
                 <LInput
                     v-else
@@ -274,14 +296,15 @@ const saveChanges = async () => {
                     class="mr-4 grow"
                     data-test="groupNameInput"
                 />
-                <div class="">
+                <div class="flex">
                     <LButton
                         v-if="
                             groupQuery.editable &&
                             groupQuery.editable.value.length > 0 &&
                             !isDirty &&
                             !disabled &&
-                            !isNewGroup
+                            !isNewGroup &&
+                            !isMobileScreen
                         "
                         variant="muted"
                         size="sm"
@@ -290,16 +313,49 @@ const saveChanges = async () => {
                         @click="duplicateGroup"
                         data-test="duplicateGroup"
                     />
+                    <LDropdown
+                        v-if="isMobileScreen"
+                        class="relative"
+                        padding="none"
+                        placement="bottom-end"
+                        width="default"
+                        v-model:show="showSelector"
+                    >
+                        <template #trigger>
+                            <LButton
+                                :icon="InformationCircleIcon"
+                                variant="tertiary"
+                                icon-right
+                                size="sm"
+                                class="mt-3"
+                                :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
+                            />
+                        </template>
+                        <p class="px-2">
+                            <span v-if="!disabled" class="text-xs">
+                                Configure which permissions user members of the following groups
+                                have to
+                                <strong>this</strong> group and its member documents.
+                            </span>
+                            <span v-else> No edit access. </span>
+                            <span class="text-[11px] italic">
+                                <br />User members of higher level groups may have more permissions
+                                (than configured below) to this group and its members by
+                                inheritance, depending on the permissions granted by the higher
+                                level groups.
+                            </span>
+                        </p>
+                    </LDropdown>
                 </div>
             </div>
-            <div class="space-y-6">
-                <p>
-                    <span v-if="!disabled">
+            <div class="space-y-1">
+                <p v-if="!isMobileScreen">
+                    <span v-if="!disabled" :class="[{ 'text-sm': isMobileScreen }]">
                         Configure which permissions user members of the following groups have to
                         <strong>this</strong> group and its member documents.
                     </span>
                     <span v-else> No edit access. </span>
-                    <span class="text-sm italic">
+                    <span :class="['text-sm italic', { 'text-xs': isMobileScreen }]">
                         <br />User members of higher level groups may have more permissions (than
                         configured below) to this group and its members by inheritance, depending on
                         the permissions granted by the higher level groups.
@@ -320,7 +376,7 @@ const saveChanges = async () => {
                         :disabled="disabled"
                     />
                 </TransitionGroup>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between pt-4">
                     <div>
                         <AddGroupAclButton
                             v-if="!disabled"
@@ -334,6 +390,7 @@ const saveChanges = async () => {
                         context="default"
                         @click.prevent="() => copyGroupId(group)"
                         data-test="copyGroupId"
+                        :class="isMobileScreen ? 'text-xs' : ''"
                     >
                         Copy ID
                     </LButton>

@@ -58,6 +58,7 @@ type Props = {
     iconRight?: boolean;
     disabled?: boolean;
     segmented?: boolean;
+    smallIcon?: boolean;
     dropdownAnchor?: boolean;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
     leftAction?: (event: MouseEvent) => void | Promise<void>;
@@ -253,11 +254,13 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
         <component
             v-if="icon"
             :is="icon"
-            class="order-2 h-5 w-5"
+            class="order-2"
             :class="{
                 [iconVariants[variant]]: $slots.default,
                 '-mr-0.5': iconRight && $slots.default,
                 '-ml-0.5': !iconRight && $slots.default,
+                'h-4 w-4': smallIcon,
+                'h-5 w-5': !smallIcon,
             }"
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">

@@ -24,7 +24,7 @@ const onTriggerClick = (event: MouseEvent) => {
     toggle();
 };
 
-onClickOutside(rootRef.value, () => {
+onClickOutside(rootRef, () => {
     if (show.value) close();
 });
 
@@ -121,7 +121,7 @@ const widthClass = computed(() => {
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click.capture="onTriggerClick"
+            @click.capture.stop="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >

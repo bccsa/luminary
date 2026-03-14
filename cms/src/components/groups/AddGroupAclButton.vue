@@ -5,6 +5,7 @@ import { computed, ref, toRaw, toRefs } from "vue";
 import { onClickOutside, useElementBounding, useWindowSize } from "@vueuse/core";
 import LButton from "../button/LButton.vue";
 import { sortByName } from "@/util/sortByName";
+import { isMobileScreen } from "@/globalConfig";
 
 type Props = {
     groups: GroupDto[];
@@ -34,7 +35,7 @@ onClickOutside(
 const dropdownStyle = computed(() => {
     const spaceBelow = windowHeight.value - bottom.value;
     // Estimate dropdown max height around 250px (max-h-60 is 15rem = 240px + padding)
-    const dropdownHeight = 250; 
+    const dropdownHeight = 250;
     const showAbove = spaceBelow < dropdownHeight && top.value > spaceBelow;
 
     if (showAbove) {
@@ -67,6 +68,7 @@ const selectGroup = (group: GroupDto) => {
                     data-test="addGroupButton"
                     :icon="ChevronDownIcon"
                     icon-right
+                    :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
                 >
                     Add access
                 </LButton>
@@ -84,7 +86,7 @@ const selectGroup = (group: GroupDto) => {
                     <div
                         v-if="showGroups"
                         ref="dropdownRef"
-                        class="fixed z-[9999] origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none max-h-60 overflow-y-auto"
+                        class="fixed z-[9999] max-h-60 origin-top-left divide-y divide-zinc-100 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
                         :style="dropdownStyle"
                     >
                         <ul class="px-1 py-1">
