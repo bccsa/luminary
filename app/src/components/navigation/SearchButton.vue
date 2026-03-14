@@ -41,8 +41,6 @@ useInfiniteScroll(
     { distance: 10 },
 );
 
-// --- Highlight helpers (ported from original search.ts) ---
-
 const MARK_CLASS = "bg-yellow-200 dark:bg-yellow-800 rounded px-0";
 
 function extractPlainTextFromObject(obj: unknown): string {
@@ -268,6 +266,17 @@ const results = computed<EnrichedResult[]>(() => {
 
 const showResults = computed(() => results.value.length > 0 && !!searchQuery.value.trim());
 
+/** Query has 1–2 characters: we need at least 3 for FTS */
+const showMinCharsHint = computed(
+    () =>
+        !isSearching.value &&
+        searchQuery.value.trim().length > 0 &&
+        searchQuery.value.trim().length < 3,
+);
+
+/** Overlay is open with no query yet — show a short hint so the panel isn’t blank */
+const showEmptyStateHint = computed(() => isOpen.value && !searchQuery.value.trim());
+
 // --- Overlay state ---
 
 watch(isSearchOpen, (open) => {
@@ -431,16 +440,22 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             >
                                 <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
                             </button>
-                            <!-- ESC hint: desktop only -->
-                            <kbd
-                                class="hidden rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-slate-800 dark:text-slate-400 md:inline-block"
+                            <!-- Close overlay: desktop only -->
+                            <button
+                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
+                                :aria-label="$t('search.close') || 'Close search'"
+                                @click="closeSearch"
                             >
-                                ESC
-                            </kbd>
+                                <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
+                            </button>
                             <!-- Mobile: single close/clear button -->
                             <button
                                 class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
-                                :aria-label="searchQuery ? ($t('search.ariaLabel') || 'Clear') : ($t('search.close') || 'Close search')"
+                                :aria-label="
+                                    searchQuery
+                                        ? $t('search.ariaLabel') || 'Clear'
+                                        : $t('search.close') || 'Close search'
+                                "
                                 @click="handleMobileCloseOrClear"
                             >
                                 <XMarkIcon class="h-6 w-6" />
@@ -479,6 +494,18 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </div>
                         </div>
 
+                        <!-- Min 3 characters hint -->
+                        <div
+                            v-else-if="showMinCharsHint"
+                            class="p-8 text-center md:p-10"
+                        >
+                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                                {{
+                                    $t("search.minChars") || "Type at least 3 characters to search"
+                                }}
+                            </p>
+                        </div>
+
                         <!-- No results -->
                         <div
                             v-else-if="searchQuery.trim() && !isSearching && results.length === 0"
@@ -489,6 +516,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             />
                             <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                                 {{ $t("search.noResults") || "No results found" }}
+                            </p>
+                            <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
+                                {{
+                                    $t("search.tryDifferent") ||
+                                    "Try different keywords or check spelling"
+                                }}
                             </p>
                         </div>
 
@@ -586,6 +619,22 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 </li>
                             </ul>
                         </div>
+
+                        <!-- Initial empty state: hint when overlay just opened -->
+                        <div
+                            v-else-if="showEmptyStateHint"
+                            class="p-8 text-center md:p-10"
+                        >
+                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                                {{ $t("search.hint") || "Search by title, summary, or content" }}
+                            </p>
+                            <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
+                                {{ $t("search.minCharsShort") || "At least 3 characters" }}
+                                <span class="hidden sm:inline">
+                                    · {{ $t("search.shortcut") || "⌘K to open" }}
+                                </span>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Footer -->
@@ -596,27 +645,38 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             <span class="flex items-center gap-1">
                                 <kbd
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                    >ESC</kbd
+                                >
+                                {{ $t("search.toClose") || "to close" }}
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <kbd
+                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↑</kbd
                                 >
                                 <kbd
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↓</kbd
                                 >
-                                to navigate
+                                {{ $t("search.navigate") || "to navigate" }}
                             </span>
                             <span class="flex items-center gap-1">
                                 <kbd
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↵</kbd
                                 >
-                                to select
+                                {{ $t("search.select") || "to select" }}
                             </span>
                         </div>
                         <div v-if="showResults">
-                            <span
-                                >{{ results.length }}
-                                {{ results.length === 1 ? "result" : "results" }}</span
-                            >
+                            <span>
+                                {{ results.length }}
+                                {{
+                                    results.length === 1
+                                        ? $t("search.resultOne") || "result"
+                                        : $t("search.resultsMany") || "results"
+                                }}
+                            </span>
                         </div>
                     </div>
                 </div>
