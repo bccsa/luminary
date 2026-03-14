@@ -5,7 +5,7 @@ import { flushPromises } from "@vue/test-utils";
 describe("Router", () => {
     describe("Router Configuration", () => {
         it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(8);
+            expect(router.getRoutes()).toHaveLength(7);
         });
 
         it("should have home route configured correctly", () => {
