@@ -9,6 +9,7 @@
         "search.placeholder": "Search...",
         "search.ariaLabel": "Search",
         "search.close": "Close search",
+        "search.clearQuery": "Clear search query",
         "search.initializing": "Search index is initializing...",
         "search.noIndex": "No content indexed yet",
         "search.noResults": "No results found",
