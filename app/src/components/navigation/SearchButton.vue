@@ -425,7 +425,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             ref="inputRef"
                             v-model="searchQuery"
                             type="text"
-                            :placeholder="$t('search.placeholder') || 'Search content...'"
+                            :placeholder="$t('search.placeholder')"
                             class="flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
                             autocomplete="off"
                             @keydown="handleInputKeydown"
@@ -435,7 +435,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             <button
                                 v-if="searchQuery"
                                 class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
-                                :aria-label="$t('search.ariaLabel') || 'Clear'"
+                                :aria-label="$t('search.ariaLabel')"
                                 @click="clearSearch"
                             >
                                 <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
@@ -443,7 +443,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             <!-- Close overlay: desktop only -->
                             <button
                                 class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
-                                :aria-label="$t('search.close') || 'Close search'"
+                                :aria-label="$t('search.close')"
                                 @click="closeSearch"
                             >
                                 <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
@@ -453,8 +453,8 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
                                 :aria-label="
                                     searchQuery
-                                        ? $t('search.ariaLabel') || 'Clear'
-                                        : $t('search.close') || 'Close search'
+                                        ? $t('search.ariaLabel')
+                                        : $t('search.close')
                                 "
                                 @click="handleMobileCloseOrClear"
                             >
@@ -500,9 +500,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             class="p-8 text-center md:p-10"
                         >
                             <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{
-                                    $t("search.minChars") || "Type at least 3 characters to search"
-                                }}
+                                {{ $t("search.minChars") }}
                             </p>
                         </div>
 
@@ -515,13 +513,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
                             />
                             <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.noResults") || "No results found" }}
+                                {{ $t("search.noResults") }}
                             </p>
                             <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                                {{
-                                    $t("search.tryDifferent") ||
-                                    "Try different keywords or check spelling"
-                                }}
+                                {{ $t("search.tryDifferent") }}
                             </p>
                         </div>
 
@@ -626,12 +621,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             class="p-8 text-center md:p-10"
                         >
                             <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.hint") || "Search by title, summary, or content" }}
+                                {{ $t("search.hint") }}
                             </p>
                             <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                                {{ $t("search.minCharsShort") || "At least 3 characters" }}
+                                {{ $t("search.minCharsShort") }}
                                 <span class="hidden sm:inline">
-                                    · {{ $t("search.shortcut") || "⌘K to open" }}
+                                    · {{ $t("search.shortcut") }}
                                 </span>
                             </p>
                         </div>
@@ -647,7 +642,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >ESC</kbd
                                 >
-                                {{ $t("search.toClose") || "to close" }}
+                                {{ $t("search.toClose") }}
                             </span>
                             <span class="flex items-center gap-1">
                                 <kbd
@@ -658,14 +653,14 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↓</kbd
                                 >
-                                {{ $t("search.navigate") || "to navigate" }}
+                                {{ $t("search.navigate") }}
                             </span>
                             <span class="flex items-center gap-1">
                                 <kbd
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↵</kbd
                                 >
-                                {{ $t("search.select") || "to select" }}
+                                {{ $t("search.select") }}
                             </span>
                         </div>
                         <div v-if="showResults">
@@ -673,8 +668,8 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 {{ results.length }}
                                 {{
                                     results.length === 1
-                                        ? $t("search.resultOne") || "result"
-                                        : $t("search.resultsMany") || "results"
+                                        ? $t("search.resultOne")
+                                        : $t("search.resultsMany")
                                 }}
                             </span>
                         </div>

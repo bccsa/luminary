@@ -17,7 +17,7 @@
         "search.minChars": "Type at least 3 characters to search",
         "search.minCharsShort": "At least 3 characters",
         "search.hint": "Search by title, summary, or content",
-        "search.shortcut": "⌘K to open",
+        "search.shortcut": "⌘+K or Cmd+K to open",
         "search.tryDifferent": "Try different keywords or check spelling",
         "search.toClose": "to close",
         "search.navigate": "to navigate",
