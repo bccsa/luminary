@@ -347,6 +347,15 @@ const clearSearch = () => {
     inputRef.value?.focus();
 };
 
+// On mobile: one button that clears query if present, otherwise closes overlay
+const handleMobileCloseOrClear = () => {
+    if (searchQuery.value) {
+        clearSearch();
+    } else {
+        closeSearch();
+    }
+};
+
 const goToResult = (result: EnrichedResult) => {
     router.push({ name: "content", params: { slug: result.slug } });
     searchQuery.value = "";
@@ -413,14 +422,14 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             @keydown="handleInputKeydown"
                         />
                         <div class="flex items-center gap-2">
-                            <!-- Clear query button (both mobile and desktop when query exists) -->
+                            <!-- Clear query: desktop only when query exists -->
                             <button
                                 v-if="searchQuery"
-                                class="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
                                 :aria-label="$t('search.ariaLabel') || 'Clear'"
                                 @click="clearSearch"
                             >
-                                <XMarkIcon class="h-5 w-5" />
+                                <XMarkIcon class="h-5 w-5 md:h-6 md:w-6" />
                             </button>
                             <!-- ESC hint: desktop only -->
                             <kbd
@@ -428,11 +437,11 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             >
                                 ESC
                             </kbd>
-                            <!-- Close button: mobile only, always visible -->
+                            <!-- Mobile: single close/clear button -->
                             <button
                                 class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
-                                :aria-label="$t('search.close') || 'Close search'"
-                                @click="closeSearch"
+                                :aria-label="searchQuery ? ($t('search.ariaLabel') || 'Clear') : ($t('search.close') || 'Close search')"
+                                @click="handleMobileCloseOrClear"
                             >
                                 <XMarkIcon class="h-6 w-6" />
                             </button>

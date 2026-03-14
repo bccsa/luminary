@@ -16,8 +16,11 @@ watch(() => route.fullPath, () => {
     closeSearch();
 });
 
-// Check if search is currently active (overlay is open)
+// Search tab is active (highlighted) when the overlay is open
 const isSearchActive = computed(() => isSearchOpen.value);
+
+// When search is open, only Search looks active; when closed, show the current route's tab as active
+const isNavItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 // Store navigation items to avoid multiple function calls
 const navigationItems = computed(() => getNavigationItems());
@@ -36,20 +39,21 @@ const handleSearchClick = () => {
             :to="item.to"
             v-slot="{ isActive }"
             class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            @click="closeSearch"
         >
             <component
-                :is="isActive ? item.selectedIcon : item.defaultIcon"
+                :is="isNavItemActive(isActive) ? item.selectedIcon : item.defaultIcon"
                 :class="[
                     'h-6 w-6',
-                    { 'text-zinc-400 dark:text-slate-200': !isActive },
-                    { 'text-yellow-600 dark:text-yellow-500': isActive },
+                    { 'text-zinc-400 dark:text-slate-200': !isNavItemActive(isActive) },
+                    { 'text-yellow-600 dark:text-yellow-500': isNavItemActive(isActive) },
                 ]"
             />
             <span
                 :class="[
                     'text-sm font-medium',
-                    { 'text-zinc-600 dark:text-slate-100': !isActive },
-                    { 'text-yellow-700 dark:text-yellow-400': isActive },
+                    { 'text-zinc-600 dark:text-slate-100': !isNavItemActive(isActive) },
+                    { 'text-yellow-700 dark:text-yellow-400': isNavItemActive(isActive) },
                 ]"
             >
                 {{ item.name }}
