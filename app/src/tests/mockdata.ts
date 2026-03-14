@@ -307,6 +307,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     translations: {
         "search.placeholder": "Search...",
         "search.ariaLabel": "Search",
+        "search.close": "Close search",
         "search.initializing": "Search index is initializing...",
         "search.noIndex": "No content indexed yet",
         "search.noResults": "No results found",
@@ -401,6 +402,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     translations: {
         "search.placeholder": "Rechercher...",
         "search.ariaLabel": "Rechercher",
+        "search.close": "Fermer la recherche",
         "search.initializing": "L'index de recherche est en cours d'initialisation...",
         "search.noIndex": "Aucun contenu indexé",
         "search.noResults": "Aucun résultat trouvé",
@@ -440,6 +442,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
     translations: {
         "search.placeholder": "Tafuta...",
         "search.ariaLabel": "Tafuta",
+        "search.close": "Funga utafutaji",
         "search.initializing": "Kigezo cha utafutaji kinaanzishwa...",
         "search.noIndex": "Hakuna yaliyowekwa kwenye kigezo",
         "search.noResults": "Hakuna matokeo yaliyopatikana",
