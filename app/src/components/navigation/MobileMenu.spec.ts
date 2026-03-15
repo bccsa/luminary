@@ -11,6 +11,10 @@ vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
         push: routePushMock,
     })),
+    useRoute: vi.fn().mockImplementation(() => ({
+        fullPath: "/",
+        name: "home",
+    })),
 }));
 
 vi.mock("vue-i18n", () => ({
