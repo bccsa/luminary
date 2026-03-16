@@ -66,15 +66,19 @@ import { useFtsSearch } from "luminary-shared";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+const runSearchMock = vi.hoisted(() => vi.fn());
+
 /** Configure useFtsSearch return value; returns refs so tests can update after mount. */
 function setupFts(opts: {
     results?: FtsSearchResult[];
     isSearching?: boolean;
     hasMore?: boolean;
+    lastSearchedQuery?: string;
 } = {}) {
     const resultsRef = ref<FtsSearchResult[]>(opts.results ?? []);
     const isSearchingRef = ref(opts.isSearching ?? false);
     const hasMoreRef = ref(opts.hasMore ?? false);
+    const lastSearchedQueryRef = ref(opts.lastSearchedQuery ?? "");
 
     vi.mocked(useFtsSearch).mockReturnValue({
         results: resultsRef,
@@ -82,9 +86,11 @@ function setupFts(opts: {
         hasMore: hasMoreRef,
         loadMore: loadMoreMock,
         totalLoaded: ref(0),
+        lastSearchedQuery: lastSearchedQueryRef,
+        runSearch: runSearchMock,
     } as any);
 
-    return { resultsRef, isSearchingRef, hasMoreRef };
+    return { resultsRef, isSearchingRef, hasMoreRef, lastSearchedQueryRef };
 }
 
 function mountComponent() {
@@ -214,7 +220,7 @@ describe("SearchButton", () => {
             expect(wrapper.html()).toContain("Type at least 3 characters to search");
         });
 
-        it("does not show hint when query is 3+ characters", async () => {
+        it("does not show min-chars hint when query is 3+ characters", async () => {
             const wrapper = mountComponent();
             await openOverlay();
 
@@ -246,12 +252,18 @@ describe("SearchButton", () => {
 
     describe("No results state", () => {
         it("shows no-results message when FTS returns nothing", async () => {
-            setupFts({ results: [], isSearching: false });
+            const { resultsRef, isSearchingRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
 
             await wrapper.find("input").setValue("xyznotfound");
             await nextTick();
+
+            // Simulate an executed search that returned no results
+            lastSearchedQueryRef.value = "xyznotfound";
+            resultsRef.value = [];
+            isSearchingRef.value = false;
+            await flushPromises();
 
             expect(wrapper.html()).toContain("No results found");
         });
@@ -321,6 +333,78 @@ describe("SearchButton", () => {
             await triggerResults(wrapper, resultsRef);
 
             expect(wrapper.html()).toMatch(/1\+/);
+        });
+    });
+
+    // ── Persistence & query editing behavior ─────────────────────────────────
+
+    describe("Persistence and query editing", () => {
+        it("keeps showing previous results while user edits a non-empty query", async () => {
+            const { resultsRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Initial search with one result
+            await wrapper.find("input").setValue("Willow");
+            await nextTick();
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+            expect(wrapper.findAll("[role='option']")).toHaveLength(1);
+
+            // User edits query but does not clear it
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+
+            // Results should still be visible until an explicit new search
+            expect(wrapper.findAll("[role='option']")).toHaveLength(1);
+        });
+
+        it("clears results when query is cleared to empty", async () => {
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Simulate an executed search with results
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+            lastSearchedQueryRef.value = "Willowdale";
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+            expect(wrapper.findAll("[role='option']")).toHaveLength(1);
+
+            // Clear the query
+            await wrapper.find("input").setValue("");
+            await nextTick();
+            await flushPromises();
+
+            expect(wrapper.findAll("[role='option']")).toHaveLength(0);
+        });
+
+        it("automatically reruns search on reopen when there is a persisted non-empty query", async () => {
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Simulate a completed search
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+            lastSearchedQueryRef.value = "Willowdale";
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+
+            // Close overlay
+            const { closeSearch, openSearch } = useSearchOverlay();
+            closeSearch();
+            await flushPromises();
+
+            // Capture current call count, then reopen and assert it increases
+            const beforeCalls = runSearchMock.mock.calls.length;
+
+            // Reopen overlay; non-empty query should trigger an automatic search
+            openSearch();
+            await flushPromises();
+
+            expect(runSearchMock.mock.calls.length).toBeGreaterThan(beforeCalls);
         });
     });
 
