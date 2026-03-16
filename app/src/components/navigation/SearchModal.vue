@@ -634,9 +634,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
 
                     <!-- Body -->
                     <div class="flex-1 overflow-y-auto">
-                        <!-- Loading skeleton -->
+                        <!-- Loading skeleton — only for initial search (no results yet) -->
                         <div
-                            v-if="isSearching"
+                            v-if="isSearching && results.length === 0"
                             class="p-4 md:p-5"
                         >
                             <div class="space-y-3 md:space-y-4">
