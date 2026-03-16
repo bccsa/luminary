@@ -24,8 +24,6 @@ const RECENT_SEARCHES_MAX = 10;
 const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
 const CURRENT_SEARCH_SOURCE_KEY = "luminary-search-current-source";
 
-type CurrentSearchSource = "recent" | "manual";
-
 function loadCurrentSearchQuery(): string {
     try {
         if (typeof window === "undefined" || !window.localStorage) return "";
@@ -78,11 +76,14 @@ function pickRecentSearch(term: string) {
     runSearch?.();
 }
 
-const ftsRet = useFtsSearch(searchQuery as any, {
-    languageId: languageId as any,
-    debounceMs: "manual",
-    pageSize: 20,
-} as any) as ReturnType<typeof useFtsSearch> & {
+const ftsRet = useFtsSearch(
+    searchQuery as any,
+    {
+        languageId: languageId as any,
+        debounceMs: "manual",
+        pageSize: 20,
+    } as any,
+) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
     runSearch?: () => void;
 };
@@ -339,10 +340,7 @@ const showNoResults = computed(
 );
 /** Query has 1–2 characters: we need at least 3 for FTS */
 const showMinCharsHint = computed(
-    () =>
-        !isSearching.value &&
-        trimmedQuery.value.length > 0 &&
-        trimmedQuery.value.length < 3,
+    () => !isSearching.value && trimmedQuery.value.length > 0 && trimmedQuery.value.length < 3,
 );
 
 /** Overlay is open with no query yet — show a short hint so the panel isn’t blank */
@@ -743,7 +741,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                     v-if="result.titleHighlight"
                                                     v-html="result.titleHighlight"
                                                 />
-                                                <template v-else>{{ stripHtml(result.title ?? "") }}</template>
+                                                <template v-else>{{
+                                                    stripHtml(result.title ?? "")
+                                                }}</template>
                                             </h3>
                                             <!-- Snippet with highlights when available, else plain summary -->
                                             <p
@@ -759,7 +759,11 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                             </p>
                                             <!-- Meta: author · language (hide language when same as user's to avoid "English" on every card) -->
                                             <div
-                                                v-if="result.author || (result.languageName && result.language !== languageId)"
+                                                v-if="
+                                                    result.author ||
+                                                    (result.languageName &&
+                                                        result.language !== languageId)
+                                                "
                                                 class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
                                             >
                                                 <span
@@ -768,13 +772,20 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                     >{{ result.author }}</span
                                                 >
                                                 <span
-                                                    v-if="result.author && result.languageName && result.language !== languageId"
+                                                    v-if="
+                                                        result.author &&
+                                                        result.languageName &&
+                                                        result.language !== languageId
+                                                    "
                                                     class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
                                                     aria-hidden="true"
                                                     >·</span
                                                 >
                                                 <span
-                                                    v-if="result.languageName && result.language !== languageId"
+                                                    v-if="
+                                                        result.languageName &&
+                                                        result.language !== languageId
+                                                    "
                                                     class="flex-shrink-0 uppercase tracking-wide"
                                                     >{{ result.languageName }}</span
                                                 >
@@ -827,7 +838,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             v-else-if="showEmptyStateHint"
                             class="p-6 md:p-8"
                         >
-                            <p class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                            <p
+                                class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base"
+                            >
                                 {{ $t("search.hint") }}
                             </p>
                             <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
@@ -840,7 +853,9 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 v-if="recentSearches.length > 0"
                                 class="mt-4 border-t border-zinc-200 pt-4 dark:border-slate-700"
                             >
-                                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500">
+                                <p
+                                    class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500"
+                                >
                                     {{ $t("search.recent") }}
                                 </p>
                                 <div class="flex flex-wrap gap-2">
