@@ -524,5 +524,31 @@ describe("SearchButton", () => {
                 params: { slug: mockEnglishContentDto.slug },
             });
         });
+
+        it("does not reset selection to first result when more results are loaded", async () => {
+            const { resultsRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Initial query with two results
+            await wrapper.find("input").setValue("Post");
+            await nextTick();
+            resultsRef.value = twoResults;
+            await flushPromises();
+
+            // Move selection to the second result
+            await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
+            await nextTick();
+            let items = wrapper.findAll("[role='option']");
+            expect(items[1].attributes("aria-selected")).toBe("true");
+
+            // Load one more result (simulate infinite scroll loadMore)
+            resultsRef.value = [...twoResults, twoResults[0]];
+            await flushPromises();
+
+            // Selection should remain on the same (second) item, not jump back to the top
+            items = wrapper.findAll("[role='option']");
+            expect(items[1].attributes("aria-selected")).toBe("true");
+        });
     });
 });

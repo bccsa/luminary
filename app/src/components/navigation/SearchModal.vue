@@ -414,8 +414,17 @@ watch(isSearchOpen, (open) => {
     }
 });
 
-watch(results, (newResults) => {
-    selectedIndex.value = newResults.length > 0 ? 0 : -1;
+watch(results, (newResults, oldResults) => {
+    // When results first appear (from empty → non-empty), select the first item
+    if (!oldResults?.length && newResults.length > 0) {
+        selectedIndex.value = 0;
+        return;
+    }
+
+    // When results shrink (e.g. new search), keep selection within bounds
+    if (selectedIndex.value >= newResults.length) {
+        selectedIndex.value = newResults.length > 0 ? newResults.length - 1 : -1;
+    }
 });
 
 watch(selectedIndex, (index) => {
