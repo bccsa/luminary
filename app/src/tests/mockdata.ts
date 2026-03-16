@@ -306,6 +306,9 @@ export const mockLanguageDtoEng: LanguageDto = {
     default: 1,
     translations: {
         "search.placeholder": "Search...",
+        "search.go": "Go",
+        "search.pressGo": "Press Go to search",
+        "search.recent": "Recent",
         "search.ariaLabel": "Search",
         "search.close": "Close search",
         "search.clearQuery": "Clear search query",
@@ -412,6 +415,9 @@ export const mockLanguageDtoFra: LanguageDto = {
     name: "Français",
     translations: {
         "search.placeholder": "Rechercher...",
+        "search.go": "Rechercher",
+        "search.pressGo": "Appuyez sur Rechercher pour lancer",
+        "search.recent": "Récent",
         "search.ariaLabel": "Rechercher",
         "search.close": "Fermer la recherche",
         "search.clearQuery": "Effacer la recherche",
@@ -463,6 +469,9 @@ export const mockLanguageDtoSwa: LanguageDto = {
     name: "Swahili",
     translations: {
         "search.placeholder": "Tafuta...",
+        "search.go": "Tafuta",
+        "search.pressGo": "Bonyeza Tafuta kusaka",
+        "search.recent": "Hivi karibuni",
         "search.ariaLabel": "Tafuta",
         "search.close": "Funga utafutaji",
         "search.initializing": "Kigezo cha utafutaji kinaanzishwa...",
