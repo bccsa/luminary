@@ -13,7 +13,7 @@ export {
 } from "./trigram";
 export { ftsSearch } from "./ftsSearch";
 export { useFtsSearch } from "./useFtsSearch";
-export type { UseFtsSearchOptions } from "./useFtsSearch";
+export type { UseFtsSearchOptions, UseFtsSearchReturn } from "./useFtsSearch";
 export {
     getCorpusStats,
     setCorpusStats,
