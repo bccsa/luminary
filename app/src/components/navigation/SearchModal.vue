@@ -475,7 +475,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             const q = searchQuery.value.trim();
             if (q.length >= 3) pushRecentSearch(q);
             runSearch?.();
-            inputRef.value?.blur();
         }
         return;
     }
@@ -517,7 +516,6 @@ function onGoClick() {
         // ignore persistence errors
     }
     runSearch?.();
-    inputRef.value?.blur();
 }
 
 const goToResult = (result: EnrichedResult) => {
@@ -550,17 +548,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
 
 <template>
     <div class="relative">
-        <Transition
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition duration-150 ease-in"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-        >
+        <Transition name="search-modal">
             <div
                 v-if="isOpen"
-                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+                class="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
                 <!-- Search Modal: full-screen on mobile, centered panel on desktop -->
@@ -702,7 +693,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             v-else-if="showResults"
                             ref="searchResultsContainerRef"
                             id="search-results-container"
-                            class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3"
+                            class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3 scrollbar-hide"
                         >
                             <ul
                                 role="listbox"
@@ -925,3 +916,41 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         </Transition>
     </div>
 </template>
+
+<style scoped>
+/* Mobile: fast slide-up from bottom */
+@media (max-width: 767px) {
+    .search-modal-enter-active {
+        transition: transform 120ms ease-out;
+    }
+    .search-modal-leave-active {
+        transition: transform 80ms ease-in;
+    }
+    .search-modal-enter-from,
+    .search-modal-leave-to {
+        transform: translateY(100%);
+    }
+    .search-modal-enter-to,
+    .search-modal-leave-from {
+        transform: translateY(0);
+    }
+}
+
+/* Desktop: fade in/out */
+@media (min-width: 768px) {
+    .search-modal-enter-active {
+        transition: opacity 200ms ease-out;
+    }
+    .search-modal-leave-active {
+        transition: opacity 150ms ease-in;
+    }
+    .search-modal-enter-from,
+    .search-modal-leave-to {
+        opacity: 0;
+    }
+    .search-modal-enter-to,
+    .search-modal-leave-from {
+        opacity: 1;
+    }
+}
+</style>
