@@ -608,16 +608,14 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             >
                                 <XMarkIcon class="h-5 w-5" />
                             </button>
-                            <!-- Close overlay: desktop only, always visible -->
+                            <!-- Close overlay: desktop only, shown when no query (clear button takes over otherwise) -->
                             <button
-                                class="hidden items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:flex"
+                                v-if="!searchQuery"
+                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
                                 :aria-label="$t('search.close')"
                                 @click="closeSearch"
                             >
-                                <kbd
-                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
-                                    >ESC</kbd
-                                >
+                                <XMarkIcon class="h-5 w-5" />
                             </button>
                             <!-- Mobile: single close/clear button -->
                             <button
