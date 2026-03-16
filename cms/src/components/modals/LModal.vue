@@ -36,11 +36,21 @@ watch(modalRef, (el) => {
                 ref="modalRef"
                 :class="
                     largeModal
-                        ? 'relative z-50 flex max-h-[85vh] w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
-                        : 'relative z-50 flex max-h-[80vh] w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        ? 'relative z-50 flex max-h-[95vh] w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
+                        : 'max-h-md relative z-50 flex w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
                 "
             >
-                <h2 class="mb-4 px-1 text-lg font-semibold">{{ heading }}</h2>
+                <div class="flex w-full items-center justify-between">
+                    <div v-if="$slots.headingExtension" class="flex">
+                        <h2 v-if="heading" class="mb-4 px-1 text-lg font-semibold">
+                            {{ heading }}
+                        </h2>
+                        <slot name="headingExtension" />
+                    </div>
+                    <div v-if="$slots.rightHeading">
+                        <slot name="rightHeading" />
+                    </div>
+                </div>
                 <div
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',

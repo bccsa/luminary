@@ -86,65 +86,7 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
 </script>
 
 <template>
-    <div v-if="!isMobileScreen" class="w-full">
-        <div class="inline-block w-full rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
-            <h3
-                :class="[
-                    'border-b border-zinc-200 px-6 py-4 text-center font-medium',
-                    { 'text-zinc-700': !disabled },
-                    { 'text-zinc-400': disabled },
-                ]"
-            >
-                <!-- Add the duplicate ACL button -->
-                <div class="flex items-center justify-between">
-                    <div></div>
-                    <div class="py-1">
-                        {{ assignedGroup.name }}
-                    </div>
-                    <div>
-                        <DuplicateGroupAclButton
-                            :groups="availableGroups"
-                            @select="duplicateGroup"
-                            data-test="duplicateAcl"
-                            v-if="!disabled"
-                        />
-                    </div>
-                </div>
-            </h3>
-
-            <table class="w-full">
-                <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
-                    <tr>
-                        <th></th>
-                        <th
-                            v-for="aclPermission in AclPermission"
-                            :key="aclPermission"
-                            :class="[
-                                'p-4 text-center text-sm font-medium uppercase tracking-wider last:pr-6 lg:min-w-24',
-                                { 'text-zinc-600': !disabled },
-                                { 'text-zinc-400': disabled },
-                            ]"
-                        >
-                            {{ capitaliseFirstLetter(aclPermission) }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- :aclEntry is a defineModel in EditAclEntry.
-                    Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
-                    <EditAclEntry
-                        v-for="aclEntry in visibleAclEntries"
-                        :aclEntry="aclEntry"
-                        :key="aclEntry.type"
-                        :originalGroup="originalGroup"
-                        :disabled="disabled"
-                    />
-                </tbody>
-            </table>
-        </div>
-    </div>
     <DisplayCard
-        v-else
         :title="``"
         :updatedTimeUtc="0"
         class="rounded-md border !px-0 !py-0"
@@ -152,8 +94,10 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
     >
         <template #content>
             <div class="flex items-center justify-between">
-                <div></div>
-                <div class="flex-shrink-0 whitespace-nowrap px-1 text-xs font-medium">
+                <div
+                    class="flex-shrink-0 whitespace-nowrap pl-3 font-medium"
+                    :class="isMobileScreen ? 'text-xs' : 'text-sm'"
+                >
                     {{ assignedGroup.name }}
                 </div>
                 <div v-if="typesWithActivePermissions.length > 0">
@@ -176,12 +120,12 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
                         class="flex flex-shrink-0 items-baseline rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
                     >
                         <span>{{ capitaliseFirstLetter(aclEntry.type) }}</span>
-                        <span class="ml-0.5 text-[8px]">
+                        <span class="ml-0.5 text-[9px]">
                             (<span
                                 v-for="permission in activePermissions(aclEntry)"
                                 :key="permission"
                             >
-                                {{ getTheFirstLetter(permission) }} </span
+                                {{ getTheFirstLetter(capitaliseFirstLetter(permission)) }} </span
                             >)
                         </span>
                     </div>
@@ -196,7 +140,6 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
     <LModal
         v-model:isVisible="isVisible"
         :heading="`Edit permissions for ${assignedGroup.name}`"
-        largeModal
         noDivider
     >
         <div class="min-h-60">
@@ -228,7 +171,7 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
                         class="mt-3"
                         :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
                     >
-                        Edit
+                        Add / Remove
                     </LButton>
                 </template>
                 <button

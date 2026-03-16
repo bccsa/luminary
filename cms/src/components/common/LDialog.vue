@@ -28,6 +28,18 @@ withDefaults(defineProps<Props>(), {
             <slot name="default" />
         </div>
 
+        <template #headingExtension>
+            <div v-if="$slots.headingExtension">
+                <slot name="headingExtension" />
+            </div>
+        </template>
+
+        <template #rightHeading>
+            <div v-if="$slots.rightHeading">
+                <slot name="rightHeading" />
+            </div>
+        </template>
+
         <template #footer>
             <div class="flex items-center justify-between">
                 <div>

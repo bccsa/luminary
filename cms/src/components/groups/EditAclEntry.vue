@@ -2,8 +2,8 @@
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
 import { toRaw, computed, ref } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
-import { isPermissionAvailable, hasChangedPermission, validateAclEntry } from "./permissions";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { isPermissionAvailable, validateAclEntry } from "./permissions";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
@@ -48,68 +48,11 @@ const activePermissions = computed(() => {
 </script>
 
 <template>
-    <tr v-if="aclEntry && !isMobileScreen" class="border-b border-zinc-200 last:border-none">
-        <th
-            scope="row"
-            :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
+    <div v-if="aclEntry" class="flex w-full items-center border-b border-zinc-200 last:border-none">
+        <div
+            class="w-[68px] flex-shrink-0 font-medium"
+            :class="isMobileScreen ? 'text-[13px]' : 'text-sm'"
         >
-            {{ capitaliseFirstLetter(aclEntry.type) }}
-        </th>
-        <td
-            v-for="aclPermission in AclPermission"
-            :key="aclPermission"
-            :class="[
-                'text-center',
-                !disabled && isPermissionAvailable(aclEntry.type, aclPermission)
-                    ? 'cursor-pointer'
-                    : '',
-                {
-                    'bg-yellow-200': hasChangedPermission(aclEntry, aclPermission, originalGroup),
-                },
-            ]"
-            @click="
-                () => {
-                    if (!disabled && isPermissionAvailable(aclEntry!.type, aclPermission)) {
-                        setPermission(aclPermission);
-                    }
-                }
-            "
-            data-test="permissionCell"
-        >
-            <template v-if="aclEntry.permission.some((p) => p == aclPermission)">
-                <CheckCircleIcon
-                    :class="[
-                        'inline h-5 w-5',
-                        isPermissionAvailable(aclEntry.type, aclPermission)
-                            ? disabled
-                                ? 'text-zinc-300'
-                                : 'text-zinc-500'
-                            : 'text-zinc-200',
-                    ]"
-                />
-            </template>
-            <template v-else>
-                <XCircleIcon
-                    :class="[
-                        'inline h-5 w-5',
-                        isPermissionAvailable(aclEntry.type, aclPermission)
-                            ? hasChangedPermission(aclEntry, aclPermission, originalGroup)
-                                ? 'text-zinc-400'
-                                : disabled
-                                  ? 'text-zinc-100'
-                                  : 'text-zinc-200'
-                            : 'opacity-0',
-                    ]"
-                />
-            </template>
-        </td>
-    </tr>
-
-    <div
-        v-else-if="aclEntry && isMobileScreen"
-        class="flex w-full items-center border-b border-zinc-200 bg-zinc-100 last:border-none"
-    >
-        <div class="w-16 flex-shrink-0 text-[13px] font-medium">
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
         <div class="min-w-0 flex-1 border-x border-zinc-200 px-1 py-1.5">
@@ -123,7 +66,7 @@ const activePermissions = computed(() => {
                 </div>
             </div>
         </div>
-        <div class="flex items-center px-2">
+        <div class="flex items-center pl-1">
             <LDropdown
                 class="relative"
                 padding="none"

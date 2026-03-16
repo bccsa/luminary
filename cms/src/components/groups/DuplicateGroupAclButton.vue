@@ -26,7 +26,7 @@ const selectGroup = (group: GroupDto) => {
     <LDropdown
         class="relative"
         v-model:show="show"
-        placement="top-end"
+        placement="bottom-end"
         width="default"
         padding="small"
     >
@@ -38,6 +38,7 @@ const selectGroup = (group: GroupDto) => {
                 size="sm"
                 title="Duplicate"
                 data-test="duplicateAclIcon"
+                mainDynamicCss="text-zinc-500"
             />
         </template>
 

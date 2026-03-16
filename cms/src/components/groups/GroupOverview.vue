@@ -85,27 +85,25 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
 </script>
 
 <template>
-    <div class="h-full overflow-hidden">
-        <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
-            <template #pageNav>
-                <LButton
-                    v-if="canCreateGroup"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="createGroup"
-                    data-test="createGroupButton"
-                >
-                    Create group
-                </LButton>
-            </template>
+    <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
+        <template #pageNav>
+            <LButton
+                v-if="canCreateGroup"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="createGroup"
+                data-test="createGroupButton"
+            >
+                Create group
+            </LButton>
+        </template>
 
-            <GroupDisplayCard
-                v-for="(group, index) in editable"
-                :key="group._id"
-                v-model:group="editable[index]"
-                :groupQuery="groupQuery"
-            />
-        </BasePage>
+        <GroupDisplayCard
+            v-for="(group, index) in editable"
+            :key="group._id"
+            v-model:group="editable[index]"
+            :groupQuery="groupQuery"
+        />
 
         <EditGroup
             v-if="selectedGroup"
@@ -116,5 +114,5 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
             :group-query="groupQuery"
             @close="showModal = false"
         />
-    </div>
+    </BasePage>
 </template>

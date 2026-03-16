@@ -218,7 +218,7 @@ const saveChanges = async () => {
 
 <template>
     <LDialog
-        title="Edit Group"
+        :title="``"
         :open="openModal"
         @update:open="(val) => !val && emit('close')"
         :primaryAction="saveChanges"
@@ -229,128 +229,110 @@ const saveChanges = async () => {
         @close="emit('close')"
         largeModal
     >
-        <div :class="['w-full rounded-md bg-white p-3 shadow', { 'bg-zinc-100': disabled }]">
-            <div class="mb-6 flex items-center justify-between">
-                <div
-                    v-if="!isEditingGroupName"
+        <template #headingExtension>
+            <div
+                v-if="!isEditingGroupName"
+                :class="[
+                    'mb-2 flex items-center gap-2 rounded',
+                    {
+                        'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
+                            hasChangedGroupName,
+                    },
+                    {
+                        'hover:bg-zinc-100 active:bg-zinc-200': !hasChangedGroupName && !disabled,
+                    },
+                ]"
+                @click="startEditingGroupName"
+                :title="'Edit group name'"
+                data-test="groupName"
+            >
+                <RectangleStackIcon
                     :class="[
-                        '-mx-2 flex items-center gap-2 rounded px-2 py-1',
-                        {
-                            'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
-                                hasChangedGroupName,
-                        },
-                        {
-                            'hover:bg-zinc-100 active:bg-zinc-200':
-                                !hasChangedGroupName && !disabled,
-                        },
+                        'h-5 w-5',
+                        { 'text-zinc-300': disabled },
+                        { 'text-zinc-400': !disabled },
                     ]"
-                    @click="startEditingGroupName"
-                    :title="'Edit group name'"
-                    data-test="groupName"
-                >
-                    <RectangleStackIcon
-                        :class="[
-                            'h-5 w-5',
-                            { 'text-zinc-300': disabled },
-                            { 'text-zinc-400': !disabled },
-                        ]"
-                    />
-                    <h2
-                        :class="[
-                            'font-medium',
-                            { 'text-zinc-400': disabled },
-                            { 'text-zinc-800': !disabled },
-                        ]"
-                    >
-                        {{ group.name }}
-                    </h2>
-                    <LButton
-                        v-if="
-                            groupQuery.editable &&
-                            groupQuery.editable.value.length > 0 &&
-                            !isDirty &&
-                            !disabled &&
-                            !isNewGroup &&
-                            isMobileScreen
-                        "
-                        variant="muted"
-                        size="sm"
-                        title="Duplicate"
-                        :icon="DocumentDuplicateIcon"
-                        @click="duplicateGroup"
-                        data-test="duplicateGroup"
-                        class="ml-2"
-                    />
-                </div>
-                <LInput
-                    v-else
-                    size="sm"
-                    ref="groupNameInput"
-                    name="groupName"
-                    v-model="group.name"
-                    @blur="finishEditingGroupName"
-                    @keyup.enter="finishEditingGroupName"
-                    @keydown.enter.stop
-                    @keydown.space.stop
-                    @click.stop
-                    class="mr-4 grow"
-                    data-test="groupNameInput"
                 />
-                <div class="flex">
-                    <LButton
-                        v-if="
-                            groupQuery.editable &&
-                            groupQuery.editable.value.length > 0 &&
-                            !isDirty &&
-                            !disabled &&
-                            !isNewGroup &&
-                            !isMobileScreen
-                        "
-                        variant="muted"
-                        size="sm"
-                        title="Duplicate"
-                        :icon="DocumentDuplicateIcon"
-                        @click="duplicateGroup"
-                        data-test="duplicateGroup"
-                    />
-                    <LDropdown
-                        v-if="isMobileScreen"
-                        class="relative"
-                        padding="none"
-                        placement="bottom-end"
-                        width="default"
-                        v-model:show="showSelector"
-                    >
-                        <template #trigger>
-                            <LButton
-                                :icon="InformationCircleIcon"
-                                variant="tertiary"
-                                icon-right
-                                size="sm"
-                                class="mt-3"
-                                :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
-                            />
-                        </template>
-                        <p class="px-2">
-                            <span v-if="!disabled" class="text-xs">
-                                Configure which permissions user members of the following groups
-                                have to
-                                <strong>this</strong> group and its member documents.
-                            </span>
-                            <span v-else> No edit access. </span>
-                            <span class="text-[11px] italic">
-                                <br />User members of higher level groups may have more permissions
-                                (than configured below) to this group and its members by
-                                inheritance, depending on the permissions granted by the higher
-                                level groups.
-                            </span>
-                        </p>
-                    </LDropdown>
-                </div>
+                <h2
+                    :class="[
+                        'font-semibold',
+                        { 'text-zinc-400': disabled },
+                        { 'text-zinc-800': !disabled },
+                    ]"
+                >
+                    Edit {{ group.name }}
+                </h2>
             </div>
+            <LInput
+                v-else
+                size="sm"
+                ref="groupNameInput"
+                name="groupName"
+                v-model="group.name"
+                @blur="finishEditingGroupName"
+                @keyup.enter="finishEditingGroupName"
+                @keydown.enter.stop
+                @keydown.space.stop
+                @click.stop
+                class="mr-4 grow"
+                data-test="groupNameInput"
+            />
+        </template>
+        <template #rightHeading>
+            <div class="mb-1 flex">
+                <LButton
+                    v-if="
+                        groupQuery.editable &&
+                        groupQuery.editable.value.length > 0 &&
+                        !isDirty &&
+                        !disabled &&
+                        !isNewGroup
+                    "
+                    variant="muted"
+                    size="sm"
+                    title="Duplicate"
+                    :icon="DocumentDuplicateIcon"
+                    @click="duplicateGroup"
+                    data-test="duplicateGroup"
+                    class="mr-2"
+                />
+                <LDropdown
+                    v-if="isMobileScreen"
+                    class="relative"
+                    padding="none"
+                    placement="bottom-end"
+                    width="default"
+                    v-model:show="showSelector"
+                >
+                    <template #trigger>
+                        <LButton
+                            :icon="InformationCircleIcon"
+                            variant="tertiary"
+                            icon-right
+                            size="sm"
+                            mainDynamicCss="text-zinc-500"
+                        />
+                    </template>
+                    <p class="px-2">
+                        <span v-if="!disabled" class="text-xs">
+                            Configure which permissions user members of the following groups have to
+                            <strong>this</strong> group and its member documents.
+                        </span>
+                        <span v-else> No edit access. </span>
+                        <span class="text-[11px] italic">
+                            <br />User members of higher level groups may have more permissions
+                            (than configured below) to this group and its members by inheritance,
+                            depending on the permissions granted by the higher level groups.
+                        </span>
+                    </p>
+                </LDropdown>
+            </div>
+        </template>
+
+        <div :class="['w-full rounded-md bg-white p-3 shadow', { 'bg-zinc-100': disabled }]">
             <div class="space-y-1">
                 <p v-if="!isMobileScreen">
-                    <span v-if="!disabled" :class="[{ 'text-sm': isMobileScreen }]">
+                    <span v-if="!disabled">
                         Configure which permissions user members of the following groups have to
                         <strong>this</strong> group and its member documents.
                     </span>
