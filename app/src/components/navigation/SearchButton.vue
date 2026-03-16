@@ -6,7 +6,7 @@ import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { useFtsSearch, db } from "luminary-shared";
+import { useFtsSearch, db, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 
 const router = useRouter();
@@ -14,23 +14,86 @@ const router = useRouter();
 const { isSearchOpen, closeSearch } = useSearchOverlay();
 
 const isOpen = ref(false);
-const searchQuery = ref("");
 const selectedIndex = ref(-1);
 const inputRef = ref<HTMLInputElement | null>(null);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-// Cast refs to avoid cross-package Vue Ref type mismatch between app and shared
+const RECENT_SEARCHES_KEY = "luminary-search-recent";
+const RECENT_SEARCHES_MAX = 10;
+const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
+const CURRENT_SEARCH_SOURCE_KEY = "luminary-search-current-source";
+
+type CurrentSearchSource = "recent" | "manual";
+
+function loadCurrentSearchQuery(): string {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return "";
+        const stored = localStorage.getItem(CURRENT_SEARCH_QUERY_KEY);
+        return stored ?? "";
+    } catch {
+        return "";
+    }
+}
+
+function loadRecentSearches(): string[] {
+    try {
+        const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : [];
+    } catch {
+        return [];
+    }
+}
+
+const searchQuery = ref(loadCurrentSearchQuery());
+const recentSearches = ref<string[]>(loadRecentSearches());
+
+function pushRecentSearch(q: string) {
+    const trimmed = q.trim();
+    if (trimmed.length < 3) return;
+    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(
+        0,
+        RECENT_SEARCHES_MAX,
+    );
+    recentSearches.value = next;
+    try {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
+}
+
+function pickRecentSearch(term: string) {
+    searchQuery.value = term;
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            localStorage.setItem(CURRENT_SEARCH_QUERY_KEY, term.trim());
+            localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "recent");
+        }
+    } catch {
+        // ignore persistence errors
+    }
+    runSearch?.();
+}
+
+const ftsRet = useFtsSearch(searchQuery as any, {
+    languageId: languageId as any,
+    debounceMs: "manual",
+    pageSize: 20,
+} as any) as ReturnType<typeof useFtsSearch> & {
+    lastSearchedQuery: import("vue").Ref<string>;
+    runSearch?: () => void;
+};
 const {
     results: ftsResults,
     isSearching,
     loadMore,
     hasMore,
-} = useFtsSearch(searchQuery as any, {
-    languageId: languageId as any,
-    debounceMs: 150,
-    pageSize: 20,
-});
+    lastSearchedQuery,
+    runSearch,
+} = ftsRet;
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
 useInfiniteScroll(
@@ -63,7 +126,7 @@ function extractPlainText(content: unknown): string {
         try {
             return extractPlainTextFromObject(JSON.parse(content));
         } catch {
-            return content;
+            return stripHtml(content);
         }
     }
     return extractPlainTextFromObject(content);
@@ -258,34 +321,98 @@ const results = computed<EnrichedResult[]>(() => {
         .filter((doc): doc is ContentDto => !!doc)
         .map((doc) => ({
             ...doc,
-            titleHighlight: highlightQueryInText(doc.title, query),
+            titleHighlight: highlightQueryInText(stripHtml(doc.title ?? ""), query),
             highlight: createHighlight(doc, query),
             languageName: languageNames.value.get(doc.language) ?? "",
         }));
 });
 
-const showResults = computed(() => results.value.length > 0 && !!searchQuery.value.trim());
-
+const trimmedQuery = computed(() => searchQuery.value.trim());
+const showResults = computed(() => results.value.length > 0);
+/** User has run search for current query and got nothing */
+const showNoResults = computed(
+    () =>
+        trimmedQuery.value.length >= 3 &&
+        lastSearchedQuery.value === trimmedQuery.value &&
+        !isSearching.value &&
+        results.value.length === 0,
+);
 /** Query has 1–2 characters: we need at least 3 for FTS */
 const showMinCharsHint = computed(
     () =>
         !isSearching.value &&
-        searchQuery.value.trim().length > 0 &&
-        searchQuery.value.trim().length < 3,
+        trimmedQuery.value.length > 0 &&
+        trimmedQuery.value.length < 3,
 );
 
 /** Overlay is open with no query yet — show a short hint so the panel isn’t blank */
-const showEmptyStateHint = computed(() => isOpen.value && !searchQuery.value.trim());
+const showEmptyStateHint = computed(() => isOpen.value && !trimmedQuery.value);
+
+/** User has typed 3+ chars but not pressed Go yet */
+const showPressGoHint = computed(
+    () =>
+        trimmedQuery.value.length >= 3 &&
+        lastSearchedQuery.value !== trimmedQuery.value &&
+        !isSearching.value &&
+        results.value.length === 0,
+);
+
+// When the user edits the query after a search, persist the current query so it can be
+// restored when reopening the overlay. We deliberately KEEP the previous results visible
+// until the user explicitly runs a new search (Go button or recent term), so the UI
+// always shows "results for lastSearchedQuery" rather than disappearing results.
+watch(
+    () => searchQuery.value,
+    (newQuery) => {
+        const trimmed = newQuery.trim();
+        try {
+            if (typeof window !== "undefined" && window.localStorage) {
+                if (trimmed) {
+                    localStorage.setItem(CURRENT_SEARCH_QUERY_KEY, trimmed);
+                } else {
+                    localStorage.removeItem(CURRENT_SEARCH_QUERY_KEY);
+                }
+            }
+        } catch {
+            // ignore persistence errors
+        }
+
+        // If the query has been cleared entirely, also clear any existing results so the
+        // overlay doesn't show results for an empty query.
+        if (!trimmed) {
+            ftsResults.value = [];
+            resolvedDocs.value = new Map();
+            lastSearchedQuery.value = "";
+            selectedIndex.value = -1;
+        }
+    },
+);
 
 // --- Overlay state ---
 
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
-        searchQuery.value = "";
         selectedIndex.value = -1;
     } else {
-        nextTick(() => inputRef.value?.focus());
+        // When reopening the overlay, always start from a "pre-search" state:
+        // keep the query text (so it feels persistent) but hide any old results
+        // and clear the last searched marker, so we don't show "No results" UI
+        // until the user explicitly runs a search again (Go button or recent term).
+        ftsResults.value = [];
+        resolvedDocs.value = new Map();
+        lastSearchedQuery.value = "";
+        selectedIndex.value = -1;
+        nextTick(() => {
+            inputRef.value?.focus();
+
+            // If there is a persisted, valid query, automatically re-run the search
+            // when reopening the overlay so the user always sees results for the
+            // current query, whether it came from typing or from a recent chip.
+            const q = searchQuery.value.trim();
+            if (!q || q.length < 3 || !runSearch) return;
+            runSearch();
+        });
     }
 });
 
@@ -334,6 +461,19 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         closeSearch();
         return;
     }
+    if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (showResults.value && results.value.length > 0 && selectedIndex.value >= 0) {
+            goToResult(results.value[selectedIndex.value]);
+        } else {
+            const q = searchQuery.value.trim();
+            if (q.length >= 3) pushRecentSearch(q);
+            runSearch?.();
+            inputRef.value?.blur();
+        }
+        return;
+    }
     if (showResults.value && results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
@@ -343,10 +483,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             event.preventDefault();
             event.stopPropagation();
             selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
-        } else if (event.key === "Enter") {
-            event.preventDefault();
-            event.stopPropagation();
-            if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
         }
     }
 };
@@ -365,9 +501,23 @@ const handleMobileCloseOrClear = () => {
     }
 };
 
+function onGoClick() {
+    const q = searchQuery.value.trim();
+    if (q.length >= 3) pushRecentSearch(q);
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "manual");
+        }
+    } catch {
+        // ignore persistence errors
+    }
+    runSearch?.();
+    inputRef.value?.blur();
+}
+
 const goToResult = (result: EnrichedResult) => {
     router.push({ name: "content", params: { slug: result.slug } });
-    searchQuery.value = "";
+    // Keep searchQuery/results so the search state is still there next time
     closeSearch();
 };
 
@@ -436,6 +586,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             autocomplete="off"
                             @keydown="handleInputKeydown"
                         />
+                        <button
+                            type="button"
+                            class="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                            @click="onGoClick"
+                        >
+                            {{ $t("search.go") }}
+                        </button>
                         <div class="flex items-center gap-2">
                             <!-- Clear query: desktop only, shown when query exists -->
                             <button
@@ -511,9 +668,19 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </p>
                         </div>
 
+                        <!-- Press Go to search (3+ chars, not searched yet) -->
+                        <div
+                            v-else-if="showPressGoHint"
+                            class="p-8 text-center md:p-10"
+                        >
+                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                                {{ $t("search.pressGo") }}
+                            </p>
+                        </div>
+
                         <!-- No results -->
                         <div
-                            v-else-if="searchQuery.trim() && !isSearching && results.length === 0"
+                            v-else-if="showNoResults"
                             class="p-8 text-center md:p-10"
                         >
                             <MagnifyingGlassIcon
@@ -576,7 +743,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                     v-if="result.titleHighlight"
                                                     v-html="result.titleHighlight"
                                                 />
-                                                <template v-else>{{ result.title }}</template>
+                                                <template v-else>{{ stripHtml(result.title ?? "") }}</template>
                                             </h3>
                                             <!-- Snippet with highlights when available, else plain summary -->
                                             <p
@@ -588,11 +755,11 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                 v-else-if="result.summary"
                                                 class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
                                             >
-                                                {{ result.summary }}
+                                                {{ stripHtml(result.summary) }}
                                             </p>
-                                            <!-- Meta: author · language -->
+                                            <!-- Meta: author · language (hide language when same as user's to avoid "English" on every card) -->
                                             <div
-                                                v-if="result.author || result.languageName"
+                                                v-if="result.author || (result.languageName && result.language !== languageId)"
                                                 class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
                                             >
                                                 <span
@@ -601,13 +768,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                     >{{ result.author }}</span
                                                 >
                                                 <span
-                                                    v-if="result.author && result.languageName"
+                                                    v-if="result.author && result.languageName && result.language !== languageId"
                                                     class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
                                                     aria-hidden="true"
                                                     >·</span
                                                 >
                                                 <span
-                                                    v-if="result.languageName"
+                                                    v-if="result.languageName && result.language !== languageId"
                                                     class="flex-shrink-0 uppercase tracking-wide"
                                                     >{{ result.languageName }}</span
                                                 >
@@ -655,20 +822,39 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </div>
                         </div>
 
-                        <!-- Initial empty state: hint when overlay just opened -->
+                        <!-- Initial empty state: hint and recent searches when overlay just opened -->
                         <div
                             v-else-if="showEmptyStateHint"
-                            class="p-8 text-center md:p-10"
+                            class="p-6 md:p-8"
                         >
-                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                            <p class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                                 {{ $t("search.hint") }}
                             </p>
-                            <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
+                            <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
                                 {{ $t("search.minCharsShort") }}
                                 <span class="hidden sm:inline">
                                     · {{ $t("search.shortcut") }}
                                 </span>
                             </p>
+                            <div
+                                v-if="recentSearches.length > 0"
+                                class="mt-4 border-t border-zinc-200 pt-4 dark:border-slate-700"
+                            >
+                                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500">
+                                    {{ $t("search.recent") }}
+                                </p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="term in recentSearches"
+                                        :key="term"
+                                        type="button"
+                                        class="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                                        @click="pickRecentSearch(term)"
+                                    >
+                                        {{ term }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
