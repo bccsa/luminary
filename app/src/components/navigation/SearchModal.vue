@@ -693,7 +693,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             v-else-if="showResults"
                             ref="searchResultsContainerRef"
                             id="search-results-container"
-                            class="max-h-[60vh] overflow-y-auto py-2 md:max-h-[65vh] md:py-3 scrollbar-hide"
+                            class="flex-1 overflow-y-auto py-2 pb-24 md:max-h-[65vh] md:py-3 md:pb-3 scrollbar-hide"
                         >
                             <ul
                                 role="listbox"
