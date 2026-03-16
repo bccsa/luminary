@@ -551,7 +551,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         <Transition name="search-modal">
             <div
                 v-if="isOpen"
-                class="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
                 <!-- Search Modal: full-screen on mobile, centered panel on desktop -->
