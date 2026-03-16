@@ -548,7 +548,14 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
 
 <template>
     <div class="relative">
-        <Transition name="search-modal">
+        <Transition
+            enter-active-class="md:transition-opacity md:duration-200"
+            enter-from-class="md:opacity-0"
+            enter-to-class="md:opacity-100"
+            leave-active-class="md:transition-opacity md:duration-150"
+            leave-from-class="md:opacity-100"
+            leave-to-class="md:opacity-0"
+        >
             <div
                 v-if="isOpen"
                 class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
