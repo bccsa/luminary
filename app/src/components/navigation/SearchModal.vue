@@ -81,7 +81,7 @@ const ftsRet = useFtsSearch(
     {
         languageId: languageId as any,
         debounceMs: "manual",
-        pageSize: 20,
+        pageSize: 10,
     } as any,
 ) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
