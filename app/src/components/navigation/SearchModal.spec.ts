@@ -4,7 +4,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { ref, nextTick } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import SearchButton from "./SearchButton.vue";
+import SearchModal from "./SearchModal.vue";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import type { FtsSearchResult } from "luminary-shared";
@@ -94,7 +94,7 @@ function setupFts(opts: {
 }
 
 function mountComponent() {
-    return mount(SearchButton, {
+    return mount(SearchModal, {
         global: {
             stubs: {
                 Transition: { template: "<slot />" },

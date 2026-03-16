@@ -3,7 +3,7 @@ import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
-import SearchButton from "./SearchButton.vue";
+import SearchButton from "./SearchModal.vue";
 import { computed, nextTick, onMounted, ref, watch, shallowRef } from "vue";
 
 type Props = {
