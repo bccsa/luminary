@@ -7,6 +7,9 @@
     "default": 0,
     "translations": {
         "search.placeholder": "Rechercher...",
+        "search.go": "Rechercher",
+        "search.pressGo": "Appuyez sur Rechercher pour lancer",
+        "search.recent": "Récent",
         "search.ariaLabel": "Rechercher",
         "search.close": "Fermer la recherche",
         "search.clearQuery": "Effacer la recherche",

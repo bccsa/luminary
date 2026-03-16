@@ -7,6 +7,9 @@
     "default": 1,
     "translations": {
         "search.placeholder": "Search...",
+        "search.go": "Go",
+        "search.pressGo": "Press Go to search",
+        "search.recent": "Recent",
         "search.ariaLabel": "Search",
         "search.close": "Close search",
         "search.clearQuery": "Clear search query",
