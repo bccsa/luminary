@@ -3,17 +3,11 @@ import LBadge from "@/components/common/LBadge.vue";
 import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
 import { ref } from "vue";
-import LDropdown from "../common/LDropdown.vue";
 
-type Props = {
+defineProps<{
     parent?: ContentParentDto;
     content?: ContentDto[];
-    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
-};
-
-const props = withDefaults(defineProps<Props>(), {
-    placement: "bottom-end",
-});
+}>();
 
 const emit = defineEmits(["createTranslation"]);
 
@@ -25,42 +19,30 @@ const languagePopup = ref();
 
 <template>
     <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
-        <LDropdown
-            padding="none"
-            data-test="languagePopup"
-            :show="showSelector"
-            :placement="props.placement"
-        >
-            <ul>
-                <div class="py-1">
-                    <li v-for="language in languages" :key="language.languageCode">
-                        <button
-                            @click="
-                                () => {
-                                    emit('createTranslation', language);
-                                    showSelector = false;
-                                }
-                            "
-                            class="text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
-                            :class="[
-                                'group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm',
-                            ]"
-                            :data-test="`select-language-${language.languageCode}`"
-                        >
-                            <span class="flex items-center gap-2">
-                                <LBadge type="language">
-                                    {{ language.languageCode }}
-                                </LBadge>
-                                {{ language.name }}
-                            </span>
+        <ul class="py-1">
+            <li v-for="language in languages" :key="language.languageCode">
+                <button
+                    @click="
+                        () => {
+                            emit('createTranslation', language);
+                            showSelector = false;
+                        }
+                    "
+                    class="group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    :data-test="`select-language-${language.languageCode}`"
+                >
+                    <span class="flex items-center gap-2">
+                        <LBadge type="language">
+                            {{ language.languageCode }}
+                        </LBadge>
+                        {{ language.name }}
+                    </span>
 
-                            <ArrowRightIcon
-                                class="hidden h-4 w-4 text-zinc-600 sm:group-hover:inline-block sm:group-active:inline-block"
-                            />
-                        </button>
-                    </li>
-                </div>
-            </ul>
-        </LDropdown>
+                    <ArrowRightIcon
+                        class="hidden h-4 w-4 text-zinc-600 sm:group-hover:inline-block sm:group-active:inline-block"
+                    />
+                </button>
+            </li>
+        </ul>
     </div>
 </template>

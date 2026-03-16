@@ -218,7 +218,7 @@ const saveChanges = async () => {
 
 <template>
     <LDialog
-        :title="``"
+        title=""
         :open="openModal"
         @update:open="(val) => !val && emit('close')"
         :primaryAction="saveChanges"
@@ -313,13 +313,13 @@ const saveChanges = async () => {
                             mainDynamicCss="text-zinc-500"
                         />
                     </template>
-                    <p class="px-2">
-                        <span v-if="!disabled" class="text-xs">
+                    <p class="p-2">
+                        <span v-if="!disabled" class="inline-block text-xs leading-tight">
                             Configure which permissions user members of the following groups have to
                             <strong>this</strong> group and its member documents.
                         </span>
                         <span v-else> No edit access. </span>
-                        <span class="text-[11px] italic">
+                        <span class="inline-block text-[11.6px] leading-tight">
                             <br />User members of higher level groups may have more permissions
                             (than configured below) to this group and its members by inheritance,
                             depending on the permissions granted by the higher level groups.

@@ -7,7 +7,13 @@ defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
     padding?: "small" | "medium" | "large" | "none";
-    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
+    placement?:
+        | "bottom-end"
+        | "bottom-start"
+        | "top-end"
+        | "top-start"
+        | "top-center"
+        | "bottom-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
 }>();
@@ -121,6 +127,10 @@ const panelStyle = computed(() => {
             style.bottom = `${windowHeight.value - triggerTop.value + 4}px`;
             style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
             break;
+        case "bottom-center":
+            style.top = `${triggerBottom.value + 4}px`;
+            style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
+            break;
         default:
             style.top = `${triggerBottom.value + 4}px`;
             style.left = `${triggerRight.value - panelWidth.value}px`;
@@ -152,7 +162,7 @@ const paddingClass = computed(() =>
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click.stop="onTriggerClick"
+            @click.capture.stop="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >

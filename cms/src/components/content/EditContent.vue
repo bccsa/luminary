@@ -47,6 +47,7 @@ import EditContentMedia from "./EditContentMedia.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
+import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     id: Uuid;
@@ -669,29 +670,32 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                     class="mb-3 flex flex-col items-center justify-center lg:mb-0"
                 >
                     <div class="relative flex flex-col items-center lg:inline-block">
-                        <LButton
-                            :icon="PlusIcon"
-                            class="h-max w-fit"
-                            variant="muted"
-                            @click.stop="showLanguageSelector = !showLanguageSelector"
-                            data-test="add-translation-button"
-                            aria-label="Add translation"
-                        >
-                            <template #tooltip>Add a new translation</template>
-                        </LButton>
-                        <div
-                            class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 lg:static lg:left-auto lg:mb-0 lg:ml-2 lg:inline-block lg:translate-x-0"
-                        >
-                            <LanguageSelector
-                                data-test="language-selector"
-                                :parent="editableParent"
-                                :content="editableContent"
-                                :languages="untranslatedLanguages"
-                                v-model:show-selector="showLanguageSelector"
-                                @create-translation="createTranslation"
-                                placement="top-center"
-                            />
-                        </div>
+                        <LDropdown v-model:show="showLanguageSelector" placement="bottom-center">
+                            <template #trigger>
+                                <LButton
+                                    :icon="PlusIcon"
+                                    class="h-max w-fit"
+                                    variant="muted"
+                                    data-test="add-translation-button"
+                                    aria-label="Add translation"
+                                >
+                                    <template #tooltip>Add a new translation</template>
+                                </LButton>
+                            </template>
+                            <div
+                                class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 lg:static lg:left-auto lg:mb-0 lg:ml-2 lg:inline-block lg:translate-x-0"
+                            >
+                                <LanguageSelector
+                                    data-test="language-selector"
+                                    :parent="editableParent"
+                                    :content="editableContent"
+                                    :languages="untranslatedLanguages"
+                                    v-model:show-selector="showLanguageSelector"
+                                    @create-translation="createTranslation"
+                                    placement="top-center"
+                                />
+                            </div>
+                        </LDropdown>
                     </div>
                 </EmptyState>
                 <div v-else class="h-full lg:overflow-hidden">
