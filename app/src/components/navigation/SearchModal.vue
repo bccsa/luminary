@@ -81,7 +81,7 @@ const ftsRet = useFtsSearch(
     {
         languageId: languageId as any,
         debounceMs: "manual",
-        pageSize: 10,
+        pageSize: 20,
     } as any,
 ) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
@@ -415,16 +415,14 @@ watch(isSearchOpen, (open) => {
 });
 
 watch(results, (newResults, oldResults) => {
-    // When results first appear (from empty → non-empty), select the first item
-    if (!oldResults?.length && newResults.length > 0) {
+    if (newResults.length === 0) {
+        selectedIndex.value = -1;
+    } else if (oldResults.length === 0) {
+        // Fresh search just returned results — select the first item
         selectedIndex.value = 0;
-        return;
     }
-
-    // When results shrink (e.g. new search), keep selection within bounds
-    if (selectedIndex.value >= newResults.length) {
-        selectedIndex.value = newResults.length > 0 ? newResults.length - 1 : -1;
-    }
+    // When loadMore appends results keep the current selectedIndex so the
+    // scroll position isn't reset to the top.
 });
 
 watch(selectedIndex, (index) => {
