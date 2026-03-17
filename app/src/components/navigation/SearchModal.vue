@@ -19,6 +19,15 @@ const inputRef = ref<HTMLInputElement | null>(null);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
+const isMac = computed(() => {
+    if (typeof navigator === "undefined") return false;
+    const platform = (navigator.platform || "").toLowerCase();
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return platform.includes("mac") || ua.includes("mac os") || ua.includes("iphone") || ua.includes("ipad");
+});
+
+const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
+
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
 const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
@@ -847,7 +856,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
                                 {{ $t("search.minCharsShort") }}
                                 <span class="hidden sm:inline">
-                                    · {{ $t("search.shortcut") }}
+                                    · {{ $t("search.shortcut", { shortcut: shortcutLabel }) }}
                                 </span>
                             </p>
                             <div
