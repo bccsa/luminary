@@ -239,7 +239,7 @@ describe("sync.ts", () => {
                 [DocType.GlobalConfig]: [],
             });
 
-            initSync();
+            initLanguageSync();
             isConnected.value = true;
             await nextTick();
 

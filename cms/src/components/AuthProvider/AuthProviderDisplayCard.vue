@@ -10,7 +10,7 @@ import {
 import { computed } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
-import { ClockIcon, UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
+import { ClockIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { isSmallScreen } from "@/globalConfig";
 import { capitaliseFirstLetter } from "@/util/string";
 
@@ -61,7 +61,9 @@ const handleEdit = () => {
                 }"
             >
                 <div class="mr-1 max-w-full truncate text-wrap text-base font-medium">
-                    {{ capitaliseFirstLetter(provider.label) || provider.domain || "Auth provider" }}
+                    {{
+                        capitaliseFirstLetter(provider.label) || provider.domain || "Auth provider"
+                    }}
                 </div>
             </div>
         </div>

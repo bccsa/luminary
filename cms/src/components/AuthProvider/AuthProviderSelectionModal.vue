@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import LModal from "../modals/LModal.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { showProviderSelectionModal, loginWithProvider } from "@/auth";
-import { db, DocType, mangoToDexie, useDexieLiveQuery, type AuthProviderDto } from "luminary-shared";
+import { loginWithProvider } from "@/auth";
+import {
+    db,
+    DocType,
+    mangoToDexie,
+    useDexieLiveQuery,
+    type AuthProviderDto,
+} from "luminary-shared";
 import { computed } from "vue";
 
 const isVisible = defineModel<boolean>("isVisible");
