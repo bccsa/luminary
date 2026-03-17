@@ -438,7 +438,7 @@ router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 watch(selectedLanguage, () => {
     if (selectedLanguage.value) {
         router.replace(
-            `/${props.docType}/edit/${props.tagOrPostType}/${parentId}/${selectedLanguage.value?.languageCode}`,
+            `/${props.docType}/edit/${props.tagOrPostType}/${editableParent.value._id}/${selectedLanguage.value?.languageCode}`,
         );
     }
 });
@@ -459,7 +459,6 @@ const duplicate = async () => {
     const clonedParent = _.cloneDeep(editableParent.value);
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
-    clonedParent.tags = [];
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
     if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
     const clonedContent = editableContent.value.map((c) => {
