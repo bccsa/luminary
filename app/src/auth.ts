@@ -269,6 +269,18 @@ export function openProviderModal(): void {
 }
 
 /**
+ * Get a token from the oauth client if the user is authenticated.
+ * Returns undefined if not authenticated.
+ */
+export async function getToken(oauth: {
+    isAuthenticated: { value: boolean };
+    getAccessTokenSilently: () => Promise<string>;
+}): Promise<string | undefined> {
+    if (!oauth.isAuthenticated.value) return undefined;
+    return oauth.getAccessTokenSilently();
+}
+
+/**
  * Resolve active provider id from readAuth0NativeStorage() + Dexie and set activeProviderId.
  * Call after init() when db is ready, and after callback handling.
  */
@@ -296,4 +308,5 @@ export default {
     activeProviderId,
     showProviderSelectionModal,
     loginWithProvider,
+    getToken,
 };

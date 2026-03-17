@@ -26,6 +26,7 @@ import {
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
+import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config } from "../config";
@@ -666,6 +667,14 @@ describe("Database", async () => {
     });
 
     describe("revoked documents", () => {
+        beforeEach(() => {
+            isConnected.value = true;
+        });
+
+        afterEach(() => {
+            isConnected.value = false;
+        });
+
         it("removes documents with memberOf field when access to a group is revoked", async () => {
             const docs = [
                 {
