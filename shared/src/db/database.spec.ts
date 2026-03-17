@@ -1034,6 +1034,14 @@ describe("Database", async () => {
         it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership is in the access map", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
+            accessMap.value = {
+                "group-public-content": {
+                    [DocType.Post]: {
+                        [AclPermission.View]: true,
+                    },
+                },
+            };
+
             const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
             expect(addedDoc).toBeDefined();
 
@@ -1050,6 +1058,8 @@ describe("Database", async () => {
 
             const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
             expect(deletedDoc).toBeDefined();
+
+            accessMap.value = {};
         });
 
         it("can delete related content documents when a parent document is deleted locally through marking a document with deleteReq: 1", async () => {

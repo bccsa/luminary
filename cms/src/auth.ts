@@ -329,6 +329,14 @@ export async function resolveProviderId(): Promise<void> {
     }
 }
 
+export async function getToken(oauth: {
+    isAuthenticated: { value: boolean };
+    getAccessTokenSilently: () => Promise<string>;
+}): Promise<string | undefined> {
+    if (!oauth.isAuthenticated.value) return undefined;
+    return oauth.getAccessTokenSilently();
+}
+
 export default {
     setupAuth,
     resolveProviderId,
@@ -339,4 +347,5 @@ export default {
     showProviderSelectionModal,
     loginWithProvider,
     isAuthBypassed,
+    getToken,
 };
