@@ -28,21 +28,27 @@ export function useFileUpload() {
             const zip = await JSZip.loadAsync(arrayBuffer);
             const contentXml = await zip.file("content.xml")?.async("string");
             if (!contentXml) return "";
-            // Use null-char placeholders so paragraph tags survive the XML strip pass
+            // Use null-char placeholders so structural markers survive the XML strip pass
             const PARA = "\x00P\x00";
             const ENDPARA = "\x00/P\x00";
+            const LINEBREAK = "\x00BR\x00";
             return contentXml
-                .replace(/<text:line-break[^>]*\/?>/gi, "<br>")
+                .replace(/<text:line-break[^>]*\/?>/gi, LINEBREAK)
                 .replace(/<text:tab[^>]*\/?>/gi, "\t")
                 .replace(/<text:p[^>]*>/gi, PARA)
                 .replace(/<\/text:p>/gi, ENDPARA)
                 .replace(/<text:h[^>]*>/gi, PARA)
                 .replace(/<\/text:h>/gi, ENDPARA)
-                .replace(/<[^>]+>/g, "")
+                .replace(/<[^>]*>/g, "")
                 .split(ENDPARA)
-                .map((para) => para.replace(new RegExp(PARA, "g"), "").trim())
+                .map((para) =>
+                    escapeHtml(para.replace(new RegExp(PARA, "g"), "").trim()).replace(
+                        new RegExp(LINEBREAK, "g"),
+                        "<br>",
+                    ),
+                )
                 .filter((para) => para)
-                .map((para) => `<p>${escapeHtml(para)}</p>`)
+                .map((para) => `<p>${para}</p>`)
                 .join("");
         }
         const text = new TextDecoder().decode(arrayBuffer);
