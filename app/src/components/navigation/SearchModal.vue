@@ -16,6 +16,7 @@ const { isSearchOpen, closeSearch } = useSearchOverlay();
 const isOpen = ref(false);
 const selectedIndex = ref(-1);
 const inputRef = ref<HTMLInputElement | null>(null);
+const focusOnNextOpen = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
@@ -425,6 +426,12 @@ watch(isSearchOpen, (open) => {
         }
         selectedIndex.value = -1;
         nextTick(() => {
+            const shouldFocus = isManualSearchMode.value
+                ? focusOnNextOpen.value || !trimmedQuery.value
+                : true;
+            focusOnNextOpen.value = false;
+            if (shouldFocus) inputRef.value?.focus({ preventScroll: true });
+
             // If there is a persisted, valid query, automatically re-run the search
             // when reopening the overlay so the user always sees results for the
             // current query, whether it came from typing or from a recent chip.
@@ -458,7 +465,12 @@ watch(selectedIndex, (index) => {
 const handleKeydown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
-        isOpen.value ? closeSearch() : (isSearchOpen.value = true);
+        if (isOpen.value) {
+            closeSearch();
+        } else {
+            focusOnNextOpen.value = true;
+            isSearchOpen.value = true;
+        }
         return;
     }
     if (event.key === "Escape") {
@@ -555,6 +567,7 @@ onMounted(() => {
     handleGlobalKeydown = (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
             event.preventDefault();
+            focusOnNextOpen.value = true;
             isSearchOpen.value = true;
         } else if (event.key === "Escape" && isOpen.value) {
             event.preventDefault();
