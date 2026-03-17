@@ -38,7 +38,7 @@ const renderDate = (size: "default" | "small", timestampRelevance: string, times
         : DateTime.fromMillis(timestamp).toLocaleString();
 
 const canEdit = computed(() =>
-    verifyAccess(props.provider.memberOf, DocType.AuthProvider, AclPermission.Edit),
+    verifyAccess(props.provider.memberOf ?? [], DocType.AuthProvider, AclPermission.Edit),
 );
 
 const handleEdit = () => {

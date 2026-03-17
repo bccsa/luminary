@@ -75,7 +75,7 @@ const handleFileChange = () => {
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
-                :disabled="disabled"
+                :disabled="disabled ?? false"
             />
         </div>
         <div class="mt-2">
