@@ -8,11 +8,13 @@ import { computeFtsData } from "../../util/ftsIndexing";
  * Previously FTS indexing was done client-side; it is now computed server-side
  * and delivered as part of the ContentDto.
  */
-export default async function (db: DbService) {
+export default async function v14(db: DbService) {
     try {
         const schemaVersion = await db.getSchemaVersion();
-        if (schemaVersion !== 12) {
-            console.info(`Skipping schema upgrade v13: current version is ${schemaVersion}, expected 12`);
+        if (schemaVersion !== 13) {
+            console.info(
+                `Skipping schema upgrade v13: current version is ${schemaVersion}, expected 12`,
+            );
             return;
         }
 
@@ -46,7 +48,7 @@ export default async function (db: DbService) {
             );
         }
     } catch (error) {
-        console.error("Database schema upgrade from version 12 to 13 failed:", error);
+        console.error("Database schema upgrade from version 13 to 14 failed:", error);
         throw error;
     }
 }
