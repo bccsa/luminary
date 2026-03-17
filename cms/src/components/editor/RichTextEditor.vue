@@ -24,7 +24,7 @@ const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
 const showModal = ref(false);
 const url = ref("");
 
-const { isProcessing, sourceFile, fullSrcText, handleSourceSelected } = useFileUpload();
+const { isProcessing, fullSrcText, handleSourceSelected } = useFileUpload();
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isDraggingOver = ref(false);
 
