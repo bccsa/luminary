@@ -10,7 +10,7 @@ import { useNotificationStore } from "@/stores/notification";
 import { initLanguage } from "@/globalConfig";
 import { nextTick } from "vue";
 
-const mockRouterReplace = vi.fn();
+const mockRouterReplace = vi.hoisted(() => vi.fn());
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
