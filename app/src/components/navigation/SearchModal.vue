@@ -36,6 +36,29 @@ const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
 const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
 const CURRENT_SEARCH_SOURCE_KEY = "luminary-search-current-source";
+const LAST_EXECUTED_SEARCH_QUERY_KEY = "luminary-search-last-executed-query";
+
+function persistLastExecutedQuery(q: string) {
+    const trimmed = q.trim();
+    if (trimmed.length < 3) return;
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            localStorage.setItem(LAST_EXECUTED_SEARCH_QUERY_KEY, trimmed);
+        }
+    } catch {
+        // ignore persistence errors
+    }
+}
+
+function loadLastExecutedQuery(): string {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return "";
+        const stored = localStorage.getItem(LAST_EXECUTED_SEARCH_QUERY_KEY);
+        return stored ?? "";
+    } catch {
+        return "";
+    }
+}
 
 function loadCurrentSearchQuery(): string {
     try {
@@ -58,7 +81,8 @@ function loadRecentSearches(): string[] {
     }
 }
 
-const searchQuery = ref(loadCurrentSearchQuery());
+// Prefer restoring the last executed query so results match what the user last ran.
+const searchQuery = ref(loadLastExecutedQuery() || loadCurrentSearchQuery());
 const recentSearches = ref<string[]>(loadRecentSearches());
 
 function pushRecentSearch(q: string) {
@@ -86,7 +110,8 @@ function pickRecentSearch(term: string) {
     } catch {
         // ignore persistence errors
     }
-    runSearch?.();
+    persistLastExecutedQuery(term);
+    runSearch();
 }
 
 const ftsRet = useFtsSearch(
@@ -393,6 +418,9 @@ watch(
                     localStorage.setItem(CURRENT_SEARCH_QUERY_KEY, trimmed);
                 } else {
                     localStorage.removeItem(CURRENT_SEARCH_QUERY_KEY);
+                    // Clearing the input should also clear the last executed query,
+                    // so reopening doesn't restore a previous search.
+                    localStorage.removeItem(LAST_EXECUTED_SEARCH_QUERY_KEY);
                 }
             }
         } catch {
@@ -410,6 +438,12 @@ watch(
     },
 );
 
+// Keep "last executed query" in sync with the real executed query source of truth.
+watch(lastSearchedQuery, (q) => {
+    if (!q) return;
+    persistLastExecutedQuery(q);
+});
+
 // --- Overlay state ---
 
 watch(isSearchOpen, (open) => {
@@ -417,6 +451,14 @@ watch(isSearchOpen, (open) => {
     if (!open) {
         selectedIndex.value = -1;
     } else {
+        // Always reconcile the in-memory searchQuery against localStorage on every open.
+        // This prevents KeepAlive'd instances from showing stale state when a different
+        // SearchModal instance (on another page) cleared or changed the query.
+        const persistedQuery = loadLastExecutedQuery() || loadCurrentSearchQuery();
+        if (persistedQuery !== searchQuery.value.trim()) {
+            searchQuery.value = persistedQuery;
+        }
+
         // Mobile manual mode: reopen in a "pre-search" state so the user explicitly runs it.
         // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
         if (isManualSearchMode.value) {
@@ -510,7 +552,8 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             const q = searchQuery.value.trim();
             if (q.length < 3) return;
             pushRecentSearch(q);
-            runSearch?.();
+            persistLastExecutedQuery(q);
+            runSearch();
         }
         return;
     }
@@ -545,6 +588,7 @@ function onGoClick() {
     const q = searchQuery.value.trim();
     if (q.length < 3) return;
     pushRecentSearch(q);
+    persistLastExecutedQuery(q);
     try {
         if (typeof window !== "undefined" && window.localStorage) {
             localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "manual");
@@ -552,7 +596,7 @@ function onGoClick() {
     } catch {
         // ignore persistence errors
     }
-    runSearch?.();
+    runSearch();
 }
 
 const goToResult = (result: EnrichedResult) => {
