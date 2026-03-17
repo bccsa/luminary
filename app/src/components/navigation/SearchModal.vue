@@ -567,7 +567,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                 >
                     <!-- Header -->
                     <div
-                        class="flex items-center gap-3 border-b border-zinc-200 p-4 dark:border-slate-700 md:p-5"
+                        class="flex items-center gap-3 border-b border-zinc-200 py-4 pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))] dark:border-slate-700 md:p-5"
                     >
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
