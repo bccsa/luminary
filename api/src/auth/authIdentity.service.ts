@@ -211,11 +211,10 @@ export class AuthIdentityService {
                 provider.userFieldMappings?.email ?? "email",
             );
 
-            // Action 1: Fast path – lookup by externalUserId within identities[]
             let primaryUser: UserDto | null = null;
-            let allUsers: UserDto[] = [];
             let identityLinked = false;
 
+            // Action 1: Fast path – lookup by externalUserId within identities[]
             if (externalUserId) {
                 const byIdentity = await this.dbService.executeFindQuery({
                     selector: {
@@ -227,44 +226,32 @@ export class AuthIdentityService {
                 primaryUser = (byIdentity.docs?.[0] as UserDto) ?? null;
             }
 
-            if (primaryUser) {
-                // Fast path hit – fetch all sibling docs by email AND userId for group merging
-                // Using both keys ensures we find sibling docs even if email casing differs between sources
-                const siblings = await this.dbService.getUserByIdOrEmail(
-                    primaryUser.email,
-                    primaryUser.userId,
-                );
-                allUsers = siblings.docs as UserDto[];
-            } else {
-                // Fallback – replicates main: finds ALL users by email OR legacy userId field
-                const resolvedEmail = email ?? "";
-                if (resolvedEmail || externalUserId) {
-                    const byEmailOrUserId = await this.dbService.getUserByIdOrEmail(
-                        resolvedEmail,
-                        externalUserId,
-                    );
-                    allUsers = byEmailOrUserId.docs as UserDto[];
-                }
+            // Action 2: Email fallback – lookup by email, then provision if not found
+            if (!primaryUser && email) {
+                const byEmail = await this.dbService.executeFindQuery({
+                    selector: { type: DocType.User, email },
+                    limit: 1,
+                });
+                const foundUser = (byEmail.docs?.[0] as UserDto) ?? null;
 
-                if (allUsers.length > 0) {
-                    primaryUser = allUsers[0];
-
-                    // Link identity to primary user if not already present
-                    const alreadyLinked = primaryUser.identities?.some(
+                if (foundUser) {
+                    // Link identity to existing user if not already present
+                    const alreadyLinked = foundUser.identities?.some(
                         (i) => i.externalUserId === externalUserId && i.providerId === providerId,
                     );
-                    if (!alreadyLinked) {
-                        const updatedIdentities = [
-                            ...(primaryUser.identities ?? []),
-                            { providerId, externalUserId },
-                        ];
+                    if (!alreadyLinked && externalUserId) {
                         primaryUser = {
-                            ...primaryUser,
-                            identities: updatedIdentities,
+                            ...foundUser,
+                            identities: [
+                                ...(foundUser.identities ?? []),
+                                { providerId, externalUserId },
+                            ],
                             lastLogin: Date.now(),
                         };
                         await this.dbService.upsertDoc(primaryUser);
                         identityLinked = true;
+                    } else {
+                        primaryUser = foundUser;
                     }
                 }
             }
@@ -279,8 +266,8 @@ export class AuthIdentityService {
                 await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
             }
 
-            // Merge memberOf from ALL sibling users (same email)
-            const staticGroups = Array.from(new Set(allUsers.flatMap((u) => u.memberOf ?? [])));
+            // Merge groups: defaultGroups + dynamicGroups + user's memberOf
+            const staticGroups = Array.from(new Set(primaryUser.memberOf ?? []));
             const mergedGroups = Array.from(
                 new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]),
             );

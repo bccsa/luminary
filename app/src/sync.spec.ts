@@ -57,6 +57,8 @@ describe("sync.ts", () => {
             [DocType.DeleteCmd]: [],
             [DocType.Storage]: [],
             [DocType.Crypto]: [],
+            [DocType.AuthProvider]: [],
+            [DocType.GlobalConfig]: [],
         });
     });
 

@@ -667,12 +667,9 @@ describe("Database", async () => {
     });
 
     describe("revoked documents", () => {
-        beforeEach(() => {
-            isConnected.value = true;
-        });
-
         afterEach(() => {
             isConnected.value = false;
+            accessMap.value = {};
         });
 
         it("removes documents with memberOf field when access to a group is revoked", async () => {
@@ -731,6 +728,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -805,6 +803,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -854,6 +853,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -886,6 +886,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const queryCache = await db.queryCache.toArray();

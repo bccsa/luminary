@@ -225,7 +225,7 @@ describe("AuthGuard (Integrated)", () => {
         await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
     });
 
-    it("should provision a new user when no matching identity or email exists", async () => {
+    it("should throw UnauthorizedException when no matching identity or email exists", async () => {
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
             .mockResolvedValueOnce({ docs: [] }) // identity lookup – no match
@@ -242,15 +242,8 @@ describe("AuthGuard (Integrated)", () => {
             }),
         } as any;
 
-        const result = await guard.canActivate(mockContext);
-        expect(result).toBe(true);
-        expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
-            expect.objectContaining({
-                _id: "new-user-uuid",
-                email: "test@bccsa.org",
-                identities: [{ providerId: "provider-id", externalUserId: "auth0|123" }],
-            }),
-        );
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+        expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
     });
 
     it("should link identity to existing user found by email (fallback)", async () => {
