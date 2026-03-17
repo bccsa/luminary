@@ -10,6 +10,9 @@ export function useFileUpload() {
     const fullDstText = ref("");
 
     async function extractTextFromFile(file: File): Promise<string> {
+        const escapeHtml = (s: string) =>
+            s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
         const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as ArrayBuffer);
@@ -39,16 +42,14 @@ export function useFileUpload() {
                 .split(ENDPARA)
                 .map((para) => para.replace(new RegExp(PARA, "g"), "").trim())
                 .filter((para) => para)
-                .map((para) => `<p>${para}</p>`)
+                .map((para) => `<p>${escapeHtml(para)}</p>`)
                 .join("");
         }
         const text = new TextDecoder().decode(arrayBuffer);
-        const escape = (s: string) =>
-            s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         return text
             .split("\n")
             .filter((line) => line.trim())
-            .map((line) => `<p>${escape(line)}</p>`)
+            .map((line) => `<p>${escapeHtml(line)}</p>`)
             .join("");
     }
 
