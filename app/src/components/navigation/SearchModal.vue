@@ -402,8 +402,6 @@ watch(isSearchOpen, (open) => {
         lastSearchedQuery.value = "";
         selectedIndex.value = -1;
         nextTick(() => {
-            inputRef.value?.focus();
-
             // If there is a persisted, valid query, automatically re-run the search
             // when reopening the overlay so the user always sees results for the
             // current query, whether it came from typing or from a recent chip.
