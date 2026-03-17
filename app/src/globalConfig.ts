@@ -33,6 +33,8 @@ const windowWidth = ref(window.innerWidth);
 window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
 });
+// Tailwind breakpoints: md = 768px, lg = 1024px
+export const isMdScreen = computed(() => windowWidth.value < 768);
 export const isMobileScreen = computed(() => windowWidth.value < 1024);
 export const isSmallScreen = computed(() => windowWidth.value < 1500);
 

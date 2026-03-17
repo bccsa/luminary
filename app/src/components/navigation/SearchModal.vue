@@ -3,7 +3,7 @@ import { ref, watch, onMounted, onUnmounted, computed, nextTick } from "vue";
 import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, isMdScreen } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db, stripHtml } from "luminary-shared";
@@ -18,6 +18,9 @@ const selectedIndex = ref(-1);
 const inputRef = ref<HTMLInputElement | null>(null);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
+
+// Desktop uses live debounced search; mobile uses manual "Go".
+const isManualSearchMode = computed(() => isMdScreen.value);
 
 const isMac = computed(() => {
     if (typeof navigator === "undefined") return false;
@@ -89,12 +92,12 @@ const ftsRet = useFtsSearch(
     searchQuery as any,
     {
         languageId: languageId as any,
-        debounceMs: "manual",
+        debounceMs: isManualSearchMode.value ? "manual" : 250,
         pageSize: 10,
     } as any,
 ) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
-    runSearch?: () => void;
+    runSearch: () => void;
 };
 const {
     results: ftsResults,
@@ -358,10 +361,21 @@ const showEmptyStateHint = computed(() => isOpen.value && !trimmedQuery.value);
 /** User has typed 3+ chars but not pressed Go yet */
 const showPressGoHint = computed(
     () =>
+        isManualSearchMode.value &&
         trimmedQuery.value.length >= 3 &&
         lastSearchedQuery.value !== trimmedQuery.value &&
         !isSearching.value &&
         results.value.length === 0,
+);
+
+/**
+ * Hide the Go button once the current query has been searched.
+ * Show it again when the query changes, or when the input is empty.
+ */
+const showGoButton = computed(
+    () =>
+        isManualSearchMode.value &&
+        (!trimmedQuery.value || lastSearchedQuery.value !== trimmedQuery.value),
 );
 
 // When the user edits the query after a search, persist the current query so it can be
@@ -402,20 +416,20 @@ watch(isSearchOpen, (open) => {
     if (!open) {
         selectedIndex.value = -1;
     } else {
-        // When reopening the overlay, always start from a "pre-search" state:
-        // keep the query text (so it feels persistent) but hide any old results
-        // and clear the last searched marker, so we don't show "No results" UI
-        // until the user explicitly runs a search again (Go button or recent term).
-        ftsResults.value = [];
-        resolvedDocs.value = new Map();
-        lastSearchedQuery.value = "";
+        // Mobile manual mode: reopen in a "pre-search" state so the user explicitly runs it.
+        // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
+        if (isManualSearchMode.value) {
+            ftsResults.value = [];
+            resolvedDocs.value = new Map();
+            lastSearchedQuery.value = "";
+        }
         selectedIndex.value = -1;
         nextTick(() => {
             // If there is a persisted, valid query, automatically re-run the search
             // when reopening the overlay so the user always sees results for the
             // current query, whether it came from typing or from a recent chip.
             const q = searchQuery.value.trim();
-            if (!q || q.length < 3 || !runSearch) return;
+            if (!q || q.length < 3) return;
             runSearch();
         });
     }
@@ -479,8 +493,11 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         if (showResults.value && results.value.length > 0 && selectedIndex.value >= 0) {
             goToResult(results.value[selectedIndex.value]);
         } else {
+            // Desktop uses live debounce; don't manually trigger or save recent searches here.
+            if (!isManualSearchMode.value) return;
             const q = searchQuery.value.trim();
-            if (q.length >= 3) pushRecentSearch(q);
+            if (q.length < 3) return;
+            pushRecentSearch(q);
             runSearch?.();
         }
         return;
@@ -514,7 +531,8 @@ const handleMobileCloseOrClear = () => {
 
 function onGoClick() {
     const q = searchQuery.value.trim();
-    if (q.length >= 3) pushRecentSearch(q);
+    if (q.length < 3) return;
+    pushRecentSearch(q);
     try {
         if (typeof window !== "undefined" && window.localStorage) {
             localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "manual");
@@ -597,6 +615,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             @keydown="handleInputKeydown"
                         />
                         <button
+                            v-if="showGoButton"
                             type="button"
                             class="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                             @click="onGoClick"

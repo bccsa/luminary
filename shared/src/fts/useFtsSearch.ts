@@ -17,7 +17,8 @@ export type UseFtsSearchReturn = {
     hasMore: Ref<boolean>;
     totalLoaded: Ref<number>;
     lastSearchedQuery: Ref<string>;
-    runSearch: (() => void) | undefined;
+    /** Run a search immediately (useful for manual mode and forcing refresh on reopen). */
+    runSearch: () => void;
 };
 
 /**
@@ -138,6 +139,6 @@ export function useFtsSearch(
         hasMore,
         totalLoaded,
         lastSearchedQuery,
-        runSearch: triggerOnly ? runSearch : undefined,
+        runSearch,
     };
 }
