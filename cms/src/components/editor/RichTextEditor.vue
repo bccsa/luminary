@@ -3,12 +3,13 @@ import { RTextEditor, type ToolbarItem } from "rte-vue";
 import { ref, toRefs } from "vue";
 import type { Component } from "vue";
 import { type Editor } from "@tiptap/vue-3";
-import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
+import { LinkSlashIcon, LinkIcon, ArrowUpTrayIcon } from "@heroicons/vue/20/solid";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
+import { useFileUpload } from "../../composables/useFileUpload";
 
 type Props = {
     title?: string;
@@ -22,6 +23,68 @@ const text = defineModel<string>("text");
 const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
 const showModal = ref(false);
 const url = ref("");
+
+const { isProcessing, sourceFile, fullSrcText, handleSourceSelected } = useFileUpload();
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const isDraggingOver = ref(false);
+
+function triggerFileUpload() {
+    fileInputRef.value?.click();
+}
+
+function getEditor(): Editor | undefined {
+    const editorRef =
+        (rteRef.value as { editor?: unknown } | undefined)?.editor ??
+        (rteRef.value as { $?: { setupState?: { editor?: unknown } } } | undefined)?.$?.setupState
+            ?.editor;
+    if (editorRef && typeof editorRef === "object" && "value" in editorRef) {
+        return (editorRef as { value?: unknown }).value as Editor | undefined;
+    }
+    return editorRef as Editor | undefined;
+}
+
+function insertHtmlIntoEditor(html: string) {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.commands.setContent(html, true);
+}
+
+async function processFile(file: File) {
+    const success = await handleSourceSelected(file);
+    if (success && fullSrcText.value) {
+        insertHtmlIntoEditor(fullSrcText.value);
+    }
+}
+
+async function handleFileInputChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) await processFile(file);
+    input.value = "";
+}
+
+function handleDragOver(event: DragEvent) {
+    if (Array.from(event.dataTransfer?.items ?? []).some((i) => i.kind === "file")) {
+        isDraggingOver.value = true;
+        event.preventDefault();
+    }
+}
+
+function handleDragLeave(event: DragEvent) {
+    const target = event.currentTarget as HTMLElement;
+    if (!target.contains(event.relatedTarget as Node)) {
+        isDraggingOver.value = false;
+    }
+}
+
+async function handleDrop(event: DragEvent) {
+    isDraggingOver.value = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+        event.preventDefault();
+        await processFile(file);
+    }
+}
 
 const toolbarGrouping: ToolbarItem[][] = [
     ["bold", "italic", "strike"],
@@ -80,54 +143,93 @@ function handleToolbarClick(item: ToolbarItem, runCommand: (item: ToolbarItem) =
 
 defineExpose({
     get editor(): Editor | undefined {
-        const editorRef =
-            (rteRef.value as { editor?: unknown } | undefined)?.editor ??
-            (rteRef.value as { $?: { setupState?: { editor?: unknown } } } | undefined)?.$
-                ?.setupState?.editor;
-        if (editorRef && typeof editorRef === "object" && "value" in editorRef) {
-            return (editorRef as { value?: unknown }).value as Editor | undefined;
-        }
-        return editorRef as Editor | undefined;
+        return getEditor();
     },
 });
 </script>
 
 <template>
-    <RTextEditor
-        ref="rteRef"
-        v-bind="$attrs"
-        v-model="text"
-        content-format="html"
-        :disabled="props.disabled"
-        :toolbar-groups="toolbarGrouping"
-        :class-names="toolbarClasses"
-        :on-request-link="openLinkModal"
+    <input
+        ref="fileInputRef"
+        type="file"
+        accept=".docx,.odt,.odf,.txt"
+        class="hidden"
+        @change="handleFileInputChange"
+    />
+    <div
+        class="relative"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
     >
-        <template #toolbar-button="{ item, label, active, disabled: isDisabled, runCommand }">
-            <button
-                type="button"
-                :disabled="isDisabled"
-                :title="label"
-                :class="[
-                    toolbarClasses.button,
-                    active ? toolbarClasses.buttonActive : '',
-                    isDisabled ? 'cursor-not-allowed opacity-50' : '',
-                ]"
-                @click="
-                    handleToolbarClick(
-                        item as ToolbarItem,
-                        runCommand as (item: ToolbarItem) => void,
-                    )
-                "
-            >
-                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
-                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
-                <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
-                <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
-                <span v-else>{{ label }}</span>
-            </button>
-        </template>
-    </RTextEditor>
+        <div
+            v-if="isDraggingOver"
+            class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-zinc-400 bg-zinc-100/80"
+        >
+            <p class="text-sm font-medium text-zinc-600">Drop file to insert content</p>
+        </div>
+        <RTextEditor
+            ref="rteRef"
+            v-bind="$attrs"
+            v-model="text"
+            content-format="html"
+            :disabled="props.disabled"
+            :toolbar-groups="toolbarGrouping"
+            :class-names="toolbarClasses"
+            :on-request-link="openLinkModal"
+        >
+            <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
+                <div :class="toolbarClasses.toolbar">
+                    <div
+                        v-for="(group, gi) in groups"
+                        :key="gi"
+                        :class="toolbarClasses.toolbarGroup"
+                    >
+                        <button
+                            v-for="item in group"
+                            :key="item"
+                            type="button"
+                            :disabled="isDisabled(item)"
+                            :title="getLabel(item)"
+                            :class="[
+                                toolbarClasses.button,
+                                isActive(item) ? toolbarClasses.buttonActive : '',
+                                isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
+                            ]"
+                            @click="
+                                handleToolbarClick(
+                                    item as ToolbarItem,
+                                    runCommand as (item: ToolbarItem) => void,
+                                )
+                            "
+                        >
+                            <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
+                            <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
+                            <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
+                            <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
+                            <span v-else>{{ getLabel(item) }}</span>
+                        </button>
+                    </div>
+                    <div :class="toolbarClasses.toolbarGroup">
+                        <button
+                            type="button"
+                            :disabled="props.disabled || isProcessing"
+                            title="Upload file (.docx, .odt, .txt)"
+                            :class="[
+                                toolbarClasses.button,
+                                props.disabled || isProcessing
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : '',
+                            ]"
+                            @click="triggerFileUpload"
+                        >
+                            <ArrowUpTrayIcon class="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </RTextEditor>
+    </div>
     <LModal
         v-model:isVisible="showModal"
         heading="Add Link"
