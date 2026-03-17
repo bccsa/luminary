@@ -10,6 +10,8 @@ import { useNotificationStore } from "@/stores/notification";
 import { initLanguage } from "@/globalConfig";
 import { nextTick } from "vue";
 
+const mockRouterReplace = vi.fn();
+
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -43,6 +45,14 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
+vi.mock("@/router", () => ({
+    default: {
+        replace: mockRouterReplace,
+        push: vi.fn(),
+        currentRoute: { value: { meta: {} } },
+    },
+}));
+
 // @ts-expect-error
 window.scrollTo = vi.fn();
 
@@ -51,6 +61,7 @@ describe("EditContent.vue - Duplication", () => {
         setActivePinia(createTestingPinia());
         await db.docs.clear();
         await db.localChanges.clear();
+        mockRouterReplace.mockClear();
 
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([
@@ -191,7 +202,7 @@ describe("EditContent.vue - Duplication", () => {
         });
     });
 
-    it("resets tag-related fields when duplicating a document", async () => {
+    it("preserves parent tags but clears cached parentTags on content when duplicating", async () => {
         await db.docs.put({
             ...mockData.mockPostDto,
             tags: ["tag-category2", "tag-topicA"],
@@ -252,9 +263,11 @@ describe("EditContent.vue - Duplication", () => {
         const newParentId = vm.editableParent._id as string;
         expect(newParentId).not.toBe(mockData.mockPostDto._id);
 
+        // Parent tags (categories) should be preserved on the duplicated document
         expect(Array.isArray(vm.editableParent.tags)).toBe(true);
-        expect(vm.editableParent.tags).toEqual([]);
+        expect(vm.editableParent.tags).toEqual(["tag-category2", "tag-topicA"]);
 
+        // Cached parentTags on content docs should be cleared (repopulated by the API on save)
         expect(Array.isArray(vm.editableContent)).toBe(true);
         vm.editableContent.forEach((c: any) => {
             expect(c.parentId).toBe(newParentId);
@@ -264,5 +277,70 @@ describe("EditContent.vue - Duplication", () => {
             expect(c.parentTaggedDocs).toEqual([]);
             expect("tags" in c).toBe(false);
         });
+    }, 15000);
+
+    it("uses the duplicated document's id when navigating between languages after duplication", async () => {
+        const mockNotification = vi.fn();
+        const notificationStore = useNotificationStore();
+        notificationStore.addNotification = mockNotification;
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        // Open the dropdown menu and trigger duplication
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        expect(dropdownTrigger.exists()).toBe(true);
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+
+        await confirmBtn!.trigger("click");
+
+        await waitForExpect(() => {
+            expect(mockNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ title: "Successfully duplicated" }),
+            );
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+        const newParentId = vm.editableParent._id as string;
+        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+
+        // Reset spy to only track calls triggered by the language switch below
+        mockRouterReplace.mockClear();
+
+        // Simulate the user clicking a different translation tab (French)
+        await wrapper.setProps({ languageCode: "fr" });
+        await nextTick();
+
+        // The selectedLanguage watcher should navigate using the new (duplicated) parentId
+        expect(mockRouterReplace).toHaveBeenCalledWith(expect.stringContaining(newParentId));
+        // And must NOT use the original document's id
+        expect(mockRouterReplace).not.toHaveBeenCalledWith(
+            expect.stringContaining(mockData.mockPostDto._id),
+        );
     }, 15000);
 });
