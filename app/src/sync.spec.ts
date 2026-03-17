@@ -127,6 +127,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initLanguageSync();
@@ -150,6 +152,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initLanguageSync();
@@ -173,6 +177,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initLanguageSync();
@@ -201,6 +207,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initLanguageSync();
@@ -227,6 +235,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();
@@ -288,6 +298,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();
@@ -320,6 +332,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();
@@ -352,6 +366,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();
@@ -398,6 +414,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();
@@ -430,6 +448,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.GlobalConfig]: [],
             });
 
             initSync();

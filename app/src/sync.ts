@@ -2,7 +2,6 @@ import { ref, watch } from "vue";
 import {
     accessMap,
     AclPermission,
-    db,
     DocType,
     getAccessibleGroups,
     isConnected,
@@ -74,10 +73,9 @@ export function initLanguageSync() {
                     memberOf: access[DocType.AuthProvider],
                     limit: 100,
                     cms: false,
-                })
-                    .catch((err) => {
-                        Sentry?.captureException(err);
-                    });
+                }).catch((err) => {
+                    Sentry?.captureException(err);
+                });
             }
 
             // Sync languages
@@ -88,7 +86,6 @@ export function initLanguageSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during language sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -122,7 +119,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -137,7 +133,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during tag content sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -150,7 +145,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during redirect sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -163,7 +157,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during storage sync:", err);
                     Sentry?.captureException(err);
                 });
             }

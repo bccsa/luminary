@@ -3,14 +3,15 @@ import type { AuthProviderDto } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 const props = defineProps<{
-    provider: AuthProviderDto;
     disabled?: boolean;
 }>();
 
+const provider = defineModel<AuthProviderDto>("provider", { required: true });
+
 function ensureUserFieldMappings() {
-    if (!props.provider) return;
-    if (!props.provider.userFieldMappings) {
-        props.provider.userFieldMappings = {};
+    if (!provider.value) return;
+    if (!provider.value.userFieldMappings) {
+        provider.value = { ...provider.value, userFieldMappings: {} };
     }
 }
 </script>

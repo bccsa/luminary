@@ -115,7 +115,7 @@ const handleDelete = () => {
                 v-if="provider"
                 class="mt-2 space-y-2 md:mt-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-gray-200 md:pl-4"
             >
-                <AuthProviderUserFieldMappings :provider="provider" :disabled="isLoading" />
+                <AuthProviderUserFieldMappings v-model:provider="provider" :disabled="isLoading" />
 
                 <AuthProviderClaimMappings v-model="provider.claimMappings" :disabled="isLoading" />
 
