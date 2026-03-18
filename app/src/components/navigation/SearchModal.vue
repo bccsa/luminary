@@ -402,7 +402,8 @@ const showPressGoHint = computed(
 const showGoButton = computed(
     () =>
         isManualSearchMode.value &&
-        (!trimmedQuery.value || lastSearchedQuery.value !== trimmedQuery.value),
+        trimmedQuery.value.length >= 3 &&
+        lastSearchedQuery.value !== trimmedQuery.value,
 );
 
 // When the user edits the query after a search, persist the current query so it can be
@@ -653,7 +654,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                 >
                     <!-- Header -->
                     <div
-                        class="flex items-center gap-3 border-b border-zinc-200 py-4 pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))] dark:border-slate-700 md:p-5"
+                        class="flex items-center gap-3 border-b border-zinc-200 py-4 px-3 dark:border-slate-700 md:p-4"
                     >
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
@@ -673,47 +674,32 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             autocomplete="off"
                             @keydown="handleInputKeydown"
                         />
-                        <button
-                            v-if="showGoButton"
-                            type="button"
-                            class="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
-                            @click="onGoClick"
-                        >
-                            {{ $t("search.go") }}
-                        </button>
-                        <div class="flex items-center gap-2">
-                            <!-- Clear query: desktop only, shown when query exists -->
+                        <div class="flex flex-shrink-0 items-center gap-1.5 md:gap-2">
+                            <!-- Go button (mobile + desktop, manual mode only) -->
+                            <button
+                                v-if="showGoButton"
+                                type="button"
+                                class="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 md:h-auto md:py-1.5"
+                                @click="onGoClick"
+                            >
+                                {{ $t("search.go") }}
+                            </button>
+                            <!-- Clear button: shown whenever there's a query -->
                             <button
                                 v-if="searchQuery"
-                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
+                                class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="$t('search.clearQuery')"
                                 @click="clearSearch"
                             >
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
-                            <!-- Close overlay: desktop only -->
+                            <!-- Close button: always shown -->
                             <button
-                                class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
+                                class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="$t('search.close')"
                                 @click="closeSearch"
                             >
-                                <XMarkIcon class="h-5 w-5" />
-                            </button>
-                            <!-- Mobile: single close/clear button -->
-                            <button
-                                v-if="searchQuery"
-                                class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
-                                :aria-label="$t('search.clearQuery')"
-                                @click="clearSearch"
-                            >
-                                <ArrowUturnLeftIcon class="h-6 w-6" />
-                            </button>
-                            <button
-                                class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
-                                :aria-label="$t('search.close')"
-                                @click="closeSearch"
-                            >
-                                <XMarkIcon class="h-6 w-6" />
+                                <XMarkIcon class="h-5 w-5 md:h-5 md:w-5" />
                             </button>
                         </div>
                     </div>
