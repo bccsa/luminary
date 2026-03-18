@@ -38,7 +38,7 @@ const selectGroup = (group: GroupDto) => {
                 size="sm"
                 title="Duplicate"
                 data-test="duplicateAclIcon"
-                mainDynamicCss="text-zinc-500"
+                mainDynamicCss="text-zinc-400"
             />
         </template>
 

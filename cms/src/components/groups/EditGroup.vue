@@ -10,7 +10,6 @@ import {
     ApiLiveQueryAsEditable,
     db,
 } from "luminary-shared";
-import { RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import EditAclByGroup from "./EditAclByGroup.vue";
@@ -20,9 +19,8 @@ import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
+import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { isMobileScreen } from "@/globalConfig";
-import { InformationCircleIcon } from "@heroicons/vue/24/solid";
-import LDropdown from "../common/LDropdown.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -183,20 +181,7 @@ const duplicateGroup = async () => {
     });
 };
 
-const copyGroupId = (group: GroupDto) => {
-    const groupId = group._id;
-    navigator.clipboard.writeText(groupId);
-
-    addNotification({
-        title: `Group ID Copied`,
-        description: "The ID of the group has been copied to the clipboard",
-        state: "success",
-    });
-};
-
 let res = ref<undefined | any>(undefined);
-
-const showSelector = ref(false);
 
 const saveChanges = async () => {
     res.value = await save(group.value._id);
@@ -224,8 +209,6 @@ const saveChanges = async () => {
         :primaryAction="saveChanges"
         primaryButtonText="Save"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty"
-        :secondaryAction="() => emit('close')"
-        secondaryButtonText="Cancel"
         @close="emit('close')"
         largeModal
     >
@@ -233,7 +216,7 @@ const saveChanges = async () => {
             <div
                 v-if="!isEditingGroupName"
                 :class="[
-                    'mb-2 flex items-center gap-2 rounded',
+                    'mr-4 flex items-center gap-2 rounded',
                     {
                         'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
                             hasChangedGroupName,
@@ -246,13 +229,6 @@ const saveChanges = async () => {
                 :title="'Edit group name'"
                 data-test="groupName"
             >
-                <RectangleStackIcon
-                    :class="[
-                        'h-5 w-5',
-                        { 'text-zinc-300': disabled },
-                        { 'text-zinc-400': !disabled },
-                    ]"
-                />
                 <h2
                     :class="[
                         'font-semibold',
@@ -260,7 +236,7 @@ const saveChanges = async () => {
                         { 'text-zinc-800': !disabled },
                     ]"
                 >
-                    Edit {{ group.name }}
+                    {{ group.name }}
                 </h2>
             </div>
             <LInput
@@ -279,70 +255,19 @@ const saveChanges = async () => {
             />
         </template>
         <template #rightHeading>
-            <div class="mb-1 flex">
-                <LButton
-                    v-if="
-                        groupQuery.editable &&
-                        groupQuery.editable.value.length > 0 &&
-                        !isDirty &&
-                        !disabled &&
-                        !isNewGroup
-                    "
-                    variant="muted"
-                    size="sm"
-                    title="Duplicate"
-                    :icon="DocumentDuplicateIcon"
-                    @click="duplicateGroup"
-                    data-test="duplicateGroup"
-                    class="mr-2"
-                />
-                <LDropdown
-                    v-if="isMobileScreen"
-                    class="relative"
-                    padding="none"
-                    placement="bottom-end"
-                    width="default"
-                    v-model:show="showSelector"
-                >
-                    <template #trigger>
-                        <LButton
-                            :icon="InformationCircleIcon"
-                            variant="tertiary"
-                            icon-right
-                            size="sm"
-                            mainDynamicCss="text-zinc-500"
-                        />
-                    </template>
-                    <p class="p-2">
-                        <span v-if="!disabled" class="inline-block text-xs leading-tight">
-                            Configure which permissions user members of the following groups have to
-                            <strong>this</strong> group and its member documents.
-                        </span>
-                        <span v-else> No edit access. </span>
-                        <span class="inline-block text-[11.6px] leading-tight">
-                            <br />User members of higher level groups may have more permissions
-                            (than configured below) to this group and its members by inheritance,
-                            depending on the permissions granted by the higher level groups.
-                        </span>
-                    </p>
-                </LDropdown>
+            <div class="mb-2 flex items-center gap-2">
+                <LBadge v-if="isDirty" variant="warning" withIcon>Unsaved changes</LBadge>
+                <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
+                    Saving disabled: The group would not be editable
+                </LBadge>
+                <LBadge v-if="isEmpty" variant="warning" withIcon>
+                    The group does not have any access configured
+                </LBadge>
             </div>
         </template>
 
-        <div :class="['w-full rounded-md bg-white p-3 shadow', { 'bg-zinc-100': disabled }]">
+        <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
             <div class="space-y-1">
-                <p v-if="!isMobileScreen">
-                    <span v-if="!disabled">
-                        Configure which permissions user members of the following groups have to
-                        <strong>this</strong> group and its member documents.
-                    </span>
-                    <span v-else> No edit access. </span>
-                    <span :class="['text-sm italic', { 'text-xs': isMobileScreen }]">
-                        <br />User members of higher level groups may have more permissions (than
-                        configured below) to this group and its members by inheritance, depending on
-                        the permissions granted by the higher level groups.
-                    </span>
-                </p>
                 <TransitionGroup
                     enter-active-class="transition ease duration-500"
                     enter-from-class="opacity-0 scale-90"
@@ -358,51 +283,57 @@ const saveChanges = async () => {
                         :disabled="disabled"
                     />
                 </TransitionGroup>
-                <div class="flex items-center justify-between pt-4">
-                    <div>
+                <div class="flex w-full items-center justify-between pb-4 pt-2">
+                    <div class="mr-3">
                         <AddGroupAclButton
                             v-if="!disabled"
                             :groups="availableGroups"
                             @select="addAssignedGroup"
                         />
                     </div>
-                    <LButton
-                        variant="tertiary"
-                        size="sm"
-                        context="default"
-                        @click.prevent="() => copyGroupId(group)"
-                        data-test="copyGroupId"
-                        :class="isMobileScreen ? 'text-xs' : ''"
-                    >
-                        Copy ID
-                    </LButton>
+                    <div class="max-w-[170px]">
+                        <LBadge v-if="!isConnected" variant="warning" withIcon>
+                            Saving disabled: Unable to save while offline
+                        </LBadge>
+                    </div>
                 </div>
             </div>
             <!-- TODO: We need a way to intercept closing the modal and showing a confirmation dialog -->
             <ConfirmBeforeLeavingModal :isDirty="isDirty" />
         </div>
         <template #footer-extra>
-            <div class="flex items-center gap-4">
+            <div class="mb-1 flex">
+                <LButton
+                    v-if="
+                        groupQuery.editable &&
+                        groupQuery.editable.value.length > 0 &&
+                        !isDirty &&
+                        !disabled &&
+                        !isNewGroup
+                    "
+                    variant="secondary"
+                    size="sm"
+                    title="Duplicate"
+                    :icon="DocumentDuplicateIcon"
+                    @click="duplicateGroup"
+                    data-test="duplicateGroup"
+                    s
+                >
+                    Duplicate
+                </LButton>
                 <div v-if="isDirty && !disabled" class="-my-2 flex items-center gap-2">
                     <LButton
                         variant="secondary"
                         size="sm"
                         @click.prevent="discardChanges"
                         data-test="discardChanges"
+                        :icon="ArrowUturnLeftIcon"
+                        :class="isMobileScreen ? '!px-2 !py-1 text-xs' : ''"
+                        smallIcon
                     >
-                        Discard changes
+                        Revert
                     </LButton>
                 </div>
-                <LBadge v-if="isDirty" variant="warning" withIcon>Unsaved changes</LBadge>
-                <LBadge v-if="isEmpty" variant="warning" withIcon>
-                    The group does not have any access configured
-                </LBadge>
-                <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
-                    Saving disabled: The group would not be editable
-                </LBadge>
-                <LBadge v-if="!isConnected" variant="warning" withIcon>
-                    Saving disabled: Unable to save while offline
-                </LBadge>
             </div>
         </template>
     </LDialog>

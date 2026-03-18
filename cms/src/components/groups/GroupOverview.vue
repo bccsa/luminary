@@ -98,6 +98,17 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
             </LButton>
         </template>
 
+        <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
+            <span>
+                Configure access permissions for the groups listed below to control who can access
+                them and their member documents.
+            </span>
+            <span class="text-[13px] italic">
+                <br />Note that users may inherit additional rights from higher-level groups,
+                potentially granting broader access than explicitly configured here.
+            </span>
+        </p>
+
         <GroupDisplayCard
             v-for="(group, index) in editable"
             :key="group._id"

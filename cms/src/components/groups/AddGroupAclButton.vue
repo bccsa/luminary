@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GroupDto } from "luminary-shared";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref, toRaw, toRefs } from "vue";
 import LButton from "../button/LButton.vue";
 import { sortByName } from "@/util/sortByName";
@@ -31,12 +31,9 @@ const selectGroup = (group: GroupDto) => {
             <LButton
                 class="relative"
                 data-test="addGroupButton"
-                :icon="ChevronDownIcon"
-                icon-right
-                :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
-            >
-                Add access
-            </LButton>
+                :icon="PlusIcon"
+                :class="isMobileScreen ? '!px-1 !py-1' : ''"
+            />
         </template>
 
         <div class="px-1 py-1">

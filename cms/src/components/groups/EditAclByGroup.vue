@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toRaw, computed, ref } from "vue";
+import { toRaw, computed, ref, onMounted } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-shared";
@@ -9,10 +9,10 @@ import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LModal from "../modals/LModal.vue";
-import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -83,6 +83,22 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
         (p) => isPermissionAvailable.value(aclEntry.type, p) && aclEntry.permission.includes(p),
     );
 };
+
+const scrollContainer = ref(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+const checkScroll = () => {
+    if (scrollContainer.value) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainer.value;
+        canScrollLeft.value = scrollLeft > 1;
+        canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+    }
+};
+
+onMounted(() => {
+    checkScroll();
+});
 </script>
 
 <template>
@@ -110,9 +126,17 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
                 </div>
                 <div v-if="typesWithActivePermissions.length == 0" class="py-3"></div>
             </div>
-            <div v-if="typesWithActivePermissions.length > 0" class="py-1">
+            <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
                 <div
-                    class="mx-1 flex gap-1 overflow-x-scroll border-x border-zinc-200 px-1 scrollbar-hide"
+                    v-if="canScrollLeft"
+                    class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
+                >
+                    <ChevronLeftIcon class="h-3 w-3 text-gray-400" />
+                </div>
+                <div
+                    ref="scrollContainer"
+                    @scroll="checkScroll"
+                    class="mx-1 flex gap-1 overflow-x-auto scrollbar-hide"
                 >
                     <div
                         v-for="aclEntry in activeAclEntries"
@@ -130,29 +154,33 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
                         </span>
                     </div>
                 </div>
+                <div
+                    v-if="canScrollRight"
+                    class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
+                >
+                    <ChevronRightIcon class="h-3 w-3 text-gray-500" />
+                </div>
             </div>
             <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">
-                No active permissions, click to add!
+                No active permissions, click to add
             </div>
         </template>
     </DisplayCard>
 
-    <LModal
-        v-model:isVisible="isVisible"
-        :heading="`Edit permissions for ${assignedGroup.name}`"
-        noDivider
-    >
-        <div class="min-h-60">
+    <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
+        <div class="min-h-10">
             <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
-                No active permissions, use the selector to add!
+                No active permissions, use the selector to add
             </div>
-            <EditAclEntry
-                v-for="aclEntry in activeAclEntries"
-                :key="aclEntry.type"
-                :originalGroup="originalGroup"
-                :aclEntry="aclEntry"
-                :disabled="disabled"
-            />
+            <div class="mb-3">
+                <EditAclEntry
+                    v-for="aclEntry in activeAclEntries"
+                    :key="aclEntry.type"
+                    :originalGroup="originalGroup"
+                    :aclEntry="aclEntry"
+                    :disabled="disabled"
+                />
+            </div>
         </div>
         <div>
             <LDropdown
@@ -164,12 +192,9 @@ const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
             >
                 <template #trigger>
                     <LButton
-                        :icon="PencilSquareIcon"
                         variant="secondary"
-                        icon-right
                         size="sm"
-                        class="mt-3"
-                        :class="isMobileScreen ? '!px-1 !py-1 text-xs' : ''"
+                        :class="isMobileScreen ? '!px-1 !py-2 text-xs' : ''"
                     >
                         Add / Remove
                     </LButton>

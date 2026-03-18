@@ -2,6 +2,7 @@
 import { type Component, computed, useSlots, ref } from "vue";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
+import { isMobileScreen } from "@/globalConfig";
 
 const buttonClasses = cva({
     base: "group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default relative",
@@ -210,11 +211,13 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             <component
                 v-if="icon"
                 :is="icon"
-                class="order-2 h-5 w-5"
+                class="order-2"
                 :class="{
                     [iconVariants[variant]]: $slots.default,
                     '-mr-0.5': iconRight && $slots.default,
                     '-ml-0.5': !iconRight && $slots.default,
+                    'h-4 w-4': smallIcon && isMobileScreen,
+                    'h-5 w-5': !smallIcon || !isMobileScreen,
                 }"
             />
             <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
@@ -259,8 +262,8 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                 [iconVariants[variant]]: $slots.default,
                 '-mr-0.5': iconRight && $slots.default,
                 '-ml-0.5': !iconRight && $slots.default,
-                'h-4 w-4': smallIcon,
-                'h-5 w-5': !smallIcon,
+                'h-4 w-4': smallIcon && isMobileScreen,
+                'h-5 w-5': !smallIcon || !isMobileScreen,
             }"
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">

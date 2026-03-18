@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import LTeleport from "../common/LTeleport.vue";
+import { XMarkIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     heading: string;
@@ -41,26 +42,38 @@ watch(modalRef, (el) => {
                 "
             >
                 <div class="flex w-full items-center justify-between">
-                    <div v-if="$slots.headingExtension" class="flex">
-                        <h2 v-if="heading" class="mb-4 px-1 text-lg font-semibold">
+                    <div></div>
+                </div>
+                <div class="flex w-full items-center justify-between">
+                    <div class="flex items-center">
+                        <h2 v-if="heading" class="px-1 text-lg font-semibold">
                             {{ heading }}
                         </h2>
-                        <slot name="headingExtension" />
+                        <div v-if="$slots.headingExtension">
+                            <slot name="headingExtension" />
+                        </div>
                     </div>
-                    <div v-if="$slots.rightHeading">
-                        <slot name="rightHeading" />
+                    <div class="flex">
+                        <div v-if="$slots.rightHeading">
+                            <slot name="rightHeading" />
+                        </div>
+                        <div class="ml-6">
+                            <button @click="isVisible = false">
+                                <XMarkIcon class="h-6 w-6" />
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',
-                        'flex min-h-0 flex-1 flex-col',
+                        'mt-4 flex min-h-0 flex-1 flex-col',
                     ]"
                 >
                     <slot />
                 </div>
 
-                <div v-if="$slots.footer" class="shrink-0 px-5 pt-3">
+                <div v-if="$slots.footer" class="shrink-0 pt-3">
                     <slot name="footer" />
                 </div>
             </div>
