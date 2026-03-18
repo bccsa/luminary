@@ -396,11 +396,29 @@ watch(isSearchOpen, (open) => {
     }
     selectedIndex.value = -1;
     nextTick(() => {
+        const shouldSelectAll = focusOnNextOpen.value;
         const shouldFocus = isManualSearchMode.value
             ? focusOnNextOpen.value || !trimmedQuery.value
             : true;
         focusOnNextOpen.value = false;
-        if (shouldFocus) inputRef.value?.focus({ preventScroll: true });
+        if (shouldFocus) {
+            const el = inputRef.value;
+            el?.focus({ preventScroll: true });
+
+            // Cmd/Ctrl+K re-open should allow immediate typing to replace the previous query.
+            // Defer selection to avoid fighting with focus/transition timing across browsers.
+            if (shouldSelectAll && el) {
+                const len = el.value.length;
+                requestAnimationFrame(() => {
+                    try {
+                        el.setSelectionRange(0, len);
+                    } catch {
+                        // Some input types/browsers can throw; fall back to select().
+                        el.select();
+                    }
+                });
+            }
+        }
 
         const q = searchQuery.value.trim();
         if (q.length >= 3) runSearch();

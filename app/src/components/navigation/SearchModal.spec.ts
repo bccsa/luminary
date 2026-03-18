@@ -128,6 +128,7 @@ describe("SearchButton", () => {
         setupFts();
         loadMoreMock.mockReset();
         routePushMock.mockReset();
+        window.localStorage.clear();
     });
 
     afterEach(() => {
@@ -183,6 +184,22 @@ describe("SearchButton", () => {
             await nextTick();
 
             expect(wrapper.find("input").exists()).toBe(true);
+        });
+
+        it("selects the full previous query when opened via Cmd+K", async () => {
+            // Persist a previous query before mounting
+            window.localStorage.setItem("luminary-search-last-executed-query", "willowdale");
+
+            const wrapper = mountComponent();
+
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+            await nextTick();
+            await flushPromises();
+
+            const input = wrapper.find("input").element as HTMLInputElement;
+            expect(input.value).toBe("willowdale");
+            expect(input.selectionStart).toBe(0);
+            expect(input.selectionEnd).toBe(input.value.length);
         });
 
         it("closes on global ESC when overlay is open", async () => {
