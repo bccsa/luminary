@@ -439,6 +439,9 @@ watch(
 );
 
 // Keep "last executed query" in sync with the real executed query source of truth.
+// On desktop, we deliberately do NOT push to recent searches here — live debounce would
+// pollute the list with every intermediate word. Desktop saves to recent only on result click.
+// On mobile, manual triggers (Enter/Go) call pushRecentSearch themselves.
 watch(lastSearchedQuery, (q) => {
     if (!q) return;
     persistLastExecutedQuery(q);
@@ -600,6 +603,13 @@ function onGoClick() {
 }
 
 const goToResult = (result: EnrichedResult) => {
+    // Save the query that led to this result click as a recent search.
+    // On desktop this is the only place recent searches are saved (live debounce would
+    // otherwise flood the list). On mobile, manual triggers already save, so this is a
+    // no-op for the same term (pushRecentSearch deduplicates).
+    const q = lastSearchedQuery.value || trimmedQuery.value;
+    if (q) pushRecentSearch(q);
+
     router.push({ name: "content", params: { slug: result.slug } });
     // Keep searchQuery/results so the search state is still there next time
     closeSearch();
