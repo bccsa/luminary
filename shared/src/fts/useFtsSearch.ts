@@ -1,11 +1,11 @@
-import { ref, watch, type Ref, getCurrentScope, onScopeDispose } from "vue";
+import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
 import { ftsSearch } from "./ftsSearch";
 import type { FtsSearchResult } from "./types";
 
 export type UseFtsSearchOptions = {
     languageId?: Ref<string | undefined>;
     /** Debounce delay in ms before running search. Use 0 or 'manual' to only search when runSearch() is called. */
-    debounceMs?: number | "manual";
+    debounceMs?: number | "manual" | Ref<number | "manual">;
     pageSize?: number;
     maxTrigramDocPercent?: number;
 };
@@ -30,7 +30,11 @@ export function useFtsSearch(
     options: UseFtsSearchOptions = {},
 ): UseFtsSearchReturn {
     const { debounceMs = 300, pageSize = 20, maxTrigramDocPercent } = options;
-    const triggerOnly = debounceMs === "manual" || debounceMs === 0;
+    const getDebounce = () => (isRef(debounceMs) ? debounceMs.value : debounceMs);
+    const isTriggerOnly = () => {
+        const d = getDebounce();
+        return d === "manual" || d === 0;
+    };
 
     const results = ref<FtsSearchResult[]>([]);
     const isSearching = ref(false);
@@ -101,19 +105,32 @@ export function useFtsSearch(
         doSearch(q, 0, false);
     }
 
-    // Watch query with debounce (unless trigger-only mode)
-    if (!triggerOnly) {
-        watch(
+    let stopQueryWatch: WatchStopHandle | null = null;
+
+    function startQueryWatch() {
+        if (stopQueryWatch) stopQueryWatch();
+        stopQueryWatch = null;
+
+        if (isTriggerOnly()) return;
+        stopQueryWatch = watch(
             queryRef,
             (newQuery) => {
                 if (debounceTimer) clearTimeout(debounceTimer);
                 currentQuery = newQuery;
+                const d = getDebounce();
                 debounceTimer = setTimeout(() => {
                     doSearch(newQuery, 0, false);
-                }, debounceMs as number);
+                }, typeof d === "number" ? d : 0);
             },
             { immediate: true },
         );
+    }
+
+    // Watch query with debounce (unless trigger-only mode). If debounce is reactive,
+    // restart the watcher when the mode changes (e.g. desktop ↔ mobile).
+    startQueryWatch();
+    if (isRef(debounceMs)) {
+        watch(debounceMs, () => startQueryWatch());
     }
 
     // Watch language changes — re-search immediately with current query
@@ -129,6 +146,7 @@ export function useFtsSearch(
     if (getCurrentScope()) {
         onScopeDispose(() => {
             if (debounceTimer) clearTimeout(debounceTimer);
+            if (stopQueryWatch) stopQueryWatch();
         });
     }
 
