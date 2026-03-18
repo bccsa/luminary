@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
 import * as jwksRsa from "jwks-rsa";
@@ -14,25 +14,37 @@ import { JwtUserDetails } from "../jwt/processJwt";
 import { PermissionSystem } from "../permissions/permissions.service";
 
 @Injectable()
-export class AuthIdentityService {
+export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
     private jwksClients: Map<string, jwksRsa.JwksClient> = new Map();
-    private providerCache: Map<string, { data: AuthProviderDto; expiresAt: number }> = new Map();
-    private defaultGroupsCache: { data: string[]; expiresAt: number } | null = null;
+    private providerCache: Map<string, AuthProviderDto> = new Map();
+    private defaultGroupsCache: string[] | null = null;
 
     constructor(
         private jwtService: JwtService,
         private dbService: DbService,
     ) {}
 
+    onModuleInit() {
+        this.dbService.on("update", (doc: any) => {
+            if (doc.type === DocType.AuthProvider) {
+                this.providerCache.set(doc._id, doc as AuthProviderDto);
+                // Clear associated JWKS client so it's rebuilt with new domain settings
+                this.jwksClients.delete(doc.domain);
+            } else if (doc.type === DocType.GlobalConfig) {
+                this.defaultGroupsCache = doc.defaultGroups ?? [];
+            }
+        });
+    }
+
     /**
      * Phase 1: Returns the defaultGroups from the GlobalConfig document.
      * These groups are automatically assigned to every user, including guests.
-     * Result is cached for 5 minutes.
+     * Result is cached and kept fresh via the DB change feed.
      */
     async getDefaultGroups(): Promise<string[]> {
-        if (this.defaultGroupsCache && this.defaultGroupsCache.expiresAt > Date.now()) {
-            return this.defaultGroupsCache.data;
+        if (this.defaultGroupsCache !== null) {
+            return this.defaultGroupsCache;
         }
 
         const configRes = await this.dbService.executeFindQuery({
@@ -40,9 +52,8 @@ export class AuthIdentityService {
             limit: 1,
         });
 
-        const defaultGroups: string[] = configRes.docs?.[0]?.defaultGroups ?? [];
-        this.defaultGroupsCache = { data: defaultGroups, expiresAt: Date.now() + 5 * 60 * 1000 };
-        return defaultGroups;
+        this.defaultGroupsCache = configRes.docs?.[0]?.defaultGroups ?? [];
+        return this.defaultGroupsCache;
     }
 
     /**
@@ -151,19 +162,15 @@ export class AuthIdentityService {
             let provider: AuthProviderDto;
             const cachedProvider = this.providerCache.get(providerId);
 
-            if (cachedProvider && cachedProvider.expiresAt > Date.now()) {
-                provider = cachedProvider.data;
+            if (cachedProvider) {
+                provider = cachedProvider;
             } else {
                 const providerRes = await this.dbService.getDoc(providerId);
                 if (!providerRes.docs || providerRes.docs.length === 0) {
-                    this.logger.warn(`Auth provider not found: ${providerId}`);
                     throw new UnauthorizedException("Provider not found");
                 }
                 provider = providerRes.docs[0] as AuthProviderDto;
-                this.providerCache.set(providerId, {
-                    data: provider,
-                    expiresAt: Date.now() + 60 * 60 * 1000,
-                });
+                this.providerCache.set(providerId, provider);
             }
 
             let jwksClient = this.jwksClients.get(provider.domain);
