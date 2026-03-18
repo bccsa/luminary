@@ -143,13 +143,15 @@ describe("SearchButton", () => {
     describe("Overlay visibility", () => {
         it("is hidden by default", () => {
             const wrapper = mountComponent();
-            expect(wrapper.find("input").exists()).toBe(false);
+            const input = wrapper.find("input");
+            expect(input.exists()).toBe(true);
+            expect(input.isVisible()).toBe(false);
         });
 
         it("opens when the search overlay is opened", async () => {
             const wrapper = mountComponent();
             await openOverlay();
-            expect(wrapper.find("input").exists()).toBe(true);
+            expect(wrapper.find("input").isVisible()).toBe(true);
         });
 
         it("closes when ESC is pressed on the input", async () => {
@@ -159,7 +161,7 @@ describe("SearchButton", () => {
             await wrapper.find("input").trigger("keydown", { key: "Escape" });
             await flushPromises();
 
-            expect(wrapper.find("input").exists()).toBe(false);
+            expect(wrapper.find("input").isVisible()).toBe(false);
         });
 
         it("closes when the ESC close button is clicked", async () => {
@@ -174,7 +176,7 @@ describe("SearchButton", () => {
             await closeBtn!.trigger("click");
             await flushPromises();
 
-            expect(wrapper.find("input").exists()).toBe(false);
+            expect(wrapper.find("input").isVisible()).toBe(false);
         });
 
         it("opens on global Cmd+K when overlay is closed", async () => {
@@ -183,7 +185,7 @@ describe("SearchButton", () => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
             await nextTick();
 
-            expect(wrapper.find("input").exists()).toBe(true);
+            expect(wrapper.find("input").isVisible()).toBe(true);
         });
 
         it("selects the full previous query when opened via Cmd+K", async () => {
@@ -209,7 +211,7 @@ describe("SearchButton", () => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
             await flushPromises();
 
-            expect(wrapper.find("input").exists()).toBe(false);
+            expect(wrapper.find("input").isVisible()).toBe(false);
         });
     });
 
@@ -499,7 +501,7 @@ describe("SearchButton", () => {
             await wrapper.find("[role='option']").trigger("click");
             await flushPromises();
 
-            expect(wrapper.find("input").exists()).toBe(false);
+            expect(wrapper.find("input").isVisible()).toBe(false);
         });
     });
 

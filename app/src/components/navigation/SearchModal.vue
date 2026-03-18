@@ -431,7 +431,15 @@ watch(isSearchOpen, (open) => {
         }
 
         const q = searchQuery.value.trim();
-        if (q.length >= 3) runSearch();
+        if (q.length >= 3) {
+            if (isManualSearchMode.value) {
+                // Manual mode only: keep the UI/results, but don't re-run the same query on reopen.
+                if (lastSearchedQuery.value !== q) runSearch();
+            } else {
+                // Live mode: avoid re-searching on reopen if we already have results.
+                if ((ftsResults.value as any)?.length === 0) runSearch();
+            }
+        }
     });
 });
 
@@ -582,7 +590,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
             leave-to-class="md:opacity-0"
         >
             <div
-                v-if="isOpen"
+                v-show="isOpen"
                 class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
