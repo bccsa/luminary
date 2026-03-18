@@ -91,6 +91,18 @@ function pickRecentSearch(term: string) {
     searchQuery.value = term;
     persistLastExecutedQuery(term);
     runSearch();
+    // Clicking a recent-search chip moves focus to the button.
+    // Bring focus back to the input and select the query so arrow keys work within the modal.
+    nextTick(() => {
+        const el = inputRef.value;
+        if (!el) return;
+        el.focus({ preventScroll: true });
+        try {
+            el.setSelectionRange(0, el.value.length);
+        } catch {
+            el.select();
+        }
+    });
 }
 
 const ftsRet = useFtsSearch(
@@ -468,6 +480,17 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
 };
 
+function handleModalKeydownCapture(event: KeyboardEvent) {
+    if (!isOpen.value) return;
+    // Contain navigation keys within the modal even when focus isn't on the input.
+    if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        // Reuse the existing modal handler logic for navigation.
+        handleKeydown(event);
+    }
+}
+
 const handleInputKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
         event.preventDefault();
@@ -537,10 +560,12 @@ onMounted(() => {
         }
     };
     document.addEventListener("keydown", handleGlobalKeydown);
+    document.addEventListener("keydown", handleModalKeydownCapture, true);
 });
 
 onUnmounted(() => {
     if (handleGlobalKeydown) document.removeEventListener("keydown", handleGlobalKeydown);
+    document.removeEventListener("keydown", handleModalKeydownCapture, true);
 });
 
 defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) });

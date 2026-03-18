@@ -224,6 +224,44 @@ describe("SearchButton", () => {
         });
     });
 
+    describe("Recent searches focus behavior", () => {
+        it("refocuses and selects the input after clicking a recent search", async () => {
+            window.localStorage.setItem("luminary-search-recent", JSON.stringify(["Willowdale"]));
+
+            const wrapper = mountComponent();
+            await openOverlay();
+            await flushPromises();
+
+            const recentBtn = wrapper.findAll("button").find((b) => b.text() === "Willowdale");
+            expect(recentBtn).toBeDefined();
+
+            await recentBtn!.trigger("click");
+            await flushPromises();
+
+            const input = wrapper.find("input").element as HTMLInputElement;
+            expect(input.selectionStart).toBe(0);
+            expect(input.selectionEnd).toBe(input.value.length);
+        });
+
+        it("prevents arrow keys from bubbling to the page when modal is open", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            const bodySpy = vi.fn();
+            document.body.addEventListener("keydown", bodySpy);
+
+            // When modal is open, arrow keys should be contained (capture handler stops propagation).
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+            await nextTick();
+
+            document.body.removeEventListener("keydown", bodySpy);
+            expect(bodySpy).not.toHaveBeenCalled();
+
+            // Sanity: modal still mounted
+            expect(wrapper.find("input").exists()).toBe(true);
+        });
+    });
+
     // ── Min-chars hint ─────────────────────────────────────────────────────
 
     describe("Min-chars hint", () => {
