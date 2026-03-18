@@ -546,12 +546,14 @@ describe("SearchButton", () => {
         });
 
         it("navigates to the selected result on Enter", async () => {
-            const { resultsRef } = setupFts();
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
             await wrapper.find("input").setValue("Post");
             await nextTick();
             resultsRef.value = [fakeResult];
+            // Simulate that this query has already been searched, so Enter navigates.
+            lastSearchedQueryRef.value = "Post";
             await flushPromises();
 
             // Selection is not automatic; user must navigate first.

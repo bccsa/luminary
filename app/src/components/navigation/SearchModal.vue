@@ -493,7 +493,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 function handleModalKeydownCapture(event: KeyboardEvent) {
     if (!isOpen.value) return;
     // Contain navigation keys within the modal even when focus isn't on the input.
-    if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter") {
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
         // Reuse the existing modal handler logic for navigation.
@@ -511,11 +511,21 @@ const handleInputKeydown = (event: KeyboardEvent) => {
     if (event.key === "Enter") {
         event.preventDefault();
         event.stopPropagation();
+        const q = searchQuery.value.trim();
+        const isNewQuery = q && q !== lastSearchedQuery.value;
+
+        // Enter should apply the current query if it hasn't been searched yet.
+        if (q.length >= 3 && isNewQuery) {
+            pushRecentSearch(q);
+            persistLastExecutedQuery(q);
+            runSearch();
+            return;
+        }
+
         if (results.value.length > 0 && selectedIndex.value >= 0) {
             goToResult(results.value[selectedIndex.value]);
         } else {
             if (!isManualSearchMode.value) return;
-            const q = searchQuery.value.trim();
             if (q.length < 3) return;
             pushRecentSearch(q);
             persistLastExecutedQuery(q);
