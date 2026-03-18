@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from "vue";
 import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
+import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef, isMdScreen } from "@/globalConfig";
@@ -578,15 +579,6 @@ const clearSearch = () => {
     inputRef.value?.focus();
 };
 
-// On mobile: one button that clears query if present, otherwise closes overlay
-const handleMobileCloseOrClear = () => {
-    if (searchQuery.value) {
-        clearSearch();
-    } else {
-        closeSearch();
-    }
-};
-
 function onGoClick() {
     const q = searchQuery.value.trim();
     if (q.length < 3) return;
@@ -697,11 +689,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 :aria-label="$t('search.clearQuery')"
                                 @click="clearSearch"
                             >
-                                <XMarkIcon class="h-5 w-5" />
+                                <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
-                            <!-- Close overlay: desktop only, shown when no query (clear button takes over otherwise) -->
+                            <!-- Close overlay: desktop only -->
                             <button
-                                v-if="!searchQuery"
                                 class="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 md:block"
                                 :aria-label="$t('search.close')"
                                 @click="closeSearch"
@@ -710,11 +701,17 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </button>
                             <!-- Mobile: single close/clear button -->
                             <button
+                                v-if="searchQuery"
                                 class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
-                                :aria-label="
-                                    searchQuery ? $t('search.ariaLabel') : $t('search.close')
-                                "
-                                @click="handleMobileCloseOrClear"
+                                :aria-label="$t('search.clearQuery')"
+                                @click="clearSearch"
+                            >
+                                <ArrowUturnLeftIcon class="h-6 w-6" />
+                            </button>
+                            <button
+                                class="flex items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
+                                :aria-label="$t('search.close')"
+                                @click="closeSearch"
                             >
                                 <XMarkIcon class="h-6 w-6" />
                             </button>
