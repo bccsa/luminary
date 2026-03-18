@@ -21,8 +21,9 @@ const focusOnNextOpen = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-// Desktop uses live debounced search; mobile uses manual "Go".
-const isManualSearchMode = computed(() => isMdScreen.value);
+// Lock the mode when the overlay opens to avoid flicker if `window.innerWidth`
+// changes while typing (e.g. mobile on-screen keyboard).
+const isManualSearchMode = ref(isMdScreen.value);
 
 const isMac = computed(() => {
     if (typeof navigator === "undefined") return false;
@@ -36,44 +37,35 @@ const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
 const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
-const CURRENT_SEARCH_SOURCE_KEY = "luminary-search-current-source";
 const LAST_EXECUTED_SEARCH_QUERY_KEY = "luminary-search-last-executed-query";
+
+function getStorage(): Storage | null {
+    try {
+        return typeof window !== "undefined" ? window.localStorage : null;
+    } catch {
+        return null;
+    }
+}
+
+function loadFromStorage(key: string): string {
+    return getStorage()?.getItem(key) ?? "";
+}
+
+function saveToStorage(key: string, value: string | null): void {
+    try {
+        if (value === null) getStorage()?.removeItem(key);
+        else getStorage()?.setItem(key, value);
+    } catch { /* ignore */ }
+}
 
 function persistLastExecutedQuery(q: string) {
     const trimmed = q.trim();
-    if (trimmed.length < 3) return;
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            localStorage.setItem(LAST_EXECUTED_SEARCH_QUERY_KEY, trimmed);
-        }
-    } catch {
-        // ignore persistence errors
-    }
-}
-
-function loadLastExecutedQuery(): string {
-    try {
-        if (typeof window === "undefined" || !window.localStorage) return "";
-        const stored = localStorage.getItem(LAST_EXECUTED_SEARCH_QUERY_KEY);
-        return stored ?? "";
-    } catch {
-        return "";
-    }
-}
-
-function loadCurrentSearchQuery(): string {
-    try {
-        if (typeof window === "undefined" || !window.localStorage) return "";
-        const stored = localStorage.getItem(CURRENT_SEARCH_QUERY_KEY);
-        return stored ?? "";
-    } catch {
-        return "";
-    }
+    if (trimmed.length >= 3) saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, trimmed);
 }
 
 function loadRecentSearches(): string[] {
     try {
-        const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+        const raw = getStorage()?.getItem(RECENT_SEARCHES_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : [];
@@ -82,35 +74,21 @@ function loadRecentSearches(): string[] {
     }
 }
 
-// Prefer restoring the last executed query so results match what the user last ran.
-const searchQuery = ref(loadLastExecutedQuery() || loadCurrentSearchQuery());
+const searchQuery = ref(
+    loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) || loadFromStorage(CURRENT_SEARCH_QUERY_KEY),
+);
 const recentSearches = ref<string[]>(loadRecentSearches());
 
 function pushRecentSearch(q: string) {
     const trimmed = q.trim();
     if (trimmed.length < 3) return;
-    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(
-        0,
-        RECENT_SEARCHES_MAX,
-    );
+    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(0, RECENT_SEARCHES_MAX);
     recentSearches.value = next;
-    try {
-        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-    } catch {
-        /* ignore */
-    }
+    saveToStorage(RECENT_SEARCHES_KEY, JSON.stringify(next));
 }
 
 function pickRecentSearch(term: string) {
     searchQuery.value = term;
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            localStorage.setItem(CURRENT_SEARCH_QUERY_KEY, term.trim());
-            localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "recent");
-        }
-    } catch {
-        // ignore persistence errors
-    }
     persistLastExecutedQuery(term);
     runSearch();
 }
@@ -181,10 +159,6 @@ function escapeHtml(s: string): string {
         .replace(/'/g, "&#39;");
 }
 
-/**
- * Highlight query terms in text — phrase match first, then word-boundary matches.
- * Returns HTML-safe string for v-html.
- */
 function applyTermHighlights(text: string, query: string): string {
     if (!query?.trim()) return escapeHtml(text);
     const queryTerms = query
@@ -196,7 +170,6 @@ function applyTermHighlights(text: string, query: string): string {
     const textLower = text.toLowerCase();
     const normalizedPhrase = queryTerms.join(" ");
 
-    // Try exact phrase match first
     const phrasePos = textLower.indexOf(normalizedPhrase);
     if (phrasePos !== -1) {
         const before = text.substring(0, phrasePos);
@@ -211,9 +184,7 @@ function applyTermHighlights(text: string, query: string): string {
         );
     }
 
-    // Fall back to word-boundary matches for each term.
-    // Use Unicode-aware boundaries (lookbehind/lookahead for non-letter chars)
-    // so accented characters like é, è, ç are handled correctly.
+    // Use Unicode-aware boundaries so accented characters like é, è, ç are handled correctly.
     const termsInText = queryTerms.filter((t) => textLower.includes(t));
     if (!termsInText.length) return escapeHtml(text);
 
@@ -233,30 +204,15 @@ function applyTermHighlights(text: string, query: string): string {
     return built;
 }
 
-/** Highlight query terms in a title string. Returns HTML safe for v-html. */
-function highlightQueryInText(text: string, query: string): string {
-    if (!text) return "";
-    return applyTermHighlights(text, query);
-}
-
-/**
- * Count how many query terms appear in a text string.
- */
 function countTermMatches(text: string, queryTerms: string[]): number {
     const lower = text.toLowerCase();
     return queryTerms.filter((t) => lower.includes(t)).length;
 }
 
-/**
- * Find the position of the best match cluster in text:
- * tries the full phrase first, then the earliest individual term.
- */
 function findBestPosition(text: string, queryTerms: string[]): number {
     const lower = text.toLowerCase();
-    // Try exact phrase first
     const phrasePos = lower.indexOf(queryTerms.join(" "));
     if (phrasePos !== -1) return phrasePos;
-    // Otherwise find the earliest individual term
     let best = -1;
     for (const term of queryTerms) {
         const pos = lower.indexOf(term);
@@ -265,15 +221,6 @@ function findBestPosition(text: string, queryTerms: string[]): number {
     return best;
 }
 
-/**
- * Extract a highlighted snippet from a ContentDto.
- *
- * Picks the field that contains the most query term matches so that
- * the snippet is always relevant — even when the match is in the body
- * text and the doc also has a summary.
- *
- * Snippet length scales with query length so longer searches get more context.
- */
 function createHighlight(doc: ContentDto, query: string): string | undefined {
     if (!query?.trim()) return undefined;
 
@@ -283,7 +230,7 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
         .filter((t) => t.length > 0);
     if (!queryTerms.length) return undefined;
 
-    // Wider window for longer queries so the full phrase fits in the excerpt
+    // Wider window for longer queries so the full phrase fits in the excerpt.
     const maxLength = Math.min(300, 150 + queryTerms.length * 15);
 
     const candidates: { text: string; matches: number }[] = [
@@ -293,7 +240,6 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
         { text: doc.title ?? "", matches: 0 },
     ].map((c) => ({ ...c, matches: countTermMatches(c.text, queryTerms) }));
 
-    // Pick the field with the most term matches; fall back to first non-empty
     const best =
         candidates.find(
             (c) => c.matches === Math.max(...candidates.map((x) => x.matches)) && c.matches > 0,
@@ -309,8 +255,6 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
 
     return applyTermHighlights(excerpt, query);
 }
-
-// --- Data resolution ---
 
 type EnrichedResult = ContentDto & {
     highlight: string | undefined;
@@ -361,7 +305,7 @@ const results = computed<EnrichedResult[]>(() => {
         .filter((doc): doc is ContentDto => !!doc)
         .map((doc) => ({
             ...doc,
-            titleHighlight: highlightQueryInText(stripHtml(doc.title ?? ""), query),
+            titleHighlight: applyTermHighlights(stripHtml(doc.title ?? ""), query),
             highlight: createHighlight(doc, query),
             languageName: languageNames.value.get(doc.language) ?? "",
         }));
@@ -369,6 +313,7 @@ const results = computed<EnrichedResult[]>(() => {
 
 const trimmedQuery = computed(() => searchQuery.value.trim());
 const showResults = computed(() => results.value.length > 0);
+
 /** User has run search for current query and got nothing */
 const showNoResults = computed(
     () =>
@@ -377,12 +322,13 @@ const showNoResults = computed(
         !isSearching.value &&
         results.value.length === 0,
 );
+
 /** Query has 1–2 characters: we need at least 3 for FTS */
 const showMinCharsHint = computed(
     () => !isSearching.value && trimmedQuery.value.length > 0 && trimmedQuery.value.length < 3,
 );
 
-/** Overlay is open with no query yet — show a short hint so the panel isn’t blank */
+/** Overlay is open with no query yet */
 const showEmptyStateHint = computed(() => isOpen.value && !trimmedQuery.value);
 
 /** User has typed 3+ chars but not pressed Go yet */
@@ -395,10 +341,7 @@ const showPressGoHint = computed(
         results.value.length === 0,
 );
 
-/**
- * Hide the Go button once the current query has been searched.
- * Show it again when the query changes, or when the input is empty.
- */
+/** Hide once the current query has been searched; reappear when query changes */
 const showGoButton = computed(
     () =>
         isManualSearchMode.value &&
@@ -406,32 +349,17 @@ const showGoButton = computed(
         lastSearchedQuery.value !== trimmedQuery.value,
 );
 
-// When the user edits the query after a search, persist the current query so it can be
-// restored when reopening the overlay. We deliberately KEEP the previous results visible
-// until the user explicitly runs a new search (Go button or recent term), so the UI
-// always shows "results for lastSearchedQuery" rather than disappearing results.
 watch(
     () => searchQuery.value,
     (newQuery) => {
         const trimmed = newQuery.trim();
-        try {
-            if (typeof window !== "undefined" && window.localStorage) {
-                if (trimmed) {
-                    localStorage.setItem(CURRENT_SEARCH_QUERY_KEY, trimmed);
-                } else {
-                    localStorage.removeItem(CURRENT_SEARCH_QUERY_KEY);
-                    // Clearing the input should also clear the last executed query,
-                    // so reopening doesn't restore a previous search.
-                    localStorage.removeItem(LAST_EXECUTED_SEARCH_QUERY_KEY);
-                }
-            }
-        } catch {
-            // ignore persistence errors
-        }
-
-        // If the query has been cleared entirely, also clear any existing results so the
-        // overlay doesn't show results for an empty query.
-        if (!trimmed) {
+        if (trimmed) {
+            saveToStorage(CURRENT_SEARCH_QUERY_KEY, trimmed);
+        } else {
+            saveToStorage(CURRENT_SEARCH_QUERY_KEY, null);
+            // Clearing the input should also clear the last executed query,
+            // so reopening doesn't restore a previous search.
+            saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, null);
             ftsResults.value = [];
             resolvedDocs.value = new Map();
             lastSearchedQuery.value = "";
@@ -440,64 +368,52 @@ watch(
     },
 );
 
-// Keep "last executed query" in sync with the real executed query source of truth.
-// On desktop, we deliberately do NOT push to recent searches here — live debounce would
-// pollute the list with every intermediate word. Desktop saves to recent only on result click.
-// On mobile, manual triggers (Enter/Go) call pushRecentSearch themselves.
 watch(lastSearchedQuery, (q) => {
-    if (!q) return;
-    persistLastExecutedQuery(q);
+    if (q) persistLastExecutedQuery(q);
 });
-
-// --- Overlay state ---
 
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
         selectedIndex.value = -1;
-    } else {
-        // Always reconcile the in-memory searchQuery against localStorage on every open.
-        // This prevents KeepAlive'd instances from showing stale state when a different
-        // SearchModal instance (on another page) cleared or changed the query.
-        const persistedQuery = loadLastExecutedQuery() || loadCurrentSearchQuery();
-        if (persistedQuery !== searchQuery.value.trim()) {
-            searchQuery.value = persistedQuery;
-        }
-
-        // Mobile manual mode: reopen in a "pre-search" state so the user explicitly runs it.
-        // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
-        if (isManualSearchMode.value) {
-            ftsResults.value = [];
-            resolvedDocs.value = new Map();
-            lastSearchedQuery.value = "";
-        }
-        selectedIndex.value = -1;
-        nextTick(() => {
-            const shouldFocus = isManualSearchMode.value
-                ? focusOnNextOpen.value || !trimmedQuery.value
-                : true;
-            focusOnNextOpen.value = false;
-            if (shouldFocus) inputRef.value?.focus({ preventScroll: true });
-
-            // If there is a persisted, valid query, automatically re-run the search
-            // when reopening the overlay so the user always sees results for the
-            // current query, whether it came from typing or from a recent chip.
-            const q = searchQuery.value.trim();
-            if (!q || q.length < 3) return;
-            runSearch();
-        });
+        return;
     }
+
+    isManualSearchMode.value = isMdScreen.value;
+
+    const persistedQuery =
+        loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) || loadFromStorage(CURRENT_SEARCH_QUERY_KEY);
+    if (persistedQuery !== searchQuery.value.trim()) {
+        searchQuery.value = persistedQuery;
+    }
+
+    // Mobile manual mode: reset so the user explicitly re-runs the search.
+    // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
+    if (isManualSearchMode.value) {
+        ftsResults.value = [];
+        resolvedDocs.value = new Map();
+        lastSearchedQuery.value = "";
+    }
+    selectedIndex.value = -1;
+    nextTick(() => {
+        const shouldFocus = isManualSearchMode.value
+            ? focusOnNextOpen.value || !trimmedQuery.value
+            : true;
+        focusOnNextOpen.value = false;
+        if (shouldFocus) inputRef.value?.focus({ preventScroll: true });
+
+        const q = searchQuery.value.trim();
+        if (q.length >= 3) runSearch();
+    });
 });
 
 watch(results, (newResults, oldResults) => {
     if (newResults.length === 0) {
         selectedIndex.value = -1;
     } else if (oldResults.length === 0) {
-        // Fresh search just returned results — select the first item
         selectedIndex.value = 0;
     }
-    // When loadMore appends results keep the current selectedIndex so the
-    // scroll position isn't reset to the top.
+    // When loadMore appends results, keep selectedIndex so scroll position isn't reset.
 });
 
 watch(selectedIndex, (index) => {
@@ -507,14 +423,11 @@ watch(selectedIndex, (index) => {
     });
 });
 
-// --- Keyboard handling ---
-
 const handleKeydown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
-        if (isOpen.value) {
-            closeSearch();
-        } else {
+        if (isOpen.value) closeSearch();
+        else {
             focusOnNextOpen.value = true;
             isSearchOpen.value = true;
         }
@@ -525,7 +438,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         closeSearch();
         return;
     }
-    if (showResults.value && results.value.length > 0) {
+    if (results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
@@ -549,10 +462,9 @@ const handleInputKeydown = (event: KeyboardEvent) => {
     if (event.key === "Enter") {
         event.preventDefault();
         event.stopPropagation();
-        if (showResults.value && results.value.length > 0 && selectedIndex.value >= 0) {
+        if (results.value.length > 0 && selectedIndex.value >= 0) {
             goToResult(results.value[selectedIndex.value]);
         } else {
-            // Desktop uses live debounce; don't manually trigger or save recent searches here.
             if (!isManualSearchMode.value) return;
             const q = searchQuery.value.trim();
             if (q.length < 3) return;
@@ -562,7 +474,7 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         }
         return;
     }
-    if (showResults.value && results.value.length > 0) {
+    if (results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             event.stopPropagation();
@@ -585,26 +497,13 @@ function onGoClick() {
     if (q.length < 3) return;
     pushRecentSearch(q);
     persistLastExecutedQuery(q);
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            localStorage.setItem(CURRENT_SEARCH_SOURCE_KEY, "manual");
-        }
-    } catch {
-        // ignore persistence errors
-    }
     runSearch();
 }
 
 const goToResult = (result: EnrichedResult) => {
-    // Save the query that led to this result click as a recent search.
-    // On desktop this is the only place recent searches are saved (live debounce would
-    // otherwise flood the list). On mobile, manual triggers already save, so this is a
-    // no-op for the same term (pushRecentSearch deduplicates).
     const q = lastSearchedQuery.value || trimmedQuery.value;
     if (q) pushRecentSearch(q);
-
     router.push({ name: "content", params: { slug: result.slug } });
-    // Keep searchQuery/results so the search state is still there next time
     closeSearch();
 };
 
@@ -646,13 +545,11 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                 class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
-                <!-- Search Modal: full-screen on mobile, centered panel on desktop -->
                 <div
                     class="flex h-full w-full flex-col overflow-hidden md:h-auto md:max-h-[75vh] md:max-w-3xl md:rounded-xl md:bg-white md:shadow-2xl md:dark:bg-slate-900"
                     tabindex="-1"
                     @keydown="handleKeydown"
                 >
-                    <!-- Header -->
                     <div
                         class="flex items-center gap-3 border-b border-zinc-200 py-4 px-3 dark:border-slate-700 md:p-4"
                     >
@@ -675,7 +572,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             @keydown="handleInputKeydown"
                         />
                         <div class="flex flex-shrink-0 items-center gap-1.5 md:gap-2">
-                            <!-- Go button (mobile + desktop, manual mode only) -->
                             <button
                                 v-if="showGoButton"
                                 type="button"
@@ -684,7 +580,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             >
                                 {{ $t("search.go") }}
                             </button>
-                            <!-- Clear button: shown whenever there's a query -->
                             <button
                                 v-if="searchQuery"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
@@ -693,7 +588,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             >
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
-                            <!-- Close button: always shown -->
                             <button
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="$t('search.close')"
@@ -704,9 +598,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         </div>
                     </div>
 
-                    <!-- Body -->
                     <div ref="searchResultsContainerRef" class="flex-1 overflow-y-auto scrollbar-hide">
-                        <!-- Loading skeleton — only for initial search (no results yet) -->
                         <div
                             v-if="isSearching && results.length === 0"
                             class="p-4 md:p-5"
@@ -735,7 +627,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </div>
                         </div>
 
-                        <!-- Min 3 characters hint -->
                         <div
                             v-else-if="showMinCharsHint"
                             class="p-8 text-center md:p-10"
@@ -745,7 +636,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </p>
                         </div>
 
-                        <!-- Press Go to search (3+ chars, not searched yet) -->
                         <div
                             v-else-if="showPressGoHint"
                             class="p-8 text-center md:p-10"
@@ -755,7 +645,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </p>
                         </div>
 
-                        <!-- No results -->
                         <div
                             v-else-if="showNoResults"
                             class="p-8 text-center md:p-10"
@@ -771,7 +660,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </p>
                         </div>
 
-                        <!-- Search Results -->
                         <div
                             v-else-if="showResults"
                             id="search-results-container"
@@ -796,7 +684,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     @mouseenter="selectedIndex = index"
                                 >
                                     <div class="flex min-w-0 gap-2 self-center md:gap-3">
-                                        <!-- Thumbnail -->
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
                                                 :image="result.parentImageData"
@@ -806,7 +693,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                 aspect-ratio="video"
                                             />
                                         </div>
-                                        <!-- Content -->
                                         <div class="min-w-0 flex-1">
                                             <h3
                                                 class="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-slate-100 md:text-base"
@@ -823,7 +709,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                     stripHtml(result.title ?? "")
                                                 }}</template>
                                             </h3>
-                                            <!-- Snippet with highlights when available, else plain summary -->
                                             <p
                                                 v-if="result.highlight"
                                                 class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
@@ -835,7 +720,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                             >
                                                 {{ stripHtml(result.summary) }}
                                             </p>
-                                            <!-- Meta: author · language (hide language when same as user's to avoid "English" on every card) -->
+                                            <!-- hide language when same as user's to avoid "English" on every card -->
                                             <div
                                                 v-if="
                                                     result.author ||
@@ -869,7 +754,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                 >
                                             </div>
                                         </div>
-                                        <!-- Arrow -->
                                         <div
                                             class="flex flex-shrink-0 items-center pt-0.5 text-zinc-400 dark:text-slate-500"
                                             :class="{
@@ -882,7 +766,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     </div>
                                 </li>
                             </ul>
-                            <!-- Loading more indicator -->
                             <div
                                 v-if="isSearching && results.length > 0"
                                 class="flex justify-center py-3"
@@ -911,7 +794,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             </div>
                         </div>
 
-                        <!-- Initial empty state: hint and recent searches when overlay just opened -->
                         <div
                             v-else-if="showEmptyStateHint"
                             class="p-6 md:p-8"
@@ -951,7 +833,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         </div>
                     </div>
 
-                    <!-- Footer -->
                     <div
                         class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex md:px-5 md:py-2.5 md:text-sm"
                     >
@@ -998,41 +879,3 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         </Transition>
     </div>
 </template>
-
-<style scoped>
-/* Mobile: fast slide-up from bottom */
-@media (max-width: 767px) {
-    .search-modal-enter-active {
-        transition: transform 120ms ease-out;
-    }
-    .search-modal-leave-active {
-        transition: transform 80ms ease-in;
-    }
-    .search-modal-enter-from,
-    .search-modal-leave-to {
-        transform: translateY(100%);
-    }
-    .search-modal-enter-to,
-    .search-modal-leave-from {
-        transform: translateY(0);
-    }
-}
-
-/* Desktop: fade in/out */
-@media (min-width: 768px) {
-    .search-modal-enter-active {
-        transition: opacity 200ms ease-out;
-    }
-    .search-modal-leave-active {
-        transition: opacity 150ms ease-in;
-    }
-    .search-modal-enter-from,
-    .search-modal-leave-to {
-        opacity: 0;
-    }
-    .search-modal-enter-to,
-    .search-modal-leave-from {
-        opacity: 1;
-    }
-}
-</style>
