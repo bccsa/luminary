@@ -642,7 +642,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             autocomplete="off"
                             @keydown="handleInputKeydown"
                         />
-                        <div class="flex flex-shrink-0 items-center gap-1.5 md:gap-2">
+                        <div class="flex flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0">
                             <button
                                 v-if="showGoButton"
                                 type="button"
