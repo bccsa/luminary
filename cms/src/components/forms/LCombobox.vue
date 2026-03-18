@@ -374,7 +374,7 @@ const placementClass = computed(() => {
                 </LTag>
             </div>
             <div
-                v-if="showSelectedLabels && selectedLabels.length === 0"
+                v-if="showSelectedLabels && selectedLabels.length === 0 && (label || $slots.actions)"
                 class="pt-4 text-center text-xs italic text-zinc-500"
             >
                 No options selected yet.
