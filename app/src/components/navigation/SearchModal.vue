@@ -98,7 +98,7 @@ const ftsRet = useFtsSearch(
     {
         languageId: languageId as any,
         debounceMs: isManualSearchMode.value ? "manual" : 250,
-        pageSize: 20,
+        pageSize: 40,
     } as any,
 ) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
@@ -879,16 +879,6 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     >↵</kbd
                                 >
                                 {{ $t("search.select") }}
-                            </span>
-                        </div>
-                        <div v-if="showResults">
-                            <span>
-                                {{ results.length }}{{ hasMore ? "+" : "" }}
-                                {{
-                                    results.length === 1 && !hasMore
-                                        ? $t("search.resultOne")
-                                        : $t("search.resultsMany")
-                                }}
                             </span>
                         </div>
                     </div>

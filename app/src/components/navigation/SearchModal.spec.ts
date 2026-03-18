@@ -332,25 +332,6 @@ describe("SearchButton", () => {
 
             expect(wrapper.html()).toContain("<mark");
         });
-
-        it("shows result count in the footer", async () => {
-            const { resultsRef } = setupFts();
-            const wrapper = mountComponent();
-            await openOverlay();
-            await triggerResults(wrapper, resultsRef);
-
-            expect(wrapper.html()).toContain("result");
-        });
-
-        it("appends + to count when hasMore is true", async () => {
-            const { resultsRef, hasMoreRef } = setupFts();
-            const wrapper = mountComponent();
-            await openOverlay();
-            hasMoreRef.value = true;
-            await triggerResults(wrapper, resultsRef);
-
-            expect(wrapper.html()).toMatch(/1\+/);
-        });
     });
 
     // ── Persistence & query editing behavior ─────────────────────────────────
