@@ -531,7 +531,7 @@ describe("SearchButton", () => {
             await nextTick();
 
             const items = wrapper.findAll("[role='option']");
-            expect(items[1].attributes("aria-selected")).toBe("true");
+            expect(items[0].attributes("aria-selected")).toBe("true");
         });
 
         it("moves selection back up on ArrowUp", async () => {
@@ -542,7 +542,7 @@ describe("SearchButton", () => {
             await nextTick();
 
             const items = wrapper.findAll("[role='option']");
-            expect(items[0].attributes("aria-selected")).toBe("true");
+            expect(items[1].attributes("aria-selected")).toBe("true");
         });
 
         it("navigates to the selected result on Enter", async () => {
@@ -554,6 +554,8 @@ describe("SearchButton", () => {
             resultsRef.value = [fakeResult];
             await flushPromises();
 
+            // Selection is not automatic; user must navigate first.
+            await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
             await wrapper.find("input").trigger("keydown", { key: "Enter" });
             await nextTick();
 
@@ -575,6 +577,7 @@ describe("SearchButton", () => {
             await flushPromises();
 
             // Move selection to the second result
+            await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
             await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
             await nextTick();
             let items = wrapper.findAll("[role='option']");

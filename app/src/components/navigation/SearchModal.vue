@@ -361,8 +361,10 @@ const showGoButton = computed(
 
 watch(
     () => searchQuery.value,
-    (newQuery) => {
+    (newQuery, oldQuery) => {
         const trimmed = newQuery.trim();
+        // Editing the query should cancel any selected result so Enter applies the search.
+        if (newQuery !== oldQuery) selectedIndex.value = -1;
         if (trimmed) {
             saveToStorage(CURRENT_SEARCH_QUERY_KEY, trimmed);
         } else {
@@ -446,10 +448,8 @@ watch(isSearchOpen, (open) => {
 watch(results, (newResults, oldResults) => {
     if (newResults.length === 0) {
         selectedIndex.value = -1;
-    } else if (oldResults.length === 0) {
-        selectedIndex.value = 0;
     }
-    // When loadMore appends results, keep selectedIndex so scroll position isn't reset.
+    // Do not auto-select results; selection should only happen when the user navigates.
 });
 
 watch(selectedIndex, (index) => {
@@ -477,10 +477,12 @@ const handleKeydown = (event: KeyboardEvent) => {
     if (results.value.length > 0) {
         if (event.key === "ArrowUp") {
             event.preventDefault();
-            selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
+            if (selectedIndex.value <= 0) selectedIndex.value = results.value.length - 1;
+            else selectedIndex.value = selectedIndex.value - 1;
         } else if (event.key === "ArrowDown") {
             event.preventDefault();
-            selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
+            if (selectedIndex.value < 0) selectedIndex.value = 0;
+            else selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
         } else if (event.key === "Enter") {
             event.preventDefault();
             if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
@@ -525,11 +527,13 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         if (event.key === "ArrowUp") {
             event.preventDefault();
             event.stopPropagation();
-            selectedIndex.value = Math.max(-1, selectedIndex.value - 1);
+            if (selectedIndex.value <= 0) selectedIndex.value = results.value.length - 1;
+            else selectedIndex.value = selectedIndex.value - 1;
         } else if (event.key === "ArrowDown") {
             event.preventDefault();
             event.stopPropagation();
-            selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
+            if (selectedIndex.value < 0) selectedIndex.value = 0;
+            else selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
         }
     }
 };
