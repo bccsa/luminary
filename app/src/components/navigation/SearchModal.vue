@@ -120,7 +120,7 @@ const ftsRet = useFtsSearch(
     {
         languageId: languageId as any,
         debounceMs: isManualSearchMode.value ? "manual" : 250,
-        pageSize: 10,
+        pageSize: 20,
     } as any,
 ) as ReturnType<typeof useFtsSearch> & {
     lastSearchedQuery: import("vue").Ref<string>;
@@ -141,7 +141,7 @@ useInfiniteScroll(
     () => {
         if (hasMore.value && !isSearching.value) loadMore();
     },
-    { distance: 10 },
+    { distance: 150 },
 );
 
 const MARK_CLASS = "bg-yellow-200 dark:bg-yellow-800 rounded px-0";
