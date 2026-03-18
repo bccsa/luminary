@@ -553,6 +553,7 @@ const isLocalChange = useDexieLiveQuery(
     },
     { initialValue: false },
 );
+const isLanguageSelectorCollapsed = ref(false);
 </script>
 
 <template>
@@ -623,7 +624,7 @@ const isLocalChange = useDexieLiveQuery(
         <div class="flex flex-col gap-0 lg:h-full lg:flex-row lg:gap-2 lg:overflow-y-hidden">
             <!-- sidebar -->
             <div class="w-full flex-shrink-0 lg:h-full lg:w-[336px]" v-if="editableParent">
-                <div class="overflow-y-auto scrollbar-hide lg:h-full lg:pb-2">
+                <div class="scrollbar-hide lg:h-full lg:overflow-y-auto lg:pb-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -668,7 +669,7 @@ const isLocalChange = useDexieLiveQuery(
                             </template>
                         </EditContentParent>
 
-                        <div class="sticky -top-1 z-10 lg:static">
+                        <div class="sticky top-0 z-10 lg:static">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
@@ -685,6 +686,9 @@ const isLocalChange = useDexieLiveQuery(
                                 :existingParent="existingParent"
                                 @updateIsValid="(val) => (isValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
+                                @update:selectorCollapsed="
+                                    (val) => (isLanguageSelectorCollapsed = val)
+                                "
                             />
                         </div>
                         <EditContentVideo
@@ -701,7 +705,12 @@ const isLocalChange = useDexieLiveQuery(
                 </div>
             </div>
             <!-- main content instance -->
-            <div class="mt-2 min-h-0 w-full overflow-y-auto scrollbar-hide lg:mt-0 lg:flex-1">
+            <div
+                class="min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto"
+                :class="
+                    isLanguageSelectorCollapsed ? 'sticky top-14 z-[5]' : 'mt-2 overflow-y-auto'
+                "
+            >
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -745,6 +754,7 @@ const isLocalChange = useDexieLiveQuery(
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
+                        :isLanguageSelectorCollapsed="isLanguageSelectorCollapsed"
                     />
                 </div>
             </div>

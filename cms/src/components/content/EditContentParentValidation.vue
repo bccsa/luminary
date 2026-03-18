@@ -61,19 +61,20 @@ const checkTopbarCollision = () => {
     const cardTop = languageSelector.value.getBoundingClientRect().top;
     const distance = cardTop - topbarBottom;
 
-    // Collapse if card is within 25px of topbar (give more buffer)
-    const shouldCollapse = distance <= 25;
-    isLanguageSelectorCollapsed.value = shouldCollapse;
+    // Hysteresis: collapse when close to topbar, uncollapse when sufficiently away
+    // This prevents jitter from layout reflow triggering rapid collapse/uncollapse
+    if (!isLanguageSelectorCollapsed.value && distance <= 25) {
+        isLanguageSelectorCollapsed.value = true;
+    } else if (isLanguageSelectorCollapsed.value && distance > 60) {
+        isLanguageSelectorCollapsed.value = false;
+    }
 };
 
 onMounted(() => {
     // Run on small screens or when testing
     if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
-    // Add window scroll listener for topbar collision check
-    window.addEventListener("scroll", checkTopbarCollision, { passive: true });
-
-    // Also listen to any scroll events that might affect positioning
+    // Listen during capture phase so it fires even when scroll propagation is stopped
     document.addEventListener("scroll", checkTopbarCollision, { passive: true, capture: true });
 
     // Initial check
@@ -81,7 +82,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    window.removeEventListener("scroll", checkTopbarCollision);
+    document.removeEventListener("scroll", checkTopbarCollision, { capture: true } as EventListenerOptions);
 });
 
 const router = useRouter();
@@ -111,7 +112,12 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
 const emit = defineEmits<{
     (e: "updateIsValid", value: boolean): void;
     (e: "createTranslation", language: LanguageDto): void;
+    (e: "update:selectorCollapsed", value: boolean): void;
 }>();
+
+watch(isLanguageSelectorCollapsed, (val) => {
+    emit("update:selectorCollapsed", val);
+});
 
 watchEffect(() => {
     emit("updateIsValid", overallIsValid.value);
@@ -164,7 +170,7 @@ watch(
             shadow="small"
             title="Translations"
             :icon="LanguageIcon"
-            collapsible
+            :collapsible="props.languages.length > 1"
             v-model:collapsed="isLanguageSelectorCollapsed"
         >
             <template #actions>

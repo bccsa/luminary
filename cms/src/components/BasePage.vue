@@ -48,7 +48,7 @@ const handleMobileSidebarToggle = () => {
                 class="flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
                 :class="[
                     { 'border-b border-zinc-200': !$slots.internalPageHeader },
-                    isSmallScreen ? 'sm:pl-5 sm:pr-1' : 'lg:pl-9 lg:pr-5',
+                    isSmallScreen ? 'sm:pl-5 sm:pr-4' : 'lg:pl-9 lg:pr-5',
                 ]"
             >
                 <button

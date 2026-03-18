@@ -6,14 +6,18 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 type Props = {
     selectedLanguage?: LanguageDto;
     disabled: boolean;
+    isLanguageSelectorCollapsed?: boolean;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
 </script>
 
 <template>
     <div v-if="content">
-        <LCard class="h-max bg-white pt-0 sm:h-[calc(100vh-5rem)] lg:pt-2">
+        <LCard
+            class="bg-white pt-0 lg:pt-2"
+            :class="props.isLanguageSelectorCollapsed ? 'h-[calc(100dvh-7rem)] lg:h-[calc(100vh-5rem)]' : 'h-max sm:h-[calc(100vh-5rem)]'"
+        >
             <RichTextEditor
                 class="mb-0 lg:mb-16"
                 v-model:text="content.text"
