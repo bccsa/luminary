@@ -415,7 +415,8 @@ watch(isSearchOpen, (open) => {
     }
     selectedIndex.value = -1;
     nextTick(() => {
-        const shouldSelectAll = focusOnNextOpen.value;
+        const hasQuery = !!searchQuery.value.trim();
+        const shouldSelectAll = focusOnNextOpen.value || hasQuery;
         const shouldFocus = isManualSearchMode.value
             ? focusOnNextOpen.value || !trimmedQuery.value
             : true;
@@ -424,7 +425,7 @@ watch(isSearchOpen, (open) => {
             const el = inputRef.value;
             el?.focus({ preventScroll: true });
 
-            // Cmd/Ctrl+K re-open should allow immediate typing to replace the previous query.
+            // Opening with an existing query should allow immediate typing to replace it.
             // Defer selection to avoid fighting with focus/transition timing across browsers.
             if (shouldSelectAll && el) {
                 const len = el.value.length;

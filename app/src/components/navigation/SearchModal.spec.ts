@@ -444,6 +444,35 @@ describe("SearchButton", () => {
 
             expect(runSearchMock.mock.calls.length).toBeGreaterThan(beforeCalls);
         });
+
+        it("selects the persisted query when reopened after navigating to a result", async () => {
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Simulate a completed search with results
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+            lastSearchedQueryRef.value = "Willowdale";
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+
+            // Navigate by clicking the result (closes the overlay)
+            await wrapper.find("[role='option']").trigger("click");
+            await flushPromises();
+            expect(wrapper.find("input").isVisible()).toBe(false);
+
+            // Reopen overlay: query should be selected for quick replacement
+            const { openSearch } = useSearchOverlay();
+            openSearch();
+            await flushPromises();
+            await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+            const input = wrapper.find("input").element as HTMLInputElement;
+            expect(input.value).toBe("Willowdale");
+            expect(input.selectionStart).toBe(0);
+            expect(input.selectionEnd).toBe(input.value.length);
+        });
     });
 
     // ── Clear button ───────────────────────────────────────────────────────
