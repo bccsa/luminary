@@ -308,8 +308,15 @@ watch(
     },
 );
 
+const highlightQuery = computed(() => {
+    const q = trimmedQuery.value;
+    if (!isManualSearchMode.value) return q;
+    // Manual mode: only highlight the last executed query, not the in-progress edits.
+    return lastSearchedQuery.value === q ? q : lastSearchedQuery.value;
+});
+
 const results = computed<EnrichedResult[]>(() => {
-    const query = searchQuery.value;
+    const query = highlightQuery.value;
     return (ftsResults.value as FtsSearchResult[])
         .map((r) => resolvedDocs.value.get(r.docId))
         .filter((doc): doc is ContentDto => !!doc)
