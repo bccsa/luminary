@@ -134,7 +134,7 @@ useInfiniteScroll(
     { distance: 150 },
 );
 
-const MARK_CLASS = "bg-yellow-200 dark:bg-yellow-800 rounded px-0";
+const MARK_CLASS = "bg-amber-200 dark:bg-yellow-500 rounded px-0";
 
 function extractPlainTextFromObject(obj: unknown): string {
     if (typeof obj === "string") return obj;
