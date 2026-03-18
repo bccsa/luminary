@@ -236,8 +236,6 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
     const candidates: { text: string; matches: number }[] = [
         { text: extractPlainText(doc.summary), matches: 0 },
         { text: extractPlainText(doc.text), matches: 0 },
-        { text: doc.author ?? "", matches: 0 },
-        { text: doc.title ?? "", matches: 0 },
     ].map((c) => ({ ...c, matches: countTermMatches(c.text, queryTerms) }));
 
     const best =
