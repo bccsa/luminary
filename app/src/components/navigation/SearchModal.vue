@@ -82,7 +82,11 @@ const recentSearches = ref<string[]>(loadRecentSearches());
 function pushRecentSearch(q: string) {
     const trimmed = q.trim();
     if (trimmed.length < 3) return;
-    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(0, RECENT_SEARCHES_MAX);
+
+    const next = [
+        trimmed,
+        ...recentSearches.value.filter((t) => t !== trimmed),
+    ].slice(0, RECENT_SEARCHES_MAX);
     recentSearches.value = next;
     saveToStorage(RECENT_SEARCHES_KEY, JSON.stringify(next));
 }
