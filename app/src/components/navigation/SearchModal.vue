@@ -705,7 +705,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     </div>
 
                     <!-- Body -->
-                    <div class="flex-1 overflow-y-auto scrollbar-hide">
+                    <div ref="searchResultsContainerRef" class="flex-1 overflow-y-auto scrollbar-hide">
                         <!-- Loading skeleton — only for initial search (no results yet) -->
                         <div
                             v-if="isSearching && results.length === 0"
@@ -774,9 +774,8 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <!-- Search Results -->
                         <div
                             v-else-if="showResults"
-                            ref="searchResultsContainerRef"
                             id="search-results-container"
-                            class="flex-1 overflow-y-auto scrollbar-hide py-2 pb-24 md:max-h-[65vh] md:py-3 md:pb-3"
+                            class="py-2 pb-24 md:py-3 md:pb-3"
                         >
                             <ul
                                 role="listbox"
