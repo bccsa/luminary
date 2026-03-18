@@ -173,14 +173,18 @@ function escapeHtml(s: string): string {
 
 function applyTermHighlights(text: string, query: string): string {
     if (!query?.trim()) return escapeHtml(text);
-    const queryTerms = query
+    const queryTermsAll = query
         .toLowerCase()
         .split(/\s+/)
         .filter((t) => t.length > 0);
-    if (!queryTerms.length) return escapeHtml(text);
+    if (!queryTermsAll.length) return escapeHtml(text);
+
+    // Trigram search ignores words shorter than 3 letters. For consistency, only highlight
+    // <3-letter words when we can highlight the full phrase (handled below).
+    const queryTerms = queryTermsAll.filter((t) => t.length >= 3);
 
     const textLower = text.toLowerCase();
-    const normalizedPhrase = queryTerms.join(" ");
+    const normalizedPhrase = queryTermsAll.join(" ");
 
     const phrasePos = textLower.indexOf(normalizedPhrase);
     if (phrasePos !== -1) {
@@ -197,6 +201,7 @@ function applyTermHighlights(text: string, query: string): string {
     }
 
     // Use Unicode-aware boundaries so accented characters like é, è, ç are handled correctly.
+    if (!queryTerms.length) return escapeHtml(text);
     const termsInText = queryTerms.filter((t) => textLower.includes(t));
     if (!termsInText.length) return escapeHtml(text);
 
