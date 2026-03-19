@@ -473,6 +473,35 @@ describe("SearchButton", () => {
             expect(input.selectionStart).toBe(0);
             expect(input.selectionEnd).toBe(input.value.length);
         });
+
+        it("preserves results when reopening in mobile manual mode for the same executed query", async () => {
+            // Force manual mode
+            window.innerWidth = 600;
+            window.dispatchEvent(new Event("resize"));
+
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            // Execute a search and populate results
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+            lastSearchedQueryRef.value = "Willowdale";
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+
+            // Close overlay (simulate navigating away / hiding modal)
+            const { closeSearch, openSearch } = useSearchOverlay();
+            closeSearch();
+            await flushPromises();
+
+            // Reopen overlay: should keep results because executed query matches
+            openSearch();
+            await flushPromises();
+
+            expect(wrapper.findAll("[role='option']")).toHaveLength(1);
+            expect(wrapper.find("input").element).toBeDefined();
+        });
     });
 
     // ── Clear button ───────────────────────────────────────────────────────

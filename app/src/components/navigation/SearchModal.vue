@@ -27,9 +27,13 @@ const isManualSearchMode = ref(isMdScreen.value);
 
 const isMac = computed(() => {
     if (typeof navigator === "undefined") return false;
-    const platform = (navigator.platform || "").toLowerCase();
+    // `navigator.platform` is deprecated/discouraged; prefer User-Agent Client Hints when available.
+    const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
+    if (uaDataPlatform) return uaDataPlatform.includes("mac");
+
     const ua = (navigator.userAgent || "").toLowerCase();
-    return platform.includes("mac") || ua.includes("mac os") || ua.includes("iphone") || ua.includes("ipad");
+    console.log(ua)
+    return ua.includes("mac os") || ua.includes("macintosh") || ua.includes("iphone") || ua.includes("ipad");
 });
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
@@ -418,9 +422,14 @@ watch(isSearchOpen, (open) => {
     // Mobile manual mode: reset so the user explicitly re-runs the search.
     // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
     if (isManualSearchMode.value) {
-        ftsResults.value = [];
-        resolvedDocs.value = new Map();
-        lastSearchedQuery.value = "";
+        const q = searchQuery.value.trim();
+        // Only clear results when they don't match the query we're about to show.
+        // This keeps results in memory when reopening the modal for the same term.
+        if (!q || lastSearchedQuery.value !== q) {
+            ftsResults.value = [];
+            resolvedDocs.value = new Map();
+            lastSearchedQuery.value = "";
+        }
     }
     selectedIndex.value = -1;
     nextTick(() => {
