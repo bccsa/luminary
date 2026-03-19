@@ -48,11 +48,11 @@ onClickOutside(sortOptionsMenu, () => {
     <div
         class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
     >
-        <div class="flex w-full items-center gap-1 px-8 py-1">
+        <div class="flex h-10 w-full items-center gap-1 px-8">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="h-full flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -60,7 +60,7 @@ onClickOutside(sortOptionsMenu, () => {
                 :full-height="true"
             />
 
-            <div class="relative flex gap-1">
+            <div class="relative flex h-full items-center gap-1">
                 <LSelect
                     data-test="filter-select"
                     v-model="queryOptions.translationStatus"
@@ -102,7 +102,11 @@ onClickOutside(sortOptionsMenu, () => {
                     :icon="UserGroupIcon"
                 />
 
-                <LButton @click="showSortOptions = !showSortOptions" data-test="sort-toggle-btn">
+                <LButton
+                    class="h-full"
+                    @click="showSortOptions = !showSortOptions"
+                    data-test="sort-toggle-btn"
+                >
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
                 <div class="absolute right-0 top-12">
@@ -168,7 +172,7 @@ onClickOutside(sortOptionsMenu, () => {
                         </div>
                     </LDropdown>
                 </div>
-                <LButton @click="reset()" class="w-10">
+                <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>
             </div>
