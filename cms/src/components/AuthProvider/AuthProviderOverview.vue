@@ -9,6 +9,7 @@ import {
     type AuthProviderDto,
     type GlobalConfigDto,
     useDexieLiveQuery,
+    useDexieLiveQueryAsEditable,
     type GroupDto,
     AclPermission,
     verifyAccess,
@@ -38,7 +39,13 @@ const availableGroups = computed(() => {
     });
 });
 
-const providers = useDexieLiveQuery(
+const {
+    source: providers,
+    editable: editableProviders,
+    isEdited,
+    revert,
+    save: saveEditedProvider,
+} = useDexieLiveQueryAsEditable<AuthProviderDto, AuthProviderDto[]>(
     () =>
         db.docs.where({ type: DocType.AuthProvider }).toArray() as unknown as Promise<
             AuthProviderDto[]
@@ -161,21 +168,34 @@ const newProvider = ref<AuthProviderDto>({
     audience: "",
 });
 
-const editableProvider = ref<AuthProviderDto | undefined>(undefined);
-// Snapshot of provider at time of opening the edit modal (deep clone)
-const existingProvider = ref<AuthProviderDto | undefined>(undefined);
+// ID of the provider currently being edited (undefined = creating new)
+const editingProviderId = ref<string | undefined>(undefined);
+
+// Reactive editable view of the provider being edited
+const editableProvider = computed(() =>
+    editingProviderId.value
+        ? editableProviders.value.find((p) => p._id === editingProviderId.value)
+        : undefined,
+);
 
 const isEditing = computed(() => {
     if (!canEdit.value) return false;
-    return !!editableProvider.value;
+    return !!editingProviderId.value;
 });
 
 // Current provider being edited/created (writable computed for v-model binding)
 const currentProvider = computed({
     get: () => (isEditing.value ? editableProvider.value : newProvider.value),
     set: (value) => {
-        if (isEditing.value) editableProvider.value = value;
-        else newProvider.value = value!;
+        if (isEditing.value && value && editingProviderId.value) {
+            // Replace the item in the editable array so the composable tracks the change
+            const index = editableProviders.value.findIndex(
+                (p) => p._id === editingProviderId.value,
+            );
+            if (index !== -1) editableProviders.value[index] = value;
+        } else if (!isEditing.value) {
+            newProvider.value = value!;
+        }
     },
 });
 
@@ -190,29 +210,12 @@ const hasValidCredentials = computed(() => {
     );
 });
 
-// Dirty checking: provider fields deep-compared against snapshot
-const isDirty = ref(false);
-watch(
-    [editableProvider, currentProvider],
-    () => {
-        if (!isEditing.value) {
-            isDirty.value = true;
-            return;
-        }
-        if (!existingProvider.value || !currentProvider.value) {
-            isDirty.value = false;
-            return;
-        }
-
-        const providerChanged = !_.isEqual(
-            { ...toRaw(currentProvider.value), updatedTimeUtc: 0, _rev: "" },
-            { ...toRaw(existingProvider.value), updatedTimeUtc: 0, _rev: "" },
-        );
-
-        isDirty.value = providerChanged;
-    },
-    { deep: true, immediate: true },
-);
+// Dirty checking: use composable's isEdited for edit mode, always dirty for new providers
+const isDirty = computed(() => {
+    if (!isEditing.value) return true;
+    if (!editingProviderId.value) return false;
+    return isEdited.value(editingProviderId.value);
+});
 
 const isFormValid = computed(() => {
     const provider = currentProvider.value;
@@ -233,20 +236,17 @@ const isFormValid = computed(() => {
 // Centralised modal open/close helpers instead of relying on watcher ordering
 function openModal() {
     hasAttemptedSubmit.value = false;
-
-    // Capture clean snapshot for dirty checking when editing
-    if (editableProvider.value) {
-        existingProvider.value = _.cloneDeep(toRaw(editableProvider.value));
-    }
-
     showModal.value = true;
 }
 
 function closeModal() {
+    // Revert any unsaved edits back to the original state
+    if (editingProviderId.value) {
+        revert(editingProviderId.value);
+    }
     showModal.value = false;
     errors.value = undefined;
-    editableProvider.value = undefined;
-    existingProvider.value = undefined;
+    editingProviderId.value = undefined;
     hasAttemptedSubmit.value = false;
 }
 
@@ -292,7 +292,7 @@ function resetNewProvider() {
 
 function openCreateModal() {
     resetNewProvider();
-    editableProvider.value = undefined;
+    editingProviderId.value = undefined;
     openModal();
 }
 
@@ -302,7 +302,7 @@ defineExpose({
 });
 
 function editProvider(provider: AuthProviderDto) {
-    editableProvider.value = _.cloneDeep(provider);
+    editingProviderId.value = provider._id;
     openModal();
 }
 
@@ -371,30 +371,57 @@ const saveProvider = async () => {
             return;
         }
 
-        const provider = isEditing.value ? editableProvider.value : newProvider.value;
-        if (!provider) return;
+        if (isEditing.value && editingProviderId.value) {
+            const editableItem = editableProviders.value.find(
+                (p) => p._id === editingProviderId.value,
+            );
+            if (!editableItem) return;
 
-        if (!Array.isArray(provider.memberOf)) {
-            provider.memberOf = [];
+            if (!Array.isArray(editableItem.memberOf)) {
+                editableItem.memberOf = [];
+            } else {
+                editableItem.memberOf = Array.from(editableItem.memberOf);
+            }
+
+            isSavingProvider.value = true;
+            savedProviderLabel.value = editableItem.label ?? "";
+
+            const result = await saveEditedProvider(editingProviderId.value);
+            if (result.ack === "rejected") {
+                errors.value = [result.message ?? "Failed to save provider"];
+                return;
+            }
+
+            const label = savedProviderLabel.value;
+            closeModal();
+
+            notification.addNotification({
+                title: `Provider ${label} updated`,
+                description: `Your provider has been successfully updated.`,
+                state: "success",
+            });
         } else {
-            provider.memberOf = Array.from(provider.memberOf);
+            const provider = _.cloneDeep(toRaw(newProvider.value));
+
+            if (!Array.isArray(provider.memberOf)) {
+                provider.memberOf = [];
+            } else {
+                provider.memberOf = Array.from(provider.memberOf);
+            }
+
+            isSavingProvider.value = true;
+            savedProviderLabel.value = provider.label ?? "";
+
+            await db.upsert({ doc: provider });
+
+            closeModal();
+
+            notification.addNotification({
+                title: `Provider ${provider.label} created`,
+                description: `Your provider has been successfully created.`,
+                state: "success",
+            });
         }
-
-        isSavingProvider.value = true;
-        savedProviderLabel.value = provider.label ?? "";
-
-        const rawProvider = _.cloneDeep(toRaw(provider));
-
-        await db.upsert({ doc: rawProvider });
-
-        const wasEditing = isEditing.value;
-        closeModal();
-
-        notification.addNotification({
-            title: `Provider ${provider.label} ${wasEditing ? "updated" : "created"}`,
-            description: `Your provider has been successfully ${wasEditing ? "updated" : "created"}.`,
-            state: "success",
-        });
     } catch (err) {
         console.error("Failed to save provider:", err);
         errors.value = [err instanceof Error ? err.message : "Failed to save provider"];

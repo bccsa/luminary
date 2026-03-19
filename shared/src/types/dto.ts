@@ -269,11 +269,6 @@ export type AuthProviderGroupMapping = {
     conditions: AuthProviderCondition[];
 };
 
-export type AuthProviderClaimMapping = {
-    claim: string;   // JWT claim path
-    target: string;  // system concept (e.g. "groups")
-};
-
 export type AuthProviderDto = BaseDocumentDto & {
     type: DocType.AuthProvider;
     domain: string;
@@ -281,7 +276,6 @@ export type AuthProviderDto = BaseDocumentDto & {
     clientId: string;
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
-    claimMappings?: AuthProviderClaimMapping[];
     /** Override standard OIDC claim paths (defaults: sub, email, name) */
     userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
     /** Optional display fields for login UI */

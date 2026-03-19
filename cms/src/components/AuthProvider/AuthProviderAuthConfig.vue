@@ -1,21 +1,13 @@
 <script setup lang="ts">
+import type { AuthProviderDto } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 defineProps<{
-    domain: string | undefined;
-    clientId: string | undefined;
-    audience: string | undefined;
-    claimNamespace: string | undefined;
     isEditing: boolean;
     disabled?: boolean;
 }>();
 
-const emit = defineEmits<{
-    "update:domain": [value: string];
-    "update:clientId": [value: string];
-    "update:audience": [value: string];
-    "update:claimNamespace": [value: string];
-}>();
+const provider = defineModel<AuthProviderDto>("provider", { required: true });
 
 /**
  * Strip protocol, trailing slashes, and paths so the domain is always
@@ -55,13 +47,13 @@ function normalizeDomainString(value: string | undefined): string {
                 <LInput
                     id="domain"
                     name="domain"
-                    :model-value="domain ?? ''"
+                    :model-value="provider.domain ?? ''"
                     type="text"
                     placeholder="auth.example.com"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="emit('update:domain', $event)"
-                    @blur="emit('update:domain', normalizeDomainString(domain ?? ''))"
+                    @update:model-value="provider.domain = $event"
+                    @blur="provider.domain = normalizeDomainString(provider.domain ?? '')"
                 />
             </div>
 
@@ -73,12 +65,12 @@ function normalizeDomainString(value: string | undefined): string {
                 <LInput
                     id="clientId"
                     name="clientId"
-                    :model-value="clientId ?? ''"
+                    :model-value="provider.clientId ?? ''"
                     type="text"
                     placeholder="Your auth client ID"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="emit('update:clientId', $event)"
+                    @update:model-value="provider.clientId = $event"
                 />
             </div>
 
@@ -90,12 +82,12 @@ function normalizeDomainString(value: string | undefined): string {
                 <LInput
                     id="audience"
                     name="audience"
-                    :model-value="audience ?? ''"
+                    :model-value="provider.audience ?? ''"
                     type="text"
                     placeholder="https://your-api.example.com"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="emit('update:audience', $event)"
+                    @update:model-value="provider.audience = $event"
                 />
                 <p class="mt-0.5 text-[11px] text-gray-500">
                     The API identifier/audience configured in your auth provider
@@ -109,11 +101,11 @@ function normalizeDomainString(value: string | undefined): string {
                 <LInput
                     id="claimNamespace"
                     name="claimNamespace"
-                    :model-value="claimNamespace ?? ''"
+                    :model-value="provider.claimNamespace ?? ''"
                     type="text"
                     placeholder="https://your-tenant.com/metadata"
                     :disabled="disabled"
-                    @update:model-value="emit('update:claimNamespace', $event)"
+                    @update:model-value="provider.claimNamespace = $event"
                 />
                 <p class="mt-0.5 text-[11px] text-gray-500">
                     The custom claim namespace configured in your auth provider's Actions/Rules

@@ -10,6 +10,7 @@ import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LSelect from "../forms/LSelect.vue";
 import { TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { PencilSquareIcon, CheckIcon } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{
     modelValue: AuthProviderGroupMapping[] | undefined;
@@ -52,20 +53,80 @@ watch(
     { deep: true },
 );
 
+const groupOptions = computed(() =>
+    props.availableGroups.map((g) => ({
+        id: g._id,
+        label: g.name,
+        value: g._id,
+    })),
+);
+
 const CONDITION_TYPES: {
     value: AuthProviderCondition["type"];
     label: string;
 }[] = [
-    { value: "authenticated", label: "Authenticated" },
     { value: "claimEquals", label: "Claim equals" },
     { value: "claimIn", label: "Claim in" },
 ];
+
+// Track which condition is being edited: "mappingIdx-conditionIdx"
+const editingKey = ref<string | null>(null);
+
+function conditionKey(mIdx: number, cIdx: number) {
+    return `${mIdx}-${cIdx}`;
+}
+
+function isEditing(mIdx: number, cIdx: number) {
+    return editingKey.value === conditionKey(mIdx, cIdx);
+}
+
+function startEdit(mIdx: number, cIdx: number) {
+    editingKey.value = conditionKey(mIdx, cIdx);
+}
+
+function stopEdit() {
+    editingKey.value = null;
+}
+
+function conditionSummary(cond: AuthProviderCondition): {
+    prefix: string;
+    parts: { text: string; placeholder: boolean }[];
+} {
+    if (cond.type === "authenticated") {
+        return { prefix: "", parts: [{ text: "User is authenticated", placeholder: false }] };
+    }
+    if (cond.type === "claimEquals") {
+        const path = cond.claimPath?.trim();
+        const val = (cond.value as string | undefined)?.trim();
+        return {
+            prefix: "if",
+            parts: [
+                { text: path || "set claim path", placeholder: !path },
+                { text: "=", placeholder: false },
+                { text: val || "set required value", placeholder: !val },
+            ],
+        };
+    }
+    if (cond.type === "claimIn") {
+        const path = cond.claimPath?.trim();
+        const vals = (cond.values ?? []).join(", ").trim();
+        return {
+            prefix: "if",
+            parts: [
+                { text: path || "set claim path", placeholder: !path },
+                { text: "IN", placeholder: false },
+                { text: vals || "set values", placeholder: !vals },
+            ],
+        };
+    }
+    return { prefix: "", parts: [] };
+}
 
 function addGroupMapping() {
     const list = [...(props.modelValue ?? [])];
     list.push({
         groupId: "",
-        conditions: [{ type: "authenticated" }],
+        conditions: [],
     });
     emit("update:modelValue", list);
 }
@@ -82,12 +143,14 @@ function addCondition(mappingIdx: number) {
     const list = props.modelValue ?? [];
     const mapping = list[mappingIdx];
     if (!mapping) return;
+    const newCondIdx = mapping.conditions.length;
     const next = list.slice();
     next[mappingIdx] = {
         ...mapping,
-        conditions: [...mapping.conditions, { type: "authenticated" }],
+        conditions: [...mapping.conditions, { type: "claimEquals", claimPath: "", value: "" }],
     };
     emit("update:modelValue", next);
+    editingKey.value = conditionKey(mappingIdx, newCondIdx);
 }
 
 function removeCondition(mappingIdx: number, conditionIdx: number) {
@@ -99,6 +162,9 @@ function removeCondition(mappingIdx: number, conditionIdx: number) {
     conditions.splice(conditionIdx, 1);
     next[mappingIdx] = { ...mapping, conditions };
     emit("update:modelValue", next);
+    if (editingKey.value === conditionKey(mappingIdx, conditionIdx)) {
+        editingKey.value = null;
+    }
 }
 
 function setConditionType(
@@ -201,117 +267,175 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             :key="aIdx"
             class="mt-2 rounded-md border border-gray-200 bg-white"
         >
-            <!-- Card header -->
-            <div
-                class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2"
-            >
-                <span class="text-xs font-semibold text-gray-600">Assign to group</span>
+            <!-- Group selector -->
+            <div class="flex w-full items-center gap-2 px-2 py-1">
+                <LCombobox
+                    v-model:selected-options="groupSelectionByIndex[aIdx]"
+                    class="w-full"
+                    :options="groupOptions"
+                    :disabled="disabled"
+                    :show-selected-in-dropdown="false"
+                    :inline-tags="true"
+                />
                 <button
                     type="button"
-                    class="text-gray-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                    class="shrink-0 text-gray-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
                     :disabled="disabled"
                     @click="removeGroupMapping(aIdx)"
                     aria-label="Remove rule"
                 >
-                    <TrashIcon class="size-4 shrink-0 text-current" />
+                    <TrashIcon class="size-6 text-current" />
                 </button>
-            </div>
-
-            <!-- Group selector -->
-            <div class="px-3 py-2">
-                <LCombobox
-                    label="Group"
-                    v-model:selected-options="groupSelectionByIndex[aIdx]"
-                    class="[&_.mb-2]:mb-0"
-                    :options="
-                        availableGroups.map((g) => ({
-                            id: g._id,
-                            label: g.name,
-                            value: g._id,
-                        }))
-                    "
-                    :disabled="disabled"
-                    :show-selected-in-dropdown="false"
-                    :show-selected-labels="true"
-                />
             </div>
 
             <!-- Conditions -->
             <div class="border-t border-gray-100 px-3 pb-2 pt-1">
                 <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                    Conditions (AND)
+                    Additional Conditions (AND)
                 </p>
 
-                <div
+                <p
+                    v-if="mapping.conditions.filter((c) => c.type !== 'authenticated').length === 0"
+                    class="mb-1 text-[11px] italic text-gray-400"
+                >
+                    Assigned to all authenticated users.
+                </p>
+
+                <template
                     v-for="(cond, cIdx) in mapping.conditions"
                     :key="cIdx"
-                    class="mb-1 flex items-center gap-1.5 rounded-md border border-zinc-100 bg-zinc-50/90 p-1"
                 >
-                    <LSelect
-                        :model-value="cond.type"
-                        :options="CONDITION_TYPES"
-                        :disabled="disabled"
-                        size="sm"
-                        class="shrink-0 [&>label]:mb-0"
-                        @update:model-value="
-                            setConditionType(aIdx, cIdx, $event as AuthProviderCondition['type'])
-                        "
-                    />
-
-                    <template v-if="cond.type === 'claimEquals'">
-                        <LInput
-                            :name="`gm-${aIdx}-${cIdx}-claim`"
-                            :model-value="cond.claimPath ?? ''"
-                            size="sm"
-                            placeholder="Claim path (e.g. churchName)"
-                            :disabled="disabled"
-                            class="min-w-0 flex-1"
-                            @update:model-value="updateConditionClaimPath(aIdx, cIdx, $event)"
-                        />
-                        <span class="shrink-0 text-[11px] font-medium text-gray-400">=</span>
-                        <LInput
-                            :name="`gm-${aIdx}-${cIdx}-value`"
-                            :model-value="(cond.value as string) ?? ''"
-                            size="sm"
-                            placeholder="Required value"
-                            :disabled="disabled"
-                            class="min-w-0 flex-1"
-                            @update:model-value="updateConditionValue(aIdx, cIdx, $event)"
-                        />
-                    </template>
-
-                    <template v-else-if="cond.type === 'claimIn'">
-                        <LInput
-                            :name="`gm-${aIdx}-${cIdx}-claimIn`"
-                            :model-value="cond.claimPath ?? ''"
-                            size="sm"
-                            placeholder="Claim path"
-                            :disabled="disabled"
-                            class="min-w-0 flex-1"
-                            @update:model-value="updateConditionClaimPath(aIdx, cIdx, $event)"
-                        />
-                        <span class="shrink-0 text-[11px] font-medium text-gray-400">IN</span>
-                        <LInput
-                            :name="`gm-${aIdx}-${cIdx}-values`"
-                            :model-value="(cond.values ?? []).join(', ')"
-                            size="sm"
-                            placeholder="value1, value2"
-                            :disabled="disabled"
-                            class="min-w-0 flex-1"
-                            @update:model-value="updateConditionValues(aIdx, cIdx, $event)"
-                        />
-                    </template>
-
-                    <button
-                        type="button"
-                        class="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-red-500 disabled:pointer-events-none"
-                        :disabled="disabled"
-                        @click="removeCondition(aIdx, cIdx)"
-                        aria-label="Remove condition"
+                <div
+                    v-if="cond.type !== 'authenticated'"
+                    class="mb-1 rounded-md border border-zinc-100 bg-zinc-50/90"
+                >
+                    <!-- View mode -->
+                    <div
+                        v-if="!isEditing(aIdx, cIdx)"
+                        class="group flex cursor-pointer items-center gap-1.5 px-2 py-1.5"
+                        @click="!disabled && startEdit(aIdx, cIdx)"
                     >
-                        <XCircleIcon class="size-4 shrink-0 text-current" />
-                    </button>
+                        <span class="min-w-0 flex-1 font-mono text-xs text-gray-700">
+                            <span
+                                v-if="conditionSummary(cond).prefix"
+                                class="mr-1 font-semibold text-zinc-400"
+                                >{{ conditionSummary(cond).prefix }}</span
+                            >
+                            <template
+                                v-for="(part, pIdx) in conditionSummary(cond).parts"
+                                :key="pIdx"
+                            >
+                                <span v-if="part.placeholder" class="italic text-zinc-500">{{
+                                    part.text
+                                }}</span>
+                                <span
+                                    v-else-if="part.text === '=' || part.text === 'IN'"
+                                    class="mx-1 font-semibold text-zinc-400"
+                                    >{{ part.text }}</span
+                                >
+                                <span v-else class="text-gray-700">{{ part.text }}</span>
+                            </template>
+                        </span>
+                        <PencilSquareIcon
+                            v-if="!disabled"
+                            class="size-3.5 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-400"
+                        />
+                        <button
+                            type="button"
+                            class="shrink-0 text-gray-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                            :disabled="disabled"
+                            @click.stop="removeCondition(aIdx, cIdx)"
+                            aria-label="Remove condition"
+                        >
+                            <XCircleIcon class="size-4 text-current" />
+                        </button>
+                    </div>
+
+                    <!-- Edit mode -->
+                    <div v-else class="flex flex-wrap items-center gap-1 p-1.5 sm:flex-nowrap">
+                        <LSelect
+                            :model-value="cond.type"
+                            :options="CONDITION_TYPES"
+                            :disabled="disabled"
+                            size="sm"
+                            class="w-full shrink-0 sm:w-auto [&>label]:mb-0"
+                            @update:model-value="
+                                setConditionType(
+                                    aIdx,
+                                    cIdx,
+                                    $event as AuthProviderCondition['type'],
+                                )
+                            "
+                        />
+
+                        <template v-if="cond.type === 'claimEquals'">
+                            <LInput
+                                :name="`gm-${aIdx}-${cIdx}-claim`"
+                                :model-value="cond.claimPath ?? ''"
+                                size="sm"
+                                placeholder="claim path"
+                                :disabled="disabled"
+                                class="min-w-0 w-full sm:flex-1"
+                                @update:model-value="updateConditionClaimPath(aIdx, cIdx, $event)"
+                            />
+                            <span class="shrink-0 text-[11px] font-semibold text-zinc-400">=</span>
+                            <LInput
+                                :name="`gm-${aIdx}-${cIdx}-value`"
+                                :model-value="(cond.value as string) ?? ''"
+                                size="sm"
+                                placeholder="required value"
+                                :disabled="disabled"
+                                class="min-w-0 w-full sm:flex-1"
+                                @update:model-value="updateConditionValue(aIdx, cIdx, $event)"
+                            />
+                        </template>
+
+                        <template v-else-if="cond.type === 'claimIn'">
+                            <div class="flex w-full min-w-0 items-center gap-1 sm:flex-1">
+                                <LInput
+                                    :name="`gm-${aIdx}-${cIdx}-claimIn`"
+                                    :model-value="cond.claimPath ?? ''"
+                                    size="sm"
+                                    placeholder="claim path"
+                                    :disabled="disabled"
+                                    class="min-w-0 flex-1"
+                                    @update:model-value="updateConditionClaimPath(aIdx, cIdx, $event)"
+                                />
+                                <span class="shrink-0 text-[11px] font-semibold text-zinc-400">IN</span>
+                            </div>
+                            <LInput
+                                :name="`gm-${aIdx}-${cIdx}-values`"
+                                :model-value="(cond.values ?? []).join(', ')"
+                                size="sm"
+                                placeholder="value1, value2"
+                                :disabled="disabled"
+                                class="min-w-0 w-full sm:flex-1"
+                                @update:model-value="updateConditionValues(aIdx, cIdx, $event)"
+                            />
+                        </template>
+
+                        <div class="ml-auto flex shrink-0 items-center gap-1">
+                            <button
+                                type="button"
+                                class="flex h-5 w-5 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+                                @click="stopEdit"
+                                aria-label="Done editing"
+                            >
+                                <CheckIcon class="size-4 text-current" />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                                :disabled="disabled"
+                                @click="removeCondition(aIdx, cIdx)"
+                                aria-label="Remove condition"
+                            >
+                                <XCircleIcon class="size-4 text-current" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
+                </template>
 
                 <LButton
                     size="sm"

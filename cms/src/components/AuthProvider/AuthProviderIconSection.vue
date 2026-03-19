@@ -8,7 +8,6 @@ import { storageSelection } from "@/composables/storageSelection";
 
 const props = defineProps<{
     provider: AuthProviderDto;
-    iconOpacity: number | undefined;
     disabled?: boolean;
 }>();
 
@@ -89,7 +88,7 @@ const handleFileChange = () => {
                     min="0"
                     max="1"
                     step="0.01"
-                    :value="iconOpacity ?? 1"
+                    :value="provider.iconOpacity ?? 1"
                     class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
                     :disabled="disabled"
                     @input="
@@ -100,7 +99,7 @@ const handleFileChange = () => {
                     "
                 />
                 <span class="w-10 text-right text-xs text-gray-600">
-                    {{ Math.round((iconOpacity ?? 1) * 100) }}%
+                    {{ Math.round((provider.iconOpacity ?? 1) * 100) }}%
                 </span>
             </div>
         </div>

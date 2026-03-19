@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AuthProviderDto, GroupDto } from "luminary-shared";
+import { computed } from "vue";
 import LModal from "../modals/LModal.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import AuthProviderFormErrors from "./AuthProviderFormErrors.vue";
@@ -8,11 +9,10 @@ import AuthProviderLabelAndType from "./AuthProviderLabelAndType.vue";
 import AuthProviderIconSection from "./AuthProviderIconSection.vue";
 import AuthProviderAppearance from "./AuthProviderAppearance.vue";
 import AuthProviderUserFieldMappings from "./AuthProviderUserFieldMappings.vue";
-import AuthProviderClaimMappings from "./AuthProviderClaimMappings.vue";
 import AuthProviderGroupMappings from "./AuthProviderGroupMappings.vue";
 import AuthProviderFormActions from "./AuthProviderFormActions.vue";
 
-defineProps<{
+const props = defineProps<{
     isEditing: boolean;
     isLoading: boolean;
     errors: string[] | undefined;
@@ -29,6 +29,14 @@ const emit = defineEmits<{
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<AuthProviderDto | undefined>("provider");
+
+const groupOptions = computed(() =>
+    props.availableGroups.map((group: GroupDto) => ({
+        id: group._id,
+        label: group.name,
+        value: group._id,
+    })),
+);
 
 const closeModal = () => {
     isVisible.value = false;
@@ -51,29 +59,22 @@ const handleDelete = () => {
     >
         <div
             ref="scrollContainer"
-            class="mb-1 max-h-[70vh] overflow-auto md:flex md:gap-4 md:overflow-hidden"
+            class="mb-1 min-h-0 flex-1 overflow-auto md:flex md:gap-4 md:overflow-hidden"
         >
             <!-- Left column -->
             <div v-if="provider" class="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
                 <AuthProviderFormErrors :errors="errors ?? []" />
 
                 <AuthProviderLabelAndType
-                    :label="provider?.label"
+                    v-model:provider="provider"
                     :disabled="isLoading"
-                    @update:label="(v) => provider && (provider.label = v)"
                 />
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <LCombobox
                         v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"
-                        :options="
-                            availableGroups.map((group: GroupDto) => ({
-                                id: group._id,
-                                label: group.name,
-                                value: group._id,
-                            }))
-                        "
+                        :options="groupOptions"
                         :show-selected-in-dropdown="false"
                         :showSelectedLabels="true"
                         :disabled="false"
@@ -82,31 +83,20 @@ const handleDelete = () => {
                 </div>
 
                 <AuthProviderAuthConfig
-                    :domain="provider?.domain"
-                    :client-id="provider?.clientId"
-                    :audience="provider?.audience"
-                    :claim-namespace="provider?.claimNamespace"
+                    v-model:provider="provider"
                     :is-editing="isEditing"
                     :disabled="isLoading"
-                    @update:domain="(v) => provider && (provider.domain = v)"
-                    @update:client-id="(v) => provider && (provider.clientId = v)"
-                    @update:audience="(v) => provider && (provider.audience = v)"
-                    @update:claim-namespace="(v) => provider && (provider.claimNamespace = v)"
                 />
 
                 <AuthProviderIconSection
                     :provider="provider"
-                    :icon-opacity="provider?.iconOpacity"
                     :disabled="isLoading"
-                    @update:icon-opacity="(v) => provider && (provider.iconOpacity = v)"
+                    @update:icon-opacity="(v) => { if (provider) provider.iconOpacity = v }"
                 />
 
                 <AuthProviderAppearance
-                    :text-color="provider?.textColor"
-                    :background-color="provider?.backgroundColor"
+                    v-model:provider="provider"
                     :disabled="isLoading"
-                    @update:text-color="(v) => provider && (provider.textColor = v)"
-                    @update:background-color="(v) => provider && (provider.backgroundColor = v)"
                 />
             </div>
 
@@ -116,8 +106,6 @@ const handleDelete = () => {
                 class="mt-2 space-y-2 md:mt-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-gray-200 md:pl-4"
             >
                 <AuthProviderUserFieldMappings v-model:provider="provider" :disabled="isLoading" />
-
-                <AuthProviderClaimMappings v-model="provider.claimMappings" :disabled="isLoading" />
 
                 <AuthProviderGroupMappings
                     v-model="provider.groupMappings"

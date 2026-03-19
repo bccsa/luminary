@@ -37,38 +37,25 @@ export function createEditable<T extends BaseDocumentDto>(
     ) as Ref<Array<T>>;
     const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
 
-    const source_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
-    watch(
-        source,
-        () => {
-            source_filtered.value = source.value
-                .map((item) => _applyFilter(item))
-                .filter((item) => item !== undefined);
-        },
-        { deep: true, immediate: true },
-    );
+    // When no filterFn is provided, skip the expensive map/filter but still use a
+    // deep watcher that produces a new array reference on every nested change.
+    // This is required so that consumers like isDirty/isEdited (which track the
+    // filtered ref's value) get invalidated when any nested property is mutated.
+    // Using computed(() => base.value) would NOT work because it only re-evaluates
+    // when the array reference itself changes, not when nested properties are mutated.
+    function makeFiltered(base: Ref<Array<T>>): Ref<Array<T>> {
+        const filtered = () =>
+            options.filterFn
+                ? (base.value.map((item) => _applyFilter(item)).filter((item) => item !== undefined) as Array<T>)
+                : base.value.slice();
+        const r = ref<Array<T>>(options.filterFn ? filtered() : base.value) as Ref<Array<T>>;
+        watch(base, () => { r.value = filtered(); }, { deep: true });
+        return r;
+    }
 
-    const editable_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
-    watch(
-        editable,
-        () => {
-            editable_filtered.value = editable.value
-                .map((item) => _applyFilter(item))
-                .filter((item) => item !== undefined);
-        },
-        { deep: true, immediate: true },
-    );
-
-    const shadow_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
-    watch(
-        shadow,
-        () => {
-            shadow_filtered.value = shadow.value
-                .map((item) => _applyFilter(item))
-                .filter((item) => item !== undefined);
-        },
-        { deep: true, immediate: true },
-    );
+    const source_filtered = makeFiltered(source as unknown as Ref<Array<T>>);
+    const editable_filtered = makeFiltered(editable);
+    const shadow_filtered = makeFiltered(shadow);
 
     // monitor the source array for changes and update the shadow copy and editable copy accordingly
     watch(
@@ -137,31 +124,32 @@ export function createEditable<T extends BaseDocumentDto>(
     );
 
     // monitor the editable array for new items and run the modify function if provided
-    let oldValue: Array<T> | undefined;
-    if (!oldValue) {
-        oldValue = [..._.cloneDeep(editable.value)];
-    }
-    watch(
-        editable,
-        (newValue) => {
-            // Get the items that were added or modified
-            const modifiedItems = newValue.filter((item) => {
-                const oldItem = oldValue?.find((i) => i._id === item._id);
-                return !oldItem || !isEqualBase(oldItem, item);
-            });
+    // Only set up this watcher when a modifyFn is provided — it deep-clones the entire
+    // array on every change and is expensive when typing into forms.
+    if (options.modifyFn) {
+        let oldValue: Array<T> = [..._.cloneDeep(editable.value)];
+        watch(
+            editable,
+            (newValue) => {
+                // Get the items that were added or modified
+                const modifiedItems = newValue.filter((item) => {
+                    const oldItem = oldValue?.find((i) => i._id === item._id);
+                    return !oldItem || !isEqualBase(oldItem, item);
+                });
 
-            // Modify the added items if a modify function is provided
-            for (const item of modifiedItems) {
-                const index = newValue.findIndex((i) => i._id === item._id);
-                if (index !== -1) {
-                    newValue[index] = _applyModifier(toRaw(item));
+                // Modify the added items if a modify function is provided
+                for (const item of modifiedItems) {
+                    const index = newValue.findIndex((i) => i._id === item._id);
+                    if (index !== -1) {
+                        newValue[index] = _applyModifier(toRaw(item));
+                    }
                 }
-            }
 
-            oldValue = [..._.cloneDeep(newValue)]; // Update oldValue to the current state of editable
-        },
-        { deep: true, immediate: true },
-    );
+                oldValue = [..._.cloneDeep(newValue)]; // Update oldValue to the current state of editable
+            },
+            { deep: true, immediate: true },
+        );
+    }
 
     /**
      * Check if an item has been edited by the user.

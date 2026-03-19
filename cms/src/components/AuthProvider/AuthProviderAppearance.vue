@@ -1,16 +1,12 @@
 <script setup lang="ts">
+import type { AuthProviderDto } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 defineProps<{
-    textColor: string | undefined;
-    backgroundColor: string | undefined;
     disabled?: boolean;
 }>();
 
-const emit = defineEmits<{
-    "update:textColor": [value: string];
-    "update:backgroundColor": [value: string];
-}>();
+const provider = defineModel<AuthProviderDto>("provider", { required: true });
 </script>
 
 <template>
@@ -27,31 +23,26 @@ const emit = defineEmits<{
                     >
                         <input
                             type="color"
-                            :value="textColor || '#000000'"
-                            @input="
-                                emit(
-                                    'update:textColor',
-                                    ($event.target as HTMLInputElement).value,
-                                )
-                            "
+                            :value="provider.textColor || '#000000'"
+                            @input="provider.textColor = ($event.target as HTMLInputElement).value"
                             class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                             :disabled="disabled"
                         />
                         <div
                             class="h-full w-full"
                             :style="{
-                                backgroundColor: textColor || '#000000',
+                                backgroundColor: provider.textColor || '#000000',
                             }"
                         ></div>
                     </div>
                     <LInput
                         id="textColor"
                         name="textColor"
-                        :model-value="textColor ?? ''"
+                        :model-value="provider.textColor ?? ''"
                         type="text"
                         placeholder="#000000"
                         :disabled="disabled"
-                        @update:model-value="emit('update:textColor', $event)"
+                        @update:model-value="provider.textColor = $event"
                     />
                 </div>
             </div>
@@ -65,32 +56,26 @@ const emit = defineEmits<{
                     >
                         <input
                             type="color"
-                            :value="backgroundColor || '#ffffff'"
-                            @input="
-                                emit(
-                                    'update:backgroundColor',
-                                    ($event.target as HTMLInputElement).value,
-                                )
-                            "
+                            :value="provider.backgroundColor || '#ffffff'"
+                            @input="provider.backgroundColor = ($event.target as HTMLInputElement).value"
                             class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                             :disabled="disabled"
                         />
                         <div
                             class="h-full w-full"
                             :style="{
-                                backgroundColor:
-                                    backgroundColor || '#ffffff',
+                                backgroundColor: provider.backgroundColor || '#ffffff',
                             }"
                         ></div>
                     </div>
                     <LInput
                         id="backgroundColor"
                         name="backgroundColor"
-                        :model-value="backgroundColor ?? ''"
+                        :model-value="provider.backgroundColor ?? ''"
                         type="text"
                         placeholder="#FFFFFF"
                         :disabled="disabled"
-                        @update:model-value="emit('update:backgroundColor', $event)"
+                        @update:model-value="provider.backgroundColor = $event"
                     />
                 </div>
             </div>

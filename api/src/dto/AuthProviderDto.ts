@@ -12,18 +12,6 @@ import {
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
 
-export class AuthProviderClaimMapping {
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    claim!: string;
-
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    target!: string;
-}
-
 export class AuthProviderCondition {
     @IsString()
     @IsNotEmpty()
@@ -117,16 +105,6 @@ export class AuthProviderDto extends _baseDto {
     @IsOptional()
     @Expose()
     public groupMappings!: AuthProviderGroupMapping[];
-
-    /**
-     * Mapping rules for JWT claim fields to system concepts (e.g. "hasMembership" → "groups")
-     */
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => AuthProviderClaimMapping)
-    @IsOptional()
-    @Expose()
-    public claimMappings!: AuthProviderClaimMapping[];
 
     /**
      * Override the standard OIDC claim paths used to identify a user.
