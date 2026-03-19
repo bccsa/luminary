@@ -38,7 +38,7 @@ const isMobileScreen = breakpoints.smaller("lg");
     <div class="flex h-full flex-col overflow-hidden scrollbar-hide">
         <div class="sticky top-0 z-20 flex-shrink-0">
             <div
-                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white py-8 shadow-sm sm:gap-x-3"
+                class="sticky top-0 z-40 mr-2.5 flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
                 :class="[
                     { 'border-b border-zinc-200': !$slots.internalPageHeader },
                     isSmallScreen ? 'sm:pl-5 sm:pr-1' : 'lg:pl-9 lg:pr-5',
@@ -47,7 +47,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                 <button
                     type="button"
                     data-test="chevron-icon"
-                    class="-m-2.5 p-2.5 text-zinc-500"
+                    class="pl-2.5 text-zinc-500"
                     @click="
                         !isEditContentPage
                             ? onOpenMobileSidebar?.()
