@@ -235,4 +235,27 @@ describe("applySocketData", () => {
             { _id: "2", type: DocType.Post, updatedTimeUtc: 2000 },
         ]);
     });
+
+    it("filters incoming docs when contentOnly is set and types include Tag or Post (excludes Tag/Post from being added)", () => {
+        const destination = ref<BaseDocumentDto[]>([]);
+
+        const data: ApiQueryResult<BaseDocumentDto> = {
+            docs: [
+                { _id: "post1", type: DocType.Post } as BaseDocumentDto,
+                { _id: "tag1", type: DocType.Tag } as BaseDocumentDto,
+                { _id: "content1", type: DocType.Content, parentType: DocType.Post } as ContentDto,
+            ],
+        };
+
+        const query = {
+            types: [DocType.Post],
+            contentOnly: true,
+        } as ApiSearchQuery;
+
+        applySocketData(data, destination, query);
+
+        expect(destination.value).toEqual([
+            { _id: "content1", type: DocType.Content, parentType: DocType.Post },
+        ]);
+    });
 });
