@@ -137,8 +137,10 @@ const showContentActionsMenuMobile = ref(false);
                     trigger-class="flex h-full w-full items-center justify-center px-3"
                 >
                     <template #trigger>
-                        <ChevronDownIcon v-if="!showContentActionsMenuDesktop" class="size-5" />
-                        <ChevronUpIcon v-else class="size-5" />
+                        <div data-test="dropdown-trigger">
+                            <ChevronDownIcon v-if="!showContentActionsMenuDesktop" class="size-5" />
+                            <ChevronUpIcon v-else class="size-5" />
+                        </div>
                     </template>
                     <ul>
                         <li
@@ -147,6 +149,11 @@ const showContentActionsMenuMobile = ref(false);
                             @click="
                                 action.action();
                                 showContentActionsMenuDesktop = false;
+                            "
+                            :data-test="
+                                action.name.toLowerCase() === 'duplicate'
+                                    ? 'duplicate-button'
+                                    : action.name.toLowerCase() + '-button'
                             "
                             class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
                         >

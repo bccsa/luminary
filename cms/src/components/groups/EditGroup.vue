@@ -17,10 +17,9 @@ import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
-import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
+import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
-import { isMobileScreen } from "@/globalConfig";
 
 const { addNotification } = useNotificationStore();
 
@@ -315,9 +314,11 @@ const saveChanges = async () => {
                     size="sm"
                     title="Duplicate"
                     :icon="DocumentDuplicateIcon"
+                    icon-right
                     @click="duplicateGroup"
                     data-test="duplicateGroup"
-                    s
+                    mainDynamicCss="text-zinc-600"
+                    iconClass="text-zinc-400"
                 >
                     Duplicate
                 </LButton>
@@ -328,7 +329,6 @@ const saveChanges = async () => {
                         @click.prevent="discardChanges"
                         data-test="discardChanges"
                         :icon="ArrowUturnLeftIcon"
-                        :class="isMobileScreen ? '!px-2 !py-1 text-xs' : ''"
                         smallIcon
                     >
                         Revert

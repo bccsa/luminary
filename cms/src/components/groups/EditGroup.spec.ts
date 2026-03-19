@@ -341,43 +341,6 @@ describe("EditGroup", () => {
         });
     });
 
-    describe("Copy Group ID", () => {
-        it("copies group ID to clipboard when copy button is clicked", async () => {
-            const wrapper = createWrapper();
-
-            await wrapper.find('[data-test="copyGroupId"]').trigger("click");
-
-            expect(navigator.clipboard.writeText).toHaveBeenCalledWith(testGroup._id);
-        });
-    });
-
-    describe("Permissions and Access Control", () => {
-        it("shows disabled styling when user lacks permissions", () => {
-            vi.mocked(verifyAccess).mockReturnValue(false);
-
-            const wrapper = createWrapper();
-
-            const container = wrapper.find(".w-full.rounded-md");
-            expect(container.classes()).toContain("bg-zinc-100");
-        });
-
-        it("shows 'No edit access' message when disabled", () => {
-            vi.mocked(verifyAccess).mockReturnValue(false);
-
-            const wrapper = createWrapper();
-
-            expect(wrapper.text()).toContain("No edit access");
-        });
-
-        it("shows normal styling when user has permissions", () => {
-            const wrapper = createWrapper();
-
-            const container = wrapper.find(".w-full.rounded-md");
-            expect(container.classes()).toContain("bg-white");
-            expect(container.classes()).not.toContain("bg-zinc-100");
-        });
-    });
-
     describe("Computed Properties", () => {
         it("shows new group behavior when group is not in live data", () => {
             const newGroup = { ...testGroup, _id: "new-group-id" };

@@ -194,7 +194,8 @@ onMounted(() => {
                     <LButton
                         variant="secondary"
                         size="sm"
-                        :class="isMobileScreen ? '!px-1 !py-2 text-xs' : ''"
+                        :class="isMobileScreen ? '!px-2 !py-2 text-xs' : ''"
+                        mainDynamicCss="text-zinc-600"
                     >
                         Add / Remove
                     </LButton>

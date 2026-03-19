@@ -61,6 +61,7 @@ const activePermissions = computed(() => {
                     v-for="aclPermission in activePermissions"
                     :key="aclPermission"
                     class="flex-shrink-0 rounded-md bg-zinc-200 px-1 py-0.5 text-xs"
+                    data-test="active-permissions"
                 >
                     {{ capitaliseFirstLetter(aclPermission) }}
                 </div>

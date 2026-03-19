@@ -61,6 +61,7 @@ type Props = {
     segmented?: boolean;
     smallIcon?: boolean;
     dropdownAnchor?: boolean;
+    iconClass?: string;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
     leftAction?: (event: MouseEvent) => void | Promise<void>;
     mainAction?: (event: MouseEvent) => void | Promise<void>;
@@ -76,6 +77,7 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     segmented: false,
     dropdownAnchor: false,
+    iconClass: undefined,
     mainDynamicCss: undefined,
     leftAction: undefined,
     mainAction: undefined,
@@ -212,13 +214,16 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                 v-if="icon"
                 :is="icon"
                 class="order-2"
-                :class="{
-                    [iconVariants[variant]]: $slots.default,
-                    '-mr-0.5': iconRight && $slots.default,
-                    '-ml-0.5': !iconRight && $slots.default,
-                    'h-4 w-4': smallIcon && isMobileScreen,
-                    'h-5 w-5': !smallIcon || !isMobileScreen,
-                }"
+                :class="
+                    twMerge(
+                        $slots.default ? iconVariants[variant] : '',
+                        iconRight && $slots.default ? '-mr-0.5' : '',
+                        !iconRight && $slots.default ? '-ml-0.5' : '',
+                        smallIcon && isMobileScreen ? 'h-4 w-4' : '',
+                        !smallIcon || !isMobileScreen ? 'h-5 w-5' : '',
+                        iconClass,
+                    )
+                "
             />
             <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
                 <slot />
@@ -258,13 +263,16 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             v-if="icon"
             :is="icon"
             class="order-2"
-            :class="{
-                [iconVariants[variant]]: $slots.default,
-                '-mr-0.5': iconRight && $slots.default,
-                '-ml-0.5': !iconRight && $slots.default,
-                'h-4 w-4': smallIcon && isMobileScreen,
-                'h-5 w-5': !smallIcon || !isMobileScreen,
-            }"
+            :class="
+                twMerge(
+                    $slots.default ? iconVariants[variant] : '',
+                    iconRight && $slots.default ? '-mr-0.5' : '',
+                    !iconRight && $slots.default ? '-ml-0.5' : '',
+                    smallIcon && isMobileScreen ? 'h-4 w-4' : '',
+                    !smallIcon || !isMobileScreen ? 'h-5 w-5' : '',
+                    iconClass,
+                )
+            "
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
             <slot />

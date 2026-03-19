@@ -302,6 +302,10 @@ describe("EditContent.vue", () => {
             },
         });
 
+        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
+        expect(triggerButton.exists()).toBe(true);
+        await triggerButton.trigger("click");
+
         // Wait for component to load and language selector to appear
         await waitForExpect(() => {
             const languageSelector = wrapper.findComponent(LanguageSelector);
@@ -320,7 +324,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("renders 2 language selectors", async () => {
+    it("renders the language selector", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -329,13 +333,10 @@ describe("EditContent.vue", () => {
             },
         });
 
+        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
+        expect(triggerButton.exists()).toBe(true);
+        await triggerButton.trigger("click");
         await waitForExpect(() => {
-            // Check for language selector in EmptyState (when no content is selected)
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true);
-        });
-
-        await waitForExpect(() => {
-            // Check for LanguageSelector component in EditContentParentValidation (in sidebar)
             expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true);
         });
     });
@@ -376,7 +377,10 @@ describe("EditContent.vue", () => {
             },
         });
 
-        expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
+        expect(triggerButton.exists()).toBe(true);
+        await triggerButton.trigger("click");
+        await expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
@@ -749,66 +753,62 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it(
-        "should generate redirects for all translations when multiple slugs are changed",
-        async () => {
-            const wrapper = mount(EditContent, {
-                props: {
-                    docType: DocType.Post,
-                    id: mockData.mockPostDto._id,
-                    languageCode: "eng",
-                    tagOrPostType: PostType.Blog,
-                },
-            });
+    it("should generate redirects for all translations when multiple slugs are changed", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
 
-            // Change the English slug via the normal UI flow
-            await waitForExpect(async () => {
-                const editContentBasic = wrapper.findComponent(EditContentBasic);
-                const toggle = editContentBasic.findAllComponents(LTextToggle)[0];
-                expect(toggle.find('[data-test="text-toggle-left-value"]').exists()).toBe(true);
+        // Change the English slug via the normal UI flow
+        await waitForExpect(async () => {
+            const editContentBasic = wrapper.findComponent(EditContentBasic);
+            const toggle = editContentBasic.findAllComponents(LTextToggle)[0];
+            expect(toggle.find('[data-test="text-toggle-left-value"]').exists()).toBe(true);
 
-                expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
-                await wrapper.find('[data-test="slugSpan"]').trigger("click");
-                await wrapper.find('[name="slug"]').setValue("new-eng-slug");
-                await wrapper.find('[name="slug"]').trigger("change");
-            });
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-eng-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
 
-            // Directly modify the French content slug in editableContent to simulate
-            // the user having navigated to the French tab and changed that slug.
-            // We do this via the component's internal state (accessible in dev mode).
-            await waitForExpect(async () => {
-                const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
-                expect(editableContent.length).toBeGreaterThan(0);
-                const fraContent = editableContent.find(
-                    (c: ContentDto) => c.language === mockData.mockLanguageDtoFra._id,
-                );
-                expect(fraContent).toBeDefined();
-                fraContent!.slug = "new-fra-slug";
-            });
+        // Directly modify the French content slug in editableContent to simulate
+        // the user having navigated to the French tab and changed that slug.
+        // We do this via the component's internal state (accessible in dev mode).
+        await waitForExpect(async () => {
+            const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
+            expect(editableContent.length).toBeGreaterThan(0);
+            const fraContent = editableContent.find(
+                (c: ContentDto) => c.language === mockData.mockLanguageDtoFra._id,
+            );
+            expect(fraContent).toBeDefined();
+            fraContent!.slug = "new-fra-slug";
+        });
 
-            await waitForExpect(async () => {
-                await wrapper.find('[data-test="save-button"]').trigger("click");
-            });
+        await waitForExpect(async () => {
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+        });
 
-            await waitForExpect(async () => {
-                const res = await db.localChanges.toArray();
-                expect(res.length).toBeGreaterThan(0);
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            expect(res.length).toBeGreaterThan(0);
 
-                // Both the English and French redirects should have been created
-                const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
-                expect(redirects.length).toBe(2);
+            // Both the English and French redirects should have been created
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(2);
 
-                const engRedirect = redirects.find((r) => (r.doc as any).slug === "post1-eng");
-                expect(engRedirect).toBeDefined();
-                expect((engRedirect!.doc as any).toSlug).toBe("new-eng-slug");
+            const engRedirect = redirects.find((r) => (r.doc as any).slug === "post1-eng");
+            expect(engRedirect).toBeDefined();
+            expect((engRedirect!.doc as any).toSlug).toBe("new-eng-slug");
 
-                const fraRedirect = redirects.find((r) => (r.doc as any).slug === "post1-fra");
-                expect(fraRedirect).toBeDefined();
-                expect((fraRedirect!.doc as any).toSlug).toBe("new-fra-slug");
-            });
-        },
-        15000,
-    );
+            const fraRedirect = redirects.find((r) => (r.doc as any).slug === "post1-fra");
+            expect(fraRedirect).toBeDefined();
+            expect((fraRedirect!.doc as any).toSlug).toBe("new-fra-slug");
+        });
+    }, 15000);
 
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
@@ -839,6 +839,13 @@ describe("EditContent.vue", () => {
                 expect(translationDeleteModalButton.exists()).toBe(true);
             });
             await translationDeleteModalButton!.trigger("click"); // Accept dialog
+
+            let chevronIcon;
+            await waitForExpect(async () => {
+                chevronIcon = wrapper.find('[data-test="dropdown-trigger"]');
+                expect(chevronIcon.exists()).toBe(true);
+            });
+            await chevronIcon!.trigger("click"); // Open the dropdown
 
             let postDeleteButton;
             await waitForExpect(async () => {
