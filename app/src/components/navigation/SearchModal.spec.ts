@@ -94,20 +94,11 @@ function setupFts(opts: {
 }
 
 function mountComponent() {
-    const t = (key: string) => mockLanguageDtoEng.translations[key] ?? key;
     return mount(SearchModal, {
         global: {
             stubs: {
                 Transition: { template: "<slot />" },
                 LImage: { template: "<div />" },
-            },
-            // Some environments (e.g. CI) don't pick up `global.mocks` for `<script setup>` templates.
-            // Provide `$t` via both mocks and globalProperties to be safe.
-            config: {
-                globalProperties: ({ $t: t } as any),
-            },
-            mocks: {
-                $t: t,
             },
         },
     });

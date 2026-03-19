@@ -9,8 +9,10 @@ import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
+import { useI18n } from "vue-i18n";
 
 const router = useRouter();
+const { t } = useI18n();
 
 const { isSearchOpen, closeSearch } = useSearchOverlay();
 
@@ -655,7 +657,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             :aria-activedescendant="
                                 selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
                             "
-                            :placeholder="$t('search.placeholder')"
+                            :placeholder="t('search.placeholder')"
                             class="flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
                             autocomplete="off"
                             @keydown="handleInputKeydown"
@@ -667,19 +669,19 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 class="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 md:h-auto md:py-1.5"
                                 @click="onGoClick"
                             >
-                                {{ $t("search.go") }}
+                                {{ t("search.go") }}
                             </button>
                             <button
                                 v-if="searchQuery"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                                :aria-label="$t('search.clearQuery')"
+                                :aria-label="t('search.clearQuery')"
                                 @click="clearSearch"
                             >
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
                             <button
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                                :aria-label="$t('search.close')"
+                                :aria-label="t('search.close')"
                                 @click="closeSearch"
                             >
                                 <XMarkIcon class="h-5 w-5 md:h-5 md:w-5" />
@@ -721,7 +723,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             class="p-8 text-center md:p-10"
                         >
                             <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.minChars") }}
+                                {{ t("search.minChars") }}
                             </p>
                         </div>
 
@@ -730,7 +732,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             class="p-8 text-center md:p-10"
                         >
                             <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.pressGo") }}
+                                {{ t("search.pressGo") }}
                             </p>
                         </div>
 
@@ -742,10 +744,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
                             />
                             <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ $t("search.noResults") }}
+                                {{ t("search.noResults") }}
                             </p>
                             <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                                {{ $t("search.tryDifferent") }}
+                                {{ t("search.tryDifferent") }}
                             </p>
                         </div>
 
@@ -756,7 +758,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         >
                             <ul
                                 role="listbox"
-                                :aria-label="$t('search.ariaLabel')"
+                                :aria-label="t('search.ariaLabel')"
                                 class="divide-y divide-zinc-200 dark:divide-slate-700"
                             >
                                 <li
@@ -890,12 +892,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             <p
                                 class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base"
                             >
-                                {{ $t("search.hint") }}
+                                {{ t("search.hint") }}
                             </p>
                             <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
-                                {{ $t("search.minCharsShort") }}
+                                {{ t("search.minCharsShort") }}
                                 <span class="hidden sm:inline">
-                                    · {{ $t("search.shortcut", { shortcut: shortcutLabel }) }}
+                                    · {{ t("search.shortcut", { shortcut: shortcutLabel }) }}
                                 </span>
                             </p>
                             <div
@@ -905,7 +907,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 <p
                                     class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500"
                                 >
-                                    {{ $t("search.recent") }}
+                                    {{ t("search.recent") }}
                                 </p>
                                 <div class="flex flex-wrap gap-2">
                                     <button
@@ -931,7 +933,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >ESC</kbd
                                 >
-                                {{ $t("search.toClose") }}
+                                {{ t("search.toClose") }}
                             </span>
                             <span class="flex items-center gap-1">
                                 <kbd
@@ -942,14 +944,14 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↓</kbd
                                 >
-                                {{ $t("search.navigate") }}
+                                {{ t("search.navigate") }}
                             </span>
                             <span class="flex items-center gap-1">
                                 <kbd
                                     class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
                                     >↵</kbd
                                 >
-                                {{ $t("search.select") }}
+                                {{ t("search.select") }}
                             </span>
                         </div>
                     </div>
