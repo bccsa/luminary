@@ -595,8 +595,9 @@ class Database extends Dexie {
      * @param options {UpsertOptions} - The options to upsert a document
      */
     async upsert<T extends BaseDocumentDto>(options: UpsertOptions<T>) {
-        // Unwrap the (possibly) reactive object
-        const raw = toRaw(options.doc);
+        // Unwrap the (possibly) reactive object — toRaw is shallow, so cloneDeep is required
+        // to strip nested reactive Proxies before IndexedDB's structured clone algorithm runs.
+        const raw = cloneDeep(toRaw(options.doc));
 
         if (!options.localChangesOnly) {
             if (options.doc.deleteReq) {

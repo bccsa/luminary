@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuthProviderDto, GroupDto } from "luminary-shared";
+import type { AuthProviderConfigDto, AuthProviderDto, GroupDto } from "luminary-shared";
 import { computed } from "vue";
 import LModal from "../modals/LModal.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -29,6 +29,7 @@ const emit = defineEmits<{
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<AuthProviderDto | undefined>("provider");
+const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerConfig");
 
 const groupOptions = computed(() =>
     props.availableGroups.map((group: GroupDto) => ({
@@ -65,10 +66,7 @@ const handleDelete = () => {
             <div v-if="provider" class="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
                 <AuthProviderFormErrors :errors="errors ?? []" />
 
-                <AuthProviderLabelAndType
-                    v-model:provider="provider"
-                    :disabled="isLoading"
-                />
+                <AuthProviderLabelAndType v-model:provider="provider" :disabled="isLoading" />
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <LCombobox
@@ -84,6 +82,7 @@ const handleDelete = () => {
 
                 <AuthProviderAuthConfig
                     v-model:provider="provider"
+                    v-model:providerConfig="providerConfig"
                     :is-editing="isEditing"
                     :disabled="isLoading"
                 />
@@ -91,13 +90,14 @@ const handleDelete = () => {
                 <AuthProviderIconSection
                     :provider="provider"
                     :disabled="isLoading"
-                    @update:icon-opacity="(v) => { if (provider) provider.iconOpacity = v }"
+                    @update:icon-opacity="
+                        (v) => {
+                            if (provider) provider.iconOpacity = v;
+                        }
+                    "
                 />
 
-                <AuthProviderAppearance
-                    v-model:provider="provider"
-                    :disabled="isLoading"
-                />
+                <AuthProviderAppearance v-model:provider="provider" :disabled="isLoading" />
             </div>
 
             <!-- Right column -->
@@ -105,10 +105,18 @@ const handleDelete = () => {
                 v-if="provider"
                 class="mt-2 space-y-2 md:mt-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-gray-200 md:pl-4"
             >
-                <AuthProviderUserFieldMappings v-model:provider="provider" :disabled="isLoading" />
+                <span class="text-md text-zinc-500"
+                    >Automatically assign users to groups based on claims or attributes returned by
+                    this authentication provider.</span
+                >
+                <AuthProviderUserFieldMappings
+                    v-model:providerConfig="providerConfig"
+                    :disabled="isLoading"
+                />
 
                 <AuthProviderGroupMappings
-                    v-model="provider.groupMappings"
+                    v-if="providerConfig"
+                    v-model="providerConfig.groupMappings"
                     :available-groups="availableGroups"
                     :disabled="isLoading"
                 />

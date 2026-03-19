@@ -84,6 +84,19 @@ export function initLanguageSync() {
                 });
             }
 
+            if (access[DocType.AuthProviderConfig] && access[DocType.AuthProviderConfig].length) {
+                sync({
+                    type: DocType.AuthProviderConfig,
+                    memberOf: access[DocType.AuthProviderConfig],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during auth provider config sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync global config
             if (access[DocType.GlobalConfig] && access[DocType.GlobalConfig].length) {
                 sync({

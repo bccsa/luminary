@@ -4,6 +4,7 @@ import * as JWT from "jsonwebtoken";
 import * as jwksRsa from "jwks-rsa";
 import {
     AuthProviderCondition,
+    AuthProviderConfigDto,
     AuthProviderDto,
     AuthProviderGroupMapping,
 } from "../dto/AuthProviderDto";
@@ -18,6 +19,7 @@ export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
     private jwksClients: Map<string, jwksRsa.JwksClient> = new Map();
     private providerCache: Map<string, AuthProviderDto> = new Map();
+    private configCache: Map<string, AuthProviderConfigDto> = new Map();
     private defaultGroupsCache: string[] | null = null;
 
     constructor(
@@ -31,6 +33,8 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(doc._id, doc as AuthProviderDto);
                 // Clear associated JWKS client so it's rebuilt with new domain settings
                 this.jwksClients.delete(doc.domain);
+            } else if (doc.type === DocType.AuthProviderConfig) {
+                this.configCache.set(doc.providerId, doc as AuthProviderConfigDto);
             } else if (doc.type === DocType.GlobalConfig) {
                 this.defaultGroupsCache = doc.defaultGroups ?? [];
             }
@@ -173,6 +177,18 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(providerId, provider);
             }
 
+            let providerConfig: AuthProviderConfigDto | undefined = this.configCache.get(providerId);
+            if (!providerConfig) {
+                const configRes = await this.dbService.executeFindQuery({
+                    selector: { type: DocType.AuthProviderConfig, providerId },
+                    limit: 1,
+                });
+                if (configRes.docs?.length) {
+                    providerConfig = configRes.docs[0] as AuthProviderConfigDto;
+                    this.configCache.set(providerId, providerConfig);
+                }
+            }
+
             let jwksClient = this.jwksClients.get(provider.domain);
             if (!jwksClient) {
                 jwksClient = jwksRsa({
@@ -204,18 +220,18 @@ export class AuthIdentityService implements OnModuleInit {
 
             const dynamicGroups = this.evaluateGroupAssignments(
                 payload,
-                provider.groupMappings ?? [],
+                providerConfig?.groupMappings ?? [],
             );
 
             // ── Phase 3: Master user account linking ────────────────────────────────
             // Use configured claim paths, falling back to standard OIDC claim names
             const externalUserId: string | undefined = this.extractClaimValue(
                 payload,
-                provider.userFieldMappings?.externalUserId ?? "sub",
+                providerConfig?.userFieldMappings?.externalUserId || "sub",
             );
             const email: string | undefined = this.extractClaimValue(
                 payload,
-                provider.userFieldMappings?.email ?? "email",
+                providerConfig?.userFieldMappings?.email || "email",
             );
 
             let primaryUser: UserDto | null = null;

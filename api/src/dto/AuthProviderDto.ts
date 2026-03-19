@@ -55,7 +55,7 @@ export class AuthProviderDto extends _baseDto {
     }
 
     /**
-     * Group membership for sync and ACL (backfilled from groupMappings in schema v14).
+     * Group membership for sync and ACL.
      */
     @IsOptional()
     @IsArray()
@@ -86,34 +86,6 @@ export class AuthProviderDto extends _baseDto {
     @IsNotEmpty()
     @Expose()
     public clientId!: string;
-
-    /**
-     * Custom namespace for JWT claims
-     * e.g. https://yourdomain.com/metadata
-     */
-    @IsString()
-    @IsOptional()
-    @Expose()
-    public claimNamespace!: string;
-
-    /**
-     * Mapping rules to determine a user's local groups from remote JWT information
-     */
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => AuthProviderGroupMapping)
-    @IsOptional()
-    @Expose()
-    public groupMappings!: AuthProviderGroupMapping[];
-
-    /**
-     * Override the standard OIDC claim paths used to identify a user.
-     * Defaults: externalUserId → "sub", email → "email", name → "name"
-     */
-    @IsObject()
-    @IsOptional()
-    @Expose()
-    public userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
 
     /** Display label shown in the login UI */
     @IsString()
@@ -156,4 +128,62 @@ export class AuthProviderDto extends _baseDto {
     @IsOptional()
     @Expose()
     public imageData!: Record<string, unknown>;
+}
+
+/**
+ * Sensitive provider configuration synced only to the CMS.
+ * Contains server-side JWT processing rules that the app does not need.
+ * Links to AuthProviderDto via providerId.
+ */
+export class AuthProviderConfigDto extends _baseDto {
+    public constructor(init?: Partial<AuthProviderConfigDto>) {
+        super();
+        this.type = DocType.AuthProviderConfig;
+        Object.assign(this, init);
+    }
+
+    /**
+     * Group membership for sync and ACL — must mirror the linked AuthProviderDto.memberOf.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    public memberOf?: Uuid[];
+
+    /**
+     * The _id of the linked AuthProviderDto.
+     */
+    @IsString()
+    @IsNotEmpty()
+    @Expose()
+    public providerId!: string;
+
+    /**
+     * Custom namespace for JWT claims
+     * e.g. https://yourdomain.com/metadata
+     */
+    @IsString()
+    @IsOptional()
+    @Expose()
+    public claimNamespace?: string;
+
+    /**
+     * Mapping rules to determine a user's local groups from remote JWT information.
+     */
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => AuthProviderGroupMapping)
+    @IsOptional()
+    @Expose()
+    public groupMappings?: AuthProviderGroupMapping[];
+
+    /**
+     * Override the standard OIDC claim paths used to identify a user.
+     * Defaults: externalUserId → "sub", email → "email", name → "name"
+     */
+    @IsObject()
+    @IsOptional()
+    @Expose()
+    public userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
 }

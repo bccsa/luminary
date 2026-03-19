@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuthProviderDto } from "luminary-shared";
+import type { AuthProviderConfigDto, AuthProviderDto } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 defineProps<{
@@ -8,6 +8,7 @@ defineProps<{
 }>();
 
 const provider = defineModel<AuthProviderDto>("provider", { required: true });
+const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerConfig");
 
 /**
  * Strip protocol, trailing slashes, and paths so the domain is always
@@ -101,11 +102,11 @@ function normalizeDomainString(value: string | undefined): string {
                 <LInput
                     id="claimNamespace"
                     name="claimNamespace"
-                    :model-value="provider.claimNamespace ?? ''"
+                    :model-value="providerConfig?.claimNamespace ?? ''"
                     type="text"
                     placeholder="https://your-tenant.com/metadata"
-                    :disabled="disabled"
-                    @update:model-value="provider.claimNamespace = $event"
+                    :disabled="disabled || !providerConfig"
+                    @update:model-value="(v) => { if (providerConfig) providerConfig.claimNamespace = v || undefined }"
                 />
                 <p class="mt-0.5 text-[11px] text-gray-500">
                     The custom claim namespace configured in your auth provider's Actions/Rules

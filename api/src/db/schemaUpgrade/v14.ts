@@ -1,5 +1,6 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
+import { randomUUID } from "crypto";
 
 /**
  * Upgrade the database schema from version 12 to 13.
@@ -45,7 +46,74 @@ export default async function v14(db: DbService) {
             }
         });
 
+        // Add authProviderConfig ACL entries to all group docs
+        await db.processAllDocs([DocType.Group], async (doc: any) => {
+            if (!doc || !Array.isArray(doc.acl)) return;
+
+            const groupIds = [...new Set(doc.acl.map((a: any) => a.groupId))] as string[];
+            let modified = false;
+
+            groupIds.forEach((groupId) => {
+                const hasAuthProviderConfig = doc.acl.some(
+                    (a: any) => a.type === DocType.AuthProviderConfig && a.groupId === groupId,
+                );
+                if (!hasAuthProviderConfig) {
+                    const permission =
+                        groupId === "group-super-admins"
+                            ? ["view", "edit", "delete", "assign"]
+                            : ["view"];
+                    doc.acl.push({ type: DocType.AuthProviderConfig, groupId, permission });
+                    modified = true;
+                }
+            });
+
+            if (modified) {
+                await db.insertDoc(doc);
+                groupsUpdated++;
+            }
+        });
+
         console.info(`ACL migration complete: ${groupsUpdated} group(s) updated`);
+
+        // Migrate AuthProvider docs: extract sensitive fields into AuthProviderConfig docs
+        let providersUpdated = 0;
+        let configsCreated = 0;
+
+        await db.processAllDocs([DocType.AuthProvider], async (doc: any) => {
+            if (!doc) return;
+
+            const hasConfigFields =
+                doc.claimNamespace !== undefined ||
+                doc.groupMappings !== undefined ||
+                doc.userFieldMappings !== undefined;
+
+            if (hasConfigFields) {
+                const configDoc: any = {
+                    _id: randomUUID(),
+                    type: DocType.AuthProviderConfig,
+                    providerId: doc._id,
+                    memberOf: Array.isArray(doc.memberOf) ? [...doc.memberOf] : [],
+                    updatedTimeUtc: doc.updatedTimeUtc ?? Date.now(),
+                };
+
+                if (doc.claimNamespace !== undefined) configDoc.claimNamespace = doc.claimNamespace;
+                if (doc.groupMappings !== undefined) configDoc.groupMappings = doc.groupMappings;
+                if (doc.userFieldMappings !== undefined) configDoc.userFieldMappings = doc.userFieldMappings;
+
+                await db.insertDoc(configDoc);
+                configsCreated++;
+
+                delete doc.claimNamespace;
+                delete doc.groupMappings;
+                delete doc.userFieldMappings;
+                await db.insertDoc(doc);
+                providersUpdated++;
+            }
+        });
+
+        console.info(
+            `AuthProvider split complete: ${providersUpdated} provider(s) updated, ${configsCreated} config doc(s) created`,
+        );
 
         // Initialise identities[] on all User docs
         let usersInitialised = 0;

@@ -42,9 +42,12 @@ type Props = {
     badgeVariant?: keyof typeof variants;
     smallInput?: boolean;
     inlineTags?: boolean;
+    noBorder?: boolean;
+    placeholder?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    noBorder: false,
     disabled: false,
     showSelectedInDropdown: true,
     showSelectedLabels: true,
@@ -256,7 +259,8 @@ const onInlineBackspace = () => {
             <div
                 v-if="inlineTags"
                 ref="triggerRef"
-                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md border-[1px] border-zinc-300 bg-white px-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white px-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                :class="{ 'border-[1px] border-zinc-300': !noBorder }"
                 v-bind="attrsWithoutStyles"
                 @click="open()"
             >
@@ -278,7 +282,7 @@ const onInlineBackspace = () => {
                     v-model="query"
                     ref="inputElement"
                     class="z-0 h-7 min-w-[80px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                    :placeholder="selectedLabels.length === 0 ? 'Type to select...' : ''"
+                    :placeholder="placeholder ?? 'Type to select...'"
                     name="option-search"
                     autocomplete="off"
                     @keydown.backspace="onInlineBackspace"
@@ -340,8 +344,12 @@ const onInlineBackspace = () => {
             <div
                 v-else
                 ref="triggerRef"
-                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
-                :class="[smallInput && isMobileScreen ? 'pl-1 pr-3' : 'pl-3 pr-8']"
+                class="relative flex justify-between gap-2 rounded-md bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
+                :class="{
+                    'border-[1px] border-zinc-300': !noBorder,
+                    'pl-1 pr-3': smallInput && isMobileScreen,
+                    'pl-3 pr-8': !smallInput || !isMobileScreen,
+                }"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
                 @click="open()"

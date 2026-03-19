@@ -13,6 +13,7 @@ type Props = {
     showClosingButton?: boolean;
 };
 withDefaults(defineProps<Props>(), {
+    largeModal: false,
     noDivider: false,
     showClosingButton: true,
 });

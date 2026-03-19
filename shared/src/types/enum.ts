@@ -10,6 +10,7 @@ export enum DocType {
     Storage = "storage",
     Crypto = "crypto",
     AuthProvider = "authProvider",
+    AuthProviderConfig = "authProviderConfig",
     GlobalConfig = "globalConfig",
 }
 

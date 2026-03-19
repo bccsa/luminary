@@ -20,7 +20,7 @@ const handleClose = () => emit("close");
 </script>
 
 <template>
-    <div class="flex justify-between border-t py-1">
+    <div class="flex justify-between border-t py-3">
         <div>
             <LButton
                 v-if="isEditing && canDelete"

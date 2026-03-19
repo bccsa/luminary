@@ -274,10 +274,6 @@ export type AuthProviderDto = BaseDocumentDto & {
     domain: string;
     audience: string;
     clientId: string;
-    claimNamespace?: string;
-    groupMappings?: AuthProviderGroupMapping[];
-    /** Override standard OIDC claim paths (defaults: sub, email, name) */
-    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
     /** Optional display fields for login UI */
     label?: string;
     icon?: string;
@@ -286,4 +282,18 @@ export type AuthProviderDto = BaseDocumentDto & {
     iconOpacity?: number;
     imageBucketId?: Uuid;
     imageData?: ImageDto;
+};
+
+/**
+ * Sensitive provider configuration synced only to the CMS.
+ * Contains server-side JWT processing rules that the app does not need.
+ * Links to AuthProviderDto via providerId.
+ */
+export type AuthProviderConfigDto = BaseDocumentDto & {
+    type: DocType.AuthProviderConfig;
+    providerId: string;
+    claimNamespace?: string;
+    groupMappings?: AuthProviderGroupMapping[];
+    /** Override standard OIDC claim paths (defaults: sub, email, name) */
+    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
 };

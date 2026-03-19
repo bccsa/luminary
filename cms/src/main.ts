@@ -41,6 +41,11 @@ async function Startup() {
                 skipWaitForLanguageSync: true,
             },
             {
+                type: DocType.AuthProviderConfig,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
+            {
                 type: DocType.Tag,
                 syncPriority: 2,
                 skipWaitForLanguageSync: true,
