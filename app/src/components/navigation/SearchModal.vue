@@ -545,6 +545,7 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             pushRecentSearch(q);
             persistLastExecutedQuery(q);
             runSearch();
+            if (isManualSearchMode.value) inputRef.value?.blur();
             return;
         }
 
@@ -556,6 +557,7 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             pushRecentSearch(q);
             persistLastExecutedQuery(q);
             runSearch();
+            inputRef.value?.blur();
         }
         return;
     }
@@ -585,6 +587,7 @@ function onGoClick() {
     pushRecentSearch(q);
     persistLastExecutedQuery(q);
     runSearch();
+    if (isManualSearchMode.value) inputRef.value?.blur();
 }
 
 const goToResult = (result: EnrichedResult) => {

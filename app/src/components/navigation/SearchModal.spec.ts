@@ -527,6 +527,27 @@ describe("SearchButton", () => {
         });
     });
 
+    describe("Mobile keyboard dismissal", () => {
+        it("blurs the input after executing search via Enter in manual mode", async () => {
+            // Force manual mode
+            window.innerWidth = 600;
+            window.dispatchEvent(new Event("resize"));
+
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            const input = wrapper.find("input");
+            const blurSpy = vi.spyOn(input.element as HTMLInputElement, "blur");
+
+            await input.setValue("jesus");
+            await nextTick();
+            await input.trigger("keydown", { key: "Enter" });
+            await flushPromises();
+
+            expect(blurSpy).toHaveBeenCalled();
+        });
+    });
+
     // ── Navigation on result click ─────────────────────────────────────────
 
     describe("Navigation on result click", () => {
