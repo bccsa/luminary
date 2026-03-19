@@ -34,7 +34,6 @@ export enum RedirectType {
 
 export enum DeleteReason {
     Deleted = "deleted",
-    Expired = "expired",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
 }

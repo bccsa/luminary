@@ -176,15 +176,8 @@ const unwatch = watch([idbContent, isConnected], () => {
             }
         }
 
-        // Treat expired content as not found
-        const c = apiContent.value as ContentDto;
-        if (c.expiryDate != null && c.expiryDate < Date.now()) {
-            content.value = undefined;
-            isLoading.value = false;
-            return;
-        }
-
-        content.value = c;
+        // If the content is not a redirect, set it to the content ref
+        content.value = apiContent.value as ContentDto;
     });
 });
 
