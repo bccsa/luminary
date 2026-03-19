@@ -122,29 +122,15 @@ export class QueryService {
             if (accessibleLanguages.length === 0)
                 throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
-            // If the CMS flag is not set, add additional filters for published content.
-            // For initial syncs we exclude expired content; for update syncs we allow expired
-            // content to flow through so clients can receive the updated document and perform
-            // local cleanup based on its expiry status.
+            // If the CMS flag is not set, add additional filters for published content
             if (!query.cms) {
-                const updatedTimeUtcGte = extractUpdatedTimeUtcGte(query.selector.$and);
-                // Treat as initial sync when $gte is 0 OR when updatedTimeUtc is absent entirely
-                // (non-sync queries). Only skip the expiry filter when we can positively confirm
-                // this is an update sync ($gte > 0).
-                const isInitialContentSync = updatedTimeUtcGte === undefined || updatedTimeUtcGte === 0;
-
-                const extraConditions: MongoSelectorDto[] = [
+                query.selector.$and.push(
+                    {
+                        $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gt: now } }],
+                    },
                     { status: PublishStatus.Published },
                     { language: { $in: accessibleLanguages } },
-                ];
-
-                if (isInitialContentSync) {
-                    extraConditions.unshift({
-                        $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gt: now } }],
-                    });
-                }
-
-                query.selector.$and.push(...extraConditions);
+                );
             }
         }
 
@@ -268,35 +254,4 @@ function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string)
     }
 
     return foundValue;
-}
-
-/**
- * Extract the updatedTimeUtc.$gte value from the $and array, if present.
- * Returns the numeric $gte value, or undefined if not present.
- */
-function extractUpdatedTimeUtcGte(andArray: MongoSelectorDto[] | undefined): number | undefined {
-    if (!andArray) return undefined;
-
-    for (const condition of andArray) {
-        if (!("updatedTimeUtc" in condition)) continue;
-
-        const value = (condition as MongoSelectorDto).updatedTimeUtc as MongoComparisonCriteria;
-        if (typeof value !== "object" || value === null) {
-            throw new HttpException(
-                "'updatedTimeUtc' field must be a comparison object",
-                HttpStatus.BAD_REQUEST,
-            );
-        }
-
-        if (typeof value.$gte !== "number") {
-            throw new HttpException(
-                "'updatedTimeUtc.$gte' must be a number",
-                HttpStatus.BAD_REQUEST,
-            );
-        }
-
-        return value.$gte;
-    }
-
-    return undefined;
 }
