@@ -32,7 +32,6 @@ const isMac = computed(() => {
     if (uaDataPlatform) return uaDataPlatform.includes("mac");
 
     const ua = (navigator.userAgent || "").toLowerCase();
-    console.log(ua)
     return ua.includes("mac os") || ua.includes("macintosh") || ua.includes("iphone") || ua.includes("ipad");
 });
 
@@ -272,9 +271,7 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
 
     const pos = findBestPosition(best.text, queryTerms);
     const start = Math.max(0, (pos === -1 ? 0 : pos) - Math.floor(maxLength / 3));
-    let excerpt = best.text.substring(start, start + maxLength);
-    if (start > 0) excerpt = "..." + excerpt;
-    if (start + maxLength < best.text.length) excerpt += "...";
+    const excerpt = best.text.substring(start, start + maxLength);
 
     return applyTermHighlights(excerpt, query);
 }
@@ -321,6 +318,8 @@ watch(
     },
 );
 
+const trimmedQuery = computed(() => searchQuery.value.trim());
+
 const highlightQuery = computed(() => {
     const q = trimmedQuery.value;
     if (!isManualSearchMode.value) return q;
@@ -340,8 +339,6 @@ const results = computed<EnrichedResult[]>(() => {
             languageName: languageNames.value.get(doc.language) ?? "",
         }));
 });
-
-const trimmedQuery = computed(() => searchQuery.value.trim());
 const showResults = computed(() => results.value.length > 0);
 
 /** User has run search for current query and got nothing */
@@ -471,7 +468,7 @@ watch(isSearchOpen, (open) => {
     });
 });
 
-watch(results, (newResults, oldResults) => {
+watch(results, (newResults) => {
     if (newResults.length === 0) {
         selectedIndex.value = -1;
     }
