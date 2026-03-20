@@ -12,7 +12,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
+import { accessMap, DocType, getRest, initConfig, isConnected, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 
@@ -90,13 +90,21 @@ describe("GroupOverview", () => {
 
         // Reset the rest api client to use the new config
         getRest({ reset: true });
+
+        window.innerWidth = 1600; // Set a width greater than 1500px to trigger desktop view
+        window.dispatchEvent(new Event("resize"));
     });
 
-    beforeEach(() => {
+    beforeEach(async () => {
         setActivePinia(createTestingPinia());
+        await db.bulkPut([mockGroupDtoSuperAdmins]);
+        await db.localChanges.clear();
+        isConnected.value = true; // Simulate a connected state
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+        await db.docs.clear();
+        await db.localChanges.clear();
         vi.clearAllMocks();
     });
 
@@ -121,7 +129,9 @@ describe("GroupOverview", () => {
 
         await wrapper.find('button[data-test="createGroupButton"]').trigger("click");
 
-        expect(wrapper.text()).toContain("New group");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("New group");
+        });
     });
 
     it("can correctly query the api", async () => {

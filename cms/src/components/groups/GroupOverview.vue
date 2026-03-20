@@ -16,6 +16,7 @@ import {
 import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
+import { isSmallScreen } from "@/globalConfig";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
@@ -88,7 +89,7 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
     <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
         <template #pageNav>
             <LButton
-                v-if="canCreateGroup"
+                v-if="canCreateGroup && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="createGroup"
@@ -96,6 +97,12 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
             >
                 Create group
             </LButton>
+            <PlusIcon
+                v-else-if="canCreateGroup && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createGroup"
+                data-test="createGroupButton"
+            />
         </template>
 
         <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
