@@ -98,6 +98,10 @@ export type DbUpsertResult = {
 export class DbService extends EventEmitter {
     private db: any;
     protected syncTolerance: number;
+    private connected = false;
+    private dbConfig: DatabaseConfig;
+    private reconnecting = false;
+    private readonly maxReconnectDelay = 30000;
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -105,29 +109,60 @@ export class DbService extends EventEmitter {
         private configService: ConfigService,
     ) {
         super();
-        const dbConfig = this.configService.get<DatabaseConfig>("database");
+        this.dbConfig = this.configService.get<DatabaseConfig>("database");
         const syncConfig = this.configService.get<SyncConfig>("sync");
 
-        this.connect(dbConfig);
         this.syncTolerance = syncConfig.tolerance;
+        this.connect();
     }
 
     /**
-     * Connect to the database
+     * Connect to the database and start the changes feed.
+     * Retries with exponential backoff if the initial connection fails.
      */
-    private connect(dbConfig: DatabaseConfig) {
+    private async connect() {
         this.db = nano({
-            url: dbConfig.connectionString,
+            url: this.dbConfig.connectionString,
             requestDefaults: {
                 agent: new http.Agent({
-                    maxSockets: dbConfig.maxSockets,
+                    maxSockets: this.dbConfig.maxSockets,
                 }),
             },
-        }).use(dbConfig.database);
+        }).use(this.dbConfig.database);
 
-        this.logger.info("Connected to database");
+        // Verify the connection by making a simple request
+        await this.waitForDb();
 
         // Subscribe to database changes feed
+        this.startChangesFeed();
+    }
+
+    /**
+     * Wait for the database to become available, retrying with exponential backoff.
+     */
+    private async waitForDb() {
+        let delay = 1000;
+        while (true) {
+            try {
+                await this.db.info();
+                this.connected = true;
+                this.logger.info("Connected to database");
+                return;
+            } catch (err) {
+                this.connected = false;
+                this.logger.warn(
+                    `Database not available, retrying in ${delay / 1000}s: ${err.message || err}`,
+                );
+                await new Promise((r) => setTimeout(r, delay));
+                delay = Math.min(delay * 2, this.maxReconnectDelay);
+            }
+        }
+    }
+
+    /**
+     * Start the CouchDB changes feed. Automatically restarts on error with backoff.
+     */
+    private startChangesFeed() {
         this.db.changesReader
             .start({ includeDocs: true })
             .on("change", (update) => {
@@ -155,11 +190,50 @@ export class DbService extends EventEmitter {
                 }
             })
             .on("error", (err) => {
-                // The changes reader stops on error, so it should be restarted.
-                // At this point clients will get out of sync, so it will be better to restart the server.
-                this.logger.error("Database changes feed error", err);
-                throw err;
+                this.logger.error("Database changes feed error, will restart", err);
+                this.connected = false;
+                this.reconnect();
             });
+    }
+
+    /**
+     * Reconnect to the database and restart the changes feed.
+     * Uses exponential backoff and prevents concurrent reconnection attempts.
+     */
+    private async reconnect() {
+        if (this.reconnecting) return;
+        this.reconnecting = true;
+
+        try {
+            // Stop the existing changes feed
+            try {
+                this.db.changesReader.stop();
+            } catch {
+                // Ignore errors when stopping - it may already be stopped
+            }
+
+            await this.waitForDb();
+            this.startChangesFeed();
+        } finally {
+            this.reconnecting = false;
+        }
+    }
+
+    /**
+     * Ensure the database is connected before executing an operation.
+     * If disconnected, waits for reconnection.
+     */
+    private async ensureConnected() {
+        if (this.connected) return;
+
+        this.logger.warn("Database operation waiting for connection...");
+        // Trigger reconnection if not already in progress
+        this.reconnect();
+
+        // Wait until connected
+        while (!this.connected) {
+            await new Promise((r) => setTimeout(r, 500));
+        }
     }
 
     /**
@@ -174,6 +248,7 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the insert result
      */
     async insertDoc(doc: any, maxRetries: number = 50): Promise<DbUpsertResult> {
+        await this.ensureConnected();
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 const insertResult = await this.db.insert(doc);
@@ -316,7 +391,8 @@ export class DbService extends EventEmitter {
      * Get a single document by ID
      * @param id - document ID (_id field)
      */
-    getDoc(docId: string): Promise<DbQueryResult> {
+    async getDoc(docId: string): Promise<DbQueryResult> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             this.db
                 .get(docId)
@@ -342,7 +418,8 @@ export class DbService extends EventEmitter {
      * @param {DocType[]} types - Document types to be included in search
      * @returns - Promise containing the query result
      */
-    getDocs(docIds: Uuid[], types: DocType[]): Promise<DbQueryResult> {
+    async getDocs(docIds: Uuid[], types: DocType[]): Promise<DbQueryResult> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             if (!docIds || docIds.length < 1 || !types || types.length < 1) {
                 resolve({ docs: [], warnings: ["No document IDs or document types specified"] });
@@ -460,6 +537,7 @@ export class DbService extends EventEmitter {
      * @param docId - Document ID to be deleted
      */
     async deleteDoc(docId: string): Promise<DbUpsertResult> {
+        await this.ensureConnected();
         const existingDoc = await this.getDoc(docId);
         if (existingDoc.docs.length < 1) {
             return {
@@ -481,7 +559,8 @@ export class DbService extends EventEmitter {
     /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
-    getLatestDocUpdatedTime(): Promise<number> {
+    async getLatestDocUpdatedTime(): Promise<number> {
+        await this.ensureConnected();
         return new Promise((resolve) => {
             this.db
                 .view("sync_deprecated", "updatedTimeUtc", {
@@ -533,6 +612,7 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the query result
      */
     async executeFindQuery(query: nano.MangoQuery): Promise<DbQueryResult> {
+        await this.ensureConnected();
         const res: DbQueryResult = await this.db.find(query);
 
         // calculate the start and end of the block, used to pass back to the client for pagination
@@ -715,7 +795,8 @@ export class DbService extends EventEmitter {
     /**
      * Get all group documents from database
      */
-    getGroups(): Promise<DbQueryResult> {
+    async getGroups(): Promise<DbQueryResult> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             const query = {
                 selector: {
@@ -741,6 +822,7 @@ export class DbService extends EventEmitter {
      * @returns
      */
     async getContentByParentId(parentId: Uuid | Uuid[]): Promise<DbQueryResult> {
+        await this.ensureConnected();
         if (!Array.isArray(parentId)) parentId = [parentId];
 
         const queryRes = await this.db.view("parentId", "parentId", {
@@ -760,10 +842,11 @@ export class DbService extends EventEmitter {
      * @param limit - Maximum number of documents to retrieve (optional)
      * @returns All documents with specified type
      */
-    getDocsByType(
+    async getDocsByType(
         docType: DocType,
         limit: number = Number.MAX_SAFE_INTEGER,
     ): Promise<DbQueryResult> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             const query = {
                 selector: {
@@ -788,10 +871,11 @@ export class DbService extends EventEmitter {
      * @param limit - Maximum number of documents to retrieve (optional)
      * @returns
      */
-    getContentByLanguage(
+    async getContentByLanguage(
         language: Uuid,
         limit: number = Number.MAX_SAFE_INTEGER,
     ): Promise<DbQueryResult> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             const query = {
                 selector: {
@@ -822,6 +906,7 @@ export class DbService extends EventEmitter {
      * @returns
      */
     async getUserByIdOrEmail(email: string, userId?: string): Promise<DbQueryResult> {
+        await this.ensureConnected();
         const keys = [email];
         if (userId) keys.push(userId);
 
@@ -854,6 +939,7 @@ export class DbService extends EventEmitter {
         documentId: Uuid,
         docType: DocType = DocType.Content,
     ): Promise<boolean> {
+        await this.ensureConnected();
         return new Promise((resolve) => {
             this.db.view("slug", "slug", { key: [docType, slug] }).then((res) => {
                 if (res.rows.length > 1) resolve(false);
@@ -875,6 +961,7 @@ export class DbService extends EventEmitter {
         docTypes: DocType[],
         callback: (doc: any) => void | Promise<void>,
     ): Promise<any> {
+        await this.ensureConnected();
         if (!docTypes.length)
             throw new Error("docTypes must be an array with at least one element");
 
@@ -902,7 +989,8 @@ export class DbService extends EventEmitter {
     /**
      * Get the database schema version
      */
-    getSchemaVersion(): Promise<number> {
+    async getSchemaVersion(): Promise<number> {
+        await this.ensureConnected();
         return new Promise((resolve, reject) => {
             this.db
                 .get("dbSchema")
