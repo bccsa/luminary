@@ -342,13 +342,7 @@ export class DbService extends EventEmitter {
         const deleteCmdDocs: any[] = res.docs || [];
 
         for (const cmd of deleteCmdDocs) {
-            try {
-                await this.db.destroy(cmd._id, cmd._rev);
-            } catch (err: any) {
-                // Ignore missing docs in case another writer removed them first.
-                if (err?.reason === "missing") continue;
-                throw err;
-            }
+            await this.deleteDoc(cmd._id);
         }
     }
 
