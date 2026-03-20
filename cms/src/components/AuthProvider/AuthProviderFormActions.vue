@@ -6,6 +6,7 @@ defineProps<{
     isLoading: boolean;
     canDelete: boolean;
     isFormValid: boolean;
+    isDirty: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -41,7 +42,7 @@ const handleClose = () => emit("close");
                 variant="primary"
                 size="sm"
                 @click="handleSave"
-                :disabled="isLoading || !isFormValid"
+                :disabled="isLoading || !isFormValid || !isDirty"
                 :loading="isLoading"
             >
                 {{ isEditing ? "Update" : "Create" }}

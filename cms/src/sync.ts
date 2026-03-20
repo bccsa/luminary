@@ -102,7 +102,7 @@ export function initLanguageSync() {
                 sync({
                     type: DocType.GlobalConfig,
                     memberOf: access[DocType.GlobalConfig],
-                    limit: 1,
+                    limit: 100,
                     cms: true,
                     includeDeleteCmds: false,
                 }).catch((err) => {

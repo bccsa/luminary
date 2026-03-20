@@ -19,6 +19,7 @@ const props = defineProps<{
     availableGroups: GroupDto[];
     canDelete: boolean;
     isFormValid: boolean;
+    isDirty: boolean;
     hasAttemptedSubmit: boolean;
 }>();
 
@@ -128,6 +129,7 @@ const handleDelete = () => {
             :is-loading="isLoading"
             :can-delete="canDelete"
             :is-form-valid="isFormValid"
+            :is-dirty="isDirty"
             @save="handleSave"
             @delete="handleDelete"
             @close="closeModal"

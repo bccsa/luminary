@@ -24,6 +24,12 @@ import _ from "lodash";
 import { PlusIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
 import { isSmallScreen } from "@/globalConfig";
 
+type Props = {
+    onOpenMobileSidebar?: () => void;
+};
+
+const { onOpenMobileSidebar } = defineProps<Props>();
+
 // Reactive database queries
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
@@ -59,6 +65,9 @@ const configs = useDexieLiveQuery(
 // Plain refs for the item currently open in the modal — no deep watchers, no cloneDeep on keystrokes
 const localProvider = ref<AuthProviderDto | undefined>(undefined);
 const localConfig = ref<AuthProviderConfigDto | undefined>(undefined);
+// Originals — set once when modal opens, used for dirty checking
+const originalProvider = ref<AuthProviderDto | undefined>(undefined);
+const originalConfig = ref<AuthProviderConfigDto | undefined>(undefined);
 
 // Delete permission check
 const canDelete = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Delete));
@@ -208,6 +217,21 @@ const currentProviderConfig = computed({
     },
 });
 
+// Dirty checking — only meaningful when editing; new providers are always saveable
+const isDirty = computed(() => {
+    if (!isEditing.value) return true;
+    return (
+        !_.isEqual(
+            { ...localProvider.value, updatedTimeUtc: 0 },
+            { ...originalProvider.value, updatedTimeUtc: 0 },
+        ) ||
+        !_.isEqual(
+            { ...localConfig.value, updatedTimeUtc: 0 },
+            { ...originalConfig.value, updatedTimeUtc: 0 },
+        )
+    );
+});
+
 // Validation state
 const hasAttemptedSubmit = ref(false);
 
@@ -218,7 +242,6 @@ const hasValidCredentials = computed(() => {
         (p.domain || "").trim() && (p.clientId || "").trim() && (p.audience || "").trim(),
     );
 });
-
 
 const isFormValid = computed(() => {
     const provider = currentProvider.value;
@@ -242,6 +265,8 @@ function closeModal() {
     editingProviderId.value = undefined;
     localProvider.value = undefined;
     localConfig.value = undefined;
+    originalProvider.value = undefined;
+    originalConfig.value = undefined;
     hasAttemptedSubmit.value = false;
 }
 
@@ -304,16 +329,19 @@ defineExpose({
 function editProvider(provider: AuthProviderDto) {
     editingProviderId.value = provider._id;
     localProvider.value = _.cloneDeep(toRaw(provider));
+    originalProvider.value = _.cloneDeep(toRaw(provider));
     const existingConfig = configs.value.find((c) => c.providerId === provider._id);
-    localConfig.value = existingConfig
+    const config = existingConfig
         ? _.cloneDeep(toRaw(existingConfig))
-        : {
+        : ({
               _id: db.uuid(),
-              type: DocType.AuthProviderConfig,
+              type: DocType.AuthProviderConfig as DocType.AuthProviderConfig,
               updatedTimeUtc: Date.now(),
               memberOf: [...(provider.memberOf ?? [])],
               providerId: provider._id,
-          };
+          } as AuthProviderConfigDto);
+    localConfig.value = config;
+    originalConfig.value = _.cloneDeep(config);
     openModal();
 }
 
@@ -349,9 +377,7 @@ async function confirmDelete() {
         await db.upsert({ doc: providerToDelete.value });
 
         // Also delete the associated config doc if it exists
-        const configDoc = configs.value.find(
-            (c) => c.providerId === providerToDelete.value!._id,
-        );
+        const configDoc = configs.value.find((c) => c.providerId === providerToDelete.value!._id);
         if (configDoc) {
             await db.upsert({ doc: { ...configDoc, deleteReq: 1 } });
         }
@@ -458,7 +484,12 @@ const saveProvider = async () => {
 </script>
 
 <template>
-    <BasePage :is-full-width="true" title="Auth providers overview" :should-show-page-title="false">
+    <BasePage
+        :is-full-width="true"
+        title="Auth providers overview"
+        :should-show-page-title="false"
+        :onOpenMobileSidebar="onOpenMobileSidebar"
+    >
         <template #pageNav>
             <div class="flex items-center gap-2">
                 <GlobeAltIcon
@@ -532,6 +563,7 @@ const saveProvider = async () => {
         :availableGroups="availableGroups"
         :canDelete="canDelete"
         :isFormValid="isFormValid"
+        :isDirty="isDirty"
         :hasAttemptedSubmit="hasAttemptedSubmit"
         @save="saveProvider"
         @delete="deleteProvider"

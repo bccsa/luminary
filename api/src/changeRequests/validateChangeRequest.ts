@@ -14,7 +14,7 @@ import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
-import { AuthProviderDto } from "../dto/AuthProviderDto";
+import { AuthProviderDto, AuthProviderConfigDto } from "../dto/AuthProviderDto";
 import { GlobalConfigDto } from "../dto/GlobalConfigDto";
 
 /**
@@ -30,6 +30,7 @@ const DocTypeMap = {
     user: UserDto,
     storage: StorageDto,
     authProvider: AuthProviderDto,
+    authProviderConfig: AuthProviderConfigDto,
     globalConfig: GlobalConfigDto,
 };
 
