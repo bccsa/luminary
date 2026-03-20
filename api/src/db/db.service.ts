@@ -261,6 +261,18 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            // Cleanup obsolete delete commands when switching content from draft to published.
+            // Without this, older `DeleteReason.StatusChange` deleteCmd documents may still exist in the DB,
+            // which would cause non-CMS clients to delete the document even though it is published again.
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Draft &&
+                (doc as ContentDto).status === PublishStatus.Published
+            ) {
+                await this.removeStatusChangeDeleteCmds((existing as ContentDto)._id);
+            }
+
             // Generate delete command if the document's status has changed to draft
             if (
                 existing &&
@@ -310,6 +322,34 @@ export class DbService extends EventEmitter {
         insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
         insertResult.changes = changes;
         return insertResult;
+    }
+
+    /**
+     * Remove any previously generated `statusChange` deleteCmd documents for the given content doc.
+     * This is used to undo older "published -> draft" delete instructions when the content is published again.
+     */
+    private async removeStatusChangeDeleteCmds(contentDocId: string): Promise<void> {
+        const query: nano.MangoQuery = {
+            selector: {
+                type: DocType.DeleteCmd,
+                docId: contentDocId,
+                deleteReason: DeleteReason.StatusChange,
+            },
+            limit: Number.MAX_SAFE_INTEGER,
+        };
+
+        const res: any = await this.db.find(query);
+        const deleteCmdDocs: any[] = res.docs || [];
+
+        for (const cmd of deleteCmdDocs) {
+            try {
+                await this.db.destroy(cmd._id, cmd._rev);
+            } catch (err: any) {
+                // Ignore missing docs in case another writer removed them first.
+                if (err?.reason === "missing") continue;
+                throw err;
+            }
+        }
     }
 
     /**
