@@ -119,6 +119,23 @@ describe("ContentTile", () => {
         });
     });
 
+    it("renders a Coming soon overlay and is not clickable", () => {
+        const scheduledContent = {
+            ...mockEnglishContentDto,
+            publishDate: Date.now() + 60_000,
+        };
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: scheduledContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Coming soon");
+        // When scheduled, the tile should not render a RouterLink (no anchor tag).
+        expect(wrapper.find("a").exists()).toBe(false);
+    });
+
     it("renders the play icon if the content has a video", () => {
         const content = {
             title: "Sample Content",

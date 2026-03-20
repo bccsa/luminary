@@ -2,7 +2,7 @@
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { type ContentDto, DocType, db, PostType, TagType, mangoToDexie, useDexieLiveQueryWithDeps } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -21,7 +21,7 @@ const listenedContent = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { parentPostType: { $ne: PostType.Page } },
                     { parentTagType: { $ne: TagType.Category } },
-                    ...mangoIsPublished(appLanguageIds),
+                    ...mangoIsPublishedOrScheduled(appLanguageIds),
                 ],
             },
         });
