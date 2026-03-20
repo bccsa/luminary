@@ -53,6 +53,30 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
 }
 
 /**
+ * Builds Mango selector conditions for "Published OR Scheduled" content.
+ *
+ * "Scheduled" here means: documents with `status === "published"` but a `publishDate`
+ * in the future. We still exclude expired content via `expiryDate`.
+ *
+ * This is intended for list carousels that should show upcoming items, while the
+ * UI can choose to render them as non-clickable (e.g. "Coming soon").
+ */
+export function mangoIsPublishedOrScheduled(languageIds: Uuid[]): MangoSelector[] {
+    const now = Date.now();
+
+    return [
+        // Only published docs are synced; draft is still excluded.
+        { status: PublishStatus.Published },
+
+        // Expiry date check: either doesn't exist, is null, or is in the future
+        { $or: [{ expiryDate: { $exists: false } }, { expiryDate: null }, { expiryDate: { $gte: now } }] },
+
+        // Language priority: select the best available translation
+        buildLanguagePrioritySelector(languageIds),
+    ];
+}
+
+/**
  * Builds a Mango selector that matches documents where the language field
  * is the first available language from the priority list.
  *

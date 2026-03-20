@@ -13,7 +13,7 @@ import {
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -24,7 +24,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { parentPinned: 1 }, // 1 = true
                     { parentTagType: TagType.Category },
-                    ...mangoIsPublished(appLanguageIds),
+                    ...mangoIsPublishedOrScheduled(appLanguageIds),
                 ],
             },
         });
@@ -54,7 +54,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                             $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
                         },
                     },
-                    ...mangoIsPublished(appLanguageIds),
+                    ...mangoIsPublishedOrScheduled(appLanguageIds),
                 ],
             },
         });

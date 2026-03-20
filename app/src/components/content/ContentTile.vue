@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress } from "@/globalConfig";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 type Props = {
     content: ContentDto;
@@ -23,6 +23,12 @@ const props = withDefaults(defineProps<Props>(), {
 const media = ref<{ progress: number; duration: number }>({
     progress: 0,
     duration: 0,
+});
+
+const isComingSoon = computed(() => {
+    const publishDate = props.content.publishDate;
+    // "Coming soon" = published doc with a future publishDate.
+    return typeof publishDate === "number" && publishDate > Date.now();
 });
 
 function formatDuration(seconds: number): string {
@@ -63,9 +69,18 @@ if (allMedia) {
 </script>
 
 <template>
-    <RouterLink
-        :to="{ name: 'content', params: { slug: props.content.slug } }"
-        class="ease-out-expo group transition hover:brightness-[1.15]"
+    <component
+        :is="isComingSoon ? 'div' : 'RouterLink'"
+        v-bind="
+            isComingSoon
+                ? {}
+                : {
+                      to: { name: 'content', params: { slug: props.content.slug } },
+                  }
+        "
+        :aria-disabled="isComingSoon || undefined"
+        class="ease-out-expo group transition"
+        :class="isComingSoon ? 'cursor-not-allowed opacity-80 hover:brightness-100' : 'hover:brightness-[1.15]'"
     >
         <div class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
             <!-- Image Wrapper (Ensures Play Icon Stays on the Image) -->
@@ -100,6 +115,14 @@ if (allMedia) {
                         </div>
                     </template>
                     <template #imageOverlay>
+                        <div
+                            v-if="isComingSoon"
+                            class="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/50 opacity-100 transition-opacity duration-200"
+                        >
+                            <span class="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white shadow">
+                                Coming soon
+                            </span>
+                        </div>
                         <!-- Play Icon (Only if content has a video and titlePosition is not center) -->
                         <div v-if="titlePosition !== 'center'">
                             <div
@@ -182,5 +205,5 @@ if (allMedia) {
                 </LImage>
             </div>
         </div>
-    </RouterLink>
+    </component>
 </template>
