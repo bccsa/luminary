@@ -47,6 +47,19 @@ export default defineConfig({
             includeAssets: ["src/assets"],
             workbox: {
                 globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
+                runtimeCaching: [
+                    {
+                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "external-images",
+                            expiration: {
+                                maxEntries: 500,
+                                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+                            },
+                        },
+                    },
+                ],
             },
         }),
         movePreloadScriptsToBody(),

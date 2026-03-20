@@ -102,7 +102,7 @@ const filteredFileCollections = computed(() => {
     props.image.fileCollections.forEach((collection) => {
         const images = collection.imageFiles.filter(
             (imgFile) =>
-                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                !isConnected.value || // Bypass filtering when not connected, allowing the image element to select any available image from cache
                 ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
                     imgFile.width <= (props.parentWidth * 1.5 || 180)),
         );
