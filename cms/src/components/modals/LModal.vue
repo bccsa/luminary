@@ -48,7 +48,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                     isMobileScreen && stickToEdges
                         ? 'w-[100vw] max-w-none rounded-none'
                         : largeModal
-                          ? 'w-fit max-w-[100%]'
+                          ? 'w-fit min-w-[448px] max-w-[100%]'
                           : 'w-full max-w-md',
                 ]"
             >
