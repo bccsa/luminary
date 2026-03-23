@@ -7,7 +7,7 @@ Before designing the new system, here is what already exists and what to do with
 ### Existing Plugin Infrastructure
 
 **`app/src/util/pluginLoader.ts`** — Keep, improve  
-Dynamically imports files from `src/plugins/` based on `VITE_PLUGINS` env var and instantiates classes. However it has three problems: (1) it does not pass the Vue `App` instance to plugins, (2) it does not call `app.use()`, and (3) there is no contract/interface that loaded classes must implement. This file should be extended to support proper Vue plugins.
+Dynamically imports files from `src/plugins/` based on `VITE_PLUGINS` env var and instantiates classes. However it has three problems: (1) it does not pass the Vue `App` instance to plugins, (2) it does not call `app.use()`, and (3) there is no explicit plugin service API/interface that loaded classes must implement. This file should be extended to support proper Vue plugins.
 
 **`app/src/plugins/examplePlugin.ts`** — Remove  
 A bare class stub with no interface, no `install()` method, and no integration with Vue. Once the new architecture is in place, this can be deleted and replaced with a real example.
@@ -73,7 +73,7 @@ app/src/
 
 ### 1. Shared Types (`platform/types.ts`)
 
-This file is the contract. It is the only thing consumer components ever import from the platform layer.
+This file is the service API. It is the only thing consumer components ever import from the platform layer.
 
 ```typescript
 import type { InjectionKey, Component } from "vue";
@@ -343,4 +343,4 @@ The web platform plugin provides a no-op implementation; the Capacitor plugin pr
 | Adding a new platform | No path | Implement the interface, register in `main.ts` |
 | Feature gating | Hard-coded per component | `capabilities.offlineDownloads` flag |
 | External plugins | Class instantiation only | Full Vue plugin support via `install()` |
-| TypeScript safety | No contract | Typed `InjectionKey<T>` |
+| TypeScript safety | No explicit service API | Typed `InjectionKey<T>` |
