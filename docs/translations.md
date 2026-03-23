@@ -14,7 +14,6 @@ Some strings contain `{variable}` placeholders that are replaced at runtime. Whe
 
 | Key | Placeholder | Runtime value | Component |
 |-----|-------------|---------------|-----------|
-| `search.indexed` | `{count}` | Number of indexed FTS documents | `SearchModal.vue` |
 | `search.shortcut` | `{shortcut}` | `"Cmd+K"` on macOS, `"Ctrl+K"` elsewhere | `SearchModal.vue` |
 | `notification.content_not_available.description` | `{language}` | Display name of the active language | `SingleContent.vue` |
 | `notification.translation_available.description` | `{language}` | Display name of the available language | `SingleContent.vue` |
@@ -40,17 +39,3 @@ Several strings are only shown under specific UI conditions. When translating th
 | `search.noResults` | A search returned **zero results** |
 | `search.tryDifferent` | A search returned **zero results** (shown directly below `search.noResults`) |
 
-## Strings reserved for future use
-
-The following keys are defined in the seed files and in test mock data, but are **not yet rendered** in the application UI. They are included to allow translators to prepare strings in advance.
-
-| Key | Intended purpose |
-|-----|-----------------|
-| `search.initializing` | Loading state shown while the FTS index is being built |
-| `search.noIndex` | Empty state shown when no content has been indexed yet |
-| `search.indexed` | Indicator showing how many documents are currently indexed |
-| `search.score` | Label for a relevance score value next to a search result |
-| `search.resultOne` | Singular form of the result count (e.g. "1 result") |
-| `search.resultsMany` | Plural form of the result count (e.g. "5 results") |
-
-> These strings will be wired up in future UI work. Avoid removing them from language documents.
