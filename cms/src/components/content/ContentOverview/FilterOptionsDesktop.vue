@@ -179,7 +179,7 @@ onClickOutside(sortOptionsMenu, () => {
         </div>
 
         <!-- Selected Tags and Groups -->
-        <div class="flex w-full flex-col gap-1">
+        <div class="ml-8 flex w-full flex-col gap-1">
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
