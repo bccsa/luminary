@@ -210,6 +210,7 @@ const saveChanges = async () => {
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty"
         @close="emit('close')"
         largeModal
+        stickToEdges
     >
         <template #headingExtension>
             <div

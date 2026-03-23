@@ -48,6 +48,8 @@ const props = withDefaults(defineProps<Props>(), {
     showIcon: true,
 });
 
+const emit = defineEmits(["select"]);
+
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
@@ -176,6 +178,18 @@ const placementClass = computed(() => {
     if (!positionData.value) return "";
     return positionData.value.flip ? "-translate-y-full mt-[-2px]" : "mt-1";
 });
+
+const selectOption = (option: any) => {
+    if (!option.selected) {
+        selectedOptions.value.push(option.value);
+        emit("select", option);
+    }
+    query.value = "";
+    showDropdown.value = false;
+    highlightedIndex.value = -1;
+};
+
+defineExpose({ open, inputElement });
 </script>
 
 <template>
@@ -254,16 +268,12 @@ const placementClass = computed(() => {
                                 if (showDropdown) {
                                     // Add the highlighted option to the selected options on enter
                                     if (highlightedIndex > -1) {
-                                        selectedOptions.push(filtered[highlightedIndex].value);
-                                        query = '';
-                                        showDropdown = false;
+                                        selectOption(filtered[highlightedIndex]);
                                         return;
                                     }
                                     // If no option is highlighted, add the first option to the selected options
                                     if (filtered.length > 0) {
-                                        selectedOptions.push(filtered[0].value);
-                                        query = '';
-                                        showDropdown = false;
+                                        selectOption(filtered[0]);
                                     }
                                 }
                             }
@@ -316,6 +326,8 @@ const placementClass = computed(() => {
                     data-test="options"
                     @wheel.stop
                     @touchmove.stop
+                    @pointerdown.stop.prevent
+                    @mousedown.stop.prevent
                 >
                     <li
                         name="list-item"
@@ -331,15 +343,7 @@ const placementClass = computed(() => {
                                 'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
                             },
                         ]"
-                        @click="
-                            () => {
-                                if (!option.selected) {
-                                    selectedOptions.push(option.value);
-                                }
-                                query = '';
-                                showDropdown = false;
-                            }
-                        "
+                        @click="selectOption(option)"
                     >
                         <span
                             class="block truncate"
@@ -374,7 +378,9 @@ const placementClass = computed(() => {
                 </LTag>
             </div>
             <div
-                v-if="showSelectedLabels && selectedLabels.length === 0 && (label || $slots.actions)"
+                v-if="
+                    showSelectedLabels && selectedLabels.length === 0 && (label || $slots.actions)
+                "
                 class="pt-4 text-center text-xs italic text-zinc-500"
             >
                 No options selected yet.

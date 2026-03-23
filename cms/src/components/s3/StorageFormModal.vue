@@ -117,6 +117,7 @@ function handleDelete() {
         :isVisible="isVisible"
         @update:isVisible="(value?: boolean) => emit('update:isVisible', value ?? false)"
         :heading="isEditing ? 'Edit Bucket' : 'Create New Bucket'"
+        stickToEdges
     >
         <div class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error and validation display -->

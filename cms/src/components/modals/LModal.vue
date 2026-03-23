@@ -2,11 +2,13 @@
 import { ref, watch } from "vue";
 import LTeleport from "../common/LTeleport.vue";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
 type Props = {
     heading: string;
     noDivider?: boolean;
     largeModal?: boolean;
+    stickToEdges?: boolean;
 };
 withDefaults(defineProps<Props>(), {
     noDivider: false,
@@ -21,12 +23,18 @@ watch(modalRef, (el) => {
         el.focus();
     }
 });
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobileScreen = breakpoints.smaller("sm");
 </script>
 
 <template>
     <LTeleport v-if="isVisible">
         <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 p-2 backdrop-blur-sm"
+            :class="[
+                'fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
+                stickToEdges && isMobileScreen ? '' : 'p-2',
+            ]"
             @click="isVisible = false"
         >
             <!-- Modal content at higher z-index -->
@@ -35,18 +43,18 @@ watch(modalRef, (el) => {
                 @keydown.esc="isVisible = false"
                 @click.stop
                 ref="modalRef"
-                :class="
-                    largeModal
-                        ? 'relative z-50 flex max-h-[95vh] w-[90vw] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
-                        : 'relative z-50 flex max-h-screen w-full max-w-md flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none'
-                "
+                :class="[
+                    'relative z-50 flex max-h-screen flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
+                    isMobileScreen && stickToEdges
+                        ? 'w-[100vw] max-w-none rounded-none'
+                        : largeModal
+                          ? 'w-fit max-w-[100%]'
+                          : 'w-full max-w-md',
+                ]"
             >
                 <div class="flex w-full items-center justify-between">
-                    <div></div>
-                </div>
-                <div class="flex w-full items-center justify-between">
                     <div class="flex items-center">
-                        <h2 v-if="heading" class="px-1 text-lg font-semibold">
+                        <h2 v-if="heading" class="text-lg font-semibold">
                             {{ heading }}
                         </h2>
                         <div v-if="$slots.headingExtension">

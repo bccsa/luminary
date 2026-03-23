@@ -211,6 +211,7 @@ const revertChanges = () => {
         :primaryButtonDisabled="!canSave"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
+        stickToEdges
     >
         <div class="mb-2 flex flex-col items-center">
             <div class="mb-1 flex w-full gap-1">

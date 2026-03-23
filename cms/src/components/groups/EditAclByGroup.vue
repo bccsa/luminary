@@ -168,7 +168,15 @@ onMounted(() => {
     </DisplayCard>
 
     <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
-        <div class="min-h-10">
+        <div class="min-h-72">
+            <div
+                v-if="typesWithActivePermissions.length > 0"
+                class="mb-3 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 ring-1 ring-zinc-200"
+            >
+                <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
+                has this access to
+                <span class="font-semibold text-zinc-700">{{ group?.name }}</span>
+            </div>
             <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
                 No active permissions, use the selector to add
             </div>

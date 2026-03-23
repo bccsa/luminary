@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import type { GroupDto } from "luminary-shared";
-import { PlusIcon } from "@heroicons/vue/24/outline";
-import { ref, toRaw, toRefs } from "vue";
+import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { nextTick, ref, toRaw, toRefs, watch } from "vue";
 import LButton from "../button/LButton.vue";
-import { sortByName } from "@/util/sortByName";
-import { isMobileScreen } from "@/globalConfig";
-import LDropdown from "@/components/common/LDropdown.vue";
+import LCombobox from "../forms/LCombobox.vue";
 
 type Props = {
     groups: GroupDto[];
@@ -17,41 +15,57 @@ const { groups } = toRefs(props);
 
 const emit = defineEmits(["select"]);
 
-const showGroups = ref(false);
+const queryOptions = ref({
+    groups: [],
+});
+
+const isComboboxOpen = ref(false);
+const comboboxRef = ref<InstanceType<typeof LCombobox> | null>(null);
 
 const selectGroup = (group: GroupDto) => {
     emit("select", toRaw(group));
-    showGroups.value = false;
+    isComboboxOpen.value = false;
+    queryOptions.value.groups = [];
 };
+
+const handleSelect = (option: { value: string }) => {
+    const group = groups.value.find((g) => g._id === option.value);
+    if (group) selectGroup(group);
+};
+
+watch(isComboboxOpen, (val) => {
+    if (!val) return;
+    nextTick(() => comboboxRef.value?.open());
+});
 </script>
 
 <template>
-    <LDropdown v-model:show="showGroups" placement="bottom-start" width="default" padding="none">
-        <template #trigger>
+    <div class="h-10">
+        <div v-if="!isComboboxOpen">
             <LButton
                 class="relative"
                 data-test="addGroupButton"
                 :icon="PlusIcon"
-                :class="isMobileScreen ? '!px-1 !py-1' : ''"
+                @click="isComboboxOpen = true"
             />
-        </template>
-
-        <div class="px-1 py-1">
-            <!-- v-slot="{ active }" -->
-            <div v-for="group in groups.sort(sortByName)" :key="group._id" data-test="group-items">
-                <button
-                    :class="[
-                        'group flex w-full items-center rounded-md px-2 py-2 text-sm hover:bg-zinc-100',
-                    ]"
-                    @click="() => selectGroup(group)"
-                    data-test="selectGroupButton"
-                >
-                    {{ group.name }}
-                </button>
-            </div>
-            <div v-if="groups.length == 0">
-                <div class="px-2 py-2 text-sm text-zinc-500">All groups added</div>
-            </div>
         </div>
-    </LDropdown>
+        <div v-if="isComboboxOpen" @focusout="isComboboxOpen = false">
+            <LCombobox
+                ref="comboboxRef"
+                :options="
+                    groups.map((group: GroupDto) => ({
+                        id: group._id,
+                        label: group.name,
+                        value: group._id,
+                    }))
+                "
+                v-model:selected-options="queryOptions.groups as string[]"
+                :show-selected-in-dropdown="false"
+                :showSelectedLabels="false"
+                :icon="UserGroupIcon"
+                disable-teleport
+                @select="handleSelect"
+            />
+        </div>
+    </div>
 </template>

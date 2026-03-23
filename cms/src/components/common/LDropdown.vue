@@ -33,6 +33,7 @@ const {
     bottom: triggerBottom,
     right: triggerRight,
     width: triggerWidth,
+    update,
 } = useElementBounding(triggerRef);
 const { height: windowHeight } = useWindowSize();
 const { width: panelWidth } = useElementBounding(panelRef);
@@ -61,6 +62,7 @@ const focusFirst = () => {
 
 watch(show, (val) => {
     if (val) {
+        update();
         nextTick(() => focusFirst());
     }
 });
