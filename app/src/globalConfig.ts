@@ -77,7 +77,6 @@ export const getDeviceInfo = () => {
  */
 export const isMac = computed(() => {
     if (typeof navigator === "undefined") return false;
-    // `navigator.platform` is deprecated/discouraged; prefer User-Agent Client Hints when available.
     const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
     if (uaDataPlatform) return uaDataPlatform.includes("mac");
 
