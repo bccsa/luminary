@@ -39,7 +39,7 @@ watch(contentDocs, (newValue) => {
         <div class="mb-1 flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <ContentDisplayCard
-                v-for="(contentDoc, i) in contentDocs?.docs"
+                v-for="contentDoc in contentDocs?.docs"
                 data-test="content-row"
                 :key="contentDoc._id"
                 :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
