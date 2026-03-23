@@ -1,221 +1,166 @@
 # Vue Platform Plugin Architecture
 
-## Codebase Findings
+> **TL;DR** — Each runtime environment (Web, Capacitor) is a Vue plugin. It registers services via `app.provide()`. Components inject those services via composables. No component ever checks the platform directly.
 
-Before designing the new system, here is what already exists and what to do with each piece.
-
-### Existing Plugin Infrastructure
-
-**`app/src/util/pluginLoader.ts`** — Keep, improve  
-Dynamically imports files from `src/plugins/` based on `VITE_PLUGINS` env var and instantiates classes. However it has three problems: (1) it does not pass the Vue `App` instance to plugins, (2) it does not call `app.use()`, and (3) there is no explicit plugin service API/interface that loaded classes must implement. This file should be extended to support proper Vue plugins.
-
-**`app/src/plugins/examplePlugin.ts`** — Remove  
-A bare class stub with no interface, no `install()` method, and no integration with Vue. Once the new architecture is in place, this can be deleted and replaced with a real example.
-
-**`app/src/components/content/VideoPlayer.vue`** — Keep, rename, refactor  
-A fully working Video.js-based player. It should become `WebVideoPlayer.vue` — the **web implementation** of the media player interface. No logic needs to change; only the file name and registration path change.
-
-**`app/src/components/content/AudioPlayer.vue`** — Keep as-is for now  
-The audio player is separately mounted in `App.vue` with its own media queue. It does not need to be part of the platform plugin on day one. It can be migrated later.
-
-**`app/src/globalConfig.ts` (media progress helpers)** — Keep as-is  
-`getMediaProgress`, `setMediaProgress`, `removeMediaProgress` are implementation-agnostic utilities. They stay where they are and both web and Capacitor implementations call them.
+For the full developer guide and code examples, see [`app/src/platform/README.md`](../app/src/platform/README.md).
 
 ---
 
-## Architecture
+## Why
 
-### Core Idea
+Luminary runs on two platforms: a progressive web app in the browser, and a native shell via Capacitor on iOS/Android. Some features — background audio, offline downloads, native video playback — are simply not available in the browser, or work completely differently.
 
-Each "platform" (Web, Capacitor, etc.) is a **Vue plugin** that calls `app.provide()` to register a typed implementation of a shared interface. Consumer components call `inject()` to get the right implementation — they never import a concrete player directly.
-
-This is the standard Vue dependency injection pattern, extended to support multiple pluggable "services", not just media playback.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ main.ts                                                      │
-│  detectPlatform() → app.use(WebPlatformPlugin)               │
-│                  or app.use(CapacitorPlatformPlugin)          │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ app.provide(MediaPlayerKey, impl)
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Consumer (SingleContent.vue, etc.)                           │
-│  const { VideoPlayer } = useMediaPlayer()                    │
-│  <component :is="VideoPlayer" :content="..." />              │
-└─────────────────────────────────────────────────────────────┘
-```
+Without a dedicated abstraction, platform checks (`if (isNative)`) spread across components, making the codebase harder to read and maintain. This architecture centralises platform differences into plugins, so the rest of the app is always platform-agnostic.
 
 ---
 
-## File Structure
+## Core concept
+
+The system uses Vue's built-in dependency injection (`provide` / `inject`):
+
+1. A **service API** (TypeScript type + `InjectionKey`) is defined once. This is the shared interface.
+2. A **platform plugin** provides an implementation for that interface at startup.
+3. **Components** inject the implementation through a composable. They never import platform-specific files.
 
 ```
-app/src/
-  platform/
-    types.ts                    ← shared interfaces and injection keys
-    detect.ts                   ← runtime platform detection
-    web/
-      index.ts                  ← WebPlatformPlugin (Vue Plugin)
-      WebVideoPlayer.vue        ← current VideoPlayer.vue, renamed
-    capacitor/
-      index.ts                  ← CapacitorPlatformPlugin (Vue Plugin)
-      CapacitorVideoPlayer.vue  ← native implementation (future)
-  composables/
-    useMediaPlayer.ts           ← inject wrapper, typed
-  util/
-    pluginLoader.ts             ← improved to pass App and call app.use()
+┌──────────────────────────────────────────────────────────────┐
+│ main.ts                                                       │
+│   isCapacitorPlatform()                                       │
+│     → app.use(CapacitorPlatformPlugin)  // native            │
+│     → app.use(WebPlatformPlugin)        // web               │
+└───────────────────────────┬──────────────────────────────────┘
+                            │  app.provide(MediaPlayerKey, impl)
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Any component                                                 │
+│   const { VideoPlayer, capabilities } = useMediaPlayer()     │
+│   <component :is="VideoPlayer" ... />                        │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Dynamic `import()` at startup ensures the native bundle is never sent to web users and vice versa.
+
+---
+
+## Structure
+
+```
+platform/
+  detect.ts          Runtime platform detection (isCapacitorPlatform)
+  types/
+    index.ts         Barrel export — one line per service
+    mediaPlayer.ts   MediaPlayerService type + MediaPlayerKey
+  web/
+    index.ts         WebPlatformPlugin (install → app.provide)
+    WebVideoPlayer.vue
+  capacitor/
+    index.ts         CapacitorPlatformPlugin (install → app.provide)
+    CapacitorVideoPlayer.vue
+
+composables/
+  useMediaPlayer.ts  Inject wrapper for MediaPlayerService
 ```
 
 ---
 
-## Implementation
+## Key files and their roles
 
-### 1. Shared Types (`platform/types.ts`)
+### `platform/types/<service>.ts` — Service API
 
-This file is the service API. It is the only thing consumer components ever import from the platform layer.
+Defines what the service looks like from the consumer's point of view. Never contains implementation logic.
 
-```typescript
-import type { InjectionKey, Component } from "vue";
-import type { ContentDto } from "luminary-shared";
-
-/**
- * Props that every VideoPlayer implementation must accept.
- */
-export type VideoPlayerProps = {
-    content: ContentDto;
-    language: string | null | undefined;
-};
-
-/**
- * The capabilities that a platform implementation exposes.
- * Consumer components can gate features behind these flags.
- */
-export type PlatformCapabilities = {
-    backgroundAudio: boolean;
-    offlineDownloads: boolean;
-    nativeFullscreen: boolean;
-};
-
-/**
- * The full media player service registered by a platform plugin.
- * Add more components here as the system grows (e.g. AudioPlayer, DownloadManager).
- */
+```ts
+// platform/types/mediaPlayer.ts
 export type MediaPlayerService = {
     VideoPlayer: Component;
     capabilities: PlatformCapabilities;
 };
 
-/**
- * Typed injection key. Use this to provide and inject the media player service.
- */
 export const MediaPlayerKey: InjectionKey<MediaPlayerService> = Symbol("media-player");
 ```
 
-### 2. Platform Detection (`platform/detect.ts`)
+`PlatformCapabilities` contains boolean flags that describe what the current platform's implementation supports. Components use these flags to show or hide UI — they never check the platform name.
 
-```typescript
-/**
- * Returns true when running inside a Capacitor native shell.
- * Safe to call before Capacitor is fully initialised.
- */
-export const isCapacitorPlatform = (): boolean => {
-    return typeof window !== "undefined" && !!(window as any).Capacitor?.isNativePlatform?.();
+```ts
+export type PlatformCapabilities = {
+    playback: {
+        nativePlayback: boolean;
+        nativeFullscreen: boolean;
+        pictureInPicture: boolean;
+        backgroundAudio: boolean;
+        seekControl: boolean;
+        playbackRateControl: boolean;
+    };
+    tracks: {
+        audioTrackSelection: boolean;
+    };
+    offline: {
+        downloads: boolean;
+        progressTracking: boolean;
+        deleteDownloadedMedia: boolean;
+    };
 };
 ```
 
-### 3. Web Platform Plugin (`platform/web/index.ts`)
+### `platform/web/index.ts` and `platform/capacitor/index.ts` — Platform plugins
 
-```typescript
-import type { App, Plugin } from "vue";
-import { MediaPlayerKey } from "../types";
-import WebVideoPlayer from "./WebVideoPlayer.vue";
+Each is a standard Vue plugin. Its `install` method calls `app.provide()` to register service implementations for its runtime.
 
+```ts
 export const WebPlatformPlugin: Plugin = {
     install(app: App) {
         app.provide(MediaPlayerKey, {
             VideoPlayer: WebVideoPlayer,
             capabilities: {
-                backgroundAudio: false,
-                offlineDownloads: false,
-                nativeFullscreen: false,
+                playback: { nativePlayback: false, backgroundAudio: false, ... },
+                offline: { downloads: false, ... },
+                ...
             },
         });
     },
 };
 ```
 
-`WebVideoPlayer.vue` is the current `VideoPlayer.vue` moved to this folder. No logic changes.
+The Capacitor plugin does the same but with a native player component and capability flags set to `true` where the native shell provides the feature.
 
-### 4. Capacitor Platform Plugin (`platform/capacitor/index.ts`)
+### `composables/useMediaPlayer.ts` — Consumer entry point
 
-```typescript
-import type { App, Plugin } from "vue";
-import { MediaPlayerKey } from "../types";
-import CapacitorVideoPlayer from "./CapacitorVideoPlayer.vue";
+This is the only import app components need.
 
-export const CapacitorPlatformPlugin: Plugin = {
-    install(app: App) {
-        app.provide(MediaPlayerKey, {
-            VideoPlayer: CapacitorVideoPlayer,
-            capabilities: {
-                backgroundAudio: true,
-                offlineDownloads: true,
-                nativeFullscreen: true,
-            },
-        });
-    },
-};
-```
-
-### 5. Registration in `main.ts`
-
-Replace `loadPlugins()` (or run alongside it) with platform plugin registration. Dynamic import ensures Capacitor code is never bundled for the web build.
-
-```typescript
-import { isCapacitorPlatform } from "./platform/detect";
-
-async function Startup() {
-    // ... existing auth + init code ...
-
-    // Register the platform-appropriate media player
-    if (isCapacitorPlatform()) {
-        const { CapacitorPlatformPlugin } = await import("./platform/capacitor");
-        app.use(CapacitorPlatformPlugin);
-    } else {
-        const { WebPlatformPlugin } = await import("./platform/web");
-        app.use(WebPlatformPlugin);
-    }
-
-    app.use(createPinia());
-    app.use(router);
-    app.use(i18n);
-    app.mount("#app");
-    // ...
-}
-```
-
-### 6. Consumer Composable (`composables/useMediaPlayer.ts`)
-
-One composable is all consumer components ever need.
-
-```typescript
-import { inject } from "vue";
-import { MediaPlayerKey, type MediaPlayerService } from "@/platform/types";
-
+```ts
 export function useMediaPlayer(): MediaPlayerService {
-    const player = inject(MediaPlayerKey);
-    if (!player) {
+    const service = inject(MediaPlayerKey);
+    if (!service) {
         throw new Error(
-            "useMediaPlayer() called before a platform plugin was installed via app.use(). " +
-            "Make sure WebPlatformPlugin or CapacitorPlatformPlugin is registered in main.ts.",
+            "useMediaPlayer() was called before a platform plugin was installed. " +
+            "Ensure app.use(WebPlatformPlugin) or app.use(CapacitorPlatformPlugin) " +
+            "is called in main.ts before app.mount().",
         );
     }
-    return player;
+    return service;
 }
 ```
 
-### 7. Consumer Usage (`SingleContent.vue`)
+### `main.ts` — Startup registration
+
+```ts
+import { isCapacitorPlatform } from "./platform/detect";
+
+if (isCapacitorPlatform()) {
+    const { CapacitorPlatformPlugin } = await import("./platform/capacitor");
+    app.use(CapacitorPlatformPlugin);
+} else {
+    const { WebPlatformPlugin } = await import("./platform/web");
+    app.use(WebPlatformPlugin);
+}
+
+// VITE_PLUGINS load after — they can optionally override platform services
+await loadPlugins(app);
+```
+
+---
+
+## Consuming a service in a component
 
 ```vue
 <script setup lang="ts">
@@ -225,122 +170,56 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 </script>
 
 <template>
-    <!-- Works the same regardless of which implementation is injected -->
-    <component :is="VideoPlayer" :content="content" :language="currentLanguage" />
+    <!-- Renders the correct player for the current platform -->
+    <component :is="VideoPlayer" :content="content" :audioTrackLanguage="lang" />
 
-    <!-- Gate platform-specific UI behind capabilities -->
-    <DownloadButton v-if="capabilities.offlineDownloads" :content="content" />
+    <!-- Only shown when the platform supports offline downloads -->
+    <DownloadButton v-if="capabilities.offline.downloads" :content="content" />
 </template>
 ```
 
----
-
-## Improving the Existing `pluginLoader.ts`
-
-The existing loader can be kept for **external/runtime** plugins (plugins that are copied in at build time via `VITE_PLUGIN_PATH`). Improve it to:
-
-1. Accept the `App` instance.
-2. Call `app.use()` if the class has an `install()` method (making it a proper Vue plugin).
-3. Export a typed `LuminaryPlugin` base interface.
-
-```typescript
-// util/pluginLoader.ts
-import type { App } from "vue";
-
-/**
- * Interface that external plugins should implement.
- * A plugin may optionally be a Vue plugin (by implementing install()).
- */
-export interface LuminaryPlugin {
-    install?(app: App): void;
-}
-
-export const loadPlugins = async (app: App): Promise<void> => {
-    if (!import.meta.env.VITE_PLUGINS) return;
-
-    const names: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
-    await Promise.all(names.map((name) => loadPlugin(app, name)));
-};
-
-const loadPlugin = async (app: App, name: string): Promise<void> => {
-    try {
-        const module = await import(`../plugins/${name}.ts`);
-        const PluginClass = module[name];
-
-        if (!PluginClass) {
-            console.error(`Plugin "${name}" not found or has no matching export.`);
-            return;
-        }
-
-        const instance: LuminaryPlugin = new PluginClass();
-
-        if (typeof instance.install === "function") {
-            app.use({ install: (a) => instance.install!(a) });
-        }
-    } catch (err: any) {
-        console.error(`Failed to load plugin "${name}":`, err.message);
-    }
-};
-```
-
-Update `main.ts` to pass `app`:
-
-```typescript
-await loadPlugins(app); // was: await loadPlugins()
-```
+No `isNative` check. No direct platform import. The component works identically on web and Capacitor.
 
 ---
 
-## Extending to Other Services
+## Adding a new service
 
-The same pattern applies to any future pluggable service. Add an injection key and type to `platform/types.ts` and register additional `app.provide()` calls in each platform plugin:
+Adding a service follows the same pattern every time:
 
-```typescript
-// platform/types.ts (extended example)
-export type DownloadService = {
-    download(content: ContentDto): Promise<void>;
-    listDownloads(): Promise<ContentDto[]>;
-    deleteDownload(contentId: string): Promise<void>;
-};
+1. **Define the API** — add `myService.ts` in `platform/types/` with the type and `InjectionKey`.
+2. **Re-export it** — add `export * from "./myService"` to `platform/types/index.ts`.
+3. **Provide implementations** — add `app.provide(MyServiceKey, impl)` in both `platform/web/index.ts` and `platform/capacitor/index.ts`.
+4. **Create a composable** — `composables/useMyService.ts` wraps `inject(MyServiceKey)`.
+5. **Use it** — call `useMyService()` in components.
 
-export const DownloadServiceKey: InjectionKey<DownloadService> = Symbol("download-service");
-```
-
-```typescript
-// composables/useDownloads.ts
-export function useDownloads(): DownloadService {
-    const service = inject(DownloadServiceKey);
-    if (!service) throw new Error("No DownloadService registered for this platform.");
-    return service;
-}
-```
-
-The web platform plugin provides a no-op implementation; the Capacitor plugin provides the real one. Consumer components never change.
+`main.ts` and `detect.ts` do not need to change.
 
 ---
 
-## Migration Steps
+## Relationship to `VITE_PLUGINS`
 
-1. Create `app/src/platform/types.ts` with the interfaces above.
-2. Create `app/src/platform/detect.ts`.
-3. Move `VideoPlayer.vue` → `app/src/platform/web/WebVideoPlayer.vue` (no code changes).
-4. Create `app/src/platform/web/index.ts` (WebPlatformPlugin).
-5. Create `app/src/platform/capacitor/index.ts` (CapacitorPlatformPlugin — stub, same component as web for now).
-6. Create `app/src/composables/useMediaPlayer.ts`.
-7. Update `main.ts`: replace current `loadPlugins()` call with platform detection and `app.use()`.
-8. Update `pluginLoader.ts` to accept `App` and call `app.use()` on plugins that have `install()`.
-9. Update `SingleContent.vue` to use `useMediaPlayer()` instead of importing `VideoPlayer.vue` directly.
-10. Delete `app/src/plugins/examplePlugin.ts`.
+`VITE_PLUGINS` is a separate mechanism for organisation-specific plugins that are bundled at build time. It is not the same as the platform plugin system.
 
----
-
-## What This Achieves
-
-| Concern | Before | After |
+| | Platform plugins | `VITE_PLUGINS` |
 |---|---|---|
-| Platform selection | Manual, ad-hoc | `app.use()` at startup |
-| Consumer coupling | Direct import of `VideoPlayer.vue` | `inject(MediaPlayerKey)` |
-| Adding a new platform | No path | Implement the interface, register in `main.ts` |
-| Feature gating | Hard-coded per component | `capabilities.offlineDownloads` flag |
-| External plugins | Class instantiation only | Full Vue plugin support via `install()` |
-| TypeScript safety | No explicit service API | Typed `InjectionKey<T>` |
+| Purpose | Web vs. native runtime differences | Organisation-level customisation |
+| Count | Exactly one active at startup | 0..n, all active |
+| Added by | Core team | Deploying organisation |
+
+Platform plugins install first so that `VITE_PLUGINS` can optionally override any service by providing a different implementation for the same key.
+
+---
+
+## Design decisions
+
+**Why `provide`/`inject` and not a module-level singleton?**
+`provide`/`inject` integrates naturally with Vue's component tree and test utilities. A singleton would need its own reset mechanism for tests.
+
+**Why dynamic `import()`?**
+It keeps the Capacitor-specific code out of the web bundle entirely. Tree-shaking at the module level is more reliable than conditional code that might still be included.
+
+**Why capability flags instead of platform name checks?**
+Platform names are implementation details. Flags like `capabilities.offline.downloads` describe what the current implementation can actually do. If a future web build gains download support, no component code needs to change — only the plugin's flags.
+
+**Why a composable wrapper instead of calling `inject()` directly?**
+The composable throws a descriptive error if the service is missing (useful in tests and local development) and gives consumers a single import to update if the service name or key ever changes.
