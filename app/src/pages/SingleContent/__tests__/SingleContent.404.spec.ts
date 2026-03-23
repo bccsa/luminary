@@ -54,9 +54,18 @@ vi.mock("@/composables/useMediaPlayer", () => ({
     useMediaPlayer: () => ({
         VideoPlayer: { template: "<div />" },
         capabilities: {
-            backgroundAudio: false,
-            offlineDownloads: false,
-            nativeFullscreen: false,
+            playback: {
+                nativePlayback: false,
+                nativeFullscreen: false,
+                pictureInPicture: true,
+                backgroundAudio: false,
+            },
+            tracks: {
+                audioTrackSelection: true,
+            },
+            offline: {
+                downloads: false,
+            },
         },
     }),
 }));

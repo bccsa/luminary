@@ -7,9 +7,19 @@ export const WebPlatformPlugin: Plugin = {
         app.provide(MediaPlayerKey, {
             VideoPlayer: WebVideoPlayer,
             capabilities: {
-                backgroundAudio: false,
-                offlineDownloads: false,
-                nativeFullscreen: false,
+                playback: {
+                    nativePlayback: false,
+                    nativeFullscreen: false,
+                    pictureInPicture: true,
+                    backgroundAudio: false,
+                },
+                tracks: {
+                    audioTrackSelection: true,
+                },
+                offline: {
+                    downloads: false,
+                    
+                },
             },
         });
     },

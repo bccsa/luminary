@@ -16,9 +16,18 @@ export type VideoPlayerProps = {
  * instead of checking the platform directly.
  */
 export type PlatformCapabilities = {
-    backgroundAudio: boolean;
-    offlineDownloads: boolean;
-    nativeFullscreen: boolean;
+    playback: {
+        nativePlayback: boolean;
+        nativeFullscreen: boolean;
+        pictureInPicture: boolean;
+        backgroundAudio: boolean;
+    };
+    tracks: {
+        audioTrackSelection: boolean;
+    };
+    offline: {
+        downloads: boolean;
+    };
 };
 
 /**

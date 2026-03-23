@@ -127,7 +127,7 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 
 <template>
     <component :is="VideoPlayer" :content="content" :audioTrackLanguage="audioTrackLanguage" />
-    <DownloadButton v-if="capabilities.offlineDownloads" :content="content" />
+    <DownloadButton v-if="capabilities.offline.downloads" :content="content" />
 </template>
 ```
 
@@ -253,7 +253,20 @@ export class acmeCustomisation implements LuminaryPlugin {
         // Override the default video player with a custom one
         app.provide(MediaPlayerKey, {
             VideoPlayer: AcmeVideoPlayer,
-            capabilities: { backgroundAudio: false, offlineDownloads: false, nativeFullscreen: false },
+            capabilities: {
+                playback: {
+                    nativePlayback: false,
+                    nativeFullscreen: false,
+                    pictureInPicture: true,
+                    backgroundAudio: false,
+                },
+                tracks: {
+                    audioTrackSelection: true,
+                },
+                offline: {
+                    downloads: false,
+                },
+            },
         });
     }
 }
@@ -269,7 +282,20 @@ Mock the composable at the module level. No Vue providers or test wrappers neede
 vi.mock("@/composables/useMediaPlayer", () => ({
     useMediaPlayer: () => ({
         VideoPlayer: { template: "<div />" },
-        capabilities: { backgroundAudio: false, offlineDownloads: false, nativeFullscreen: false },
+        capabilities: {
+            playback: {
+                nativePlayback: false,
+                nativeFullscreen: false,
+                pictureInPicture: true,
+                backgroundAudio: false,
+            },
+            tracks: {
+                audioTrackSelection: true,
+            },
+            offline: {
+                downloads: false,
+            },
+        },
     }),
 }));
 ```

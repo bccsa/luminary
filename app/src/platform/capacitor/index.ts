@@ -7,9 +7,18 @@ export const CapacitorPlatformPlugin: Plugin = {
         app.provide(MediaPlayerKey, {
             VideoPlayer: CapacitorVideoPlayer,
             capabilities: {
-                backgroundAudio: true,
-                offlineDownloads: true,
-                nativeFullscreen: true,
+                playback: {
+                    nativePlayback: true,
+                    nativeFullscreen: true,
+                    pictureInPicture: true,
+                    backgroundAudio: true,
+                },
+                tracks: {
+                    audioTrackSelection: true,
+                },
+                offline: {
+                    downloads: true,
+                },
             },
         });
     },
