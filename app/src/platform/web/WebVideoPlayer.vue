@@ -549,7 +549,7 @@ watch(
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "../../components/content/VideoPlayer.css";
+@import "./WebVideoPlayer.css";
 
 .audio-mode-toggle {
     @apply !absolute right-2 top-2;

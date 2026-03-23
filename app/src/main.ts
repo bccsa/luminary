@@ -75,8 +75,7 @@ async function Startup() {
 
     const i18n = await initI18n();
 
-    // 1. Platform plugin — registers Web or Capacitor implementations of all platform services.
-    //    Must run before external plugins so that platform services are available to them.
+  
     if (isCapacitorPlatform()) {
         const { CapacitorPlatformPlugin } = await import("./platform/capacitor");
         app.use(CapacitorPlatformPlugin);
@@ -85,9 +84,6 @@ async function Startup() {
         app.use(WebPlatformPlugin);
     }
 
-    // 2. External plugins (VITE_PLUGINS) — organisation-specific customisations loaded at
-    //    build time. Run after the platform plugin so they can optionally override any
-    //    platform service by calling app.provide() with the same key.
     await loadPlugins(app);
 
     app.use(createPinia());

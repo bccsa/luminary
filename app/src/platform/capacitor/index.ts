@@ -12,12 +12,16 @@ export const CapacitorPlatformPlugin: Plugin = {
                     nativeFullscreen: true,
                     pictureInPicture: true,
                     backgroundAudio: true,
+                    seekControl: true,
+                    playbackRateControl: true,
                 },
                 tracks: {
                     audioTrackSelection: true,
                 },
                 offline: {
                     downloads: true,
+                    progressTracking: true,
+                    deleteDownloadedMedia: true,
                 },
             },
         });

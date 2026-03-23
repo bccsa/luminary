@@ -21,12 +21,16 @@ export type PlatformCapabilities = {
         nativeFullscreen: boolean;
         pictureInPicture: boolean;
         backgroundAudio: boolean;
+        seekControl: boolean;
+        playbackRateControl: boolean;
     };
     tracks: {
         audioTrackSelection: boolean;
     };
     offline: {
         downloads: boolean;
+        progressTracking: boolean;
+        deleteDownloadedMedia: boolean;
     };
 };
 

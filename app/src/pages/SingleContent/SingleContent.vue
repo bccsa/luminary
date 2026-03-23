@@ -60,7 +60,7 @@ import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 
 const router = useRouter();
-const { VideoPlayer, capabilities } = useMediaPlayer();
+const { VideoPlayer } = useMediaPlayer();
 
 type Props = {
     slug: string;
@@ -655,8 +655,8 @@ const playAudio = () => {
                         :ignoreTop="true"
                     >
                         <component
+                         v-if="content && content.video"
                             :is="VideoPlayer"
-                            v-if="content && content.video"
                             :content="content"
                             :audioTrackLanguage="selectedLanguageCode"
                         />

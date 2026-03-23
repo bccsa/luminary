@@ -12,13 +12,16 @@ export const WebPlatformPlugin: Plugin = {
                     nativeFullscreen: false,
                     pictureInPicture: true,
                     backgroundAudio: false,
+                    seekControl: true,
+                    playbackRateControl: true,
                 },
                 tracks: {
                     audioTrackSelection: true,
                 },
                 offline: {
                     downloads: false,
-                    
+                    progressTracking: false,
+                    deleteDownloadedMedia: false,
                 },
             },
         });
