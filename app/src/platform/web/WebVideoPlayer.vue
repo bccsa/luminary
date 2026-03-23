@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
-import AudioVideoToggle from "../form/AudioVideoToggle.vue";
+import AudioVideoToggle from "../../components/form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
-import px from "./px.png";
+import px from "../../components/content/px.png";
 import * as iso from "iso-639-2";
-import LImage from "../images/LImage.vue";
+import LImage from "../../components/images/LImage.vue";
 import {
     appLanguagesPreferredAsRef,
     getMediaProgress,
@@ -14,7 +14,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
-import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
+import { extractAndBuildAudioMaster } from "../../components/content/extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
 type Props = {
@@ -549,7 +549,7 @@ watch(
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "./VideoPlayer.css";
+@import "../../components/content/VideoPlayer.css";
 
 .audio-mode-toggle {
     @apply !absolute right-2 top-2;

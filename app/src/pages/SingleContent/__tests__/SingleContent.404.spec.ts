@@ -50,6 +50,17 @@ vi.mock("vue-router", async (importOriginal) => {
 });
 vi.mock("@auth0/auth0-vue");
 
+vi.mock("@/composables/useMediaPlayer", () => ({
+    useMediaPlayer: () => ({
+        VideoPlayer: { template: "<div />" },
+        capabilities: {
+            backgroundAudio: false,
+            offlineDownloads: false,
+            nativeFullscreen: false,
+        },
+    }),
+}));
+
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,

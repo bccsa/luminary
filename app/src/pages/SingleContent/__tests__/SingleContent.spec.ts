@@ -22,7 +22,6 @@ import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { ref, computed } from "vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
@@ -58,6 +57,22 @@ vi.mock("vue-router", async (importOriginal) => {
 vi.mock("@/router", () => ({
     isExternalNavigation: () => mockIsExternalNavigation(),
     markInternalNavigation: vi.fn(),
+}));
+
+const MockVideoPlayer = vi.hoisted(() => ({
+    name: "MockVideoPlayer",
+    template: '<div data-testid="video-player" />',
+}));
+
+vi.mock("@/composables/useMediaPlayer", () => ({
+    useMediaPlayer: () => ({
+        VideoPlayer: MockVideoPlayer,
+        capabilities: {
+            backgroundAudio: false,
+            offlineDownloads: false,
+            nativeFullscreen: false,
+        },
+    }),
 }));
 
 vi.mock("@auth0/auth0-vue");
@@ -150,16 +165,14 @@ describe("SingleContent", () => {
             video: "test-video.mp4",
         } as any);
 
-        const wrapper = shallowMount(SingleContent, {
+        const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
-        const videoPlayer = wrapper.findComponent(VideoPlayer);
-
         await waitForExpect(() => {
-            expect(videoPlayer).toBeDefined();
+            expect(wrapper.find('[data-testid="video-player"]').exists()).toBe(true);
         });
     });
 

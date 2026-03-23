@@ -1,39 +1,47 @@
+import type { App } from "vue";
+
 /**
- * Dynamic plugin loading
- * @returns
+ * Interface that external runtime plugins should implement.
+ * A plugin may optionally be a Vue plugin by implementing install().
  */
-export const loadPlugins = async () => {
+export interface LuminaryPlugin {
+    install?(app: App): void;
+}
+
+/**
+ * Loads all plugins listed in VITE_PLUGINS and registers them with the Vue app.
+ * Plugin files are resolved from src/plugins/<name>.ts at build time via the
+ * Vite plugin that copies files from VITE_PLUGIN_PATH into that directory.
+ */
+export const loadPlugins = async (app: App): Promise<void> => {
+    if (!import.meta.env.VITE_PLUGINS) return;
+
     try {
-        if (!import.meta.env.VITE_PLUGINS) return;
-
-        const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
-
-        const _a: any = [];
-        _p.forEach(async (p) => {
-            _a.push(dynamicLoadPlugin(p));
-        });
-
-        await Promise.all(_a);
+        const names: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
+        await Promise.all(names.map((name) => loadPlugin(app, name)));
     } catch (err: any) {
-        console.error(err.message);
+        console.error("Failed to parse VITE_PLUGINS:", err.message);
     }
 };
 
-export const dynamicLoadPlugin = async (p: string) => {
-    if (!p) return;
+const loadPlugin = async (app: App, name: string): Promise<void> => {
+    if (!name) return;
 
     try {
-        const c = await import(`../plugins/${p}.ts`);
+        const module = await import(`../plugins/${name}.ts`);
+        const PluginClass = module[name];
 
-        if (!c || !c[p]) {
-            console.error(`Plugin ${p} does not exists or does not have a constructor.`);
+        if (!PluginClass) {
+            console.error(`Plugin "${name}" not found or has no matching named export.`);
             return;
         }
 
-        const _c = new c[p]();
+        const instance: LuminaryPlugin = new PluginClass();
 
-        return _c;
+        if (typeof instance.install === "function") {
+            app.use({ install: (a) => instance.install!(a) });
+        }
     } catch (err: any) {
-        console.error(err.message);
+        console.error(`Failed to load plugin "${name}":`, err.message);
     }
 };
