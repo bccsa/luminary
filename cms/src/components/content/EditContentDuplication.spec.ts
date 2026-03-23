@@ -1,7 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType } from "luminary-shared";
+import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -350,6 +350,370 @@ describe("EditContent.vue - Duplication", () => {
         // And must NOT use the original document's id
         expect(mockRouterReplace).not.toHaveBeenCalledWith(
             expect.stringContaining(mockData.mockPostDto._id),
+        );
+    }, 15000);
+
+    it("generates new unique IDs for parent and all content documents", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // Parent should have a new ID
+        expect(vm.editableParent._id).not.toBe(mockData.mockPostDto._id);
+
+        // All content docs should have new unique IDs different from originals
+        const originalContentIds = [
+            mockData.mockEnglishContentDto._id,
+            mockData.mockFrenchContentDto._id,
+            mockData.mockSwahiliContentDto._id,
+        ];
+        const newContentIds = vm.editableContent.map((c: any) => c._id);
+
+        // No new ID should match any original ID
+        for (const newId of newContentIds) {
+            expect(originalContentIds).not.toContain(newId);
+        }
+
+        // All new content IDs should be unique among themselves
+        const uniqueIds = new Set(newContentIds);
+        expect(uniqueIds.size).toBe(newContentIds.length);
+    }, 15000);
+
+    it("duplicates all translations and sets correct content properties", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+        const newParentId = vm.editableParent._id as string;
+
+        // All 3 translations should be duplicated
+        expect(vm.editableContent.length).toBe(3);
+
+        vm.editableContent.forEach((c: any) => {
+            // Titles should have "(Copy)" suffix
+            expect(c.title).toMatch(/\(Copy\)$/);
+
+            // Slugs should have "-copy" suffix
+            expect(c.slug).toMatch(/-copy$/);
+
+            // Status should be set to Draft
+            expect(c.status).toBe(PublishStatus.Draft);
+
+            // parentId should reference the new cloned parent
+            expect(c.parentId).toBe(newParentId);
+
+            // parentType should be set
+            expect(c.parentType).toBe(DocType.Post);
+
+            // _rev should be removed (new document, not yet saved)
+            expect(c._rev).toBeUndefined();
+        });
+
+        // Parent _rev should also be removed
+        expect(vm.editableParent._rev).toBeUndefined();
+    }, 15000);
+
+    it("clears image fileCollections on the duplicated parent", async () => {
+        // Ensure the mock post has image data with fileCollections
+        expect(mockData.mockPostDto.imageData?.fileCollections.length).toBeGreaterThan(0);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        // Verify parent has image data before duplication
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent.imageData?.fileCollections.length).toBeGreaterThan(0);
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // Image fileCollections should be cleared on the duplicated parent
+        expect(vm.editableParent.imageData.fileCollections).toEqual([]);
+    }, 15000);
+
+    it("does not modify the original document in the database after duplication", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // The original parent document in the DB should be unchanged
+        const originalParent = await db.docs.get(mockData.mockPostDto._id);
+        expect(originalParent).toBeDefined();
+        expect(originalParent!._id).toBe(mockData.mockPostDto._id);
+        expect((originalParent as any).tags).toEqual(mockData.mockPostDto.tags);
+
+        // The original content documents in the DB should be unchanged
+        const originalEngContent = await db.docs.get(mockData.mockEnglishContentDto._id);
+        expect(originalEngContent).toBeDefined();
+        expect((originalEngContent as any).title).toBe(mockData.mockEnglishContentDto.title);
+        expect((originalEngContent as any).slug).toBe(mockData.mockEnglishContentDto.slug);
+        expect((originalEngContent as any).parentId).toBe(mockData.mockPostDto._id);
+    }, 15000);
+
+    it("clears taggedDocs when duplicating a Tag document", async () => {
+        // Set up a Tag document with taggedDocs
+        const tagWithDocs: TagDto = {
+            ...mockData.mockCategoryDto,
+            taggedDocs: ["post-post1", "post-post2"],
+        };
+        await db.docs.put(tagWithDocs as any);
+        await db.docs.put(mockData.mockCategoryContentDto as any);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Tag,
+                id: mockData.mockCategoryDto._id,
+                languageCode: "eng",
+                tagOrPostType: TagType.Category,
+            },
+        });
+
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent._id).toBe(mockData.mockCategoryDto._id);
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        expect(dropdownTrigger.exists()).toBe(true);
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // The duplicated tag should have taggedDocs cleared
+        expect(vm.editableParent.taggedDocs).toEqual([]);
+
+        // The duplicated tag should have a new ID
+        expect(vm.editableParent._id).not.toBe(mockData.mockCategoryDto._id);
+
+        // The tag type and other properties should be preserved
+        expect(vm.editableParent.type).toBe(DocType.Tag);
+        expect(vm.editableParent.tagType).toBe(TagType.Category);
+    }, 15000);
+
+    it("preserves parent memberOf and type properties after duplication", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // Type should be preserved
+        expect(vm.editableParent.type).toBe(DocType.Post);
+        expect(vm.editableParent.postType).toBe(PostType.Blog);
+
+        // memberOf should be preserved
+        expect(vm.editableParent.memberOf).toEqual(mockData.mockPostDto.memberOf);
+
+        // publishDateVisible should be preserved
+        expect(vm.editableParent.publishDateVisible).toBe(mockData.mockPostDto.publishDateVisible);
+    }, 15000);
+
+    it("preserves media on the duplicated parent", async () => {
+        // The mock post has media data
+        expect(mockData.mockPostDto.media).toBeDefined();
+        expect(mockData.mockPostDto.media!.fileCollections.length).toBeGreaterThan(0);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+
+        // Media should be preserved on the duplicated parent (unlike images which are cleared)
+        expect(vm.editableParent.media).toBeDefined();
+        expect(vm.editableParent.media.hlsUrl).toBe(mockData.mockPostDto.media!.hlsUrl);
+        expect(vm.editableParent.media.fileCollections.length).toBe(
+            mockData.mockPostDto.media!.fileCollections.length,
         );
     }, 15000);
 });
