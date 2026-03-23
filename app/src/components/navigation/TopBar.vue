@@ -3,7 +3,8 @@ import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import SearchButton from "./SearchModal.vue";
+import { computed, nextTick, onMounted, ref, watch, shallowRef } from "vue";
 
 type Props = {
     showBackButton?: boolean;
@@ -18,6 +19,8 @@ const LOGO = import.meta.env.VITE_LOGO;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
 const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
+
+const searchButtonRef = shallowRef<InstanceType<typeof SearchButton> | null>(null);
 
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
@@ -77,13 +80,19 @@ onMounted(() => {
                         />
                     </div>
 
-                    <div class="flex flex-1 items-center" ref="logoContainer">
+                    <div
+                        class="flex flex-1 items-center"
+                        ref="logoContainer"
+                    >
                         <div
                             :style="logoCss"
                             class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
                         >
                             <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
-                            <img class="h-full opacity-0" :src="logo" />
+                            <img
+                                class="h-full opacity-0"
+                                :src="logo"
+                            />
                         </div>
 
                         <DesktopMenu class="ml-6 hidden lg:flex" />
@@ -96,5 +105,7 @@ onMounted(() => {
                 <ProfileMenu />
             </div>
         </div>
+        <!-- Hidden SearchButton - used for search overlay -->
+        <SearchButton ref="searchButtonRef" />
     </header>
 </template>
