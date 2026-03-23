@@ -239,6 +239,13 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
+        // Wait for parent to be fully loaded from the DB with custom tags
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent.tags).toEqual(["tag-category2", "tag-topicA"]);
+        });
+
         // Click the dropdown chevron to open the menu
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
         expect(dropdownTrigger.exists()).toBe(true);
@@ -250,12 +257,14 @@ describe("EditContent.vue - Duplication", () => {
             duplicateBtn = wrapper.find("[data-test='duplicate-button']");
             expect(duplicateBtn.exists()).toBe(true);
         });
-        await duplicateBtn!.trigger("click");
 
-        const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-        if (confirmBtn.exists()) {
-            await confirmBtn.trigger("click");
-        }
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
