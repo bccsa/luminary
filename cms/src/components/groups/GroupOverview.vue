@@ -85,7 +85,7 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
 </script>
 
 <template>
-    <div>
+    <div class="h-full overflow-hidden">
         <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
             <template #pageNav>
                 <LButton
