@@ -55,6 +55,16 @@ app/
 └── vitest.setup.ts               # Vitest test setup
 ```
 
+## Internationalisation
+
+UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
+
+See [docs/translations.md](../docs/translations.md) for details on:
+- How to add or update translation strings
+- Strings that contain named interpolation placeholders (`{variable}`)
+- Strings that are shown only under specific UI conditions
+- Strings reserved for future use
+
 ## Local setup
 
 Refer to the [setup guide](../docs/setup-vue-app.md).
