@@ -42,6 +42,12 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     return {
         ...actual,
+        // The global vitest.setup.ts Proxy mock may not expose re-exported helpers reliably;
+        // declare stripHtml explicitly so SearchModal.vue's highlight computed doesn't crash.
+        stripHtml:
+            (actual as any).stripHtml ??
+            ((html: unknown) =>
+                typeof html === "string" ? html.replace(/<[^>]*>/g, "").trim() : ""),
         useFtsSearch: vi.fn(),
         db: {
             docs: {

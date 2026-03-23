@@ -72,6 +72,20 @@ export const getDeviceInfo = () => {
 };
 
 /**
+ * True when the user is on a macOS / iOS device.
+ * Used to show platform-appropriate keyboard shortcut labels (e.g. Cmd+K vs Ctrl+K).
+ */
+export const isMac = computed(() => {
+    if (typeof navigator === "undefined") return false;
+    // `navigator.platform` is deprecated/discouraged; prefer User-Agent Client Hints when available.
+    const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
+    if (uaDataPlatform) return uaDataPlatform.includes("mac");
+
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return ua.includes("mac os") || ua.includes("macintosh") || ua.includes("iphone") || ua.includes("ipad");
+});
+
+/**
  * The list of CMS defined languages as Vue ref.
  */
 export const cmsLanguages = ref<LanguageDto[]>([]);

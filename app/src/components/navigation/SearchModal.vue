@@ -4,7 +4,7 @@ import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/2
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef, isMdScreen } from "@/globalConfig";
+import { appLanguageIdsAsRef, isMac, isMdScreen } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db, stripHtml } from "luminary-shared";
@@ -26,16 +26,6 @@ const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 // Lock the mode when the overlay opens to avoid flicker if `window.innerWidth`
 // changes while typing (e.g. mobile on-screen keyboard).
 const isManualSearchMode = ref(isMdScreen.value);
-
-const isMac = computed(() => {
-    if (typeof navigator === "undefined") return false;
-    // `navigator.platform` is deprecated/discouraged; prefer User-Agent Client Hints when available.
-    const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
-    if (uaDataPlatform) return uaDataPlatform.includes("mac");
-
-    const ua = (navigator.userAgent || "").toLowerCase();
-    return ua.includes("mac os") || ua.includes("macintosh") || ua.includes("iphone") || ua.includes("ipad");
-});
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
