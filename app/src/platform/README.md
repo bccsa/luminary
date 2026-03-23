@@ -114,7 +114,7 @@ platform/
 **Contract:**
 ```ts
 export type MediaPlayerService = {
-    VideoPlayer: Component;         // accepts { content, language } props
+    VideoPlayer: Component;         // accepts { content, audioTrackLanguage } props
     capabilities: PlatformCapabilities;
 };
 ```
@@ -126,7 +126,7 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 </script>
 
 <template>
-    <component :is="VideoPlayer" :content="content" :language="language" />
+    <component :is="VideoPlayer" :content="content" :audioTrackLanguage="audioTrackLanguage" />
     <DownloadButton v-if="capabilities.offlineDownloads" :content="content" />
 </template>
 ```

@@ -14,7 +14,7 @@ import type { ContentDto } from "luminary-shared";
  */
 type Props = {
     content: ContentDto;
-    language: string | null | undefined;
+    audioTrackLanguage: string | null | undefined;
 };
 
 defineProps<Props>();

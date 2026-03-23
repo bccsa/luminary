@@ -658,7 +658,7 @@ const playAudio = () => {
                             :is="VideoPlayer"
                             v-if="content && content.video"
                             :content="content"
-                            :language="selectedLanguageCode"
+                            :audioTrackLanguage="selectedLanguageCode"
                         />
                         <div
                             v-else-if="content.parentId || content.parentImageData"

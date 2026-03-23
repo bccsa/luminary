@@ -83,7 +83,7 @@ describe("WebVideoPlayer", () => {
     it.skip("renders the poster image for regular video", async () => {
         const wrapper = mount(WebVideoPlayer, {
             props: {
-                language: "lang-eng",
+                audioTrackLanguage: "lang-eng",
                 content: mockEnglishContentDto,
             },
         });
@@ -120,7 +120,7 @@ describe("WebVideoPlayer", () => {
 
         mount(WebVideoPlayer, {
             props: {
-                language: "lang-eng",
+                audioTrackLanguage: "lang-eng",
                 content: youtubeContent,
             },
         });
