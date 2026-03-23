@@ -214,16 +214,14 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                 v-if="icon"
                 :is="icon"
                 class="order-2"
-                :class="
-                    twMerge(
-                        $slots.default ? iconVariants[variant] : '',
-                        iconRight && $slots.default ? '-mr-0.5' : '',
-                        !iconRight && $slots.default ? '-ml-0.5' : '',
-                        smallIcon && isMobileScreen ? 'h-4 w-4' : '',
-                        !smallIcon || !isMobileScreen ? 'h-5 w-5' : '',
-                        iconClass,
-                    )
-                "
+                :class="{
+                    [iconVariants[variant]]: $slots.default,
+                    '-mr-0.5': iconRight && $slots.default,
+                    '-ml-0.5': !iconRight && $slots.default,
+                    'size-4': smallIcon && isMobileScreen,
+                    'size-5': !smallIcon || !isMobileScreen,
+                    [iconClass!]: iconClass,
+                }"
             />
             <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
                 <slot />

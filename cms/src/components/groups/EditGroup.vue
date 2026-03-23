@@ -283,8 +283,8 @@ const saveChanges = async () => {
                         :disabled="disabled"
                     />
                 </TransitionGroup>
-                <div class="flex w-full items-center justify-between pb-4 pt-2">
-                    <div class="mr-3">
+                <div class="flex w-full justify-center">
+                    <div>
                         <AddGroupAclButton
                             v-if="!disabled"
                             :groups="availableGroups"

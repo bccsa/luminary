@@ -44,6 +44,7 @@ watch(isComboboxOpen, (val) => {
         <div v-if="!isComboboxOpen">
             <LButton
                 class="relative"
+                variant="tertiary"
                 data-test="addGroupButton"
                 :icon="PlusIcon"
                 @click="isComboboxOpen = true"
