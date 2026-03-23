@@ -10,7 +10,7 @@ import {
 
 describe("AddGroupAclButton", () => {
     const addGroupButton = 'button[data-test="addGroupButton"]';
-    const selectGroupButton = 'button[data-test="selectGroupButton"]';
+    const selectGroupButton = '[data-test="group-selector"]';
 
     it("shows all given groups", async () => {
         const wrapper = mount(AddGroupAclButton, {
