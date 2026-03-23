@@ -30,24 +30,22 @@ const routeKey = computed(() => {
 
 <template>
     <template v-if="isAuthenticated">
-        <div class="relative flex h-screen w-full overflow-hidden">
+        <div class="grid h-screen overflow-hidden lg:grid-cols-[18rem_1fr]">
             <MobileSideBar v-model:open="sidebarOpen" />
 
-            <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
+            <div class="hidden lg:flex lg:flex-col">
                 <SideBar @close="sidebarOpen = false" />
             </div>
 
-            <div class="flex flex-1 flex-col lg:pl-72">
-                <div class="h-full w-full overflow-hidden">
-                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
-                    routes (e.g. Post / Tag overviews) -->
-                    <RouterView :key="routeKey" v-slot="{ Component }">
-                        <component
-                            :is="Component"
-                            :onOpenMobileSidebar="() => (sidebarOpen = true)"
-                        />
-                    </RouterView>
-                </div>
+            <div class="min-h-0 min-w-0 overflow-hidden">
+                <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+                routes (e.g. Post / Tag overviews) -->
+                <RouterView :key="routeKey" v-slot="{ Component }">
+                    <component
+                        :is="Component"
+                        :onOpenMobileSidebar="() => (sidebarOpen = true)"
+                    />
+                </RouterView>
             </div>
         </div>
     </template>

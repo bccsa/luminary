@@ -35,10 +35,10 @@ const isMobileScreen = breakpoints.smaller("lg");
 </script>
 
 <template>
-    <div class="flex h-full flex-col overflow-hidden scrollbar-hide">
-        <div class="sticky top-0 z-20 flex-shrink-0">
+    <div class="flex h-full flex-col overflow-hidden">
+        <div class="flex-shrink-0">
             <div
-                class="sticky top-0 z-40 mr-2.5 flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
+                class="mr-2.5 flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
                 :class="[
                     { 'border-b border-zinc-200': !$slots.internalPageHeader },
                     isSmallScreen ? 'sm:pl-5 sm:pr-1' : 'lg:pl-9 lg:pr-5',
@@ -99,64 +99,59 @@ const isMobileScreen = breakpoints.smaller("lg");
                 </TopBar>
             </div>
         </div>
-        <div class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-            <div
-                v-if="!loading"
-                :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
-                class="flex h-full flex-1 flex-col overflow-hidden"
+        <div
+            v-if="!loading"
+            :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
+            class="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+            <RouterLink
+                v-if="backLinkLocation"
+                :to="backLinkLocation"
+                :params="backLinkParams"
+                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-60"
             >
-                <RouterLink
-                    v-if="backLinkLocation"
-                    :to="backLinkLocation"
-                    :params="backLinkParams"
-                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-60"
+                <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
+            </RouterLink>
+            <header
+                v-if="$slots.actions"
+                :class="[
+                    'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center',
+                    {
+                        'sm:justify-center': centered,
+                        'sm:justify-between': !centered,
+                    },
+                ]"
+            >
+                <h1
+                    class="flex items-center gap-2 text-lg font-semibold leading-7"
+                    v-if="shouldShowPageTitle"
                 >
-                    <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
-                </RouterLink>
-                <header
-                    v-if="$slots.actions"
-                    :class="[
-                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center',
-                        {
-                            'sm:justify-center': centered,
-                            'sm:justify-between': !centered,
-                        },
-                    ]"
-                >
-                    <h1
-                        class="flex items-center gap-2 text-lg font-semibold leading-7"
-                        v-if="shouldShowPageTitle"
-                    >
-                        <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
-                        {{ title }}
-                    </h1>
+                    <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
+                    {{ title }}
+                </h1>
 
-                    <div v-if="$slots.actions">
-                        <slot name="actions" />
-                    </div>
-                </header>
+                <div v-if="$slots.actions">
+                    <slot name="actions" />
+                </div>
+            </header>
 
-                <div class="w-full">
-                    <slot name="internalPageHeader" />
-                </div>
-                <div
-                    class="flex flex-1 flex-col overflow-hidden"
-                    :class="isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8'"
-                >
-                    <div
-                        class="relative z-0 flex-1 overflow-y-auto scrollbar-hide"
-                        :class="{ 'sm:mt-1': !$slots.internalPageHeader }"
-                        @scroll.stop
-                    >
-                        <slot />
-                    </div>
-                </div>
-                <div
-                    v-if="$slots.footer"
-                    class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:pb-4 lg:pr-8"
-                >
-                    <slot name="footer" />
-                </div>
+            <div class="w-full flex-shrink-0">
+                <slot name="internalPageHeader" />
+            </div>
+            <div
+                class="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
+                :class="[
+                    isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',
+                    { 'sm:mt-1': !$slots.internalPageHeader },
+                ]"
+            >
+                <slot />
+            </div>
+            <div
+                v-if="$slots.footer"
+                class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:pb-4 lg:pr-8"
+            >
+                <slot name="footer" />
             </div>
         </div>
     </div>

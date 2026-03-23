@@ -36,7 +36,7 @@ watch(contentDocs, (newValue) => {
 
 <template>
     <div class="w-full">
-        <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
+        <div class="mb-1 flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <ContentDisplayCard
                 v-for="(contentDoc, i) in contentDocs?.docs"
@@ -47,11 +47,6 @@ watch(contentDocs, (newValue) => {
                 :parent-type="queryOptions.parentType"
                 :language-id="queryOptions.languageId"
                 :languages="languages"
-                :class="{
-                    'mb-48': contentDocs?.docs?.length
-                        ? i === contentDocs?.docs?.length - 1
-                        : false,
-                }"
             />
 
             <div
