@@ -41,7 +41,9 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
     // Find all available translations, and add them to the content document's availableTranslations property
     const translationsQuery = await db.getContentByParentId(parentDoc._id);
     const translations = translationsQuery.docs.filter((d) => d._id !== doc._id);
-    const uniqueLanguages = new Set<Uuid>(translations.map((d) => d.language));
+    const uniqueLanguages = new Set<Uuid>(
+        translations.filter((d) => d.status === PublishStatus.Published).map((d) => d.language),
+    );
 
     // If this content doc is published, add its language to the list of available translations
     if (doc.status == PublishStatus.Published) uniqueLanguages.add(doc.language);
