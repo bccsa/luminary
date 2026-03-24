@@ -55,11 +55,13 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import { useMediaPlayer } from "@/composables/useMediaPlayer";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 
 const router = useRouter();
+
+const { VideoPlayer } = useMediaPlayer();
 
 type Props = {
     slug: string;
@@ -653,10 +655,12 @@ const playAudio = () => {
                         :mobileOnly="true"
                         :ignoreTop="true"
                     >
-                        <VideoPlayer
+                        <component
                             v-if="content && content.video"
+                            :is="VideoPlayer"
                             :content="content"
-                            :language="selectedLanguageCode"
+                            :audioTrackLanguage="selectedLanguageCode"
+                            data-testid="video-player"
                         />
                         <div
                             v-else-if="content.parentId || content.parentImageData"

@@ -25,7 +25,6 @@ import { ref, computed } from "vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
@@ -103,6 +102,21 @@ vi.mock("@/composables/useBucketInfo", () => ({
     }),
 }));
 
+vi.mock("@/composables/useMediaPlayer", () => ({
+    useMediaPlayer: () => ({
+        VideoPlayer: { template: "<div data-testid='video-player' />" },
+        capabilities: {
+            playback: {
+                nativePlayback: false, nativeFullscreen: false,
+                pictureInPicture: true, backgroundAudio: false,
+                seekControl: true, playbackRateControl: true,
+            },
+            tracks: { audioTrackSelection: true },
+            offline: { downloads: false, progressTracking: false, deleteDownloadedMedia: false },
+        },
+    }),
+}));
+
 describe("SingleContent", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
@@ -157,7 +171,7 @@ describe("SingleContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(VideoPlayer).exists()).toBe(true);
+            expect(wrapper.find('[data-testid="video-player"]').exists()).toBe(true);
         });
     });
 

@@ -6,6 +6,7 @@ import router from "./router";
 import auth from "./auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
+import { WebPlatformPlugin } from "./platform/web";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
@@ -74,7 +75,13 @@ async function Startup() {
 
     const i18n = await initI18n();
 
-  
+    // Register web defaults for all platform services (media player, file storage,
+    // download metadata). Must run before loadPlugins() so that Capacitor builds
+    // can override individual services via app.provide() — last provide wins.
+    app.use(WebPlatformPlugin);
+
+    // Load build-specific plugins (e.g. CapacitorPlatformPlugin on native builds).
+    // Plugins are listed in VITE_PLUGINS and copied into src/plugins/ at build time.
     await loadPlugins();
 
     app.use(createPinia());
