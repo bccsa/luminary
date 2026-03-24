@@ -68,8 +68,8 @@ const handleSearchClick = () => {
             <component
                 :is="
                     isSearchActive
-                        ? navigationItems.at(-1)!.selectedIcon
-                        : navigationItems.at(-1)!.defaultIcon
+                        ? navigationItems[navigationItems.length - 1].selectedIcon
+                        : navigationItems[navigationItems.length - 1].defaultIcon
                 "
                 :class="[
                     'h-6 w-6',
