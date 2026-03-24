@@ -101,20 +101,16 @@ describe("Router", () => {
             vi.restoreAllMocks();
         });
 
-        it("should modify history for direct navigation to non-home routes", async () => {
-            // Navigate to a non-home route
-            router.push("/explore");
+        it("should track visited routes in routeHistory", async () => {
+            const { getRouteHistory } = await import("./index");
+            const history = getRouteHistory();
+
+            const before = history.value.length;
+            await router.push("/explore");
             await flushPromises();
 
-            // Advance timers to trigger setTimeout callback
-            vi.runAllTimers();
-
-            // Check if history was modified correctly
-            const homeHref = router.resolve({ name: "home" }).href;
-
-            expect(window.history.replaceState).toHaveBeenCalledWith(null, "", homeHref);
-
-            expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/explore");
+            expect(history.value.length).toBeGreaterThan(before);
+            expect(history.value.at(-1)).toBe("/explore");
         });
 
         it("should not modify history for direct navigation to home route", async () => {
