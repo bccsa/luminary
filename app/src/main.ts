@@ -75,13 +75,7 @@ async function Startup() {
 
     const i18n = await initI18n();
 
-    // Register web defaults for all platform services (media player, file storage,
-    // download metadata). Must run before loadPlugins() so that Capacitor builds
-    // can override individual services via app.provide() — last provide wins.
     app.use(WebPlatformPlugin);
-
-    // Load build-specific plugins (e.g. CapacitorPlatformPlugin on native builds).
-    // Plugins are listed in VITE_PLUGINS and copied into src/plugins/ at build time.
     await loadPlugins();
 
     app.use(createPinia());

@@ -11,150 +11,69 @@ Some features work differently — or not at all — depending on the environmen
 
 ---
 
-## Architecture overview
+## Architecture diagram
 
-```mermaid
-flowchart TB
-    A["① platform/types/\nContracts — TypeScript interfaces only\nMediaPlayerService · FileStorageService · DownloadMetadataService"]
-    B["② platform/web/\nWeb defaults\nWebVideoPlayer · WebFileStorageService · WebDownloadMetadataService"]
-    C["③ composables/\nuseMediaPlayer() · useFileStorage() · useDownloadMetadata()"]
-    D["④ Vue components\ne.g. SingleContent.vue"]
-    E["luminary-deployment/luminary-plugins/\nCapacitor overrides\nCapacitorPlatformPlugin.ts"]
+Open [`docs/vue-platform-plugin-architecture.drawio.svg`](../../../docs/vue-platform-plugin-architecture.drawio.svg) in VS Code (draw.io extension) or on GitHub.
 
-    A --> B
-    B --> C
-    C --> D
-    E -->|"copied into src/plugins/ at build time\napp.use() overrides web defaults"| C
-```
+The diagram shows the full system as a grid: each column is a layer (contracts → web defaults → Capacitor overrides), each row is one service.
 
 ---
 
 ## How the two repositories connect
 
-```mermaid
-flowchart LR
-    subgraph deployment["luminary-deployment/"]
-        subgraph luminary["luminary/  ← git submodule"]
-            P["src/platform/\ncontracts + web defaults"]
-            PL["src/plugins/\nempty in source\npopulated at build time"]
-            M["main.ts"]
-        end
-        LP["luminary-plugins/\nCapacitorPlatformPlugin.ts"]
-    end
-
-    LP -->|"Vite copies files\nat build time"| PL
-    PL -->|"loadPlugins(app)\ncalls app.use()"| M
+```
+luminary-deployment/
+│
+├── luminary/                        ← this repo (git submodule)
+│   └── app/src/
+│       ├── platform/                ← service contracts + web defaults
+│       ├── plugins/                 ← empty in source, populated at build time
+│       └── main.ts                  ← exports `app`, registers WebPlatformPlugin
+│
+└── luminary-plugins/                ← Capacitor implementations
+    ├── CapacitorPlatformPlugin.ts
+    └── NativeVideoPlayer.vue
 ```
 
-> There is no runtime connection between the two repos. By the time the app runs, everything has been compiled into a single bundle.
+At **build time**, Vite copies every file from `VITE_PLUGIN_PATH` (pointing to `luminary-plugins/`) into `luminary/app/src/plugins/`. By the time the app runs, both repos are one compiled bundle.
 
 ---
 
 ## Startup sequence
 
-```mermaid
-sequenceDiagram
-    participant main as main.ts
-    participant vue as Vue app
-    participant comp as Any component
+`main.ts` runs these steps in order before mounting the app:
 
-    main->>vue: app.use(WebPlatformPlugin)
-    Note over vue: MediaPlayerKey → WebVideoPlayer<br/>FileStorageKey → WebFileStorageService (no-op)<br/>DownloadMetadataKey → WebDownloadMetadataService (localStorage)
-
-    alt Capacitor build only
-        main->>vue: app.use(CapacitorPlatformPlugin)
-        Note over vue: same keys, new values — last provide wins<br/>FileStorageKey → CapacitorFileStorageService<br/>DownloadMetadataKey → CapacitorDownloadMetadataService
-    end
-
-    main->>vue: app.mount("#app")
-    comp->>vue: inject via useMediaPlayer() etc.
-    vue-->>comp: correct implementation for this build
+**Step 1 — Register web defaults**
+```
+app.use(WebPlatformPlugin)
+  → app.provide(MediaPlayerKey,      { VideoPlayer: WebVideoPlayer, capabilities: web })
+  → app.provide(FileStorageKey,      WebFileStorageService   — no-op)
+  → app.provide(DownloadMetadataKey, WebDownloadMetadataService — localStorage)
 ```
 
----
+**Step 2 — Load deployment plugins (may override step 1)**
+```
+loadPlugins()  reads VITE_PLUGINS environment variable
 
-## Component usage
+  On a Capacitor build, this includes CapacitorPlatformPlugin:
+  → new CapacitorPlatformPlugin()   calls app.provide() for all three keys
+  → app.provide(MediaPlayerKey,      { VideoPlayer: NativeVideoPlayer, capabilities: native })
+  → app.provide(FileStorageKey,      CapacitorFileStorageService  — @capacitor/filesystem)
+  → app.provide(DownloadMetadataKey, CapacitorDownloadMetadataService — @capacitor/preferences)
 
-```mermaid
-flowchart LR
-    C["SingleContent.vue"]
-    U["useMediaPlayer()"]
-    WB["WebVideoPlayer\n+ web capabilities"]
-    CB["native VideoPlayer\n+ native capabilities"]
-
-    C -->|"const { VideoPlayer, capabilities } ="| U
-    U -->|"web build"| WB
-    U -->|"Capacitor build"| CB
-    WB --> R["&lt;component :is='VideoPlayer' /&gt;"]
-    CB --> R
+  Vue uses the last registered value for each key — Capacitor values replace web defaults.
 ```
 
----
-
-## Service map
-
-```mermaid
-flowchart LR
-    subgraph W["Web defaults  (platform/web/)"]
-        W1["WebVideoPlayer\nVideo.js HTML5"]
-        W2["WebFileStorageService\nno-op"]
-        W3["WebDownloadMetadataService\nlocalStorage"]
-    end
-
-    subgraph C["Capacitor overrides  (luminary-plugins/)"]
-        C1["VideoPlayer\nnative TBD"]
-        C2["CapacitorFileStorageService\n@capacitor/filesystem"]
-        C3["CapacitorDownloadMetadataService\n@capacitor/preferences"]
-    end
-
-    subgraph T["Contracts  (platform/types/)"]
-        T1["MediaPlayerService"]
-        T2["FileStorageService"]
-        T3["DownloadMetadataService"]
-    end
-
-    T1 --- W1
-    T2 --- W2
-    T3 --- W3
-    T1 --- C1
-    T2 --- C2
-    T3 --- C3
+**Step 3 — Mount**
+```
+app.mount("#app")  → components inject the correct implementation for this build
 ```
 
----
-
-## Offline download flow
-
-```mermaid
-sequenceDiagram
-    participant UI as UI component
-    participant meta as DownloadMetadataService
-    participant net as File transfer
-    participant fs as FileStorageService
-
-    UI->>meta: setDownload({ status: "downloading", progress: 0 })
-    UI->>net: start download(url)
-
-    loop on progress
-        net-->>meta: setDownloadProgress(contentId, n)
-    end
-
-    net-->>fs: saveFile(contentId, blob)
-    net-->>meta: setDownload({ status: "complete", fileSizeBytes })
-
-    Note over UI: My Downloads screen
-    UI->>meta: listDownloads()
-    meta-->>UI: list with title, size, delete button
-
-    Note over UI: User taps Delete
-    UI->>fs: deleteFile(contentId)
-    UI->>meta: removeDownload(contentId)
-
-    Note over UI: Offline playback
-    UI->>fs: hasFile(contentId) → true
-    UI->>fs: getFileUri(contentId)
-    fs-->>UI: native file URI → pass to player
-```
+> **Why constructor, not `app.use()`?**
+> `WebPlatformPlugin` uses Vue's standard `app.use()` / `install(app)` pattern.
+> `CapacitorPlatformPlugin` uses a constructor that calls `app.provide()` directly on the `app`
+> instance exported from `main.ts`. This is how all the other `luminary-plugins/` plugins work —
+> `pluginLoader.ts` discovers and runs them with `new PluginClass()`.
 
 ---
 
@@ -165,7 +84,7 @@ Without this system, every component that touches platform features becomes a me
 ```vue
 <!-- ❌ before -->
 <WebVideoPlayer v-if="isWeb" ... />
-<CapacitorVideoPlayer v-else ... />
+<NativeVideoPlayer v-else ... />
 ```
 
 With this system, the component never checks the platform:
@@ -179,14 +98,50 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 <template>
   <component :is="VideoPlayer" :content="content" />
 
-  <!-- shown only on Capacitor, no platform check needed -->
+  <!-- shown only on Capacitor — no platform check needed -->
   <DownloadButton v-if="capabilities.offline.downloads" />
 </template>
 ```
 
 ---
 
-## Capability flags
+## The three layers
+
+### Layer 1 — Contracts (`platform/types/`)
+
+TypeScript interfaces only — no logic, no imports from `@capacitor/*`. These are the single source of truth for what each service can do.
+
+### Layer 2 — Web implementations (`platform/web/`)
+
+Default implementations active on every build:
+
+| File | Behaviour |
+|---|---|
+| `WebVideoPlayer.vue` | Video.js HTML5 / HLS player |
+| `WebFileStorageService.ts` | No-op — browser has no app-private file API |
+| `WebDownloadMetadataService.ts` | `localStorage` — for local dev and testing parity |
+
+### Layer 3 — Capacitor overrides (`luminary-deployment/luminary-plugins/`)
+
+Native implementations that replace web defaults on Capacitor builds:
+
+| File | Behaviour |
+|---|---|
+| `NativeVideoPlayer.vue` | Tappable thumbnail — tapping launches AVPlayer (iOS) / ExoPlayer (Android) in fullscreen |
+| `CapacitorFileStorageService` | `@capacitor/filesystem` — `Directory.Data` (private app sandbox) |
+| `CapacitorDownloadMetadataService` | `@capacitor/preferences` — UserDefaults (iOS) / SharedPreferences (Android) |
+
+---
+
+## Current services
+
+### `MediaPlayerService`
+
+```ts
+const { VideoPlayer, capabilities } = useMediaPlayer();
+```
+
+**Capability flags:**
 
 | Flag | Web | Capacitor |
 |---|---|---|
@@ -195,11 +150,57 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 | `playback.pictureInPicture` | `true` | `true` |
 | `playback.backgroundAudio` | `false` | `true` |
 | `playback.seekControl` | `true` | `true` |
-| `playback.playbackRateControl` | `true` | `true` |
-| `tracks.audioTrackSelection` | `true` | `true` |
+| `playback.playbackRateControl` | `true` | `false` — managed by native player UI |
+| `tracks.audioTrackSelection` | `true` | `false` — managed by native player UI |
 | `offline.downloads` | `false` | `true` |
 | `offline.progressTracking` | `false` | `true` |
 | `offline.deleteDownloadedMedia` | `false` | `true` |
+
+### `FileStorageService`
+
+```ts
+const storage = useFileStorage();
+
+await storage.saveFile(contentId, blob);
+await storage.hasFile(contentId);          // check before offline playback
+await storage.getFileUri(contentId);       // local URI to pass to the player
+await storage.getFileSize(contentId);      // show storage usage in UI
+await storage.deleteFile(contentId);
+```
+
+### `DownloadMetadataService`
+
+```ts
+const meta = useDownloadMetadata();
+
+await meta.setDownload({ contentId, status: "downloading", progress: 0 });
+await meta.setDownloadProgress(contentId, 45);
+await meta.listDownloads();                // render the downloads page
+await meta.removeDownload(contentId);
+```
+
+---
+
+## Offline download flow
+
+```
+User taps "Download"
+  1. meta.setDownload({ contentId, status: "downloading", progress: 0 })
+  2. File transfer begins → on progress → meta.setDownloadProgress(contentId, n)
+  3. Complete → storage.saveFile(contentId, blob)
+  4.          → meta.setDownload({ status: "complete", fileSizeBytes, downloadedAt })
+
+"My Downloads" screen
+  → meta.listDownloads()  renders list with title, size, delete button
+
+User taps "Delete"
+  → storage.deleteFile(contentId)
+  → meta.removeDownload(contentId)
+
+Offline playback
+  → storage.hasFile(contentId) === true
+  → pass storage.getFileUri(contentId) to the player instead of the streaming URL
+```
 
 ---
 
@@ -208,52 +209,53 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 ```
 platform/
   types/
-    index.ts                         re-exports everything — add one line per new service
-    mediaPlayer.ts                   MediaPlayerService type + MediaPlayerKey
-    fileStorage.ts                   FileStorageService type + FileStorageKey
-    downloadMetadata.ts              DownloadMetadataService type + DownloadMetadataKey + DownloadEntry
+    index.ts
+    mediaPlayer.ts              MediaPlayerService · VideoPlayerProps · PlatformCapabilities · MediaPlayerKey
+    fileStorage.ts              FileStorageService · FileStorageKey
+    downloadMetadata.ts         DownloadMetadataService · DownloadEntry · DownloadStatus · DownloadMetadataKey
 
   web/
-    index.ts                         WebPlatformPlugin — registers all web implementations
-    WebVideoPlayer.vue               Video.js player
-    WebVideoPlayer.css               Video.js styles
-    WebVideoPlayer.spec.ts           Player tests
-    WebFileStorageService.ts         No-op implementation
-    WebDownloadMetadataService.ts    localStorage implementation
+    index.ts                    WebPlatformPlugin
+    WebVideoPlayer.vue          Video.js player (web default)
+    WebVideoPlayer.css
+    WebVideoPlayer.spec.ts
+    WebFileStorageService.ts    no-op
+    WebDownloadMetadataService.ts  localStorage
 
 composables/
-  useMediaPlayer.ts                  → inject(MediaPlayerKey)
-  useFileStorage.ts                  → inject(FileStorageKey)
-  useDownloadMetadata.ts             → inject(DownloadMetadataKey)
+  useMediaPlayer.ts             inject(MediaPlayerKey)
+  useFileStorage.ts             inject(FileStorageKey)
+  useDownloadMetadata.ts        inject(DownloadMetadataKey)
 ```
 
-The `platform/capacitor/` folder does **not** exist in this repo. All Capacitor implementations live in `luminary-deployment/luminary-plugins/`.
+Capacitor implementations live in `luminary-deployment/luminary-plugins/` — not in this repo.
 
 ---
 
 ## Adding a new service
 
-1. Create `src/platform/types/myService.ts` — define the TypeScript interface and export an `InjectionKey`.
-2. Add `export * from "./myService"` to `src/platform/types/index.ts`.
-3. Create `src/platform/web/WebMyService.ts` — implement the interface for the browser (can be no-op).
-4. Register it inside `WebPlatformPlugin` in `src/platform/web/index.ts`.
-5. Create `src/composables/useMyService.ts` — one line: `export const useMyService = () => inject(MyServiceKey)!`
-6. In `luminary-deployment`, add the Capacitor implementation to `CapacitorPlatformPlugin.ts`.
+> `main.ts` does **not** need to change.
 
-`main.ts` does **not** need to change.
+1. `src/platform/types/myService.ts` — TypeScript interface + `InjectionKey`
+2. `src/platform/types/index.ts` — add `export * from "./myService"`
+3. `src/platform/web/WebMyService.ts` — web implementation (can be no-op)
+4. `src/platform/web/index.ts` — add `app.provide(MyServiceKey, new WebMyService())` inside `WebPlatformPlugin`
+5. `src/composables/useMyService.ts` — `export function useMyService() { return inject(MyServiceKey)! }`
+6. `luminary-deployment/luminary-plugins/CapacitorPlatformPlugin.ts` — add `app.provide(MyServiceKey, new CapacitorMyService())`
 
 ---
 
 ## Testing
 
-Mock the composable — do not set up Vue providers in tests:
+Mock the composable — never set up Vue providers in tests:
 
 ```ts
 vi.mock("@/composables/useMediaPlayer", () => ({
     useMediaPlayer: () => ({
         VideoPlayer: { template: "<div data-testid='video-player' />" },
         capabilities: {
-            playback: { nativePlayback: false, backgroundAudio: false, seekControl: true, playbackRateControl: true, pictureInPicture: true, nativeFullscreen: false },
+            playback: { nativePlayback: false, nativeFullscreen: false, pictureInPicture: true,
+                        backgroundAudio: false, seekControl: true, playbackRateControl: true },
             tracks:   { audioTrackSelection: true },
             offline:  { downloads: false, progressTracking: false, deleteDownloadedMedia: false },
         },
@@ -267,6 +269,6 @@ vi.mock("@/composables/useMediaPlayer", () => ({
 
 1. **Components import composables, never `platform/*` directly.**
 2. **No `if (isNative)` in components.** Use capability flags instead.
-3. **If a file imports `@capacitor/*`, it belongs in `luminary-deployment`**, not in this repo.
+3. **If a file imports `@capacitor/*`, it belongs in `luminary-deployment`**, not this repo.
 4. **Every service must have a web implementation**, even if it is a no-op.
 5. **Add a capability flag only when the UI needs to branch on it.**

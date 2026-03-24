@@ -1,19 +1,4 @@
 <script setup lang="ts">
-/**
- * WebVideoPlayer.vue — web / PWA implementation of the VideoPlayer contract.
- *
- * Uses Video.js for HLS streaming and YouTube playback in the browser.
- * Registered as the default VideoPlayer by WebPlatformPlugin (platform/web/index.ts).
- * On Capacitor builds, CapacitorPlatformPlugin replaces this with NativeVideoPlayer.
- *
- * This component is the canonical web player. It lives in platform/web/ so the
- * distinction between "web default" and "Capacitor override" is clear at a
- * glance when browsing the codebase.
- *
- * Props conform to VideoPlayerProps (platform/types/mediaPlayer.ts) so this
- * component is interchangeable with any other VideoPlayer implementation.
- */
-
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "@/components/form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
