@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { GroupDto } from "luminary-shared";
-import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { UserGroupIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon } from "@heroicons/vue/20/solid";
 import { nextTick, ref, toRaw, toRefs, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import LCombobox from "../forms/LCombobox.vue";
