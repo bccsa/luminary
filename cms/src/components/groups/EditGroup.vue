@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRaw } from "vue";
 import {
+    type GroupAclEntryDto,
     AclPermission,
     DocType,
     verifyAccess,
@@ -12,6 +13,7 @@ import {
 } from "luminary-shared";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
+import { validDocTypes } from "./permissions";
 import EditAclByGroup from "./EditAclByGroup.vue";
 import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
@@ -141,12 +143,22 @@ const discardChanges = () => {
 };
 
 const addAssignedGroup = (selectedGroup: GroupDto) => {
-    // Add one empty ACL entry with the group ID. The ApiLiveQueryAsEditable's modifyFn function will populate it with the needed empty entries.
-    group.value.acl.push({
-        groupId: selectedGroup._id,
-        type: DocType.Group,
-        permission: [],
-    });
+    // Manually run the logic from modifyFn to add all necessary empty ACL entries for the new group
+    const newGroupId = selectedGroup._id;
+    validDocTypes
+        .filter(
+            (d) =>
+                !group.value.acl.some(
+                    (aclEntry) => aclEntry.type === d && aclEntry.groupId === newGroupId,
+                ),
+        )
+        .forEach((docType) => {
+            group.value.acl.push({
+                groupId: newGroupId,
+                type: docType,
+                permission: [],
+            } as GroupAclEntryDto);
+        });
 };
 
 const emit = defineEmits(["close"]);
