@@ -50,7 +50,9 @@ function saveToStorage(key: string, value: string | null): void {
     try {
         if (value === null) getStorage()?.removeItem(key);
         else getStorage()?.setItem(key, value);
-    } catch { /* ignore */ }
+    } catch {
+        /* ignore */
+    }
 }
 
 function persistLastExecutedQuery(q: string) {
@@ -78,10 +80,10 @@ function pushRecentSearch(q: string) {
     const trimmed = q.trim();
     if (trimmed.length < 3) return;
 
-    const next = [
-        trimmed,
-        ...recentSearches.value.filter((t) => t !== trimmed),
-    ].slice(0, RECENT_SEARCHES_MAX);
+    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(
+        0,
+        RECENT_SEARCHES_MAX,
+    );
     recentSearches.value = next;
     saveToStorage(RECENT_SEARCHES_KEY, JSON.stringify(next));
 }
@@ -403,7 +405,8 @@ watch(isSearchOpen, (open) => {
     isManualSearchMode.value = isMdScreen.value;
 
     const persistedQuery =
-        loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) || loadFromStorage(CURRENT_SEARCH_QUERY_KEY);
+        loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) ||
+        loadFromStorage(CURRENT_SEARCH_QUERY_KEY);
     if (persistedQuery !== searchQuery.value.trim()) {
         searchQuery.value = persistedQuery;
     }
@@ -632,7 +635,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     @keydown="handleKeydown"
                 >
                     <div
-                        class="flex items-center gap-3 border-b border-zinc-200 py-4 px-3 dark:border-slate-700 md:p-4"
+                        class="flex items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
                     >
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
@@ -679,7 +682,10 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         </div>
                     </div>
 
-                    <div ref="searchResultsContainerRef" class="flex-1 overflow-y-auto scrollbar-hide">
+                    <div
+                        ref="searchResultsContainerRef"
+                        class="flex-1 overflow-y-auto scrollbar-hide"
+                    >
                         <div
                             v-if="isSearching && results.length === 0"
                             class="p-4 md:p-5"

@@ -34,7 +34,7 @@ const handleSearchClick = () => {
     <div class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800">
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink
-            v-for="item in navigationItems.slice(0, 3)"
+            v-for="item in navigationItems.slice(0, -1)"
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"
@@ -68,8 +68,8 @@ const handleSearchClick = () => {
             <component
                 :is="
                     isSearchActive
-                        ? navigationItems[3].selectedIcon
-                        : navigationItems[3].defaultIcon
+                        ? navigationItems.at(-1)!.selectedIcon
+                        : navigationItems.at(-1)!.defaultIcon
                 "
                 :class="[
                     'h-6 w-6',

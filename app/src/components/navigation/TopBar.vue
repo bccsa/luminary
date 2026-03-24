@@ -5,6 +5,9 @@ import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import SearchButton from "./SearchModal.vue";
 import { computed, nextTick, onMounted, ref, watch, shallowRef } from "vue";
+import { getRouteHistory } from "@/router";
+import { useSearchOverlay } from "@/composables/useSearchOverlay";
+import { isMdScreen } from "@/globalConfig";
 
 type Props = {
     showBackButton?: boolean;
@@ -62,6 +65,18 @@ onMounted(() => {
 
     window.addEventListener("resize", updateScreenSize);
 });
+
+const isPostAndNoHistory = computed(() => {
+    return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
+});
+
+// On desktop (md+), mount SearchModal immediately so keyboard shortcuts (Ctrl+K) work.
+// On mobile, defer mounting until the user first opens search to avoid initialisation errors.
+const { isSearchOpen } = useSearchOverlay();
+const searchMounted = ref(isMdScreen.value);
+watch(isSearchOpen, (open) => {
+    if (open) searchMounted.value = true;
+});
 </script>
 
 <template>
@@ -76,7 +91,9 @@ onMounted(() => {
                     >
                         <ChevronLeftIcon
                             class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
-                            @click="router.back()"
+                            @click="
+                                isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()
+                            "
                         />
                     </div>
 
@@ -105,7 +122,10 @@ onMounted(() => {
                 <ProfileMenu />
             </div>
         </div>
-        <!-- Hidden SearchButton - used for search overlay -->
-        <SearchButton ref="searchButtonRef" />
+        <!-- SearchButton: always mounted on desktop for keyboard shortcuts; lazily mounted on mobile -->
+        <SearchButton
+            v-if="searchMounted"
+            ref="searchButtonRef"
+        />
     </header>
 </template>
