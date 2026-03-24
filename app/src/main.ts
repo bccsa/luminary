@@ -6,7 +6,6 @@ import router from "./router";
 import auth from "./auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { isCapacitorPlatform } from "./platform/detect";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
@@ -76,15 +75,7 @@ async function Startup() {
     const i18n = await initI18n();
 
   
-    if (isCapacitorPlatform()) {
-        const { CapacitorPlatformPlugin } = await import("./platform/capacitor");
-        app.use(CapacitorPlatformPlugin);
-    } else {
-        const { WebPlatformPlugin } = await import("./platform/web");
-        app.use(WebPlatformPlugin);
-    }
-
-    await loadPlugins(app);
+    await loadPlugins();
 
     app.use(createPinia());
     app.use(router);

@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import WebVideoPlayer from "./WebVideoPlayer.vue";
+import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { computed } from "vue";
@@ -79,11 +79,11 @@ vi.mock("video.js", () => {
     };
 });
 
-describe("WebVideoPlayer", () => {
+describe("VideoPlayer", () => {
     it.skip("renders the poster image for regular video", async () => {
-        const wrapper = mount(WebVideoPlayer, {
+        const wrapper = mount(VideoPlayer, {
             props: {
-                audioTrackLanguage: "lang-eng",
+                language: "lang-eng",
                 content: mockEnglishContentDto,
             },
         });
@@ -118,9 +118,9 @@ describe("WebVideoPlayer", () => {
             video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         };
 
-        mount(WebVideoPlayer, {
+        mount(VideoPlayer, {
             props: {
-                audioTrackLanguage: "lang-eng",
+                language: "lang-eng",
                 content: youtubeContent,
             },
         });

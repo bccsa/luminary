@@ -19,7 +19,7 @@ import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
 type Props = {
     content: ContentDto;
-    audioTrackLanguage: string | null | undefined;
+    language: string | null | undefined;
 };
 
 const props = defineProps<Props>();
@@ -537,7 +537,7 @@ watch(audioMode, async (mode) => {
 
 // Watch the audio-track language prop and update the audio track dynamically
 watch(
-    () => props.audioTrackLanguage,
+    () => props.language,
     (newLanguage) => {
         if (newLanguage && player) {
             setAudioTrackLanguage(newLanguage);
@@ -549,7 +549,7 @@ watch(
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "./WebVideoPlayer.css";
+@import "./VideoPlayer.css";
 
 .audio-mode-toggle {
     @apply !absolute right-2 top-2;
