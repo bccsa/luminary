@@ -53,10 +53,6 @@ export default defineConfig({
                         handler: "CacheFirst",
                         options: {
                             cacheName: "external-images",
-                            expiration: {
-                                maxEntries: 500,
-                                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-                            },
                             cacheableResponse: {
                                 statuses: [0, 200],
                             },
