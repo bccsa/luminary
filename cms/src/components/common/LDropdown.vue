@@ -94,7 +94,22 @@ const onPanelKeydown = (e: KeyboardEvent) => {
     }
 };
 
+const positionData = computed(() => {
+    if (!show.value) return undefined;
+
+    const spaceBelow = windowHeight.value - triggerBottom.value;
+    const spaceAbove = triggerTop.value;
+
+    const flip = spaceBelow < 250 && spaceAbove > 250 && spaceAbove > spaceBelow;
+
+    return { flip };
+});
+
 const panelStyle = computed(() => {
+    if (!positionData.value) return {};
+    const { flip } = positionData.value;
+    const styleBottom = flip ? windowHeight.value - triggerTop.value + 2 : triggerBottom.value + 2;
+
     const style: Record<string, string> = {};
     switch (props.width) {
         case "auto":
@@ -110,31 +125,35 @@ const panelStyle = computed(() => {
     }
     switch (props.placement) {
         case "bottom-start":
-            style.top = `${triggerBottom.value + 4}px`;
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
             style.left = `${triggerLeft.value}px`;
             break;
+        case "bottom-center":
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
+            style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
+            break;
         case "bottom-end":
-            style.top = `${triggerBottom.value + 4}px`;
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
             style.left = `${triggerRight.value - panelWidth.value}px`;
             break;
         case "top-start":
-            style.bottom = `${windowHeight.value - triggerTop.value + 4}px`;
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
             style.left = `${triggerLeft.value}px`;
             break;
         case "top-end":
-            style.bottom = `${windowHeight.value - triggerTop.value + 4}px`;
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
             style.left = `${triggerRight.value - panelWidth.value}px`;
             break;
         case "top-center":
-            style.bottom = `${windowHeight.value - triggerTop.value + 4}px`;
-            style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
-            break;
-        case "bottom-center":
-            style.top = `${triggerBottom.value + 4}px`;
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
             style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
             break;
         default:
-            style.top = `${triggerBottom.value + 4}px`;
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
             style.left = `${triggerRight.value - panelWidth.value}px`;
             break;
     }
