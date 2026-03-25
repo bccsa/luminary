@@ -1,6 +1,7 @@
 import type { App, Plugin } from "vue";
-import { MediaPlayerKey, FileStorageKey, DownloadMetadataKey } from "@/platform/types";
+import { MediaPlayerKey, AudioPlayerKey, FileStorageKey, DownloadMetadataKey } from "@/platform/types";
 import WebVideoPlayer from "./WebVideoPlayer.vue";
+import WebAudioPlayer from "@/components/content/AudioPlayer.vue";
 import { WebFileStorageService } from "./WebFileStorageService";
 import { WebDownloadMetadataService } from "./WebDownloadMetadataService";
 
@@ -25,6 +26,15 @@ export const WebPlatformPlugin: Plugin = {
                     progressTracking: false,
                     deleteDownloadedMedia: false,
                 },
+            },
+        });
+
+        app.provide(AudioPlayerKey, {
+            AudioPlayer: WebAudioPlayer,
+            capabilities: {
+                // Web audio is an <audio> element; background audio depends on browser/OS policies.
+                backgroundAudio: false,
+                playbackRateControl: true,
             },
         });
 

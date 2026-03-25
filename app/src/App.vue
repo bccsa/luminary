@@ -8,11 +8,12 @@ import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid"
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
-import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import { useAudioPlayer } from "@/composables/useAudioPlayer";
 
 const router = useRouter();
+const { AudioPlayer } = useAudioPlayer();
 const {
     isAuthenticated,
     user,
@@ -123,7 +124,7 @@ onErrorCaptured((err) => {
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
         <div v-if="mediaQueue.length > 0">
-            <AudioPlayer :content="mediaQueue[0]" />
+            <component :is="AudioPlayer" v-model:content="mediaQueue[0]" />
         </div>
 
         <!-- Mobile Navigation (mobile only) -->

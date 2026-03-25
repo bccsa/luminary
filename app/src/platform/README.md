@@ -156,6 +156,25 @@ const { VideoPlayer, capabilities } = useMediaPlayer();
 | `offline.progressTracking` | `false` | `true` |
 | `offline.deleteDownloadedMedia` | `false` | `true` |
 
+### `AudioPlayerService`
+
+```ts
+const { AudioPlayer, capabilities } = useAudioPlayer();
+```
+
+`AudioPlayer` is rendered globally in `App.vue` and binds the current queue item via:
+
+```vue
+<component :is="AudioPlayer" v-model:content="mediaQueue[0]" />
+```
+
+**Capability flags:**
+
+| Flag | Web | Capacitor |
+|---|---|---|
+| `backgroundAudio` | `false` | `true` *(when a native AudioPlayer override is implemented)* |
+| `playbackRateControl` | `true` | `true` *(depends on native player UI)* |
+
 ### `FileStorageService`
 
 ```ts
