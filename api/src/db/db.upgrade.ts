@@ -17,7 +17,6 @@ export async function upgradeDbSchema(db: DbService) {
         await v11(db);
         await v12(db);
         await v13(db);
-
         await v14(db);
     } catch (error) {
         console.error("Database schema upgrade failed:", error);
