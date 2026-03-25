@@ -63,6 +63,7 @@ describe("sync.ts", () => {
             [DocType.Storage]: [],
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
+            [DocType.AuthProviderConfig]: [],
             [DocType.GlobalConfig]: [],
         });
     });
@@ -119,6 +120,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -144,6 +146,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -169,6 +172,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -200,6 +204,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -226,6 +231,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -287,6 +293,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -354,6 +361,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -385,6 +393,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 
@@ -419,6 +428,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
+                [DocType.AuthProviderConfig]: [],
                 [DocType.GlobalConfig]: [],
             });
 

@@ -269,6 +269,11 @@ export type AuthProviderGroupMapping = {
     conditions: AuthProviderCondition[];
 };
 
+export type AuthProviderClaimMapping = {
+    claim: string;
+    target: string;
+};
+
 export type AuthProviderDto = BaseDocumentDto & {
     type: DocType.AuthProvider;
     domain: string;
