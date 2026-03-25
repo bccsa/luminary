@@ -28,15 +28,39 @@ export default async function v15(db: DbService) {
         // Add authProvider + globalConfig ACL entries to all group docs
         let groupsUpdated = 0;
 
-                const ftsData = computeFtsData(doc);
-                if (ftsData) {
-                    doc.fts = ftsData.fts;
-                    doc.ftsTokenCount = ftsData.ftsTokenCount;
-                    // Use insertDoc to preserve the existing updatedTimeUtc
-                    await db.insertDoc(doc);
-                    indexedCount++;
-                } else {
-                    skippedCount++;
+        await db.processAllDocs([DocType.Group], async (doc: any) => {
+            if (!doc || !Array.isArray(doc.acl)) return;
+
+            const groupIds = [...new Set(doc.acl.map((a: any) => a.groupId))] as string[];
+            let modified = false;
+
+            groupIds.forEach((groupId) => {
+                // Add authProvider ACL if missing
+                const hasAuthProvider = doc.acl.some(
+                    (a: any) => a.type === DocType.AuthProvider && a.groupId === groupId,
+                );
+                if (!hasAuthProvider) {
+                    const permission =
+                        groupId === "group-super-admins"
+                            ? ["view", "edit", "delete", "assign"]
+                            : ["view"];
+                    doc.acl.push({ type: DocType.AuthProvider, groupId, permission });
+                    modified = true;
+                }
+
+                // Add globalConfig ACL to super-admins only
+                if (groupId === "group-super-admins") {
+                    const hasGlobalConfig = doc.acl.some(
+                        (a: any) => a.type === DocType.GlobalConfig && a.groupId === groupId,
+                    );
+                    if (!hasGlobalConfig) {
+                        doc.acl.push({
+                            type: DocType.GlobalConfig,
+                            groupId,
+                            permission: ["view", "edit"],
+                        });
+                        modified = true;
+                    }
                 }
             });
 
