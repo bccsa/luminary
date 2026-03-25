@@ -209,6 +209,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }); // identity lookup – no match; email fallback skipped
 
         const mockContext = {
@@ -228,6 +229,7 @@ describe("AuthGuard (Integrated)", () => {
     it("should throw UnauthorizedException when no matching identity or email exists", async () => {
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // identity lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // email lookup – no match
 
@@ -258,6 +260,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // identity lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }); // email lookup – found
 
@@ -294,6 +297,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [existingUser] }); // identity lookup – found
 
         const mockContext = {
@@ -328,6 +332,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [existingUser] }); // identity lookup
 
         let capturedUser: any;
