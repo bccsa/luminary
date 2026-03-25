@@ -13,17 +13,17 @@ import { randomUUID } from "crypto";
  *   so they receive an empty identities array. A warning is logged for each such user so that
  *   an administrator can perform manual linking if needed.
  */
-export default async function v14(db: DbService) {
+export default async function v15(db: DbService) {
     try {
         const schemaVersion = await db.getSchemaVersion();
-        if (schemaVersion !== 13) {
+        if (schemaVersion !== 15) {
             console.info(
-                `Skipping schema upgrade v13: current version is ${schemaVersion}, expected 12`,
+                `Skipping schema upgrade v15: current version is ${schemaVersion}, expected 14`,
             );
             return;
         }
 
-        console.info("Upgrading database schema from version 12 to 13");
+        console.info("Upgrading database schema from version 14 to 15");
 
         // Add authProvider + globalConfig ACL entries to all group docs
         let groupsUpdated = 0;
@@ -98,7 +98,8 @@ export default async function v14(db: DbService) {
 
                 if (doc.claimNamespace !== undefined) configDoc.claimNamespace = doc.claimNamespace;
                 if (doc.groupMappings !== undefined) configDoc.groupMappings = doc.groupMappings;
-                if (doc.userFieldMappings !== undefined) configDoc.userFieldMappings = doc.userFieldMappings;
+                if (doc.userFieldMappings !== undefined)
+                    configDoc.userFieldMappings = doc.userFieldMappings;
 
                 await db.insertDoc(configDoc);
                 configsCreated++;
@@ -139,10 +140,10 @@ export default async function v14(db: DbService) {
             `User identities[] initialisation complete: ${usersInitialised} document(s) updated, ${usersWarned} warning(s) issued.`,
         );
 
-        await db.setSchemaVersion(14);
-        console.info("Database schema upgrade from version 13 to 14 completed successfully");
+        await db.setSchemaVersion(15);
+        console.info("Database schema upgrade from version 14 to 15 completed successfully");
     } catch (error) {
-        console.error("Database schema upgrade from version 13 to 14 failed:", error);
+        console.error("Database schema upgrade from version 14 to 15 failed:", error);
         throw error;
     }
 }
