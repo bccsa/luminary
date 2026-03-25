@@ -3,7 +3,7 @@ import { DocType } from "../../enums";
 import { randomUUID } from "crypto";
 
 /**
- * Upgrade the database schema from version 12 to 13.
+ * Upgrade the database schema from version 14 to 15.
  *
  * - Adds authProvider and globalConfig ACL entries to all group documents.
  *   - authProvider: super-admins get full access; all other groups get view only.
