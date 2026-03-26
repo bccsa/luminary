@@ -233,7 +233,7 @@ const saveChanges = async () => {
             <div
                 v-if="!isEditingGroupName"
                 :class="[
-                    'mr-4 flex items-center gap-2 rounded',
+                    'mr-1.5 flex items-center gap-2 rounded',
                     {
                         'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
                             hasChangedGroupName,
@@ -302,31 +302,25 @@ const saveChanges = async () => {
 
         <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
             <div class="mt-1 space-y-1">
-                <TransitionGroup
-                    enter-active-class="transition ease duration-500"
-                    enter-from-class="opacity-0 scale-90"
-                    enter-to-class="opacity-100 scale-100"
+                <div
+                    v-for="assignedGroup in assignedGroups"
+                    :key="assignedGroup._id"
+                    :id="`group-acl-${assignedGroup._id}`"
                 >
-                    <div
-                        v-for="assignedGroup in assignedGroups"
-                        :key="assignedGroup._id"
-                        :id="`group-acl-${assignedGroup._id}`"
-                    >
-                        <EditAclByGroup
-                            v-model:group="group"
-                            :assignedGroup="assignedGroup"
-                            :originalGroup="group"
-                            :availableGroups="availableGroups"
-                            :disabled="disabled"
-                        />
-                    </div>
-                </TransitionGroup>
+                    <EditAclByGroup
+                        v-model:group="group"
+                        :assignedGroup="assignedGroup"
+                        :originalGroup="group"
+                        :availableGroups="availableGroups"
+                        :disabled="disabled"
+                    />
+                </div>
             </div>
             <!-- TODO: We need a way to intercept closing the modal and showing a confirmation dialog -->
             <ConfirmBeforeLeavingModal :isDirty="isDirty" />
         </div>
         <template #footer-extra>
-            <div class="mb-1 flex">
+            <div class="flex">
                 <LButton
                     v-if="
                         groupQuery.editable &&

@@ -15,6 +15,7 @@ import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { onClickOutside, useElementBounding, useWindowSize } from "@vueuse/core";
 import LBadge, { type variants } from "../common/LBadge.vue";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 import LDialog from "../common/LDialog.vue";
 import { isSmallScreen } from "@/globalConfig";
 
@@ -39,6 +40,7 @@ type Props = {
     icon?: Component | Function;
     showIcon?: boolean;
     badgeVariant?: keyof typeof variants;
+    smallInput?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -52,6 +54,9 @@ const emit = defineEmits(["select"]);
 
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobileScreen = breakpoints.smaller("sm");
 
 // Reference to the combobox input element, parent wrapper, and trigger wrapper
 const inputElement = ref<HTMLInputElement>();
@@ -237,7 +242,8 @@ defineExpose({ open, inputElement });
         >
             <div
                 ref="triggerRef"
-                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-8 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                :class="[smallInput && isMobileScreen ? 'pl-1 pr-3' : 'pl-3 pr-8']"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
                 @click="open()"
@@ -256,10 +262,11 @@ defineExpose({ open, inputElement });
                     <input
                         v-model="query"
                         ref="inputElement"
-                        class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                        :class="{
-                            'w-96': $slots.actions && !isSmallScreen,
-                        }"
+                        class="z-0 flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                        :class="[
+                            smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
+                            { 'w-96': $slots.actions && !isSmallScreen },
+                        ]"
                         placeholder="Type to select..."
                         name="option-search"
                         autocomplete="off"

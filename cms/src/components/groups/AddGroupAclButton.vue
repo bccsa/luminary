@@ -54,6 +54,7 @@ watch(isComboboxOpen, (val) => {
         </div>
         <div v-if="isComboboxOpen" @focusout="isComboboxOpen = false">
             <LCombobox
+                smallInput
                 ref="comboboxRef"
                 :options="
                     groups.map((group: GroupDto) => ({
@@ -66,7 +67,6 @@ watch(isComboboxOpen, (val) => {
                 :show-selected-in-dropdown="false"
                 :showSelectedLabels="false"
                 :icon="UserGroupIcon"
-                disable-teleport
                 @select="handleSelect"
             />
         </div>
