@@ -92,6 +92,9 @@ describe("EditContent - Language & Translations", () => {
         });
 
         // Wait for component to load and language selector to appear
+        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
+        expect(triggerButton.exists()).toBe(true);
+        await triggerButton.trigger("click");
         await waitForExpect(() => {
             const languageSelector = wrapper.findComponent(LanguageSelector);
             expect(languageSelector.exists()).toBe(true);

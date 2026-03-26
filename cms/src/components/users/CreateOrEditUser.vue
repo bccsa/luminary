@@ -185,6 +185,7 @@ const saveDisabled = computed(() => {
         :primaryButtonDisabled="saveDisabled"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"
+        stickToEdges
     >
         <div class="mb-4">
             <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>

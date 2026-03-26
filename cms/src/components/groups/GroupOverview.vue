@@ -16,6 +16,8 @@ import {
 import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
+import { isSmallScreen } from "@/globalConfig";
+import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
@@ -59,6 +61,7 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
 
 const editable = groupQuery.editable;
 const isLoading = groupQuery.isLoading;
+const { isEdited } = groupQuery;
 
 const showModal = ref(false);
 
@@ -82,30 +85,50 @@ const canCreateGroup = computed(() => {
 });
 
 const selectedGroup = computed(() => editable.value.find((g) => g._id === newGroupId.value));
+
+const isDirty = computed(() => {
+    // Check if any group in the list has unsaved changes
+    return editable.value.some((g) => isEdited.value(g._id));
+});
 </script>
 
 <template>
-    <div class="h-full overflow-hidden">
-        <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
-            <template #pageNav>
-                <LButton
-                    v-if="canCreateGroup"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="createGroup"
-                    data-test="createGroupButton"
-                >
-                    Create group
-                </LButton>
-            </template>
-
-            <GroupDisplayCard
-                v-for="(group, index) in editable"
-                :key="group._id"
-                v-model:group="editable[index]"
-                :groupQuery="groupQuery"
+    <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
+        <template #pageNav>
+            <LButton
+                v-if="canCreateGroup && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="createGroup"
+                data-test="createGroupButton"
+            >
+                Create group
+            </LButton>
+            <PlusIcon
+                v-else-if="canCreateGroup && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createGroup"
+                data-test="createGroupButton"
             />
-        </BasePage>
+        </template>
+
+        <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
+            <span>
+                Configure access permissions for the groups listed below to control who can access
+                them and their member documents.
+            </span>
+            <span class="text-[13px] italic">
+                <br />Note that users may inherit additional rights from higher-level groups,
+                potentially granting broader access than explicitly configured here.
+            </span>
+        </p>
+
+        <GroupDisplayCard
+            v-for="(group, index) in editable"
+            :key="group._id"
+            v-model:group="editable[index]"
+            :groupQuery="groupQuery"
+        />
 
         <EditGroup
             v-if="selectedGroup"
@@ -116,5 +139,6 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
             :group-query="groupQuery"
             @close="showModal = false"
         />
-    </div>
+    </BasePage>
+    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>

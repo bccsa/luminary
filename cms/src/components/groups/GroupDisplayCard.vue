@@ -14,7 +14,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const { isModified, liveData } = props.groupQuery;
+const { isModified, liveData, isEdited } = props.groupQuery;
 
 /** The group document to be shown in this component */
 const group = defineModel<GroupDto>("group", { required: true });
@@ -26,6 +26,10 @@ defineEmits<{
 }>();
 
 const showEditModal = ref(false);
+
+const unsavedChanges = computed(() => {
+    return isEdited.value(group.value._id);
+});
 
 // Calculate the groups which has access to this group
 const accessGroupNames = computed(() => {
@@ -56,6 +60,9 @@ const accessGroupNames = computed(() => {
         </template>
 
         <template #topRightContent>
+            <div v-if="unsavedChanges" class="pr-4">
+                <LBadge variant="warning" class="flex whitespace-nowrap"> Unsaved changes </LBadge>
+            </div>
             <div class="flex items-center justify-end text-xs text-zinc-400">
                 <ClockIcon class="mr-[2px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated" class="whitespace-nowrap">

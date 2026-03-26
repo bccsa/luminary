@@ -1,4 +1,5 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
+import * as mockData from "@/tests/mockdata";
 
 // Set up mocks before any imports
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -190,13 +191,16 @@ describe("EditContent - Basic Operations", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
                 tagOrPostType: PostType.Blog,
             },
         });
 
-        expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
+        expect(triggerButton.exists()).toBe(true);
+        await triggerButton.trigger("click");
+        await expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
 
         // Wait for the component to fetch data
         await waitForExpect(() => {

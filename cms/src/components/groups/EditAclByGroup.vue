@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { defineProps, defineModel, toRaw } from "vue";
+import { toRaw, computed, ref, onMounted } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
-import { type GroupDto, AclPermission } from "luminary-shared";
-import { capitaliseFirstLetter } from "@/util/string";
-import { validDocTypes } from "./permissions";
+import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-shared";
+import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
+import { validDocTypes, isPermissionAvailable } from "./permissions";
 import _ from "lodash";
+import { isMobileScreen } from "@/globalConfig";
+import DisplayCard from "@/components/common/DisplayCard.vue";
+import LModal from "../modals/LModal.vue";
+import LButton from "@/components/button/LButton.vue";
+import LDropdown from "@/components/common/LDropdown.vue";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -35,74 +42,186 @@ const duplicateGroup = (targetGroup: GroupDto) => {
             })),
     );
 };
+
+const isVisible = ref(false);
+
+const visibleAclEntries = computed(() => {
+    return (
+        group.value?.acl
+            .filter((g) => g.groupId == props.assignedGroup._id && validDocTypes.includes(g.type))
+            .sort((a, b) => {
+                if (a.type < b.type) return -1;
+                if (a.type > b.type) return 1;
+                return 0;
+            }) || []
+    );
+});
+
+const showSelector = ref(false);
+
+const typesWithActivePermissions = computed(() => {
+    return visibleAclEntries.value
+        .filter((aclEntry) => aclEntry.permission.length > 0)
+        .map((aclEntry) => aclEntry.type);
+});
+
+const activeAclEntries = computed(() => {
+    return visibleAclEntries.value.filter((aclEntry) => aclEntry.permission.length > 0);
+});
+
+const toggleAclEntry = (aclEntry: any) => {
+    if (aclEntry.permission.length > 0) {
+        aclEntry.permission = [];
+    } else {
+        aclEntry.permission.push(AclPermission.View);
+    }
+};
+
+const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
+    if (!aclEntry) return [];
+    return Object.values(AclPermission).filter(
+        (p) => isPermissionAvailable.value(aclEntry.type, p) && aclEntry.permission.includes(p),
+    );
+};
+
+const scrollContainer = ref(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+const checkScroll = () => {
+    if (scrollContainer.value) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainer.value;
+        canScrollLeft.value = scrollLeft > 1;
+        canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+    }
+};
+
+onMounted(() => {
+    checkScroll();
+});
 </script>
 
 <template>
-    <div class="w-full">
-        <div class="inline-block w-full rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
-            <h3
-                :class="[
-                    'border-b border-zinc-200 px-6 py-4 text-center font-medium',
-                    { 'text-zinc-700': !disabled },
-                    { 'text-zinc-400': disabled },
-                ]"
-            >
-                <!-- Add the duplicate ACL button -->
-                <div class="flex items-center justify-between">
-                    <div></div>
-                    <div class="py-1">
-                        {{ assignedGroup.name }}
-                    </div>
-                    <div>
-                        <DuplicateGroupAclButton
-                            :groups="availableGroups"
-                            @select="duplicateGroup"
-                            data-test="duplicateAcl"
-                            v-if="!disabled"
-                        />
+    <DisplayCard
+        :title="``"
+        :updatedTimeUtc="0"
+        class="rounded-md border !px-0 !py-0"
+        @click="isVisible = true"
+    >
+        <template #content>
+            <div class="flex items-center justify-between">
+                <div
+                    class="flex-shrink-0 whitespace-nowrap pl-3 font-medium"
+                    :class="isMobileScreen ? 'text-xs' : 'text-sm'"
+                >
+                    {{ assignedGroup.name }}
+                </div>
+                <div v-if="typesWithActivePermissions.length > 0">
+                    <DuplicateGroupAclButton
+                        :groups="availableGroups"
+                        @select="duplicateGroup"
+                        data-test="duplicateAcl"
+                        v-if="!disabled"
+                    />
+                </div>
+                <div v-if="typesWithActivePermissions.length == 0" class="py-3"></div>
+            </div>
+            <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
+                <div
+                    v-if="canScrollLeft"
+                    class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
+                >
+                    <ChevronLeftIcon class="h-3 w-3 text-gray-400" />
+                </div>
+                <div
+                    ref="scrollContainer"
+                    @scroll="checkScroll"
+                    class="mx-1 flex gap-1 overflow-x-auto scrollbar-hide"
+                >
+                    <div
+                        v-for="aclEntry in activeAclEntries"
+                        :key="aclEntry.type"
+                        class="flex flex-shrink-0 items-baseline rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                    >
+                        <span>{{ capitaliseFirstLetter(aclEntry.type) }}</span>
+                        <span class="ml-0.5 text-[9px]">
+                            (<span
+                                v-for="permission in activePermissions(aclEntry)"
+                                :key="permission"
+                            >
+                                {{ getTheFirstLetter(capitaliseFirstLetter(permission)) }} </span
+                            >)
+                        </span>
                     </div>
                 </div>
-            </h3>
+                <div
+                    v-if="canScrollRight"
+                    class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
+                >
+                    <ChevronRightIcon class="h-3 w-3 text-gray-500" />
+                </div>
+            </div>
+            <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">
+                No active permissions, click to add
+            </div>
+        </template>
+    </DisplayCard>
 
-            <table class="w-full">
-                <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
-                    <tr>
-                        <th></th>
-                        <th
-                            v-for="aclPermission in AclPermission"
-                            :key="aclPermission"
-                            :class="[
-                                'p-4 text-center text-sm font-medium uppercase tracking-wider last:pr-6 lg:min-w-24',
-                                { 'text-zinc-600': !disabled },
-                                { 'text-zinc-400': disabled },
-                            ]"
-                        >
-                            {{ capitaliseFirstLetter(aclPermission) }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- :aclEntry is a defineModel in EditAclEntry.
-                    Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
-                    <EditAclEntry
-                        v-for="aclEntry in group?.acl
-                            .filter(
-                                (g) =>
-                                    g.groupId == assignedGroup._id &&
-                                    validDocTypes.includes(g.type),
-                            )
-                            .sort((a, b) => {
-                                if (a.type < b.type) return -1;
-                                if (a.type > b.type) return 1;
-                                return 0;
-                            })"
-                        :aclEntry="aclEntry"
-                        :key="aclEntry.type"
-                        :originalGroup="originalGroup"
-                        :disabled="disabled"
-                    />
-                </tbody>
-            </table>
+    <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
+        <div class="min-h-72">
+            <div
+                v-if="typesWithActivePermissions.length > 0"
+                class="mb-3 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 ring-1 ring-zinc-200"
+            >
+                <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
+                has this access to
+                <span class="font-semibold text-zinc-700">{{ group?.name }}</span>
+            </div>
+            <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
+                No active permissions, use the selector to add
+            </div>
+            <div class="mb-3">
+                <EditAclEntry
+                    v-for="aclEntry in activeAclEntries"
+                    :key="aclEntry.type"
+                    :originalGroup="originalGroup"
+                    :aclEntry="aclEntry"
+                    :disabled="disabled"
+                />
+            </div>
         </div>
-    </div>
+        <div>
+            <LDropdown
+                class="relative"
+                padding="none"
+                v-model:show="showSelector"
+                placement="top-start"
+                width="auto"
+            >
+                <template #trigger>
+                    <LButton
+                        variant="secondary"
+                        size="sm"
+                        :class="isMobileScreen ? '!px-2 !py-2 text-xs' : ''"
+                        mainDynamicCss="text-zinc-600"
+                    >
+                        Add / Remove
+                    </LButton>
+                </template>
+                <button
+                    v-for="aclEntry in visibleAclEntries"
+                    :key="aclEntry.type"
+                    @click="toggleAclEntry(aclEntry)"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                >
+                    <CheckCircleIcon
+                        v-if="typesWithActivePermissions.includes(aclEntry.type)"
+                        class="inline h-3 w-3"
+                    />
+                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
+                    {{ capitaliseFirstLetter(aclEntry.type) }}
+                </button>
+            </LDropdown>
+        </div>
+    </LModal>
 </template>

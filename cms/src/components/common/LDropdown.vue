@@ -1,12 +1,19 @@
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick } from "vue";
-import { onClickOutside } from "@vueuse/core";
+import { onClickOutside, useElementBounding, useWindowSize } from "@vueuse/core";
+import LTeleport from "@/components/common/LTeleport.vue";
 
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
     padding?: "small" | "medium" | "large" | "none";
-    placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start" | "top-center";
+    placement?:
+        | "bottom-end"
+        | "bottom-start"
+        | "top-end"
+        | "top-start"
+        | "top-center"
+        | "bottom-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
 }>();
@@ -14,19 +21,35 @@ const props = defineProps<{
 const show = defineModel<boolean>("show", { required: true });
 const rootRef = ref<HTMLElement | null>(null);
 const panelRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLElement | null>(null);
 const panelId = `dropdown-panel-${Math.random().toString(36).slice(2)}`;
 
 const toggle = () => (show.value = !show.value);
 const close = () => (show.value = false);
+
+const {
+    left: triggerLeft,
+    top: triggerTop,
+    bottom: triggerBottom,
+    right: triggerRight,
+    width: triggerWidth,
+    update,
+} = useElementBounding(triggerRef);
+const { height: windowHeight } = useWindowSize();
+const { width: panelWidth } = useElementBounding(panelRef);
 
 const onTriggerClick = (event: MouseEvent) => {
     if (event.defaultPrevented) return;
     toggle();
 };
 
-onClickOutside(rootRef.value, () => {
-    if (show.value) close();
-});
+onClickOutside(
+    panelRef,
+    () => {
+        if (show.value) close();
+    },
+    { ignore: [triggerRef] },
+);
 
 // Focus first menuitem on open
 const focusFirst = () => {
@@ -39,6 +62,7 @@ const focusFirst = () => {
 
 watch(show, (val) => {
     if (val) {
+        update();
         nextTick(() => focusFirst());
     }
 });
@@ -70,21 +94,70 @@ const onPanelKeydown = (e: KeyboardEvent) => {
     }
 };
 
-const placementClasses = computed(() => {
+const positionData = computed(() => {
+    if (!show.value) return undefined;
+
+    const spaceBelow = windowHeight.value - triggerBottom.value;
+    const spaceAbove = triggerTop.value;
+
+    const flip = spaceBelow < 250 && spaceAbove > 250 && spaceAbove > spaceBelow;
+
+    return { flip };
+});
+
+const panelStyle = computed(() => {
+    if (!positionData.value) return {};
+    const { flip } = positionData.value;
+    const styleBottom = flip ? windowHeight.value - triggerTop.value + 2 : triggerBottom.value + 2;
+
+    const style: Record<string, string> = {};
+    switch (props.width) {
+        case "auto":
+            style.minWidth = `${triggerWidth.value}px`;
+            break;
+        case "full":
+            style.width = `${triggerWidth.value}px`;
+            break;
+        case "default":
+        default:
+            style.width = "14rem";
+            break;
+    }
     switch (props.placement) {
         case "bottom-start":
-            return "left-0 top-full mt-1";
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
+            style.left = `${triggerLeft.value}px`;
+            break;
+        case "bottom-center":
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
+            style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
+            break;
         case "bottom-end":
-            return "right-0 top-full mt-1";
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
+            style.left = `${triggerRight.value - panelWidth.value}px`;
+            break;
         case "top-start":
-            return "left-0 bottom-full mb-1";
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
+            style.left = `${triggerLeft.value}px`;
+            break;
         case "top-end":
-            return "right-0 bottom-full mb-1";
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
+            style.left = `${triggerRight.value - panelWidth.value}px`;
+            break;
         case "top-center":
-            return "left-1/2 -translate-x-1/2 bottom-full mb-1";
+            style.bottom = `${windowHeight.value - triggerTop.value + 2}px`;
+            style.left = `${triggerLeft.value + triggerWidth.value / 2 - panelWidth.value / 2}px`;
+            break;
         default:
-            return "right-0 top-full mt-1";
+            if (flip) style.bottom = `${styleBottom}px`;
+            else style.top = `${styleBottom}px`;
+            style.left = `${triggerRight.value - panelWidth.value}px`;
+            break;
     }
+    return style;
 });
 
 const paddingClass = computed(() =>
@@ -96,23 +169,12 @@ const paddingClass = computed(() =>
             ? "p-3"
             : "p-0",
 );
-
-const widthClass = computed(() => {
-    switch (props.width) {
-        case "auto":
-            return "w-auto";
-        case "full":
-            return "w-full";
-        case "default":
-        default:
-            return "w-56";
-    }
-});
 </script>
 
 <template>
     <div ref="rootRef" class="inline-flex" v-bind="$attrs">
         <div
+            ref="triggerRef"
             class="size-full cursor-pointer select-none outline-none focus:outline-none"
             :class="props.triggerClass"
             role="button"
@@ -121,30 +183,29 @@ const widthClass = computed(() => {
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click.capture="onTriggerClick"
+            @click.capture.stop="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >
             <slot name="trigger" />
         </div>
 
-        <div
-            v-show="show"
-            ref="panelRef"
-            :id="panelId"
-            class="absolute z-[9999] origin-top rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-            :class="[
-                placementClasses,
-                widthClass,
-                props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
-            ]"
-            role="menu"
-            data-dropdown-panel
-            @keydown="onPanelKeydown"
-        >
-            <div class="py-1" :class="paddingClass">
-                <slot />
+        <LTeleport>
+            <div
+                v-if="show"
+                ref="panelRef"
+                :id="panelId"
+                class="fixed z-[9999] max-h-60 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 scrollbar-hide focus:outline-none"
+                :class="[props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top']"
+                role="menu"
+                data-dropdown-panel
+                @keydown="onPanelKeydown"
+                :style="panelStyle"
+            >
+                <div :class="paddingClass">
+                    <slot />
+                </div>
             </div>
-        </div>
+        </LTeleport>
     </div>
 </template>

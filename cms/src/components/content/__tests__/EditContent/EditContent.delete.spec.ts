@@ -85,6 +85,13 @@ describe("EditContent - Delete Operations", () => {
         });
         await translationDeleteModalButton!.trigger("click"); // Accept dialog
 
+        let chevronIcon;
+        await waitForExpect(async () => {
+            chevronIcon = wrapper.find('[data-test="dropdown-trigger"]');
+            expect(chevronIcon.exists()).toBe(true);
+        });
+        await chevronIcon!.trigger("click"); // Open the dropdown
+
         let postDeleteButton;
         await waitForExpect(async () => {
             postDeleteButton = wrapper.find('[data-test="delete-button"]');

@@ -12,6 +12,7 @@ type Props = {
     context?: "default" | "danger";
     primaryButtonDisabled?: boolean;
     largeModal?: boolean;
+    stickToEdges?: boolean;
 };
 
 const open = defineModel<boolean>("open");
@@ -22,11 +23,29 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title" :noDivider="true" :largeModal="largeModal">
+    <LModal
+        v-model:isVisible="open"
+        :heading="title"
+        :noDivider="true"
+        :largeModal="largeModal"
+        :stickToEdges="stickToEdges"
+    >
         <p v-if="description" class="shrink-0 text-sm text-gray-500">{{ description }}</p>
         <div class="min-h-0 flex-1 overflow-y-scroll scrollbar-hide">
             <slot name="default" />
         </div>
+
+        <template #headingExtension>
+            <div v-if="$slots.headingExtension">
+                <slot name="headingExtension" />
+            </div>
+        </template>
+
+        <template #rightHeading>
+            <div v-if="$slots.rightHeading">
+                <slot name="rightHeading" />
+            </div>
+        </template>
 
         <template #footer>
             <div class="flex items-center justify-between">

@@ -21,6 +21,7 @@ import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
 import { isSmallScreen } from "@/globalConfig";
+import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -168,27 +169,32 @@ watch(
         >
             <template #actions>
                 <div class="relative flex flex-col items-end gap-2">
-                    <LButton
-                        :icon="PlusIcon"
-                        class="w-fit"
-                        variant="muted"
-                        @click.stop="showLanguageSelector = !showLanguageSelector"
-                        data-test="add-translation-button"
-                    />
-                    <div v-if="untranslatedLanguages.length > 0" class="absolute right-0 z-50 mt-5">
-                        <LanguageSelector
-                            :languages="untranslatedLanguages"
-                            :parent="editableParent"
-                            :content="editableContent"
-                            :show-selector="showLanguageSelector"
-                            @create-translation="
-                                (language) => {
-                                    emit('createTranslation', language);
-                                    showLanguageSelector = false;
-                                }
-                            "
-                        />
-                    </div>
+                    <LDropdown v-model:show="showLanguageSelector" placement="top-end">
+                        <template #trigger>
+                            <LButton
+                                :icon="PlusIcon"
+                                class="w-fit"
+                                variant="muted"
+                                data-test="add-translation-button"
+                                aria-label="Add translation"
+                            />
+                        </template>
+                        <div v-if="untranslatedLanguages.length > 0">
+                            <LanguageSelector
+                                :languages="untranslatedLanguages"
+                                :parent="editableParent"
+                                :content="editableContent"
+                                :show-selector="showLanguageSelector"
+                                @create-translation="
+                                    (language) => {
+                                        emit('createTranslation', language);
+                                        showLanguageSelector = false;
+                                    }
+                                "
+                            />
+                        </div>
+                        <span v-else class="p-2 text-sm">All languages have translations</span>
+                    </LDropdown>
                 </div>
             </template>
 
