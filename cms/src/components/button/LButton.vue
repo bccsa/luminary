@@ -175,7 +175,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
     <div
         v-if="isSegmented"
         role="group"
-        class="isolate inline-flex items-stretch"
+        class="inline-flex items-stretch"
         :class="{ 'pointer-events-none opacity-50': disabled }"
     >
         <!-- LEFT SEGMENT -->
