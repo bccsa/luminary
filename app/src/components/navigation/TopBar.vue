@@ -23,8 +23,6 @@ const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
 const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
 
-const searchButtonRef = shallowRef<InstanceType<typeof SearchButton> | null>(null);
-
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 const isSmallScreen = ref(false);
@@ -74,8 +72,11 @@ const isPostAndNoHistory = computed(() => {
 // On mobile, defer mounting until the user first opens search to avoid initialisation errors.
 const { isSearchOpen } = useSearchOverlay();
 const searchMounted = ref(isMdScreen.value);
-watch(isSearchOpen, (open) => {
-    if (open) searchMounted.value = true;
+const unwatch = watch(isSearchOpen, (open) => {
+    if (open) {
+        searchMounted.value = true;
+        unwatch();
+    }
 });
 </script>
 
