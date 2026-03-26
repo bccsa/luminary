@@ -9,9 +9,8 @@
         "target": "ES2021",
         "sourceMap": true,
         "outDir": "./dist",
-        "paths": {
-            "src/*": ["./src/*"]
-        },
+        "baseUrl": "./",
+        "ignoreDeprecations": "5.0",
         "incremental": true,
         "skipLibCheck": true,
         "strictNullChecks": false,
