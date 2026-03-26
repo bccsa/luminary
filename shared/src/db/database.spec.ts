@@ -896,12 +896,9 @@ describe("Database", async () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initConfig({
-            cms: false,
-            docsIndex: "parentId, language, expiryDate, [type+docType]",
-            apiUrl: "http://localhost:12345",
-        });
-        await initDatabase();
+        // Temporarily disable CMS mode — expiryDate is already in the base schema so
+        // re-initializing the DB is not needed and would trigger deleteRevoked() side effects.
+        config.cms = false;
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -933,6 +930,8 @@ describe("Database", async () => {
 
         const remainingDocs = await db.docs.toArray();
         expect(remainingDocs).toHaveLength(2);
+
+        config.cms = true;
     });
 
     it("upgrade indexdb version by changing the docs index", async () => {
@@ -1036,9 +1035,11 @@ describe("Database", async () => {
 
             accessMap.value = {
                 "group-public-content": {
-                    [DocType.Post]: {
-                        [AclPermission.View]: true,
-                    },
+                    [DocType.Post]: { [AclPermission.View]: true },
+                    [DocType.Tag]: { [AclPermission.View]: true },
+                },
+                "group-languages": {
+                    [DocType.Language]: { [AclPermission.View]: true },
                 },
             };
 

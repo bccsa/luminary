@@ -22,6 +22,7 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
+import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
@@ -900,13 +901,9 @@ export async function initDatabase() {
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
-    watch(
-        accessMap,
-        () => {
-            db.deleteRevoked();
-        },
-        { immediate: true },
-    );
+    watchValue(accessMap, () => {
+        db.deleteRevoked();
+    }, { immediate: true });
 
     watch(
         syncMap,
