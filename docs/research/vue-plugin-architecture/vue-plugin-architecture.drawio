@@ -1,0 +1,82 @@
+<mxfile host="65bd71144e">
+    <diagram id="vue-plugin-architecture" name="Vue Plugin Architecture">
+        <mxGraphModel dx="854" dy="690" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Vue Pluggable Architecture (Web + Capacitor)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="700" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="decision" value="Decision: Option A selected (Single runtime plugin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="55" width="430" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="app" value="App Bootstrap&#10;main.ts&#10;app.use(platformServicesPlugin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="90" width="240" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="plugin" value="platformServicesPlugin.install(app)&#10;Single plugin composition root&#10;(internal feature installers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="340" y="90" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="runtime" value="Runtime Detection&#10;Capacitor.isNativePlatform()&#10;Capacitor.getPlatform()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="680" y="90" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="contracts" value="Service Contracts + Tokens&#10;- MediaPlayerService&#10;- DownloadService&#10;- Symbol Injection Keys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="340" y="230" width="280" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="sharedCore" value="Shared Core Library&#10;storage read/write + indexing + error mapping&#10;(reused by player/download installers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="240" width="270" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="webAdapters" value="Web Adapters&#10;media-player.web.ts&#10;downloads.web.ts&#10;storage.web.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="690" y="250" width="250" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="nativeAdapters" value="Capacitor Runtime Integrations&#10;luminary-deployment/luminary-plugins&#10;- capacitorNative.ts&#10;- auth.ts / authBrowser.ts&#10;- capgoUpdater.ts&#10;- capacitorDeepLinks.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;fontStyle=0" parent="1" vertex="1">
+                    <mxGeometry x="980" y="245" width="290" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="provide" value="app.provide(token, adapter)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="340" y="390" width="280" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="features" value="Feature Modules (Platform-Agnostic)&#10;Use inject(token) only&#10;No platform branching in feature code" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="340" y="500" width="420" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="uiSwap" value="Optional UI Swap Layer&#10;defineAsyncComponent() for different platform UIs&#10;Use only when UI must differ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="500" width="360" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="app" target="plugin" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="plugin" target="runtime" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="plugin" target="contracts" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge3b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="plugin" target="sharedCore" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge4" value="if web" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="runtime" target="webAdapters" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge5" value="if native" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="runtime" target="nativeAdapters" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="webAdapters" target="provide" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontColor=#000000;" parent="1" source="nativeAdapters" target="provide" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="provide" target="features" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;" parent="1" source="sharedCore" target="webAdapters" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;" parent="1" source="sharedCore" target="nativeAdapters" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" parent="1" source="features" target="uiSwap" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
