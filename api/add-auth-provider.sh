@@ -68,8 +68,8 @@ if [ "$do_provider" = true ]; then
   export SCRIPT_AUDIENCE="$audience"
   export SCRIPT_CLIENT_ID="$clientId"
 
-  # Execute Node.js script to process the data according to the new AuthProviderDto schema
-  payload=$(cat << 'EOF' | node
+  # Execute Node.js script to produce separate AuthProvider and AuthProviderConfig payloads
+  payloads=$(cat << 'EOF' | node
 try {
   let rawLegacyMappings = process.env.SCRIPT_LEGACY_MAPPINGS || "{}";
   let legacy = {};
@@ -77,17 +77,13 @@ try {
     legacy = JSON.parse(rawLegacyMappings);
   }
 
-  const result = {
-      type: "authProvider",
-      domain: process.env.SCRIPT_DOMAIN,
-      audience: process.env.SCRIPT_AUDIENCE,
-      clientId: process.env.SCRIPT_CLIENT_ID,
-      groupMappings: [],
-      userFieldMappings: {},
-      updatedTimeUtc: Date.now()
-  };
+  const { randomUUID } = require("crypto");
+  const providerId = randomUUID();
+  const now = Date.now();
 
+  const groupMappings = [];
   let claimNamespace = null;
+  const userFieldMappings = {};
 
   if (legacy.groups) {
       for (const [groupId, funcStr] of Object.entries(legacy.groups)) {
@@ -95,7 +91,7 @@ try {
           if (typeof funcStr === "string" && funcStr.includes("(jwt)")) {
               conditionType = "authenticated";
           }
-          result.groupMappings.push({
+          groupMappings.push({
               groupId: groupId,
               conditions: [{ type: conditionType }]
           });
@@ -113,20 +109,39 @@ try {
 
           const fieldMatch = value.match(/\.([a-zA-Z0-9_]+)$/);
           if (fieldMatch && fieldMatch[1]) {
-              result.userFieldMappings[key] = fieldMatch[1];
+              userFieldMappings[key] = fieldMatch[1];
           } else {
-              result.userFieldMappings[key] = key;
+              userFieldMappings[key] = key;
           }
       }
   }
 
-  if (claimNamespace) {
-      result.claimNamespace = claimNamespace;
-  }
+  const memberOf = groupMappings.map(m => m.groupId);
 
-  result.memberOf = result.groupMappings.map(m => m.groupId);
+  // AuthProvider doc — public-facing fields only
+  const providerDoc = {
+      _id: providerId,
+      type: "authProvider",
+      domain: process.env.SCRIPT_DOMAIN,
+      audience: process.env.SCRIPT_AUDIENCE,
+      clientId: process.env.SCRIPT_CLIENT_ID,
+      memberOf: memberOf,
+      updatedTimeUtc: now
+  };
 
-  console.log(JSON.stringify(result));
+  // AuthProviderConfig doc — sensitive server-side config
+  const configDoc = {
+      _id: randomUUID(),
+      type: "authProviderConfig",
+      providerId: providerId,
+      memberOf: memberOf,
+      updatedTimeUtc: now
+  };
+  if (claimNamespace) configDoc.claimNamespace = claimNamespace;
+  if (groupMappings.length > 0) configDoc.groupMappings = groupMappings;
+  if (Object.keys(userFieldMappings).length > 0) configDoc.userFieldMappings = userFieldMappings;
+
+  console.log(JSON.stringify({ provider: providerDoc, config: configDoc }));
 } catch (e) {
   console.error("JSON parsing failed: " + e.message);
   process.exit(1);
@@ -138,16 +153,41 @@ EOF
     echo ""
     echo "Error during mapping parse. Aborting."
     echo "Parser Output:"
-    echo "$payload"
+    echo "$payloads"
     exit 1
   fi
 
+  provider_payload=$(echo "$payloads" | node -e "
+    let body = '';
+    process.stdin.on('data', d => body += d);
+    process.stdin.on('end', () => {
+      const parsed = JSON.parse(body);
+      process.stdout.write(JSON.stringify(parsed.provider));
+    });
+  ")
+
+  config_payload=$(echo "$payloads" | node -e "
+    let body = '';
+    process.stdin.on('data', d => body += d);
+    process.stdin.on('end', () => {
+      const parsed = JSON.parse(body);
+      process.stdout.write(JSON.stringify(parsed.config));
+    });
+  ")
+
   echo ""
-  echo "Generated Payload for Database:"
+  echo "Generated AuthProvider payload:"
   if command -v jq &> /dev/null; then
-    echo "$payload" | jq .
+    echo "$provider_payload" | jq .
   else
-    echo "$payload"
+    echo "$provider_payload"
+  fi
+  echo ""
+  echo "Generated AuthProviderConfig payload:"
+  if command -v jq &> /dev/null; then
+    echo "$config_payload" | jq .
+  else
+    echo "$config_payload"
   fi
   echo ""
 
@@ -157,21 +197,195 @@ EOF
     exit 0
   fi
 
-  # Insert into CouchDB via POST
-  response=$(curl -s -X POST "$DB_CONNECTION_STRING/$DB_DATABASE" \
+  # Extract provider _id for PUT
+  provider_id=$(echo "$provider_payload" | node -e "
+    let body = '';
+    process.stdin.on('data', d => body += d);
+    process.stdin.on('end', () => {
+      const parsed = JSON.parse(body);
+      process.stdout.write(parsed._id);
+    });
+  ")
+
+  config_id=$(echo "$config_payload" | node -e "
+    let body = '';
+    process.stdin.on('data', d => body += d);
+    process.stdin.on('end', () => {
+      const parsed = JSON.parse(body);
+      process.stdout.write(parsed._id);
+    });
+  ")
+
+  # Insert AuthProvider doc
+  provider_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id" \
     -H "Content-Type: application/json" \
-    -d "$payload")
+    -d "$provider_payload")
 
   echo ""
-  echo "Response from CouchDB:"
+  echo "AuthProvider response from CouchDB:"
   if command -v jq &> /dev/null; then
-    echo "$response" | jq .
+    echo "$provider_response" | jq .
   else
-    echo "$response"
+    echo "$provider_response"
+  fi
+
+  # Insert AuthProviderConfig doc
+  config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$config_id" \
+    -H "Content-Type: application/json" \
+    -d "$config_payload")
+
+  echo ""
+  echo "AuthProviderConfig response from CouchDB:"
+  if command -v jq &> /dev/null; then
+    echo "$config_response" | jq .
+  else
+    echo "$config_response"
+  fi
+
+  echo ""
+  echo "NOTE: Ensure the relevant group documents have ACL entries granting public users"
+  echo "      'view' access to DocType.AuthProvider (and super-admins full access)."
+  echo "      The add-auth-provider script does not modify group ACL entries."
+
+  # ── Backfill providerId on existing users ──────────────────────────────────
+
+  echo ""
+  read -p "Backfill providerId='$provider_id' onto all existing users? (y/n): " backfill_confirm
+  if [[ "$backfill_confirm" == "y" || "$backfill_confirm" == "Y" ]]; then
+
+    echo "Fetching all user documents..."
+
+    # Fetch all user docs via _find (page through with bookmark if needed)
+    all_users_json=$(node -e "
+const https = require('https');
+const http = require('http');
+const url = require('url');
+
+const base = process.env.DB_CONNECTION_STRING;
+const db = process.env.DB_DATABASE;
+
+async function findAll() {
+  const docs = [];
+  let bookmark = null;
+
+  while (true) {
+    const body = JSON.stringify({
+      selector: { type: 'user' },
+      limit: 200,
+      ...(bookmark ? { bookmark } : {})
+    });
+
+    const fullUrl = \`\${base}/\${db}/_find\`;
+    const parsed = url.parse(fullUrl);
+    const lib = parsed.protocol === 'https:' ? https : http;
+
+    const result = await new Promise((resolve, reject) => {
+      const req = lib.request({
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: parsed.path,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        auth: parsed.auth || undefined
+      }, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => resolve(JSON.parse(data)));
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+
+    if (result.docs && result.docs.length > 0) {
+      docs.push(...result.docs);
+      bookmark = result.bookmark;
+      if (result.docs.length < 200) break;
+    } else {
+      break;
+    }
+  }
+
+  process.stdout.write(JSON.stringify(docs));
+}
+
+findAll().catch(e => { console.error(e.message); process.exit(1); });
+" DB_CONNECTION_STRING="$DB_CONNECTION_STRING" DB_DATABASE="$DB_DATABASE")
+
+    user_count=$(echo "$all_users_json" | node -e "
+      let b=''; process.stdin.on('data',d=>b+=d);
+      process.stdin.on('end',()=>{ const d=JSON.parse(b); process.stdout.write(String(d.length)); });
+    ")
+
+    echo "Found $user_count user(s)."
+
+    if [ "$user_count" -eq 0 ]; then
+      echo "No users to update."
+    else
+      echo "Updating users with providerId='$provider_id'..."
+
+      result=$(echo "$all_users_json" | node -e "
+const https = require('https');
+const http = require('http');
+const url = require('url');
+
+const base = process.env.DB_CONNECTION_STRING;
+const db = process.env.DB_DATABASE;
+const providerId = process.env.PROVIDER_ID;
+
+let body = '';
+process.stdin.on('data', d => body += d);
+process.stdin.on('end', async () => {
+  const users = JSON.parse(body);
+  const bulk = users.map(u => ({ ...u, providerId }));
+
+  const payload = JSON.stringify({ docs: bulk });
+  const fullUrl = \`\${base}/\${db}/_bulk_docs\`;
+  const parsed = url.parse(fullUrl);
+  const lib = parsed.protocol === 'https:' ? https : http;
+
+  const res = await new Promise((resolve, reject) => {
+    const req = lib.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.path,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      auth: parsed.auth || undefined
+    }, (r) => {
+      let data = '';
+      r.on('data', d => data += d);
+      r.on('end', () => resolve(JSON.parse(data)));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+
+  const errors = res.filter(r => r.error);
+  process.stdout.write(JSON.stringify({ total: bulk.length, errors }));
+});
+" DB_CONNECTION_STRING="$DB_CONNECTION_STRING" DB_DATABASE="$DB_DATABASE" PROVIDER_ID="$provider_id")
+
+      error_count=$(echo "$result" | node -e "
+        let b=''; process.stdin.on('data',d=>b+=d);
+        process.stdin.on('end',()=>{ const d=JSON.parse(b); process.stdout.write(String(d.errors.length)); });
+      ")
+
+      if [ "$error_count" -eq 0 ]; then
+        echo "Successfully updated $user_count user(s)."
+      else
+        echo "Completed with $error_count error(s):"
+        echo "$result" | node -e "
+          let b=''; process.stdin.on('data',d=>b+=d);
+          process.stdin.on('end',()=>{ const d=JSON.parse(b); d.errors.forEach(e=>console.log(JSON.stringify(e))); });
+        "
+      fi
+    fi
   fi
 fi
 
-# ── Default Groups (GlobalConfig) ────────────────────────────────────────────
+# ── Default Groups (DefaultPermissions) ────────────────────────────────────────────
 
 if [ "$do_groups" = true ]; then
   echo ""
@@ -180,7 +394,7 @@ if [ "$do_groups" = true ]; then
   echo "====================================="
   echo ""
   echo "Default groups are automatically assigned to ALL users (including guests)."
-  echo "They are stored in a GlobalConfig document in CouchDB."
+  echo "They are stored in a DefaultPermissions document in CouchDB."
   echo ""
   echo "Enter default group IDs, one per line. Leave blank and press Enter to finish."
   echo "Example: group-public-users"
@@ -196,7 +410,7 @@ if [ "$do_groups" = true ]; then
   done
 
   if [ ${#default_groups[@]} -eq 0 ]; then
-    echo "No default groups entered. Skipping GlobalConfig setup."
+    echo "No default groups entered. Skipping DefaultPermissions setup."
     exit 0
   fi
 
@@ -210,10 +424,10 @@ if [ "$do_groups" = true ]; then
     process.stdout.write(JSON.stringify(lines));
   ")
 
-  # Check if a GlobalConfig document already exists
+  # Check if a DefaultPermissions document already exists
   existing_config=$(curl -s -X POST "$DB_CONNECTION_STRING/$DB_DATABASE/_find" \
     -H "Content-Type: application/json" \
-    -d '{"selector":{"type":"globalConfig"},"limit":1}')
+    -d '{"selector":{"type":"defaultPermissions"},"limit":1}')
 
   existing_id=$(echo "$existing_config" | node -e "
     let body = '';
@@ -240,28 +454,28 @@ if [ "$do_groups" = true ]; then
   ")
 
   if [ -n "$existing_id" ]; then
-    echo "Existing GlobalConfig document found (id: $existing_id, rev: $existing_rev)."
+    echo "Existing DefaultPermissions document found (id: $existing_id, rev: $existing_rev)."
     read -p "Overwrite defaultGroups? (y/n): " overwrite_confirm
     if [[ "$overwrite_confirm" != "y" && "$overwrite_confirm" != "Y" ]]; then
-      echo "Skipping GlobalConfig update."
+      echo "Skipping DefaultPermissions update."
       exit 0
     fi
     now_ms=$(node -e "process.stdout.write(String(Date.now()))")
-  config_payload="{\"_id\":\"$existing_id\",\"_rev\":\"$existing_rev\",\"type\":\"globalConfig\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
+    config_payload="{\"_id\":\"$existing_id\",\"_rev\":\"$existing_rev\",\"type\":\"defaultPermissions\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
     config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$existing_id" \
       -H "Content-Type: application/json" \
       -d "$config_payload")
   else
-    echo "No existing GlobalConfig document found. Creating a new one."
+    echo "No existing DefaultPermissions document found. Creating a new one."
     now_ms=$(node -e "process.stdout.write(String(Date.now()))")
-    config_payload="{\"_id\":\"global-config\",\"type\":\"globalConfig\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
-    config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/global-config" \
+    config_payload="{\"_id\":\"default-permissions\",\"type\":\"defaultPermissions\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
+    config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/default-permissions" \
       -H "Content-Type: application/json" \
       -d "$config_payload")
   fi
 
   echo ""
-  echo "GlobalConfig response from CouchDB:"
+  echo "DefaultPermissions response from CouchDB:"
   if command -v jq &> /dev/null; then
     echo "$config_response" | jq .
   else

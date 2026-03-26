@@ -97,7 +97,7 @@
             ]
         },
         {
-            "type": "globalConfig",
+            "type": "defaultPermissions",
             "groupId": "group-super-admins",
             "permission": [
                 "view",

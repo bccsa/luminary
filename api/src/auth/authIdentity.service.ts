@@ -2,17 +2,25 @@ import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
 import * as jwksRsa from "jwks-rsa";
+import { AuthProviderDto } from "../dto/AuthProviderDto";
 import {
     AuthProviderCondition,
     AuthProviderConfigDto,
-    AuthProviderDto,
     AuthProviderGroupMapping,
-} from "../dto/AuthProviderDto";
+} from "../dto/AuthProviderConfigDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
-import { DocType } from "../enums";
-import { JwtUserDetails } from "../jwt/processJwt";
-import { PermissionSystem } from "../permissions/permissions.service";
+import { DocType, Uuid } from "../enums";
+import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+
+export type JwtUserDetails = {
+    groups: Array<Uuid>;
+    userId?: Uuid;
+    email?: string;
+    name?: string;
+    jwtPayload?: JWT.JwtPayload;
+    accessMap?: AccessMap;
+};
 
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
@@ -35,14 +43,14 @@ export class AuthIdentityService implements OnModuleInit {
                 this.jwksClients.delete(doc.domain);
             } else if (doc.type === DocType.AuthProviderConfig) {
                 this.configCache.set(doc.providerId, doc as AuthProviderConfigDto);
-            } else if (doc.type === DocType.GlobalConfig) {
+            } else if (doc.type === DocType.DefaultPermissions) {
                 this.defaultGroupsCache = doc.defaultGroups ?? [];
             }
         });
     }
 
     /**
-     * Phase 1: Returns the defaultGroups from the GlobalConfig document.
+     * Phase 1: Returns the defaultGroups from the DefaultPermissions document.
      * These groups are automatically assigned to every user, including guests.
      * Result is cached and kept fresh via the DB change feed.
      */
@@ -52,7 +60,7 @@ export class AuthIdentityService implements OnModuleInit {
         }
 
         const configRes = await this.dbService.executeFindQuery({
-            selector: { type: DocType.GlobalConfig },
+            selector: { type: DocType.DefaultPermissions },
             limit: 1,
         });
 
@@ -152,10 +160,10 @@ export class AuthIdentityService implements OnModuleInit {
     /**
      * Resolves a user identity using the 3-phase federated identity pipeline.
      *
-     * Phase 1 – Global defaults: Fetches defaultGroups from GlobalConfig.
+     * Phase 1 – Global defaults: Fetches defaultGroups from DefaultPermissions.
      * Phase 2 – Provider context: Verifies the JWT via JWKS and evaluates groupMappings.
-     * Phase 3 – Identity linking: Looks up or provisions the master User document,
-     *            linking the external identity into the identities[] array.
+     * Phase 3 – Identity linking: Looks up the master User document by externalUserId,
+     *            falling back to email. Sets externalUserId on the user on first login.
      */
     async resolveIdentity(token: string, providerId: string): Promise<JwtUserDetails> {
         try {
@@ -237,38 +245,39 @@ export class AuthIdentityService implements OnModuleInit {
             let primaryUser: UserDto | null = null;
             let identityLinked = false;
 
-            // Action 1: Fast path – lookup by externalUserId within identities[]
+            // Action 1: Lookup by userId (admin-set legacy field — provider sub stored here by admin)
             if (externalUserId) {
-                const byIdentity = await this.dbService.executeFindQuery({
-                    selector: {
-                        type: DocType.User,
-                        identities: { $elemMatch: { externalUserId } },
-                    },
+                const byUserId = await this.dbService.executeFindQuery({
+                    selector: { type: DocType.User, userId: externalUserId },
                     limit: 1,
                 });
-                primaryUser = (byIdentity.docs?.[0] as UserDto) ?? null;
+                primaryUser = (byUserId.docs?.[0] as UserDto) ?? null;
             }
 
-            // Action 2: Email fallback – lookup by email, then provision if not found
+            // Action 2: Lookup by externalUserId (auto-assigned on first login)
+            if (!primaryUser && externalUserId) {
+                const byExternalId = await this.dbService.executeFindQuery({
+                    selector: { type: DocType.User, externalUserId },
+                    limit: 1,
+                });
+                primaryUser = (byExternalId.docs?.[0] as UserDto) ?? null;
+            }
+
+            // Action 3: Email fallback – fetch ALL user docs with matching email and merge their groups
+            let emailUserDocs: UserDto[] = [];
             if (!primaryUser && email) {
                 const byEmail = await this.dbService.executeFindQuery({
                     selector: { type: DocType.User, email },
-                    limit: 1,
                 });
-                const foundUser = (byEmail.docs?.[0] as UserDto) ?? null;
+                emailUserDocs = (byEmail.docs as UserDto[]) ?? [];
 
-                if (foundUser) {
-                    // Link identity to existing user if not already present
-                    const alreadyLinked = foundUser.identities?.some(
-                        (i) => i.externalUserId === externalUserId && i.providerId === providerId,
-                    );
-                    if (!alreadyLinked && externalUserId) {
+                if (emailUserDocs.length > 0) {
+                    // Use the first doc as the primary user for identity/session purposes
+                    const foundUser = emailUserDocs[0];
+                    if (!foundUser.externalUserId && externalUserId) {
                         primaryUser = {
                             ...foundUser,
-                            identities: [
-                                ...(foundUser.identities ?? []),
-                                { providerId, externalUserId },
-                            ],
+                            externalUserId,
                             lastLogin: Date.now(),
                         };
                         await this.dbService.upsertDoc(primaryUser);
@@ -280,7 +289,9 @@ export class AuthIdentityService implements OnModuleInit {
             }
 
             if (!primaryUser) {
-                this.logger.warn("No user found for the provided token");
+                this.logger.warn(
+                    `No user found for the provided token — externalUserId: ${externalUserId ?? "(none)"}, email: ${email ?? "(none in JWT)"}`,
+                );
                 throw new UnauthorizedException("No user found");
             }
 
@@ -289,8 +300,12 @@ export class AuthIdentityService implements OnModuleInit {
                 await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
             }
 
-            // Merge groups: defaultGroups + dynamicGroups + user's memberOf
-            const staticGroups = Array.from(new Set(primaryUser.memberOf ?? []));
+            // Merge groups: defaultGroups + dynamicGroups + memberOf from all matched user docs
+            // emailUserDocs may contain multiple docs for the same email; primaryUser covers the fast path
+            const allMemberOf = emailUserDocs.length > 0
+                ? emailUserDocs.flatMap((d) => d.memberOf ?? [])
+                : (primaryUser.memberOf ?? []);
+            const staticGroups = Array.from(new Set(allMemberOf));
             const mergedGroups = Array.from(
                 new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]),
             );
@@ -306,6 +321,8 @@ export class AuthIdentityService implements OnModuleInit {
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
+            this.logger.error("Unexpected error resolving identity", error);
+            throw new UnauthorizedException("Authentication failed");
         }
     }
 }

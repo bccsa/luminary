@@ -70,38 +70,11 @@ export function initLanguageSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
-            // Sync auth providers
-            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
-                sync({
-                    type: DocType.AuthProvider,
-                    memberOf: access[DocType.AuthProvider],
-                    limit: 100,
-                    cms: true,
-                    includeDeleteCmds: true,
-                }).catch((err) => {
-                    console.error("Error during auth provider sync:", err);
-                    Sentry?.captureException(err);
-                });
-            }
-
-            if (access[DocType.AuthProviderConfig] && access[DocType.AuthProviderConfig].length) {
-                sync({
-                    type: DocType.AuthProviderConfig,
-                    memberOf: access[DocType.AuthProviderConfig],
-                    limit: 100,
-                    cms: true,
-                    includeDeleteCmds: true,
-                }).catch((err) => {
-                    console.error("Error during auth provider config sync:", err);
-                    Sentry?.captureException(err);
-                });
-            }
-
             // Sync global config
-            if (access[DocType.GlobalConfig] && access[DocType.GlobalConfig].length) {
+            if (access[DocType.DefaultPermissions] && access[DocType.DefaultPermissions].length) {
                 sync({
-                    type: DocType.GlobalConfig,
-                    memberOf: access[DocType.GlobalConfig],
+                    type: DocType.DefaultPermissions,
+                    memberOf: access[DocType.DefaultPermissions],
                     limit: 100,
                     cms: true,
                     includeDeleteCmds: false,

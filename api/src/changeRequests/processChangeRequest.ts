@@ -15,8 +15,8 @@ import processLanguageDto from "./documentProcessing/processLanguageDto";
 import processGroupDto from "./documentProcessing/processGroupDto";
 import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
-import processGlobalConfigDto from "./documentProcessing/processGlobalConfigDto";
-import { GlobalConfigDto } from "../dto/GlobalConfigDto";
+import processDefaultPermissionsDto from "./documentProcessing/processDefaultPermissionsDto";
+import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -57,7 +57,7 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
-        [DocType.GlobalConfig]: () => processGlobalConfigDto(doc as GlobalConfigDto),
+        [DocType.DefaultPermissions]: () => processDefaultPermissionsDto(doc as DefaultPermissionsDto),
         // AuthProvider documents require no post-processing; cache TTL in AuthIdentityService handles staleness
         [DocType.AuthProvider]: () => Promise.resolve(),
     };

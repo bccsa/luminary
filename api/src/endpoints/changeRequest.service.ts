@@ -4,7 +4,7 @@ import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { processJwt } from "../jwt/processJwt";
+import { JwtUserDetails } from "../auth/authIdentity.service";
 import configuration, { Configuration } from "../configuration";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
@@ -25,9 +25,7 @@ export class ChangeRequestService {
         this.config = configuration();
     }
 
-    async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
-        const userDetails = await processJwt(token, this.db, this.logger);
-
+    async changeRequest(changeRequest: ChangeReqDto, userDetails: JwtUserDetails): Promise<ChangeReqAckDto> {
         // Process change request
         return await processChangeRequest(
             userDetails.userId,

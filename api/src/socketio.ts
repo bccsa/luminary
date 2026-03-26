@@ -14,7 +14,7 @@ import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
-import { JwtUserDetails } from "./jwt/processJwt";
+import { JwtUserDetails } from "./auth/authIdentity.service";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";

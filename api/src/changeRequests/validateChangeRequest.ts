@@ -14,8 +14,9 @@ import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
-import { AuthProviderDto, AuthProviderConfigDto } from "../dto/AuthProviderDto";
-import { GlobalConfigDto } from "../dto/GlobalConfigDto";
+import { AuthProviderDto } from "../dto/AuthProviderDto";
+import { AuthProviderConfigDto } from "../dto/AuthProviderConfigDto";
+import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
 
 /**
  * DocType to DTO map
@@ -31,7 +32,7 @@ const DocTypeMap = {
     storage: StorageDto,
     authProvider: AuthProviderDto,
     authProviderConfig: AuthProviderConfigDto,
-    globalConfig: GlobalConfigDto,
+    defaultPermissions: DefaultPermissionsDto,
 };
 
 /**

@@ -3,16 +3,16 @@ import { _baseDto } from "./_baseDto";
 import { IsArray, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 
-export class GlobalConfigDto extends _baseDto {
-    public constructor(init?: Partial<GlobalConfigDto>) {
+export class DefaultPermissionsDto extends _baseDto {
+    public constructor(init?: Partial<DefaultPermissionsDto>) {
         super();
-        this.type = DocType.GlobalConfig;
+        this.type = DocType.DefaultPermissions;
         Object.assign(this, init);
     }
 
     /**
      * Group membership for sync and ACL.
-     * Always enforced to ["group-super-admins"] by processGlobalConfigDto.
+     * Always enforced to ["group-super-admins"] by processDefaultPermissionsDto.
      */
     @IsArray()
     @IsString({ each: true })

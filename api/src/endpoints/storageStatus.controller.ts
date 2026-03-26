@@ -3,7 +3,7 @@ import {
     Get,
     Query,
     UseGuards,
-    Headers,
+    Req,
     HttpException,
     HttpStatus,
 } from "@nestjs/common";
@@ -11,7 +11,6 @@ import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
-import { processJwt } from "../jwt/processJwt";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AclPermission, DocType } from "../enums";
 
@@ -29,17 +28,14 @@ export class StorageStatusController {
     async getStorageStatus(
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
-        @Headers("Authorization") authHeader: string,
+        @Req() request: any,
     ): Promise<StorageStatusResponseDto> {
         await validateApiVersion(apiVersion);
 
-        // Extract and process JWT token
-        const token = authHeader?.replace("Bearer ", "") ?? "";
-        if (!token) {
+        const userDetails = request.user;
+        if (!userDetails) {
             throw new HttpException("Authorization token required", HttpStatus.UNAUTHORIZED);
         }
-
-        const userDetails = await processJwt(token, this.dbService, undefined);
 
         // Validate bucketId parameter
         if (!bucketId) {

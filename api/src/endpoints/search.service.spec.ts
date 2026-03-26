@@ -4,30 +4,26 @@ import { createTestingModule } from "../test/testingModule";
 import { DeleteReason, DocType } from "../enums";
 import { SearchReqDto } from "../dto/SearchReqDto";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
+import { PermissionSystem } from "../permissions/permissions.service";
+import { JwtUserDetails } from "../auth/authIdentity.service";
 
 describe("Search service", () => {
-    const oldEnv = process.env;
     let service: DbService;
     let searchService: SearchService;
+    let mockUserDetails: JwtUserDetails;
 
     beforeAll(async () => {
-        process.env = { ...oldEnv }; // Make a copy of the old environment variables
-
-        process.env.JWT_MAPPINGS = `{
-            "groups": {
-                "group-super-admins": "() => true"
-            },
-            "userId": "() => 'user-super-admin'",
-            "email": "() => 'test@123.com'",
-            "name": "() => 'Test User'"
-        }`;
-
         service = (await createTestingModule("search-service")).dbService;
         searchService = new SearchService({ error: jest.fn(), warn: jest.fn() } as any, service);
     });
 
-    afterAll(async () => {
-        process.env = oldEnv; // Restore the original environment variables
+        mockUserDetails = {
+            userId: "user-super-admin",
+            groups: ["group-super-admins"],
+            email: "test@123.com",
+            name: "Test User",
+            accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
+        };
     });
 
     it("can query the api endpoint", async () => {
@@ -37,7 +33,7 @@ describe("Search service", () => {
             types: [DocType.Post, DocType.Group],
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, mockUserDetails);
 
         expect(res.docs.length).toBe(10);
     });
@@ -49,7 +45,7 @@ describe("Search service", () => {
             types: [],
         };
 
-        await expect(searchService.processReq(req, "")).rejects.toThrow(
+        await expect(searchService.processReq(req, mockUserDetails)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -59,7 +55,7 @@ describe("Search service", () => {
             slug: "",
         };
 
-        await expect(searchService.processReq(req2, "")).rejects.toThrow(
+        await expect(searchService.processReq(req2, mockUserDetails)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -67,7 +63,7 @@ describe("Search service", () => {
             apiVersion: "0.0.0",
             limit: 10,
         };
-        await expect(searchService.processReq(req3, "")).rejects.toThrow(
+        await expect(searchService.processReq(req3, mockUserDetails)).rejects.toThrow(
             "Missing required parameters: slug or types",
         );
 
@@ -76,7 +72,7 @@ describe("Search service", () => {
             limit: 10,
             types: [DocType.Post],
         };
-        await expect(searchService.processReq(req4, "")).resolves.toBeDefined();
+        await expect(searchService.processReq(req4, mockUserDetails)).resolves.toBeDefined();
     });
 
     it("throws an error if invalid parameters are provided with slug", async () => {
@@ -87,7 +83,7 @@ describe("Search service", () => {
             types: [DocType.Post],
         };
 
-        await expect(searchService.processReq(req, "")).rejects.toThrow(
+        await expect(searchService.processReq(req, mockUserDetails)).rejects.toThrow(
             "Invalid parameters: A 'slug' search request is invalid when used together with limit, types",
         );
     });
@@ -110,7 +106,7 @@ describe("Search service", () => {
             includeDeleteCmds: true,
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, mockUserDetails);
 
         expect(res.docs.some((d) => d.type == DocType.DeleteCmd && d._id == "test-delete")).toBe(
             true,
@@ -164,7 +160,7 @@ describe("Search service", () => {
             types: [DocType.Post, DocType.Group],
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, mockUserDetails);
 
         expect(res.docs.some((d) => d.type == DocType.DeleteCmd && d._id == "test-delete")).toBe(
             false,

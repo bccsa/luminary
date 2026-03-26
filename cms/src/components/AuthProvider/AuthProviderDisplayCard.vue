@@ -17,6 +17,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 type Props = {
     provider: AuthProviderDto;
     groups: GroupDto[];
+    isModified?: boolean;
 };
 
 type Emits = {
@@ -85,6 +86,14 @@ const handleEdit = () => {
                     class="gap-1 whitespace-nowrap text-xs font-semibold"
                 >
                     No Credentials
+                </LBadge>
+                <LBadge
+                    v-if="isModified"
+                    type="default"
+                    variant="warning"
+                    class="gap-1 whitespace-nowrap text-xs font-semibold"
+                >
+                    Incoming edit
                 </LBadge>
             </div>
         </div>

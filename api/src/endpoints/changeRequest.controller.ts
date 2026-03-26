@@ -1,4 +1,4 @@
-import { Controller, Headers, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
+import { Controller, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
@@ -16,10 +16,7 @@ export class ChangeRequestController {
     @UsePipes()
     async handleChangeRequest(
         @Req() request: FastifyRequest,
-        @Headers("Authorization") authHeader: string,
     ) {
-        const token = authHeader?.replace("Bearer ", "") ?? "";
-
         // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
@@ -112,7 +109,7 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(changeRequest, token);
+            const result = await this.changeRequestService.changeRequest(changeRequest, (request as any).user);
 
             return result;
         }
@@ -121,7 +118,7 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, token);
+        const result = await this.changeRequestService.changeRequest(cleanedBody, (request as any).user);
 
         return result;
     }

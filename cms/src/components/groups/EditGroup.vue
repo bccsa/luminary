@@ -221,7 +221,7 @@ const saveChanges = async () => {
     <LDialog
         title=""
         :open="openModal"
-        @update:open="(val: boolean | undefined) => !val && emit('close')"
+        @update:open="(val) => !val && emit('close')"
         :primaryAction="saveChanges"
         primaryButtonText="Save"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"

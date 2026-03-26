@@ -1,5 +1,5 @@
 import { AuthIdentityService } from "./authIdentity.service";
-import { AuthProviderGroupMapping } from "../dto/AuthProviderDto";
+import { AuthProviderGroupMapping } from "../dto/AuthProviderConfigDto";
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { DbService } from "../db/db.service";
@@ -130,17 +130,17 @@ describe("AuthIdentityService", () => {
     // ── getDefaultGroups ─────────────────────────────────────────────────────────
 
     describe("getDefaultGroups", () => {
-        it("should return defaultGroups from GlobalConfig document", async () => {
+        it("should return defaultGroups from DefaultPermissions document", async () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({
-                    docs: [{ type: DocType.GlobalConfig, defaultGroups: ["group-public"] }],
+                    docs: [{ type: DocType.DefaultPermissions, defaultGroups: ["group-public"] }],
                 }),
             };
             const groups = await service.getDefaultGroups();
             expect(groups).toEqual(["group-public"]);
         });
 
-        it("should return [] when no GlobalConfig document exists", async () => {
+        it("should return [] when no DefaultPermissions document exists", async () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({ docs: [] }),
             };
@@ -150,7 +150,7 @@ describe("AuthIdentityService", () => {
 
         it("should cache the result and not re-query within TTL", async () => {
             const mockQuery = jest.fn().mockResolvedValue({
-                docs: [{ type: DocType.GlobalConfig, defaultGroups: ["group-public"] }],
+                docs: [{ type: DocType.DefaultPermissions, defaultGroups: ["group-public"] }],
             });
             (service as any).dbService = { executeFindQuery: mockQuery };
 
@@ -208,9 +208,10 @@ describe("AuthGuard (Integrated)", () => {
         mockJwtService.verifyAsync = jest.fn().mockResolvedValue({ sub: "auth0|123" }); // no email
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [] }); // identity lookup – no match; email fallback skipped
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }); // externalUserId lookup – no match; email fallback skipped
 
         const mockContext = {
             switchToHttp: () => ({
@@ -228,9 +229,10 @@ describe("AuthGuard (Integrated)", () => {
 
     it("should throw UnauthorizedException when no matching identity or email exists", async () => {
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [] }) // identity lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // email lookup – no match
 
         const mockContext = {
@@ -255,13 +257,13 @@ describe("AuthGuard (Integrated)", () => {
             email: "test@bccsa.org",
             name: "Test User",
             memberOf: ["group-members"],
-            identities: [],
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [] }) // identity lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }); // email lookup – found
 
         const mockContext = {
@@ -280,8 +282,42 @@ describe("AuthGuard (Integrated)", () => {
         expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: "user-123",
-                identities: [{ providerId: "provider-id", externalUserId: "auth0|123" }],
+                externalUserId: "auth0|123",
             }),
+        );
+    });
+
+    it("should resolve identity when found by userId (admin-set legacy field)", async () => {
+        const existingUser = {
+            _id: "user-legacy",
+            _rev: "1-xyz",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-members"],
+            userId: "auth0|123",
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [existingUser] }); // userId lookup – found
+
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    headers: {
+                        authorization: "Bearer valid-token",
+                        "x-auth-provider-id": "provider-id",
+                    },
+                }),
+            }),
+        } as any;
+
+        const result = await guard.canActivate(mockContext);
+        expect(result).toBe(true);
+        expect(mockDbService.upsertDoc).toHaveBeenCalledTimes(1);
+        expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: "user-legacy" }),
         );
     });
 
@@ -292,13 +328,15 @@ describe("AuthGuard (Integrated)", () => {
             email: "test@bccsa.org",
             name: "Test User",
             memberOf: ["group-members"],
-            identities: [{ providerId: "provider-id", externalUserId: "auth0|123" }],
+            providerId: "provider-id",
+            externalUserId: "auth0|123",
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [existingUser] }); // identity lookup – found
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [existingUser] }); // externalUserId lookup – found
 
         const mockContext = {
             switchToHttp: () => ({
@@ -327,13 +365,15 @@ describe("AuthGuard (Integrated)", () => {
             email: "test@bccsa.org",
             name: "Test User",
             memberOf: ["group-public", "group-private"], // group-public duplicated with defaultGroups
-            identities: [{ providerId: "provider-id", externalUserId: "auth0|123" }],
+            providerId: "provider-id",
+            externalUserId: "auth0|123",
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // GlobalConfig
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [existingUser] }); // identity lookup
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [existingUser] }); // externalUserId lookup
 
         let capturedUser: any;
         const mockContext = {
@@ -359,5 +399,55 @@ describe("AuthGuard (Integrated)", () => {
         // group-public appears in defaultGroups and memberOf – must appear only once
         expect(groups.filter((g) => g === "group-public")).toHaveLength(1);
         expect(groups).toContain("group-private");
+    });
+
+    it("should merge memberOf from multiple user docs with the same email", async () => {
+        const userDoc1 = {
+            _id: "user-a",
+            _rev: "1-aaa",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-editors"],
+        };
+        const userDoc2 = {
+            _id: "user-b",
+            _rev: "1-bbb",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-admins", "group-editors"], // group-editors duplicated
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // DefaultPermissions
+            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
+            .mockResolvedValueOnce({ docs: [userDoc1, userDoc2] }); // email lookup – two docs
+
+        let capturedUser: any;
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) { capturedUser = val; },
+                        get() { return capturedUser; },
+                    });
+                    return req;
+                },
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+        const groups: string[] = capturedUser?.groups ?? [];
+        expect(groups).toContain("group-editors");
+        expect(groups).toContain("group-admins");
+        // group-editors appears in both docs – must appear only once
+        expect(groups.filter((g) => g === "group-editors")).toHaveLength(1);
     });
 });

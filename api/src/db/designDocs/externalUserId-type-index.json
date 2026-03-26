@@ -1,12 +1,12 @@
 {
-    "_id": "_design/identities-type-index",
+    "_id": "_design/externalUserId-type-index",
     "language": "query",
     "views": {
-        "identities-type-index": {
+        "externalUserId-type-index": {
             "map": {
                 "fields": {
                     "type": "asc",
-                    "identities": "asc"
+                    "externalUserId": "asc"
                 },
                 "partial_filter_selector": {
                     "type": "user"
@@ -15,7 +15,7 @@
             "reduce": "_count",
             "options": {
                 "def": {
-                    "fields": ["type", "identities"]
+                    "fields": ["type", "externalUserId"]
                 }
             }
         }

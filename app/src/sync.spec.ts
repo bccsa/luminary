@@ -59,7 +59,7 @@ describe("sync.ts", () => {
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
             [DocType.AuthProviderConfig]: [],
-            [DocType.GlobalConfig]: [],
+            [DocType.DefaultPermissions]: [],
         });
     });
 
@@ -130,7 +130,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initLanguageSync();
@@ -156,7 +156,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initLanguageSync();
@@ -182,7 +182,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initLanguageSync();
@@ -213,7 +213,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initLanguageSync();
@@ -242,7 +242,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initLanguageSync();
@@ -306,7 +306,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initSync();
@@ -341,7 +341,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initSync();
@@ -376,7 +376,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initSync();
@@ -425,7 +425,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initSync();
@@ -460,7 +460,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AuthProviderConfig]: [],
-                [DocType.GlobalConfig]: [],
+                [DocType.DefaultPermissions]: [],
             });
 
             initSync();

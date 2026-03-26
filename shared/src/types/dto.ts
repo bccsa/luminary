@@ -66,19 +66,15 @@ export type LanguageDto = ContentBaseDto & {
     translations: Record<string, string>;
 };
 
-export type UserIdentityDto = {
-    providerId: string;
-    externalUserId: string;
-};
-
 export type UserDto = ContentBaseDto & {
     type: DocType.User;
     email: string;
     name: string;
     lastLogin?: number;
-    /** @deprecated Use identities[] instead */
+    /** @deprecated */
     userId?: string;
-    identities?: UserIdentityDto[];
+    providerId?: string;
+    externalUserId?: string;
 };
 
 export type ContentDto = ContentBaseDto & {
@@ -250,8 +246,8 @@ export type ApiQueryResult<T> = {
     contentOnly?: boolean;
 };
 
-export type GlobalConfigDto = BaseDocumentDto & {
-    type: DocType.GlobalConfig;
+export type DefaultPermissionsDto = BaseDocumentDto & {
+    type: DocType.DefaultPermissions;
     memberOf: Uuid[];
     defaultGroups: Uuid[];
 };

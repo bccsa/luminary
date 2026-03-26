@@ -1,18 +1,6 @@
-import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, IsArray, ValidateNested } from "class-validator";
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
-import { Expose, Type } from "class-transformer";
-
-export class UserIdentityDto {
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    providerId!: string;
-
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    externalUserId!: string;
-}
+import { Expose } from "class-transformer";
 
 /**
  * Database structured User object
@@ -28,9 +16,7 @@ export class UserDto extends _contentBaseDto {
     @Expose()
     name: string;
 
-    /**
-     * @deprecated Use identities[] instead. Kept for backwards compatibility.
-     */
+    /** @deprecated */
     @IsOptional()
     @IsString()
     @Expose()
@@ -41,14 +27,13 @@ export class UserDto extends _contentBaseDto {
     @Expose()
     lastLogin?: number;
 
-    /**
-     * Array of linked external identities across auth providers.
-     * Each entry links a providerId to the external user ID (e.g. Auth0 sub).
-     */
     @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => UserIdentityDto)
+    @IsString()
     @Expose()
-    identities?: UserIdentityDto[];
+    providerId?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    externalUserId?: string;
 }

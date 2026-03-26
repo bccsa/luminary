@@ -23,7 +23,6 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
-import { isConnected } from "../socket/socketio";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
@@ -696,7 +695,7 @@ class Database extends Dexie {
      * @param ack The acknowledgement from the API
      * @param localChange The local change that was sent (used to identify which entry to delete)
      */
-    async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: Partial<LocalChangeDto>) {
+    async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
         if (ack.ack == "rejected") {
             changeReqErrors.value.push(ack.message || "Unknown error occured");
             if (ack.docs && Array.isArray(ack.docs)) {
@@ -704,7 +703,7 @@ class Database extends Dexie {
                 await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                await this.docs.delete(localChange.doc!._id);
+                await this.docs.delete(localChange.doc._id);
             }
         }
 
@@ -712,7 +711,7 @@ class Database extends Dexie {
             changeReqWarnings.value = ack.warnings;
         }
 
-        await this.localChanges.delete(localChange.id!);
+        await this.localChanges.delete(localChange.id);
     }
 
     /**
@@ -902,9 +901,8 @@ export async function initDatabase() {
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
-        [accessMap, isConnected],
+        accessMap,
         () => {
-            if (!isConnected.value) return;
             db.deleteRevoked();
         },
         { immediate: true },
