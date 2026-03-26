@@ -253,4 +253,50 @@ describe("processContentDto", () => {
             expect.arrayContaining(["lang-fra"]),
         );
     });
+
+    it("does not include draft translations in availableTranslations of a published document", async () => {
+        // Use a dedicated parent post with no pre-seeded content translations, so the only
+        // French sibling is the draft we create below (post-blog1 has a seeded published French doc)
+        await db.upsertDoc({
+            _id: "post-draft-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+        } as PostDto);
+
+        // Create English content (published)
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-draft-test";
+        changeRequest1.doc._id = "content-en-draft-test";
+        changeRequest1.doc.language = "lang-eng";
+        changeRequest1.doc.status = PublishStatus.Published;
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+
+        // Create French content as DRAFT (not yet published)
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-draft-test";
+        changeRequest2.doc._id = "content-fr-draft-test";
+        changeRequest2.doc.language = "lang-fra";
+        changeRequest2.doc.status = PublishStatus.Draft;
+        await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db);
+
+        // Re-save the English document (simulating any update to a published doc while a draft sibling exists)
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+
+        // Fetch the documents from the database
+        const dbDocEn = await db.getDoc("content-en-draft-test");
+        const dbDocFr = await db.getDoc("content-fr-draft-test");
+
+        // French is draft — it must NOT appear in availableTranslations of the English doc.
+        // If it did, the language priority selector would incorrectly think French is available
+        // and skip the English doc for users who prefer French first, causing content loss.
+        expect(dbDocEn.docs[0].availableTranslations).toEqual(["lang-eng"]);
+        expect(dbDocEn.docs[0].availableTranslations).not.toContain("lang-fra");
+
+        // The French draft doc itself should also not list French as available (it's draft)
+        expect(dbDocFr.docs[0].availableTranslations).toEqual(["lang-eng"]);
+        expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
+    });
 });
