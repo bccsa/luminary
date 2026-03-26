@@ -17,6 +17,7 @@ import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
+import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
@@ -60,6 +61,7 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
 
 const editable = groupQuery.editable;
 const isLoading = groupQuery.isLoading;
+const { isEdited } = groupQuery;
 
 const showModal = ref(false);
 
@@ -83,6 +85,11 @@ const canCreateGroup = computed(() => {
 });
 
 const selectedGroup = computed(() => editable.value.find((g) => g._id === newGroupId.value));
+
+const isDirty = computed(() => {
+    // Check if any group in the list has unsaved changes
+    return editable.value.some((g) => isEdited.value(g._id));
+});
 </script>
 
 <template>
@@ -133,4 +140,5 @@ const selectedGroup = computed(() => editable.value.find((g) => g._id === newGro
             @close="showModal = false"
         />
     </BasePage>
+    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>

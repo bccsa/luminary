@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import LTeleport from "../common/LTeleport.vue";
-import { XMarkIcon } from "@heroicons/vue/24/outline";
+import { XMarkIcon } from "@heroicons/vue/24/solid";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+import LButton from "../button/LButton.vue";
 
 type Props = {
     heading: string;
@@ -52,7 +53,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                           : 'w-full max-w-md',
                 ]"
             >
-                <div class="flex w-full items-center justify-between">
+                <div class="mb-2 flex w-full items-center justify-between">
                     <div class="flex items-center">
                         <h2 v-if="heading" class="text-lg font-semibold">
                             {{ heading }}
@@ -65,17 +66,22 @@ const isMobileScreen = breakpoints.smaller("sm");
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />
                         </div>
-                        <div class="ml-6">
-                            <button @click="isVisible = false">
-                                <XMarkIcon class="h-6 w-6" />
-                            </button>
+                        <div class="ml-2">
+                            <LButton
+                                @click="isVisible = false"
+                                :icon="XMarkIcon"
+                                variant="secondary"
+                                mainDynamicCss="px-0.5 py-0.5 rounded-xl"
+                                iconClass="h-5 w-5"
+                            >
+                            </LButton>
                         </div>
                     </div>
                 </div>
                 <div
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',
-                        'mt-4 flex min-h-0 flex-1 flex-col',
+                        'flex min-h-0 flex-1 flex-col',
                     ]"
                 >
                     <slot />

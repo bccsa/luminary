@@ -219,7 +219,7 @@ const saveChanges = async () => {
         @update:open="(val) => !val && emit('close')"
         :primaryAction="saveChanges"
         primaryButtonText="Save"
-        :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty"
+        :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
         @close="emit('close')"
         largeModal
         stickToEdges
@@ -267,19 +267,36 @@ const saveChanges = async () => {
             />
         </template>
         <template #rightHeading>
-            <div class="mb-2 flex items-center gap-2">
-                <LBadge v-if="isDirty" variant="warning" withIcon>Unsaved changes</LBadge>
-                <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
-                    Saving disabled: The group would not be editable
-                </LBadge>
-                <LBadge v-if="isEmpty" variant="warning" withIcon>
-                    The group does not have any access configured
-                </LBadge>
+            <div class="flex">
+                <div class="flex items-center">
+                    <LBadge v-if="isDirty" variant="warning" withIcon class="h-fit">
+                        Unsaved changes
+                    </LBadge>
+                </div>
+                <div class="ml-3">
+                    <AddGroupAclButton
+                        v-if="!disabled"
+                        :groups="availableGroups"
+                        @select="addAssignedGroup"
+                    />
+                </div>
             </div>
         </template>
 
+        <div class="flex items-center gap-1">
+            <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
+                Saving disabled: The group would not be editable
+            </LBadge>
+            <LBadge v-if="!isConnected" variant="warning" withIcon>
+                Saving disabled: Unable to save while offline
+            </LBadge>
+            <LBadge v-if="isEmpty" variant="warning" withIcon>
+                The group does not have any access configured
+            </LBadge>
+        </div>
+
         <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
-            <div class="space-y-1">
+            <div class="mt-1 space-y-1">
                 <TransitionGroup
                     enter-active-class="transition ease duration-500"
                     enter-from-class="opacity-0 scale-90"
@@ -295,20 +312,6 @@ const saveChanges = async () => {
                         :disabled="disabled"
                     />
                 </TransitionGroup>
-                <div class="flex w-full justify-center">
-                    <div>
-                        <AddGroupAclButton
-                            v-if="!disabled"
-                            :groups="availableGroups"
-                            @select="addAssignedGroup"
-                        />
-                    </div>
-                    <div class="max-w-[170px]">
-                        <LBadge v-if="!isConnected" variant="warning" withIcon>
-                            Saving disabled: Unable to save while offline
-                        </LBadge>
-                    </div>
-                </div>
             </div>
             <!-- TODO: We need a way to intercept closing the modal and showing a confirmation dialog -->
             <ConfirmBeforeLeavingModal :isDirty="isDirty" />
