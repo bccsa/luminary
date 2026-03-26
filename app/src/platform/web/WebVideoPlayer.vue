@@ -281,7 +281,9 @@ onMounted(async () => {
                     console.warn("Player stalled, attempting to refresh buffer");
                     player?.currentTime(currentTime + 0.001);
                     if (!isRestoringTrack.value) {
-                        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+                        setAudioTrackLanguage(
+                            appLanguagesPreferredAsRef.value[0].languageCode || null,
+                        );
                     }
                 }
             }, 2000);
@@ -496,7 +498,7 @@ watch(
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "./VideoPlayer.css";
+@import "./WebVideoPlayer.css";
 
 .audio-mode-toggle {
     @apply !absolute right-2 top-2;

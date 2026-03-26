@@ -46,7 +46,7 @@ At **build time**, Vite copies every file from `VITE_PLUGIN_PATH` (pointing to `
 **Step 1 — Register web defaults**
 ```
 app.use(WebPlatformPlugin)
-  → app.provide(MediaPlayerKey,      { VideoPlayer: VideoPlayer, capabilities: web })
+  → app.provide(MediaPlayerKey,      { VideoPlayer: WebVideoPlayer, capabilities: web })
   → app.provide(FileStorageKey,      WebFileStorageService   — no-op)
   → app.provide(DownloadMetadataKey, WebDownloadMetadataService — localStorage)
 ```
@@ -83,7 +83,7 @@ Without this system, every component that touches platform features becomes a me
 
 ```vue
 <!-- ❌ before -->
-<VideoPlayer v-if="isWeb" ... />
+<WebVideoPlayer v-if="isWeb" ... />
 <NativeVideoPlayer v-else ... />
 ```
 
@@ -117,7 +117,7 @@ Default implementations active on every build:
 
 | File | Behaviour |
 |---|---|
-| `components/content/VideoPlayer.vue` | Video.js HTML5 / HLS player |
+| `WebVideoPlayer.vue` | Video.js HTML5 / HLS player |
 | `WebFileStorageService.ts` | No-op — browser has no app-private file API |
 | `WebDownloadMetadataService.ts` | `localStorage` — for local dev and testing parity |
 
@@ -235,7 +235,9 @@ platform/
 
   web/
     index.ts                    WebPlatformPlugin
-    (provides) components/content/VideoPlayer.vue  Video.js player (web default)
+    WebVideoPlayer.vue          Video.js player (web default)
+    WebVideoPlayer.css
+    WebVideoPlayer.spec.ts
     WebFileStorageService.ts    no-op
     WebDownloadMetadataService.ts  localStorage
 
