@@ -159,6 +159,11 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
                 permission: [],
             } as GroupAclEntryDto);
         });
+
+    nextTick(() => {
+        const element = document.getElementById(`group-acl-${newGroupId}`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
 };
 
 const emit = defineEmits(["close"]);
@@ -302,15 +307,19 @@ const saveChanges = async () => {
                     enter-from-class="opacity-0 scale-90"
                     enter-to-class="opacity-100 scale-100"
                 >
-                    <EditAclByGroup
+                    <div
                         v-for="assignedGroup in assignedGroups"
                         :key="assignedGroup._id"
-                        v-model:group="group"
-                        :assignedGroup="assignedGroup"
-                        :originalGroup="group"
-                        :availableGroups="availableGroups"
-                        :disabled="disabled"
-                    />
+                        :id="`group-acl-${assignedGroup._id}`"
+                    >
+                        <EditAclByGroup
+                            v-model:group="group"
+                            :assignedGroup="assignedGroup"
+                            :originalGroup="group"
+                            :availableGroups="availableGroups"
+                            :disabled="disabled"
+                        />
+                    </div>
                 </TransitionGroup>
             </div>
             <!-- TODO: We need a way to intercept closing the modal and showing a confirmation dialog -->
