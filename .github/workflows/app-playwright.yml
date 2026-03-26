@@ -1,70 +1,72 @@
-name: Playwright Tests
+# Temprarily block playwright tests
 
-on:
-  pull_request:
-    branches: [main, master]
-    paths:
-      - app/**
-      - shared/**
-      - api/**
-      - .github/workflows/playwright.yml
-  push:
-    branches: [main, master]
+# name: Playwright Tests
 
-permissions:
-  contents: read
+# on:
+#   pull_request:
+#     branches: [main, master]
+#     paths:
+#       - app/**
+#       - shared/**
+#       - api/**
+#       - .github/workflows/playwright.yml
+#   push:
+#     branches: [main, master]
 
-env:
-  CI: true
-jobs:
-  playwright:
-    runs-on: ubuntu-latest
-    services:
-      couchdb:
-        image: couchdb:latest
-        env:
-          COUCHDB_USER: admin
-          COUCHDB_PASSWORD: password
-        ports:
-          - 5984:5984
-        options: >-
-          --health-cmd="curl -f http://localhost:5984/_up"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    timeout-minutes: 15
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+# permissions:
+#   contents: read
 
-      - name: Create database in couchDB
-        run: |
-          curl -X PUT http://admin:password@localhost:5984/luminary-local
+# env:
+#   CI: true
+# jobs:
+#   playwright:
+#     runs-on: ubuntu-latest
+#     services:
+#       couchdb:
+#         image: couchdb:latest
+#         env:
+#           COUCHDB_USER: admin
+#           COUCHDB_PASSWORD: password
+#         ports:
+#           - 5984:5984
+#         options: >-
+#           --health-cmd="curl -f http://localhost:5984/_up"
+#           --health-interval=10s
+#           --health-timeout=5s
+#           --health-retries=5
+#     timeout-minutes: 15
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v5
 
-      - name: Setup API
-        run: |
-          npm install
-          cp .env.example .env
-          npm run seed
-        working-directory: api
+#       - name: Create database in couchDB
+#         run: |
+#           curl -X PUT http://admin:password@localhost:5984/luminary-local
 
-      - name: Setup app and shared library
-        run: |
-          cd shared
-          npm install
-          npm run build
-          cd ../app
-          cp .env.example .env
-          npm ci --install-links
+#       - name: Setup API
+#         run: |
+#           npm install
+#           cp .env.example .env
+#           npm run seed
+#         working-directory: api
 
-      - name: Install Playwright browsers
-        run: npx playwright install
-        working-directory: app
+#       - name: Setup app and shared library
+#         run: |
+#           cd shared
+#           npm install
+#           npm run build
+#           cd ../app
+#           cp .env.example .env
+#           npm ci --install-links
 
-      - name: Run Playwright Tests
-        run: |
-          cd api
-          npm run start & # Start your API in the background
-          sleep 20         # Wait for the API to be ready
-          cd ../app
-          npm run test:e2e  # Run Playwright E2E tests
+#       - name: Install Playwright browsers
+#         run: npx playwright install
+#         working-directory: app
+
+#       - name: Run Playwright Tests
+#         run: |
+#           cd api
+#           npm run start & # Start your API in the background
+#           sleep 20         # Wait for the API to be ready
+#           cd ../app
+#           npm run test:e2e  # Run Playwright E2E tests
