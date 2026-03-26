@@ -1,4 +1,5 @@
 import HomePage from "@/pages/HomePage.vue";
+import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 
 // Preload all route components immediately as separate chunks
@@ -94,30 +95,15 @@ const router = createRouter({
     ],
 });
 
+const routeHistory = ref<string[]>([]);
+
 // Handle direct navigation by manipulating history state
-router.beforeEach((to, from) => {
-    // Mark as internal navigation if we're coming from another route in the app
-    // from.name will be null/undefined on initial page load or direct URL access
-    if (from.name !== undefined) {
-        isInternalNavigation = true;
-    } else {
-        isInternalNavigation = false;
-    }
-
-    // Check if the length of the browser history is less than or equal to 2
-    const isDirectNavigation = window.history.length === 2;
-
-    if (isDirectNavigation) {
-        const home = router.resolve({ name: "home" }).href;
-        const current = window.location.pathname + window.location.search + window.location.hash;
-
-        if (current !== home) {
-            setTimeout(() => {
-                history.replaceState(null, "", home);
-                history.pushState(null, "", current);
-            }, 0);
-        }
-    }
+router.beforeEach((to) => {
+    routeHistory.value.push(to.fullPath);
 });
+
+export function getRouteHistory() {
+    return routeHistory;
+}
 
 export default router;

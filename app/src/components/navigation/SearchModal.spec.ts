@@ -195,11 +195,14 @@ describe("SearchButton", () => {
             // Persist a previous query before mounting
             window.localStorage.setItem("luminary-search-last-executed-query", "willowdale");
 
+            vi.useFakeTimers();
             const wrapper = mountComponent();
 
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
             await nextTick();
             await flushPromises();
+            vi.runAllTimers(); // flush requestAnimationFrame used for setSelectionRange
+            vi.useRealTimers();
 
             const input = wrapper.find("input").element as HTMLInputElement;
             expect(input.value).toBe("willowdale");
