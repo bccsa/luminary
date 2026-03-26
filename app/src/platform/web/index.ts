@@ -1,14 +1,14 @@
 import type { App, Plugin } from "vue";
 import { MediaPlayerKey, AudioPlayerKey, FileStorageKey, DownloadMetadataKey } from "@/platform/types";
-import WebVideoPlayer from "./WebVideoPlayer.vue";
-import WebAudioPlayer from "@/components/content/AudioPlayer.vue";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import WebAudioPlayer from "./WebAudioPlayer.vue";
 import { WebFileStorageService } from "./WebFileStorageService";
 import { WebDownloadMetadataService } from "./WebDownloadMetadataService";
 
 export const WebPlatformPlugin: Plugin = {
     install(app: App) {
         app.provide(MediaPlayerKey, {
-            VideoPlayer: WebVideoPlayer,
+            VideoPlayer,
             capabilities: {
                 playback: {
                     nativePlayback: false,

@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import WebVideoPlayer from "./WebVideoPlayer.vue";
+import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { computed } from "vue";
@@ -16,12 +16,12 @@ vi.mock("@/util/youtube", () => ({
     isYouTubeUrl: vi.fn((url: string) => {
         if (!url) return false;
         const youtubeRegex =
-            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
+            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^\"&?/\\s]{11})/;
         return youtubeRegex.test(url);
     }),
     convertToVideoJSYouTubeUrl: vi.fn((url: string) => {
         const match = url.match(
-            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/,
+            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^\"&?/\\s]{11})/,
         );
         if (match) {
             return `https://www.youtube.com/watch?v=${match[1]}`;
@@ -70,9 +70,9 @@ vi.mock("video.js", () => {
     return { default: defaultFunction };
 });
 
-describe("WebVideoPlayer", () => {
+describe("VideoPlayer", () => {
     it.skip("renders the poster image for regular video", async () => {
-        const wrapper = mount(WebVideoPlayer, {
+        const wrapper = mount(VideoPlayer, {
             props: {
                 audioTrackLanguage: "lang-eng",
                 content: mockEnglishContentDto,
@@ -80,9 +80,7 @@ describe("WebVideoPlayer", () => {
         });
 
         await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({ src: mockEnglishContentDto.video }),
-            );
+            expect(srcMock).toHaveBeenCalledWith(expect.objectContaining({ src: mockEnglishContentDto.video }));
         });
 
         await waitForExpect(() => {
@@ -90,7 +88,7 @@ describe("WebVideoPlayer", () => {
             const posterArg = posterMock.mock.calls[0]?.[0];
             expect(posterArg).toBeTruthy();
             expect(typeof posterArg).toBe("string");
-            expect(posterArg).toMatch(/px.*\.png|\.png.*px/i);
+            expect(posterArg).toMatch(/px.*\\.png|\\.png.*px/i);
         });
 
         await waitForExpect(() => {
@@ -106,7 +104,7 @@ describe("WebVideoPlayer", () => {
             video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         };
 
-        mount(WebVideoPlayer, {
+        mount(VideoPlayer, {
             props: {
                 audioTrackLanguage: "lang-eng",
                 content: youtubeContent,
@@ -123,3 +121,4 @@ describe("WebVideoPlayer", () => {
         });
     });
 });
+
