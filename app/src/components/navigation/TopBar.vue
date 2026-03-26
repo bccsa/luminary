@@ -4,7 +4,7 @@ import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import SearchButton from "./SearchModal.vue";
-import { computed, nextTick, onMounted, ref, watch, shallowRef } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { getRouteHistory } from "@/router";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { isMdScreen } from "@/globalConfig";
