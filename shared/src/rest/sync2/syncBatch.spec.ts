@@ -243,7 +243,11 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response using queried range boundaries", async () => {
+    it("handles empty docs response using Date.now() as blockStart for initial top-of-range query", async () => {
+        vi.useFakeTimers();
+        const now = new Date("2024-01-01").getTime();
+        vi.setSystemTime(now);
+
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         await syncBatch({
             type: DocType.Post,
@@ -252,10 +256,13 @@ describe("syncBatch", () => {
             initialSync: true,
             httpService: http as any,
         });
-        // Empty responses use queried boundaries so they merge correctly with existing chunks
+        // Empty top-of-range queries use Date.now() so subsequent syncs can find docs
+        // created after this empty sync (avoids blockEnd ≈ MAX_SAFE_INTEGER on next run)
         expect(syncList.value.length).toBe(1);
-        expect(syncList.value[0].blockStart).toBe(Number.MAX_SAFE_INTEGER);
+        expect(syncList.value[0].blockStart).toBe(now);
         expect(syncList.value[0].blockEnd).toBe(0);
+
+        vi.useRealTimers();
     });
 
     it("throws error on invalid docs format", async () => {
@@ -362,7 +369,11 @@ describe("syncBatch", () => {
         setCancelSync(false);
     });
 
-    it("returns mergeResult with queried boundaries for empty docs", async () => {
+    it("returns mergeResult with Date.now() as blockStart for empty initial sync", async () => {
+        vi.useFakeTimers();
+        const now = new Date("2024-01-01").getTime();
+        vi.setSystemTime(now);
+
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         const result = await syncBatch({
             type: DocType.Post,
@@ -374,9 +385,11 @@ describe("syncBatch", () => {
 
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
-        // Empty responses use the queried range boundaries (MAX_SAFE_INTEGER for initialSync blockStart, 0 for blockEnd)
-        expect(result?.blockStart).toBe(Number.MAX_SAFE_INTEGER);
+        // Empty initial sync uses Date.now() so subsequent syncs compute a real blockEnd
+        expect(result?.blockStart).toBe(now);
         expect(result?.blockEnd).toBe(0);
+
+        vi.useRealTimers();
     });
 
     it("returns mergeResult for content type with languages", async () => {
@@ -455,8 +468,14 @@ describe("syncBatch", () => {
             eof: false,
         });
 
-        const docs = makeDocs(2, 999, 10);
-        const http = { post: vi.fn(async () => ({ docs })) };
+        const docs = makeDocs(2, 999, 10); // [999, 989] — fills data below 1000
+        // After the first batch, two non-adjacent blocks exist: {5000,1000} and {999,0}.
+        // A gap-filling batch queries the narrow [999,1000] range. Returning empty docs
+        // lets syncBatch insert a boundary chunk {1000,999} that bridges the blocks and merges them.
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs })) // First call: continuation data
+            .mockImplementationOnce(async () => ({ docs: [] })); // Second call: gap has no docs
         const result = await syncBatch({
             type: DocType.Post,
             memberOf: ["g1"],
@@ -501,6 +520,118 @@ describe("syncBatch", () => {
         expect(http.post).toHaveBeenCalledTimes(2);
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
+    });
+
+    it("fetches all new docs when reconnecting after long disconnect with more new docs than the batch limit", async () => {
+        // Regression test: before the fix, the second batch computed an inverted range
+        // ([0, T_new]) and stopped prematurely, leaving a gap of unfetched documents.
+        //
+        // Scenario: all docs up to timestamp 1000 are synced (complete block).
+        // While offline, 5 new docs were published (timestamps 5000→2000).
+        // Batch limit is 3, so batch 1 fetches top 3 (5000, 4000, 3000) and batch 2
+        // must fill the gap [1000, 3000] to retrieve the remaining doc (2000).
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 1000,
+            blockEnd: 0,
+            eof: true, // All docs ≤ 1000 are synced
+        });
+
+        // Batch 1: top 3 new docs (at limit → eof=false, gap remains)
+        const catchUpBatch = [5000, 4000, 3000].map((ts, i) => ({
+            id: `doc-${i}`,
+            type: DocType.Post,
+            updatedTimeUtc: ts,
+            memberOf: ["g1"],
+        }));
+        // Batch 2: gap-filling docs including overlap at 3000 (eof=true since 2 < limit)
+        const gapBatch = [3000, 2000].map((ts, i) => ({
+            id: `doc-gap-${i}`,
+            type: DocType.Post,
+            updatedTimeUtc: ts,
+            memberOf: ["g1"],
+        }));
+
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: catchUpBatch }))
+            .mockImplementationOnce(async () => ({ docs: gapBatch }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 3,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Both batches must be fetched — old code stopped after 1 due to inverted range
+        expect(http.post).toHaveBeenCalledTimes(2);
+
+        // The gap doc (2000) must have been stored via db.bulkPut
+        const allStoredDocs = (db.bulkPut as ReturnType<typeof vi.fn>).mock.calls.flatMap(
+            (call) => call[0],
+        );
+        const storedTimestamps = allStoredDocs.map((d: any) => d.updatedTimeUtc);
+        expect(storedTimestamps).toContain(2000);
+
+        // Final result must be fully synced (eof=true, one merged block)
+        expect(result?.eof).toBe(true);
+        expect(syncList.value.length).toBe(1);
+        expect(syncList.value[0].blockStart).toBe(5000);
+        expect(syncList.value[0].blockEnd).toBe(0);
+    });
+
+    it("finds docs created after initial empty sync on second sync (group membership bug fix)", async () => {
+        // Regression test: when a type (e.g. groups) is synced before any docs exist,
+        // the syncList gets {blockStart: Date.now(), blockEnd: 0, eof: true}.
+        // When docs are later created on the server, the next sync must find them.
+        // Before the fix, blockStart was MAX_SAFE_INTEGER, so blockEnd = MAX_SAFE_INT - 1000
+        // and real documents (at normal timestamps) were never found.
+
+        vi.useFakeTimers();
+        const firstSyncTime = new Date("2023-01-01").getTime();
+        vi.setSystemTime(firstSyncTime);
+
+        // First sync: no docs exist yet (e.g. no groups configured)
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        await syncBatch({
+            type: DocType.Group,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Confirm syncList uses Date.now(), not MAX_SAFE_INTEGER
+        expect(syncList.value[0].blockStart).toBe(firstSyncTime);
+
+        // Docs are now created on the server (after the initial empty sync)
+        const laterTimestamp = firstSyncTime + 60_000; // 1 minute later
+        const newDocs = [
+            { id: "group-1", type: DocType.Group, updatedTimeUtc: laterTimestamp, memberOf: ["g1"] },
+        ] as any;
+
+        // Advance time to simulate a later session
+        vi.setSystemTime(firstSyncTime + 3_600_000); // 1 hour later
+        http.post.mockImplementation(async () => ({ docs: newDocs }));
+
+        await syncBatch({
+            type: DocType.Group,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // The new doc must have been stored
+        const allStored = (db.bulkPut as ReturnType<typeof vi.fn>).mock.calls.flatMap(
+            (call) => call[0],
+        );
+        expect(allStored.some((d: any) => d.id === "group-1")).toBe(true);
+
+        vi.useRealTimers();
     });
 
     it("continues syncing older data after resume when catch-up returns no docs", async () => {

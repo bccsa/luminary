@@ -9,117 +9,135 @@ import { calcChunk, getChunkTypeString } from "./utils";
 /**
  * Perform an iterative vertical sync (for given type and memberOf groups), and merge chunks as they are fetched.
  * Finally perform horizontal merge if end of file is reached.
+ * Uses an iterative loop instead of recursion to prevent call stack overflows when many batches are needed.
  */
 export async function syncBatch(options: SyncOptions) {
-    // Check if sync has been cancelled before proceeding
-    if (cancelSync) {
-        return;
-    }
-    const chunk = calcChunk(options);
+    let currentOptions: SyncOptions = options;
+    let firstSync: boolean | undefined;
+    let mergeResult = { eof: false, blockStart: 0, blockEnd: 0 };
+    let continueSync = true;
 
-    // If the blockEnd is calculated at 0, it means that there are no existing syncList entries, indicating
-    // that this is the first sync for this type and memberOf groups.
-    const firstSync = chunk.blockEnd === 0;
+    while (continueSync) {
+        // Check if sync has been cancelled before proceeding
+        if (cancelSync) {
+            return;
+        }
 
-    // If the calculated range is inverted (blockStart < blockEnd), it means there are non-adjacent
-    // chunks with a tiny gap that can't be filled. This can happen when boundary documents don't
-    // overlap perfectly. Stop iteration to avoid infinite recursion.
-    if (chunk.blockStart < chunk.blockEnd) {
-        const mergeResult = merge(options);
-        mergeResult.eof = true;
-        return { ...mergeResult, firstSync };
-    }
+        const chunk = calcChunk(currentOptions);
 
-    const mangoQuery = {
-        selector: {
-            type: options.type,
-            updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
-            memberOf: {
-                $elemMatch: { $in: options.memberOf },
-            },
-        } as any,
-        limit: options.limit,
-        sort: [{ updatedTimeUtc: "desc" }],
-        use_index:
-            "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
-        cms: options.cms,
-        identifier: "sync", // Identifier for the API query validation template
-    };
+        // Record firstSync on the first iteration only: blockEnd=0 means no prior entries exist
+        if (firstSync === undefined) {
+            firstSync = chunk.blockEnd === 0;
+        }
 
-    // Add parentType and language selectors to content queries
-    if (options.type === DocType.Content && options.subType) {
-        mangoQuery.selector.parentType = options.subType;
-        mangoQuery.selector.language = { $in: options.languages || [] };
-    }
+        // If the calculated range is inverted (blockStart < blockEnd), it means there are non-adjacent
+        // chunks with a tiny gap that can't be filled. This can happen when boundary documents don't
+        // overlap perfectly. Stop iteration to avoid an infinite loop.
+        if (chunk.blockStart < chunk.blockEnd) {
+            mergeResult = merge(currentOptions);
+            mergeResult.eof = true;
+            continueSync = false;
+        } else {
+            const mangoQuery = {
+                selector: {
+                    type: currentOptions.type,
+                    updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
+                    memberOf: {
+                        $elemMatch: { $in: currentOptions.memberOf },
+                    },
+                } as any,
+                limit: currentOptions.limit,
+                sort: [{ updatedTimeUtc: "desc" }],
+                use_index:
+                    "sync-" +
+                    (currentOptions.subType ? currentOptions.subType + "-" : "") +
+                    currentOptions.type +
+                    "-index",
+                cms: currentOptions.cms,
+                identifier: "sync", // Identifier for the API query validation template
+            };
 
-    // Add docType selector for deleteCmd queries
-    if (options.type === DocType.DeleteCmd && options.subType) {
-        mangoQuery.selector.docType = options.subType;
+            // Add parentType and language selectors to content queries
+            if (currentOptions.type === DocType.Content && currentOptions.subType) {
+                mangoQuery.selector.parentType = currentOptions.subType;
+                mangoQuery.selector.language = { $in: currentOptions.languages || [] };
+            }
 
-        // Filter DeleteCmds by language for content-based delete commands
-        if (options.languages && options.languages.length > 0) {
-            mangoQuery.selector.language = { $in: options.languages };
+            // Add docType selector for deleteCmd queries
+            if (currentOptions.type === DocType.DeleteCmd && currentOptions.subType) {
+                mangoQuery.selector.docType = currentOptions.subType;
+
+                // Filter DeleteCmds by language for content-based delete commands
+                if (currentOptions.languages && currentOptions.languages.length > 0) {
+                    mangoQuery.selector.language = { $in: currentOptions.languages };
+                }
+            }
+
+            // Check if sync has been cancelled before making API request
+            if (cancelSync) {
+                return;
+            }
+
+            const res = await currentOptions.httpService.post("query", mangoQuery);
+
+            // Check if sync was cancelled during the API call
+            if (cancelSync) {
+                return;
+            }
+
+            if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+            if (res.warning) console.warn("API warning received: ", res.warning);
+            if (res.warnings && Array.isArray(res.warnings))
+                res.warnings.forEach((w: string) => console.warn("API warning received: ", w));
+
+            // Get the block start and end timestamps.
+            // When no docs are returned and this was a top-of-range initial query (blockStart = MAX_SAFE_INTEGER),
+            // use Date.now() instead of MAX_SAFE_INTEGER. This prevents subsequent syncs from computing
+            // blockEnd ≈ MAX_SAFE_INTEGER and missing all real documents created after this empty sync.
+            // For gap-filling queries (blockStart is a real timestamp), use chunk.blockStart as-is.
+            const fetchedDocs = res.docs as Array<BaseDocumentDto>;
+            const blockLength = fetchedDocs.length;
+            const blockStart = fetchedDocs.length
+                ? fetchedDocs[0].updatedTimeUtc
+                : chunk.blockStart === Number.MAX_SAFE_INTEGER
+                  ? Date.now()
+                  : chunk.blockStart;
+            let blockEnd = fetchedDocs.length
+                ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc
+                : chunk.blockEnd;
+
+            // When eof is reached (fewer docs than limit), extend blockEnd to cover the full
+            // queried range. This ensures the chunk represents the entire range that was verified
+            // to have no more data, which is critical for proper merging on sync resume.
+            if (blockLength < currentOptions.limit && blockLength > 0) {
+                blockEnd = Math.min(blockEnd, chunk.blockEnd);
+            }
+
+            // Upsert to IndexedDB
+            if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
+
+            // Push chunk to chunk list
+            syncList.value.push({
+                chunkType: getChunkTypeString(currentOptions.type, currentOptions.subType),
+                memberOf: currentOptions.memberOf,
+                languages: currentOptions.languages,
+                blockStart,
+                blockEnd,
+                eof: blockLength < currentOptions.limit, // If less than limit, we reached the end
+            });
+
+            // Merge chunks
+            mergeResult = merge(currentOptions);
+
+            if (mergeResult.eof) {
+                // All documents received — stop iterating
+                continueSync = false;
+            } else {
+                // Continue to next batch, switching to non-initial sync mode
+                currentOptions = { ...options, initialSync: false };
+            }
         }
     }
 
-    // Check if sync has been cancelled before making API request
-    if (cancelSync) {
-        return;
-    }
-
-    const res = await options.httpService.post("query", mangoQuery);
-
-    // Check if sync was cancelled during the API call
-    if (cancelSync) {
-        return;
-    }
-
-    if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
-    if (res.warning) console.warn("API warning received: ", res.warning);
-    if (res.warnings && Array.isArray(res.warnings))
-        res.warnings.forEach((w: string) => console.warn("API warning received: ", w));
-
-    // Get the block start and end timestamps.
-    // When no docs are returned, use the queried range boundaries so the chunk correctly
-    // represents the empty range that was checked, enabling proper merge with existing chunks.
-    const fetchedDocs = res.docs as Array<BaseDocumentDto>;
-    const blockLength = fetchedDocs.length;
-    const blockStart = fetchedDocs.length ? fetchedDocs[0].updatedTimeUtc : chunk.blockStart;
-    let blockEnd = fetchedDocs.length
-        ? fetchedDocs[fetchedDocs.length - 1].updatedTimeUtc
-        : chunk.blockEnd;
-
-    // When eof is reached (fewer docs than limit), extend blockEnd to cover the full
-    // queried range. This ensures the chunk represents the entire range that was verified
-    // to have no more data, which is critical for proper merging on sync resume.
-    if (blockLength < options.limit && blockLength > 0) {
-        blockEnd = Math.min(blockEnd, chunk.blockEnd);
-    }
-
-    // Upsert to IndexedDB
-    if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
-
-    // Push chunk to chunk list
-    syncList.value.push({
-        chunkType: getChunkTypeString(options.type, options.subType),
-        memberOf: options.memberOf,
-        languages: options.languages,
-        blockStart,
-        blockEnd,
-        eof: blockLength < options.limit, // If less than limit, we reached the end
-    });
-
-    // Merge chunks
-    let mergeResult = merge(options);
-
-    // If not end of file (we have not yet received all documents from the API), continue to sync iteratively
-    if (!mergeResult.eof) {
-        mergeResult =
-            (await syncBatch({
-                ...options,
-                initialSync: false,
-            })) || mergeResult;
-    }
-
-    return { ...mergeResult, firstSync };
+    return { ...mergeResult, firstSync: firstSync ?? true };
 }

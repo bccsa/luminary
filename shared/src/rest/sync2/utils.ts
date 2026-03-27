@@ -23,11 +23,11 @@ export function calcChunk(options: {
     let blockEnd: number;
 
     if (options.initialSync || list.length === 0) blockStart = Number.MAX_SAFE_INTEGER;
-    else blockStart = list[0].blockEnd;
+    else blockStart = list[list.length - 1].blockEnd; // Use the highest (newest) block's bottom to continue filling downward
 
     if (options.initialSync)
         blockEnd = list.length === 0 ? 0 : list[0].blockStart - syncTolerance; // add tolerance to push end into past of first synced blockStart giving an overlap to avoid missing documents
-    else blockEnd = list.length <= 1 ? 0 : list[1].blockStart;
+    else blockEnd = list.length <= 1 ? 0 : list[list.length - 2].blockStart; // Use second-highest block's top as the lower boundary
 
     return { blockStart, blockEnd };
 }

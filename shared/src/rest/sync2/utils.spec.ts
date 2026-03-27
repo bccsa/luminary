@@ -81,20 +81,21 @@ describe("sync2 utils", () => {
             expect(result.blockEnd).toBe(4000); // 5000 - 1000 (tolerance)
         });
 
-        it("should handle multiple entries and use the earliest blockEnd", () => {
+        it("should continue from the top block's bottom to fill the gap for non-initial sync", () => {
+            // Two non-adjacent blocks: gap between 4100 and 4000
             syncList.value = [
-                {
-                    chunkType: "post",
-                    memberOf: ["group1"],
-                    blockStart: 5000,
-                    blockEnd: 4000,
-                    eof: false,
-                },
                 {
                     chunkType: "post",
                     memberOf: ["group1"],
                     blockStart: 4000,
                     blockEnd: 3000,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4100,
                     eof: false,
                 },
             ];
@@ -105,9 +106,39 @@ describe("sync2 utils", () => {
                 initialSync: false,
             });
 
-            // After sorting by blockStart: [4000->3000, 5000->4000]
-            expect(result.blockStart).toBe(3000); // blockEnd of first entry (after sorting)
-            expect(result.blockEnd).toBe(5000); // blockStart of second entry
+            // Should continue from the top block's blockEnd (4100) down to the lower block's top (4000)
+            expect(result.blockStart).toBe(4100); // blockEnd of the highest block
+            expect(result.blockEnd).toBe(4000); // blockStart of the second-highest block
+        });
+
+        it("should correctly fill gap between catch-up block and pre-existing complete block (reconnect scenario)", () => {
+            // Classic reconnect scenario: fully synced old block below, partial catch-up block above with a gap
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    eof: true, // Old complete block
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 1500,
+                    blockEnd: 1100,
+                    eof: false, // New catch-up block with gap [1000, 1100]
+                },
+            ];
+
+            const result = calcChunk({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                initialSync: false,
+            });
+
+            // Should fill the gap [1000, 1100], not produce inverted range
+            expect(result.blockStart).toBe(1100); // blockEnd of the catch-up block
+            expect(result.blockEnd).toBe(1000); // blockStart of the old complete block
         });
 
         it("should filter by type and memberOf", () => {
@@ -166,14 +197,15 @@ describe("sync2 utils", () => {
         });
 
         it("should filter by languages when provided for content types", () => {
+            // Two non-adjacent "en" blocks with a gap; "es" entry should be ignored
             syncList.value = [
                 {
                     chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
-                    blockStart: 6000,
-                    blockEnd: 5000,
-                    eof: false,
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: true,
                 },
                 {
                     chunkType: "content:post",
@@ -187,8 +219,8 @@ describe("sync2 utils", () => {
                     chunkType: "content:post",
                     memberOf: ["group1"],
                     languages: ["en"],
-                    blockStart: 5000,
-                    blockEnd: 4000,
+                    blockStart: 6000,
+                    blockEnd: 4200,
                     eof: false,
                 },
             ];
@@ -201,10 +233,10 @@ describe("sync2 utils", () => {
                 initialSync: false,
             });
 
-            // Should only consider entries with language "en"
-            // After sorting by blockStart: [5000->4000, 6000->5000]
-            expect(result.blockStart).toBe(4000); // blockEnd of first entry (after sorting)
-            expect(result.blockEnd).toBe(6000); // blockStart of second entry
+            // Should only consider entries with language "en": [{4000,3000}, {6000,4200}]
+            // Continue from top block's bottom (4200) to second-highest's top (4000)
+            expect(result.blockStart).toBe(4200); // blockEnd of the highest "en" block
+            expect(result.blockEnd).toBe(4000); // blockStart of the second-highest "en" block
         });
 
         it("should handle empty languages array", () => {
