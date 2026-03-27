@@ -611,5 +611,6 @@ const deleteLanguage = async () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
+        :showClosingButton="false"
     ></LDialog>
 </template>

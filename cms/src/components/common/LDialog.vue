@@ -13,13 +13,14 @@ type Props = {
     primaryButtonDisabled?: boolean;
     largeModal?: boolean;
     stickToEdges?: boolean;
-    noXClosingButton?: boolean;
+    showClosingButton?: boolean;
 };
 
 const open = defineModel<boolean>("open");
 
 withDefaults(defineProps<Props>(), {
     context: "default",
+    showClosingButton: true,
 });
 </script>
 
@@ -30,7 +31,7 @@ withDefaults(defineProps<Props>(), {
         :noDivider="true"
         :largeModal="largeModal"
         :stickToEdges="stickToEdges"
-        :noXClosingButton="noXClosingButton"
+        :showClosingButton="showClosingButton"
     >
         <p v-if="description" class="shrink-0 text-sm text-gray-500">{{ description }}</p>
         <div class="min-h-0 flex-1 overflow-y-scroll scrollbar-hide">
