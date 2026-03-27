@@ -97,6 +97,7 @@
 .video-player .vjs-progress-control {
     @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
     width: calc(100% - 40px) !important;
+    touch-action: none;
 }
 
 .video-player .vjs-live-control {
@@ -113,6 +114,7 @@
 
 .video-player .vjs-slider {
     @apply !rounded-full;
+    touch-action: none;
 }
 
 .video-player .vjs-slider-bar {
