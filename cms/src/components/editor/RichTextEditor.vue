@@ -97,6 +97,7 @@ defineExpose({
         ref="rteRef"
         v-bind="$attrs"
         v-model="text"
+        content-format="html"
         :disabled="props.disabled"
         :toolbar-groups="toolbarGrouping"
         :class-names="toolbarClasses"

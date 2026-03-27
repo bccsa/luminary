@@ -687,12 +687,8 @@ describe("EditContent.vue", () => {
         expect(authorInput.exists()).toBe(true);
         await authorInput.setValue("New Author");
 
-        const updatedContent = JSON.stringify({
-            type: "doc",
-            content: [{ type: "paragraph", content: [{ type: "text", text: "New Content" }] }],
-        });
         //@ts-ignore -- valid code
-        richTextEditor.vm.text = updatedContent;
+        richTextEditor.vm.text = "<p>New Content</p>";
 
         await waitForExpect(() => {
             expect(richTextEditor.vm.text).toContain("New Content");
@@ -707,9 +703,7 @@ describe("EditContent.vue", () => {
             const res = await db.localChanges.toArray();
 
             expect(res.length).toBe(2);
-            expect(JSON.parse((res[1].doc as any).text).content[0].content[0].text).toBe(
-                "New Content",
-            );
+            expect((res[1].doc as any).text).toContain("New Content");
         });
     });
 

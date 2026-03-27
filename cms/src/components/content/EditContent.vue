@@ -77,7 +77,10 @@ const editableParent = ref<ContentParentDto>({
 const isLoading = computed(() => editableParent.value == undefined);
 const existingParent = ref<ContentParentDto>();
 const liveParent = useDexieLiveQuery(
-    async () => (await db.get(parentId)) as unknown as Promise<ContentParentDto>,
+    async () =>
+        (await db.get(
+            editableParent.value?._id || parentId,
+        )) as unknown as Promise<ContentParentDto>,
     { initialValue: editableParent.value },
 );
 const editableContent = ref<ContentDto[]>([]);
@@ -108,38 +111,55 @@ if (props.docType === DocType.Tag) {
     icon = TagIcon;
 }
 
-if (newDocument) {
-    if (props.docType === DocType.Tag) {
-        (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
-        (editableParent.value as TagDto).pinned = 0;
-        (editableParent.value as TagDto).publishDateVisible = false;
-    } else {
-        (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
-        (editableParent.value as PostDto).publishDateVisible = true;
-    }
-} else {
-    db.get<PostDto | TagDto>(parentId).then((p) => {
-        if (!p) {
-            addNotification({
-                title: "Parent not found",
-                description: "The parent document was not found in the database",
-                state: "error",
-                timer: 5000,
-            });
-            router.push({
-                name: "overview",
-                params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
-            });
+const loadData = (id: string, isNew: boolean) => {
+    if (isNew) {
+        if (props.docType === DocType.Tag) {
+            (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
+            (editableParent.value as TagDto).pinned = 0;
+            (editableParent.value as TagDto).publishDateVisible = false;
+        } else {
+            (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
+            (editableParent.value as PostDto).publishDateVisible = true;
         }
-        editableParent.value = _.cloneDeep(p);
-        existingParent.value = _.cloneDeep(p);
-    });
+    } else {
+        db.get<PostDto | TagDto>(id).then((p) => {
+            if (!p) {
+                addNotification({
+                    title: "Parent not found",
+                    description: "The parent document was not found in the database",
+                    state: "error",
+                    timer: 5000,
+                });
+                router.push({
+                    name: "overview",
+                    params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
+                });
+            }
+            editableParent.value = _.cloneDeep(p!);
+            existingParent.value = _.cloneDeep(p!);
+        });
 
-    db.whereParent(parentId, props.docType).then((doc) => {
-        editableContent.value.push(...doc);
-        existingContent.value = _.cloneDeep(doc);
-    });
-}
+        db.whereParent(id, props.docType).then((doc) => {
+            // we must replace the array, not push to it, to avoid old items when reloading
+            editableContent.value = doc;
+            existingContent.value = _.cloneDeep(doc);
+        });
+    }
+};
+
+loadData(parentId, newDocument);
+
+watch(
+    () => props.id,
+    (newId) => {
+        // Only fetch from DB if the ID actually changed to a different document
+        if (newId !== editableParent.value?._id && newId !== "new") {
+            loadData(newId, false);
+        } else if (newId === "new") {
+            loadData(db.uuid(), true);
+        }
+    },
+);
 
 const untranslatedLanguages = computed(() => {
     if (!editableContent.value) return [];
@@ -438,7 +458,7 @@ router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 watch(selectedLanguage, () => {
     if (selectedLanguage.value) {
         router.replace(
-            `/${props.docType}/edit/${props.tagOrPostType}/${parentId}/${selectedLanguage.value?.languageCode}`,
+            `/${props.docType}/edit/${props.tagOrPostType}/${editableParent.value._id}/${selectedLanguage.value?.languageCode}`,
         );
     }
 });
@@ -459,7 +479,6 @@ const duplicate = async () => {
     const clonedParent = _.cloneDeep(editableParent.value);
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
-    clonedParent.tags = [];
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
     if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
     const clonedContent = editableContent.value.map((c) => {
@@ -525,7 +544,15 @@ const contentActions = computed(() => {
     return actions;
 });
 
-const isLocalChange = db.isLocalChangeAsRef(parentId);
+const isLocalChange = useDexieLiveQuery(
+    async () => {
+        const res = await db.localChanges
+            .where({ docId: editableParent.value?._id || parentId })
+            .first();
+        return res ? true : false;
+    },
+    { initialValue: false },
+);
 </script>
 
 <template>
