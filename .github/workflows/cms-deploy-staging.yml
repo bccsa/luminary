@@ -49,7 +49,7 @@ jobs:
         working-directory: cms
 
       - name: Build Docker container
-        run: docker build -f ./cms/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
+        run: docker build --no-cache -f ./cms/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
         working-directory: ./
 
       - name: Stop and remove old Docker container
