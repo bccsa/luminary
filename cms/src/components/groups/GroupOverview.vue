@@ -139,6 +139,7 @@ const isDirty = computed(() => {
             :group-query="groupQuery"
             @close="showModal = false"
         />
+
+        <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>

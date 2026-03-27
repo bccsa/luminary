@@ -726,6 +726,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
+        :showClosingButton="false"
     />
     <LDialog
         v-model:open="showDuplicateModal"
