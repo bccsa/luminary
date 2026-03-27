@@ -11,6 +11,7 @@ import {
     ApiLiveQueryAsEditable,
     db,
 } from "luminary-shared";
+import { TrashIcon } from "@heroicons/vue/24/outline";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { validDocTypes } from "./permissions";
@@ -22,6 +23,7 @@ import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
+import router from "@/router";
 
 const { addNotification } = useNotificationStore();
 
@@ -33,6 +35,7 @@ const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
 const { liveData, isEdited, revert, save, duplicate } = props.groupQuery;
+const showDeleteConfirm = ref(false);
 
 const isDirty = computed(() => {
     // Check if the group has been modified
@@ -167,6 +170,37 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
 };
 
 const emit = defineEmits(["close"]);
+
+const canDeleteGroup = computed(() => {
+    if (!group.value) return false;
+    return verifyAccess([group.value._id], DocType.Group, AclPermission.Delete);
+});
+
+const deleteGroup = async () => {
+    if (!group.value) return;
+
+    if (!canDeleteGroup.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
+        return;
+    }
+
+    group.value.deleteReq = 1;
+    group.value.updatedTimeUtc = Date.now();
+
+    await save(group.value._id);
+
+    addNotification({
+        title: `${group.value.name} deleted`,
+        description: `The group was successfully deleted`,
+        state: "success",
+    });
+
+    router.push("/groups");
+};
 
 const duplicateGroup = async () => {
     if (!original.value) {
@@ -322,6 +356,18 @@ const saveChanges = async () => {
         <template #footer-extra>
             <div class="flex">
                 <LButton
+                    v-if="!isNewGroup"
+                    type="button"
+                    @click="showDeleteConfirm = true"
+                    data-test="delete-button"
+                    variant="secondary"
+                    context="danger"
+                    :icon="TrashIcon"
+                    class="mr-2"
+                >
+                    Delete
+                </LButton>
+                <LButton
                     v-if="
                         groupQuery.editable &&
                         groupQuery.editable.value.length > 0 &&
@@ -333,7 +379,6 @@ const saveChanges = async () => {
                     size="sm"
                     title="Duplicate"
                     :icon="DocumentDuplicateIcon"
-                    icon-right
                     @click="duplicateGroup"
                     data-test="duplicateGroup"
                     mainDynamicCss="text-zinc-600"
@@ -355,5 +400,22 @@ const saveChanges = async () => {
                 </div>
             </div>
         </template>
+
+        <LDialog
+            v-model:open="showDeleteConfirm"
+            :title="`Delete ${group.name} ?`"
+            :description="`Are you sure you want to delete this group? This action cannot be undone.`"
+            :primaryAction="
+                () => {
+                    showDeleteConfirm = false;
+                    deleteGroup();
+                    emit('close');
+                }
+            "
+            :secondaryAction="() => (showDeleteConfirm = false)"
+            primaryButtonText="Delete"
+            secondaryButtonText="Cancel"
+            context="danger"
+        />
     </LDialog>
 </template>
