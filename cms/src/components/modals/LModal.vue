@@ -10,6 +10,7 @@ type Props = {
     noDivider?: boolean;
     largeModal?: boolean;
     stickToEdges?: boolean;
+    noXClosingButton?: boolean;
 };
 withDefaults(defineProps<Props>(), {
     noDivider: false,
@@ -66,7 +67,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />
                         </div>
-                        <div class="ml-2">
+                        <div v-if="!noXClosingButton" class="ml-2">
                             <LButton
                                 @click="isVisible = false"
                                 :icon="XMarkIcon"

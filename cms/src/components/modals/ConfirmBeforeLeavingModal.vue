@@ -51,5 +51,6 @@ const leave = async () => {
         secondaryButtonText="Stay on page"
         :primaryAction="leave"
         :secondaryAction="closeWithoutLeaving"
+        noXClosingButton
     />
 </template>
