@@ -589,6 +589,7 @@ describe("EditContent.vue - Duplication", () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const vm: any = wrapper.vm;
             expect(vm.editableParent._id).toBe(mockData.mockCategoryDto._id);
+            expect(vm.editableParent.tagType).toBe(TagType.Category);
         });
 
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
