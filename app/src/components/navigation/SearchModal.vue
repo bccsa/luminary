@@ -461,7 +461,7 @@ watch(isSearchOpen, (open) => {
             }
         }
     });
-});
+}, { immediate: true });
 
 watch(results, (newResults) => {
     if (newResults.length === 0) {
