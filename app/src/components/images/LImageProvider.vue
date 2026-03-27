@@ -102,7 +102,7 @@ const filteredFileCollections = computed(() => {
     props.image.fileCollections.forEach((collection) => {
         const images = collection.imageFiles.filter(
             (imgFile) =>
-                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                !isConnected.value || // Bypass filtering when not connected, allowing the image element to select any available image from cache
                 ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
                     imgFile.width <= (props.parentWidth * 1.5 || 180)),
         );
@@ -287,6 +287,7 @@ watch(
         :srcset="modalSrcset || undefined"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        crossorigin="anonymous"
         draggable="false"
         data-test="image-element1"
         @error="modalImageError = true"
@@ -309,6 +310,7 @@ watch(
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
+        crossorigin="anonymous"
         data-test="image-element1"
         loading="lazy"
         @error="imageElement1Error = true"
@@ -325,6 +327,7 @@ watch(
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
+        crossorigin="anonymous"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"
