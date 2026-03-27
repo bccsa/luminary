@@ -688,6 +688,13 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
+        // Verify parent has media data before duplication
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent.media).toBeDefined();
+        });
+
         const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
