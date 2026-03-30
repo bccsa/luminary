@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
 # Navigate to the api directory
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
 # Load environment variables
@@ -34,17 +34,19 @@ json_field() {
 # ── Helper: collect group mappings ───────────────────────────────────────────
 # Sets global: group_mappings_json
 collect_group_mappings() {
-  local -a _gm_objects=()
+  local _gm_objects=""
 
   while true; do
-    read -p "  Group ID (or blank to finish): " gm_groupId
+    printf "  Group ID (or blank to finish): "
+    read gm_groupId
     if [ -z "$gm_groupId" ]; then break; fi
 
     echo "  Condition type for '$gm_groupId':"
     echo "    1) authenticated  — any successfully authenticated user"
     echo "    2) claimEquals    — a JWT claim equals a specific value"
     echo "    3) claimIn        — a JWT claim is one of a list of values"
-    read -p "  Select [1-3]: " gm_cond_choice
+    printf "  Select [1-3]: "
+    read gm_cond_choice
 
     local gm_condType="" gm_claimPath="" gm_value="" gm_values_json="[]"
 
@@ -52,20 +54,29 @@ collect_group_mappings() {
       1) gm_condType="authenticated" ;;
       2)
         gm_condType="claimEquals"
-        read -p "  Claim path (e.g., roles): " gm_claimPath
-        read -p "  Claim value (exact match): " gm_value
+        printf "  Claim path (e.g., roles): "
+        read gm_claimPath
+        printf "  Claim value (exact match): "
+        read gm_value
         ;;
       3)
         gm_condType="claimIn"
-        read -p "  Claim path (e.g., roles): " gm_claimPath
+        printf "  Claim path (e.g., roles): "
+        read gm_claimPath
         echo "  Enter values one per line. Leave blank to finish."
-        local -a _vals=()
+        local _vals=""
         while true; do
-          read -p "    Value: " gm_val
+          printf "    Value: "
+          read gm_val
           if [ -z "$gm_val" ]; then break; fi
-          _vals+=("$gm_val")
+          if [ -n "$_vals" ]; then
+            _vals="$_vals
+$gm_val"
+          else
+            _vals="$gm_val"
+          fi
         done
-        gm_values_json=$(printf '%s\n' "${_vals[@]}" | node -e "
+        gm_values_json=$(printf '%s\n' "$_vals" | node -e "
           const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n').filter(Boolean);
           process.stdout.write(JSON.stringify(lines));
         ")
@@ -87,10 +98,15 @@ collect_group_mappings() {
         process.stdout.write(JSON.stringify({ groupId: process.env.GM_GROUP_ID, conditions: [cond] }));
       ")
 
-    _gm_objects+=("$_m")
+    if [ -n "$_gm_objects" ]; then
+      _gm_objects="$_gm_objects
+$_m"
+    else
+      _gm_objects="$_m"
+    fi
   done
 
-  group_mappings_json=$(printf '%s\n' "${_gm_objects[@]}" | node -e "
+  group_mappings_json=$(printf '%s\n' "$_gm_objects" | node -e "
     const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n').filter(Boolean);
     process.stdout.write(JSON.stringify(lines.map(l => JSON.parse(l))));
   ")
@@ -107,15 +123,13 @@ apply_group_acl_updates() {
   echo "Updating group ACL entries for AuthProvider access..."
 
   # Add/update ACL entry for each group in new memberOf
-  local -a _new_groups=()
-  while IFS= read -r _g; do
-    [ -n "$_g" ] && _new_groups+=("$_g")
-  done < <(echo "$new_mo_json" | node -e "
+  _new_groups=$(echo "$new_mo_json" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
     process.stdin.on('end',()=>{ JSON.parse(b).forEach(g=>console.log(g)); });
   ")
 
-  for _gid in "${_new_groups[@]}"; do
+  echo "$_new_groups" | while IFS= read -r _gid; do
+    [ -z "$_gid" ] && continue
     local _gdoc _gexists _aperms _ugdoc _gresp
     _gdoc=$(curl -s -X GET "$DB_CONNECTION_STRING/$DB_DATABASE/$_gid")
     _gexists=$(echo "$_gdoc" | node -e "
@@ -132,7 +146,7 @@ apply_group_acl_updates() {
       _aperms='["view"]'
     fi
 
-    _ugdoc=$(ACL_GID="$_gid" ACL_PERMS="$_aperms" node -e "
+    _ugdoc=$(echo "$_gdoc" | ACL_GID="$_gid" ACL_PERMS="$_aperms" node -e "
       let b=''; process.stdin.on('data',d=>b+=d);
       process.stdin.on('end',()=>{
         const doc=JSON.parse(b), gid=process.env.ACL_GID;
@@ -142,26 +156,24 @@ apply_group_acl_updates() {
         doc.acl=acl;
         process.stdout.write(JSON.stringify(doc));
       });
-    " <<< "$_gdoc")
+    ")
 
     _gresp=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$_gid" \
       -H "Content-Type: application/json" -d "$_ugdoc")
     echo "  Group '$_gid':"
-    if command -v jq &> /dev/null; then echo "$_gresp" | jq .
+    if command -v jq > /dev/null 2>&1; then echo "$_gresp" | jq .
     else echo "  $_gresp"; fi
   done
 
   # Remove AuthProvider ACL entry from groups no longer in memberOf
   if [ -n "$old_mo_json" ]; then
-    local -a _removed=()
-    while IFS= read -r _g; do
-      [ -n "$_g" ] && _removed+=("$_g")
-    done < <(OLD_MO="$old_mo_json" NEW_MO="$new_mo_json" node -e "
+    _removed=$(OLD_MO="$old_mo_json" NEW_MO="$new_mo_json" node -e "
       const o=JSON.parse(process.env.OLD_MO), n=JSON.parse(process.env.NEW_MO);
       o.filter(g=>!n.includes(g)).forEach(g=>console.log(g));
     ")
 
-    for _rid in "${_removed[@]}"; do
+    echo "$_removed" | while IFS= read -r _rid; do
+      [ -z "$_rid" ] && continue
       local _gdoc _gexists _ugdoc _gresp
       _gdoc=$(curl -s -X GET "$DB_CONNECTION_STRING/$DB_DATABASE/$_rid")
       _gexists=$(echo "$_gdoc" | node -e "
@@ -172,19 +184,19 @@ apply_group_acl_updates() {
         echo "  Warning: group '$_rid' not found — skipping."; continue
       fi
 
-      _ugdoc=$(REM_GID="$_rid" node -e "
+      _ugdoc=$(echo "$_gdoc" | REM_GID="$_rid" node -e "
         let b=''; process.stdin.on('data',d=>b+=d);
         process.stdin.on('end',()=>{
           const doc=JSON.parse(b), gid=process.env.REM_GID;
           doc.acl=(doc.acl||[]).filter(e=>!(e.type==='authProvider'&&e.groupId===gid));
           process.stdout.write(JSON.stringify(doc));
         });
-      " <<< "$_gdoc")
+      ")
 
       _gresp=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$_rid" \
         -H "Content-Type: application/json" -d "$_ugdoc")
       echo "  Removed AuthProvider ACL from '$_rid':"
-      if command -v jq &> /dev/null; then echo "$_gresp" | jq .
+      if command -v jq > /dev/null 2>&1; then echo "$_gresp" | jq .
       else echo "  $_gresp"; fi
     done
   fi
@@ -202,7 +214,8 @@ echo "  3) Configure Default Groups"
 echo "  4) Add Auth Provider + Configure Default Groups"
 echo "  5) Repair ACL entries for existing Auth Provider"
 echo ""
-read -p "Select an option [1-5]: " menu_choice
+printf "Select an option [1-5]: "
+read menu_choice
 
 case "$menu_choice" in
   1) do_add_provider=true;  do_modify_provider=false; do_groups=false; do_repair_acl=false ;;
@@ -222,16 +235,20 @@ if [ "$do_add_provider" = true ]; then
   echo "====================================="
   echo ""
 
-  read -p "Domain (e.g., yourdomain.auth0.com): " domain
+  printf "Domain (e.g., yourdomain.auth0.com): "
+  read domain
   if [ -z "$domain" ]; then echo "Domain is required."; exit 1; fi
 
-  read -p "Audience (e.g., https://api.yourdomain.com): " audience
+  printf "Audience (e.g., https://api.yourdomain.com): "
+  read audience
   if [ -z "$audience" ]; then echo "Audience is required."; exit 1; fi
 
-  read -p "Client ID: " clientId
+  printf "Client ID: "
+  read clientId
   if [ -z "$clientId" ]; then echo "Client ID is required."; exit 1; fi
 
-  read -p "Display label (e.g., 'Sign in with Google') [optional]: " label
+  printf "Display label (e.g., 'Sign in with Google') [optional]: "
+  read label
 
   echo ""
   echo "Which groups should be able to view this auth provider?"
@@ -240,14 +257,16 @@ if [ "$do_add_provider" = true ]; then
   echo "  Enter one group ID per line. Leave blank to finish."
   echo ""
 
-  provider_member_of=("group-super-admins")
+  provider_member_of="group-super-admins"
   while true; do
-    read -p "  Group ID (or blank to finish): " pm_group
+    printf "  Group ID (or blank to finish): "
+    read pm_group
     if [ -z "$pm_group" ]; then break; fi
-    provider_member_of+=("$pm_group")
+    provider_member_of="$provider_member_of
+$pm_group"
   done
 
-  provider_member_of_json=$(printf '%s\n' "${provider_member_of[@]}" | node -e "
+  provider_member_of_json=$(printf '%s\n' "$provider_member_of" | node -e "
     const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n').filter(Boolean);
     process.stdout.write(JSON.stringify(lines));
   ")
@@ -255,14 +274,18 @@ if [ "$do_add_provider" = true ]; then
   echo ""
   echo "Custom JWT claim namespace (optional)."
   echo "  e.g. https://yourdomain.com/metadata"
-  read -p "Claim namespace [optional]: " claimNamespace
+  printf "Claim namespace [optional]: "
+  read claimNamespace
 
   echo ""
   echo "User field mappings: override the JWT claim names for standard user fields."
   echo "  Press Enter to accept the OIDC defaults (sub, email, name)."
-  read -p "  externalUserId claim name [default: sub]: "   ufm_externalUserId
-  read -p "  email claim name         [default: email]: "  ufm_email
-  read -p "  name claim name          [default: name]: "   ufm_name
+  printf "  externalUserId claim name [default: sub]: "
+  read ufm_externalUserId
+  printf "  email claim name         [default: email]: "
+  read ufm_email
+  printf "  name claim name          [default: name]: "
+  read ufm_name
 
   echo ""
   echo "Group mappings: rules that assign authenticated users to local groups."
@@ -329,16 +352,17 @@ EOF
 
   echo ""
   echo "Generated AuthProvider payload:"
-  if command -v jq &> /dev/null; then echo "$provider_payload" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_payload" | jq .
   else echo "$provider_payload"; fi
   echo ""
   echo "Generated AuthProviderConfig payload:"
-  if command -v jq &> /dev/null; then echo "$provider_config_payload" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_config_payload" | jq .
   else echo "$provider_config_payload"; fi
   echo ""
 
-  read -p "Proceed with insertion into CouchDB? (y/n): " confirm
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then echo "Aborted."; exit 0; fi
+  printf "Proceed with insertion into CouchDB? (y/n): "
+  read confirm
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then echo "Aborted."; exit 0; fi
 
   provider_id=$(echo "$provider_payload" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
@@ -352,13 +376,13 @@ EOF
   provider_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id" \
     -H "Content-Type: application/json" -d "$provider_payload")
   echo ""; echo "AuthProvider response from CouchDB:"
-  if command -v jq &> /dev/null; then echo "$provider_response" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_response" | jq .
   else echo "$provider_response"; fi
 
   provider_config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id" \
     -H "Content-Type: application/json" -d "$provider_config_payload")
   echo ""; echo "AuthProviderConfig response from CouchDB:"
-  if command -v jq &> /dev/null; then echo "$provider_config_response" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_config_response" | jq .
   else echo "$provider_config_response"; fi
 
   apply_group_acl_updates "$provider_member_of_json"
@@ -366,8 +390,9 @@ EOF
   # ── Backfill providerId on existing users ─────────────────────────────────
 
   echo ""
-  read -p "Backfill providerId='$provider_id' onto all existing users? (y/n): " backfill_confirm
-  if [[ "$backfill_confirm" == "y" || "$backfill_confirm" == "Y" ]]; then
+  printf "Backfill providerId='$provider_id' onto all existing users? (y/n): "
+  read backfill_confirm
+  if [ "$backfill_confirm" = "y" ] || [ "$backfill_confirm" = "Y" ]; then
     echo "Fetching all user documents..."
 
     all_users_json=$(node -e "
@@ -412,7 +437,7 @@ findAll().catch(e => { console.error(e.message); process.exit(1); });
 
     if [ "$user_count" -gt 0 ]; then
       echo "Updating users with providerId='$provider_id'..."
-      result=$(PROVIDER_ID="$provider_id" DB_CONNECTION_STRING="$DB_CONNECTION_STRING" DB_DATABASE="$DB_DATABASE" node -e "
+      result=$(echo "$all_users_json" | PROVIDER_ID="$provider_id" DB_CONNECTION_STRING="$DB_CONNECTION_STRING" DB_DATABASE="$DB_DATABASE" node -e "
 const https = require('https');
 const http = require('http');
 const url = require('url');
@@ -439,7 +464,7 @@ process.stdin.on('end', async () => {
   const errors = res.filter(r => r.error);
   process.stdout.write(JSON.stringify({ total: bulk.length, errors }));
 });
-" <<< "$all_users_json")
+")
 
       error_count=$(echo "$result" | node -e "
         let b=''; process.stdin.on('data',d=>b+=d);
@@ -492,10 +517,13 @@ if [ "$do_modify_provider" = true ]; then
     });
   "
   echo ""
-  read -p "Select provider to modify [1-$provider_count]: " provider_choice
+  printf "Select provider to modify [1-$provider_count]: "
+  read provider_choice
 
-  if ! [[ "$provider_choice" =~ ^[0-9]+$ ]] || \
-     [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
+  case "$provider_choice" in
+    ''|*[!0-9]*) echo "Invalid selection. Exiting."; exit 1 ;;
+  esac
+  if [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
     echo "Invalid selection. Exiting."; exit 1
   fi
 
@@ -578,23 +606,28 @@ if [ "$do_modify_provider" = true ]; then
     echo "  8) Group mappings      ($(echo "$group_mappings_json" | node -e "let b='';process.stdin.on('data',d=>b+=d);process.stdin.on('end',()=>process.stdout.write(String(JSON.parse(b).length)));") mapping(s))"
     echo "  Q) Done — proceed to update"
     echo ""
-    read -p "Select [1-8 or Q]: " field_choice
+    printf "Select [1-8 or Q]: "
+    read field_choice
 
     case "$field_choice" in
       1)
-        read -p "Domain [$domain]: " _v
+        printf "Domain [$domain]: "
+        read _v
         if [ -n "$_v" ]; then domain="$_v"; fi
         ;;
       2)
-        read -p "Audience [$audience]: " _v
+        printf "Audience [$audience]: "
+        read _v
         if [ -n "$_v" ]; then audience="$_v"; fi
         ;;
       3)
-        read -p "Client ID [$clientId]: " _v
+        printf "Client ID [$clientId]: "
+        read _v
         if [ -n "$_v" ]; then clientId="$_v"; fi
         ;;
       4)
-        read -p "Display label [$label] (enter a single space to clear): " _v
+        printf "Display label [$label] (enter a single space to clear): "
+        read _v
         if [ "$_v" = " " ]; then label=""
         elif [ -n "$_v" ]; then label="$_v"; fi
         ;;
@@ -603,52 +636,59 @@ if [ "$do_modify_provider" = true ]; then
         echo "  Enter new group IDs one per line. group-super-admins is always included."
         echo "  Leave blank to finish (entering nothing keeps current value)."
         echo ""
-        _new_member_of=("group-super-admins")
+        _new_member_of="group-super-admins"
         _entered=false
         while true; do
-          read -p "  Group ID (or blank to finish): " pm_group
+          printf "  Group ID (or blank to finish): "
+          read pm_group
           if [ -z "$pm_group" ]; then break; fi
-          _new_member_of+=("$pm_group")
+          _new_member_of="$_new_member_of
+$pm_group"
           _entered=true
         done
         if [ "$_entered" = true ]; then
-          provider_member_of_json=$(printf '%s\n' "${_new_member_of[@]}" | node -e "
+          provider_member_of_json=$(printf '%s\n' "$_new_member_of" | node -e "
             const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n').filter(Boolean);
             process.stdout.write(JSON.stringify(lines));
           ")
         fi
         ;;
       6)
-        read -p "Claim namespace [$claimNamespace] (enter a single space to clear): " _v
+        printf "Claim namespace [$claimNamespace] (enter a single space to clear): "
+        read _v
         if [ "$_v" = " " ]; then claimNamespace=""
         elif [ -n "$_v" ]; then claimNamespace="$_v"; fi
         ;;
       7)
         echo "  Current: externalUserId=${ufm_externalUserId:-sub}, email=${ufm_email:-email}, name=${ufm_name:-name}"
         echo "  Press Enter to keep current. Enter a single space to clear a field."
-        read -p "  externalUserId claim [$ufm_externalUserId]: " _v
+        printf "  externalUserId claim [$ufm_externalUserId]: "
+        read _v
         if [ "$_v" = " " ]; then ufm_externalUserId=""
         elif [ -n "$_v" ]; then ufm_externalUserId="$_v"; fi
-        read -p "  email claim [$ufm_email]: " _v
+        printf "  email claim [$ufm_email]: "
+        read _v
         if [ "$_v" = " " ]; then ufm_email=""
         elif [ -n "$_v" ]; then ufm_email="$_v"; fi
-        read -p "  name claim [$ufm_name]: " _v
+        printf "  name claim [$ufm_name]: "
+        read _v
         if [ "$_v" = " " ]; then ufm_name=""
         elif [ -n "$_v" ]; then ufm_name="$_v"; fi
         ;;
       8)
         echo "  Current group mappings:"
-        if command -v jq &> /dev/null; then echo "$group_mappings_json" | jq .
+        if command -v jq > /dev/null 2>&1; then echo "$group_mappings_json" | jq .
         else echo "$group_mappings_json"; fi
         echo ""
-        read -p "  Replace all group mappings? (y/n): " _r
-        if [[ "$_r" == "y" || "$_r" == "Y" ]]; then
+        printf "  Replace all group mappings? (y/n): "
+        read _r
+        if [ "$_r" = "y" ] || [ "$_r" = "Y" ]; then
           echo "  Enter new group mappings. Leave group ID blank to finish."
           echo ""
           collect_group_mappings
         fi
         ;;
-      [Qq])
+      Q|q)
         break
         ;;
       *)
@@ -737,16 +777,17 @@ process.stdin.on('end', () => {
 
   echo ""
   echo "Updated AuthProvider payload:"
-  if command -v jq &> /dev/null; then echo "$provider_payload" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_payload" | jq .
   else echo "$provider_payload"; fi
   echo ""
   echo "Updated AuthProviderConfig payload:"
-  if command -v jq &> /dev/null; then echo "$provider_config_payload" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_config_payload" | jq .
   else echo "$provider_config_payload"; fi
   echo ""
 
-  read -p "Proceed with update in CouchDB? (y/n): " confirm
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then echo "Aborted."; exit 0; fi
+  printf "Proceed with update in CouchDB? (y/n): "
+  read confirm
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then echo "Aborted."; exit 0; fi
 
   provider_id=$(echo "$provider_payload" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
@@ -760,13 +801,13 @@ process.stdin.on('end', () => {
   provider_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id" \
     -H "Content-Type: application/json" -d "$provider_payload")
   echo ""; echo "AuthProvider response from CouchDB:"
-  if command -v jq &> /dev/null; then echo "$provider_response" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_response" | jq .
   else echo "$provider_response"; fi
 
   provider_config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id" \
     -H "Content-Type: application/json" -d "$provider_config_payload")
   echo ""; echo "AuthProviderConfig response from CouchDB:"
-  if command -v jq &> /dev/null; then echo "$provider_config_response" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$provider_config_response" | jq .
   else echo "$provider_config_response"; fi
 
   apply_group_acl_updates "$provider_member_of_json" "$original_member_of_json"
@@ -787,23 +828,29 @@ if [ "$do_groups" = true ]; then
   echo "Example: group-public-users"
   echo ""
 
-  default_groups=()
+  default_groups=""
   while true; do
-    read -p "  Group ID (or blank to finish): " group_id
+    printf "  Group ID (or blank to finish): "
+    read group_id
     if [ -z "$group_id" ]; then break; fi
-    default_groups+=("$group_id")
+    if [ -n "$default_groups" ]; then
+      default_groups="$default_groups
+$group_id"
+    else
+      default_groups="$group_id"
+    fi
   done
 
-  if [ ${#default_groups[@]} -eq 0 ]; then
+  if [ -z "$default_groups" ]; then
     echo "No default groups entered. Skipping DefaultPermissions setup."
     exit 0
   fi
 
   echo ""
-  echo "Default groups to set: ${default_groups[*]}"
+  echo "Default groups to set: $(echo "$default_groups" | tr '\n' ' ')"
   echo ""
 
-  groups_json=$(printf '%s\n' "${default_groups[@]}" | node -e "
+  groups_json=$(printf '%s\n' "$default_groups" | node -e "
     const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n').filter(Boolean);
     process.stdout.write(JSON.stringify(lines));
   ")
@@ -821,8 +868,9 @@ if [ "$do_groups" = true ]; then
 
   if [ -n "$existing_dp_rev" ]; then
     echo "Existing DefaultPermissions document found (rev: $existing_dp_rev)."
-    read -p "Overwrite defaultGroups? (y/n): " overwrite_confirm
-    if [[ "$overwrite_confirm" != "y" && "$overwrite_confirm" != "Y" ]]; then
+    printf "Overwrite defaultGroups? (y/n): "
+    read overwrite_confirm
+    if [ "$overwrite_confirm" != "y" ] && [ "$overwrite_confirm" != "Y" ]; then
       echo "Skipping DefaultPermissions update."
       exit 0
     fi
@@ -837,7 +885,7 @@ if [ "$do_groups" = true ]; then
 
   echo ""
   echo "DefaultPermissions response from CouchDB:"
-  if command -v jq &> /dev/null; then echo "$dp_response" | jq .
+  if command -v jq > /dev/null 2>&1; then echo "$dp_response" | jq .
   else echo "$dp_response"; fi
 fi
 
@@ -880,10 +928,13 @@ if [ "$do_repair_acl" = true ]; then
     });
   "
   echo ""
-  read -p "Select provider to repair [1-$provider_count]: " provider_choice
+  printf "Select provider to repair [1-$provider_count]: "
+  read provider_choice
 
-  if ! [[ "$provider_choice" =~ ^[0-9]+$ ]] || \
-     [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
+  case "$provider_choice" in
+    ''|*[!0-9]*) echo "Invalid selection. Exiting."; exit 1 ;;
+  esac
+  if [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
     echo "Invalid selection. Exiting."; exit 1
   fi
 
@@ -907,8 +958,9 @@ if [ "$do_repair_acl" = true ]; then
 
   echo ""
   echo "Will apply authProvider ACL entries to: $repair_member_of_json"
-  read -p "Proceed? (y/n): " confirm
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then echo "Aborted."; exit 0; fi
+  printf "Proceed? (y/n): "
+  read confirm
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then echo "Aborted."; exit 0; fi
 
   apply_group_acl_updates "$repair_member_of_json"
 fi
