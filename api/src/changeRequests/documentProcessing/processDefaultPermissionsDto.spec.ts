@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import processDefaultPermissionsDto from "./processDefaultPermissionsDto";
-import { DefaultPermissionsDto } from "src/dto/DefaultPermissionsDto";
+import { DefaultPermissionsDto } from "../../dto/DefaultPermissionsDto";
 
 // defaultPermissions is a singleton document that controls which groups are automatically
 // assigned to every user (defaultGroups). Its _id is always "global-config" and its

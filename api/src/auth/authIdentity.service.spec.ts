@@ -204,49 +204,71 @@ describe("AuthGuard (Integrated)", () => {
         guard = new AuthGuard(authIdentityService);
     });
 
-    it("should throw UnauthorizedException when no email in token and no user found by identity", async () => {
+    it("should fall back to default groups when no email in token and no user found by identity", async () => {
         mockJwtService.verifyAsync = jest.fn().mockResolvedValue({ sub: "auth0|123" }); // no email
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [] }) // DefaultPermissions
+            .mockResolvedValueOnce({ docs: [] }) // DefaultPermissions (inside resolveIdentity)
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // externalUserId lookup – no match; email fallback skipped
 
+        let capturedUser: any;
         const mockContext = {
             switchToHttp: () => ({
-                getRequest: () => ({
-                    headers: {
-                        authorization: "Bearer valid-token",
-                        "x-auth-provider-id": "provider-id",
-                    },
-                }),
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) { capturedUser = val; },
+                        get() { return capturedUser; },
+                    });
+                    return req;
+                },
             }),
         } as any;
 
-        await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+        const result = await guard.canActivate(mockContext);
+        expect(result).toBe(true);
+        expect(capturedUser).toBeDefined();
+        expect(capturedUser.groups).toEqual([]);
     });
 
-    it("should throw UnauthorizedException when no matching identity or email exists", async () => {
+    it("should fall back to default groups when no matching identity or email exists", async () => {
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
+            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions (inside resolveIdentity)
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // email lookup – no match
 
+        let capturedUser: any;
         const mockContext = {
             switchToHttp: () => ({
-                getRequest: () => ({
-                    headers: {
-                        authorization: "Bearer valid-token",
-                        "x-auth-provider-id": "provider-id",
-                    },
-                }),
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) { capturedUser = val; },
+                        get() { return capturedUser; },
+                    });
+                    return req;
+                },
             }),
         } as any;
 
-        await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+        const result = await guard.canActivate(mockContext);
+        expect(result).toBe(true);
+        expect(capturedUser).toBeDefined();
+        expect(capturedUser.groups).toEqual(expect.arrayContaining(["group-public"]));
         expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
     });
 

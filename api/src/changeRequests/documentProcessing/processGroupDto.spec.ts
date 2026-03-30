@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import processGroupDto from "./processGroupDto";
-import { GroupDto } from "src/dto/GroupDto";
+import { GroupDto } from "../../dto/GroupDto";
 
 describe("processGroupDto", () => {
     it("sets memberOf to contain its own _id", async () => {
