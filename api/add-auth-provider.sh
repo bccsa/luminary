@@ -791,34 +791,3 @@ $group_id"
   if command -v jq > /dev/null 2>&1; then echo "$dp_response" | jq .
   else echo "$dp_response"; fi
 fi
-
-  if [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
-    echo "Invalid selection. Exiting."; exit 1
-  fi
-
-  repair_provider=$(echo "$providers_json" | node -e "
-    let b=''; process.stdin.on('data',d=>b+=d);
-    process.stdin.on('end',()=>{
-      const docs=JSON.parse(b).docs;
-      process.stdout.write(JSON.stringify(docs[$(( provider_choice - 1 ))]));
-    });
-  ")
-
-  repair_member_of_json=$(echo "$repair_provider" | node -e "
-    let b=''; process.stdin.on('data',d=>b+=d);
-    process.stdin.on('end',()=>{ process.stdout.write(JSON.stringify(JSON.parse(b).memberOf||[])); });
-  ")
-
-  if [ "$repair_member_of_json" = "[]" ]; then
-    echo "This provider has no memberOf groups — nothing to repair."
-    exit 0
-  fi
-
-  echo ""
-  echo "Will apply authProvider ACL entries to: $repair_member_of_json"
-  printf "Proceed? (y/n): "
-  read confirm
-  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then echo "Aborted."; exit 0; fi
-
-  apply_group_acl_updates "$repair_member_of_json"
-fi
