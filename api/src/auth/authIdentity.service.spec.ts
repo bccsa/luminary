@@ -75,26 +75,38 @@ describe("AuthIdentityService", () => {
                     conditions: [{ type: "claimEquals", claimPath: "role", value: "admin" }],
                 },
             ];
-            expect(service.evaluateGroupAssignments({ role: "admin" }, mappings)).toContain("group-admin");
-            expect(service.evaluateGroupAssignments({ role: "editor" }, mappings)).not.toContain("group-admin");
+            expect(service.evaluateGroupAssignments({ role: "admin" }, mappings)).toContain(
+                "group-admin",
+            );
+            expect(service.evaluateGroupAssignments({ role: "editor" }, mappings)).not.toContain(
+                "group-admin",
+            );
         });
 
         it("should handle 'claimIn' when claim is a single string", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
                     groupId: "group-staff",
-                    conditions: [{ type: "claimIn", claimPath: "department", values: ["sales", "it"] }],
+                    conditions: [
+                        { type: "claimIn", claimPath: "department", values: ["sales", "it"] },
+                    ],
                 },
             ];
-            expect(service.evaluateGroupAssignments({ department: "it" }, mappings)).toContain("group-staff");
-            expect(service.evaluateGroupAssignments({ department: "hr" }, mappings)).not.toContain("group-staff");
+            expect(service.evaluateGroupAssignments({ department: "it" }, mappings)).toContain(
+                "group-staff",
+            );
+            expect(service.evaluateGroupAssignments({ department: "hr" }, mappings)).not.toContain(
+                "group-staff",
+            );
         });
 
         it("should handle 'claimIn' when claim is an array", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
                     groupId: "group-managers",
-                    conditions: [{ type: "claimIn", claimPath: "roles", values: ["manager", "supervisor"] }],
+                    conditions: [
+                        { type: "claimIn", claimPath: "roles", values: ["manager", "supervisor"] },
+                    ],
                 },
             ];
             expect(
@@ -116,13 +128,19 @@ describe("AuthIdentityService", () => {
                 },
             ];
             expect(
-                service.evaluateGroupAssignments({ department: "executive", title: "cfo" }, mappings),
+                service.evaluateGroupAssignments(
+                    { department: "executive", title: "cfo" },
+                    mappings,
+                ),
             ).toContain("group-or");
             expect(
                 service.evaluateGroupAssignments({ department: "sales", title: "ceo" }, mappings),
             ).toContain("group-or");
             expect(
-                service.evaluateGroupAssignments({ department: "sales", title: "representative" }, mappings),
+                service.evaluateGroupAssignments(
+                    { department: "sales", title: "representative" },
+                    mappings,
+                ),
             ).not.toContain("group-or");
         });
     });
@@ -165,7 +183,6 @@ describe("AuthIdentityService", () => {
 // ── AuthGuard integration ────────────────────────────────────────────────────
 
 import { AuthGuard } from "./auth.guard";
-import { UnauthorizedException } from "@nestjs/common";
 
 jest.mock("jwks-rsa", () => {
     return Object.assign(
@@ -224,8 +241,12 @@ describe("AuthGuard (Integrated)", () => {
                         },
                     };
                     Object.defineProperty(req, "user", {
-                        set(val) { capturedUser = val; },
-                        get() { return capturedUser; },
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
                     });
                     return req;
                 },
@@ -257,8 +278,12 @@ describe("AuthGuard (Integrated)", () => {
                         },
                     };
                     Object.defineProperty(req, "user", {
-                        set(val) { capturedUser = val; },
-                        get() { return capturedUser; },
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
                     });
                     return req;
                 },
@@ -408,8 +433,12 @@ describe("AuthGuard (Integrated)", () => {
                         },
                     };
                     Object.defineProperty(req, "user", {
-                        set(val) { capturedUser = val; },
-                        get() { return capturedUser; },
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
                     });
                     return req;
                 },
@@ -457,8 +486,12 @@ describe("AuthGuard (Integrated)", () => {
                         },
                     };
                     Object.defineProperty(req, "user", {
-                        set(val) { capturedUser = val; },
-                        get() { return capturedUser; },
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
                     });
                     return req;
                 },
