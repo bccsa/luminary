@@ -573,9 +573,7 @@ const playAudio = () => {
             v-if="!is404"
         >
             <DropdownMenu
-                v-if="
-                    !isLoading && !isLoadingTranslations && availableTranslations.length > 1
-                "
+                v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
                 v-model:open="showDropdown"
                 panel-class="py-1"
             >
@@ -721,10 +719,10 @@ const playAudio = () => {
                                 By {{ content.author }}
                             </div>
                             <div
-                                v-if="(content as any).copyright"
+                                v-if="content.copyright"
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
-                                {{ (content as any).copyright }}
+                                {{ content.copyright }}
                             </div>
                             <div
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
