@@ -113,95 +113,6 @@ $_m"
   if [ -z "$group_mappings_json" ]; then group_mappings_json="[]"; fi
 }
 
-# ── Helper: apply group ACL updates ─────────────────────────────────────────
-# Args: $1 = new memberOf JSON array, $2 = old memberOf JSON array (optional)
-apply_group_acl_updates() {
-  local new_mo_json="$1"
-  local old_mo_json="${2:-}"
-
-  echo ""
-  echo "Updating group ACL entries for AuthProvider access..."
-
-  # Add/update ACL entry for each group in new memberOf
-  _new_groups=$(echo "$new_mo_json" | node -e "
-    let b=''; process.stdin.on('data',d=>b+=d);
-    process.stdin.on('end',()=>{ JSON.parse(b).forEach(g=>console.log(g)); });
-  ")
-
-  echo "$_new_groups" | while IFS= read -r _gid; do
-    [ -z "$_gid" ] && continue
-    local _gdoc _gexists _aperms _ugdoc _gresp
-    _gdoc=$(curl -s -X GET "$DB_CONNECTION_STRING/$DB_DATABASE/$_gid")
-    _gexists=$(echo "$_gdoc" | node -e "
-      let b=''; process.stdin.on('data',d=>b+=d);
-      process.stdin.on('end',()=>{ process.stdout.write(JSON.parse(b).error?'false':'true'); });
-    ")
-    if [ "$_gexists" = "false" ]; then
-      echo "  Warning: group '$_gid' not found — skipping."; continue
-    fi
-
-    if [ "$_gid" = "group-super-admins" ]; then
-      _aperms='["view","create","edit","delete","assign"]'
-    else
-      _aperms='["view"]'
-    fi
-
-    _ugdoc=$(echo "$_gdoc" | ACL_GID="$_gid" ACL_PERMS="$_aperms" node -e "
-      let b=''; process.stdin.on('data',d=>b+=d);
-      process.stdin.on('end',()=>{
-        const doc=JSON.parse(b), gid=process.env.ACL_GID;
-        const perms=JSON.parse(process.env.ACL_PERMS);
-        const acl=(doc.acl||[]).filter(e=>!(e.type==='authProvider'&&e.groupId===gid));
-        acl.push({type:'authProvider',groupId:gid,permission:perms});
-        doc.acl=acl;
-        process.stdout.write(JSON.stringify(doc));
-      });
-    ")
-
-    _gresp=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$_gid" \
-      -H "Content-Type: application/json" -d "$_ugdoc")
-    echo "  Group '$_gid':"
-    if command -v jq > /dev/null 2>&1; then echo "$_gresp" | jq .
-    else echo "  $_gresp"; fi
-  done
-
-  # Remove AuthProvider ACL entry from groups no longer in memberOf
-  if [ -n "$old_mo_json" ]; then
-    _removed=$(OLD_MO="$old_mo_json" NEW_MO="$new_mo_json" node -e "
-      const o=JSON.parse(process.env.OLD_MO), n=JSON.parse(process.env.NEW_MO);
-      o.filter(g=>!n.includes(g)).forEach(g=>console.log(g));
-    ")
-
-    echo "$_removed" | while IFS= read -r _rid; do
-      [ -z "$_rid" ] && continue
-      local _gdoc _gexists _ugdoc _gresp
-      _gdoc=$(curl -s -X GET "$DB_CONNECTION_STRING/$DB_DATABASE/$_rid")
-      _gexists=$(echo "$_gdoc" | node -e "
-        let b=''; process.stdin.on('data',d=>b+=d);
-        process.stdin.on('end',()=>{ process.stdout.write(JSON.parse(b).error?'false':'true'); });
-      ")
-      if [ "$_gexists" = "false" ]; then
-        echo "  Warning: group '$_rid' not found — skipping."; continue
-      fi
-
-      _ugdoc=$(echo "$_gdoc" | REM_GID="$_rid" node -e "
-        let b=''; process.stdin.on('data',d=>b+=d);
-        process.stdin.on('end',()=>{
-          const doc=JSON.parse(b), gid=process.env.REM_GID;
-          doc.acl=(doc.acl||[]).filter(e=>!(e.type==='authProvider'&&e.groupId===gid));
-          process.stdout.write(JSON.stringify(doc));
-        });
-      ")
-
-      _gresp=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$_rid" \
-        -H "Content-Type: application/json" -d "$_ugdoc")
-      echo "  Removed AuthProvider ACL from '$_rid':"
-      if command -v jq > /dev/null 2>&1; then echo "$_gresp" | jq .
-      else echo "  $_gresp"; fi
-    done
-  fi
-}
-
 # ── Menu ──────────────────────────────────────────────────────────────────────
 
 echo "====================================="
@@ -212,17 +123,15 @@ echo "  1) Add Auth Provider"
 echo "  2) Modify Auth Provider"
 echo "  3) Configure Default Groups"
 echo "  4) Add Auth Provider + Configure Default Groups"
-echo "  5) Repair ACL entries for existing Auth Provider"
 echo ""
-printf "Select an option [1-5]: "
+printf "Select an option [1-4]: "
 read menu_choice
 
 case "$menu_choice" in
-  1) do_add_provider=true;  do_modify_provider=false; do_groups=false; do_repair_acl=false ;;
-  2) do_add_provider=false; do_modify_provider=true;  do_groups=false; do_repair_acl=false ;;
-  3) do_add_provider=false; do_modify_provider=false; do_groups=true;  do_repair_acl=false ;;
-  4) do_add_provider=true;  do_modify_provider=false; do_groups=true;  do_repair_acl=false ;;
-  5) do_add_provider=false; do_modify_provider=false; do_groups=false; do_repair_acl=true  ;;
+  1) do_add_provider=true;  do_modify_provider=false; do_groups=false ;;
+  2) do_add_provider=false; do_modify_provider=true;  do_groups=false ;;
+  3) do_add_provider=false; do_modify_provider=false; do_groups=true  ;;
+  4) do_add_provider=true;  do_modify_provider=false; do_groups=true  ;;
   *) echo "Invalid option. Exiting."; exit 1 ;;
 esac
 
@@ -373,19 +282,17 @@ EOF
     process.stdin.on('end',()=>{ process.stdout.write(JSON.parse(b)._id); });
   ")
 
-  provider_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id" \
-    -H "Content-Type: application/json" -d "$provider_payload")
+  provider_response=$(wget -qO- --method=PUT --body-data="$provider_payload" \
+    --header="Content-Type: application/json" "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id")
   echo ""; echo "AuthProvider response from CouchDB:"
   if command -v jq > /dev/null 2>&1; then echo "$provider_response" | jq .
   else echo "$provider_response"; fi
 
-  provider_config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id" \
-    -H "Content-Type: application/json" -d "$provider_config_payload")
+  provider_config_response=$(wget -qO- --method=PUT --body-data="$provider_config_payload" \
+    --header="Content-Type: application/json" "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id")
   echo ""; echo "AuthProviderConfig response from CouchDB:"
   if command -v jq > /dev/null 2>&1; then echo "$provider_config_response" | jq .
   else echo "$provider_config_response"; fi
-
-  apply_group_acl_updates "$provider_member_of_json"
 
   # ── Backfill providerId on existing users ─────────────────────────────────
 
@@ -492,9 +399,9 @@ if [ "$do_modify_provider" = true ]; then
   echo "====================================="
   echo ""
 
-  providers_json=$(curl -s -X POST "$DB_CONNECTION_STRING/$DB_DATABASE/_find" \
-    -H "Content-Type: application/json" \
-    -d '{"selector":{"type":"authProvider"},"limit":100}')
+  providers_json=$(wget -qO- --post-data='{"selector":{"type":"authProvider"},"limit":100}' \
+    --header="Content-Type: application/json" \
+    "$DB_CONNECTION_STRING/$DB_DATABASE/_find")
 
   provider_count=$(echo "$providers_json" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
@@ -539,9 +446,9 @@ if [ "$do_modify_provider" = true ]; then
   current_id=$(json_field "$current_provider" _id)
 
   # Fetch associated AuthProviderConfig
-  existing_config_res=$(curl -s -X POST "$DB_CONNECTION_STRING/$DB_DATABASE/_find" \
-    -H "Content-Type: application/json" \
-    -d "{\"selector\":{\"type\":\"authProviderConfig\",\"providerId\":\"$current_id\"},\"limit\":1}")
+  existing_config_res=$(wget -qO- --post-data="{\"selector\":{\"type\":\"authProviderConfig\",\"providerId\":\"$current_id\"},\"limit\":1}" \
+    --header="Content-Type: application/json" \
+    "$DB_CONNECTION_STRING/$DB_DATABASE/_find")
 
   current_config=$(echo "$existing_config_res" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
@@ -585,9 +492,6 @@ if [ "$do_modify_provider" = true ]; then
       process.stdin.on('end',()=>{ process.stdout.write(JSON.stringify(JSON.parse(b).groupMappings||[])); });
     ")
   fi
-
-  # Save original memberOf for ACL diff
-  original_member_of_json="$provider_member_of_json"
 
   # ── Field selection menu ──────────────────────────────────────────────────
   echo ""
@@ -798,19 +702,18 @@ process.stdin.on('end', () => {
     process.stdin.on('end',()=>{ process.stdout.write(JSON.parse(b)._id); });
   ")
 
-  provider_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id" \
-    -H "Content-Type: application/json" -d "$provider_payload")
+  provider_response=$(wget -qO- --method=PUT --body-data="$provider_payload" \
+    --header="Content-Type: application/json" "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_id")
   echo ""; echo "AuthProvider response from CouchDB:"
   if command -v jq > /dev/null 2>&1; then echo "$provider_response" | jq .
   else echo "$provider_response"; fi
 
-  provider_config_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id" \
-    -H "Content-Type: application/json" -d "$provider_config_payload")
+  provider_config_response=$(wget -qO- --method=PUT --body-data="$provider_config_payload" \
+    --header="Content-Type: application/json" "$DB_CONNECTION_STRING/$DB_DATABASE/$provider_config_id")
   echo ""; echo "AuthProviderConfig response from CouchDB:"
   if command -v jq > /dev/null 2>&1; then echo "$provider_config_response" | jq .
   else echo "$provider_config_response"; fi
 
-  apply_group_acl_updates "$provider_member_of_json" "$original_member_of_json"
 fi
 
 # ── Default Groups (DefaultPermissions) ──────────────────────────────────────
@@ -855,7 +758,7 @@ $group_id"
     process.stdout.write(JSON.stringify(lines));
   ")
 
-  existing_dp=$(curl -s -X GET "$DB_CONNECTION_STRING/$DB_DATABASE/global-config")
+  existing_dp=$(wget -qO- "$DB_CONNECTION_STRING/$DB_DATABASE/global-config")
 
   existing_dp_rev=$(echo "$existing_dp" | node -e "
     let b=''; process.stdin.on('data',d=>b+=d);
@@ -880,8 +783,8 @@ $group_id"
     dp_payload="{\"_id\":\"global-config\",\"type\":\"defaultPermissions\",\"memberOf\":[\"group-super-admins\"],\"defaultGroups\":$groups_json,\"updatedTimeUtc\":$now_ms}"
   fi
 
-  dp_response=$(curl -s -X PUT "$DB_CONNECTION_STRING/$DB_DATABASE/global-config" \
-    -H "Content-Type: application/json" -d "$dp_payload")
+  dp_response=$(wget -qO- --method=PUT --body-data="$dp_payload" \
+    --header="Content-Type: application/json" "$DB_CONNECTION_STRING/$DB_DATABASE/global-config")
 
   echo ""
   echo "DefaultPermissions response from CouchDB:"
@@ -889,51 +792,6 @@ $group_id"
   else echo "$dp_response"; fi
 fi
 
-# ── Repair ACL entries for existing Auth Provider ─────────────────────────────
-
-if [ "$do_repair_acl" = true ]; then
-  echo ""
-  echo "====================================="
-  echo "   Repair AuthProvider ACL Entries"
-  echo "====================================="
-  echo ""
-  echo "This will add or update the authProvider ACL entry on each group"
-  echo "in the provider's memberOf list."
-  echo ""
-
-  providers_json=$(curl -s -X POST "$DB_CONNECTION_STRING/$DB_DATABASE/_find" \
-    -H "Content-Type: application/json" \
-    -d '{"selector":{"type":"authProvider"},"limit":100}')
-
-  provider_count=$(echo "$providers_json" | node -e "
-    let b=''; process.stdin.on('data',d=>b+=d);
-    process.stdin.on('end',()=>{ process.stdout.write(String((JSON.parse(b).docs||[]).length)); });
-  ")
-
-  if [ "$provider_count" -eq 0 ]; then
-    echo "No auth providers found. Use 'Add Auth Provider' to create one."
-    exit 0
-  fi
-
-  echo "Existing auth providers:"
-  echo "$providers_json" | node -e "
-    let b=''; process.stdin.on('data',d=>b+=d);
-    process.stdin.on('end',()=>{
-      JSON.parse(b).docs.forEach((p,i)=>{
-        const tag = p.label ? p.label + ' — ' : '';
-        const mo = (p.memberOf||[]).join(', ') || '(none)';
-        console.log('  '+(i+1)+') '+tag+p.domain+' ('+p._id+')');
-        console.log('       memberOf: '+mo);
-      });
-    });
-  "
-  echo ""
-  printf "Select provider to repair [1-$provider_count]: "
-  read provider_choice
-
-  case "$provider_choice" in
-    ''|*[!0-9]*) echo "Invalid selection. Exiting."; exit 1 ;;
-  esac
   if [ "$provider_choice" -lt 1 ] || [ "$provider_choice" -gt "$provider_count" ]; then
     echo "Invalid selection. Exiting."; exit 1
   fi
