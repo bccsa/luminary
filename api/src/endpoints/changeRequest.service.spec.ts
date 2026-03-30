@@ -82,6 +82,44 @@ describe("ChangeRequest service", () => {
         expect(docs[0].name).toBe("English");
     });
 
+    it("can create an authProvider document via change request", async () => {
+        const changeRequest = {
+            doc: {
+                _id: "provider-test-1",
+                type: "authProvider",
+                memberOf: ["group-super-admins"],
+                domain: "test.auth0.com",
+                clientId: "client-id-1",
+                audience: "https://api.test.com",
+                label: "Test Provider",
+            },
+        };
+
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
+        expect(res.ack).toBe(AckStatus.Accepted);
+    });
+
+    it("enforces singleton _id for a defaultPermissions change request", async () => {
+        const changeRequest = {
+            doc: {
+                _id: "should-be-overwritten",
+                type: "defaultPermissions",
+                memberOf: ["group-super-admins"],
+                defaultGroups: ["group-public-users"],
+            },
+        };
+
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
+        expect(res.ack).toBe(AckStatus.Accepted);
+
+        // processDefaultPermissionsDto must have forced the singleton ID
+        const saved = (await service.getDoc("global-config")).docs;
+        expect(saved).toHaveLength(1);
+        expect(saved[0]._id).toBe("global-config");
+        expect((saved[0] as any).memberOf).toEqual(["group-super-admins"]);
+        expect((saved[0] as any).defaultGroups).toEqual(["group-public-users"]);
+    });
+
     it("returns the post/tag document with associated content documents when a delete request is rejected", async () => {
         // Update post-blog1 so that group-super-admins do not have access to it
         const postDoc = { ...(await service.getDoc("post-blog1")).docs[0] };

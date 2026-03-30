@@ -75,12 +75,14 @@ import { useFtsSearch } from "luminary-shared";
 const runSearchMock = vi.hoisted(() => vi.fn());
 
 /** Configure useFtsSearch return value; returns refs so tests can update after mount. */
-function setupFts(opts: {
-    results?: FtsSearchResult[];
-    isSearching?: boolean;
-    hasMore?: boolean;
-    lastSearchedQuery?: string;
-} = {}) {
+function setupFts(
+    opts: {
+        results?: FtsSearchResult[];
+        isSearching?: boolean;
+        hasMore?: boolean;
+        lastSearchedQuery?: string;
+    } = {},
+) {
     const resultsRef = ref<FtsSearchResult[]>(opts.results ?? []);
     const isSearchingRef = ref(opts.isSearching ?? false);
     const hasMoreRef = ref(opts.hasMore ?? false);
@@ -195,12 +197,22 @@ describe("SearchButton", () => {
             // Persist a previous query before mounting
             window.localStorage.setItem("luminary-search-last-executed-query", "willowdale");
 
+            // Run rAF callbacks synchronously so setSelectionRange executes before assertions.
+            // vi.runAllTimers() does not flush requestAnimationFrame because @sinonjs/fake-timers
+            // excludes rAF from its default faked API set.
+            vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+                cb(0);
+                return 0;
+            });
+
             const wrapper = mountComponent();
 
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
             await nextTick();
             await flushPromises();
             await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+            vi.unstubAllGlobals();
 
             const input = wrapper.find("input").element as HTMLInputElement;
             expect(input.value).toBe("willowdale");
@@ -570,8 +582,9 @@ describe("SearchButton", () => {
             await nextTick();
 
             // The button container should have h-9 class for consistent height
-            const buttonContainer = wrapper.find("input").element.parentElement!
-                .querySelector(".flex.h-9.flex-shrink-0");
+            const buttonContainer = wrapper
+                .find("input")
+                .element.parentElement!.querySelector(".flex.h-9.flex-shrink-0");
             expect(buttonContainer).not.toBeNull();
         });
 

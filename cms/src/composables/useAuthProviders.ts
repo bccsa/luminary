@@ -79,6 +79,16 @@ export function useAuthProviders() {
 
     const isEditing = computed(() => canEdit.value && !!editingProviderId.value);
 
+    // ── Local editing copies ─────────────────────────────────────────────────
+    // Detached from providers.value / configs.value so field edits only
+    // invalidate the local refs, not the entire reactive arrays.
+    // providers.value is only written to on save.
+    const editingProviderLocal = ref<AuthProviderDto | undefined>(undefined);
+    const editingConfigLocal = ref<AuthProviderConfigDto | undefined>(undefined);
+    // Snapshots taken at modal-open time, used for revert
+    const editingProviderSnapshot = ref<AuthProviderDto | undefined>(undefined);
+    const editingConfigSnapshot = ref<AuthProviderConfigDto | undefined>(undefined);
+
     const newProvider = ref<AuthProviderDto>({
         _id: db.uuid(),
         type: DocType.AuthProvider,
@@ -98,61 +108,82 @@ export function useAuthProviders() {
         providerId: newProvider.value._id,
     });
 
-    // Current provider being edited/created (writable computed for v-model binding)
+    // Current provider being edited/created (writable computed for v-model binding).
+    // When editing, reads/writes the local detached copy so mutations don't touch providers.value.
     const currentProvider = computed({
         get: () => {
-            if (isEditing.value) {
-                return providers.value.find((p) => p._id === editingProviderId.value);
-            }
+            if (isEditing.value) return editingProviderLocal.value;
             return newProvider.value;
         },
         set: (value) => {
-            if (isEditing.value && value) {
-                const idx = providers.value.findIndex((p) => p._id === editingProviderId.value);
-                if (idx !== -1) providers.value[idx] = value;
-            } else if (!isEditing.value && value) {
+            if (isEditing.value) {
+                editingProviderLocal.value = value;
+            } else if (value) {
                 newProvider.value = value;
             }
         },
     });
 
-    // Current config being edited/created (writable computed for v-model binding)
+    // Current config being edited/created (writable computed for v-model binding).
     const currentProviderConfig = computed({
         get: () => {
-            if (isEditing.value) {
-                return configs.value.find((c) => c.providerId === editingProviderId.value);
-            }
+            if (isEditing.value) return editingConfigLocal.value;
             return newProviderConfig.value;
         },
         set: (value) => {
-            if (isEditing.value && value) {
-                const idx = configs.value.findIndex(
-                    (c) => c.providerId === editingProviderId.value,
-                );
-                if (idx !== -1) configs.value[idx] = value;
-            } else if (!isEditing.value && value) {
+            if (isEditing.value) {
+                editingConfigLocal.value = value;
+            } else if (value) {
                 newProviderConfig.value = value!;
             }
         },
     });
 
-    // Dirty checking for the modal (is the currently-open provider edited)
-    const isDirty = computed(() => {
-        if (!isEditing.value) return true; // New provider — always saveable
-        if (!editingProviderId.value) return false;
-        const config = configs.value.find((c) => c.providerId === editingProviderId.value);
-        return (
-            providerQuery.isEdited.value(editingProviderId.value) ||
-            (config ? configQuery.isEdited.value(config._id) : false)
-        );
-    });
+    // ── Dirty tracking ───────────────────────────────────────────────────────
+    // isDirty is a plain ref updated by a deep watcher whose callback is cheap
+    // (just a flag set + a debounced setTimeout). _.isEqual runs at most once,
+    // 500 ms after the user stops making changes, to handle the case where they
+    // type something and then manually revert it back to the original value.
+    const isDirty = ref(false);
+    let stopChangeWatcher: (() => void) | undefined;
+    let accuracyTimer: ReturnType<typeof setTimeout> | undefined;
 
-    // Dirty checking for the route guard (any provider/config has unsaved edits)
-    const isDirtyAny = computed(
-        () =>
-            providers.value.some((p) => providerQuery.isEdited.value(p._id)) ||
-            configs.value.some((c) => configQuery.isEdited.value(c._id)),
-    );
+    function startDirtyTracking() {
+        isDirty.value = false;
+        clearTimeout(accuracyTimer);
+        stopChangeWatcher?.();
+
+        stopChangeWatcher = watch(
+            [currentProvider, currentProviderConfig],
+            () => {
+                // Immediate feedback — no expensive work here
+                isDirty.value = true;
+
+                // After the user pauses, check if they've typed back to the original value.
+                // Only meaningful when editing an existing provider (snapshots exist).
+                if (isEditing.value) {
+                    clearTimeout(accuracyTimer);
+                    accuracyTimer = setTimeout(() => {
+                        const isActuallyDirty =
+                            !_.isEqual(
+                                toRaw(editingProviderLocal.value),
+                                toRaw(editingProviderSnapshot.value),
+                            ) ||
+                            !_.isEqual(
+                                toRaw(editingConfigLocal.value),
+                                toRaw(editingConfigSnapshot.value),
+                            );
+                        isDirty.value = isActuallyDirty;
+                    }, 500);
+                }
+            },
+            { deep: true },
+        );
+    }
+
+    // Route guard: dirty if the modal is open and has unsaved edits.
+    // Does not depend on providers.value, so it never cascades on field edits.
+    const isDirtyAny = computed(() => showModal.value && isDirty.value);
 
     // Validation state
     const hasAttemptedSubmit = ref(false);
@@ -176,23 +207,37 @@ export function useAuthProviders() {
     function openModal() {
         hasAttemptedSubmit.value = false;
         showModal.value = true;
+        startDirtyTracking();
     }
 
     function closeModal() {
         showModal.value = false;
     }
 
+    function revertProvider() {
+        if (!editingProviderId.value) return;
+        // Reset local copies to their snapshots
+        editingProviderLocal.value = editingProviderSnapshot.value
+            ? _.cloneDeep(toRaw(editingProviderSnapshot.value))
+            : undefined;
+        editingConfigLocal.value = editingConfigSnapshot.value
+            ? _.cloneDeep(toRaw(editingConfigSnapshot.value))
+            : undefined;
+        // Restart dirty tracking so the next change marks dirty again
+        startDirtyTracking();
+    }
+
     watch(showModal, (visible) => {
         if (!visible) {
-            // Revert unsaved edits to existing providers when modal is dismissed
-            if (editingProviderId.value) {
-                providerQuery.revert(editingProviderId.value);
-                const config = configs.value.find(
-                    (c) => c.providerId === editingProviderId.value,
-                );
-                if (config) configQuery.revert(config._id);
-            }
+            stopChangeWatcher?.();
+            stopChangeWatcher = undefined;
+            clearTimeout(accuracyTimer);
+            isDirty.value = false;
             editingProviderId.value = undefined;
+            editingProviderLocal.value = undefined;
+            editingConfigLocal.value = undefined;
+            editingProviderSnapshot.value = undefined;
+            editingConfigSnapshot.value = undefined;
             errors.value = undefined;
             hasAttemptedSubmit.value = false;
         }
@@ -243,7 +288,8 @@ export function useAuthProviders() {
 
     function editProvider(provider: AuthProviderDto) {
         editingProviderId.value = provider._id;
-        // If no config exists yet for this provider, push a stub into the config editable
+
+        // Ensure a config stub exists in the editable array
         if (!configs.value.find((c) => c.providerId === provider._id)) {
             configQuery.editable.value.push({
                 _id: db.uuid(),
@@ -253,6 +299,17 @@ export function useAuthProviders() {
                 providerId: provider._id,
             });
         }
+
+        // Deep-clone into local refs so editing is fully detached from providers.value
+        const rawProvider = _.cloneDeep(toRaw(provider));
+        editingProviderLocal.value = rawProvider;
+        editingProviderSnapshot.value = _.cloneDeep(rawProvider);
+
+        const config = configs.value.find((c) => c.providerId === provider._id);
+        const rawConfig = config ? _.cloneDeep(toRaw(config)) : undefined;
+        editingConfigLocal.value = rawConfig;
+        editingConfigSnapshot.value = rawConfig ? _.cloneDeep(rawConfig) : undefined;
+
         openModal();
     }
 
@@ -332,26 +389,46 @@ export function useAuthProviders() {
             }
 
             if (isEditing.value && editingProviderId.value) {
-                const provider = providers.value.find((p) => p._id === editingProviderId.value);
-                const config = configs.value.find(
-                    (c) => c.providerId === editingProviderId.value,
-                );
-                if (!provider) return;
+                const localProvider = editingProviderLocal.value;
+                const localConfig = editingConfigLocal.value;
+                if (!localProvider) return;
 
-                // Sync memberOf from provider → config and update timestamps
-                const memberOf = Array.isArray(provider.memberOf)
-                    ? Array.from(provider.memberOf)
+                const memberOf = Array.isArray(localProvider.memberOf)
+                    ? Array.from(localProvider.memberOf)
                     : [];
-                provider.updatedTimeUtc = Date.now();
-                if (config) {
-                    config.memberOf = memberOf;
-                    config.updatedTimeUtc = Date.now();
+
+                // Write the local copy back into providers.value so providerQuery.save() picks it up
+                const providerIdx = providers.value.findIndex(
+                    (p) => p._id === editingProviderId.value,
+                );
+                if (providerIdx !== -1) {
+                    providers.value[providerIdx] = {
+                        ...toRaw(localProvider),
+                        memberOf,
+                        updatedTimeUtc: Date.now(),
+                    };
                 }
 
-                const label = provider.label ?? "";
+                if (localConfig) {
+                    const configIdx = configs.value.findIndex(
+                        (c) => c.providerId === editingProviderId.value,
+                    );
+                    if (configIdx !== -1) {
+                        configs.value[configIdx] = {
+                            ...toRaw(localConfig),
+                            memberOf,
+                            updatedTimeUtc: Date.now(),
+                        };
+                    }
+                }
+
+                const label = localProvider.label ?? "";
 
                 await providerQuery.save(editingProviderId.value);
-                if (config) await configQuery.save(config._id);
+                const savedConfig = configs.value.find(
+                    (c) => c.providerId === editingProviderId.value,
+                );
+                if (savedConfig) await configQuery.save(savedConfig._id);
 
                 closeModal();
 
@@ -374,7 +451,7 @@ export function useAuthProviders() {
                     updatedTimeUtc: Date.now(),
                 };
 
-                // Push to editables so the route guard and isEdited tracking cover them
+                // Push to editables so isEdited tracking covers them
                 providers.value.push(provider);
                 configs.value.push(config);
 
@@ -481,6 +558,8 @@ export function useAuthProviders() {
 
     // Cleanup live queries when the composable's owner component unmounts
     onBeforeUnmount(() => {
+        stopChangeWatcher?.();
+        clearTimeout(accuracyTimer);
         providerQuery.stopLiveQuery();
         configQuery.stopLiveQuery();
     });
@@ -521,6 +600,7 @@ export function useAuthProviders() {
         confirmDelete,
         saveProvider,
         closeModal,
+        revertProvider,
 
         // Default groups state
         editableDefaultGroups,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { AuthProviderConfigDto, AuthProviderDto, GroupDto } from "luminary-shared";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import LModal from "../modals/LModal.vue";
+import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import AuthProviderFormErrors from "./AuthProviderFormErrors.vue";
 import AuthProviderAuthConfig from "./AuthProviderAuthConfig.vue";
@@ -26,11 +27,14 @@ const props = defineProps<{
 const emit = defineEmits<{
     save: [];
     delete: [];
+    revert: [];
 }>();
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<AuthProviderDto | undefined>("provider");
 const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerConfig");
+
+const showDiscardConfirm = ref(false);
 
 const groupOptions = computed(() =>
     props.availableGroups.map((group: GroupDto) => ({
@@ -40,8 +44,32 @@ const groupOptions = computed(() =>
     })),
 );
 
+// Called by LModal before closing via backdrop, ESC, or X button
+const beforeClose = (): boolean => {
+    if (props.isDirty && props.isEditing) {
+        showDiscardConfirm.value = true;
+        return false;
+    }
+    return true;
+};
+
+// Called by the Cancel button in AuthProviderFormActions
 const closeModal = () => {
+    if (props.isDirty && props.isEditing) {
+        showDiscardConfirm.value = true;
+    } else {
+        isVisible.value = false;
+    }
+};
+
+const discardAndClose = () => {
+    showDiscardConfirm.value = false;
+    emit("revert");
     isVisible.value = false;
+};
+
+const keepEditing = () => {
+    showDiscardConfirm.value = false;
 };
 
 const handleSave = () => {
@@ -51,13 +79,19 @@ const handleSave = () => {
 const handleDelete = () => {
     emit("delete");
 };
+
+const handleRevert = () => {
+    emit("revert");
+};
 </script>
 
 <template>
     <LModal
         v-model:isVisible="isVisible"
         large-modal
+        stick-to-edges
         :heading="isEditing ? 'Edit Auth Provider' : 'Add Auth Provider'"
+        :before-close="beforeClose"
     >
         <div
             ref="scrollContainer"
@@ -133,6 +167,19 @@ const handleDelete = () => {
             @save="handleSave"
             @delete="handleDelete"
             @close="closeModal"
+            @revert="handleRevert"
         />
     </LModal>
+
+    <LDialog
+        v-model:open="showDiscardConfirm"
+        context="danger"
+        title="Discard changes?"
+        description="You have unsaved changes. If you close now, your changes will be discarded."
+        primary-button-text="Discard changes"
+        secondary-button-text="Keep editing"
+        :primary-action="discardAndClose"
+        :secondary-action="keepEditing"
+        :show-closing-button="false"
+    />
 </template>

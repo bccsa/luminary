@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import type { AuthProviderDto, ContentParentDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
@@ -46,6 +46,16 @@ const handleFileChange = () => {
         uploadInput.value!.value = "";
     }
 };
+
+// Local ref for the slider so dragging doesn't mutate `provider` on every pixel.
+// The display label reads this; the actual provider update fires only on @change.
+const localOpacity = ref(props.provider.iconOpacity ?? 1);
+watch(
+    () => props.provider.iconOpacity,
+    (v) => {
+        localOpacity.value = v ?? 1;
+    },
+);
 </script>
 
 <template>
@@ -88,18 +98,14 @@ const handleFileChange = () => {
                     min="0"
                     max="1"
                     step="0.01"
-                    :value="provider.iconOpacity ?? 1"
+                    :value="localOpacity"
                     class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
                     :disabled="disabled"
-                    @input="
-                        emit(
-                            'update:iconOpacity',
-                            ($event.target as HTMLInputElement).valueAsNumber,
-                        )
-                    "
+                    @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
+                    @change="emit('update:iconOpacity', ($event.target as HTMLInputElement).valueAsNumber)"
                 />
                 <span class="w-10 text-right text-xs text-gray-600">
-                    {{ Math.round((provider.iconOpacity ?? 1) * 100) }}%
+                    {{ Math.round(localOpacity * 100) }}%
                 </span>
             </div>
         </div>

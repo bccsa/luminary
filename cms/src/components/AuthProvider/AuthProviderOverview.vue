@@ -7,6 +7,7 @@ import LButton from "@/components/button/LButton.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { PlusIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
 
@@ -43,6 +44,7 @@ const {
     deleteProvider,
     confirmDelete,
     saveProvider,
+    revertProvider,
     editableDefaultGroups,
     isDefaultGroupsDirty,
     defaultGroupOptions,
@@ -101,9 +103,7 @@ defineExpose({
 
         <div class="mt-1">
             <div v-if="isLoadingProviders && !providers.length" class="px-6 py-8 text-center">
-                <div
-                    class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"
-                ></div>
+                <LoadingSpinner class="mx-auto h-8 w-8" />
                 <p class="mt-2 text-sm text-gray-500">Loading providers...</p>
             </div>
 
@@ -143,6 +143,7 @@ defineExpose({
         :hasAttemptedSubmit="hasAttemptedSubmit"
         @save="saveProvider"
         @delete="deleteProvider"
+        @revert="revertProvider"
     />
 
     <LDialog

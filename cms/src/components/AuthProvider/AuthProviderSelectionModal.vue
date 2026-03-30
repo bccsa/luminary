@@ -26,7 +26,7 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
 </script>
 
 <template>
-    <LModal heading="Sign in" v-model:isVisible="isVisible">
+    <LModal heading="Sign in" v-model:isVisible="isVisible" :showClosingButton="false">
         <div class="flex flex-col gap-3 py-2">
             <button
                 v-for="provider in providers"
