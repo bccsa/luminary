@@ -8,7 +8,7 @@ import { ContentDto } from "../dto/ContentDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { StorageDto } from "../dto/StorageDto";
 import { isEqualDoc } from "../util/isEqualDoc";
-import { _baseDto } from "../dto/_baseDto";
+import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
