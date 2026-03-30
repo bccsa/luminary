@@ -173,7 +173,7 @@ const saveDisabled = computed(() => {
 <template>
     <LDialog
         :open="isVisible"
-        @update:open="(val) => !val && emit('close')"
+        @update:open="(val: boolean | undefined) => !val && emit('close')"
         :title="!isNew ? `Edit User` : 'Create New User'"
         @close.stop="emit('close')"
         :primaryAction="
