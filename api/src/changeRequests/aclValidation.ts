@@ -35,14 +35,31 @@ const availablePermissionsPerDocType = {
         AclPermission.Translate,
         AclPermission.Publish,
     ],
-    [DocType.User]: [AclPermission.View, AclPermission.Create, AclPermission.Edit, AclPermission.Delete],
-    [DocType.Redirect]: [AclPermission.View, AclPermission.Create, AclPermission.Edit, AclPermission.Delete],
+    [DocType.User]: [
+        AclPermission.View,
+        AclPermission.Create,
+        AclPermission.Edit,
+        AclPermission.Delete,
+    ],
+    [DocType.Redirect]: [
+        AclPermission.View,
+        AclPermission.Create,
+        AclPermission.Edit,
+        AclPermission.Delete,
+    ],
     [DocType.Storage]: [
         AclPermission.View,
         AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Assign,
         AclPermission.Delete,
+    ],
+    [DocType.AuthProvider]: [
+        AclPermission.View,
+        AclPermission.Create,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.Assign,
     ],
 };
 

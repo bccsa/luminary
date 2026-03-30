@@ -93,13 +93,6 @@ export class QueryService {
                 permissionCheckTypes.push(type as DocType);
         }
 
-        // AuthProvider docs must be readable without authentication so the login modal can populate.
-        // They only contain public OAuth metadata (domain, clientId, audience) and are safe to expose.
-        if (type === DocType.AuthProvider) {
-            delete query.cms;
-            return this.db.executeFindQuery(query);
-        }
-
         // TODO: Get view permissions based CMS access if CMS view permissions are set (future)
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
