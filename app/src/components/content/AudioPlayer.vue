@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, inject } from "vue";
 import { useRouter } from "vue-router";
 import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
 import {
@@ -29,8 +29,13 @@ import {
     setMediaProgress,
 } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
+import { MediaPlayerKey } from "@/platform/tokens";
 
 const router = useRouter();
+const mediaPlayerService = inject(MediaPlayerKey);
+if (!mediaPlayerService) {
+    throw new Error("MediaPlayerService not provided");
+}
 
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
@@ -150,7 +155,7 @@ const retryAudio = async () => {
         audioElement.value.src = currentSrc;
 
         await new Promise((resolve) => setTimeout(resolve, 500)); // Wait a bit
-        await audioElement.value.play();
+        await mediaPlayerService.play();
         isPlaying.value = true;
         retryCount.value = 0; // Reset on success
     } catch (err) {
@@ -257,10 +262,8 @@ const toggleVolumeSlider = () => {
 const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 const changePlaybackSpeed = (newRate: number) => {
-    if (!audioElement.value) return;
-
     playbackRate.value = newRate;
-    audioElement.value.playbackRate = newRate;
+    mediaPlayerService.setPlaybackRate(newRate);
     showSpeedMenu.value = false;
     resetAutoHideTimer();
 };
@@ -308,12 +311,12 @@ const togglePlay = async () => {
     }
 
     if (isPlaying.value) {
-        audioElement.value.pause();
+        mediaPlayerService.pause();
         isPlaying.value = false;
     } else {
         try {
             isLoading.value = true;
-            await audioElement.value.play();
+            await mediaPlayerService.play();
             isPlaying.value = true;
             audioError.value = null; // Clear any previous errors
         } catch (err) {
@@ -337,7 +340,7 @@ const toggleExpand = () => {
 const closePlayer = () => {
     // Pause audio if playing
     if (audioElement.value && isPlaying.value) {
-        audioElement.value.pause();
+        mediaPlayerService.pause();
     }
     // Clear the media queue to hide the player
     clearMediaQueue();
@@ -470,9 +473,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
         case "0":
             event.preventDefault();
-            if (audioElement.value) {
-                audioElement.value.currentTime = 0;
-            }
+            mediaPlayerService.seekTo(0);
             break;
 
         case "1":
@@ -535,7 +536,7 @@ const switchLanguage = (languageId: string) => {
     const currentPosition = audioElement.value.currentTime;
 
     // Pause current audio
-    audioElement.value.pause();
+    mediaPlayerService.pause();
     isPlaying.value = false;
 
     // Switch language (this will trigger the matchAudioFileUrl computed to change)
@@ -546,7 +547,7 @@ const switchLanguage = (languageId: string) => {
     const handleNewAudioReady = () => {
         if (audioElement.value && !audioElement.value.paused) {
             // Audio might have auto-started, pause it first
-            audioElement.value.pause();
+            mediaPlayerService.pause();
         }
 
         if (audioElement.value) {
@@ -560,11 +561,11 @@ const switchLanguage = (languageId: string) => {
                         : 0;
 
                 // Set the clamped position in the new audio
-                audioElement.value.currentTime = clampedPosition;
+                mediaPlayerService.seekTo(clampedPosition);
 
                 // Resume playing if it was playing before
                 if (wasPlaying) {
-                    audioElement.value.play().catch((err) => {
+                    mediaPlayerService.play().catch((err) => {
                         console.error("Failed to resume playback after language switch:", err);
                         // If play fails, at least update the playing state
                         isPlaying.value = false;
@@ -611,9 +612,7 @@ const loadAvailableLanguages = async () => {
 
 // skip forward/back
 const skip = (seconds: number) => {
-    if (audioElement.value) {
-        audioElement.value.currentTime += seconds;
-    }
+    mediaPlayerService.seekBy(seconds);
     // Reset auto-hide timer on user interaction
     resetAutoHideTimer();
 };
@@ -656,9 +655,7 @@ const startSeeking = (e: MouseEvent | TouchEvent) => {
         isSeeking.value = false;
 
         // Apply the final seek position
-        if (audioElement.value) {
-            audioElement.value.currentTime = seekTime.value;
-        }
+        mediaPlayerService.seekTo(seekTime.value);
 
         // Remove event listeners
         document.removeEventListener("mousemove", handleMove as EventListener);
@@ -707,6 +704,7 @@ onMounted(() => {
 
     if (audioElement.value) {
         const el = audioElement.value;
+        mediaPlayerService.attachAudioElement(el);
 
         // Playback state events
         el.addEventListener("play", () => {
@@ -739,7 +737,7 @@ onMounted(() => {
             const audioSource = matchAudioFileUrl.value;
             if (audioSource && currentContent.value._id) {
                 const progress = getMediaProgress(audioSource, currentContent.value._id);
-                if (progress > 60) el.currentTime = progress - 30;
+                if (progress > 60) mediaPlayerService.seekTo(progress - 30);
             }
         });
 
@@ -787,7 +785,7 @@ onMounted(() => {
             "canplaythrough",
             () => {
                 if (!isPlaying.value) {
-                    el.play().catch((err) => {
+                    mediaPlayerService.play().catch((err) => {
                         console.log("Auto-play blocked by browser:", err);
                         // Don't treat browser auto-play blocking as an error
                     });
@@ -799,6 +797,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    if (audioElement.value) {
+        mediaPlayerService.detachAudioElement(audioElement.value);
+    }
     // Remove keyboard event listeners
     document.removeEventListener("keydown", handleKeyDown);
 
@@ -835,7 +836,7 @@ watch(
                         isLoading.value = true;
                         // Wait a bit for the audio source to be loaded
                         await new Promise((resolve) => setTimeout(resolve, 100));
-                        await audioElement.value!.play();
+                        await mediaPlayerService.play();
                         console.log("Auto-play started successfully");
                     } catch (err) {
                         console.error("Auto-play failed:", err);
@@ -864,7 +865,7 @@ watch(
 
 onUnmounted(() => {
     if (audioElement.value) {
-        audioElement.value.pause();
+        mediaPlayerService.pause();
     }
 });
 
@@ -954,7 +955,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         setTimeout(async () => {
             try {
                 if (audioElement.value && !isLanguageSwitching.value) {
-                    await audioElement.value.play();
+                    await mediaPlayerService.play();
                 }
             } catch (err) {
                 // Auto-play failed (normal in some browsers)

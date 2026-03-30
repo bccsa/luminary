@@ -22,6 +22,7 @@ import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
+import { platformServicesPlugin } from "./plugins/platform-services.plugin";
 
 export const app = createApp(App);
 
@@ -148,6 +149,7 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
+    app.use(platformServicesPlugin);
     app.mount("#app");
 
     initAuthLangSync();
