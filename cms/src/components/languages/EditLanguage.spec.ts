@@ -13,7 +13,6 @@ import {
     superAdminAccessMap,
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
-import { PlusCircleIcon } from "@heroicons/vue/20/solid";
 import { ref } from "vue";
 
 // Mock the vue router
@@ -163,12 +162,12 @@ describe("EditLanguage.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
-            const translationRow = wrapper.findAll("tr")[2];
+            const rows = wrapper.findAll("tr");
+            const translationRow = rows.find((r) => r.html().includes("bookmarks.empty_page"));
+            if (!translationRow) throw new Error("Translation row not found");
+
             const textarea = translationRow.findAll("textarea");
-
             await textarea[0].setValue("bookmarks.empty_page_updated");
-
-            await wrapper.findComponent(PlusCircleIcon).trigger("click");
             await wrapper.find("button[data-test='save-button']").trigger("click");
 
             await waitForExpect(async () => {
@@ -191,12 +190,12 @@ describe("EditLanguage.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
-            const translationRow = wrapper.findAll("tr")[2];
+            const rows = wrapper.findAll("tr");
+            const translationRow = rows.find((r) => r.html().includes("bookmarks.empty_page"));
+            if (!translationRow) throw new Error("Translation row not found");
+
             const textarea = translationRow.findAll("textarea");
-
             await textarea[1].setValue("You should try this!");
-
-            await wrapper.findComponent(PlusCircleIcon).trigger("click");
             await wrapper.find("button[data-test='save-button']").trigger("click");
 
             await waitForExpect(async () => {
