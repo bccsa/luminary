@@ -87,5 +87,5 @@ jobs:
         working-directory: api
 
       - name: Type Check
-        run: tsc
+        run: npx tsc
         working-directory: api
