@@ -719,12 +719,6 @@ const playAudio = () => {
                                 By {{ content.author }}
                             </div>
                             <div
-                                v-if="content.copyright"
-                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
-                            >
-                                {{ content.copyright }}
-                            </div>
-                            <div
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                             >
@@ -798,8 +792,14 @@ const playAudio = () => {
                             :class="{
                                 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
                             }"
-                        ></div>
-                    </LHighlightable>
+                        ></div> </LHighlightable
+                    ><br />
+                    <div
+                        v-if="content.copyright"
+                        class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                    >
+                        {{ content.copyright }}
+                    </div>
                 </article>
             </div>
 
