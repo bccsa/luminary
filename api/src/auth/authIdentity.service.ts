@@ -132,29 +132,35 @@ export class AuthIdentityService implements OnModuleInit {
 
     /**
      * Extracts a claim value from a JWT payload based on a given path.
-     * Checks for an exact match first to support namespaced claims (e.g., 'https://domain.com/roles'),
-     * then falls back to dot-notation parsing.
+     * Uses a greedy strategy to handle keys that contain dots (e.g., namespaced claims):
+     *   1. Exact match on the full path
+     *   2. Greedy dot-split: tries the longest possible prefix as a key first,
+     *      e.g. for "https://domain.com/metadata.email" it tries
+     *      "https://domain.com/metadata" as a key then ".email" as a sub-property
      */
     public extractClaimValue(payload: any, path: string): any {
         if (!payload || typeof payload !== "object" || !path) return undefined;
 
-        // 1. Exact match first
+        // 1. Exact match on the full path
         if (payload[path] !== undefined) {
             return payload[path];
         }
 
-        // 2. Fallback to dot notation parsing
-        const keys = path.split(".");
-        let current = payload;
-
-        for (const key of keys) {
-            if (current === undefined || current === null || typeof current !== "object") {
-                return undefined;
-            }
-            current = current[key];
+        // 2. Greedy dot-split: try longest prefix as key first, then recurse into remainder
+        const dotPositions: number[] = [];
+        for (let i = path.length - 1; i >= 0; i--) {
+            if (path[i] === ".") dotPositions.push(i);
         }
 
-        return current;
+        for (const pos of dotPositions) {
+            const prefix = path.substring(0, pos);
+            const remainder = path.substring(pos + 1);
+            if (payload[prefix] !== undefined) {
+                return this.extractClaimValue(payload[prefix], remainder);
+            }
+        }
+
+        return undefined;
     }
 
     /**
@@ -233,19 +239,20 @@ export class AuthIdentityService implements OnModuleInit {
 
             // ── Phase 3: Master user account linking ────────────────────────────────
             // Use configured claim paths, falling back to standard OIDC claim names
-            const externalUserId: string | undefined = this.extractClaimValue(
-                payload,
-                providerConfig?.userFieldMappings?.externalUserId || "sub",
-            );
-            const email: string | undefined = this.extractClaimValue(
-                payload,
-                providerConfig?.userFieldMappings?.email || "email",
-            );
+            const externalUserId: string | undefined =
+                this.extractClaimValue(
+                    payload,
+                    providerConfig?.userFieldMappings?.externalUserId || "sub",
+                ) ?? this.extractClaimValue(payload, "sub");
+            const email: string | undefined =
+                this.extractClaimValue(
+                    payload,
+                    providerConfig?.userFieldMappings?.email || "email",
+                ) ?? this.extractClaimValue(payload, "email");
 
             let primaryUser: UserDto | null = null;
-            let identityLinked = false;
 
-            // Action 1: Lookup by userId (admin-set legacy field — provider sub stored here by admin)
+            // Action 1: Lookup by userId (deprecated legacy field)
             if (externalUserId) {
                 const byUserId = await this.dbService.executeFindQuery({
                     selector: { type: DocType.User, userId: externalUserId },
@@ -263,29 +270,13 @@ export class AuthIdentityService implements OnModuleInit {
                 primaryUser = (byExternalId.docs?.[0] as UserDto) ?? null;
             }
 
-            // Action 3: Email fallback – fetch ALL user docs with matching email and merge their groups
-            let emailUserDocs: UserDto[] = [];
+            // Action 3: Email fallback
             if (!primaryUser && email) {
                 const byEmail = await this.dbService.executeFindQuery({
                     selector: { type: DocType.User, email },
+                    limit: 1,
                 });
-                emailUserDocs = (byEmail.docs as UserDto[]) ?? [];
-
-                if (emailUserDocs.length > 0) {
-                    // Use the first doc as the primary user for identity/session purposes
-                    const foundUser = emailUserDocs[0];
-                    if (!foundUser.externalUserId && externalUserId) {
-                        primaryUser = {
-                            ...foundUser,
-                            externalUserId,
-                            lastLogin: Date.now(),
-                        };
-                        await this.dbService.upsertDoc(primaryUser);
-                        identityLinked = true;
-                    } else {
-                        primaryUser = foundUser;
-                    }
-                }
+                primaryUser = (byEmail.docs?.[0] as UserDto) ?? null;
             }
 
             if (!primaryUser) {
@@ -295,16 +286,27 @@ export class AuthIdentityService implements OnModuleInit {
                 throw new UnauthorizedException("No user found");
             }
 
-            // Update lastLogin for existing users (skip if already updated during identity linking)
-            if (primaryUser._rev && !identityLinked) {
-                await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
+            // Link identity: set externalUserId on the user if not already present
+            const needsIdentityLink = !primaryUser.externalUserId && externalUserId;
+            if (needsIdentityLink) {
+                primaryUser = { ...primaryUser, externalUserId };
             }
 
-            // Merge groups: defaultGroups + dynamicGroups + memberOf from all matched user docs
-            // emailUserDocs may contain multiple docs for the same email; primaryUser covers the fast path
-            const allMemberOf = emailUserDocs.length > 0
-                ? emailUserDocs.flatMap((d) => d.memberOf ?? [])
-                : (primaryUser.memberOf ?? []);
+            // Merge groups from all user docs with the same email (handles multiple docs per user)
+            let allMemberOf = primaryUser.memberOf ?? [];
+            if (primaryUser.email) {
+                const allByEmail = await this.dbService.executeFindQuery({
+                    selector: { type: DocType.User, email: primaryUser.email },
+                });
+                const emailUserDocs = (allByEmail.docs as UserDto[]) ?? [];
+                if (emailUserDocs.length > 1) {
+                    allMemberOf = emailUserDocs.flatMap((d) => d.memberOf ?? []);
+                }
+            }
+
+            // Persist identity link and lastLogin
+            await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
+
             const staticGroups = Array.from(new Set(allMemberOf));
             const mergedGroups = Array.from(
                 new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]),

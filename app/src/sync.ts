@@ -163,6 +163,7 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
+
         },
         { immediate: true },
     );

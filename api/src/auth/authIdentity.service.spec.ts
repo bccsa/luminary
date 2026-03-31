@@ -311,7 +311,8 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
-            .mockResolvedValueOnce({ docs: [existingUser] }); // email lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }) // email lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
 
         const mockContext = {
             switchToHttp: () => ({
@@ -347,7 +348,8 @@ describe("AuthGuard (Integrated)", () => {
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
-            .mockResolvedValueOnce({ docs: [existingUser] }); // userId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }) // userId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
 
         const mockContext = {
             switchToHttp: () => ({
@@ -364,7 +366,7 @@ describe("AuthGuard (Integrated)", () => {
         expect(result).toBe(true);
         expect(mockDbService.upsertDoc).toHaveBeenCalledTimes(1);
         expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
-            expect.objectContaining({ _id: "user-legacy" }),
+            expect.objectContaining({ _id: "user-legacy", externalUserId: "auth0|123" }),
         );
     });
 
@@ -383,7 +385,8 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
-            .mockResolvedValueOnce({ docs: [existingUser] }); // externalUserId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
 
         const mockContext = {
             switchToHttp: () => ({
@@ -420,7 +423,8 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
-            .mockResolvedValueOnce({ docs: [existingUser] }); // externalUserId lookup
+            .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
 
         let capturedUser: any;
         const mockContext = {
@@ -473,7 +477,8 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
-            .mockResolvedValueOnce({ docs: [userDoc1, userDoc2] }); // email lookup – two docs
+            .mockResolvedValueOnce({ docs: [userDoc1] }) // email lookup – first doc
+            .mockResolvedValueOnce({ docs: [userDoc1, userDoc2] }); // email merge query – both docs
 
         let capturedUser: any;
         const mockContext = {

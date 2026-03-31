@@ -84,6 +84,34 @@ export function initLanguageSync() {
                 });
             }
 
+            // Sync auth providers
+            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
+                sync({
+                    type: DocType.AuthProvider,
+                    memberOf: access[DocType.AuthProvider],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during auth provider sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
+            // Sync auth provider configs
+            if (access[DocType.AuthProviderConfig] && access[DocType.AuthProviderConfig].length) {
+                sync({
+                    type: DocType.AuthProviderConfig,
+                    memberOf: access[DocType.AuthProviderConfig],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during auth provider config sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
                 sync({

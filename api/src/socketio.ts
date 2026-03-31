@@ -106,7 +106,11 @@ export class Socketio implements OnGatewayInit {
                 try {
                     const userDetails = await this.authIdentityService.resolveIdentity(token, providerId);
                     socket.data.userDetails = userDetails;
-                } catch {
+                } catch (error) {
+                    this.logger.error("Socket auth failed for providerId=" + providerId, {
+                        error: error instanceof Error ? error.message : error,
+                    });
+                    socket.emit("apiAuthFailed");
                     const defaultGroups = await this.authIdentityService.getDefaultGroups();
                     socket.data.userDetails = {
                         groups: defaultGroups,

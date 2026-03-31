@@ -113,9 +113,9 @@ describe("ChangeRequest service", () => {
         expect(res.ack).toBe(AckStatus.Accepted);
 
         // processDefaultPermissionsDto must have forced the singleton ID
-        const saved = (await service.getDoc("global-config")).docs;
+        const saved = (await service.getDoc("defaultPermissions")).docs;
         expect(saved).toHaveLength(1);
-        expect(saved[0]._id).toBe("global-config");
+        expect(saved[0]._id).toBe("defaultPermissions");
         expect((saved[0] as any).memberOf).toEqual(["group-super-admins"]);
         expect((saved[0] as any).defaultGroups).toEqual(["group-public-users"]);
     });
