@@ -434,4 +434,6 @@ export const fallbackImageUrls = loadFallbackImageUrls();
 /**
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
-export const isAppLoading = ref(true);
+export const isAppLoading = ref(
+    !new URLSearchParams(window.location.search).has("nosplash"),
+);
