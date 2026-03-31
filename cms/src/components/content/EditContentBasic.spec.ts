@@ -75,6 +75,23 @@ describe("EditContentBasic.vue", () => {
         expect(content.value.summary).toBe("Updated Summary");
     });
 
+    it("can update the copyright", async () => {
+        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const copyrightInput = wrapper.find('[name="copyright"]');
+        await copyrightInput.setValue("© This is the copyright");
+
+        // Check if the content's copyright was updated
+        expect(content.value.copyright).toBe("© This is the copyright");
+    });
+
     it("can update the slug", async () => {
         const content = ref<ContentDto>(mockData.mockEnglishContentDto);
         const wrapper = mount(EditContentBasic, {
