@@ -796,7 +796,7 @@ const playAudio = () => {
                     ><br />
                     <div
                         v-if="content.copyright"
-                        class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                        class="text-xs text-zinc-500 dark:text-slate-300"
                     >
                         {{ content.copyright }}
                     </div>
