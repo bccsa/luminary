@@ -1,92 +1,11 @@
-<svg host="65bd71144e" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1238px" height="626px" viewBox="-0.5 -0.5 1238 626" content="&lt;mxfile host=&quot;65bd71144e&quot;&gt;
-    &lt;diagram id=&quot;vue-plugin-architecture&quot; name=&quot;Vue Plugin Architecture&quot;&gt;
-        &lt;mxGraphModel dx=&quot;854&quot; dy=&quot;690&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;1920&quot; pageHeight=&quot;1080&quot; math=&quot;0&quot; shadow=&quot;0&quot;&gt;
-            &lt;root&gt;
-                &lt;mxCell id=&quot;0&quot;/&gt;
-                &lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;
-                &lt;mxCell id=&quot;title&quot; value=&quot;Vue Pluggable Architecture (Web + Capacitor)&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;40&quot; y=&quot;20&quot; width=&quot;700&quot; height=&quot;30&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;decision&quot; value=&quot;Decision: Option A selected (Single runtime plugin)&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;fontStyle=1;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;40&quot; y=&quot;55&quot; width=&quot;430&quot; height=&quot;28&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;app&quot; value=&quot;App Bootstrap&amp;#10;main.ts&amp;#10;app.use(platformServicesPlugin)&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;40&quot; y=&quot;90&quot; width=&quot;240&quot; height=&quot;90&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;plugin&quot; value=&quot;platformServicesPlugin.install(app)&amp;#10;Single plugin composition root&amp;#10;(internal feature installers)&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;340&quot; y=&quot;90&quot; width=&quot;280&quot; height=&quot;90&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;runtime&quot; value=&quot;Runtime Detection&amp;#10;Capacitor.isNativePlatform()&amp;#10;Capacitor.getPlatform()&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;680&quot; y=&quot;90&quot; width=&quot;270&quot; height=&quot;90&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;contracts&quot; value=&quot;Service Contracts + Tokens&amp;#10;- MediaPlayerService&amp;#10;- DownloadService&amp;#10;- Symbol Injection Keys&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;340&quot; y=&quot;230&quot; width=&quot;280&quot; height=&quot;120&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;sharedCore&quot; value=&quot;Shared Core Library&amp;#10;storage read/write + indexing + error mapping&amp;#10;(reused by player/download installers)&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;40&quot; y=&quot;240&quot; width=&quot;270&quot; height=&quot;120&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;webAdapters&quot; value=&quot;Web Adapters&amp;#10;media-player.web.ts&amp;#10;downloads.web.ts&amp;#10;storage.web.ts&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;690&quot; y=&quot;250&quot; width=&quot;250&quot; height=&quot;110&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;nativeAdapters&quot; value=&quot;Capacitor Runtime Integrations&amp;#10;luminary-deployment/luminary-plugins&amp;#10;- capacitorNative.ts&amp;#10;- auth.ts / authBrowser.ts&amp;#10;- capgoUpdater.ts&amp;#10;- capacitorDeepLinks.ts&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;fontStyle=0&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;980&quot; y=&quot;245&quot; width=&quot;290&quot; height=&quot;120&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;provide&quot; value=&quot;app.provide(token, adapter)&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;340&quot; y=&quot;390&quot; width=&quot;280&quot; height=&quot;70&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;features&quot; value=&quot;Feature Modules (Platform-Agnostic)&amp;#10;Use inject(token) only&amp;#10;No platform branching in feature code&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;340&quot; y=&quot;500&quot; width=&quot;420&quot; height=&quot;100&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;uiSwap&quot; value=&quot;Optional UI Swap Layer&amp;#10;defineAsyncComponent() for different platform UIs&amp;#10;Use only when UI must differ&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;&quot; parent=&quot;1&quot; vertex=&quot;1&quot;&gt;
-                    &lt;mxGeometry x=&quot;800&quot; y=&quot;500&quot; width=&quot;360&quot; height=&quot;100&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge1&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;app&quot; target=&quot;plugin&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge2&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;plugin&quot; target=&quot;runtime&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge3&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;plugin&quot; target=&quot;contracts&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge3b&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;plugin&quot; target=&quot;sharedCore&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge4&quot; value=&quot;if web&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;runtime&quot; target=&quot;webAdapters&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge5&quot; value=&quot;if native&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;runtime&quot; target=&quot;nativeAdapters&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge6&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;webAdapters&quot; target=&quot;provide&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge7&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontColor=#000000;&quot; parent=&quot;1&quot; source=&quot;nativeAdapters&quot; target=&quot;provide&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge8&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;provide&quot; target=&quot;features&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge10&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;&quot; parent=&quot;1&quot; source=&quot;sharedCore&quot; target=&quot;webAdapters&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge11&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;&quot; parent=&quot;1&quot; source=&quot;sharedCore&quot; target=&quot;nativeAdapters&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-                &lt;mxCell id=&quot;edge9&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;&quot; parent=&quot;1&quot; source=&quot;features&quot; target=&quot;uiSwap&quot; edge=&quot;1&quot;&gt;
-                    &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-                &lt;/mxCell&gt;
-            &lt;/root&gt;
-        &lt;/mxGraphModel&gt;
-    &lt;/diagram&gt;
-&lt;/mxfile&gt;">
+<svg host="65bd71144e" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1241px" height="641px" viewBox="-0.5 -0.5 1241 641" content="&lt;mxfile&gt;&lt;diagram id=&quot;vue-plugin-architecture&quot; name=&quot;Vue Plugin Architecture&quot;&gt;3Vpbc5s6EP41nnEf0pHBxvjRcZKezGl7MnUvzzKSsVohMULE8fn1ZwUChCFtzhTHSfOQwO6iy/ftrnY1Gfmr5OGdwunugySUjzxEHkb+1cjzJj6awR8jOVgJCrxSEitGrKwRrNm/tDK00pwRmrUMtZRcs7QtjKQQNNItGVZK7ttmW8nbs6Y4ph3BOsK8K/3GiN5Z6cJDjeIvyuJdNTUKrSbBlbUVZDtM5N4R+dcjf6Wk1OVT8rCi3MBXAVN+d/OItl6ZokI/5QPNNOyq+Oge89xu8Cs8eOiO53GMN0aPliraMQ1g5sq8jr/RzcgMfQm/VzjFEdNSvbF70ocKKU0fYBmXO51wEEzgMdNK/qAryaUCiZACLC+3jPMjEeYsFvDK6daMcE+VZsDA0ooTRoiZ5HJvlrWGBZgZ9+BwZjgptPUaWKN9t4sya+iCZHEzs9AHR2RBe0dlQrU6gInVTi1/1oUrOveNO8yRle0cT/CtDFsPjOuBG47gwdLUTxmhEcuYFB3WriqFvwTFP6kujJB5ySgH7igx1K2ZiAtOVS40S8xTCkwz0aVPyVwQSixsfVA7zLokjjyfzGhIph3GQRN6Gz8ILC+OHBU/z8LXbNbha+r38OWFv88XTtMOVUsjQ5cQ5oAOAOkFsP+J2XuCmXirM0cC37/NMzpOOdZbqZI1VfcsotndKUjDNNxGfaQFUUg325+QNjxJi25Q1SYuSYsBgqqMgA5P/Zi/ZSLTmPMxUPPGYaqOrGo0OIGSVGbMRmKR1hvzMROaKoHNOrYU29Rqx6YqezHxOAC1/hO4DU/EbZ3njsj9VOe/K2qOtpKkMVQNxbHlISn4weU3ptp+cyu2cuyq7nCWFekVFloUHnYILVuUDsrodrv1ot5gJcEmmJ2Y0fp8e/wIBJvTMGrwVTjSWYdTG6imKmlsbJ3yGUASbma9AOEHShi+4/hAVf1ty2B9SDbSTH4rvtdO8jc9DMxlGNF+LjfhbDpDzxudvWT2hecEDcAmJjiFRHgDZThV3aOy1IKwMkDjTc44ubDBm+1xKwtXORumtSNnZilewE0hmdUkx7oA74YBaQ/tIzdSkI5p1zVMyKMtOJU0O6zNr+gW52Z0U2rty8r42hstpqPQbOYThSVFxjGWbrUMz8U+Bs4JNHgkJ8wXG3RiP+rkhEm3zqoTQMuPJgP4ESC/rAk/8qKyX2nUaEwsaWX/V/hVkbaFzn7tTYlxjYu08I1+FzIOEAajhVkHTN6XZgaknU7geJ/30b4I5j5+5qPAD3vSRx/tQ5wFAmt2Tx8l3g23JpXYkEzMnhvOeJ4wgdXhgoBaHkotKpIHqnVlbedSbQczXoXrGWqnwroJdNTUIX8E8RM0aTM/DZ6xCkiVvGekW9eZhsnqxtqc+SNv1XDzJ1fV0/kTz+35APDblqUbcjd1L/NBkpwXgTG+s3n0YhkLmWkWuUn2S1Z2PqbAKil7Y8tvx+ijLDqrKh2jjcIi2kHLVXza6qEiSYYNs/P2xcc0z3qibOqdqjzL2XqPu1cY5f1S0bx+uTV1cmGE3pdHYs0aHLNM0GV2ENHKNMMCYCjLqCIlEwYViyoTrcPtl9us4x6lO6D9zgR0OWeSZ7oeZOA66py9VYh+TbgfnIpwSmI66aBppNWlnFR6J2PD/nUjvWzwNjA0Nu+lTC3K36nWB3s1i3NojlscUEGW5noeXjdcRj9K0Q3jlcGj0GYyV1GT/kuhxgo69lHnfsfs5KcsKMqLoqI1xe8i6p0ZUZlC3LiAFtGJs10dIU9C1wXSBbh1yXIehP3X67OPoXp00XEeXD9LtzX/k+DtuXk4F8RFg3p0xJZXCVWn2i1cXw3+PTi7NHQa93OR8LEc9JgHYcV1G6fqju8FMvL/c/ov6OnrsM/DUPAiAX8Sxh0fb1Unbid7HmjnrxfaPv98YeiGrxfdFnourO3+/zy4Ll4vrm34XGDdhvvksMJr899Ghc75ry3/+j8=&lt;/diagram&gt;&lt;/mxfile&gt;">
     <defs/>
     <g>
-        <rect x="17" y="0" width="700" height="30" fill="none" stroke="none" pointer-events="all"/>
+        <rect x="0" y="0" width="700" height="30" fill="none" stroke="none" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 698px; height: 1px; padding-top: 15px; margin-left: 19px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 698px; height: 1px; padding-top: 15px; margin-left: 2px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;">
                             <div style="display: inline-block; font-size: 20px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; font-weight: bold; white-space: normal; overflow-wrap: normal;">
                                 Vue Pluggable Architecture (Web + Capacitor)
@@ -94,16 +13,16 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="19" y="21" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="20px" font-weight="bold">
+                <text x="2" y="21" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="20px" font-weight="bold">
                     Vue Pluggable Architecture (Web + Capacitor)
                 </text>
             </switch>
         </g>
-        <rect x="17" y="35" width="430" height="28" rx="4.2" ry="4.2" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
+        <rect x="0" y="35" width="430" height="28" rx="4.2" ry="4.2" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 428px; height: 1px; padding-top: 49px; margin-left: 18px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 428px; height: 1px; padding-top: 49px; margin-left: 1px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; font-weight: bold; white-space: normal; overflow-wrap: normal;">
                                 Decision: Option A selected (Single runtime plugin)
@@ -111,16 +30,16 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="232" y="53" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" font-weight="bold">
+                <text x="215" y="53" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" font-weight="bold">
                     Decision: Option A selected (Single runtime plugin)
                 </text>
             </switch>
         </g>
-        <rect x="17" y="70" width="240" height="90" rx="13.5" ry="13.5" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
+        <rect x="0" y="70" width="240" height="90" rx="13.5" ry="13.5" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 238px; height: 1px; padding-top: 115px; margin-left: 18px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 238px; height: 1px; padding-top: 115px; margin-left: 1px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 App Bootstrap
@@ -132,16 +51,16 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="137" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="120" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     App Bootstrap...
                 </text>
             </switch>
         </g>
-        <rect x="317" y="70" width="280" height="90" rx="13.5" ry="13.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
+        <rect x="300" y="70" width="280" height="90" rx="13.5" ry="13.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 115px; margin-left: 318px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 115px; margin-left: 301px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 platformServicesPlugin.install(app)
@@ -153,131 +72,123 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="457" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="440" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     platformServicesPlugin.install(app)...
                 </text>
             </switch>
         </g>
-        <rect x="857" y="70" width="270" height="90" rx="13.5" ry="13.5" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
+        <rect x="660" y="0" width="270" height="90" rx="13.5" ry="13.5" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 115px; margin-left: 858px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 45px; margin-left: 661px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Runtime Detection
+                                Runtime Detection (context only)
                                 <br/>
-                                Capacitor.isNativePlatform()
+                                getRuntimeInfo()
                                 <br/>
-                                Capacitor.getPlatform()
+                                Passed as context to installers
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="992" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Runtime Detection...
+                <text x="795" y="49" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                    Runtime Detection (context only)...
                 </text>
             </switch>
         </g>
-        <rect x="317" y="220" width="280" height="120" rx="18" ry="18" fill="#f8cecc" stroke="#b85450" pointer-events="all"/>
+        <rect x="300" y="200" width="280" height="100" rx="15" ry="15" fill="#f8cecc" stroke="#b85450" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 280px; margin-left: 318px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 250px; margin-left: 301px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Service Contracts + Tokens
                                 <br/>
                                 - MediaPlayerService
                                 <br/>
-                                - DownloadService
-                                <br/>
                                 - Symbol Injection Keys
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="457" y="284" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="440" y="254" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     Service Contracts + Tokens...
                 </text>
             </switch>
         </g>
-        <rect x="0" y="325" width="270" height="120" rx="18" ry="18" fill="#f5f5f5" stroke="#666666" pointer-events="all"/>
+        <rect x="660" y="195" width="290" height="110" rx="16.5" ry="16.5" fill="#ffe6cc" stroke="#d79b00" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 385px; margin-left: 1px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 288px; height: 1px; padding-top: 250px; margin-left: 661px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Shared Core Library
+                                Adapter Folder (build-time swap)
                                 <br/>
-                                storage read/write + indexing + error mapping
+                                platform/adapters//index.ts
                                 <br/>
-                                (reused by player/download installers)
+                                createMediaPlayerService() factory
+                                <br/>
+                                Default: web │ Replaced: Capacitor build
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="135" y="389" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Shared Core Library...
+                <text x="805" y="254" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                    Adapter Folder (build-time swap)...
                 </text>
             </switch>
         </g>
-        <rect x="697" y="225" width="250" height="110" rx="16.5" ry="16.5" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+        <rect x="660" y="360" width="290" height="90" rx="13.5" ry="13.5" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 248px; height: 1px; padding-top: 280px; margin-left: 698px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 288px; height: 1px; padding-top: 405px; margin-left: 661px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Web Adapters
+                                Web Adapters (default folder contents)
                                 <br/>
-                                media-player.web.ts
+                                platform/adapters/media-player/index.ts
                                 <br/>
-                                downloads.web.ts
-                                <br/>
-                                storage.web.ts
+                                → WebMediaPlayerService
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="822" y="284" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Web Adapters...
+                <text x="805" y="409" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                    Web Adapters (default folder contents)...
                 </text>
             </switch>
         </g>
-        <rect x="947" y="325" width="290" height="120" rx="18" ry="18" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+        <rect x="970" y="440" width="270" height="90" rx="13.5" ry="13.5" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 288px; height: 1px; padding-top: 385px; margin-left: 948px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 485px; margin-left: 971px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Capacitor Runtime Integrations
+                                Capacitor Adapter Replacement
                                 <br/>
-                                luminary-deployment/luminary-plugins
+                                luminary-deployment / luminary-plugins
                                 <br/>
-                                - capacitorNative.ts
-                                <br/>
-                                - auth.ts / authBrowser.ts
-                                <br/>
-                                - capgoUpdater.ts
-                                <br/>
-                                - capacitorDeepLinks.ts
+                                Replaces adapter folder at build time
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="1092" y="389" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Capacitor Runtime Integrations...
+                <text x="1105" y="489" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                    Capacitor Adapter Replacement...
                 </text>
             </switch>
         </g>
-        <rect x="317" y="415" width="280" height="70" rx="10.5" ry="10.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
+        <rect x="300" y="450" width="280" height="70" rx="10.5" ry="10.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 450px; margin-left: 318px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 485px; margin-left: 301px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 app.provide(token, adapter)
@@ -285,16 +196,16 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="457" y="454" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="440" y="489" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     app.provide(token, adapter)
                 </text>
             </switch>
         </g>
-        <rect x="317" y="525" width="420" height="100" rx="15" ry="15" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
+        <rect x="300" y="540" width="420" height="100" rx="15" ry="15" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 418px; height: 1px; padding-top: 575px; margin-left: 318px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 418px; height: 1px; padding-top: 590px; margin-left: 301px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Feature Modules (Platform-Agnostic)
@@ -306,16 +217,16 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="527" y="579" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="510" y="594" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     Feature Modules (Platform-Agnostic)...
                 </text>
             </switch>
         </g>
-        <rect x="777" y="525" width="360" height="100" rx="15" ry="15" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
+        <rect x="760" y="540" width="360" height="100" rx="15" ry="15" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 358px; height: 1px; padding-top: 575px; margin-left: 778px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 358px; height: 1px; padding-top: 590px; margin-left: 761px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Optional UI Swap Layer
@@ -327,67 +238,63 @@
                         </div>
                     </div>
                 </foreignObject>
-                <text x="957" y="579" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
+                <text x="940" y="594" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
                     Optional UI Swap Layer...
                 </text>
             </switch>
         </g>
-        <path d="M 257 115 L 308.88 115" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 315.88 115 L 308.88 118.5 L 308.88 111.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 597 115 L 848.88 115" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 855.88 115 L 848.88 118.5 L 848.88 111.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 457 160 L 457 211.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 457 218.88 L 453.5 211.88 L 460.5 211.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 317 115 L 135 115 L 135 316.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 135 323.88 L 131.5 316.88 L 138.5 316.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 992 160 L 992 192.5 L 822 192.5 L 822 216.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 822 223.88 L 818.5 216.88 L 825.5 216.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 240 115 L 291.88 115" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 298.88 115 L 291.88 118.5 L 291.88 111.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 580 115.08 L 620.08 115.08 L 620.08 45.08 L 657.76 45.08" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
+        <path d="M 651.88 48.58 L 658.88 45.08 L 651.88 41.58" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 440 160 L 440 191.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 440 198.88 L 436.5 191.88 L 443.5 191.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 580 115.08 L 805 115.08 L 805 186.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 805 193.88 L 801.5 186.88 L 808.5 186.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 805 305 L 805 351.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 805 358.88 L 801.5 351.88 L 808.5 351.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 193px; margin-left: 907px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 333px; margin-left: 805px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;">
-                                if web
+                                web (default)
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="907" y="196" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
-                    if web
+                <text x="805" y="336" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
+                    web (default)
                 </text>
             </switch>
         </g>
-        <path d="M 992 160 L 992 242.5 L 1092 242.5 L 1092 316.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 1092 323.88 L 1088.5 316.88 L 1095.5 316.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 950 250 L 1105 250 L 1105 431.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
+        <path d="M 1105 438.88 L 1101.5 431.88 L 1108.5 431.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
         <g transform="translate(-0.5 -0.5)">
             <switch>
                 <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 243px; margin-left: 1043px;">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 267px; margin-left: 1105px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;">
-                                if native
+                                native build replaces
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="1043" y="246" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
-                    if native
+                <text x="1105" y="271" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
+                    native build replaces
                 </text>
             </switch>
         </g>
-        <path d="M 697 280 L 457 280 L 457 406.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 457 413.88 L 453.5 406.88 L 460.5 406.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 947 385 L 772 385 L 772 450 L 605.12 450" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 598.12 450 L 605.12 446.5 L 605.12 453.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 457 485 L 457 505 L 527 505 L 527 516.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 527 523.88 L 523.5 516.88 L 530.5 516.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 270 385 L 627 385 L 627 280 L 694.76 280" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
-        <path d="M 688.88 283.5 L 695.88 280 L 688.88 276.5" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 270 385 L 944.76 385" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
-        <path d="M 938.88 388.5 L 945.88 385 L 938.88 381.5" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 737 575 L 768.88 575" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 775.88 575 L 768.88 578.5 L 768.88 571.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 660 405.08 L 620.08 405.08 L 620.08 485.08 L 588.12 485.08" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 581.12 485.08 L 588.12 481.58 L 588.12 488.58 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 970 485 L 588.12 485" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 581.12 485 L 588.12 481.5 L 588.12 488.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 440.08 520 L 440.08 540 L 501.96 540" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 508.96 540 L 501.96 543.5 L 501.96 536.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 720 590 L 751.88 590" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 758.88 590 L 751.88 593.5 L 751.88 586.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
     </g>
     <switch>
         <g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/>
