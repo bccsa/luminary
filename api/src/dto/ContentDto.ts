@@ -173,4 +173,9 @@ export class ContentDto extends _contentBaseDto {
     @IsNumber()
     @Expose()
     ftsTokenCount?: number;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    copyright?: string;
 }

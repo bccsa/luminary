@@ -573,9 +573,7 @@ const playAudio = () => {
             v-if="!is404"
         >
             <DropdownMenu
-                v-if="
-                    !isLoading && !isLoadingTranslations && availableTranslations.length > 1
-                "
+                v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
                 v-model:open="showDropdown"
                 panel-class="py-1"
             >
@@ -794,8 +792,14 @@ const playAudio = () => {
                             :class="{
                                 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
                             }"
-                        ></div>
-                    </LHighlightable>
+                        ></div> </LHighlightable
+                    ><br />
+                    <div
+                        v-if="content.copyright"
+                        class="text-xs text-zinc-500 dark:text-slate-300"
+                    >
+                        {{ content.copyright }}
+                    </div>
                 </article>
             </div>
 

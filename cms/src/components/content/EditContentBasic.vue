@@ -304,6 +304,15 @@ const clearExpiryDate = () => {
                     inlineLabel
                 />
 
+                <!-- Copyright -->
+                <FormLabel>Copyright</FormLabel>
+                <LInput
+                    name="copyright"
+                    :disabled="disabled"
+                    inputType="textarea"
+                    v-model="content.copyright"
+                />
+
                 <!-- Summary -->
                 <FormLabel class="self-start">Summary</FormLabel>
                 <LInput
