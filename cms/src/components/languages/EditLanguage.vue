@@ -330,14 +330,7 @@ const deleteLanguage = async () => {
 </script>
 
 <template>
-    <BasePage
-        :title="editable?.name"
-        :backLinkLocation="{ name: 'languages' }"
-        :backLinkText="`Languages overview`"
-        :backLinkParams="{
-            docType: DocType.Language,
-        }"
-    >
+    <BasePage :title="editable?.name">
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
