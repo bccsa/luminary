@@ -475,6 +475,62 @@ describe("DbService", () => {
         });
     });
 
+    describe("ensureConnected", () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            // Restore connected state and real timers
+            (service as any).connected = true;
+            jest.useRealTimers();
+        });
+
+        it("throws an error if the database does not connect within 10 seconds", async () => {
+            (service as any).connected = false;
+            const originalReconnect = (service as any).reconnect.bind(service);
+            (service as any).reconnect = () => {};
+
+            const promise = (service as any).ensureConnected().catch((e: Error) => e);
+
+            // Advance past the 10s timeout
+            await jest.advanceTimersByTimeAsync(11000);
+
+            const err = await promise;
+            expect(err).toBeInstanceOf(Error);
+            expect(err.message).toBe(
+                "Database connection timeout: unable to connect within 10 seconds",
+            );
+
+            (service as any).reconnect = originalReconnect;
+        });
+
+        it("resolves immediately if already connected", async () => {
+            (service as any).connected = true;
+
+            await expect((service as any).ensureConnected()).resolves.toBeUndefined();
+        });
+
+        it("resolves when the database connects within the timeout period", async () => {
+            (service as any).connected = false;
+            const originalReconnect = (service as any).reconnect.bind(service);
+            (service as any).reconnect = () => {};
+
+            // Simulate connection becoming available after 2 polling cycles (1s)
+            setTimeout(() => {
+                (service as any).connected = true;
+            }, 1000);
+
+            const promise = (service as any).ensureConnected();
+
+            await jest.advanceTimersByTimeAsync(1500);
+
+            await expect(promise).resolves.toBeUndefined();
+
+            (service as any).reconnect = originalReconnect;
+        });
+    });
+
     describe("group documents", () => {
         it("can get all groups", async () => {
             const res: any = await service.getGroups();
