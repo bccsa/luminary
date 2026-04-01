@@ -118,9 +118,10 @@ export class DbService extends EventEmitter {
 
     /**
      * Connect to the database and start the changes feed.
-     * Retries with exponential backoff if the initial connection fails.
+     * The changes feed starts immediately so events are received as soon as possible.
+     * If the DB isn't available yet, the feed's error handler triggers reconnection.
      */
-    private async connect() {
+    private connect() {
         this.db = nano({
             url: this.dbConfig.connectionString,
             requestDefaults: {
@@ -130,11 +131,13 @@ export class DbService extends EventEmitter {
             },
         }).use(this.dbConfig.database);
 
-        // Verify the connection by making a simple request
-        await this.waitForDb();
-
-        // Subscribe to database changes feed
+        // Start the changes feed immediately (its error handler will trigger reconnect if DB is down)
         this.startChangesFeed();
+
+        // Verify the connection in the background so ensureConnected() can unblock callers
+        this.waitForDb().catch((err) => {
+            this.logger.error("Unexpected error in waitForDb:", err);
+        });
     }
 
     /**
@@ -190,9 +193,16 @@ export class DbService extends EventEmitter {
                 }
             })
             .on("error", (err) => {
-                this.logger.error("Database changes feed error, will restart", err);
+                this.logger.warn("Database changes feed error, will restart:", err.message || err);
                 this.connected = false;
                 this.reconnect();
+            })
+            .on("close", () => {
+                if (this.connected) {
+                    this.logger.warn("Database changes feed closed unexpectedly, will restart");
+                    this.connected = false;
+                    this.reconnect();
+                }
             });
     }
 
@@ -230,9 +240,19 @@ export class DbService extends EventEmitter {
         // Trigger reconnection if not already in progress
         this.reconnect();
 
-        // Wait until connected
+        // Wait until connected, polling every 500ms with a 10 second timeout
+        const maxWaitMs = 10000;
+        const pollIntervalMs = 500;
+        let waited = 0;
+
         while (!this.connected) {
-            await new Promise((r) => setTimeout(r, 500));
+            if (waited >= maxWaitMs) {
+                throw new Error(
+                    "Database connection timeout: unable to connect within 10 seconds",
+                );
+            }
+            await new Promise((r) => setTimeout(r, pollIntervalMs));
+            waited += pollIntervalMs;
         }
     }
 
