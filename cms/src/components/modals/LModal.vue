@@ -38,7 +38,8 @@ const isMobileScreen = breakpoints.smaller("sm");
                 'fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
                 stickToEdges && isMobileScreen ? '' : 'p-2',
             ]"
-            @click="isVisible = false"
+            @mousedown.self="isVisible = false"
+            data-test="modal-backdrop"
         >
             <!-- Modal content at higher z-index -->
             <div
@@ -46,6 +47,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                 @keydown.esc="isVisible = false"
                 @click.stop
                 ref="modalRef"
+                data-test="modal-content"
                 :class="[
                     'relative z-50 flex max-h-screen flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
                     isMobileScreen && stickToEdges
