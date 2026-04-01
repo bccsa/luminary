@@ -239,6 +239,7 @@ defineExpose({ open, inputElement });
             title="Edit Selection"
             v-model:open="showEditModal"
             :heading="label"
+            :showClosingButton="false"
         >
             <div
                 ref="triggerRef"
