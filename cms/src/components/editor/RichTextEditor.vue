@@ -24,14 +24,7 @@ const showModal = ref(false);
 const url = ref("");
 
 function getEditor(): Editor | undefined {
-    const editorRef =
-        (rteRef.value as { editor?: unknown } | undefined)?.editor ??
-        (rteRef.value as { $?: { setupState?: { editor?: unknown } } } | undefined)?.$?.setupState
-            ?.editor;
-    if (editorRef && typeof editorRef === "object" && "value" in editorRef) {
-        return (editorRef as { value?: unknown }).value as Editor | undefined;
-    }
-    return editorRef as Editor | undefined;
+    return rteRef.value?.editor;
 }
 
 const toolbarGrouping: ToolbarItem[][] = [
