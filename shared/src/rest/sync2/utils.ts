@@ -26,7 +26,10 @@ export function calcChunk(options: {
     else blockStart = list[0].blockEnd;
 
     if (options.initialSync)
-        blockEnd = list.length === 0 ? 0 : list[0].blockStart - syncTolerance; // add tolerance to push end into past of first synced blockStart giving an overlap to avoid missing documents
+        blockEnd =
+            list.length === 0 || list[0].blockStart >= Number.MAX_SAFE_INTEGER
+                ? 0
+                : list[0].blockStart - syncTolerance; // add tolerance to push end into past of first synced blockStart giving an overlap to avoid missing documents
     else blockEnd = list.length <= 1 ? 0 : list[1].blockStart;
 
     return { blockStart, blockEnd };
