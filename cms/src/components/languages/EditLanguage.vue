@@ -11,7 +11,6 @@ import {
 } from "luminary-shared";
 import { ref, computed, watch, toRaw } from "vue";
 import LInput from "../forms/LInput.vue";
-import LButton from "../button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import LToggle from "../forms/LToggle.vue";
 import BasePage from "../BasePage.vue";
@@ -22,15 +21,11 @@ import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
 import * as _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
-import {
-    PlusCircleIcon,
-    FolderArrowDownIcon,
-    ArrowUturnLeftIcon,
-    TrashIcon,
-} from "@heroicons/vue/24/solid";
+import { PlusCircleIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import EditContentActionsWrapper from "../content/EditContentActionsWrapper.vue";
 
 type translationKeyValuePair = {
     rowKey: Uuid;
@@ -327,50 +322,84 @@ const deleteLanguage = async () => {
         name: "languages",
     });
 };
+
+const contentActions = computed(() => {
+    const actions = [];
+    if (canDelete.value) {
+        actions.push({
+            name: "Delete",
+            action: () => (showDeleteModal.value = true),
+            icon: TrashIcon,
+            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+        });
+    }
+    return actions;
+});
 </script>
 
 <template>
-    <BasePage :title="editable?.name">
+    <BasePage>
+        <template #pageNav>
+            <h1 class="text-md font-semibold leading-7 lg:hidden">
+                {{ isNew ? "Create new language" : `Edit ${editable.name}` }}
+            </h1>
+            <h1 class="text-md hidden font-semibold leading-7 lg:block">
+                {{ isNew ? "Create new language" : `${editable.name}` }}
+            </h1>
+        </template>
         <template #actions>
             <div class="flex gap-2">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
                 >
                 <div class="flex gap-1">
                     <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
-                    <LButton
-                        type="button"
-                        variant="secondary"
-                        v-if="isDirty && !isNew"
-                        @click="revertChanges"
-                        :icon="ArrowUturnLeftIcon"
-                        >Revert</LButton
-                    >
-                    <LButton
-                        type="button"
-                        @click="save"
-                        data-test="save-button"
-                        variant="primary"
-                        :disabled="!isDirty || !hasGroupsSelected"
-                        :icon="FolderArrowDownIcon"
-                    >
-                        Save
-                    </LButton>
-                    <LButton
-                        type="button"
-                        @click="showDeleteModal = true"
-                        data-test="delete-button"
-                        variant="secondary"
-                        context="danger"
-                        :icon="TrashIcon"
-                        :disabled="!canDelete"
-                    >
-                        Delete
-                    </LButton>
                 </div>
             </div>
         </template>
+
+        <template #topBarActionsMobile>
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="save"
+                :delete="
+                    () => {
+                        showDeleteModal = true;
+                    }
+                "
+                :duplicate="() => {}"
+                :mobile="true"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+                :newDocument="isNew"
+                :liveUrl="''"
+                :isPublished="false"
+                :parentId="editable._id"
+            />
+        </template>
+        <!-- desktop actions -->
+        <template #topBarActionsDesktop>
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="save"
+                :delete="
+                    () => {
+                        showDeleteModal = true;
+                    }
+                "
+                :duplicate="() => {}"
+                :parentId="editable._id"
+                :liveUrl="''"
+                :isPublished="false"
+                :mobile="false"
+                :newDocument="isNew"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+            />
+        </template>
+
         <div class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
