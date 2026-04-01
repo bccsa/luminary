@@ -20,6 +20,7 @@ const isOpen = ref(false);
 const selectedIndex = ref(-1);
 const inputRef = ref<HTMLInputElement | null>(null);
 const focusOnNextOpen = ref(false);
+const isInputFocused = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
@@ -654,12 +655,15 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                             class="flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
                             autocomplete="off"
                             @keydown="handleInputKeydown"
+                            @focus="isInputFocused = true"
+                            @blur="isInputFocused = false"
                         />
-                        <div class="flex flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0">
+                        <div class="flex h-9 flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0">
                             <button
                                 v-if="showGoButton"
                                 type="button"
                                 class="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 md:h-auto md:py-1.5"
+                                @mousedown.prevent
                                 @click="onGoClick"
                             >
                                 {{ t("search.go") }}
@@ -668,11 +672,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 v-if="searchQuery"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="t('search.clearQuery')"
+                                @mousedown.prevent
                                 @click="clearSearch"
                             >
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
                             <button
+                                v-if="!isInputFocused"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="t('search.close')"
                                 @click="closeSearch"
