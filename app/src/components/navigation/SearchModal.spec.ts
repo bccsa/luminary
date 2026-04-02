@@ -510,6 +510,88 @@ describe("SearchButton", () => {
         });
     });
 
+    // ── Close button visibility on focus ─────────────────────────────────
+
+    describe("Close button visibility on input focus", () => {
+        it("hides the close button when the input is focused", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+
+            const closeBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Close search");
+            expect(closeBtn).toBeUndefined();
+        });
+
+        it("shows the close button when the input is blurred", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+            await wrapper.find("input").trigger("blur");
+            await nextTick();
+
+            const closeBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Close search");
+            expect(closeBtn).toBeDefined();
+        });
+
+        it("keeps the close button hidden when clicking the clear button (no blur)", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await wrapper.find("input").setValue("hello");
+            await nextTick();
+
+            const clearBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Clear search query");
+            expect(clearBtn).toBeDefined();
+
+            // mousedown.prevent on the clear button should keep the input focused
+            await clearBtn!.trigger("mousedown");
+            await nextTick();
+
+            const closeBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Close search");
+            expect(closeBtn).toBeUndefined();
+        });
+
+        it("maintains consistent button container height when no buttons are visible", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+
+            // The button container should have h-9 class for consistent height
+            const buttonContainer = wrapper.find("input").element.parentElement!
+                .querySelector(".flex.h-9.flex-shrink-0");
+            expect(buttonContainer).not.toBeNull();
+        });
+
+        it("can still close via ESC when the close button is hidden", async () => {
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+
+            // Close button is hidden, but ESC should still work
+            await wrapper.find("input").trigger("keydown", { key: "Escape" });
+            await flushPromises();
+
+            expect(wrapper.find("input").isVisible()).toBe(false);
+        });
+    });
+
     // ── Clear button ───────────────────────────────────────────────────────
 
     describe("Clear query button", () => {
