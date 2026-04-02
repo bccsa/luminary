@@ -631,4 +631,30 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
     });
+
+    it("terminates when docs are returned but chunk range does not advance (same-timestamp docs)", async () => {
+        // All docs have the same updatedTimeUtc, so blockStart === blockEnd after fetch.
+        // Without the widened stall guard, this would loop forever because blockLength > 0
+        // and the old guard only checked blockLength === 0.
+        const sameTimestampDocs = Array.from({ length: 5 }, (_, i) => ({
+            id: `doc-${i}`,
+            type: DocType.Post,
+            updatedTimeUtc: 3000, // all identical
+            memberOf: ["g1"],
+        })) as any;
+
+        const http = { post: vi.fn(async () => ({ docs: sameTimestampDocs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5, // blockLength === limit, so eof is false
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Should terminate after detecting the range hasn't moved, not loop forever
+        expect(http.post).toHaveBeenCalledTimes(2); // initial + one retry that detects stall
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
 });

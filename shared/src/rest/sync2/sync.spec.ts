@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { initSync, sync, setCancelSync, cancelSync } from "./sync";
+import { initSync, sync, setCancelSync, cancelSync, validateSyncList } from "./sync";
 import { HttpReq } from "../http";
 import { db } from "../../db/database";
 import { syncBatch } from "./syncBatch";
@@ -1032,6 +1032,123 @@ describe("sync module", () => {
             );
             expect(deleteCmdAfter).toHaveLength(1);
             expect(deleteCmdAfter[0].languages).toEqual(["en", "fr"]);
+        });
+    });
+
+    describe("validateSyncList", () => {
+        beforeEach(() => {
+            syncList.value = [];
+        });
+
+        const validEntry = {
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        };
+
+        it("keeps valid entries intact", () => {
+            syncList.value = [
+                { ...validEntry },
+                { ...validEntry, blockStart: 1000, blockEnd: 0, eof: true },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(2);
+        });
+
+        it("removes entries with MAX_SAFE_INTEGER blockStart", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: Number.MAX_SAFE_INTEGER, blockEnd: 0 },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].blockStart).toBe(5000);
+        });
+
+        it("removes entries with NaN blockStart or blockEnd", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: NaN },
+                { ...validEntry, blockEnd: NaN },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes entries with Infinity blockStart or blockEnd", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: Infinity },
+                { ...validEntry, blockEnd: -Infinity },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes entries with negative blockStart or blockEnd", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: -1 },
+                { ...validEntry, blockEnd: -100 },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes entries with missing or empty chunkType", () => {
+            syncList.value = [
+                { ...validEntry, chunkType: "" },
+                { ...validEntry, chunkType: undefined as any },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes entries with missing or empty memberOf", () => {
+            syncList.value = [
+                { ...validEntry, memberOf: [] },
+                { ...validEntry, memberOf: "not-array" as any },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes entries with inverted ranges (blockStart < blockEnd)", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: 1000, blockEnd: 5000 },
+                { ...validEntry },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].blockStart).toBe(5000);
+        });
+
+        it("keeps entries where blockStart equals blockEnd", () => {
+            syncList.value = [{ ...validEntry, blockStart: 3000, blockEnd: 3000 }];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("keeps entries where both blockStart and blockEnd are 0", () => {
+            syncList.value = [{ ...validEntry, blockStart: 0, blockEnd: 0 }];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(1);
+        });
+
+        it("removes multiple invalid entries while keeping valid ones", () => {
+            syncList.value = [
+                { ...validEntry, blockStart: Number.MAX_SAFE_INTEGER },
+                { ...validEntry },
+                { ...validEntry, blockStart: NaN },
+                { ...validEntry, blockStart: 2000, blockEnd: 1000 },
+                { ...validEntry, memberOf: [] },
+            ];
+            validateSyncList();
+            expect(syncList.value).toHaveLength(2);
         });
     });
 });

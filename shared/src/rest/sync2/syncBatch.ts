@@ -115,7 +115,7 @@ export async function syncBatch(options: SyncOptions) {
 
     // If not end of file (we have not yet received all documents from the API), continue to sync iteratively
     if (!mergeResult.eof) {
-        // If the nextChunk's range is identical to the current one, it would iterate forever - quit recursion loop to prevent this
+        // If the nextChunk's range is identical to the current one, it would iterate forever
         const nextChunk = calcChunk({ ...options, initialSync: false });
         if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
             mergeResult.eof = true;
