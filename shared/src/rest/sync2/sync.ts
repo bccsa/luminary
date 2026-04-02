@@ -32,36 +32,6 @@ export let cancelSync = false;
 export async function initSync(httpService: HttpReq<any>) {
     _httpService = httpService;
     await db.getSyncList();
-    validateSyncList();
-}
-
-/**
- * Remove corrupted or invalid entries from the syncList.
- * This prevents stale data from previous bugs (e.g. MAX_SAFE_INTEGER blockStart)
- * from causing infinite loops or incorrect sync behavior on app restart.
- */
-export function validateSyncList(): void {
-    for (let i = syncList.value.length - 1; i >= 0; i--) {
-        const entry = syncList.value[i];
-
-        if (
-            // Missing required fields
-            !entry.chunkType ||
-            !Array.isArray(entry.memberOf) ||
-            entry.memberOf.length === 0 ||
-            // Non-finite or negative block values
-            !Number.isFinite(entry.blockStart) ||
-            !Number.isFinite(entry.blockEnd) ||
-            entry.blockStart < 0 ||
-            entry.blockEnd < 0 ||
-            // MAX_SAFE_INTEGER leftover from old bug
-            entry.blockStart >= Number.MAX_SAFE_INTEGER ||
-            // Inverted range (blockStart should be >= blockEnd)
-            entry.blockStart < entry.blockEnd
-        ) {
-            syncList.value.splice(i, 1);
-        }
-    }
 }
 
 /**
