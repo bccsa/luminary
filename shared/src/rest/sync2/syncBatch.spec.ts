@@ -243,7 +243,7 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response using queried range boundaries", async () => {
+    it("handles empty docs response without pushing a chunk", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         await syncBatch({
             type: DocType.Post,
@@ -252,10 +252,9 @@ describe("syncBatch", () => {
             initialSync: true,
             httpService: http as any,
         });
-        // Empty responses use queried boundaries so they merge correctly with existing chunks
-        expect(syncList.value.length).toBe(1);
-        expect(syncList.value[0].blockStart).toBe(Number.MAX_SAFE_INTEGER);
-        expect(syncList.value[0].blockEnd).toBe(0);
+        // Empty responses should not push a chunk to avoid storing sentinel values
+        // like MAX_SAFE_INTEGER. The loop terminates via early repetition detection.
+        expect(syncList.value.length).toBe(0);
     });
 
     it("throws error on invalid docs format", async () => {
@@ -374,8 +373,8 @@ describe("syncBatch", () => {
 
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
-        // Empty responses use the queried range boundaries (MAX_SAFE_INTEGER for initialSync blockStart, 0 for blockEnd)
-        expect(result?.blockStart).toBe(Number.MAX_SAFE_INTEGER);
+        // Empty responses don't push a chunk; merge returns {0, 0} for an empty syncList
+        expect(result?.blockStart).toBe(0);
         expect(result?.blockEnd).toBe(0);
     });
 
@@ -531,6 +530,130 @@ describe("syncBatch", () => {
 
         // Should have made 2 API calls: empty catch-up + continuation for older data
         expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
+
+    // --- Loop termination / regression tests ---
+
+    it("terminates without infinite loop when initial sync returns no docs (empty database)", async () => {
+        // This is the primary bug scenario: no documents exist for this type,
+        // so the API always returns []. Without loop detection, calcChunk would
+        // keep returning {MAX_SAFE_INTEGER, 0} and recurse forever.
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Must only call the API once — the repetition detection should stop it
+        expect(http.post).toHaveBeenCalledTimes(1);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+        // No chunks should be stored
+        expect(syncList.value.length).toBe(0);
+    });
+
+    it("terminates when continuation into an empty range returns no docs", async () => {
+        // Existing chunk hasn't reached eof, but there's genuinely no older data.
+        // Without loop detection, the continuation query {3000, 0} would repeat forever.
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        // Catch-up returns a few new docs (merges with existing chunk, eof still false)
+        const catchUpDocs = makeDocs(2, 6000, 100); // 6000, 5900
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: catchUpDocs }))
+            // Continuation below 3000 returns nothing — no older data exists
+            .mockImplementationOnce(async () => ({ docs: [] }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // 2 API calls: catch-up + one empty continuation, then terminates
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
+
+    it("does not store MAX_SAFE_INTEGER in syncList for empty initial sync", async () => {
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Verify no chunk with MAX_SAFE_INTEGER was stored
+        const hasMaxSafe = syncList.value.some(
+            (entry) => entry.blockStart === Number.MAX_SAFE_INTEGER,
+        );
+        expect(hasMaxSafe).toBe(false);
+    });
+
+    it("terminates when both catch-up and continuation return no docs", async () => {
+        // Interrupted sync with existing chunk; both catch-up and continuation are empty
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Catch-up is empty → range shifts (initialSync changes), continuation is empty → terminates
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
+
+    it("terminates when docs are returned but chunk range does not advance (same-timestamp docs)", async () => {
+        // All docs have the same updatedTimeUtc, so blockStart === blockEnd after fetch.
+        // Without the widened stall guard, this would loop forever because blockLength > 0
+        // and the old guard only checked blockLength === 0.
+        const sameTimestampDocs = Array.from({ length: 5 }, (_, i) => ({
+            id: `doc-${i}`,
+            type: DocType.Post,
+            updatedTimeUtc: 3000, // all identical
+            memberOf: ["g1"],
+        })) as any;
+
+        const http = { post: vi.fn(async () => ({ docs: sameTimestampDocs })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5, // blockLength === limit, so eof is false
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Should terminate after detecting the range hasn't moved, not loop forever
+        expect(http.post).toHaveBeenCalledTimes(2); // initial + one retry that detects stall
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
     });

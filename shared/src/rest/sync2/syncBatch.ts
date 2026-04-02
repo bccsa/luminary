@@ -97,23 +97,31 @@ export async function syncBatch(options: SyncOptions) {
     }
 
     // Upsert to IndexedDB
-    if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
-
-    // Push chunk to chunk list
-    syncList.value.push({
-        chunkType: getChunkTypeString(options.type, options.subType),
-        memberOf: options.memberOf,
-        languages: options.languages,
-        blockStart,
-        blockEnd,
-        eof: blockLength < options.limit, // If less than limit, we reached the end
-    });
+    if (fetchedDocs.length) {
+        await db.bulkPut(fetchedDocs);
+        // Push chunk to chunk list
+        syncList.value.push({
+            chunkType: getChunkTypeString(options.type, options.subType),
+            memberOf: options.memberOf,
+            languages: options.languages,
+            blockStart,
+            blockEnd,
+            eof: blockLength < options.limit, // If less than limit, we reached the end
+        });
+    }
 
     // Merge chunks
     let mergeResult = merge(options);
 
     // If not end of file (we have not yet received all documents from the API), continue to sync iteratively
     if (!mergeResult.eof) {
+        // If the nextChunk's range is identical to the current one, it would iterate forever
+        const nextChunk = calcChunk({ ...options, initialSync: false });
+        if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
+            mergeResult.eof = true;
+            return { ...mergeResult, firstSync };
+        }
+
         mergeResult =
             (await syncBatch({
                 ...options,
