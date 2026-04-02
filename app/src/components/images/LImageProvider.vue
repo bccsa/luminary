@@ -287,7 +287,6 @@ watch(
         :srcset="modalSrcset || undefined"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
-        crossorigin="anonymous"
         draggable="false"
         data-test="image-element1"
         @error="modalImageError = true"
@@ -310,7 +309,6 @@ watch(
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
-        crossorigin="anonymous"
         data-test="image-element1"
         loading="lazy"
         @error="imageElement1Error = true"
@@ -327,7 +325,6 @@ watch(
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
-        crossorigin="anonymous"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"

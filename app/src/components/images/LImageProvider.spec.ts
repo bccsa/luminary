@@ -108,6 +108,45 @@ describe("LImageProvider", () => {
         expect(img1.attributes("srcset")).toContain("video-600.webp");
     });
 
+    it("does not set crossorigin attribute on images to avoid CORS errors with external storage", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-cors",
+                parentWidth: 600,
+                image: mockImage,
+                aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+
+        const images = wrapper.findAll("img");
+        expect(images.length).toBeGreaterThan(0);
+        for (const img of images) {
+            expect(img.attributes("crossorigin")).toBeUndefined();
+        }
+    });
+
+    it("does not set crossorigin attribute on modal images", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-cors-modal",
+                parentWidth: 600,
+                image: mockImage,
+                aspectRatio: "video",
+                isModal: true,
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+
+        const images = wrapper.findAll("img");
+        expect(images.length).toBeGreaterThan(0);
+        for (const img of images) {
+            expect(img.attributes("crossorigin")).toBeUndefined();
+        }
+    });
+
     it("renders fallback image in modal mode when primary image fails", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
