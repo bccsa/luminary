@@ -115,6 +115,17 @@ export async function syncBatch(options: SyncOptions) {
 
     // If not end of file (we have not yet received all documents from the API), continue to sync iteratively
     if (!mergeResult.eof) {
+        // If no docs were fetched, the syncList is unchanged and the next iteration may
+        // compute the same query range — causing infinite recursion. Detect this by peeking
+        // at the next calcChunk result and terminating early if the range hasn't moved.
+        if (blockLength === 0) {
+            const nextChunk = calcChunk({ ...options, initialSync: false });
+            if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
+                mergeResult.eof = true;
+                return { ...mergeResult, firstSync };
+            }
+        }
+
         mergeResult =
             (await syncBatch({
                 ...options,

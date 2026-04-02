@@ -243,7 +243,7 @@ describe("syncBatch", () => {
         expect(bulkPutSpy.mock.calls[0][0]).toEqual(docs);
     });
 
-    it("handles empty docs response using queried range boundaries", async () => {
+    it("handles empty docs response without pushing a chunk", async () => {
         const http = { post: vi.fn(async () => ({ docs: [] })) };
         await syncBatch({
             type: DocType.Post,
@@ -252,10 +252,9 @@ describe("syncBatch", () => {
             initialSync: true,
             httpService: http as any,
         });
-        // Empty responses use queried boundaries so they merge correctly with existing chunks
-        expect(syncList.value.length).toBe(1);
-        expect(syncList.value[0].blockStart).toBe(Number.MAX_SAFE_INTEGER);
-        expect(syncList.value[0].blockEnd).toBe(0);
+        // Empty responses should not push a chunk to avoid storing sentinel values
+        // like MAX_SAFE_INTEGER. The loop terminates via early repetition detection.
+        expect(syncList.value.length).toBe(0);
     });
 
     it("throws error on invalid docs format", async () => {
@@ -374,8 +373,8 @@ describe("syncBatch", () => {
 
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
-        // Empty responses use the queried range boundaries (MAX_SAFE_INTEGER for initialSync blockStart, 0 for blockEnd)
-        expect(result?.blockStart).toBe(Number.MAX_SAFE_INTEGER);
+        // Empty responses don't push a chunk; merge returns {0, 0} for an empty syncList
+        expect(result?.blockStart).toBe(0);
         expect(result?.blockEnd).toBe(0);
     });
 
