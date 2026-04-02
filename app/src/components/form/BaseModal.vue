@@ -10,11 +10,13 @@ const emit = defineEmits(["close"]);
         <div class="relative z-[100]">
             <div
                 class="fixed inset-0 bg-zinc-800 bg-opacity-50 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
-                @click="emit('close')"
+                @mousedown.self="emit('close')"
+                data-test="modal-backdrop"
             ></div>
             <div
                 class="fixed inset-0 flex items-center justify-center rounded-lg p-2"
-                @click.self="emit('close')"
+                @mousedown.self="emit('close')"
+                data-test="modal-container"
             >
                 <slot />
             </div>
