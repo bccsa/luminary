@@ -81,27 +81,6 @@ describe("sync2 utils", () => {
             expect(result.blockEnd).toBe(4000); // 5000 - 1000 (tolerance)
         });
 
-        it("should reset blockEnd to 0 for initial sync when existing entry has MAX_SAFE_INTEGER blockStart (no docs found previously)", () => {
-            syncList.value = [
-                {
-                    chunkType: "language",
-                    memberOf: ["group1"],
-                    blockStart: Number.MAX_SAFE_INTEGER,
-                    blockEnd: 0,
-                    eof: true,
-                },
-            ];
-
-            const result = calcChunk({
-                type: DocType.Language,
-                memberOf: ["group1"],
-                initialSync: true,
-            });
-
-            expect(result.blockStart).toBe(Number.MAX_SAFE_INTEGER);
-            expect(result.blockEnd).toBe(0); // Should NOT be MAX_SAFE_INTEGER - 1000
-        });
-
         it("should handle multiple entries and use the earliest blockEnd", () => {
             syncList.value = [
                 {

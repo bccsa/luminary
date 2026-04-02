@@ -97,17 +97,18 @@ export async function syncBatch(options: SyncOptions) {
     }
 
     // Upsert to IndexedDB
-    if (fetchedDocs.length) await db.bulkPut(fetchedDocs);
-
-    // Push chunk to chunk list
-    syncList.value.push({
-        chunkType: getChunkTypeString(options.type, options.subType),
-        memberOf: options.memberOf,
-        languages: options.languages,
-        blockStart,
-        blockEnd,
-        eof: blockLength < options.limit, // If less than limit, we reached the end
-    });
+    if (fetchedDocs.length) {
+        await db.bulkPut(fetchedDocs);
+        // Push chunk to chunk list
+        syncList.value.push({
+            chunkType: getChunkTypeString(options.type, options.subType),
+            memberOf: options.memberOf,
+            languages: options.languages,
+            blockStart,
+            blockEnd,
+            eof: blockLength < options.limit, // If less than limit, we reached the end
+        });
+    }
 
     // Merge chunks
     let mergeResult = merge(options);
