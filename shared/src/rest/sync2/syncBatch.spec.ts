@@ -533,4 +533,102 @@ describe("syncBatch", () => {
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
     });
+
+    // --- Loop termination / regression tests ---
+
+    it("terminates without infinite loop when initial sync returns no docs (empty database)", async () => {
+        // This is the primary bug scenario: no documents exist for this type,
+        // so the API always returns []. Without loop detection, calcChunk would
+        // keep returning {MAX_SAFE_INTEGER, 0} and recurse forever.
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Must only call the API once — the repetition detection should stop it
+        expect(http.post).toHaveBeenCalledTimes(1);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+        // No chunks should be stored
+        expect(syncList.value.length).toBe(0);
+    });
+
+    it("terminates when continuation into an empty range returns no docs", async () => {
+        // Existing chunk hasn't reached eof, but there's genuinely no older data.
+        // Without loop detection, the continuation query {3000, 0} would repeat forever.
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        // Catch-up returns a few new docs (merges with existing chunk, eof still false)
+        const catchUpDocs = makeDocs(2, 6000, 100); // 6000, 5900
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: catchUpDocs }))
+            // Continuation below 3000 returns nothing — no older data exists
+            .mockImplementationOnce(async () => ({ docs: [] }));
+
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // 2 API calls: catch-up + one empty continuation, then terminates
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
+
+    it("does not store MAX_SAFE_INTEGER in syncList for empty initial sync", async () => {
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Verify no chunk with MAX_SAFE_INTEGER was stored
+        const hasMaxSafe = syncList.value.some(
+            (entry) => entry.blockStart === Number.MAX_SAFE_INTEGER,
+        );
+        expect(hasMaxSafe).toBe(false);
+    });
+
+    it("terminates when both catch-up and continuation return no docs", async () => {
+        // Interrupted sync with existing chunk; both catch-up and continuation are empty
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        const result = await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: true,
+            httpService: http as any,
+        });
+
+        // Catch-up is empty → range shifts (initialSync changes), continuation is empty → terminates
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result).toBeDefined();
+        expect(result?.eof).toBe(true);
+    });
 });
