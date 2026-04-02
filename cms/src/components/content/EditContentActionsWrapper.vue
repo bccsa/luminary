@@ -115,7 +115,7 @@ const showContentActionsMenuMobile = ref(false);
             :main-action="async () => await save()"
             dropdown-anchor
             :main-dynamic-css="
-                !isDirty ? '!bg-zinc-300 !text-zinc-100 !ring-zinc-300 pointer-events-none' : ''
+                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
             "
         >
             <template v-if="isDirty && !newDocument" #left>
