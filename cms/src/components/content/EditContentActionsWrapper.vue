@@ -114,6 +114,9 @@ const showContentActionsMenuMobile = ref(false);
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
             :main-action="async () => await save()"
             dropdown-anchor
+            :main-dynamic-css="
+                !isDirty ? '!bg-zinc-300 !text-zinc-100 !ring-zinc-300 pointer-events-none' : ''
+            "
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
