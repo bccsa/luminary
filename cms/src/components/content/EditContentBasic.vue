@@ -3,7 +3,6 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LTextToggle from "@/components/forms/LTextToggle.vue";
-import LToggle from "@/components/forms/LToggle.vue";
 import {
     PublishStatus,
     type ContentDto,
@@ -452,11 +451,6 @@ const clearExpiryDate = () => {
                 />
             </div>
 
-            <!-- Coming soon toggle — only relevant when a future publish date is set -->
-            <div class="mt-4 flex items-center justify-between gap-1">
-                <FormLabel>Show as Coming soon</FormLabel>
-                <LToggle v-model="content.showComingSoon" :disabled="disabled" class="mr-[4px]" />
-            </div>
         </div>
 
         <div v-else-if="currentToogle === 'seo'">
