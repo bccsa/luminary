@@ -162,6 +162,7 @@ const pinned = computed({
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
         </div>
 
+
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mt-3 flex items-center justify-between"

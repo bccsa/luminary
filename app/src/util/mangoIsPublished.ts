@@ -53,23 +53,36 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
 }
 
 /**
- * Builds Mango selector conditions for "Published OR Scheduled" content.
+ * Builds Mango selector conditions for "Published OR Scheduled coming-soon" content.
  *
- * "Scheduled" here means: documents with `status === "published"` but a `publishDate`
- * in the future. We still exclude expired content via `expiryDate`.
+ * Matches documents that are either:
+ * - Fully published (publishDate in the past or absent), OR
+ * - Scheduled (publishDate in the future) AND the parent has `parentShowComingSoon === true`
  *
- * This is intended for list carousels that should show upcoming items, while the
- * UI can choose to render them as non-clickable (e.g. "Coming soon").
+ * Expired content is always excluded.
+ * Draft documents are always excluded (only `status === "published"` is matched).
+ *
+ * This is intended for list/carousel views that show upcoming "Coming soon" tiles.
  */
 export function mangoIsPublishedOrScheduled(languageIds: Uuid[]): MangoSelector[] {
     const now = Date.now();
 
     return [
-        // Only published docs are synced; draft is still excluded.
+        // Draft documents are excluded.
         { status: PublishStatus.Published },
 
         // Expiry date check: either doesn't exist, is null, or is in the future
         { $or: [{ expiryDate: { $exists: false } }, { expiryDate: null }, { expiryDate: { $gte: now } }] },
+
+        // Either already published (publishDate in the past/absent) OR scheduled with the flag set
+        {
+            $or: [
+                { publishDate: { $exists: false } },
+                { publishDate: null },
+                { publishDate: { $lte: now } },
+                { $and: [{ publishDate: { $gt: now } }, { showComingSoon: true }] },
+            ],
+        },
 
         // Language priority: select the best available translation
         buildLanguagePrioritySelector(languageIds),

@@ -27,8 +27,12 @@ const media = ref<{ progress: number; duration: number }>({
 
 const isComingSoon = computed(() => {
     const publishDate = props.content.publishDate;
-    // "Coming soon" = published doc with a future publishDate.
-    return typeof publishDate === "number" && publishDate > Date.now();
+    // "Coming soon" = published doc with a future publishDate AND the opt-in flag set.
+    return (
+        typeof publishDate === "number" &&
+        publishDate > Date.now() &&
+        props.content.showComingSoon === true
+    );
 });
 
 function formatDuration(seconds: number): string {

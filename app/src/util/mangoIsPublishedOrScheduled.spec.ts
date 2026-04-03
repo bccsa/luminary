@@ -11,8 +11,8 @@ function buildPredicate(languageIds: string[]) {
 function makeDoc(overrides: Record<string, unknown> = {}) {
     return {
         status: PublishStatus.Published,
-        // Default publishDate is "now" (treated as visible either way).
-        publishDate: Date.now(),
+        // Default publishDate is in the past (treated as published).
+        publishDate: Date.now() - 1_000,
         language: "lang-eng",
         availableTranslations: ["lang-eng"],
         ...overrides,
@@ -20,16 +20,33 @@ function makeDoc(overrides: Record<string, unknown> = {}) {
 }
 
 describe("mangoIsPublishedOrScheduled", () => {
-    it("matches scheduled content with publishDate in the future", () => {
+    it("matches already-published content (past publishDate)", () => {
+        const pred = buildPredicate(["lang-eng"]);
+        const doc = makeDoc({ publishDate: Date.now() - 60_000 });
+        expect(pred(doc)).toBe(true);
+    });
+
+    it("matches scheduled content when showComingSoon is true", () => {
+        const pred = buildPredicate(["lang-eng"]);
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: true });
+        expect(pred(doc)).toBe(true);
+    });
+
+    it("rejects scheduled content when showComingSoon is false", () => {
+        const pred = buildPredicate(["lang-eng"]);
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: false });
+        expect(pred(doc)).toBe(false);
+    });
+
+    it("rejects scheduled content when showComingSoon is absent", () => {
         const pred = buildPredicate(["lang-eng"]);
         const doc = makeDoc({ publishDate: Date.now() + 60_000 });
-        expect(pred(doc)).toBe(true);
+        expect(pred(doc)).toBe(false);
     });
 
     it("rejects expired content", () => {
         const pred = buildPredicate(["lang-eng"]);
-        // Use a far-in-the-past expiry date to avoid timing flakiness.
-        const doc = makeDoc({ publishDate: Date.now() + 60_000, expiryDate: 0 });
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: true, expiryDate: 0 });
         expect(pred(doc)).toBe(false);
     });
 

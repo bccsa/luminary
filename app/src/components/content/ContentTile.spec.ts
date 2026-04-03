@@ -123,6 +123,7 @@ describe("ContentTile", () => {
         const scheduledContent = {
             ...mockEnglishContentDto,
             publishDate: Date.now() + 60_000,
+            showComingSoon: true,
         };
 
         const wrapper = mount(ContentTile, {
