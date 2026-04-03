@@ -290,7 +290,6 @@ describe("PinnedTopics", () => {
             title: "Topic Without TagType",
             publishDate: Date.now() - 100_000,
             availableTranslations: ["lang-eng"],
-            showComingSoon: false,
         } as ContentDto;
 
         await db.docs.bulkPut([pinnedCat, topicNoTagType]);

@@ -26,19 +26,19 @@ describe("mangoIsPublishedOrScheduled", () => {
         expect(pred(doc)).toBe(true);
     });
 
-    it("matches scheduled content when showComingSoon is true", () => {
+    it("matches scheduled content when parentShowComingSoon is true", () => {
         const pred = buildPredicate(["lang-eng"]);
-        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: true });
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: true });
         expect(pred(doc)).toBe(true);
     });
 
-    it("rejects scheduled content when showComingSoon is false", () => {
+    it("rejects scheduled content when parentShowComingSoon is false", () => {
         const pred = buildPredicate(["lang-eng"]);
-        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: false });
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: false });
         expect(pred(doc)).toBe(false);
     });
 
-    it("rejects scheduled content when showComingSoon is absent", () => {
+    it("rejects scheduled content when parentShowComingSoon is absent", () => {
         const pred = buildPredicate(["lang-eng"]);
         const doc = makeDoc({ publishDate: Date.now() + 60_000 });
         expect(pred(doc)).toBe(false);
@@ -46,7 +46,7 @@ describe("mangoIsPublishedOrScheduled", () => {
 
     it("rejects expired content", () => {
         const pred = buildPredicate(["lang-eng"]);
-        const doc = makeDoc({ publishDate: Date.now() + 60_000, showComingSoon: true, expiryDate: 0 });
+        const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: true, expiryDate: 0 });
         expect(pred(doc)).toBe(false);
     });
 

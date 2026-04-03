@@ -119,11 +119,11 @@ describe("ContentTile", () => {
         });
     });
 
-    it("renders a Coming soon overlay and is not clickable when showComingSoon is true", () => {
+    it("renders a Coming soon overlay and is not clickable when parentShowComingSoon is true", () => {
         const scheduledContent = {
             ...mockEnglishContentDto,
             publishDate: Date.now() + 60_000,
-            showComingSoon: true,
+            parentShowComingSoon: true,
         };
 
         const wrapper = mount(ContentTile, {
@@ -136,11 +136,10 @@ describe("ContentTile", () => {
         expect(wrapper.find("a").exists()).toBe(false);
     });
 
-    it("does not show a Coming soon overlay when showComingSoon is false", () => {
+    it("does not show a Coming soon overlay when parentShowComingSoon is false", () => {
         const scheduledContent = {
             ...mockEnglishContentDto,
             publishDate: Date.now() + 60_000,
-            showComingSoon: false,
         };
 
         const wrapper = mount(ContentTile, {

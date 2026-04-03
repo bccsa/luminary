@@ -55,7 +55,6 @@ const mockPinnedCategoryContent: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
-    showComingSoon: false,
 };
 
 /** A second pinned category content doc. */
@@ -81,7 +80,6 @@ const mockPinnedCategoryContent2: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
-    showComingSoon: false,
 };
 
 /** Video content belonging to pinned category 1. */
@@ -106,7 +104,6 @@ const mockVideoContent1: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
-    showComingSoon: false,
 };
 
 /** Video content belonging to pinned category 2. */
@@ -131,7 +128,6 @@ const mockVideoContent2: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
-    showComingSoon: false,
 };
 
 describe("PinnedVideo", () => {
