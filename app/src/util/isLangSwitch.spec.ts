@@ -88,7 +88,6 @@ describe("isLangSwitch", () => {
             title: "Title",
             publishDate: 0,
             parentTags: [],
-            showComingSoon: false,
         });
 
         const availableTranslations: ContentDto[] = [
