@@ -31,7 +31,7 @@ const isComingSoon = computed(() => {
     return (
         typeof publishDate === "number" &&
         publishDate > Date.now() &&
-        props.content.showComingSoon === true
+        props.content.parentShowComingSoon === true
     );
 });
 

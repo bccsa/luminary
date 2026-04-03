@@ -156,10 +156,18 @@ const pinned = computed({
         <!-- Toggle for Publish Date Visibility -->
         <div
             class="mt-2 flex items-center justify-between gap-1"
-            :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
+        </div>
+
+        <!-- Toggle: show as Coming soon when scheduled with a future publish date -->
+        <div
+            class="mt-2 flex items-center justify-between gap-1"
+            :class="{ 'mb-2': docType !== DocType.Tag }"
+        >
+            <FormLabel>Show as Coming soon</FormLabel>
+            <LToggle v-model="parent.showComingSoon" :disabled="disabled" class="mr-[4px]" />
         </div>
 
 
