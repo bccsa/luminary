@@ -57,7 +57,6 @@ export const changeRequest_content = () => {
             publishDate: 1704114000000,
             expiryDate: 1704114000000,
             parentImageBucketId: "storage-bucket-1",
-            showComingSoon: false,
         } as ContentDto,
     };
 };
