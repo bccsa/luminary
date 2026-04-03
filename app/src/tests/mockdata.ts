@@ -122,6 +122,7 @@ export const mockEnglishContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     seoTitle: "Test Seo Title",
     seoString: "Test seo summary",
     availableTranslations: ["lang-eng", "lang-fra"],
@@ -169,6 +170,7 @@ export const mockFrenchContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "",
@@ -215,6 +217,7 @@ export const mockSwahiliContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     parentMedia: {
         hlsUrl: "",
         fileCollections: [
@@ -259,6 +262,7 @@ export const mockCategoryContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     availableTranslations: ["lang-eng", "lang-fra"],
 };
 
@@ -293,6 +297,7 @@ export const mockTopicContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     availableTranslations: ["lang-eng", "lang-fra"],
 };
 

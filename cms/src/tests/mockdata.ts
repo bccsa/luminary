@@ -147,6 +147,7 @@ export const mockEnglishContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     parentPostType: PostType.Blog,
 
     parentMedia: {
@@ -201,6 +202,7 @@ export const mockFrenchContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     parentPostType: PostType.Blog,
     parentMedia: {
         hlsUrl: "test-hls-url",
@@ -240,6 +242,7 @@ export const mockSwahiliContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    showComingSoon: false,
     parentPostType: PostType.Blog,
     parentMedia: {
         hlsUrl: "test-hls-url",
@@ -277,6 +280,7 @@ export const mockCategoryContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: false,
+    showComingSoon: false,
     availableTranslations: ["lang-eng"],
 };
 
@@ -311,6 +315,7 @@ export const mockTopicContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: false,
+    showComingSoon: false,
     availableTranslations: ["lang-eng"],
 };
 
