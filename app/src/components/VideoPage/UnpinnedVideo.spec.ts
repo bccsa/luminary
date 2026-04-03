@@ -54,6 +54,7 @@ const mockUnpinnedCategoryContent: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
+    showComingSoon: false,
 };
 
 /** A second unpinned category content doc. */
@@ -78,6 +79,7 @@ const mockUnpinnedCategoryContent2: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
+    showComingSoon: false,
 };
 
 /** Video content belonging to unpinned category 1. */
@@ -102,6 +104,7 @@ const mockVideoContent1: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
+    showComingSoon: false,
 };
 
 /** Video content belonging to unpinned category 2. */
@@ -126,6 +129,7 @@ const mockVideoContent2: ContentDto = {
         ],
     },
     availableTranslations: ["lang-eng"],
+    showComingSoon: false,
 };
 
 describe("UnpinnedVideo", () => {

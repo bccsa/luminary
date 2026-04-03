@@ -87,6 +87,7 @@ const defaultContent: ContentDto = {
     slug: "",
     publishDate: 0,
     parentTags: [],
+    showComingSoon: false,
 };
 
 const content = ref<ContentDto | undefined>(defaultContent);
