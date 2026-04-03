@@ -521,6 +521,7 @@ describe("processPostTagDto", () => {
                 publishDateVisible: true,
                 tagType: "category",
                 pinned: false,
+                showComingSoon: false,
             } as any,
         };
 
@@ -541,6 +542,7 @@ describe("processPostTagDto", () => {
         if (contentDoc.docs.length > 0) {
             expect(contentDoc.docs[0].parentTagType).toBe("category");
             expect(contentDoc.docs[0].parentPinned).toBeFalsy();
+            expect(contentDoc.docs[0].showComingSoon).toBeFalsy();
         }
     });
 

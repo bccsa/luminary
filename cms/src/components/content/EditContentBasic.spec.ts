@@ -402,6 +402,45 @@ describe("EditContentBasic.vue", () => {
         expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
     });
 
+    it("can toggle the showComingSoon flag", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            showComingSoon: false,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const toggle = wrapper.findComponent(LToggle);
+        expect(toggle.exists()).toBe(true);
+        expect(toggle.props("modelValue")).toBe(false);
+
+        await toggle.find("button").trigger("click");
+
+        expect(content.value.showComingSoon).toBe(true);
+    });
+
+    it("disables the showComingSoon toggle when disabled prop is true", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            showComingSoon: false,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: true,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const toggle = wrapper.findComponent(LToggle);
+        expect(toggle.props("disabled")).toBe(true);
+    });
+
     it("shows the message error when clicking on expiry date shortcut buttons without setting a publish date", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
