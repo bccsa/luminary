@@ -63,6 +63,7 @@ describe("processPostTagDto", () => {
                 image: "test-blog-image.jpg",
                 tags: [],
                 publishDateVisible: true,
+    showComingSoon: false,
                 postType: "blog",
             } as PostDto,
         };
@@ -86,6 +87,7 @@ describe("processPostTagDto", () => {
                 image: "test-page-image.jpg",
                 tags: [],
                 publishDateVisible: false,
+    showComingSoon: false,
                 postType: "page",
             } as PostDto,
         };

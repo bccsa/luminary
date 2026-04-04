@@ -197,6 +197,7 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-public-content"],
                 tags: ["tag-category1", "tag-topicA"],
                 publishDateVisible: false,
+    showComingSoon: false,
                 imageData: {
                     fileCollections: [],
                     uploadData: [
@@ -223,6 +224,7 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-public-content"],
                 tags: ["tag-category1", "tag-topicA"],
                 publishDateVisible: false,
+    showComingSoon: false,
                 postType: "blog",
                 imageData: {
                     fileCollections: [
@@ -292,6 +294,7 @@ describe("validateChangeRequest", () => {
                 postType: "blog",
                 tags: [],
                 publishDateVisible: true,
+    showComingSoon: false,
                 media: {
                     fileCollections: [],
                     uploadData: [
@@ -334,6 +337,7 @@ describe("validateChangeRequest", () => {
                 postType: "blog",
                 tags: [],
                 publishDateVisible: true,
+    showComingSoon: false,
                 media: {
                     fileCollections: [],
                     uploadData: [

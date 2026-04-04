@@ -36,6 +36,7 @@ export const mockCategoryDto: TagDto = {
     } as ImageDto,
     tags: [],
     publishDateVisible: false,
+    showComingSoon: false,
 };
 
 export const mockTopicDto: TagDto = {
@@ -61,6 +62,7 @@ export const mockTopicDto: TagDto = {
     } as ImageDto,
     tags: [],
     publishDateVisible: false,
+    showComingSoon: false,
 };
 
 export const mockPostDto: PostDto = {
@@ -84,6 +86,7 @@ export const mockPostDto: PostDto = {
     } as ImageDto,
     tags: ["tag-category1"],
     publishDateVisible: true,
+    showComingSoon: false,
     postType: PostType.Blog,
 };
 
