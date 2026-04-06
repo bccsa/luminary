@@ -1,285 +1,208 @@
-# Vue Plugin Architecture Research (Web + Capacitor)
+# Vue platform plugin architecture (Web + Capacitor)
 
-## Why this research
+This document describes how Luminary wires **platform-specific behavior** (browser vs Capacitor shell) using **Vue plugins**, **contracts**, and **`provide` / `inject`**, so feature code stays the same on every target.
 
-This document summarizes best practices for building a **pluggable architecture in Vue** where feature implementations can be swapped by runtime/platform (for example Web vs Capacitor) without changing app-level feature code.
+**Companion files**
 
-The target is a **general system** that can support media players, download managers, storage adapters, and future platform-specific modules.
+- Diagram (SVG): [`vue-plugin-architecture.drawio.svg`](./vue-plugin-architecture.drawio.svg)
+- Starter scaffolding: [`starter-code.md`](./starter-code.md)
 
-## Core architectural goal
+---
 
-Define stable feature interfaces once, then register one concrete implementation per runtime:
+## What problem this solves
 
-- Web runtime uses browser-safe implementations.
-- Capacitor runtime uses native-capable implementations.
-- Feature consumers call the same injected API regardless of platform.
+We want **one app codebase** where:
 
-This gives one app codebase with isolated platform concerns.
+- **Web** uses safe, default implementations (DOM, fetch, etc.).
+- **Capacitor** can use richer behavior (background audio, native plugins, in-app browser auth) **without** `if (isCapacitor)` scattered through pages and components.
 
-## Research findings
+The pattern: define a **small interface** once, register **one implementation per build**, and have features **inject** that API.
 
-### 1) Vue plugin + app-level dependency injection is the right foundation
+---
 
-Vue official docs support plugin installation with `app.use(plugin)` and app-level dependency injection with `app.provide(...)`.
+## How it works (end-to-end flow)
 
-Why this matters:
+```mermaid
+sequenceDiagram
+    participant Main as main.ts
+    participant Plugin as platformServicesPlugin
+    participant Installer as installMediaServices
+    participant Factory as createMediaPlayerService
+    participant App as Vue app
+    participant Feature as Feature code
 
-- Plugin install is the composition root for feature wiring.
-- App-level provide/inject avoids prop drilling and hides platform branching from components.
-- Vue recommends using global properties sparingly; `provide/inject` is cleaner for service APIs.
+    Main->>Plugin: app.use(platformServicesPlugin)
+    Plugin->>Plugin: getRuntimeInfo() optional context
+    Plugin->>Installer: installMediaServices(app, runtime, options)
+    Installer->>Factory: import @/platform/adapters/media-player
+    Note over Factory: Default path resolves to web factory.<br/>Capacitor build can alias to deployment factory.
+    Factory-->>Installer: MediaPlayerService instance
+    Installer->>App: app.provide(MediaPlayerKey, service)
+    Feature->>App: inject(MediaPlayerKey)
+    App-->>Feature: same contract, web or native impl
+```
 
-### 2) Use Symbol injection keys and typed interfaces
+**Step-by-step (runtime)**
 
-Vue recommends Symbol keys in larger apps to avoid collisions.  
-For a plugin architecture, this should be treated as required, not optional.
+1. **`main.ts`** calls `app.use(platformServicesPlugin)` (and optional options).
+2. **`platformServicesPlugin`** runs **`getRuntimeInfo()`** (e.g. `globalThis.Capacitor` in the shell) and forwards context to feature installers.
+3. **`installMediaServices`** (and future installers) call **`createMediaPlayerService()`** from **`@/platform/adapters/media-player`**.
+4. That module returns a concrete class implementing **`MediaPlayerService`** (web by default).
+5. The installer **`app.provide(MediaPlayerKey, instance)`**.
+6. Components and composables **`inject(MediaPlayerKey)`** and call the contract only.
+7. **No platform branching** in consumers—only capability flags on the service if needed (`supportsBackgroundPlayback`, etc.).
+8. **Capacitor-specific** implementations live under **`luminary-deployment/luminary-plugins`** (or are pointed to by build config); **luminary** stays free of **`@capacitor/core`** as a dependency.
 
-Pattern:
+**Build-time branch (Capacitor bundle)**
 
-- `tokens.ts`: export typed Symbol keys (e.g. `MediaPlayerKey`).
-- `contracts.ts`: export interface contracts (e.g. `MediaPlayerService`).
-- `plugins/runtime-services.ts`: detect runtime and provide concrete adapter.
+For some features, the **implementation module** itself is swapped when producing the native bundle:
 
-### 3) Runtime detection should use Capacitor utilities, not user-agent logic
+- In **`app/vite.config.ts`**, **`VITE_MEDIA_PLAYER_ADAPTER_PATH`** can alias  
+  `@/platform/adapters/media-player` → a file under `luminary-deployment` (e.g. `capacitorMediaPlayerAdapter.ts`).
+- **Without** that variable, the import resolves to the default **`WebMediaPlayerService`** factory inside luminary.
 
-Capacitor provides:
+So: **one import path in source**, **two possible bundles**, no copy-paste of `App.vue`.
 
-- `Capacitor.isNativePlatform()` -> native app vs web/PWA
-- `Capacitor.getPlatform()` -> `web | ios | android`
-- `Capacitor.isPluginAvailable(name)` -> guard optional plugin usage
+---
 
-This is the recommended branch point for choosing implementations.
-
-### 4) Component swapping can be done at service level first, UI level second
-
-For most features, inject a service and keep one UI component.
-Only when UI must differ by platform, use async component wrappers:
-
-- Vue `defineAsyncComponent(() => import(...))` for lazy, split loading
-- Keep import paths statically analyzable (or use `import.meta.glob` strategy)
-
-This avoids making every feature a component switch.
-
-### 5) Capacitor media/file handling has changed: use File Transfer for downloads
-
-Capacitor docs indicate file download should use `@capacitor/file-transfer`, with filesystem URI support from `@capacitor/filesystem`.
-
-Architecture implications:
-
-- Keep download API behind your own service contract.
-- Web adapter can use fetch + browser storage cache.
-- Native adapter can use Filesystem + FileTransfer + offline index.
-
-### 6) Native capabilities require explicit boundary APIs
-
-Capabilities like background playback, device file access, and offline deletion should be treated as platform capability contracts:
-
-- `PlaybackService`
-- `DownloadService`
-- `MediaStorageService`
-- `OfflineCatalogService`
-
-Each contract should define behavior, not implementation details.
-
-## Recommended baseline architecture
+## Repository layout
 
 ```text
-app/
-  src/
-    platform/
-      contracts/
-        media-player.ts
-        downloads.ts
-        storage.ts
-      tokens.ts
-      runtime.ts
-      adapters/
-        web/
-          media-player.web.ts
-          downloads.web.ts
-          storage.web.ts
-    plugins/
-      platform-services.plugin.ts
+luminary/app/src/
+  platform/
+    contracts/          # TypeScript interfaces (e.g. media-player.ts)
+    tokens.ts           # InjectionKey symbols
+    runtime.ts          # getRuntimeInfo() without importing @capacitor/core
+    adapters/
+      web/              # Browser implementations
+      media-player/
+        index.ts        # Default createMediaPlayerService() → web
+    installers/         # installMediaServices, …
+  plugins/
+    platform-services.plugin.ts   # app.use() entry; calls installers
 
 luminary-deployment/
-  luminary-plugins/
-    capacitorNative.ts
-    capacitorDeepLinks.ts
-    capgoUpdater.ts
-    auth.ts
-    authBrowser.ts
+  luminary-plugins/     # Capacitor integrations, auth, updater, optional adapter factories
 ```
 
-### Why there is no `adapters/capacitor/` folder here
+There is **no** `adapters/capacitor/` inside **luminary** by design: native coupling stays in **deployment**.
 
-This project already has a dedicated runtime-integration layer in `luminary-deployment/luminary-plugins`.
+---
 
-That folder is the right home for **Capacitor-conditioned behavior**, which may include:
+## Selected pattern: Option A (single runtime plugin)
 
-- true native plugin usage (Filesystem, FileTransfer, StatusBar, etc.)
-- web JavaScript that only exists because the app is running inside Capacitor (e.g. in-app-browser auth flow, deep links)
+- **One** exported plugin: `platformServicesPlugin`.
+- **Several internal installers**: `installMediaServices`, later `installDownloadServices`, etc.
+- **`luminary-plugins`** remains the place for Capacitor-only or Capacitor-conditioned JS.
 
-So in `luminary` we keep the **contracts, tokens, and platform-agnostic feature code**, plus **pure web adapters**.
-Capacitor-specific implementations are provided by the deployment plugins and wired in at install time.
+Other patterns (feature-scoped plugins, service registries) are documented as alternatives in research notes if you need to scale further.
 
-### Runtime installer flow
+---
 
-1. App starts -> `app.use(platformServicesPlugin, options)`.
-2. Plugin reads runtime (`isNativePlatform`, `getPlatform`).
-3. Plugin builds adapter set:
-   - web adapters from this repo
-   - optional Capacitor runtime integrations from `luminary-deployment/luminary-plugins`
-4. Plugin provides adapters through Symbol keys.
-5. Feature modules inject contracts and run unchanged across platforms.
+## How to add a new platform service (“plugin”)
 
-## Architecture pattern options (with trade-offs)
+Use this checklist so new capabilities stay consistent with the media player precedent.
 
-### Option A: Single runtime plugin (recommended default)
+### 1. Define the contract
 
-- One plugin decides adapters and provides all feature services.
-- Best when you want centralized platform policy and simple bootstrapping.
+- Add **`app/src/platform/contracts/<feature>.ts`** with a focused interface (behavior + optional capability flags, no UI types).
+- Prefer explicit methods and small types; add **`dispose`** / lifecycle only if needed.
 
-Trade-off: one installer can become large; split by feature installer files.
+### 2. Add an injection token
 
-### Option B: Feature-scoped plugins
+- Export **`export const MyFeatureKey: InjectionKey<MyFeatureService> = Symbol("MyFeatureService")`** in **`app/src/platform/tokens.ts`**.
 
-- One plugin per feature (`playerPlugin`, `downloadPlugin`, etc).
-- Better modularity and testing boundaries.
+### 3. Implement the web adapter
 
-Trade-off: more install wiring and ordering to manage.
+- Add **`app/src/platform/adapters/web/<feature>.web.ts`** (or under a small folder if multiple files).
+- Implement the contract with browser APIs only.
 
-### Option C: Service registry/factory + plugin shell
+### 4. Wire the default factory
 
-- Plugin creates a registry and feature code resolves by token.
-- Useful if you need dynamic replacement or enterprise extension points.
+- Either add **`app/src/platform/adapters/<feature>/index.ts`** with `createMyFeatureService()` returning the web implementation, **or** extend an existing aggregator that returns multiple services.
+- Keep the **import path stable** (e.g. `@/platform/adapters/my-feature`) so Vite can alias it later if needed.
 
-Trade-off: extra indirection and complexity; avoid unless you need runtime plugin extensions.
+### 5. Register in the runtime plugin
 
-## Decision: selected architecture
+- Add **`installMyFeatureServices(app, runtime, options?)`** under **`app/src/platform/installers/`**.
+- Call it from **`platformServicesPlugin.install`** after **`getRuntimeInfo()`**.
+- Inside the installer: **`app.provide(MyFeatureKey, createMyFeatureService(...))`**.
 
-**Selected option: A (Single runtime plugin).**
+### 6. (Optional) Capacitor / deployment implementation
 
-Why this fits this project:
+- Add a class under **`luminary-deployment/luminary-plugins/`** that implements the same contract (you may import **`@capacitor/core`** there).
+- Export a factory with the **same signature** as the luminary default (e.g. `createMyFeatureService`).
+- Point the Capacitor build at that module with a **Vite `resolve.alias`** (same idea as `VITE_MEDIA_PLAYER_ADAPTER_PATH`) **or** pass a factory through **`app.use(platformServicesPlugin, { createMyFeatureService })`** if you extend plugin options—pick one strategy per feature and document it in the installer comment.
 
-- You need centralized runtime policy for Web vs Capacitor.
-- Player and storage concerns are coupled and should be wired together consistently.
-- One composition root keeps app bootstrap simple while preserving adapter boundaries.
-- Feature-level complexity can still be controlled by splitting internal installer files.
+### 7. Consume from features
 
-### Option A implementation guardrails
+- **`const svc = inject(MyFeatureKey)`**; throw or guard if missing (like `MediaPlayerKey`).
+- **Do not** import Capacitor or branch on user-agent in pages/components.
 
-- Keep a single exported plugin: `platformServicesPlugin`.
-- Inside the plugin, split installation by feature:
-  - `installMediaServices(app, runtime, sharedCore)`
-  - `installDownloadServices(app, runtime, sharedCore)`
-  - `installStorageServices(app, runtime, sharedCore)`
-- Use a shared core library for cross-feature concerns (storage reads/writes, indexing, error mapping).
-- Treat `luminary-deployment/luminary-plugins` as the **Capacitor runtime integration source**:
-  - it may contain native plugin calls and/or Capacitor-conditioned web JS
-  - it should expose install functions that can be composed into `platformServicesPlugin`
-- Keep feature consumers fully platform-agnostic via tokens/contracts.
+### 8. Tests
 
-## Suggested contract design rules
+- **Unit tests**: `provide` a mock implementation with **`global.provide`** / **`mount(..., { global: { provide: { [MyFeatureKey]: mock } } })`**.
+- When ready: **contract tests** run the same scenarios against web and native adapters.
 
-- Keep contracts small and use-case driven.
-- Return domain objects/events, not UI concerns.
-- Expose capability flags where behavior differs (`supportsBackgroundPlayback`).
-- Normalize errors into app-level error types.
-- Include lifecycle methods where needed (`init`, `dispose`).
+---
 
-Example (TypeScript):
+## Runtime detection (luminary)
 
-```ts
-export interface MediaPlayerService {
-  readonly supportsBackgroundPlayback: boolean;
-  load(source: { id: string; url: string; kind: "audio" | "video" }): Promise<void>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  seek(seconds: number): Promise<void>;
-  onStateChange(cb: (state: PlayerState) => void): () => void;
-}
-```
+**Luminary does not depend on `@capacitor/core`.**  
+`getRuntimeInfo()` uses **`globalThis.Capacitor`** when the native shell injects it; pure browser builds see **web**.
 
-## Capacitor-specific concerns to design for now
+For **optional** branches inside **deployment** plugins only, Capacitor’s documented helpers (`isNativePlatform()`, `getPlatform()`, `isPluginAvailable()`) are appropriate.
 
-- Background media behavior differs by OS policy and plugin choice.
-- File path handling in webview requires path conversion where needed.
-- Downloads need resumability/error mapping and progress listeners.
-- Offline file indexing and cleanup are app responsibilities.
-- Native permissions and platform policy should be wrapped, not leaked.
+---
 
-## Feature matrix (Web vs Capacitor)
+## Contract design rules (short)
 
-Legend:
+- Small, use-case-driven interfaces.
+- Capability flags where behavior differs (`supportsBackgroundPlayback`, etc.).
+- Domain events / state—not widget props.
+- Normalize errors at the adapter boundary when you cross that line in production.
 
-- `Full`: expected first-class support
-- `Partial`: supported with constraints or fallback behavior
-- `No`: not available or not reliable for product use
+---
 
-| Feature | Web (Browser/PWA) | iOS (Capacitor) | Android (Capacitor) | Notes |
-| --- | --- | --- | --- | --- |
-| Contract-based service injection | Full | Full | Full | Same `provide/inject` contracts across platforms |
-| Basic media playback (audio/video) | Full | Full | Full | Different adapter implementation, same app API |
-| Background playback (screen off/app background) | Partial | Full | Full | Implement via `luminary-deployment/luminary-plugins` (Capacitor runtime integration); web depends on browser policy and is not guaranteed |
-| Offline download to app-managed files | Partial | Full | Full | Implement via `luminary-deployment/luminary-plugins` using Filesystem + FileTransfer; web relies on browser storage strategy |
-| Download progress events | Partial | Full | Full | Native progress comes from deployment plugins; web depends on transport/API support |
-| Persistent downloaded media catalog | Partial | Full | Full | Native catalog/index stored via deployment plugins + app DB; web limited by storage model |
-| Delete downloaded media files | Partial | Full | Full | Native deletion via deployment plugins (device app files); web depends on storage layer |
-| Secure local storage boundary | Partial | Full | Full | Native secure storage boundary via deployment plugins/platform APIs; web is more limited |
-| Plugin availability checks | No | Full | Full | Provided by Capacitor runtime; used inside deployment plugins (`Capacitor.isPluginAvailable(...)`) |
-| Dynamic UI replacement per platform | Full | Full | Full | Via `defineAsyncComponent` or route/component factories |
+## Feature matrix (summary)
 
-### Mapping to existing `luminary-plugins`
+| Capability | Web | Capacitor |
+| --- | --- | --- |
+| Same `inject` contracts | Yes | Yes |
+| Media playback (same UI, different service) | Yes | Yes |
+| Background / lock-screen media | Limited | Yes (OS + MediaSession + native config) |
+| Heavy native APIs (filesystem, file transfer) | Limited | Yes (behind deployment adapters) |
 
-Examples from `luminary-deployment/luminary-plugins`:
+---
 
-- `auth.ts`, `authBrowser.ts`: **web JS behavior** that exists because auth runs inside a Capacitor app (in-app browser / session behavior).
-- `capacitorNative.ts`: Capacitor runtime integration (status bar, notch, fullscreen tweaks).
-- `capgoUpdater.ts`: Capacitor update/runtime policy integration.
-- `capacitorDeepLinks.ts`: Capacitor deep link routing integration.
+## Mapping `luminary-plugins` (examples)
 
-### Recommended product framing
+| File | Role |
+| --- | --- |
+| `auth.ts`, `authBrowser.ts` | Auth flows when running inside Capacitor WebView |
+| `capacitorNative.ts` | Status bar, safe area, fullscreen helpers |
+| `capgoUpdater.ts` | OTA update policy |
+| `capacitorDeepLinks.ts` | Deep link routing |
+| `capacitorMediaPlayer*.ts` (if present) | Native-oriented media factory / service |
 
-- Treat **Web** as capable for baseline playback and limited offline workflows.
-- Treat **Capacitor iOS/Android** as the target for robust offline + background media experience.
-- Keep one contract API and branch behavior behind capability flags in adapters.
+---
 
-## Incremental implementation plan
+## Research notes (optional depth)
 
-1. **Create platform contracts + tokens** for player/download/storage.
-2. **Create shared core services** (storage/index helpers used by multiple feature installers).
-3. **Implement web adapters first** to validate contract ergonomics.
-4. **Create Capacitor adapters** with capability flags and guarded plugin checks.
-5. **Install through one runtime plugin** with internal feature installers.
-6. **Migrate consumer features** to only use injected contracts.
-7. **Add contract tests** (shared test suite run against web + native adapters).
-8. **Add observability** (adapter-level logs/metrics for runtime debugging).
+- **Option B**: one plugin per feature—use if installers become too large.
+- **Option C**: service registry—use only if you need dynamic third-party extensions.
+- Downloads / storage: keep APIs behind contracts; Capacitor File Transfer + Filesystem belongs in deployment adapters (see Capacitor docs linked below).
 
-## Decision checklist before implementation
-
-- Which media player libs/SDKs per platform?
-- Is background playback mandatory in v1?
-- What is the offline storage quota/retention policy?
-- Which download resume semantics are required?
-- How will we test adapter parity (contract tests + smoke tests)?
+---
 
 ## References
 
-- Vue Plugins: <https://vuejs.org/guide/reusability/plugins.html>
-- Vue Provide/Inject: <https://vuejs.org/guide/components/provide-inject>
-- Vue Async Components: <https://vuejs.org/guide/components/async>
-- Capacitor JavaScript Utilities: <https://capacitorjs.com/docs/basics/utilities>
-- Capacitor Filesystem API: <https://capacitorjs.com/docs/apis/filesystem>
-- Capacitor File Transfer API: <https://capacitorjs.com/docs/apis/file-transfer>
+- [Vue – Plugins](https://vuejs.org/guide/reusability/plugins.html)
+- [Vue – Provide / inject](https://vuejs.org/guide/components/provide-inject)
+- [Capacitor – Utilities](https://capacitorjs.com/docs/basics/utilities)
 
-## Recommended next artifact
+---
 
-Capture this decision in an ADR:
+## Next documentation step
 
-- `docs/adr/XXXX-platform-service-plugin-architecture.md`
-
-with selected option (A/B/C), contract boundaries, and migration plan.
-
-## Companion implementation assets
-
-- Editable architecture diagram: `docs/research/vue-plugin-architecture/vue-plugin-architecture.drawio`
-- Starter TypeScript scaffolding: `docs/research/vue-plugin-architecture/starter-code.md`
+Consider an ADR under `docs/adr/` referencing this research doc and the chosen Option A + repository split.

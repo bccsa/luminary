@@ -1,307 +1,119 @@
-<svg host="65bd71144e" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1241px" height="641px" viewBox="-0.5 -0.5 1241 641" content="&lt;mxfile&gt;&lt;diagram id=&quot;vue-plugin-architecture&quot; name=&quot;Vue Plugin Architecture&quot;&gt;3Vpbc5s6EP41nnEf0pHBxvjRcZKezGl7MnUvzzKSsVohMULE8fn1ZwUChCFtzhTHSfOQwO6iy/ftrnY1Gfmr5OGdwunugySUjzxEHkb+1cjzJj6awR8jOVgJCrxSEitGrKwRrNm/tDK00pwRmrUMtZRcs7QtjKQQNNItGVZK7ttmW8nbs6Y4ph3BOsK8K/3GiN5Z6cJDjeIvyuJdNTUKrSbBlbUVZDtM5N4R+dcjf6Wk1OVT8rCi3MBXAVN+d/OItl6ZokI/5QPNNOyq+Oge89xu8Cs8eOiO53GMN0aPliraMQ1g5sq8jr/RzcgMfQm/VzjFEdNSvbF70ocKKU0fYBmXO51wEEzgMdNK/qAryaUCiZACLC+3jPMjEeYsFvDK6daMcE+VZsDA0ooTRoiZ5HJvlrWGBZgZ9+BwZjgptPUaWKN9t4sya+iCZHEzs9AHR2RBe0dlQrU6gInVTi1/1oUrOveNO8yRle0cT/CtDFsPjOuBG47gwdLUTxmhEcuYFB3WriqFvwTFP6kujJB5ySgH7igx1K2ZiAtOVS40S8xTCkwz0aVPyVwQSixsfVA7zLokjjyfzGhIph3GQRN6Gz8ILC+OHBU/z8LXbNbha+r38OWFv88XTtMOVUsjQ5cQ5oAOAOkFsP+J2XuCmXirM0cC37/NMzpOOdZbqZI1VfcsotndKUjDNNxGfaQFUUg325+QNjxJi25Q1SYuSYsBgqqMgA5P/Zi/ZSLTmPMxUPPGYaqOrGo0OIGSVGbMRmKR1hvzMROaKoHNOrYU29Rqx6YqezHxOAC1/hO4DU/EbZ3njsj9VOe/K2qOtpKkMVQNxbHlISn4weU3ptp+cyu2cuyq7nCWFekVFloUHnYILVuUDsrodrv1ot5gJcEmmJ2Y0fp8e/wIBJvTMGrwVTjSWYdTG6imKmlsbJ3yGUASbma9AOEHShi+4/hAVf1ty2B9SDbSTH4rvtdO8jc9DMxlGNF+LjfhbDpDzxudvWT2hecEDcAmJjiFRHgDZThV3aOy1IKwMkDjTc44ubDBm+1xKwtXORumtSNnZilewE0hmdUkx7oA74YBaQ/tIzdSkI5p1zVMyKMtOJU0O6zNr+gW52Z0U2rty8r42hstpqPQbOYThSVFxjGWbrUMz8U+Bs4JNHgkJ8wXG3RiP+rkhEm3zqoTQMuPJgP4ESC/rAk/8qKyX2nUaEwsaWX/V/hVkbaFzn7tTYlxjYu08I1+FzIOEAajhVkHTN6XZgaknU7geJ/30b4I5j5+5qPAD3vSRx/tQ5wFAmt2Tx8l3g23JpXYkEzMnhvOeJ4wgdXhgoBaHkotKpIHqnVlbedSbQczXoXrGWqnwroJdNTUIX8E8RM0aTM/DZ6xCkiVvGekW9eZhsnqxtqc+SNv1XDzJ1fV0/kTz+35APDblqUbcjd1L/NBkpwXgTG+s3n0YhkLmWkWuUn2S1Z2PqbAKil7Y8tvx+ijLDqrKh2jjcIi2kHLVXza6qEiSYYNs/P2xcc0z3qibOqdqjzL2XqPu1cY5f1S0bx+uTV1cmGE3pdHYs0aHLNM0GV2ENHKNMMCYCjLqCIlEwYViyoTrcPtl9us4x6lO6D9zgR0OWeSZ7oeZOA66py9VYh+TbgfnIpwSmI66aBppNWlnFR6J2PD/nUjvWzwNjA0Nu+lTC3K36nWB3s1i3NojlscUEGW5noeXjdcRj9K0Q3jlcGj0GYyV1GT/kuhxgo69lHnfsfs5KcsKMqLoqI1xe8i6p0ZUZlC3LiAFtGJs10dIU9C1wXSBbh1yXIehP3X67OPoXp00XEeXD9LtzX/k+DtuXk4F8RFg3p0xJZXCVWn2i1cXw3+PTi7NHQa93OR8LEc9JgHYcV1G6fqju8FMvL/c/ov6OnrsM/DUPAiAX8Sxh0fb1Unbid7HmjnrxfaPv98YeiGrxfdFnourO3+/zy4Ll4vrm34XGDdhvvksMJr899Ghc75ry3/+j8=&lt;/diagram&gt;&lt;/mxfile&gt;">
-    <defs/>
-    <g>
-        <rect x="0" y="0" width="700" height="30" fill="none" stroke="none" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 698px; height: 1px; padding-top: 15px; margin-left: 2px;">
-                        <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;">
-                            <div style="display: inline-block; font-size: 20px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; font-weight: bold; white-space: normal; overflow-wrap: normal;">
-                                Vue Pluggable Architecture (Web + Capacitor)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="2" y="21" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="20px" font-weight="bold">
-                    Vue Pluggable Architecture (Web + Capacitor)
-                </text>
-            </switch>
-        </g>
-        <rect x="0" y="35" width="430" height="28" rx="4.2" ry="4.2" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 428px; height: 1px; padding-top: 49px; margin-left: 1px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; font-weight: bold; white-space: normal; overflow-wrap: normal;">
-                                Decision: Option A selected (Single runtime plugin)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="215" y="53" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" font-weight="bold">
-                    Decision: Option A selected (Single runtime plugin)
-                </text>
-            </switch>
-        </g>
-        <rect x="0" y="70" width="240" height="90" rx="13.5" ry="13.5" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 238px; height: 1px; padding-top: 115px; margin-left: 1px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                App Bootstrap
-                                <br/>
-                                main.ts
-                                <br/>
-                                app.use(platformServicesPlugin)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="120" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    App Bootstrap...
-                </text>
-            </switch>
-        </g>
-        <rect x="300" y="70" width="280" height="90" rx="13.5" ry="13.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 115px; margin-left: 301px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                platformServicesPlugin.install(app)
-                                <br/>
-                                Single plugin composition root
-                                <br/>
-                                (internal feature installers)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="440" y="119" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    platformServicesPlugin.install(app)...
-                </text>
-            </switch>
-        </g>
-        <rect x="660" y="0" width="270" height="90" rx="13.5" ry="13.5" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 45px; margin-left: 661px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Runtime Detection (context only)
-                                <br/>
-                                getRuntimeInfo()
-                                <br/>
-                                Passed as context to installers
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="795" y="49" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Runtime Detection (context only)...
-                </text>
-            </switch>
-        </g>
-        <rect x="300" y="200" width="280" height="100" rx="15" ry="15" fill="#f8cecc" stroke="#b85450" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 250px; margin-left: 301px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Service Contracts + Tokens
-                                <br/>
-                                - MediaPlayerService
-                                <br/>
-                                - Symbol Injection Keys
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="440" y="254" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Service Contracts + Tokens...
-                </text>
-            </switch>
-        </g>
-        <rect x="660" y="195" width="290" height="110" rx="16.5" ry="16.5" fill="#ffe6cc" stroke="#d79b00" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 288px; height: 1px; padding-top: 250px; margin-left: 661px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Adapter Folder (build-time swap)
-                                <br/>
-                                platform/adapters//index.ts
-                                <br/>
-                                createMediaPlayerService() factory
-                                <br/>
-                                Default: web │ Replaced: Capacitor build
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="805" y="254" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Adapter Folder (build-time swap)...
-                </text>
-            </switch>
-        </g>
-        <rect x="660" y="360" width="290" height="90" rx="13.5" ry="13.5" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 288px; height: 1px; padding-top: 405px; margin-left: 661px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Web Adapters (default folder contents)
-                                <br/>
-                                platform/adapters/media-player/index.ts
-                                <br/>
-                                → WebMediaPlayerService
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="805" y="409" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Web Adapters (default folder contents)...
-                </text>
-            </switch>
-        </g>
-        <rect x="970" y="440" width="270" height="90" rx="13.5" ry="13.5" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 268px; height: 1px; padding-top: 485px; margin-left: 971px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Capacitor Adapter Replacement
-                                <br/>
-                                luminary-deployment / luminary-plugins
-                                <br/>
-                                Replaces adapter folder at build time
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="1105" y="489" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Capacitor Adapter Replacement...
-                </text>
-            </switch>
-        </g>
-        <rect x="300" y="450" width="280" height="70" rx="10.5" ry="10.5" fill="#d5e8d4" stroke="#82b366" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 278px; height: 1px; padding-top: 485px; margin-left: 301px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                app.provide(token, adapter)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="440" y="489" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    app.provide(token, adapter)
-                </text>
-            </switch>
-        </g>
-        <rect x="300" y="540" width="420" height="100" rx="15" ry="15" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 418px; height: 1px; padding-top: 590px; margin-left: 301px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Feature Modules (Platform-Agnostic)
-                                <br/>
-                                Use inject(token) only
-                                <br/>
-                                No platform branching in feature code
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="510" y="594" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Feature Modules (Platform-Agnostic)...
-                </text>
-            </switch>
-        </g>
-        <rect x="760" y="540" width="360" height="100" rx="15" ry="15" fill="#fff2cc" stroke="#d6b656" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 358px; height: 1px; padding-top: 590px; margin-left: 761px;">
-                        <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Optional UI Swap Layer
-                                <br/>
-                                defineAsyncComponent() for different platform UIs
-                                <br/>
-                                Use only when UI must differ
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="940" y="594" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Optional UI Swap Layer...
-                </text>
-            </switch>
-        </g>
-        <path d="M 240 115 L 291.88 115" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 298.88 115 L 291.88 118.5 L 291.88 111.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 580 115.08 L 620.08 115.08 L 620.08 45.08 L 657.76 45.08" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
-        <path d="M 651.88 48.58 L 658.88 45.08 L 651.88 41.58" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 440 160 L 440 191.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 440 198.88 L 436.5 191.88 L 443.5 191.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 580 115.08 L 805 115.08 L 805 186.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 805 193.88 L 801.5 186.88 L 808.5 186.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 805 305 L 805 351.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 805 358.88 L 801.5 351.88 L 808.5 351.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 333px; margin-left: 805px;">
-                        <div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;">
-                                web (default)
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="805" y="336" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
-                    web (default)
-                </text>
-            </switch>
-        </g>
-        <path d="M 950 250 L 1105 250 L 1105 431.88" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
-        <path d="M 1105 438.88 L 1101.5 431.88 L 1108.5 431.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <g transform="translate(-0.5 -0.5)">
-            <switch>
-                <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;">
-                    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 267px; margin-left: 1105px;">
-                        <div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
-                            <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;">
-                                native build replaces
-                            </div>
-                        </div>
-                    </div>
-                </foreignObject>
-                <text x="1105" y="271" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">
-                    native build replaces
-                </text>
-            </switch>
-        </g>
-        <path d="M 660 405.08 L 620.08 405.08 L 620.08 485.08 L 588.12 485.08" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 581.12 485.08 L 588.12 481.58 L 588.12 488.58 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 970 485 L 588.12 485" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 581.12 485 L 588.12 481.5 L 588.12 488.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 440.08 520 L 440.08 540 L 501.96 540" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 508.96 540 L 501.96 543.5 L 501.96 536.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-        <path d="M 720 590 L 751.88 590" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
-        <path d="M 758.88 590 L 751.88 593.5 L 751.88 586.5 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
-    </g>
-    <switch>
-        <g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/>
-        <a transform="translate(0,-5)" xlink:href="https://www.diagrams.net/doc/faq/svg-export-text-problems" target="_blank">
-            <text text-anchor="middle" font-size="10px" x="50%" y="100%">
-                Text is not SVG - cannot display
-            </text>
-        </a>
-    </switch>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="720" viewBox="0 0 1000 720">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#333"/>
+    </marker>
+    <style type="text/css"><![CDATA[
+      .title { font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #111; }
+      .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; fill: #444; }
+      .boxtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #111; }
+      .boxtext { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; fill: #222; }
+      .step { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #fff; }
+      .legend { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; fill: #333; }
+    ]]></style>
+  </defs>
+
+  <rect width="1000" height="720" fill="#fafafa"/>
+
+  <text x="500" y="36" text-anchor="middle" class="title">Luminary: Vue platform plugin architecture</text>
+  <text x="500" y="56" text-anchor="middle" class="subtitle">Web default + optional Capacitor bundle / luminary-plugins · Single composition plugin (Option A)</text>
+
+  <!-- Main runtime flow -->
+  <text x="40" y="88" class="boxtitle">Runtime flow (every build)</text>
+
+  <g id="flow-column">
+    <!-- Step boxes -->
+    <rect x="40" y="98" width="130" height="56" rx="6" fill="#dae8fc" stroke="#6c8ebf"/>
+    <text x="105" y="121" text-anchor="middle" class="boxtitle">1. Bootstrap</text>
+    <text x="105" y="136" text-anchor="middle" class="boxtext">main.ts</text>
+    <text x="105" y="148" text-anchor="middle" class="boxtext">app.use(plugin)</text>
+
+    <path d="M170 126 H200" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="200" y="98" width="140" height="56" rx="6" fill="#d5e8d4" stroke="#82b366"/>
+    <text x="270" y="121" text-anchor="middle" class="boxtitle">2. Plugin</text>
+    <text x="270" y="136" text-anchor="middle" class="boxtext">platformServices</text>
+    <text x="270" y="148" text-anchor="middle" class="boxtext">Plugin.install()</text>
+
+    <path d="M340 126 H370" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="370" y="98" width="150" height="56" rx="6" fill="#fff2cc" stroke="#d6b656"/>
+    <text x="445" y="121" text-anchor="middle" class="boxtitle">3. Context</text>
+    <text x="445" y="136" text-anchor="middle" class="boxtext">getRuntimeInfo()</text>
+    <text x="445" y="148" text-anchor="middle" class="boxtext">optional for installers</text>
+
+    <path d="M520 126 H550" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="550" y="98" width="160" height="56" rx="6" fill="#f8cecc" stroke="#b85450"/>
+    <text x="630" y="121" text-anchor="middle" class="boxtitle">4. Installer</text>
+    <text x="630" y="136" text-anchor="middle" class="boxtext">installMediaServices</text>
+    <text x="630" y="148" text-anchor="middle" class="boxtext">+ future installers</text>
+
+    <path d="M710 126 H740" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="740" y="98" width="200" height="56" rx="6" fill="#e1d5e7" stroke="#9673a6"/>
+    <text x="840" y="118" text-anchor="middle" class="boxtitle">5. Factory</text>
+    <text x="840" y="132" text-anchor="middle" class="boxtext">createMediaPlayerService()</text>
+    <text x="840" y="146" text-anchor="middle" class="boxtext">@/platform/adapters/media-player</text>
+
+    <!-- vertical to provide -->
+    <path d="M840 154 L840 188" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="730" y="192" width="220" height="48" rx="6" fill="#d5e8d4" stroke="#82b366"/>
+    <text x="840" y="214" text-anchor="middle" class="boxtitle">6. Register</text>
+    <text x="840" y="230" text-anchor="middle" class="boxtext">app.provide(MediaPlayerKey, service)</text>
+
+    <path d="M730 216 H260 V280" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+    <rect x="40" y="262" width="440" height="72" rx="8" fill="#dae8fc" stroke="#6c8ebf"/>
+    <text x="260" y="288" text-anchor="middle" class="boxtitle">7. Feature modules (platform-agnostic)</text>
+    <text x="260" y="306" text-anchor="middle" class="boxtext">inject(MediaPlayerKey) — same contract on web and Capacitor</text>
+    <text x="260" y="322" text-anchor="middle" class="boxtext">No Capacitor imports here · luminary has no @capacitor/core dependency</text>
+  </g>
+
+  <!-- Build-time / deployment lane -->
+  <text x="520" y="288" class="boxtitle">Parallel: Capacitor bundle (optional)</text>
+
+  <rect x="520" y="298" width="420" height="92" rx="8" fill="#fff2cc" stroke="#d6b656"/>
+  <text x="730" y="322" text-anchor="middle" class="boxtitle">Vite alias (example: VITE_MEDIA_PLAYER_ADAPTER_PATH)</text>
+  <text x="730" y="340" text-anchor="middle" class="boxtext">Redirects @/platform/adapters/media-player → luminary-deployment factory</text>
+  <text x="730" y="356" text-anchor="middle" class="boxtext">Same source import path; different bundled implementation</text>
+  <text x="730" y="376" text-anchor="middle" class="boxtext">Alternative: pass factories via app.use(plugin, options) from deployment</text>
+
+  <path d="M840 250 L900 250 V298" stroke="#d6b656" stroke-width="1.5" stroke-dasharray="6 4" fill="none" marker-end="url(#arrow)"/>
+
+  <rect x="520" y="405" width="420" height="56" rx="6" fill="#ffe6cc" stroke="#d79b00"/>
+  <text x="730" y="428" text-anchor="middle" class="boxtitle">luminary-deployment / luminary-plugins</text>
+  <text x="730" y="446" text-anchor="middle" class="boxtext">Capacitor adapters, auth, updater, deep links, native-only code</text>
+
+  <!-- Adding a new service -->
+  <text x="40" y="378" class="boxtitle">Adding a new platform service (checklist)</text>
+
+  <rect x="40" y="390" width="460" height="120" rx="8" fill="#ffffff" stroke="#999"/>
+  <text x="60" y="412" class="boxtext">1. contracts/&lt;feature&gt;.ts</text>
+  <text x="60" y="428" class="boxtext">2. tokens.ts — new InjectionKey</text>
+  <text x="60" y="444" class="boxtext">3. adapters/web/ — default implementation</text>
+  <text x="60" y="460" class="boxtext">4. adapters/&lt;feature&gt;/index.ts — create…Service() factory</text>
+  <text x="60" y="476" class="boxtext">5. installers/ — install…Services(app, runtime) + call from platformServicesPlugin</text>
+  <text x="60" y="492" class="boxtext">6. (Capacitor) luminary-plugins + alias or plugin options</text>
+
+  <!-- Legend -->
+  <rect x="40" y="530" width="900" height="160" rx="8" fill="#f0f0f0" stroke="#bbb"/>
+  <text x="60" y="556" class="boxtitle">Legend</text>
+  <rect x="60" y="568" width="14" height="14" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text x="82" y="580" class="legend">App / consumer</text>
+  <rect x="220" y="568" width="14" height="14" fill="#d5e8d4" stroke="#82b366"/>
+  <text x="242" y="580" class="legend">Plugin &amp; provide</text>
+  <rect x="420" y="568" width="14" height="14" fill="#fff2cc" stroke="#d6b656"/>
+  <text x="442" y="580" class="legend">Context / build-time config</text>
+  <rect x="620" y="568" width="14" height="14" fill="#f8cecc" stroke="#b85450"/>
+  <text x="642" y="580" class="legend">Feature installer</text>
+  <rect x="820" y="568" width="14" height="14" fill="#e1d5e7" stroke="#9673a6"/>
+  <text x="842" y="580" class="legend">Factory / adapter module</text>
+
+  <text x="60" y="606" class="legend">Solid arrows: control flow at runtime. Dashed: optional build-time wiring from deployment.</text>
+  <text x="60" y="628" class="legend">Editable source: this file is plain SVG (not diagrams.net XML). Import into draw.io if you need the graphical editor.</text>
+  <text x="60" y="648" class="legend">Full narrative + implementation steps: README.md in this folder.</text>
+  <text x="60" y="668" class="legend">Selected architecture: Option A — single platformServicesPlugin with internal feature installers.</text>
 </svg>
