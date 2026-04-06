@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick, inject } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, inject, toRef } from "vue";
 import { useRouter } from "vue-router";
 import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
+import { useBucketInfo } from "@/composables/useBucketInfo";
 import {
     PlayIcon,
     PauseIcon,
@@ -85,6 +86,30 @@ const liveContent = useDexieLiveQueryWithDeps(
 // Use live content if available, otherwise fall back to model
 // This ensures we always have the latest data from the database
 const currentContent = computed(() => liveContent.value || content.value);
+
+// Resolve the image bucket URL so we can pass artwork to the OS Now Playing widget
+const imageBucketIdRef = toRef(() => currentContent.value.parentImageBucketId);
+const { bucketBaseUrl } = useBucketInfo(imageBucketIdRef);
+
+const artworkUrl = computed(() => {
+    const collections = currentContent.value.parentImageData?.fileCollections;
+    if (!collections?.length || !bucketBaseUrl.value) return undefined;
+
+    // Pick the largest image available from any collection for best lock screen quality
+    const allFiles = collections.flatMap((fc) => fc.imageFiles);
+    if (!allFiles.length) return undefined;
+    const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+    return `${bucketBaseUrl.value}/${largest.filename}`;
+});
+
+const callSetNowPlaying = () => {
+    mediaPlayerService.setNowPlaying?.({
+        title: currentContent.value.title ?? "",
+        artist: currentContent.value.author,
+        artworkUrl: artworkUrl.value,
+        duration: duration.value || undefined,
+    });
+};
 
 // Language switcher state
 const showLanguageDropdown = ref(false);
@@ -739,6 +764,9 @@ onMounted(() => {
                 const progress = getMediaProgress(audioSource, currentContent.value._id);
                 if (progress > 60) mediaPlayerService.seekTo(progress - 30);
             }
+
+            // Update Now Playing with the resolved duration
+            callSetNowPlaying();
         });
 
         // Loading events
@@ -826,6 +854,12 @@ watch(
         // Update selectedLanguageId when content language changes
         if (newContent?.language && newContent.language !== selectedLanguageId.value) {
             selectedLanguageId.value = newContent.language;
+        }
+
+        // Notify the platform media player service of the new track so the OS
+        // lock screen / Now Playing widget can display correct metadata.
+        if (newContent && newId !== oldId) {
+            callSetNowPlaying();
         }
 
         if (newContent && (!oldContent || newContent._id !== oldContent?._id)) {

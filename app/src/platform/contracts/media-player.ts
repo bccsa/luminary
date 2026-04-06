@@ -8,6 +8,13 @@ export type MediaPlayerState = {
     playbackRate: number;
 }
 
+export type NowPlayingInfo = {
+    title: string;
+    artist?: string;
+    artworkUrl?: string;
+    duration?: number;
+};
+
 export type MediaPlayerService = {
     readonly supportsBackgroundPlayback: boolean;
     getGlobalAudioPlayerComponent(): Component;
@@ -20,4 +27,5 @@ export type MediaPlayerService = {
     setPlaybackRate(rate: number): void;
     getState(): MediaPlayerState;
     onStateChange(cb: (state: MediaPlayerState) => void): () => void;
+    setNowPlaying?(info: NowPlayingInfo): void;
 }
