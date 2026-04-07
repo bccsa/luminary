@@ -350,6 +350,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "explore.title": "Explore",
         "home.newest": "Newest",
         "content.related_title": "Related",
+        "content.coming_soon": "Coming soon",
         "notification.login.title": "You are missing out!",
         "notification.login.message": "Click here to create an account or log in",
         "notification.offline.title": "You are offline.",
