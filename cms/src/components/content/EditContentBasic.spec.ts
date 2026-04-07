@@ -7,7 +7,7 @@ import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import { DateTime } from "luxon";
-import { db, accessMap, type ContentDto, PublishStatus, DocType, RedirectType } from "luminary-shared";
+import { db, accessMap, type ContentDto, type RedirectDto, PublishStatus, DocType, RedirectType } from "luminary-shared";
 import LTextToggle from "../forms/LTextToggle.vue";
 import { Slug } from "@/util/slug";
 import waitForExpect from "wait-for-expect";
@@ -528,7 +528,7 @@ describe("EditContentBasic.vue", () => {
             redirectType: RedirectType.Temporary,
             slug: "post1-eng",
             toSlug: "somewhere-else",
-        });
+        } as RedirectDto);
 
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import MediaEditor from "./MediaEditor.vue";
-import { MediaType, type ContentParentDto, db } from "luminary-shared";
+import { MediaType, MediaPreset, type ContentParentDto, db } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 
 // Mock browser APIs
@@ -168,8 +168,8 @@ describe("MediaEditor.vue", () => {
                 {
                     languageId: mockData.mockLanguageDtoEng._id,
                     fileData: new ArrayBuffer(100),
-                    filename: "test.mp3",
-                    preset: "audio",
+                    mediaType: MediaType.Audio,
+                    preset: MediaPreset.Speech,
                 },
             ],
         };

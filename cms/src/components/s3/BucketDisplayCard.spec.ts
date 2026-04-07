@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
-import { type GroupDto, type StorageDto, DocType, accessMap } from "luminary-shared";
+import { type GroupDto, type StorageDto, DocType, StorageStatus, accessMap } from "luminary-shared";
 import { superAdminAccessMap, mockGroupDtoPublicContent } from "@/tests/mockdata";
 
 vi.mock("@/globalConfig", async (importOriginal) => {
@@ -13,7 +13,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
     };
 });
 
-const baseBucket: StorageDto & { connectionStatus: string; statusMessage?: string } = {
+const baseBucket: StorageDto & { connectionStatus: StorageStatus; statusMessage?: string } = {
     _id: "storage-test",
     type: DocType.Storage,
     updatedTimeUtc: 1704114000000,
@@ -21,7 +21,7 @@ const baseBucket: StorageDto & { connectionStatus: string; statusMessage?: strin
     name: "test bucket",
     storageType: "image" as any,
     publicUrl: "http://localhost:9000/images",
-    connectionStatus: "connected",
+    connectionStatus: StorageStatus.Connected,
     mimeTypes: ["image/*"],
 };
 
@@ -55,42 +55,42 @@ describe("BucketDisplayCard", () => {
 
     it("shows Unreachable status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "unreachable" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.Unreachable }, groups },
         });
         expect(wrapper.text()).toContain("Unreachable");
     });
 
     it("shows Unauthorized status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "unauthorized" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.Unauthorized }, groups },
         });
         expect(wrapper.text()).toContain("Unauthorized");
     });
 
     it("shows Not Found status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "not-found" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.NotFound }, groups },
         });
         expect(wrapper.text()).toContain("Not Found");
     });
 
     it("shows No Credentials status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "no-credentials" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.NoCredential }, groups },
         });
         expect(wrapper.text()).toContain("No Credentials");
     });
 
     it("shows Checking status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "checking" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.Checking }, groups },
         });
         expect(wrapper.text()).toContain("Checking...");
     });
 
     it("shows Unknown for unrecognised status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "something-else" }, groups },
+            props: { bucket: { ...baseBucket, connectionStatus: "something-else" as StorageStatus }, groups },
         });
         expect(wrapper.text()).toContain("Unknown");
     });

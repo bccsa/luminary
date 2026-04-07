@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import type { MediaFileDto, MediaUploadDataDto } from "luminary-shared";
+import { MediaPreset, MediaType, type MediaFileDto, type MediaUploadDataDto } from "luminary-shared";
 
 // Mock URL.createObjectURL / revokeObjectURL
 global.URL.createObjectURL = vi.fn(() => "blob:mock-audio-url");
@@ -26,8 +26,8 @@ const mockMediaFile: MediaFileDto = {
 const mockUploadData: MediaUploadDataDto = {
     languageId: "lang-eng",
     fileData: new ArrayBuffer(100),
-    filename: "test-audio.mp3",
-    preset: "audio",
+    mediaType: MediaType.Audio,
+    preset: MediaPreset.Speech,
 };
 
 describe("MediaEditorThumbnail", () => {
