@@ -441,6 +441,10 @@ describe("EditContent.vue", () => {
     });
 
     it("renders all the components", async () => {
+        // Leave only English so the Translations card still has missing languages and shows LanguageSelector
+        await db.docs.delete(mockData.mockFrenchContentDto._id);
+        await db.docs.delete(mockData.mockSwahiliContentDto._id);
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -450,17 +454,19 @@ describe("EditContent.vue", () => {
             },
         });
 
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
         const triggerButton = wrapper.find('[data-test="add-translation-button"]');
         expect(triggerButton.exists()).toBe(true);
         await triggerButton.trigger("click");
-        await expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
-
-        // Wait for the component to fetch data
         await waitForExpect(() => {
-            expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
-            expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // Save button is rendered
+            expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true);
         });
+
+        expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
+        expect(wrapper.find('[data-test="save-button"]').exists()).toBe(true); // Save button is rendered
     });
 
     it("renders the title of the default language", async () => {
