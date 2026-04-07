@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import LDialog from "@/components/common/LDialog.vue";
-import { isTelegramInAppBrowser } from "@/util/inAppBrowser";
+import { isTelegramBrowser } from "@/util/inAppBrowser";
+import { appName } from "@/globalConfig";
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 const open = ref(false);
 const isNavigatingAway = ref(false);
 
@@ -33,7 +36,7 @@ function cancel() {
 onMounted(() => {
     // Prevent showing the warning when user navigates to /open manually
     // or from a non-Telegram browser.
-    if (!isTelegramInAppBrowser()) {
+    if (!isTelegramBrowser()) {
         router.replace(targetPath.value);
         return;
     }
@@ -52,12 +55,12 @@ watch(open, (v) => {
     <div class="min-h-[70vh]">
         <LDialog
             v-model:open="open"
-            title="This link will open Luminary"
-            description="You opened this link inside Telegram. If you continue, we’ll open Luminary to show the content."
+            :title="t('openapp_warning.title', { appName })"
+            :description="t('openapp_warning.description', { appName })"
             :primaryAction="continueToApp"
-            primaryButtonText="Continue"
+            :primaryButtonText="t('openapp_warning.button_continue')"
             :secondaryAction="cancel"
-            secondaryButtonText="Cancel"
+            :secondaryButtonText="t('openapp_warning.button_cancel')"
         />
     </div>
 </template>
