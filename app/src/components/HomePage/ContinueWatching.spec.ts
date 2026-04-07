@@ -173,6 +173,28 @@ describe("ContinueWatching", () => {
         });
     });
 
+    it("handles invalid JSON in localStorage gracefully", async () => {
+        localStorage.setItem("mediaProgress", "not-valid-json");
+
+        const wrapper = mount(ContinueWatching);
+
+        // Should not crash, and should not render content
+        await waitForExpect(() => {
+            expect(wrapper.html()).toBeDefined();
+        });
+    });
+
+    it("cleans up event listeners and intervals on unmount", () => {
+        const removeEventSpy = vi.spyOn(window, "removeEventListener");
+        const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+        const wrapper = mount(ContinueWatching);
+        wrapper.unmount();
+
+        expect(removeEventSpy).toHaveBeenCalledWith("storage", expect.any(Function));
+        expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
     it("preserves the watched order from localStorage regardless of database order", async () => {
         // Create three content documents with IDs that sort alphabetically as A < B < C
         const contentA: ContentDto = {

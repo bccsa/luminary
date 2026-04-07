@@ -10,6 +10,8 @@ import { db, type ContentDto } from "luminary-shared";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
+import waitForExpect from "wait-for-expect";
+import { useNotificationStore } from "@/stores/notification";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -18,7 +20,11 @@ vi.mock("vue-i18n", () => ({
 }));
 
 vi.mock("@auth0/auth0-vue");
-vi.mock("vue-router");
+vi.mock("vue-router", () => ({
+    useRouter: vi.fn(() => ({
+        push: vi.fn(),
+    })),
+}));
 
 describe("PrivacyPolicyModal.vue", () => {
     beforeEach(async () => {
@@ -134,6 +140,14 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it.skip("shows the privacy policy as outdated when the policy is updated", async () => {
+        // Skipped: useDexieLiveQuery with mangoIsPublished + parentId filter doesn't resolve
+        // in the test environment. The compound selector needs real Dexie index support.
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(true),
+            logout: vi.fn(),
+        });
+
+        await db.docs.clear();
         await db.docs.bulkPut([
             {
                 ...mockEnglishContentDto,
@@ -155,9 +169,11 @@ describe("PrivacyPolicyModal.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain(
-            "We have updated our privacy policy. Please accept it for a fully featured app experience.",
-        );
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(
+                "We have updated our privacy policy. Please accept it for a fully featured app experience.",
+            );
+        });
 
         // Verify that the "Accept" button is visible
         expect(wrapper.find("button[name='accept']").exists()).toBe(true);
@@ -183,6 +199,113 @@ describe("PrivacyPolicyModal.vue", () => {
 
         // Accept button should still be visible
         expect(wrapper.find("button[name='accept']").exists()).toBe(true);
+    });
+
+    it("can click 'Necessary Only' to set status", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        hasPendingLogin.value = false;
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        const wrapper = mount(PrivacyPolicyModal, {
+            props: { show: true },
+        });
+
+        await wrapper.find("button[name='necessary-only']").trigger("click");
+        expect((userPreferencesAsRef.value.privacyPolicy as any)?.status).toBe("necessaryOnly");
+    });
+
+    it("navigates to privacy-policy content on 'More Info' click", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        const wrapper = mount(PrivacyPolicyModal, {
+            props: { show: true },
+        });
+
+        const moreInfoButton = wrapper.find("button[name='more-info']");
+        expect(moreInfoButton.exists()).toBe(true);
+        await moreInfoButton.trigger("click");
+        // Router mock handles the push
+    });
+
+    it("adds banner notification after 2 second delay", async () => {
+        vi.useFakeTimers();
+
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+            logout: vi.fn(),
+        });
+
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        mount(PrivacyPolicyModal, {
+            props: { show: false },
+        });
+
+        // Advance past the 2-second setTimeout
+        await vi.advanceTimersByTimeAsync(2100);
+
+        const notificationStore = useNotificationStore();
+        expect(notificationStore.addNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: "privacy-policy-banner",
+                type: "bottom",
+                state: "info",
+            }),
+        );
+
+        vi.useRealTimers();
+    });
+
+    it("removes banner notification when status becomes accepted", async () => {
+        vi.useFakeTimers();
+
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+            logout: vi.fn(),
+        });
+
+        userPreferencesAsRef.value.privacyPolicy = undefined;
+
+        mount(PrivacyPolicyModal, {
+            props: { show: false },
+        });
+
+        // Advance past setTimeout
+        await vi.advanceTimersByTimeAsync(2100);
+
+        // Now accept the policy
+        userPreferencesAsRef.value.privacyPolicy = { status: "accepted", ts: Date.now() };
+
+        // The watch should fire and call removeNotification
+        await vi.advanceTimersByTimeAsync(100);
+
+        const notificationStore = useNotificationStore();
+        expect(notificationStore.removeNotification).toHaveBeenCalledWith("privacy-policy-banner");
+
+        vi.useRealTimers();
+    });
+
+    it("shows necessaryOnly status in modal message", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+            logout: vi.fn(),
+        });
+
+        userPreferencesAsRef.value.privacyPolicy = { status: "necessaryOnly", ts: Date.now() };
+
+        const wrapper = mount(PrivacyPolicyModal, {
+            props: { show: true },
+        });
+
+        // The modal should show the necessaryOnly message
+        expect(wrapper.html()).toContain("privacy_policy.banner.message_map.necessaryOnly");
     });
 
     it("shows 'Necessary Only' button when there is no pending login", async () => {

@@ -35,4 +35,52 @@ describe("NotificationBottom", () => {
         expect(wrapper.text()).toContain("Important News");
         expect(wrapper.text()).toContain("Read this.");
     });
+
+    it("renders with error state", () => {
+        const wrapper = mount(NotificationBottom, {
+            props: {
+                notification: {
+                    title: "Error",
+                    description: "Something went wrong.",
+                    state: "error",
+                    type: "bottom",
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain("Error");
+        expect(wrapper.text()).toContain("Something went wrong.");
+    });
+
+    it("renders with info state", () => {
+        const wrapper = mount(NotificationBottom, {
+            props: {
+                notification: {
+                    title: "Info",
+                    description: "For your information.",
+                    state: "info",
+                    type: "bottom",
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain("Info");
+        expect(wrapper.text()).toContain("For your information.");
+    });
+
+    it("renders with warning state", () => {
+        const wrapper = mount(NotificationBottom, {
+            props: {
+                notification: {
+                    title: "Warning",
+                    description: "Be careful.",
+                    state: "warning",
+                    type: "bottom",
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain("Warning");
+        expect(wrapper.text()).toContain("Be careful.");
+    });
 });

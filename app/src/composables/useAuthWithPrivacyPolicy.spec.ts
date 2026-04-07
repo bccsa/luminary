@@ -143,4 +143,23 @@ describe("useAuthWithPrivacyPolicy", () => {
             expect(isPrivacyPolicyAccepted.value).toBe(false);
         });
     });
+
+    it("returns fallback object when useAuth0 returns undefined", () => {
+        (useAuth0 as Mock).mockReturnValueOnce(undefined);
+
+        const result = useAuthWithPrivacyPolicy();
+
+        expect(result.isAuthenticated.value).toBe(false);
+        expect(result.user.value).toBeNull();
+        expect(result.logout).toBeInstanceOf(Function);
+        expect(result.loginWithRedirect).toBeInstanceOf(Function);
+        expect(result.completePendingLogin).toBeInstanceOf(Function);
+        expect(result.cancelPendingLogin).toBeInstanceOf(Function);
+
+        // Verify functions are no-ops (don't throw)
+        result.logout();
+        result.loginWithRedirect();
+        result.completePendingLogin();
+        result.cancelPendingLogin();
+    });
 });
