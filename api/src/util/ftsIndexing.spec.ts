@@ -33,6 +33,17 @@ describe("FTS Indexing", () => {
             expect(stripHtml("&#65;")).toBe("A");
             expect(stripHtml("&#x41;")).toBe("A");
         });
+
+        it("should handle invalid entity references as literal text", () => {
+            // & without semicolon within max distance
+            expect(stripHtml("&notavalidEntity;")).toBe("&notavalidEntity;");
+            // & without any semicolon at all
+            expect(stripHtml("&standalone")).toBe("&standalone");
+            // & at end of string
+            expect(stripHtml("test&")).toBe("test&");
+            // Numeric entity with invalid number
+            expect(stripHtml("&#abc;")).toBe("&#abc;");
+        });
     });
 
     describe("normalizeText", () => {

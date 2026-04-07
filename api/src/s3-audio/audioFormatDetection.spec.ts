@@ -123,5 +123,99 @@ describe("Audio Format Detection", () => {
             const result = getAudioFormatInfo(mockMetadata);
             expect(result.isValidAudio).toBe(false);
         });
+
+        it("should detect mpeg codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "mpeg", numberOfChannels: 2 } });
+            expect(result).toEqual({ ext: "mp3", mime: "audio/mpeg", isValidAudio: true });
+        });
+
+        it("should detect pcm codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "pcm", numberOfChannels: 1 } });
+            expect(result).toEqual({ ext: "wav", mime: "audio/wav", isValidAudio: true });
+        });
+
+        it("should detect aac codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "aac", numberOfChannels: 2 } });
+            expect(result).toEqual({ ext: "aac", mime: "audio/aac", isValidAudio: true });
+        });
+
+        it("should detect vorbis codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "vorbis", numberOfChannels: 2 } });
+            expect(result).toEqual({ ext: "ogg", mime: "audio/ogg", isValidAudio: true });
+        });
+
+        it("should detect opus codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "opus", numberOfChannels: 2 } });
+            expect(result).toEqual({ ext: "opus", mime: "audio/opus", isValidAudio: true });
+        });
+
+        it("should detect flac codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "flac", numberOfChannels: 2 } });
+            expect(result).toEqual({ ext: "flac", mime: "audio/flac", isValidAudio: true });
+        });
+
+        it("should detect wav codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "wav", numberOfChannels: 1 } });
+            expect(result).toEqual({ ext: "wav", mime: "audio/wav", isValidAudio: true });
+        });
+
+        it("should detect aac/adts container", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "adts", numberOfChannels: 2 },
+            });
+            expect(result).toEqual({ ext: "aac", mime: "audio/aac", isValidAudio: true });
+        });
+
+        it("should detect ogg container", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "ogg", numberOfChannels: 2 },
+            });
+            expect(result).toEqual({ ext: "ogg", mime: "audio/ogg", isValidAudio: true });
+        });
+
+        it("should detect opus container", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "opus_stream", numberOfChannels: 2 },
+            });
+            expect(result).toEqual({ ext: "opus", mime: "audio/opus", isValidAudio: true });
+        });
+
+        it("should detect flac container", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "flac_native", numberOfChannels: 2 },
+            });
+            expect(result).toEqual({ ext: "flac", mime: "audio/flac", isValidAudio: true });
+        });
+
+        it("should handle undefined numberOfChannels", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "unknown", numberOfChannels: undefined },
+            });
+            expect(result.isValidAudio).toBe(false);
+        });
+
+        it("should handle case-insensitive codec", () => {
+            const result = getAudioFormatInfo({ format: { codec: "MP3", numberOfChannels: 2 } });
+            expect(result.ext).toBe("mp3");
+        });
+
+        it("should handle no codec and no container", () => {
+            const result = getAudioFormatInfo({
+                format: { container: "", numberOfChannels: 1 },
+            });
+            expect(result.isValidAudio).toBe(true);
+            expect(result.ext).toBe("bin");
+        });
+
+        it("should detect opus and flac from getFormatFromFilename", () => {
+            expect(getFormatFromFilename("track.opus")).toEqual({
+                ext: "opus",
+                mime: "audio/opus",
+            });
+            expect(getFormatFromFilename("track.flac")).toEqual({
+                ext: "flac",
+                mime: "audio/flac",
+            });
+        });
     });
 });

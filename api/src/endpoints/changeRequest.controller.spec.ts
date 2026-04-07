@@ -603,6 +603,55 @@ describe("ChangeRequestController", () => {
             });
         });
 
+        it("should recover from concatenated JSON in multipart", async () => {
+            const responseData = { success: true };
+            mockChangeRequest.mockResolvedValue(responseData);
+
+            // Simulate concatenated JSON (two JSON objects back to back)
+            const firstJson = JSON.stringify({ old: "data" });
+            const secondJson = JSON.stringify({
+                apiVersion: "0.0.0",
+                doc: { _id: "post-concat", type: "post" },
+            });
+            const concatenated = firstJson + secondJson;
+
+            const response = await request(app.getHttpServer())
+                .post("/changerequest")
+                .set("Authorization", "Bearer fake-token")
+                .field("changeRequest__json", concatenated);
+
+            expect(response.status).toBe(201);
+            expect(mockChangeRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    doc: expect.objectContaining({ _id: "post-concat" }),
+                }),
+                "fake-token",
+            );
+        });
+
+        it("should set apiVersion from body when missing from changeRequest", async () => {
+            const responseData = { success: true };
+            mockChangeRequest.mockResolvedValue(responseData);
+
+            const changeRequest = {
+                doc: { _id: "post-no-version", type: "post" },
+            };
+
+            const response = await request(app.getHttpServer())
+                .post("/changerequest")
+                .set("Authorization", "Bearer fake-token")
+                .field("apiVersion", "2.0.0")
+                .field("changeRequest__json", JSON.stringify(changeRequest));
+
+            expect(response.status).toBe(201);
+            expect(mockChangeRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    apiVersion: "2.0.0",
+                }),
+                "fake-token",
+            );
+        });
+
         it("should handle request without files (JSON only)", async () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);

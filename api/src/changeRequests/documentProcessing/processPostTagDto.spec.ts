@@ -301,6 +301,247 @@ describe("processPostTagDto", () => {
         expect(processResult.result.ok).toBe(true);
     });
 
+    it("warns when image processing returns warnings during deletion", async () => {
+        (processImage as jest.Mock).mockResolvedValueOnce({
+            warnings: ["Image cleanup warning"],
+        });
+
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-delete-img-warn";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
+            ],
+        };
+        changeRequest.doc.deleteReq = 1;
+
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(result.warnings).toContain("Image cleanup warning");
+    });
+
+    it("warns when media processing returns warnings during deletion", async () => {
+        (processMedia as jest.Mock).mockResolvedValueOnce({
+            warnings: ["Media cleanup warning"],
+        });
+
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-delete-med-warn";
+        (changeRequest.doc as PostDto).mediaBucketId = "test-bucket";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
+            ],
+        };
+        changeRequest.doc.deleteReq = 1;
+
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(result.warnings).toContain("Media cleanup warning");
+    });
+
+    it("calls processImage without bucketId when imageBucketId is not specified", async () => {
+        (processImage as jest.Mock).mockResolvedValueOnce({ warnings: ["Bucket is not specified for image processing."] });
+
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-no-img-bucket";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
+            ],
+        };
+        delete (changeRequest.doc as any).imageBucketId;
+
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(processImage).toHaveBeenCalledWith(
+            expect.anything(),
+            undefined, // prevDoc.imageData
+            db,
+            undefined, // no bucketId
+            undefined, // no prevBucketId
+        );
+        expect(result.warnings).toContain("Bucket is not specified for image processing.");
+    });
+
+    it("reverts imageBucketId when image migration fails", async () => {
+        // First create the post with old bucket
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-img-migrate-fail";
+        (changeRequest.doc as PostDto).imageBucketId = "old-bucket";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
+            ],
+        };
+        (processImage as jest.Mock).mockResolvedValueOnce({ warnings: [] });
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        // Now update with new bucket that fails migration
+        (processImage as jest.Mock).mockResolvedValueOnce({
+            warnings: [],
+            migrationFailed: true,
+        });
+        (changeRequest.doc as PostDto).imageBucketId = "new-bucket";
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(result.warnings.some((w) => w.includes("Image migration failed"))).toBe(true);
+    });
+
+    it("reverts imageBucketId when processImage throws an error", async () => {
+        // First create the post with old bucket
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-img-throw";
+        (changeRequest.doc as PostDto).imageBucketId = "old-bucket";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
+            ],
+        };
+        (processImage as jest.Mock).mockResolvedValueOnce({ warnings: [] });
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        // Now update with new bucket where processImage throws
+        (processImage as jest.Mock).mockRejectedValueOnce(new Error("S3 connection failed"));
+        (changeRequest.doc as PostDto).imageBucketId = "new-bucket";
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(
+            result.warnings.some((w) => w.includes("Bucket image processing failed")),
+        ).toBe(true);
+    });
+
+    it("throws when mediaBucketId is not specified for non-deletion", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-no-med-bucket";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
+            ],
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).rejects.toThrow("Bucket is not specified for media processing");
+    });
+
+    it("reverts mediaBucketId when media migration fails", async () => {
+        // First create the post with old bucket
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-med-migrate-fail";
+        (changeRequest.doc as PostDto).mediaBucketId = "old-media-bucket";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
+            ],
+        };
+        (processMedia as jest.Mock).mockResolvedValueOnce({ warnings: [] });
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        // Now update with new bucket that fails migration
+        (processMedia as jest.Mock).mockResolvedValueOnce({
+            warnings: [],
+            migrationFailed: true,
+        });
+        (changeRequest.doc as PostDto).mediaBucketId = "new-media-bucket";
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(result.warnings.some((w) => w.includes("Media migration failed"))).toBe(true);
+    });
+
+    it("reverts mediaBucketId when processMedia throws an error", async () => {
+        // First create the post with old bucket
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-med-throw";
+        (changeRequest.doc as PostDto).mediaBucketId = "old-media-bucket";
+        (changeRequest.doc as PostDto).media = {
+            fileCollections: [
+                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
+            ],
+        };
+        (processMedia as jest.Mock).mockResolvedValueOnce({ warnings: [] });
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        // Now update with new bucket where processMedia throws
+        (processMedia as jest.Mock).mockRejectedValueOnce(new Error("Media processing failed"));
+        (changeRequest.doc as PostDto).mediaBucketId = "new-media-bucket";
+        const result = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
+
+        expect(
+            result.warnings.some((w) => w.includes("Bucket media processing failed")),
+        ).toBe(true);
+    });
+
+    it("copies tag properties to content documents for Tag type", async () => {
+        // Create a tag document
+        const tagChangeRequest: ChangeReqDto = {
+            doc: {
+                _id: "tag-test-type",
+                type: "tag",
+                memberOf: ["group-public-content"],
+                tags: [],
+                publishDateVisible: true,
+                tagType: "category",
+                pinned: false,
+            } as any,
+        };
+
+        await processChangeRequest("test-user", tagChangeRequest, ["group-super-admins"], db);
+
+        // Create a content document as child of the tag
+        const contentChangeRequest = changeRequest_content();
+        contentChangeRequest.doc._id = "content-tag-child";
+        contentChangeRequest.doc.parentId = "tag-test-type";
+
+        await processChangeRequest("test-user", contentChangeRequest, ["group-super-admins"], db);
+
+        // Update the tag to trigger property copying
+        tagChangeRequest.doc.tags = [];
+        await processChangeRequest("test-user", tagChangeRequest, ["group-super-admins"], db);
+
+        const contentDoc = await db.getDoc("content-tag-child");
+        if (contentDoc.docs.length > 0) {
+            expect(contentDoc.docs[0].parentTagType).toBe("category");
+            expect(contentDoc.docs[0].parentPinned).toBeFalsy();
+        }
+    });
+
     it("can remove media from S3 when a post/tag document is marked for deletion", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog8";

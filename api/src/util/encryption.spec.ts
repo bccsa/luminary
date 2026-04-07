@@ -1,4 +1,12 @@
-import { encrypt, decrypt, encryptObject, decryptObject, resetEncryptionKey } from "./encryption";
+import {
+    encrypt,
+    decrypt,
+    encryptObject,
+    decryptObject,
+    resetEncryptionKey,
+    retrieveCryptoData,
+    storeCryptoData,
+} from "./encryption";
 import { S3CredentialDto } from "../dto/S3CredentialDto";
 
 describe("Encryption", () => {
@@ -120,5 +128,85 @@ describe("Encryption", () => {
         const decrypted = await decryptObject<typeof originalObject>(encrypted);
 
         expect(decrypted).toEqual(originalObject);
+    });
+
+    describe("retrieveCryptoData", () => {
+        it("should throw when document is not found", async () => {
+            const mockDb = {
+                getDoc: jest.fn().mockResolvedValue({ docs: [] }),
+            } as any;
+
+            await expect(retrieveCryptoData(mockDb, "nonexistent-id")).rejects.toThrow(
+                "Data not found for id: nonexistent-id",
+            );
+        });
+
+        it("should throw when encrypted data format is invalid", async () => {
+            const mockDb = {
+                getDoc: jest.fn().mockResolvedValue({
+                    docs: [{ _id: "test-id", data: {} }],
+                }),
+            } as any;
+
+            await expect(retrieveCryptoData(mockDb, "test-id")).rejects.toThrow(
+                "Invalid encrypted data format for id: test-id",
+            );
+        });
+
+        it("should retrieve and decrypt data successfully", async () => {
+            const testData = { key: "value", secret: "data" };
+            const encrypted = await encryptObject(testData);
+
+            const mockDb = {
+                getDoc: jest.fn().mockResolvedValue({
+                    docs: [{ _id: "test-id", data: { encrypted } }],
+                }),
+            } as any;
+
+            const result = await retrieveCryptoData(mockDb, "test-id");
+            expect(result).toEqual(testData);
+        });
+
+        it("should initialize key if not already initialized", async () => {
+            // Reset key and ensure ENCRYPTION_KEY is set
+            resetEncryptionKey();
+            process.env.ENCRYPTION_KEY = mockEncryptionKey;
+
+            const testData = { test: "data" };
+            const encrypted = await encryptObject(testData);
+
+            // Reset key again to force re-initialization
+            resetEncryptionKey();
+
+            const mockDb = {
+                getDoc: jest.fn().mockResolvedValue({
+                    docs: [{ _id: "id", data: { encrypted } }],
+                }),
+            } as any;
+
+            const result = await retrieveCryptoData(mockDb, "id");
+            expect(result).toEqual(testData);
+        });
+    });
+
+    describe("storeCryptoData", () => {
+        it("should encrypt and store data, returning the document id", async () => {
+            const mockDb = {
+                upsertDoc: jest.fn().mockResolvedValue({ id: "crypto-doc-id" }),
+            } as any;
+
+            const testData = { key: "value" };
+            const id = await storeCryptoData(mockDb, testData);
+
+            expect(id).toBe("crypto-doc-id");
+            expect(mockDb.upsertDoc).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: "crypto",
+                    data: expect.objectContaining({
+                        encrypted: expect.any(String),
+                    }),
+                }),
+            );
+        });
     });
 });

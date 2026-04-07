@@ -16,11 +16,20 @@ describe("processMediaDto", () => {
     let testBucket: string;
     const resMedia: MediaDto[] = [];
 
+    const s3Endpoint = process.env.S3_ENDPOINT || "127.0.0.1";
+    const s3Port = process.env.S3_PORT || "9000";
+    const s3AccessKey = process.env.S3_ACCESS_KEY || "minio";
+    const s3SecretKey = process.env.S3_SECRET_KEY || "minio123";
+    const s3UseSsl = process.env.S3_USE_SSL === "true";
+    const s3Protocol = s3UseSsl ? "https" : "http";
+    const s3BaseUrl = `${s3Protocol}://${s3Endpoint}:${s3Port}`;
+    const s3PublicUrl = process.env.S3_PUBLIC_URL || "http://localhost:9000";
+
     const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
+        endpoint: s3BaseUrl,
         bucketName: "", // Will be set in beforeAll
-        accessKey: "minio",
-        secretKey: "minio123",
+        accessKey: s3AccessKey,
+        secretKey: s3SecretKey,
     };
 
     beforeAll(async () => {
@@ -40,7 +49,7 @@ describe("processMediaDto", () => {
             type: DocType.Storage,
             name: "Test Media Bucket",
             mimeTypes: ["audio/*"],
-            publicUrl: `http://127.0.0.1:9000/${testBucket}`,
+            publicUrl: `${s3PublicUrl}/${testBucket}`,
             storageType: StorageType.Media,
             credential_id: encryptedCredId,
             memberOf: ["group-super-admins"],
@@ -273,6 +282,70 @@ describe("processMediaDto", () => {
         expect(media2.fileCollections[0].fileUrl).not.toBe(firstFileUrl);
 
         resMedia.push(media2);
+    });
+
+    it("should warn when parentBucketId is not provided for upload", async () => {
+        const media = new MediaDto();
+        media.fileCollections = [];
+        media.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
+                ) as unknown as ArrayBuffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+                languageId: "lang-eng",
+            },
+        ];
+
+        // Call without parentBucketId (undefined)
+        const result = await processMedia(media, undefined, db, undefined);
+
+        // Should have a warning about missing bucket
+        expect(result.warnings.length).toBeGreaterThan(0);
+    });
+
+    it("should warn when bucket document is not found", async () => {
+        const media = new MediaDto();
+        media.fileCollections = [];
+        media.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
+                ) as unknown as ArrayBuffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+                languageId: "lang-eng",
+            },
+        ];
+
+        // Call with a non-existent bucket ID
+        const result = await processMedia(media, undefined, db, "nonexistent-bucket-id");
+
+        // Should have warnings about bucket not found
+        expect(result.warnings.length).toBeGreaterThan(0);
+    });
+
+    it("should warn when db is not provided for file deletion", async () => {
+        const media = new MediaDto();
+        media.fileCollections = [];
+
+        const prevMedia = new MediaDto();
+        prevMedia.fileCollections = [
+            {
+                languageId: "lang-eng",
+                fileUrl: `http://localhost:9000/test/some-file-key`,
+                bitrate: 128,
+                mediaType: MediaType.Audio,
+            },
+        ];
+
+        // Call with no db and no parentBucketId - files to delete but no way to delete them
+        const result = await processMedia(media, prevMedia, undefined as any, undefined);
+
+        expect(result.warnings.some((w) => w.includes("cannot be automatically deleted"))).toBe(
+            true,
+        );
     });
 
     it("should delete media file from S3 when removed from fileCollections", async () => {

@@ -17,11 +17,20 @@ describe("S3ImageHandler", () => {
     let testBucketId: string;
     const resImages: ImageDto[] = [];
 
+    const s3Endpoint = process.env.S3_ENDPOINT || "127.0.0.1";
+    const s3Port = process.env.S3_PORT || "9000";
+    const s3AccessKey = process.env.S3_ACCESS_KEY || "minio";
+    const s3SecretKey = process.env.S3_SECRET_KEY || "minio123";
+    const s3UseSsl = process.env.S3_USE_SSL === "true";
+    const s3Protocol = s3UseSsl ? "https" : "http";
+    const s3BaseUrl = `${s3Protocol}://${s3Endpoint}:${s3Port}`;
+    const s3PublicUrl = process.env.S3_PUBLIC_URL || "http://localhost:9000";
+
     const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
+        endpoint: s3BaseUrl,
         bucketName: "", // Will be set in beforeAll
-        accessKey: "minio",
-        secretKey: "minio123",
+        accessKey: s3AccessKey,
+        secretKey: s3SecretKey,
     };
 
     beforeAll(async () => {
@@ -40,7 +49,7 @@ describe("S3ImageHandler", () => {
             type: DocType.Storage,
             name: "Test Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: `http://127.0.0.1:9000/${testBucket}`,
+            publicUrl: `${s3PublicUrl}/${testBucket}`,
             StorageType: StorageType.Image,
             credential_id: encryptedCredId,
         };
@@ -169,11 +178,20 @@ describe("S3ImageHandler - Bucket Migration", () => {
     let sourceService: S3Service;
     let targetService: S3Service;
 
+    const s3Endpoint = process.env.S3_ENDPOINT || "127.0.0.1";
+    const s3Port = process.env.S3_PORT || "9000";
+    const s3AccessKey = process.env.S3_ACCESS_KEY || "minio";
+    const s3SecretKey = process.env.S3_SECRET_KEY || "minio123";
+    const s3UseSsl = process.env.S3_USE_SSL === "true";
+    const s3Protocol = s3UseSsl ? "https" : "http";
+    const s3BaseUrl = `${s3Protocol}://${s3Endpoint}:${s3Port}`;
+    const s3PublicUrl = process.env.S3_PUBLIC_URL || "http://localhost:9000";
+
     const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
+        endpoint: s3BaseUrl,
         bucketName: "test-bucket", // placeholder
-        accessKey: "minio",
-        secretKey: "minio123",
+        accessKey: s3AccessKey,
+        secretKey: s3SecretKey,
     };
 
     beforeAll(async () => {
@@ -207,7 +225,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Source Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${sourceBucket}`,
+            publicUrl: `${s3PublicUrl}/${sourceBucket}`,
             mimeTypes: ["image/*"],
             credential_id: sourceCredId,
             updatedTimeUtc: Date.now(),
@@ -218,7 +236,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Target Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${targetBucket}`,
+            publicUrl: `${s3PublicUrl}/${targetBucket}`,
             mimeTypes: ["image/*"],
             credential_id: targetCredId,
             updatedTimeUtc: Date.now(),
@@ -449,10 +467,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
         const invalidBucketId = `storage-${uuidv4()}`;
         const invalidBucketName = `nonexistent-bucket-${uuidv4()}`;
         const invalidCredId = await storeCryptoData(dbService, {
-            endpoint: "http://127.0.0.1:9000",
+            endpoint: s3BaseUrl,
             bucketName: invalidBucketName,
-            accessKey: "minio",
-            secretKey: "minio123",
+            accessKey: s3AccessKey,
+            secretKey: s3SecretKey,
         });
 
         const invalidBucketDto: StorageDto = {
@@ -461,7 +479,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Invalid Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${invalidBucketName}`,
+            publicUrl: `${s3PublicUrl}/${invalidBucketName}`,
             mimeTypes: ["image/*"],
             credential_id: invalidCredId,
             updatedTimeUtc: Date.now(),
@@ -518,11 +536,20 @@ describe("S3ImageHandler - File Type Validation", () => {
     let allowAllBucketDto: StorageDto;
     let restrictedService: S3Service;
 
+    const s3Endpoint = process.env.S3_ENDPOINT || "127.0.0.1";
+    const s3Port = process.env.S3_PORT || "9000";
+    const s3AccessKey = process.env.S3_ACCESS_KEY || "minio";
+    const s3SecretKey = process.env.S3_SECRET_KEY || "minio123";
+    const s3UseSsl = process.env.S3_USE_SSL === "true";
+    const s3Protocol = s3UseSsl ? "https" : "http";
+    const s3BaseUrl = `${s3Protocol}://${s3Endpoint}:${s3Port}`;
+    const s3PublicUrl = process.env.S3_PUBLIC_URL || "http://localhost:9000";
+
     const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
+        endpoint: s3BaseUrl,
         bucketName: "", // will be set in beforeAll
-        accessKey: "minio",
-        secretKey: "minio123",
+        accessKey: s3AccessKey,
+        secretKey: s3SecretKey,
     };
 
     beforeAll(async () => {
@@ -552,7 +579,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             memberOf: ["group-public-content"],
             name: `Restricted Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${testBucket}/restricted`,
+            publicUrl: `${s3PublicUrl}/${testBucket}/restricted`,
             mimeTypes: ["image/jpeg", "image/png"],
             credential_id: restrictedCredId,
             updatedTimeUtc: Date.now(),
@@ -565,7 +592,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             memberOf: ["group-public-content"],
             name: `Allow All Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${testBucket}/allow-all`,
+            publicUrl: `${s3PublicUrl}/${testBucket}/allow-all`,
             mimeTypes: [],
             credential_id: allowAllCredId,
             updatedTimeUtc: Date.now(),

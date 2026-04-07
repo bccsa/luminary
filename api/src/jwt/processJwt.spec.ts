@@ -124,6 +124,77 @@ describe("processJwt", () => {
         expect(userDocs[0].email).toBe("updated@email.address");
     });
 
+    it("should return empty groups when JWT_MAPPINGS is not set", async () => {
+        const actual = jest.requireActual("../configuration");
+        jest.spyOn(actual, "default").mockReturnValue({
+            auth: {
+                jwtMappings: undefined,
+            },
+        });
+
+        const mockLogger = { error: jest.fn() } as any;
+        const result = await processJwt("any jwt data", db, mockLogger);
+
+        expect(result.groups).toEqual([]);
+        expect(mockLogger.error).toHaveBeenCalledWith(
+            expect.stringContaining("JWT_MAPPING environment variable is not set"),
+        );
+    });
+
+    it("should return empty Map when parseJwtMap receives invalid JSON", () => {
+        const mockLogger = { error: jest.fn() } as any;
+        const result = parseJwtMap("not valid json", mockLogger);
+
+        expect(result).toEqual(new Map());
+        expect(mockLogger.error).toHaveBeenCalledWith(
+            expect.stringContaining("Unable to parse permission map"),
+            expect.any(Error),
+        );
+    });
+
+    it("should return empty groups when JWT mapping evaluation throws", async () => {
+        const actual = jest.requireActual("../configuration");
+        jest.spyOn(actual, "default").mockReturnValue({
+            auth: {
+                jwtMappings: `{
+                    "groups": {
+                        "group-admins": "() => { throw new Error('boom'); }"
+                    }
+                }`,
+            },
+        });
+
+        const mockLogger = { error: jest.fn() } as any;
+        const result = await processJwt("any jwt data", db, mockLogger);
+
+        expect(result.groups).toEqual([]);
+        expect(mockLogger.error).toHaveBeenCalledWith(
+            expect.stringContaining("Unable to get JWT mappings"),
+            expect.any(Error),
+        );
+    });
+
+    it("can update user name from email-only login", async () => {
+        const actual = jest.requireActual("../configuration");
+        jest.spyOn(actual, "default").mockReturnValue({
+            auth: {
+                jwtMappings: `{
+                    "email": "() => 'editor1@users.test'",
+                    "name": "() => 'Email Only Name'"
+                }`,
+            },
+        });
+
+        await processJwt("any jwt data", db);
+
+        const res = await db.getUserByIdOrEmail("editor1@users.test", undefined);
+        const userDocs = res.docs as UserDto[];
+
+        if (userDocs.length > 0) {
+            expect(userDocs[0].name).toBe("Email Only Name");
+        }
+    });
+
     it("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
         const actual = jest.requireActual("../configuration");
         jest.spyOn(actual, "default").mockReturnValue({

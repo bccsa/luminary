@@ -138,6 +138,59 @@ describe("processStorageDto", () => {
         expect(Array.isArray(warnings)).toBe(true);
     });
 
+    it("returns warning when deleting credential fails during deletion", async () => {
+        const storageChangeRequest = changeRequest_storage();
+        const doc = storageChangeRequest.doc;
+        doc.deleteReq = 1;
+
+        const prevDoc = { ...doc, credential_id: "nonexistent-cred-id" } as any;
+
+        // Mock deleteDoc to fail
+        const originalDeleteDoc = db.deleteDoc.bind(db);
+        jest.spyOn(db, "deleteDoc").mockRejectedValueOnce(new Error("Not found"));
+
+        const warnings = await processStorageDto(doc, prevDoc, db);
+
+        expect(warnings.some((w) => w.includes("Failed to delete encrypted credential storage"))).toBe(true);
+
+        jest.restoreAllMocks();
+    });
+
+    it("returns warning when deleting old credentials fails during update", async () => {
+        const storageChangeRequest = changeRequest_storage();
+        const doc = storageChangeRequest.doc;
+        doc.credential_id = "old-cred-id";
+
+        const prevDoc = { ...doc, credential_id: "old-cred-id" } as any;
+
+        await db.upsertDoc(doc);
+
+        // Mock deleteDoc to fail
+        jest.spyOn(db, "deleteDoc").mockRejectedValueOnce(new Error("Delete failed"));
+
+        const warnings = await processStorageDto(doc, prevDoc, db);
+
+        expect(warnings.some((w) => w.includes("Failed to remove previous credentials"))).toBe(true);
+
+        jest.restoreAllMocks();
+    });
+
+    it("throws when encryption fails", async () => {
+        const storageChangeRequest = changeRequest_storage();
+        const doc = storageChangeRequest.doc;
+
+        await db.upsertDoc(doc);
+
+        // Mock storeCryptoData to throw by making upsertDoc fail
+        jest.spyOn(db, "upsertDoc").mockRejectedValueOnce(new Error("DB write failed"));
+
+        await expect(processStorageDto(doc, undefined, db)).rejects.toThrow(
+            "Failed to encrypt S3 credentials",
+        );
+
+        jest.restoreAllMocks();
+    });
+
     it("deletes a bucket when document is marked for deletion and the data encrypted document", async () => {
         const storageChangeRequest = changeRequest_storage();
         const doc = storageChangeRequest.doc;
