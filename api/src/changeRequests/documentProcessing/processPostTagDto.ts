@@ -159,6 +159,7 @@ export default async function processPostTagDto(
         }
 
         contentDoc.parentPublishDateVisible = doc.publishDateVisible;
+        contentDoc.parentShowComingSoon = doc.showComingSoon;
         await db.upsertDoc(contentDoc);
     }
 
