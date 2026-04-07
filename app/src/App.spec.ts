@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { ref } from "vue";
+import { defineComponent, ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -15,11 +15,45 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
+import { MediaPlayerKey } from "@/platform/tokens";
+import type { MediaPlayerService } from "@/platform/contracts/media-player";
+
+const mockMediaPlayerService: MediaPlayerService = {
+    supportsBackgroundPlayback: false,
+    getGlobalAudioPlayerComponent: () =>
+        defineComponent({ name: "MockGlobalAudioPlayer", template: "<div />" }),
+    attachAudioElement: () => {},
+    detachAudioElement: () => {},
+    play: async () => {},
+    pause: () => {},
+    seekTo: () => {},
+    seekBy: () => {},
+    setPlaybackRate: () => {},
+    getState: () => ({
+        status: "idle",
+        isPlaying: false,
+        currentTimeSeconds: 0,
+        durationSeconds: 0,
+        playbackRate: 1,
+    }),
+    onStateChange: () => () => {},
+};
 
 const routeReplaceMock = vi.fn();
 const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function mountApp() {
+    return mount(App, {
+        shallow: true,
+        global: {
+            provide: {
+                [MediaPlayerKey]: mockMediaPlayerService,
+            },
+        },
+    });
+}
 
 describe("App", () => {
     beforeEach(() => {
@@ -81,9 +115,7 @@ describe("App", () => {
             const notificationStore = useNotificationStore();
             isConnected.value = false;
 
-            mount(App, {
-                shallow: true,
-            });
+            mountApp();
 
             await wait(4000);
 
@@ -115,9 +147,7 @@ describe("App", () => {
 
             const notificationStore = useNotificationStore();
 
-            mount(App, {
-                shallow: true,
-            });
+            mountApp();
 
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
@@ -135,9 +165,7 @@ describe("App", () => {
         it("applies the correct theme class on mount - dark mode", () => {
             theme.value = "dark";
 
-            mount(App, {
-                shallow: true,
-            });
+            mountApp();
 
             expect(document.documentElement.classList.contains("dark")).toBe(true);
         });
@@ -145,9 +173,7 @@ describe("App", () => {
         it("applies the correct theme class on mount - light mode", () => {
             theme.value = "light";
 
-            mount(App, {
-                shallow: true,
-            });
+            mountApp();
 
             expect(document.documentElement.classList.contains("dark")).toBe(false);
         });
