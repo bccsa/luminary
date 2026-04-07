@@ -12,7 +12,7 @@ import {
     getLanguageSets,
 } from "./utils";
 import { trim } from "./trim";
-import { syncList } from "./state";
+import { syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
 
 let _httpService: HttpReq<any>;
@@ -32,6 +32,32 @@ export let cancelSync = false;
 export async function initSync(httpService: HttpReq<any>) {
     _httpService = httpService;
     await db.getSyncList();
+
+    // Validate entries — if any are corrupted, discard the entire list
+    // so the sync rebuilds from scratch
+    const isValid = syncList.value.every(
+        (entry) =>
+            entry.chunkType &&
+            Array.isArray(entry.memberOf) &&
+            entry.memberOf.length > 0 &&
+            Number.isFinite(entry.blockStart) &&
+            Number.isFinite(entry.blockEnd) &&
+            entry.blockStart >= 0 &&
+            entry.blockEnd >= 0 &&
+            entry.blockStart < Number.MAX_SAFE_INTEGER &&
+            entry.blockStart >= entry.blockEnd &&
+            // Detect merge regression: eof with only syncTolerance coverage
+            !(
+                entry.eof === true &&
+                entry.blockEnd > 0 &&
+                entry.blockStart - entry.blockEnd <= syncTolerance
+            ),
+    );
+
+    if (!isValid) {
+        syncList.value = [];
+        await db.setSyncList();
+    }
 }
 
 /**
