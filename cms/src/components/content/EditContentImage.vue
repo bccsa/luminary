@@ -13,8 +13,11 @@ type Props = {
     tagOrPostType: TagType | PostType;
     disabled: boolean;
     newDocument?: boolean;
+    embedded?: boolean;
 };
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    embedded: false,
+});
 
 const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
@@ -86,62 +89,125 @@ const handleFileChange = () => {
 </script>
 
 <template>
-    <LCard
-        v-if="parent"
-        title="Image"
-        :icon="PhotoIcon"
-        :collapsed="newDocument ? false : true"
-        collapsible
-        class="bg-white"
-    >
-        <template #actions>
-            <div>
-                <LButton
-                    v-if="isBucketSelected"
-                    :icon="ArrowUpOnSquareIcon"
-                    size="base"
-                    :disabled="disabled || !isBucketSelected"
-                    @click.stop="triggerFilePicker"
-                    :title="!isBucketSelected ? 'Please select a storage bucket first' : ''"
-                >
-                    <span class="block sm:hidden">Upload Image</span>
-                    <span class="hidden text-sm sm:inline">Upload</span>
-                </LButton>
+    <div v-if="parent">
+        <LCard
+            v-if="!props.embedded"
+            title="Image"
+            :icon="PhotoIcon"
+            :collapsed="newDocument ? false : true"
+            collapsible
+            class="bg-white"
+        >
+            <template #actions>
+                <div>
+                    <LButton
+                        v-if="isBucketSelected"
+                        :icon="ArrowUpOnSquareIcon"
+                        size="base"
+                        :disabled="disabled || !isBucketSelected"
+                        @click.stop="triggerFilePicker"
+                        :title="!isBucketSelected ? 'Please select a storage bucket first' : ''"
+                    >
+                        <span class="block sm:hidden">Upload Image</span>
+                        <span class="hidden text-sm sm:inline">Upload</span>
+                    </LButton>
 
-                <input
-                    ref="uploadInput"
-                    type="file"
-                    class="hidden"
-                    :accept="acceptedmimeTypes"
-                    multiple
-                    @change="handleFileChange"
+                    <input
+                        ref="uploadInput"
+                        type="file"
+                        class="hidden"
+                        :accept="acceptedmimeTypes"
+                        multiple
+                        @change="handleFileChange"
+                    />
+                </div>
+                <button
+                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    @click.stop="showHelp = !showHelp"
+                >
+                    <QuestionMarkCircleIcon class="h-5 w-5" />
+                </button>
+            </template>
+            <div v-if="showHelp">
+                <p class="my-2 text-xs">
+                    You can upload several files in different aspect ratios. The most suitable image
+                    will automatically be displayed based on the aspect ratio of the image element where
+                    the image is displayed.
+                </p>
+                <p class="mb-2 text-xs">
+                    Uploaded images are automatically scaled for various screen and display sizes.
+                </p>
+            </div>
+
+            <ImageEditor
+                ref="imageEditorRef"
+                :disabled="disabled"
+                :existing-images-bucket-id="existingImagesBucketId"
+                v-model:parent="parent"
+                class="scrollbar-hide"
+                @bucket-selected="() => {}"
+            />
+        </LCard>
+
+        <div v-else>
+            <div class="flex items-center justify-between gap-3 px-1">
+                <div class="flex items-center gap-2">
+                    <PhotoIcon class="h-4 w-4 text-zinc-600" />
+                    <h3 class="text-sm font-semibold leading-6 text-zinc-900">Image</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <LButton
+                        v-if="isBucketSelected"
+                        :icon="ArrowUpOnSquareIcon"
+                        size="base"
+                        :disabled="disabled || !isBucketSelected"
+                        @click.stop="triggerFilePicker"
+                        :title="!isBucketSelected ? 'Please select a storage bucket first' : ''"
+                    >
+                        <span class="block sm:hidden">Upload Image</span>
+                        <span class="hidden text-sm sm:inline">Upload</span>
+                    </LButton>
+                    <button
+                        class="flex cursor-pointer items-center gap-1 rounded-md"
+                        @click.stop="showHelp = !showHelp"
+                        aria-label="Image help"
+                        type="button"
+                    >
+                        <QuestionMarkCircleIcon class="h-5 w-5" />
+                    </button>
+                </div>
+            </div>
+
+            <input
+                ref="uploadInput"
+                type="file"
+                class="hidden"
+                :accept="acceptedmimeTypes"
+                multiple
+                @change="handleFileChange"
+            />
+
+            <div v-if="showHelp" class="mt-2">
+                <p class="my-2 text-xs">
+                    You can upload several files in different aspect ratios. The most suitable image
+                    will automatically be displayed based on the aspect ratio of the image element where
+                    the image is displayed.
+                </p>
+                <p class="mb-2 text-xs">
+                    Uploaded images are automatically scaled for various screen and display sizes.
+                </p>
+            </div>
+
+            <div class="mt-2">
+                <ImageEditor
+                    ref="imageEditorRef"
+                    :disabled="disabled"
+                    :existing-images-bucket-id="existingImagesBucketId"
+                    v-model:parent="parent"
+                    class="scrollbar-hide"
+                    @bucket-selected="() => {}"
                 />
             </div>
-            <button
-                class="flex cursor-pointer items-center gap-1 rounded-md"
-                @click.stop="showHelp = !showHelp"
-            >
-                <QuestionMarkCircleIcon class="h-5 w-5" />
-            </button>
-        </template>
-        <div v-if="showHelp">
-            <p class="my-2 text-xs">
-                You can upload several files in different aspect ratios. The most suitable image
-                will automatically be displayed based on the aspect ratio of the image element where
-                the image is displayed.
-            </p>
-            <p class="mb-2 text-xs">
-                Uploaded images are automatically scaled for various screen and display sizes.
-            </p>
         </div>
-
-        <ImageEditor
-            ref="imageEditorRef"
-            :disabled="disabled"
-            :existing-images-bucket-id="existingImagesBucketId"
-            v-model:parent="parent"
-            class="scrollbar-hide"
-            @bucket-selected="() => {}"
-        />
-    </LCard>
+    </div>
 </template>
