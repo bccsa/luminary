@@ -131,7 +131,6 @@ describe("Search service", () => {
 
     it("handles db.search errors gracefully", async () => {
         // Mock db.search to throw
-        const originalSearch = service.search.bind(service);
         jest.spyOn(service, "search").mockRejectedValueOnce(new Error("DB error"));
 
         const req: SearchReqDto = {

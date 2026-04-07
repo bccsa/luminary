@@ -146,7 +146,6 @@ describe("processStorageDto", () => {
         const prevDoc = { ...doc, credential_id: "nonexistent-cred-id" } as any;
 
         // Mock deleteDoc to fail
-        const originalDeleteDoc = db.deleteDoc.bind(db);
         jest.spyOn(db, "deleteDoc").mockRejectedValueOnce(new Error("Not found"));
 
         const warnings = await processStorageDto(doc, prevDoc, db);

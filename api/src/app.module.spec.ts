@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { AppModule } from "./app.module";
 
 describe("AppModule", () => {

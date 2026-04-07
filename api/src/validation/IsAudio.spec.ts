@@ -1,4 +1,3 @@
-import { validateSync } from "class-validator";
 import { IsAudio } from "./IsAudio";
 
 class TestClass {
