@@ -148,4 +148,121 @@ describe("LFormData (images)", () => {
         expect(entries[`bufferDoc__file__${id}`]).toBeDefined();
         expect(entries[`bufferDoc__file__${id}`]).toHaveProperty("size");
     });
+
+    it("handles TypedArray (ArrayBufferView) binary data", () => {
+        const typedArray = new Uint8Array([1, 2, 3, 4]);
+
+        const form = new LFormData();
+        form.append("typedDoc", { fileData: typedArray, label: "typed" });
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["typedDoc__json"]);
+        expect(typeof jsonData.fileData).toBe("string");
+        expect(jsonData.fileData).toMatch(/^BINARY_REF-/);
+        expect(jsonData.label).toBe("typed");
+    });
+
+    it("appends primitive string value directly", () => {
+        const form = new LFormData();
+        form.append("apiVersion", "1.0.0");
+        const entries = getFormDataEntries(form);
+        expect(entries["apiVersion"]).toBe("1.0.0");
+    });
+
+    it("appends primitive number value as string", () => {
+        const form = new LFormData();
+        form.append("count", 42 as any);
+        const entries = getFormDataEntries(form);
+        expect(entries["count"]).toBe("42");
+    });
+
+    it("appends null value as string", () => {
+        const form = new LFormData();
+        form.append("field", null as any);
+        const entries = getFormDataEntries(form);
+        expect(entries["field"]).toBe("null");
+    });
+
+    it("merges primitive value into previously appended object", () => {
+        const form = new LFormData();
+        form.append("doc", { type: "post", title: "Hello" });
+
+        // Now append a primitive — should merge into the previous object's JSON
+        form.append("apiVersion", "1.0.0");
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.type).toBe("post");
+        expect(jsonData.title).toBe("Hello");
+        expect(jsonData.apiVersion).toBe("1.0.0");
+
+        // apiVersion should NOT appear as a separate entry
+        expect(entries["apiVersion"]).toBeUndefined();
+    });
+
+    it("handles object with no binary data", () => {
+        const form = new LFormData();
+        form.append("doc", { title: "Hello", count: 5, active: true });
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.title).toBe("Hello");
+        expect(jsonData.count).toBe(5);
+        expect(jsonData.active).toBe(true);
+    });
+
+    it("handles arrays with mixed content", () => {
+        const img = new File(["x"], "x.webp", { type: "image/webp" });
+        const form = new LFormData();
+        form.append("doc", { items: [1, "text", img, null] });
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.items[0]).toBe(1);
+        expect(jsonData.items[1]).toBe("text");
+        expect(typeof jsonData.items[2]).toBe("string");
+        expect(jsonData.items[2]).toMatch(/^BINARY_REF-/);
+        expect(jsonData.items[3]).toBeNull();
+    });
+
+    it("skips prototype pollution keys", () => {
+        const obj = Object.create(null);
+        obj.safe = "value";
+        obj.__proto__ = "evil";
+        obj.constructor = "evil";
+        obj.prototype = "evil";
+
+        const form = new LFormData();
+        form.append("doc", obj);
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.safe).toBe("value");
+        // constructor and prototype should NOT be own properties (stripped by extractBinaries)
+        expect(Object.prototype.hasOwnProperty.call(jsonData, "constructor")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(jsonData, "prototype")).toBe(false);
+    });
+
+    it("handles Blob binary data at root level", () => {
+        const blob = new Blob(["hello"], { type: "text/plain" });
+        const form = new LFormData();
+        form.append("doc", { data: blob });
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.data).toMatch(/^BINARY_REF-/);
+    });
+
+    it("handles array with nested objects containing binaries", () => {
+        const img = new File(["img"], "nested.webp", { type: "image/webp" });
+        const form = new LFormData();
+        form.append("doc", {
+            items: [{ file: img, meta: { size: 100 } }],
+        });
+        const entries = getFormDataEntries(form);
+
+        const jsonData = JSON.parse(entries["doc__json"]);
+        expect(jsonData.items[0].file).toMatch(/^BINARY_REF-/);
+        expect(jsonData.items[0].meta.size).toBe(100);
+    });
 });

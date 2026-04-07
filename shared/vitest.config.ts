@@ -11,6 +11,22 @@ export default mergeConfig(
             exclude: [...configDefaults.exclude, "e2e/*"],
             root: fileURLToPath(new URL("./", import.meta.url)),
             setupFiles: ["vitest.setup.ts"],
+            coverage: {
+                provider: "v8",
+                exclude: [
+                    "playwright.config.ts",
+                    "postcss.config.js",
+                    "tailwind.config.ts",
+                    ".eslintrc.cjs",
+                    "src/main.ts",
+                    "src/analytics.ts",
+                    "src/analytics/**",
+                    "src/assets/vite-plugins/**",
+                    "src/auth.ts",
+                    "src/guards/**",
+                    "src/util/waitUntilAuth0IsLoaded.ts",
+                ],
+            },
         },
     }),
 );
