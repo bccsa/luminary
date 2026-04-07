@@ -6,7 +6,6 @@ import { accessMap, maxUploadFileSize, type ContentParentDto } from "luminary-sh
 import { mockPostDto, superAdminAccessMap } from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { ref } from "vue";
 
 // Mock URL APIs
 global.URL.createObjectURL = vi.fn(() => "blob:mock-url");

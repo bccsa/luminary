@@ -19,31 +19,6 @@ vi.mock("@vueuse/core", () => ({
         width: { value: 1200 },
     })),
 }));
-
-function mountDropdown(overrides: Record<string, any> = {}) {
-    return mount(LDropdown, {
-        props: {
-            show: false,
-            "onUpdate:show": (val: boolean) => wrapper.setProps({ show: val }),
-            ...overrides,
-        },
-        slots: {
-            trigger: '<button data-dropdown-trigger>Toggle</button>',
-            default: '<div role="menuitem" tabindex="0">Item 1</div><div role="menuitem" tabindex="0">Item 2</div>',
-        },
-        // LTeleport renders to body
-        global: {
-            stubs: {
-                LTeleport: {
-                    template: "<div><slot /></div>",
-                },
-            },
-        },
-    });
-    // Note: `wrapper` is referenced before assignment for the onUpdate handler
-    var wrapper: any;
-}
-
 describe("LDropdown", () => {
     it("does not show panel when show is false", () => {
         const wrapper = mount(LDropdown, {

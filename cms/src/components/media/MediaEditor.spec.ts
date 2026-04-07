@@ -3,9 +3,8 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import MediaEditor from "./MediaEditor.vue";
-import { MediaType, type ContentParentDto, db, maxMediaUploadFileSize } from "luminary-shared";
+import { MediaType, type ContentParentDto, db } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
-import { ref } from "vue";
 
 // Mock browser APIs
 global.URL.createObjectURL = vi.fn(() => "mocked-url");

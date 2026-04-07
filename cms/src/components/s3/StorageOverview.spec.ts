@@ -396,7 +396,6 @@ describe("StorageOverview", () => {
         await wrapper.vm.$nextTick();
 
         // After attempted save, errors should be populated
-        const errors = modal.props("errors");
         expect(modal.props("hasAttemptedSubmit")).toBe(true);
     });
 

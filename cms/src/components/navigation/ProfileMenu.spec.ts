@@ -5,8 +5,7 @@ import ProfileMenu from "./ProfileMenu.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
-import { db, DocType } from "luminary-shared";
-import { mockLanguageDtoEng, mockLanguageDtoFra } from "@/tests/mockdata";
+import { db } from "luminary-shared";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 

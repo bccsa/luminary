@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db, DocType, type GroupDto } from "luminary-shared";
+import { accessMap, db, type GroupDto } from "luminary-shared";
 import {
     mockRedirectDto,
     superAdminAccessMap,

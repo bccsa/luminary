@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import BucketDisplayCard from "./BucketDisplayCard.vue";
-import { type GroupDto, type StorageDto, DocType, AclPermission, accessMap } from "luminary-shared";
+import { type GroupDto, type StorageDto, DocType, accessMap } from "luminary-shared";
 import { superAdminAccessMap, mockGroupDtoPublicContent } from "@/tests/mockdata";
 
 vi.mock("@/globalConfig", async (importOriginal) => {

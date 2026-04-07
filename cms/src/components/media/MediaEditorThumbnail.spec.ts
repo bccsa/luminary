@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
