@@ -9,6 +9,12 @@ import { getRouteHistory } from "@/router";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { isMdScreen } from "@/globalConfig";
 
+// Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
+// regardless of any SVG/raw/component transforms/plugins.
+import defaultLogo from "@/assets/logo.svg?url";
+import defaultLogoDark from "@/assets/logo-dark.svg?url";
+import defaultLogoSmall from "@/assets/logo-small.svg?url";
+
 type Props = {
     showBackButton?: boolean;
 };
@@ -18,17 +24,21 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
-const LOGO = import.meta.env.VITE_LOGO;
-const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
-const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
-const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
+const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
+const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
+const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
+const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || "";
 
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 const isSmallScreen = ref(false);
 
-const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL : LOGO));
-const logoDark = computed(() => (isSmallScreen.value ? LOGO_SMALL_DARK : LOGO_DARK));
+const logo = computed(() =>
+    isSmallScreen.value ? (LOGO_SMALL || defaultLogoSmall) : LOGO,
+);
+const logoDark = computed(() =>
+    isSmallScreen.value ? (LOGO_SMALL_DARK || defaultLogoSmall) : LOGO_DARK,
+);
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
 const logoCss = computed(
