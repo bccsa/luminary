@@ -35,4 +35,14 @@ describe("sortByName", () => {
             },
         ]);
     });
+
+    it("returns 0 for items with equal names", () => {
+        const result = sortByName({ name: "A" }, { name: "A" });
+        expect(result).toBe(0);
+    });
+
+    it("returns 1 when first name is greater", () => {
+        const result = sortByName({ name: "Z" }, { name: "A" });
+        expect(result).toBe(1);
+    });
 });

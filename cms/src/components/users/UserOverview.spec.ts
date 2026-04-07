@@ -199,4 +199,35 @@ describe("UserOverview", () => {
             expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.User);
         });
     });
+
+    it("hides create button when user lacks permissions", async () => {
+        accessMap.value = {};
+        const wrapper = mount(UserOverview);
+
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[name="createUserBtn"]').exists()).toBe(false);
+
+        // Restore for other tests
+        accessMap.value = superAdminAccessMap;
+    });
+
+    it("shows create button when user has permissions", async () => {
+        const wrapper = mount(UserOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[name="createUserBtn"]').exists()).toBe(true);
+        });
+    });
+
+    it("renders the paginator component", async () => {
+        const wrapper = mount(UserOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("John Doe");
+        });
+
+        // LPaginator should be present
+        const paginator = wrapper.findComponent({ name: "LPaginator" });
+        expect(paginator.exists()).toBe(true);
+    });
 });

@@ -104,4 +104,79 @@ describe("LTable", () => {
         expect(wrapper.text()).not.toContain("Ada Lovelace");
         expect(wrapper.text()).toContain("Firmus Piett");
     });
+
+    it("sorts with a custom sortMethod", () => {
+        const columnsWithCustomSort = [
+            {
+                text: "Name",
+                key: "name",
+                sortMethod: (a: any, b: any) => b.name.localeCompare(a.name),
+            },
+        ];
+
+        const wrapper = mount(LTable, {
+            props: {
+                columns: columnsWithCustomSort,
+                items,
+                sortBy: "name",
+                sortDirection: "ascending" as const,
+            },
+        });
+
+        const cells = wrapper.findAll("td");
+        // Custom sort reverses alphabetical order
+        expect(cells[0].text()).toBe("Firmus Piett");
+        expect(cells[1].text()).toBe("Ada Lovelace");
+    });
+
+    it("sorts in descending direction", () => {
+        const wrapper = mount(LTable, {
+            props: {
+                columns,
+                items,
+                sortBy: "name",
+                sortDirection: "descending" as const,
+            },
+        });
+
+        const cells = wrapper.findAll("tbody td");
+        // Descending: Firmus Piett before Ada Lovelace
+        expect(cells[1].text()).toBe("Firmus Piett");
+    });
+
+    it("clicking sorted column twice toggles to descending then resets", async () => {
+        const wrapper = mount(LTable, {
+            props: {
+                columns,
+                items,
+                sortBy: "year_group",
+                sortDirection: "ascending" as const,
+            },
+        });
+
+        // Click same column again - should toggle to descending
+        await wrapper.find("th").trigger("click");
+        expect(wrapper.emitted("update:sortDirection")![0]).toEqual(["descending"]);
+
+        // Set to descending and click again - should reset sortBy
+        await wrapper.setProps({ sortDirection: "descending" });
+        await wrapper.find("th").trigger("click");
+        expect(wrapper.emitted("update:sortBy")).toBeDefined();
+        const sortByEmits = wrapper.emitted("update:sortBy")!;
+        expect(sortByEmits[sortByEmits.length - 1]).toEqual([undefined]);
+    });
+
+    it("does not sort when column has sortable: false", async () => {
+        const unsortableColumns = [{ text: "Actions", key: "name", sortable: false }];
+
+        const wrapper = mount(LTable, {
+            props: {
+                columns: unsortableColumns,
+                items,
+            },
+        });
+
+        await wrapper.find("th").trigger("click");
+        expect(wrapper.emitted("update:sortBy")).toBeUndefined();
+    });
 });

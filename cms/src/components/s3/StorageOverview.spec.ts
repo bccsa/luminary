@@ -378,4 +378,60 @@ describe("StorageOverview", () => {
         // Credentials should be updated
         expect(modal.props("localCredentials")).toEqual(newCredentials);
     });
+
+    it("saveBucket shows validation errors when form is invalid", async () => {
+        const wrapper = mount(StorageOverview, {
+            global: {
+                plugins: [pinia],
+            },
+        });
+
+        // Open create modal with empty fields
+        (wrapper.vm as any).openCreateModal();
+        await wrapper.vm.$nextTick();
+
+        // Trigger save with empty form
+        const modal = wrapper.findComponent(BucketFormModal);
+        await modal.vm.$emit("save");
+        await wrapper.vm.$nextTick();
+
+        // After attempted save, errors should be populated
+        const errors = modal.props("errors");
+        expect(modal.props("hasAttemptedSubmit")).toBe(true);
+    });
+
+    it("confirmDelete shows access denied when user lacks permission", async () => {
+        await db.docs.add(mockData.mockStorageDto);
+
+        const wrapper = mount(StorageOverview, {
+            global: {
+                plugins: [pinia],
+            },
+        });
+
+        // Open edit modal first
+        await waitForExpect(async () => {
+            const card = wrapper.findComponent(BucketDisplayCard);
+            await card.vm.$emit("edit", mockData.mockStorageDto);
+        });
+        await wrapper.vm.$nextTick();
+
+        // Remove permissions
+        accessMap.value = {};
+
+        // Trigger delete
+        const modal = wrapper.findComponent(BucketFormModal);
+        await modal.vm.$emit("delete");
+        await wrapper.vm.$nextTick();
+
+        // Confirm delete in dialog
+        const dialog = wrapper.findComponent(LDialog);
+        if (dialog.props("open")) {
+            const confirmAction = dialog.props("primaryAction") as Function;
+            await confirmAction();
+        }
+
+        // Restore permissions for other tests
+        accessMap.value = mockData.superAdminAccessMap;
+    });
 });

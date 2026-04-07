@@ -141,4 +141,35 @@ describe("GroupOverview", () => {
             expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.Group);
         });
     });
+
+    it("hides create button when user lacks Group Assign permission", async () => {
+        accessMap.value = {};
+        const wrapper = mount(GroupOverview);
+
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[data-test="createGroupButton"]').exists()).toBe(false);
+
+        // Restore for other tests
+        accessMap.value = superAdminAccessMap;
+    });
+
+    it("shows create button when user has Assign permission", async () => {
+        const wrapper = mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="createGroupButton"]').exists()).toBe(true);
+        });
+    });
+
+    it("renders ConfirmBeforeLeavingModal", async () => {
+        const wrapper = mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Public Content");
+        });
+
+        // ConfirmBeforeLeavingModal should be present in the DOM
+        const confirmModal = wrapper.findComponent({ name: "ConfirmBeforeLeavingModal" });
+        expect(confirmModal.exists()).toBe(true);
+    });
 });
