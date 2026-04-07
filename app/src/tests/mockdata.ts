@@ -352,8 +352,9 @@ export const mockLanguageDtoEng: LanguageDto = {
         "explore.title": "Explore",
         "home.newest": "Newest",
         "content.related_title": "Related",
-        "notification.login.title": "Log in",
-        "notification.login.message": "Click here to login / create an account and access more features and/or content",
+        "content.coming_soon": "Coming soon",
+        "notification.login.title": "You are missing out!",
+        "notification.login.message": "Click here to create an account or log in",
         "notification.offline.title": "You are offline.",
         "notification.offline.message":
             "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
