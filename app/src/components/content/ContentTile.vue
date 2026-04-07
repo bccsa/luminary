@@ -5,6 +5,9 @@ import LImage from "../images/LImage.vue";
 import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress } from "@/globalConfig";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 type Props = {
     content: ContentDto;
@@ -124,7 +127,7 @@ if (allMedia) {
                             class="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/50 opacity-100 transition-opacity duration-200"
                         >
                             <span class="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white shadow">
-                                Coming soon
+                                {{ t("content.coming_soon") }}
                             </span>
                         </div>
                         <!-- Play Icon (Only if content has a video and titlePosition is not center) -->

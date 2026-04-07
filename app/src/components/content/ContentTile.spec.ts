@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
-import { mockEnglishContentDto } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress } from "@/globalConfig";
@@ -12,6 +12,12 @@ import { computed } from "vue";
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
         bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
 
@@ -151,7 +157,7 @@ describe("ContentTile", () => {
             },
         });
 
-        expect(wrapper.text()).not.toContain("Coming soon");
+        expect(wrapper.text()).not.toContain(mockLanguageDtoEng.translations["content.coming_soon"]);
         expect(wrapper.find("a").exists()).toBe(true);
     });
 
