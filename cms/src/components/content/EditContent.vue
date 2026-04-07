@@ -648,6 +648,12 @@ const isLocalChange = useDexieLiveQuery(
                                             v-model:parent="editableParent"
                                         />
 
+                                        <div
+                                            class="my-2 border-t border-zinc-200"
+                                            role="separator"
+                                            aria-hidden="true"
+                                        />
+
                                         <EditContentMedia
                                             v-if="editableParent"
                                             embedded
