@@ -21,7 +21,7 @@ export default defineConfig({
             targets: [
                 {
                     src: "src/analytics/service-worker.js",
-                    dest: "./src/analytics/",
+                    dest: "./analytics/",
                 },
             ],
         }),
@@ -44,11 +44,31 @@ export default defineConfig({
         },
         VitePWA({
             registerType: "autoUpdate",
-            includeAssets: ["src/assets"],
+            manifest: {
+                name: env.VITE_APP_NAME || "Luminary",
+                short_name: env.VITE_APP_NAME || "Luminary",
+                description: "Watch, listen, and explore content offline",
+                theme_color: "#0f172a",
+                background_color: "#ffffff",
+                display: "standalone",
+                scope: "/",
+                start_url: "/",
+                orientation: "portrait-primary",
+            },
+            pwaAssets: {
+                image: env.VITE_LOGO_FAVICON || "src/assets/favicon.png",
+            },
             workbox: {
-                globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
+                // Precache the entire app shell: JS, CSS, HTML, fonts, and images
+                globPatterns: ["**/*.{js,css,html,woff2,ico,png,webp,jpg,jpeg,svg}"],
+                // Exclude Matomo analytics SW from precaching
+                globIgnores: ["**/analytics/**"],
+                // SPA navigation fallback — serves cached index.html for all routes
+                navigateFallback: "index.html",
+                navigateFallbackDenylist: [/^\/analytics\//],
                 runtimeCaching: [
                     {
+                        // External images — CacheFirst with expiration
                         urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
                         handler: "CacheFirst",
                         options: {
@@ -56,9 +76,24 @@ export default defineConfig({
                             cacheableResponse: {
                                 statuses: [0, 200],
                             },
+                            expiration: {
+                                maxEntries: 500,
+                                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                            },
                         },
                     },
+                    {
+                        // Auth endpoints — never cache
+                        urlPattern: /^https:\/\/.*\.(auth0|authz)\.com\//i,
+                        handler: "NetworkOnly",
+                    },
+                    {
+                        // Matomo analytics — let the Matomo SW handle it
+                        urlPattern: /matomo|analytics/i,
+                        handler: "NetworkOnly",
+                    },
                 ],
+                cleanupOutdatedCaches: true,
             },
         }),
         movePreloadScriptsToBody(),
@@ -69,6 +104,10 @@ export default defineConfig({
         },
     },
     server: {
+        port: 4174,
+        strictPort: true,
+    },
+    preview: {
         port: 4174,
         strictPort: true,
     },
