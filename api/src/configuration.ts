@@ -76,7 +76,7 @@ export default () =>
             maxSockets: parseInt(process.env.DB_MAX_SOCKETS, 10) || 512,
         } as DatabaseConfig,
         sync: {
-            tolerance: parseInt(process.env.PORT, 10) || 1000,
+            tolerance: parseInt(process.env.SYNC_TOLERANCE, 10) || 1000,
         } as SyncConfig,
         permissionMap: process.env.PERMISSION_MAP,
         imageProcessing: {
