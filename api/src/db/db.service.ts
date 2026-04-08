@@ -270,7 +270,21 @@ export class DbService extends EventEmitter {
                 (existing as ContentDto).status === PublishStatus.Draft &&
                 (doc as ContentDto).status === PublishStatus.Published
             ) {
-                await this.removeStatusChangeDeleteCmds((existing as ContentDto)._id);
+                const query: nano.MangoQuery = {
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId: (existing as ContentDto)._id,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: Number.MAX_SAFE_INTEGER,
+                };
+
+                const res: any = await this.db.find(query);
+                const deleteCmdDocs: any[] = res.docs || [];
+
+                for (const cmd of deleteCmdDocs) {
+                    await this.deleteDoc(cmd._id);
+                }
             }
 
             // Generate delete command if the document's status has changed to draft
@@ -322,28 +336,6 @@ export class DbService extends EventEmitter {
         insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
         insertResult.changes = changes;
         return insertResult;
-    }
-
-    /**
-     * Remove any previously generated `statusChange` deleteCmd documents for the given content doc.
-     * This is used to undo older "published -> draft" delete instructions when the content is published again.
-     */
-    private async removeStatusChangeDeleteCmds(contentDocId: string): Promise<void> {
-        const query: nano.MangoQuery = {
-            selector: {
-                type: DocType.DeleteCmd,
-                docId: contentDocId,
-                deleteReason: DeleteReason.StatusChange,
-            },
-            limit: Number.MAX_SAFE_INTEGER,
-        };
-
-        const res: any = await this.db.find(query);
-        const deleteCmdDocs: any[] = res.docs || [];
-
-        for (const cmd of deleteCmdDocs) {
-            await this.deleteDoc(cmd._id);
-        }
     }
 
     /**
