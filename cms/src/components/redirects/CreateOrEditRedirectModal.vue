@@ -204,7 +204,7 @@ const revertChanges = () => {
         @close="emit('close')"
         :primaryAction="
             () => {
-                save(), emit('close');
+                save();
             }
         "
         :primaryButtonText="!isNew ? 'Save' : 'Create'"

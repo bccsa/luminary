@@ -23,7 +23,6 @@ import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
-import router from "@/router";
 
 const { addNotification } = useNotificationStore();
 
@@ -34,7 +33,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { liveData, isEdited, revert, save, duplicate } = props.groupQuery;
+const { liveData, isEdited, revert, duplicate } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 
 const isDirty = computed(() => {
@@ -189,19 +188,14 @@ const deleteGroup = async () => {
     }
 
     group.value.deleteReq = 1;
-    group.value.updatedTimeUtc = Date.now();
 
-    await save(group.value._id);
+    save();
 
     addNotification({
         title: `${group.value.name} deleted`,
         description: `The group was successfully deleted`,
         state: "success",
     });
-
-    await save(group.value._id);
-
-    router.push("/groups");
 };
 
 const duplicateGroup = async () => {
@@ -233,22 +227,19 @@ const duplicateGroup = async () => {
     });
 };
 
-let res = ref<undefined | any>(undefined);
-
-const saveChanges = async () => {
-    res.value = await save(group.value._id);
-
-    addNotification({
-        title:
-            res.value && res.value.ack == AckStatus.Accepted
-                ? `${group.value.name} changes saved`
-                : "Error saving changes",
-        description:
-            res.value && res.value.ack == AckStatus.Accepted
-                ? "All changes are saved"
-                : `Failed to save changes with error: ${res.value ? res.value.message : "Unknown error"}`,
-        state: res.value && res.value.ack == AckStatus.Accepted ? "success" : "error",
-    });
+const save = async () => {
+    // Bypass save if the group is new and marked for deletion
+    if (!(isNewGroup.value && group.value.deleteReq)) {
+        group.value.updatedTimeUtc = Date.now();
+        await db.upsert({ doc: group.value });
+    }
+    if (!group.value.deleteReq) {
+        useNotificationStore().addNotification({
+            title: !isNewGroup.value ? `Group updated` : `Group created`,
+            description: `Group ${group.value.name} has been updated`,
+            state: "success",
+        });
+    }
     emit("close");
 };
 </script>
@@ -257,9 +248,13 @@ const saveChanges = async () => {
     <LDialog
         title=""
         :open="openModal"
-        @update:open="(val: boolean | undefined) => !val && emit('close')"
-        :primaryAction="saveChanges"
-        primaryButtonText="Save"
+        @update:open="(val) => !val && emit('close')"
+        :primaryAction="
+            () => {
+                save();
+            }
+        "
+        :primaryButtonText="!isNewGroup ? 'Save' : 'Create'"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
         @close="emit('close')"
         largeModal

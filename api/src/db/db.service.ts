@@ -326,7 +326,7 @@ export class DbService extends EventEmitter {
             await this.insertDeleteCmd({
                 reason: DeleteReason.Deleted,
                 doc: doc as _baseDto,
-                prevDoc: existing as any,
+                prevDoc: existing as _contentBaseDto,
             });
 
             return await this.deleteDoc(doc._id);
