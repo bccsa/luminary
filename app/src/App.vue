@@ -4,7 +4,8 @@ import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
-import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
+import { ArrowDownTrayIcon, ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
+import { useInstallPrompt } from "@/composables/useInstallPrompt";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
@@ -59,6 +60,24 @@ setTimeout(() => {
         { immediate: true },
     );
 }, 5000);
+
+// Show install prompt when the app is installable
+const { isInstallable, install } = useInstallPrompt();
+watch(isInstallable, (canInstall) => {
+    if (canInstall) {
+        useNotificationStore().addNotification({
+            id: "installPrompt",
+            title: "Install Luminary",
+            description: "Install the app for a better experience and offline access.",
+            state: "info",
+            type: "banner",
+            icon: ArrowDownTrayIcon,
+            link: () => install(),
+        });
+    } else {
+        useNotificationStore().removeNotification("installPrompt");
+    }
+});
 
 // Wait 5.1 second before checking the authentication status
 setTimeout(() => {

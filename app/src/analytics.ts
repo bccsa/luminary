@@ -56,7 +56,7 @@ export const initAnalytics = () => {
             : "/src/analytics/service-worker.js";
         const swUrl = `${swPath}?matomo_server=${encodeURIComponent(MATOMO)}`;
         const scope = import.meta.env.PROD
-            ? "/"
+            ? "/analytics/"
             : new URL(swUrl, location.href).pathname.replace(/\/[^/]+$/, "/");
         navigator.serviceWorker
             .register(swUrl, { scope, type: "module" })

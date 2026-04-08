@@ -36,3 +36,13 @@ playwright-report/
 # plugins
 src/plugins/*
 !src/plugins/examplePlugin.ts
+
+# Generated PWA icons (built by pwa-assets-generator)
+src/assets/pwa-*.png
+src/assets/maskable-*.png
+src/assets/apple-touch-*.png
+src/assets/favicon.ico
+public/pwa-*.png
+public/maskable-*.png
+public/apple-touch-*.png
+public/favicon.ico
