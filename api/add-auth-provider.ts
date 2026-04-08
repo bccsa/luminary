@@ -5,7 +5,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as http from "http";
 import * as https from "https";
-import * as url from "url";
 import { randomUUID } from "crypto";
 
 // ── Types ───────────────────────────────────────────────────────────────────────
@@ -136,7 +135,7 @@ function prompt(question: string): Promise<string> {
 
 function couchRequest<T = any>(method: string, docPath: string, body?: unknown): Promise<T> {
     const fullUrl = `${DB_CONNECTION_STRING}/${DB_DATABASE}/${docPath}`;
-    const parsed = url.parse(fullUrl);
+    const parsed = new URL(fullUrl);
     const lib = parsed.protocol === "https:" ? https : http;
     const payload = body ? JSON.stringify(body) : undefined;
 
@@ -144,14 +143,18 @@ function couchRequest<T = any>(method: string, docPath: string, body?: unknown):
         const req = lib.request(
             {
                 hostname: parsed.hostname,
-                port: parsed.port,
-                path: parsed.path,
+                port: parsed.port || undefined,
+                path: parsed.pathname + parsed.search,
                 method,
                 headers: {
                     "Content-Type": "application/json",
                     ...(payload ? { "Content-Length": String(Buffer.byteLength(payload)) } : {}),
                 },
-                auth: parsed.auth || undefined,
+                auth: parsed.username
+                    ? `${decodeURIComponent(parsed.username)}:${decodeURIComponent(
+                          parsed.password,
+                      )}`
+                    : undefined,
             },
             (res) => {
                 let data = "";
@@ -262,11 +265,9 @@ async function addAuthProvider(): Promise<string | null> {
         return null;
     }
 
-    const audience = await prompt("Audience (e.g., https://api.yourdomain.com): ");
-    if (!audience) {
-        console.log("Audience is required.");
-        return null;
-    }
+    const defaultAudience = `https://${domain}`;
+    const audienceInput = await prompt(`Audience [default: ${defaultAudience}]: `);
+    const audience = audienceInput || defaultAudience;
 
     const clientId = await prompt("Client ID: ");
     if (!clientId) {
@@ -930,10 +931,12 @@ async function main() {
         case "4":
             await ensureGroupAcls();
             break;
-        case "5":
-            await addAuthProvider();
+        case "5": {
+            const result = await addAuthProvider();
             await configureDefaultGroups();
+            if (!result) await ensureGroupAcls();
             break;
+        }
         default:
             console.log("Invalid option. Exiting.");
             break;
