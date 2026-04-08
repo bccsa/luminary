@@ -356,6 +356,32 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            // Cleanup obsolete delete commands when switching content from draft to published.
+            // Without this, older `DeleteReason.StatusChange` deleteCmd documents may still exist in the DB,
+            // which would cause non-CMS clients to delete the document even though it is published again.
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Draft &&
+                (doc as ContentDto).status === PublishStatus.Published
+            ) {
+                const query: nano.MangoQuery = {
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId: (existing as ContentDto)._id,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: Number.MAX_SAFE_INTEGER,
+                };
+
+                const res: any = await this.db.find(query);
+                const deleteCmdDocs: any[] = res.docs || [];
+
+                for (const cmd of deleteCmdDocs) {
+                    await this.deleteDoc(cmd._id);
+                }
+            }
+
             // Generate delete command if the document's status has changed to draft
             if (
                 existing &&
