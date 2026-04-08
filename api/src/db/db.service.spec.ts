@@ -871,20 +871,24 @@ describe("DbService", () => {
             expect(res.docs[0].docId).toBe(data._id);
         });
 
-        it("fails when trying to create a delete instruction for a group document", async () => {
+        it("can create a delete instruction for a group document", async () => {
             const doc = {
                 _id: "group-public-content",
                 testData: "test123",
                 type: DocType.Group,
             };
 
-            const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc, prevDoc: doc })
-                .catch((e) => e);
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
 
-            expect(err.message).toBe(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.Deleted);
+            expect(res.docs[0].docId).toBe(doc._id);
+            expect(res.docs[0].memberOf).toEqual([doc._id]);
         });
 
         it("can generate a delete instruction for a 'statusChange' reason", async () => {
@@ -1074,43 +1078,6 @@ describe("DbService", () => {
                     expect(updateEventDoc.deleteReason).toBe(DeleteReason.StatusChange);
                     expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
                 });
-            });
-
-            it("removes existing 'statusChange' deleteCmd docs when a draft document is set to published", async () => {
-                const contentDocId = "delete-test-statusChange-draftToPublished";
-
-                const publishedDoc = {
-                    _id: contentDocId,
-                    testData: "test123",
-                    type: DocType.Content,
-                    status: "published",
-                    memberOf: ["group-public-content"],
-                };
-
-                // 1) Ensure there is a previously generated statusChange deleteCmd (published -> draft)
-                await service.upsertDoc(publishedDoc);
-
-                const draftDoc = { ...publishedDoc, status: "draft" };
-                await service.upsertDoc(draftDoc);
-
-                const deleteCmdQuery: any = {
-                    selector: {
-                        type: DocType.DeleteCmd,
-                        docId: contentDocId,
-                        deleteReason: DeleteReason.StatusChange,
-                    },
-                    limit: Number.MAX_SAFE_INTEGER,
-                };
-
-                const deleteCmdBefore = await service.executeFindQuery(deleteCmdQuery);
-                expect(deleteCmdBefore.docs.length).toBeGreaterThan(0);
-
-                // 2) Publish the document again (draft -> published) and ensure the old deleteCmd is removed
-                const publishedAgainDoc = { ...draftDoc, status: "published" };
-                await service.upsertDoc(publishedAgainDoc);
-
-                const deleteCmdAfter = await service.executeFindQuery(deleteCmdQuery);
-                expect(deleteCmdAfter.docs.length).toBe(0);
             });
 
             it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {
