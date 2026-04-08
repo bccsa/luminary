@@ -305,10 +305,6 @@ export class DbService extends EventEmitter {
             );
         }
 
-        if (doc.type === DocType.Group && doc.type === DocType.User) {
-            throw new Error(`Delete command is not implemented for ${doc.type} documents`);
-        }
-
         const res = await this.getDoc(doc._id);
 
         let existing: _baseDto; // if no existing document, this will be undefined
@@ -327,11 +323,10 @@ export class DbService extends EventEmitter {
 
         // Generate delete command if the document is set to be deleted, and delete the document
         if (doc.deleteReq) {
-            // Delete command is not valid for group or user documents, as they are not synced to clients
             await this.insertDeleteCmd({
                 reason: DeleteReason.Deleted,
                 doc: doc as _baseDto,
-                prevDoc: existing as _contentBaseDto,
+                prevDoc: existing as any,
             });
 
             return await this.deleteDoc(doc._id);
@@ -339,7 +334,6 @@ export class DbService extends EventEmitter {
             // Generate delete command if the document's memberOf field has changed
             if (
                 existing &&
-                doc.type !== DocType.Group &&
                 (existing as _contentBaseDto).memberOf &&
                 doc.memberOf &&
                 !isDeepStrictEqual(
@@ -503,12 +497,6 @@ export class DbService extends EventEmitter {
             } as DbUpsertResult;
         }
 
-        if (options.doc.type === DocType.Group) {
-            throw new Error(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
-        }
-
         const cmd = {
             _id: randomUUID(),
             type: DocType.DeleteCmd,
@@ -535,7 +523,7 @@ export class DbService extends EventEmitter {
         const p = options.prevDoc as unknown as _contentBaseDto;
 
         if (options.reason === DeleteReason.Deleted) {
-            cmd.memberOf = p.memberOf;
+            cmd.memberOf = options.doc.type === DocType.Group ? [options.doc._id] : p.memberOf;
         }
 
         if (options.reason === DeleteReason.StatusChange) {

@@ -199,6 +199,8 @@ const deleteGroup = async () => {
         state: "success",
     });
 
+    await save(group.value._id);
+
     router.push("/groups");
 };
 
