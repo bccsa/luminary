@@ -47,6 +47,9 @@ const showContentActionsMenuMobile = ref(false);
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
             :main-action="async () => await save()"
             dropdown-anchor
+            :main-dynamic-css="
+                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
+            "
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
@@ -165,7 +168,7 @@ const showContentActionsMenuMobile = ref(false);
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-400">
+                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
                                 {{ action.name }}
                             </div>
                         </li>

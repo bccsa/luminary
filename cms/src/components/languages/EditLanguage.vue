@@ -22,6 +22,7 @@ import { useNotificationStore } from "@/stores/notification";
 import * as _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { PlusCircleIcon, TrashIcon } from "@heroicons/vue/24/solid";
+import { TrashIcon as TrashIconOutline } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -329,7 +330,7 @@ const contentActions = computed(() => {
         actions.push({
             name: "Delete",
             action: () => (showDeleteModal.value = true),
-            icon: TrashIcon,
+            icon: TrashIconOutline,
             iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
         });
     }

@@ -49,7 +49,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                     v-if="isEditContentPage || isMobileScreen || isEditLanguagePage"
                     type="button"
                     data-test="chevron-icon"
-                    class="text-zinc-500"
+                    class="text-zinc-500 max-sm:ml-5"
                     @click="
                         () => {
                             if (isEditContentPage) router.push({ name: 'overview' });
