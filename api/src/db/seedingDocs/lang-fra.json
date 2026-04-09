@@ -117,6 +117,10 @@
         "notfoundpage.unauthenticated.description": "Le contenu peut être uniquement disponible pour les utilisateurs connectés.",
         "notfoundpage.authenticated.title": "Hé, nous n'avons pas pu trouver cette page",
         "notfoundpage.authenticated.description": "Le contenu que vous recherchez a peut-être été supprimé ou n'est pas disponible pour le moment.",
+        "openapp_warning.title": "Ce lien ouvrira {appName}",
+        "openapp_warning.description": "Nous avons remarqué que vous êtes sur Telegram. Veuillez cliquer sur Continuer pour voir le contenu correctement dans l'application {appName}.",
+        "openapp_warning.button_continue": "Continuer",
+        "openapp_warning.button_cancel": "Annuler",
         "singlecontent.listen": "Écouter"
     }
 }

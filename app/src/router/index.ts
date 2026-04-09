@@ -1,6 +1,8 @@
 import HomePage from "@/pages/HomePage.vue";
 import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
+import OpenAppWarningPage from "@/pages/OpenAppWarningPage.vue";
+import { isTelegramBrowser } from "@/util/inAppBrowser";
 
 // Preload all route components immediately as separate chunks
 const ExplorePage = import("@/pages/ExplorePage.vue");
@@ -31,6 +33,14 @@ const router = createRouter({
         }
     },
     routes: [
+        {
+            path: "/open",
+            component: OpenAppWarningPage,
+            name: "open-warning",
+            meta: {
+                analyticsIgnore: true,
+            },
+        },
         {
             path: "/",
             component: HomePage,
@@ -97,8 +107,24 @@ const router = createRouter({
 
 const routeHistory = ref<string[]>([]);
 
-// Handle direct navigation by manipulating history state
 router.beforeEach((to) => {
+    const telegramWarningAcknowledged =
+        sessionStorage.getItem("telegram_open_warning_ack") === "1";
+
+    // Only show the interstitial on the first load inside Telegram's in-app browser.
+    if (
+        !telegramWarningAcknowledged &&
+        isTelegramBrowser() &&
+        isExternalNavigation() &&
+        to.name !== "open-warning"
+    ) {
+        return {
+            name: "open-warning",
+            query: { to: to.fullPath },
+            replace: true,
+        };
+    }
+    // Handle history navigation
     routeHistory.value.push(to.fullPath);
 });
 
