@@ -3,7 +3,7 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { DbService } from "./db/db.service";
-import { clearJwtMap } from "./jwt/processJwt";
+
 
 describe("Socketio", () => {
     const oldEnv = process.env;
@@ -48,7 +48,7 @@ describe("Socketio", () => {
     });
 
     afterEach(() => {
-        clearJwtMap();
+        // JWT state is now managed by AuthIdentityService
     });
 
     it("can be instantiated", () => {

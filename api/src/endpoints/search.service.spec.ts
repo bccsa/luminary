@@ -17,6 +17,7 @@ describe("Search service", () => {
         searchService = new SearchService({ error: jest.fn(), warn: jest.fn() } as any, service);
     });
 
+    beforeEach(() => {
         mockUserDetails = {
             userId: "user-super-admin",
             groups: ["group-super-admins"],
@@ -119,7 +120,7 @@ describe("Search service", () => {
             slug: "test-slug-that-does-not-exist",
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, mockUserDetails);
 
         // Should not throw and should return a result (even if empty)
         expect(res).toBeDefined();
@@ -135,7 +136,7 @@ describe("Search service", () => {
             types: [DocType.Post],
         };
 
-        const res = await searchService.processReq(req, "");
+        const res = await searchService.processReq(req, mockUserDetails);
 
         // Should return undefined when search fails
         expect(res).toBeUndefined();

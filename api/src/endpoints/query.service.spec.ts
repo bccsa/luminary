@@ -537,7 +537,7 @@ describe("QueryService", () => {
         ];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);
@@ -556,7 +556,7 @@ describe("QueryService", () => {
         ];
         (query as any).selector = selector;
 
-        await expect(service.query(query, "token")).rejects.toThrow("Invalid memberOf field");
+        await expect(service.query(query, mockUser)).rejects.toThrow("Invalid memberOf field");
     });
 
     it("skips publishing filters for Content type when cms flag is true", async () => {
@@ -575,7 +575,7 @@ describe("QueryService", () => {
         (query as any).selector = selector;
         (query as any).cms = true;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
@@ -595,7 +595,7 @@ describe("QueryService", () => {
         (selector as any).$and = [{ type: DocType.Post }, { memberOf: "my-group" }];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);

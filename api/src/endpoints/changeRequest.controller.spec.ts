@@ -631,7 +631,7 @@ describe("ChangeRequestController", () => {
                 expect.objectContaining({
                     doc: expect.objectContaining({ _id: "post-concat" }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -654,7 +654,7 @@ describe("ChangeRequestController", () => {
                 expect.objectContaining({
                     apiVersion: "2.0.0",
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
