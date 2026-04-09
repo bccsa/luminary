@@ -185,10 +185,12 @@ describe("AuthIdentityService", () => {
 import { AuthGuard } from "./auth.guard";
 
 jest.mock("jwks-rsa", () => {
-    const factory = jest.fn().mockImplementation(() => ({
-        getSigningKey: jest.fn().mockResolvedValue({ getPublicKey: () => "mock_pub_key" }),
-    }));
-    return { __esModule: true, default: factory };
+    return Object.assign(
+        jest.fn().mockImplementation(() => ({
+            getSigningKey: jest.fn().mockResolvedValue({ getPublicKey: () => "mock_pub_key" }),
+        })),
+        { default: jest.fn() },
+    );
 });
 
 describe("AuthGuard (Integrated)", () => {

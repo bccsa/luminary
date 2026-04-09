@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
-import jwksRsa from "jwks-rsa";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import jwksRsa = require("jwks-rsa");
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import {
     AuthProviderCondition,
