@@ -62,7 +62,7 @@ const handleClose = () => {
                 ></div>
                 <div
                     v-if="hasIcon(provider)"
-                    class="flex h-5 w-5 shrink-0 items-center justify-center gap-1"
+                    class="flex h-5 w-5 shrink-0 items-center justify-center gap-1 overflow-hidden"
                     :style="
                         provider.iconOpacity != null && provider.iconOpacity !== 1
                             ? { opacity: provider.iconOpacity }
