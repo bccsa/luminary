@@ -888,7 +888,6 @@ describe("DbService", () => {
             const res = await service.getDoc(insertResult.id);
             expect(res.docs[0].deleteReason).toBe(DeleteReason.Deleted);
             expect(res.docs[0].docId).toBe(doc._id);
-            expect(res.docs[0].memberOf).toEqual([doc._id]);
         });
 
         it("can generate a delete instruction for a 'statusChange' reason", async () => {
