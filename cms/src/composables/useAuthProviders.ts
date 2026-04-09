@@ -364,6 +364,7 @@ export function useAuthProviders() {
                     }
                 }
 
+                editingProviderId.value = undefined;
                 closeModal();
                 notification.addNotification({
                     title: `Provider ${label} updated`,
@@ -399,6 +400,7 @@ export function useAuthProviders() {
                     }
                 }
 
+                editingProviderId.value = undefined;
                 closeModal();
                 notification.addNotification({
                     title: `Provider ${label} created`,
