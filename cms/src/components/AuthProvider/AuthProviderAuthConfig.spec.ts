@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
-import { DocType, type AuthProviderDto, type AuthProviderConfigDto } from "luminary-shared";
+import { DocType, type AuthProviderDto } from "luminary-shared";
 import AuthProviderAuthConfig from "./AuthProviderAuthConfig.vue";
 
 const mockProvider: AuthProviderDto = {
@@ -13,15 +13,6 @@ const mockProvider: AuthProviderDto = {
     domain: "test.auth0.com",
     clientId: "client-id-1",
     audience: "https://api.test.com",
-};
-
-const mockConfig: AuthProviderConfigDto = {
-    _id: "config-1",
-    type: DocType.AuthProviderConfig,
-    updatedTimeUtc: 1704114000000,
-    memberOf: [],
-    providerId: "provider-1",
-    claimNamespace: "https://tenant.example.com",
 };
 
 describe("AuthProviderAuthConfig.vue", () => {

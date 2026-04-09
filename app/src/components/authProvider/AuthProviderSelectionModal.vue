@@ -43,7 +43,7 @@ const handleClose = () => {
                 v-for="provider in providers"
                 :key="provider._id"
                 class="group relative flex h-full w-full items-center justify-start overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 hover:shadow-sm dark:border-slate-600 dark:bg-slate-700"
-                :class="{ 'pl-12': provider.icon }"
+                :class="{ 'pl-12': provider.imageData }"
                 :style="
                     provider.backgroundColor
                         ? {
@@ -59,12 +59,20 @@ const handleClose = () => {
                     class="pointer-events-none absolute inset-0 bg-white opacity-0 group-hover:opacity-20"
                 ></div>
                 <div
-                    v-if="provider.icon"
+                    v-if="provider.imageData"
                     class="absolute left-4 flex shrink-0 items-center justify-center"
+                    :style="
+                        provider.iconOpacity != null && provider.iconOpacity !== 1
+                            ? { opacity: provider.iconOpacity }
+                            : undefined
+                    "
                 >
                     <LImage
-                        :src="provider.icon"
-                        :opacity="provider.iconOpacity ?? 1"
+                        :image="provider.imageData"
+                        :parentImageBucketId="provider.imageBucketId"
+                        :contentParentId="provider._id"
+                        size="smallSquare"
+                        :rounded="false"
                         class="h-5 w-5"
                     />
                 </div>
