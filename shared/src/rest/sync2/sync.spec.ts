@@ -12,6 +12,7 @@ import { merge, mergeHorizontal } from "./merge";
 vi.mock("../../db/database", () => ({
     db: {
         getSyncList: vi.fn(),
+        setSyncList: vi.fn(),
     },
 }));
 
@@ -68,19 +69,97 @@ describe("sync module", () => {
         });
 
         it("should call db.getSyncList during initialization", async () => {
-            const mockSyncListData = [
-                {
-                    chunkType: "post",
-                    memberOf: ["group1"],
-                    blockStart: 1000,
-                    blockEnd: 0,
-                },
-            ];
-            vi.mocked(db.getSyncList).mockResolvedValue(mockSyncListData);
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
 
             await initSync(mockHttpService);
 
             expect(db.getSyncList).toHaveBeenCalled();
+        });
+
+        it("should keep a valid syncList", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
+                { chunkType: "tag", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(2);
+            expect(db.setSyncList).not.toHaveBeenCalled();
+        });
+
+        it("should reset syncList when an entry has MAX_SAFE_INTEGER blockStart", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
+                { chunkType: "post", memberOf: ["g1"], blockStart: Number.MAX_SAFE_INTEGER, blockEnd: 0, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("should reset syncList when an entry has NaN block values", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: NaN, blockEnd: 0, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("should reset syncList when an entry has inverted range", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 1000, blockEnd: 5000, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("should reset syncList when an entry has eof with narrow range (merge regression)", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4000, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("should keep valid eof entry with blockEnd=0", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(1);
+            expect(db.setSyncList).not.toHaveBeenCalled();
+        });
+
+        it("should keep valid eof:false entry with narrow range (still syncing)", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4500, eof: false },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(1);
+            expect(db.setSyncList).not.toHaveBeenCalled();
         });
     });
 
