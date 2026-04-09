@@ -637,7 +637,7 @@ const isLocalChange = useDexieLiveQuery(
                         >
                             <template #supplementary>
                                 <div class="mt-4 border-t border-zinc-200 pt-3">
-                                    <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-1">
                                         <EditContentImage
                                             v-if="editableParent"
                                             embedded
