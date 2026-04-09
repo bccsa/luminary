@@ -634,25 +634,39 @@ const isLocalChange = useDexieLiveQuery(
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             v-model:parent="editableParent"
-                        />
+                        >
+                            <template #supplementary>
+                                <div class="mt-4 border-t border-zinc-200 pt-3">
+                                    <div class="flex flex-col gap-1">
+                                        <EditContentImage
+                                            v-if="editableParent"
+                                            embedded
+                                            :docType="props.docType"
+                                            :tagOrPostType="props.tagOrPostType"
+                                            :disabled="!canEditParent"
+                                            :newDocument="newDocument"
+                                            v-model:parent="editableParent"
+                                        />
 
-                        <EditContentImage
-                            v-if="editableParent"
-                            :docType="props.docType"
-                            :tagOrPostType="props.tagOrPostType"
-                            :disabled="!canEditParent"
-                            :newDocument="newDocument"
-                            v-model:parent="editableParent"
-                        />
+                                        <div
+                                            class="my-2 border-t border-zinc-200"
+                                            role="separator"
+                                            aria-hidden="true"
+                                        />
 
-                        <EditContentMedia
-                            v-if="editableParent"
-                            :docType="props.docType"
-                            :tagOrPostType="props.tagOrPostType"
-                            :disabled="!canEditParent"
-                            :newDocument="newDocument"
-                            v-model:parent="editableParent"
-                        />
+                                        <EditContentMedia
+                                            v-if="editableParent"
+                                            embedded
+                                            :docType="props.docType"
+                                            :tagOrPostType="props.tagOrPostType"
+                                            :disabled="!canEditParent"
+                                            :newDocument="newDocument"
+                                            v-model:parent="editableParent"
+                                        />
+                                    </div>
+                                </div>
+                            </template>
+                        </EditContentParent>
 
                         <div class="sticky -top-1 z-10 lg:static">
                             <EditContentParentValidation

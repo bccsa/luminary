@@ -170,5 +170,7 @@ const pinned = computed({
             <FormLabel>Pinned</FormLabel>
             <LToggle v-model="pinned" :disabled="disabled" />
         </div>
+
+        <slot name="supplementary" />
     </LCard>
 </template>
