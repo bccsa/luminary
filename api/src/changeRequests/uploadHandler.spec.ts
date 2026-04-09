@@ -22,7 +22,7 @@ describe("createUploadData", () => {
         expect(result.hlsUrl).toBeUndefined();
     });
 
-    it("should include hlsUrl when both mediaType and hlsUrl are provided", () => {
+    it("should include all media fields when mediaType, hlsUrl, and languageId are provided", () => {
         const result = createUploadData(mockFile, "default", {
             mediaType: MediaType.Video,
             hlsUrl: "https://example.com/stream.m3u8",

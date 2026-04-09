@@ -4,7 +4,7 @@ import { v4 as UUID } from "uuid";
 import { storeCryptoData } from "../util/encryption";
 import { DocType, DeleteReason } from "../enums";
 
-import { s3TestConfig, createTestCredentials } from "../test/s3TestConfig";
+import { s3TestConfig } from "../test/s3TestConfig";
 
 const { baseUrl: s3BaseUrl, accessKey: s3AccessKey, secretKey: s3SecretKey, publicUrl: s3PublicUrl } = s3TestConfig;
 

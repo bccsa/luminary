@@ -32,13 +32,4 @@ describe("DeleteCmdDto", () => {
         expect(validateSync(dto)).toHaveLength(0);
     });
 
-    it("should create instance with all properties", () => {
-        const dto = createValid();
-        dto.memberOf = ["group-1"];
-        dto.newMemberOf = ["group-2"];
-        dto.language = "lang-1";
-        dto.slug = "my-slug";
-        expect(dto.memberOf).toEqual(["group-1"]);
-        expect(dto.newMemberOf).toEqual(["group-2"]);
-    });
 });

@@ -12,7 +12,7 @@ describe("configuration", () => {
     });
 
     it("should use default values when env vars are not set", () => {
-        delete process.env.PORT;
+        delete process.env.SYNC_TOLERANCE;
         delete process.env.DB_MAX_SOCKETS;
         delete process.env.S3_IMG_QUALITY;
         delete process.env.MAX_HTTP_BUFFER_SIZE;
@@ -28,7 +28,7 @@ describe("configuration", () => {
     });
 
     it("should use env vars when set", () => {
-        process.env.PORT = "4000";
+        process.env.SYNC_TOLERANCE = "4000";
         process.env.DB_MAX_SOCKETS = "256";
         process.env.S3_IMG_QUALITY = "90";
 
