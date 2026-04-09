@@ -10,8 +10,10 @@ import {
     type AuthProviderDto,
 } from "luminary-shared";
 import { computed } from "vue";
+import { storageSelection } from "@/composables/storageSelection";
 
 const isVisible = defineModel<boolean>("isVisible");
+const storage = storageSelection();
 
 const allProviders = useDexieLiveQuery(
     () => mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
@@ -19,6 +21,15 @@ const allProviders = useDexieLiveQuery(
 );
 
 const providers = computed(() => allProviders.value ?? []);
+
+const getIconUrl = (provider: AuthProviderDto): string | undefined => {
+    if (provider.icon) return provider.icon;
+    const file = provider.imageData?.fileCollections?.[0]?.imageFiles?.[0];
+    if (!file || !provider.imageBucketId) return undefined;
+    const bucket = storage.getBucketById(provider.imageBucketId);
+    if (!bucket) return undefined;
+    return `${bucket.publicUrl}/${file.filename}`;
+};
 
 const handleProviderSelect = (provider: AuthProviderDto) => {
     loginWithProvider(provider);
@@ -46,10 +57,10 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
                 <div
                     class="pointer-events-none absolute inset-0 bg-white opacity-0 group-hover:opacity-20"
                 ></div>
-                <div class="absolute left-4 flex shrink-0 items-center justify-center">
+                <div class="absolute left-4 flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden">
                     <img
-                        v-if="provider.icon"
-                        :src="provider.icon"
+                        v-if="getIconUrl(provider)"
+                        :src="getIconUrl(provider)"
                         :alt="provider.label"
                         class="h-5 w-5 object-contain"
                         :style="{ opacity: provider.iconOpacity ?? 1 }"
