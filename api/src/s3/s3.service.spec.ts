@@ -4,14 +4,9 @@ import { v4 as UUID } from "uuid";
 import { storeCryptoData } from "../util/encryption";
 import { DocType, DeleteReason } from "../enums";
 
-const s3Endpoint = process.env.S3_ENDPOINT || "127.0.0.1";
-const s3Port = process.env.S3_PORT || "9000";
-const s3AccessKey = process.env.S3_ACCESS_KEY || "minio";
-const s3SecretKey = process.env.S3_SECRET_KEY || "minio123";
-const s3UseSsl = process.env.S3_USE_SSL === "true";
-const s3Protocol = s3UseSsl ? "https" : "http";
-const s3BaseUrl = `${s3Protocol}://${s3Endpoint}:${s3Port}`;
-const s3PublicUrl = process.env.S3_PUBLIC_URL || "http://localhost:9000";
+import { s3TestConfig, createTestCredentials } from "../test/s3TestConfig";
+
+const { baseUrl: s3BaseUrl, accessKey: s3AccessKey, secretKey: s3SecretKey, publicUrl: s3PublicUrl } = s3TestConfig;
 
 describe("S3Service", () => {
     let service: S3Service;
