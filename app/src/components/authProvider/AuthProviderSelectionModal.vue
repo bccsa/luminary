@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LModal from "@/components/form/LModal.vue";
+import LImage from "@/components/images/LImage.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { showProviderSelectionModal, loginWithProvider } from "@/auth";
 import {
@@ -10,11 +11,12 @@ import {
     type AuthProviderDto,
 } from "luminary-shared";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
+const { t } = useI18n();
 const isVisible = defineModel<boolean>("isVisible");
 const allProviders = useDexieLiveQuery(
-    () =>
-        mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
+    () => mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
     { initialValue: [] as AuthProviderDto[] },
 );
 
@@ -31,7 +33,7 @@ const handleClose = () => {
 
 <template>
     <LModal
-        heading="Sign in"
+        :heading="t('auth.sign_in')"
         v-model:isVisible="isVisible"
         @close="handleClose"
     >
@@ -40,7 +42,8 @@ const handleClose = () => {
             <button
                 v-for="provider in providers"
                 :key="provider._id"
-                class="group relative flex h-full w-full items-center justify-start overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 pl-12 hover:shadow-sm dark:border-slate-600 dark:bg-slate-700"
+                class="group relative flex h-full w-full items-center justify-start overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 hover:shadow-sm dark:border-slate-600 dark:bg-slate-700"
+                :class="{ 'pl-12': provider.icon }"
                 :style="
                     provider.backgroundColor
                         ? {
@@ -55,15 +58,14 @@ const handleClose = () => {
                 <div
                     class="pointer-events-none absolute inset-0 bg-white opacity-0 group-hover:opacity-20"
                 ></div>
-                <div class="absolute left-4 flex shrink-0 items-center justify-center">
-                    <img
-                        v-if="provider.icon"
+                <div
+                    v-if="provider.icon"
+                    class="absolute left-4 flex shrink-0 items-center justify-center"
+                >
+                    <LImage
                         :src="provider.icon"
-                        :alt="provider.label"
-                        class="h-5 w-5 object-contain"
-                        :style="{
-                            opacity: provider.iconOpacity ?? 1,
-                        }"
+                        :opacity="provider.iconOpacity ?? 1"
+                        class="h-5 w-5"
                     />
                 </div>
                 <span
@@ -76,7 +78,7 @@ const handleClose = () => {
                             : {}
                     "
                 >
-                    Continue with {{ provider.label }}
+                    {{ provider.label }}
                 </span>
             </button>
 
@@ -88,10 +90,10 @@ const handleClose = () => {
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400 dark:text-slate-400" />
                 </div>
                 <p class="text-sm text-zinc-500 dark:text-slate-400">
-                    No sign-in methods available.
+                    {{ t("auth.no_methods_available") }}
                 </p>
                 <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                    Please contact support for assistance.
+                    {{ t("auth.contact_support") }}
                 </p>
             </div>
         </div>

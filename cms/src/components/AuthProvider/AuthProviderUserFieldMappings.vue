@@ -11,7 +11,7 @@ const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerC
 function ensureUserFieldMappings() {
     if (!providerConfig.value) return;
     if (!providerConfig.value.userFieldMappings) {
-        providerConfig.value = { ...providerConfig.value, userFieldMappings: {} };
+        providerConfig.value.userFieldMappings = {};
     }
 }
 </script>

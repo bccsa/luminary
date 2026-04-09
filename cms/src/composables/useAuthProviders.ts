@@ -11,10 +11,12 @@ import {
     verifyAccess,
     hasAnyPermission,
     changeReqErrors,
+    AckStatus,
     ApiLiveQueryAsEditable,
     type ApiSearchQuery,
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
+import { validate, type Validation } from "@/components/content/ContentValidator";
 import _ from "lodash";
 
 export function useAuthProviders() {
@@ -74,119 +76,79 @@ export function useAuthProviders() {
     const showDeleteModal = ref(false);
     const providerToDelete = ref<AuthProviderDto | undefined>(undefined);
 
-    // ID of the provider currently being edited (undefined = creating new)
+    // ID of the provider currently being edited or created
     const editingProviderId = ref<string | undefined>(undefined);
 
-    const isEditing = computed(() => canEdit.value && !!editingProviderId.value);
-
-    // ── Local editing copies ─────────────────────────────────────────────────
-    // Detached from providers.value / configs.value so field edits only
-    // invalidate the local refs, not the entire reactive arrays.
-    // providers.value is only written to on save.
-    const editingProviderLocal = ref<AuthProviderDto | undefined>(undefined);
-    const editingConfigLocal = ref<AuthProviderConfigDto | undefined>(undefined);
-    // Snapshots taken at modal-open time, used for revert
-    const editingProviderSnapshot = ref<AuthProviderDto | undefined>(undefined);
-    const editingConfigSnapshot = ref<AuthProviderConfigDto | undefined>(undefined);
-
-    const newProvider = ref<AuthProviderDto>({
-        _id: db.uuid(),
-        type: DocType.AuthProvider,
-        updatedTimeUtc: Date.now(),
-        memberOf: [],
-        label: "",
-        domain: "",
-        clientId: "",
-        audience: "",
+    // True when editing an existing provider (not creating a new one)
+    const isEditing = computed(() => {
+        if (!canEdit.value || !editingProviderId.value) return false;
+        // If the provider exists in the live (source) data, it's an edit
+        return providerQuery.liveData.value.some((p) => p._id === editingProviderId.value);
     });
 
-    const newProviderConfig = ref<AuthProviderConfigDto>({
-        _id: db.uuid(),
-        type: DocType.AuthProviderConfig,
-        updatedTimeUtc: Date.now(),
-        memberOf: [],
-        providerId: newProvider.value._id,
-    });
-
-    // Current provider being edited/created (writable computed for v-model binding).
-    // When editing, reads/writes the local detached copy so mutations don't touch providers.value.
+    // Current provider — always points at the item in the editable array (like EditGroup.vue).
+    // For create, we push into the editable array when the modal opens.
     const currentProvider = computed({
-        get: () => {
-            if (isEditing.value) return editingProviderLocal.value;
-            return newProvider.value;
-        },
+        get: () =>
+            editingProviderId.value
+                ? providers.value.find((p) => p._id === editingProviderId.value)
+                : undefined,
         set: (value) => {
-            if (isEditing.value) {
-                editingProviderLocal.value = value;
-            } else if (value) {
-                newProvider.value = value;
-            }
+            if (!editingProviderId.value || !value) return;
+            const idx = providers.value.findIndex((p) => p._id === editingProviderId.value);
+            if (idx !== -1) providers.value[idx] = value;
         },
     });
 
-    // Current config being edited/created (writable computed for v-model binding).
+    // Current config — always points at the item in the editable array.
     const currentProviderConfig = computed({
-        get: () => {
-            if (isEditing.value) return editingConfigLocal.value;
-            return newProviderConfig.value;
-        },
+        get: () =>
+            editingProviderId.value
+                ? configs.value.find((c) => c.providerId === editingProviderId.value)
+                : undefined,
         set: (value) => {
-            if (isEditing.value) {
-                editingConfigLocal.value = value;
-            } else if (value) {
-                newProviderConfig.value = value!;
-            }
+            if (!editingProviderId.value || !value) return;
+            const idx = configs.value.findIndex(
+                (c) => c.providerId === editingProviderId.value,
+            );
+            if (idx !== -1) configs.value[idx] = value;
         },
     });
 
     // ── Dirty tracking ───────────────────────────────────────────────────────
-    // isDirty is a plain ref updated by a deep watcher whose callback is cheap
-    // (just a flag set + a debounced setTimeout). _.isEqual runs at most once,
-    // 500 ms after the user stops making changes, to handle the case where they
-    // type something and then manually revert it back to the original value.
-    const isDirty = ref(false);
-    let stopChangeWatcher: (() => void) | undefined;
-    let accuracyTimer: ReturnType<typeof setTimeout> | undefined;
-
-    function startDirtyTracking() {
-        isDirty.value = false;
-        clearTimeout(accuracyTimer);
-        stopChangeWatcher?.();
-
-        stopChangeWatcher = watch(
-            [currentProvider, currentProviderConfig],
-            () => {
-                // Immediate feedback — no expensive work here
-                isDirty.value = true;
-
-                // After the user pauses, check if they've typed back to the original value.
-                // Only meaningful when editing an existing provider (snapshots exist).
-                if (isEditing.value) {
-                    clearTimeout(accuracyTimer);
-                    accuracyTimer = setTimeout(() => {
-                        const isActuallyDirty =
-                            !_.isEqual(
-                                toRaw(editingProviderLocal.value),
-                                toRaw(editingProviderSnapshot.value),
-                            ) ||
-                            !_.isEqual(
-                                toRaw(editingConfigLocal.value),
-                                toRaw(editingConfigSnapshot.value),
-                            );
-                        isDirty.value = isActuallyDirty;
-                    }, 500);
-                }
-            },
-            { deep: true },
+    // Uses isEdited from the query instances (same pattern as EditGroup.vue).
+    // For new providers, dirty as soon as anything non-empty is typed.
+    const isDirty = computed(() => {
+        if (!editingProviderId.value) return false;
+        const configId = configs.value.find(
+            (c) => c.providerId === editingProviderId.value,
+        )?._id;
+        return (
+            providerQuery.isEdited.value(editingProviderId.value) ||
+            (configId ? configQuery.isEdited.value(configId) : false)
         );
-    }
+    });
 
     // Route guard: dirty if the modal is open and has unsaved edits.
-    // Does not depend on providers.value, so it never cascades on field edits.
     const isDirtyAny = computed(() => showModal.value && isDirty.value);
 
     // Validation state
     const hasAttemptedSubmit = ref(false);
+
+    // Field-level validation
+    const providerValidations = ref<Validation[]>([]);
+
+    watch(
+        [currentProvider, hasAttemptedSubmit],
+        ([provider, attempted]) => {
+            if (!provider || !attempted) return;
+            validate("Label is required", "label", providerValidations.value, provider, (p) => !!(p.label ?? "").trim());
+            validate("Domain is required", "domain", providerValidations.value, provider, (p) => !!(p.domain ?? "").trim());
+            validate("Client ID is required", "clientId", providerValidations.value, provider, (p) => !!(p.clientId ?? "").trim());
+            validate("Audience is required", "audience", providerValidations.value, provider, (p) => !!(p.audience ?? "").trim());
+        },
+        { deep: true },
+    );
 
     const hasValidCredentials = computed(() => {
         const p = currentProvider.value;
@@ -207,7 +169,6 @@ export function useAuthProviders() {
     function openModal() {
         hasAttemptedSubmit.value = false;
         showModal.value = true;
-        startDirtyTracking();
     }
 
     function closeModal() {
@@ -216,28 +177,19 @@ export function useAuthProviders() {
 
     function revertProvider() {
         if (!editingProviderId.value) return;
-        // Reset local copies to their snapshots
-        editingProviderLocal.value = editingProviderSnapshot.value
-            ? _.cloneDeep(toRaw(editingProviderSnapshot.value))
-            : undefined;
-        editingConfigLocal.value = editingConfigSnapshot.value
-            ? _.cloneDeep(toRaw(editingConfigSnapshot.value))
-            : undefined;
-        // Restart dirty tracking so the next change marks dirty again
-        startDirtyTracking();
+        providerQuery.revert(editingProviderId.value);
+        const configDoc = configs.value.find((c) => c.providerId === editingProviderId.value);
+        if (configDoc) configQuery.revert(configDoc._id);
     }
 
     watch(showModal, (visible) => {
         if (!visible) {
-            stopChangeWatcher?.();
-            stopChangeWatcher = undefined;
-            clearTimeout(accuracyTimer);
-            isDirty.value = false;
+            // Revert unsaved changes (for both edit and create).
+            // For new providers, revert removes them from the editable arrays.
+            if (editingProviderId.value && isDirty.value) {
+                revertProvider();
+            }
             editingProviderId.value = undefined;
-            editingProviderLocal.value = undefined;
-            editingConfigLocal.value = undefined;
-            editingProviderSnapshot.value = undefined;
-            editingConfigSnapshot.value = undefined;
             errors.value = undefined;
             hasAttemptedSubmit.value = false;
         }
@@ -259,9 +211,10 @@ export function useAuthProviders() {
         }
     });
 
-    function resetNewProvider() {
+    function openCreateModal() {
+        // Push new empty docs into the editable arrays (same pattern as GroupOverview.createGroup)
         const newId = db.uuid();
-        newProvider.value = {
+        const newProvider: AuthProviderDto = {
             _id: newId,
             type: DocType.AuthProvider,
             updatedTimeUtc: Date.now(),
@@ -271,18 +224,18 @@ export function useAuthProviders() {
             clientId: "",
             audience: "",
         };
-        newProviderConfig.value = {
+        const newConfig: AuthProviderConfigDto = {
             _id: db.uuid(),
             type: DocType.AuthProviderConfig,
             updatedTimeUtc: Date.now(),
             memberOf: [],
             providerId: newId,
         };
-    }
 
-    function openCreateModal() {
-        resetNewProvider();
-        editingProviderId.value = undefined;
+        providers.value.push(newProvider);
+        configs.value.push(newConfig);
+
+        editingProviderId.value = newId;
         openModal();
     }
 
@@ -291,7 +244,7 @@ export function useAuthProviders() {
 
         // Ensure a config stub exists in the editable array
         if (!configs.value.find((c) => c.providerId === provider._id)) {
-            configQuery.editable.value.push({
+            configs.value.push({
                 _id: db.uuid(),
                 type: DocType.AuthProviderConfig as DocType.AuthProviderConfig,
                 updatedTimeUtc: Date.now(),
@@ -299,16 +252,6 @@ export function useAuthProviders() {
                 providerId: provider._id,
             });
         }
-
-        // Deep-clone into local refs so editing is fully detached from providers.value
-        const rawProvider = _.cloneDeep(toRaw(provider));
-        editingProviderLocal.value = rawProvider;
-        editingProviderSnapshot.value = _.cloneDeep(rawProvider);
-
-        const config = configs.value.find((c) => c.providerId === provider._id);
-        const rawConfig = config ? _.cloneDeep(toRaw(config)) : undefined;
-        editingConfigLocal.value = rawConfig;
-        editingConfigSnapshot.value = rawConfig ? _.cloneDeep(rawConfig) : undefined;
 
         openModal();
     }
@@ -389,80 +332,74 @@ export function useAuthProviders() {
             }
 
             if (isEditing.value && editingProviderId.value) {
-                const localProvider = editingProviderLocal.value;
-                const localConfig = editingConfigLocal.value;
-                if (!localProvider) return;
+                // Sync memberOf from provider to config
+                const provider = currentProvider.value;
+                const config = currentProviderConfig.value;
+                if (!provider) return;
 
-                const memberOf = Array.isArray(localProvider.memberOf)
-                    ? Array.from(localProvider.memberOf)
-                    : [];
-
-                // Write the local copy back into providers.value so providerQuery.save() picks it up
-                const providerIdx = providers.value.findIndex(
-                    (p) => p._id === editingProviderId.value,
-                );
-                if (providerIdx !== -1) {
-                    providers.value[providerIdx] = {
-                        ...toRaw(localProvider),
-                        memberOf,
-                        updatedTimeUtc: Date.now(),
-                    };
+                if (config) {
+                    config.memberOf = Array.isArray(provider.memberOf)
+                        ? [...provider.memberOf]
+                        : [];
                 }
 
-                if (localConfig) {
-                    const configIdx = configs.value.findIndex(
-                        (c) => c.providerId === editingProviderId.value,
-                    );
-                    if (configIdx !== -1) {
-                        configs.value[configIdx] = {
-                            ...toRaw(localConfig),
-                            memberOf,
-                            updatedTimeUtc: Date.now(),
-                        };
+                const label = provider.label ?? "";
+
+                // Only save docs that were actually edited
+                if (providerQuery.isEdited.value(editingProviderId.value)) {
+                    const providerRes = await providerQuery.save(editingProviderId.value);
+                    if (providerRes?.ack === AckStatus.Rejected) {
+                        errors.value = [providerRes.message || "Failed to save provider"];
+                        return;
                     }
                 }
 
-                const label = localProvider.label ?? "";
-
-                await providerQuery.save(editingProviderId.value);
-                const savedConfig = configs.value.find(
-                    (c) => c.providerId === editingProviderId.value,
-                );
-                if (savedConfig) await configQuery.save(savedConfig._id);
+                if (config && configQuery.isEdited.value(config._id)) {
+                    const configRes = await configQuery.save(config._id);
+                    if (configRes?.ack === AckStatus.Rejected) {
+                        errors.value = [configRes.message || "Failed to save provider config"];
+                        return;
+                    }
+                }
 
                 closeModal();
-
                 notification.addNotification({
                     title: `Provider ${label} updated`,
                     description: `Your provider has been successfully updated.`,
                     state: "success",
                 });
             } else {
-                const provider = {
-                    ...toRaw(newProvider.value),
-                    memberOf: Array.isArray(newProvider.value.memberOf)
-                        ? Array.from(newProvider.value.memberOf)
-                        : [],
-                    updatedTimeUtc: Date.now(),
-                };
-                const config = {
-                    ...toRaw(newProviderConfig.value),
-                    memberOf: [...provider.memberOf],
-                    updatedTimeUtc: Date.now(),
-                };
+                // Create: items are already in the editable arrays (pushed in openCreateModal)
+                const provider = currentProvider.value;
+                const config = currentProviderConfig.value;
+                if (!provider) return;
 
-                // Push to editables so isEdited tracking covers them
-                providers.value.push(provider);
-                configs.value.push(config);
+                // Sync memberOf from provider to config
+                if (config) {
+                    config.memberOf = Array.isArray(provider.memberOf)
+                        ? [...provider.memberOf]
+                        : [];
+                }
 
-                await providerQuery.save(provider._id);
-                await configQuery.save(config._id);
+                const label = provider.label ?? "";
 
-                resetNewProvider();
+                const providerRes = await providerQuery.save(provider._id);
+                if (providerRes?.ack === AckStatus.Rejected) {
+                    errors.value = [providerRes.message || "Failed to create provider"];
+                    return;
+                }
+
+                if (config) {
+                    const configRes = await configQuery.save(config._id);
+                    if (configRes?.ack === AckStatus.Rejected) {
+                        errors.value = [configRes.message || "Failed to save provider config"];
+                        return;
+                    }
+                }
+
                 closeModal();
-
                 notification.addNotification({
-                    title: `Provider ${provider.label} created`,
+                    title: `Provider ${label} created`,
                     description: `Your provider has been successfully created.`,
                     state: "success",
                 });
@@ -473,6 +410,48 @@ export function useAuthProviders() {
         } finally {
             isLoading.value = false;
         }
+    }
+
+    function duplicateProvider() {
+        const provider = currentProvider.value;
+        const config = currentProviderConfig.value;
+        if (!provider) return;
+
+        const newId = db.uuid();
+
+        const clonedProvider = _.cloneDeep(toRaw(provider)) as AuthProviderDto;
+        clonedProvider._id = newId;
+        delete (clonedProvider as any)._rev;
+        clonedProvider.label = (clonedProvider.label ?? "") + " (Copy)";
+        if (clonedProvider.imageData?.fileCollections) {
+            clonedProvider.imageData.fileCollections = [];
+        }
+
+        const clonedConfig: AuthProviderConfigDto = config
+            ? {
+                  ..._.cloneDeep(toRaw(config)),
+                  _id: db.uuid(),
+                  providerId: newId,
+              }
+            : {
+                  _id: db.uuid(),
+                  type: DocType.AuthProviderConfig as DocType.AuthProviderConfig,
+                  updatedTimeUtc: Date.now(),
+                  memberOf: [...(clonedProvider.memberOf ?? [])],
+                  providerId: newId,
+              };
+        delete (clonedConfig as any)._rev;
+
+        providers.value.push(clonedProvider);
+        configs.value.push(clonedConfig);
+        editingProviderId.value = newId;
+        hasAttemptedSubmit.value = false;
+
+        notification.addNotification({
+            title: "Provider duplicated",
+            description: "Edit the copy and save when ready.",
+            state: "success",
+        });
     }
 
     // ── Default Groups state ────────────────────────────────────────────────
@@ -558,8 +537,6 @@ export function useAuthProviders() {
 
     // Cleanup live queries when the composable's owner component unmounts
     onBeforeUnmount(() => {
-        stopChangeWatcher?.();
-        clearTimeout(accuracyTimer);
         providerQuery.stopLiveQuery();
         configQuery.stopLiveQuery();
     });
@@ -592,6 +569,7 @@ export function useAuthProviders() {
         providerIsModified,
         hasAttemptedSubmit,
         isFormValid,
+        providerValidations,
 
         // Provider actions
         openCreateModal,
@@ -599,6 +577,7 @@ export function useAuthProviders() {
         deleteProvider,
         confirmDelete,
         saveProvider,
+        duplicateProvider,
         closeModal,
         revertProvider,
 

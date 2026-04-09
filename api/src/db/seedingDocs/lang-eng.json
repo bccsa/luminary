@@ -121,6 +121,9 @@
         "openapp_warning.description": "We noticed you're in Telegram. Please click on Continue to see the content properly on the {appName} app.",
         "openapp_warning.button_continue": "Continue",
         "openapp_warning.button_cancel": "Cancel",
-        "singlecontent.listen": "Listen"
+        "singlecontent.listen": "Listen",
+        "auth.sign_in": "Sign in",
+        "auth.no_methods_available": "No sign-in methods available.",
+        "auth.contact_support": "Please contact support for assistance."
     }
 }

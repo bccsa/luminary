@@ -7,17 +7,22 @@ import { useBucketInfo } from "@/composables/useBucketInfo";
 
 type Props = {
     image?: ImageDto;
-    contentParentId: Uuid;
+    contentParentId?: Uuid;
     parentImageBucketId?: Uuid;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
     isModal?: boolean;
+    /** Direct image URL for simple rendering (e.g. icons). Bypasses responsive image logic. */
+    src?: string;
+    /** Opacity applied to the image (0–1). Only used with the `src` prop. */
+    opacity?: number;
 };
 const props = withDefaults(defineProps<Props>(), {
     size: "post",
     rounded: true,
     isModal: false,
+    opacity: 1,
 });
 
 // Get bucket information for constructing image URLs
@@ -63,7 +68,15 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="isModal ? '' : sizes[size]">
+    <!-- Simple src mode: direct URL rendering (e.g. for icons) -->
+    <img
+        v-if="src"
+        :src="src"
+        alt=""
+        class="h-full w-full object-contain"
+        :style="opacity !== 1 ? { opacity } : undefined"
+    />
+    <div v-else ref="parentRef" :class="isModal ? '' : sizes[size]">
         <div
             v-if="!isModal"
             :class="[
@@ -73,7 +86,7 @@ onMounted(() => {
             ]"
         >
             <LImageProvider
-                :parent-id="contentParentId"
+                :parent-id="contentParentId!"
                 :parent-width="parentWidth"
                 :image="props.image"
                 :aspect-ratio="props.aspectRatio"
@@ -91,7 +104,7 @@ onMounted(() => {
         <!-- Modal mode: no container constraints -->
         <LImageProvider
             v-else
-            :parent-id="contentParentId"
+            :parent-id="contentParentId!"
             :parent-width="parentWidth"
             :image="props.image"
             :rounded="props.rounded"

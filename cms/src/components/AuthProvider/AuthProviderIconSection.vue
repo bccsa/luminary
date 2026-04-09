@@ -19,6 +19,23 @@ const imageEditorRef = ref<InstanceType<typeof ImageEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
 const storage = storageSelection();
 
+// Track existing images bucket for proper display after bucket changes
+const existingImagesBucketId = ref<string | undefined>(undefined);
+watch(
+    () => props.provider,
+    (newProvider) => {
+        if (newProvider?.imageBucketId && newProvider?.imageData?.fileCollections?.length) {
+            if (!existingImagesBucketId.value) {
+                existingImagesBucketId.value = newProvider.imageBucketId;
+            }
+        }
+        if (!newProvider?.imageData?.fileCollections?.length) {
+            existingImagesBucketId.value = undefined;
+        }
+    },
+    { immediate: true },
+);
+
 const isBucketSelected = computed(() => !!props.provider?.imageBucketId);
 
 const acceptedMimeTypes = computed(() => {
@@ -85,6 +102,9 @@ watch(
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
                 :disabled="disabled ?? false"
+                :existing-images-bucket-id="existingImagesBucketId"
+                no-auto-select-bucket
+                @bucket-selected="() => {}"
             />
         </div>
         <div class="mt-2">
@@ -102,7 +122,12 @@ watch(
                     class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
                     :disabled="disabled"
                     @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
-                    @change="emit('update:iconOpacity', ($event.target as HTMLInputElement).valueAsNumber)"
+                    @change="
+                        emit(
+                            'update:iconOpacity',
+                            ($event.target as HTMLInputElement).valueAsNumber,
+                        )
+                    "
                 />
                 <span class="w-10 text-right text-xs text-gray-600">
                     {{ Math.round(localOpacity * 100) }}%

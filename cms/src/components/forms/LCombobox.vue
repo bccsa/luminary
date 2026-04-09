@@ -259,7 +259,7 @@ const onInlineBackspace = () => {
             <div
                 v-if="inlineTags"
                 ref="triggerRef"
-                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white px-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
                 :class="{ 'border-[1px] border-zinc-300': !noBorder }"
                 v-bind="attrsWithoutStyles"
                 @click="open()"
@@ -281,8 +281,8 @@ const onInlineBackspace = () => {
                 <input
                     v-model="query"
                     ref="inputElement"
-                    class="z-0 h-7 min-w-[80px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                    :placeholder="placeholder ?? 'Type to select...'"
+                    class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0 sm:min-w-[80px]"
+                    :placeholder="selectedOptions.length > 0 && !query ? '' : (placeholder ?? 'Type to select...')"
                     name="option-search"
                     autocomplete="off"
                     @keydown.backspace="onInlineBackspace"

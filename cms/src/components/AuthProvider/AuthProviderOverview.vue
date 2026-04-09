@@ -39,11 +39,13 @@ const {
     providerIsModified,
     hasAttemptedSubmit,
     isFormValid,
+    providerValidations,
     openCreateModal,
     editProvider,
     deleteProvider,
     confirmDelete,
     saveProvider,
+    duplicateProvider,
     revertProvider,
     editableDefaultGroups,
     isDefaultGroupsDirty,
@@ -141,8 +143,10 @@ defineExpose({
         :isFormValid="isFormValid"
         :isDirty="isDirty"
         :hasAttemptedSubmit="hasAttemptedSubmit"
+        :providerValidations="providerValidations"
         @save="saveProvider"
         @delete="deleteProvider"
+        @duplicate="duplicateProvider"
         @revert="revertProvider"
     />
 

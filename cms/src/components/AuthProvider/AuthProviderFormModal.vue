@@ -22,11 +22,13 @@ const props = defineProps<{
     isFormValid: boolean;
     isDirty: boolean;
     hasAttemptedSubmit: boolean;
+    providerValidations?: { id: string; isValid: boolean; message: string }[];
 }>();
 
 const emit = defineEmits<{
     save: [];
     delete: [];
+    duplicate: [];
     revert: [];
 }>();
 
@@ -80,6 +82,10 @@ const handleDelete = () => {
     emit("delete");
 };
 
+const handleDuplicate = () => {
+    emit("duplicate");
+};
+
 const handleRevert = () => {
     emit("revert");
 };
@@ -99,7 +105,7 @@ const handleRevert = () => {
         >
             <!-- Left column -->
             <div v-if="provider" class="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
-                <AuthProviderFormErrors :errors="errors ?? []" />
+                <AuthProviderFormErrors :errors="errors ?? []" :validations="providerValidations" />
 
                 <AuthProviderLabelAndType v-model:provider="provider" :disabled="isLoading" />
 
@@ -117,7 +123,6 @@ const handleRevert = () => {
 
                 <AuthProviderAuthConfig
                     v-model:provider="provider"
-                    v-model:providerConfig="providerConfig"
                     :is-editing="isEditing"
                     :disabled="isLoading"
                 />
@@ -166,6 +171,7 @@ const handleRevert = () => {
             :is-dirty="isDirty"
             @save="handleSave"
             @delete="handleDelete"
+            @duplicate="handleDuplicate"
             @close="closeModal"
             @revert="handleRevert"
         />

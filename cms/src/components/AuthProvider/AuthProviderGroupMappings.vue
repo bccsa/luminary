@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import {
     type AuthProviderCondition,
     type AuthProviderGroupMapping,
@@ -9,7 +9,7 @@ import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LSelect from "../forms/LSelect.vue";
-import { TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { TrashIcon, UserGroupIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { PencilSquareIcon, CheckIcon } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{
@@ -60,6 +60,18 @@ const groupOptions = computed(() =>
         value: g._id,
     })),
 );
+
+// Search/filter for group mappings
+const searchQuery = ref("");
+const filteredMappings = computed(() => {
+    const q = searchQuery.value.trim().toLowerCase();
+    const indexed = mappings.value.map((m, i) => ({ mapping: m, originalIndex: i }));
+    if (!q) return indexed;
+    return indexed.filter(({ mapping }) => {
+        const group = props.availableGroups.find((g) => g._id === mapping.groupId);
+        return group?.name?.toLowerCase().includes(q) ?? false;
+    });
+});
 
 const CONDITION_TYPES: {
     value: AuthProviderCondition["type"];
@@ -123,12 +135,19 @@ function conditionSummary(cond: AuthProviderCondition): {
 }
 
 function addGroupMapping() {
+    searchQuery.value = "";
     const list = [...(props.modelValue ?? [])];
     list.push({
         groupId: "",
         conditions: [],
     });
     emit("update:modelValue", list);
+    nextTick(() => {
+        const newIdx = list.length - 1;
+        document
+            .getElementById(`group-mapping-${newIdx}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
 }
 
 function removeGroupMapping(idx: number) {
@@ -261,10 +280,22 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             </LButton>
         </div>
 
+        <!-- Search filter (shown when there are many rules) -->
+        <LInput
+            v-if="mappings.length > 3"
+            name="group-mapping-search"
+            :icon="UserGroupIcon"
+            v-model="searchQuery"
+            placeholder="Filter by group name..."
+            size="sm"
+            class="mt-1"
+        />
+
         <!-- Mapping cards -->
         <div
-            v-for="(mapping, aIdx) in mappings"
+            v-for="{ mapping, originalIndex: aIdx } in filteredMappings"
             :key="aIdx"
+            :id="'group-mapping-' + aIdx"
             class="mt-2 rounded-md border border-gray-200 bg-white"
         >
             <!-- Group selector -->
@@ -275,7 +306,11 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                     :options="groupOptions"
                     :disabled="disabled"
                     :show-selected-in-dropdown="false"
-                    :placeholder="groupSelectionByIndex[aIdx]?.length ? 'Change group assignment...' : 'Select group to assign...'"
+                    :placeholder="
+                        groupSelectionByIndex[aIdx]?.length
+                            ? 'Change group assignment...'
+                            : 'Select group to assign...'
+                    "
                     :inline-tags="true"
                     no-border
                 />
@@ -314,7 +349,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                             class="group flex cursor-pointer items-center gap-1.5 px-2 py-1.5"
                             @click="!disabled && startEdit(aIdx, cIdx)"
                         >
-                            <span class="min-w-0 flex-1 font-mono text-xs text-gray-700">
+                            <span class="min-w-0 flex-1 truncate font-mono text-xs text-gray-700">
                                 <span
                                     v-if="conditionSummary(cond).prefix"
                                     class="mr-1 font-semibold text-zinc-400"

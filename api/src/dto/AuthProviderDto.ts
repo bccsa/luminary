@@ -1,14 +1,7 @@
 import { DocType, Uuid } from "../enums";
 import { _baseDto } from "./_baseDto";
 
-import {
-    IsString,
-    IsNotEmpty,
-    IsOptional,
-    IsArray,
-    IsObject,
-    IsNumber,
-} from "class-validator";
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsObject, IsNumber } from "class-validator";
 import { Expose } from "class-transformer";
 
 export class AuthProviderDto extends _baseDto {

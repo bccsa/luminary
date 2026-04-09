@@ -22,22 +22,12 @@ describe("AuthProviderFormActions.vue", () => {
 
     // ── Button label ─────────────────────────────────────────────────────────
 
-    it("shows 'Create' when not editing", () => {
+    it("shows 'Save' as the save button label", () => {
         const wrapper = mount(AuthProviderFormActions, {
             props: { ...baseProps, isEditing: false },
         });
 
-        expect(wrapper.html()).toContain("Create");
-        expect(wrapper.html()).not.toContain("Update");
-    });
-
-    it("shows 'Update' when editing", () => {
-        const wrapper = mount(AuthProviderFormActions, {
-            props: { ...baseProps, isEditing: true },
-        });
-
-        expect(wrapper.html()).toContain("Update");
-        expect(wrapper.html()).not.toContain("Create");
+        expect(wrapper.html()).toContain("Save");
     });
 
     // ── Delete button ─────────────────────────────────────────────────────────
@@ -137,7 +127,7 @@ describe("AuthProviderFormActions.vue", () => {
             props: { ...baseProps, isFormValid: false, isDirty: true },
         });
 
-        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Create"));
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
         expect((saveBtn!.element as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -146,7 +136,7 @@ describe("AuthProviderFormActions.vue", () => {
             props: { ...baseProps, isFormValid: true, isDirty: false },
         });
 
-        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Create"));
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
         expect((saveBtn!.element as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -156,7 +146,7 @@ describe("AuthProviderFormActions.vue", () => {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
-        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Create"));
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
         expect((saveBtn!.element as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -165,7 +155,7 @@ describe("AuthProviderFormActions.vue", () => {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
-        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Create"));
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
         expect((saveBtn!.element as HTMLButtonElement).disabled).toBe(false);
     });
 
@@ -176,7 +166,7 @@ describe("AuthProviderFormActions.vue", () => {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
-        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Create"));
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
         await saveBtn!.trigger("click");
 
         expect(wrapper.emitted("save")).toHaveLength(1);

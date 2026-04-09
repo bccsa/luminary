@@ -107,8 +107,9 @@ export class AuthIdentityService implements OnModuleInit {
 
             case "claimEquals": {
                 if (!condition.claimPath || condition.value === undefined) return false;
+                if (typeof condition.value !== "string") return false;
                 const claimValue = this.extractClaimValue(jwtPayload, condition.claimPath);
-                return claimValue === condition.value;
+                return claimValue === this.parseValue(condition.value);
             }
 
             case "claimIn": {
@@ -164,6 +165,18 @@ export class AuthIdentityService implements OnModuleInit {
     }
 
     /**
+     * Parses a string value into its corresponding primitive type.
+     * Handles booleans ("true"/"false") and numbers, leaving other strings as-is.
+     */
+    private parseValue(value: string): string | boolean | number {
+        if (value === "true") return true;
+        if (value === "false") return false;
+        const num = Number(value);
+        if (value !== "" && !isNaN(num)) return num;
+        return value;
+    }
+
+    /**
      * Resolves a user identity using the 3-phase federated identity pipeline.
      *
      * Phase 1 – Global defaults: Fetches defaultGroups from DefaultPermissions.
@@ -191,7 +204,8 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(providerId, provider);
             }
 
-            let providerConfig: AuthProviderConfigDto | undefined = this.configCache.get(providerId);
+            let providerConfig: AuthProviderConfigDto | undefined =
+                this.configCache.get(providerId);
             if (!providerConfig) {
                 const configRes = await this.dbService.executeFindQuery({
                     selector: { type: DocType.AuthProviderConfig, providerId },
@@ -281,7 +295,9 @@ export class AuthIdentityService implements OnModuleInit {
 
             if (!primaryUser) {
                 this.logger.warn(
-                    `No user found for the provided token — externalUserId: ${externalUserId ?? "(none)"}, email: ${email ?? "(none in JWT)"}`,
+                    `No user found for the provided token — externalUserId: ${
+                        externalUserId ?? "(none)"
+                    }, email: ${email ?? "(none in JWT)"}`,
                 );
                 throw new UnauthorizedException("No user found");
             }
@@ -328,3 +344,5 @@ export class AuthIdentityService implements OnModuleInit {
         }
     }
 }
+// TODO
+// Transparency on Logo instead of opacity

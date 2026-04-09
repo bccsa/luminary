@@ -387,6 +387,9 @@ export const mockLanguageDtoEng: LanguageDto = {
         "privacy_policy.modal.message_link": "Click {link} to read our privacy policy",
         "login.bcc.button": "Login in with BCC",
         "login.guest.button": "Login in as guest",
+        "auth.sign_in": "Sign in",
+        "auth.no_methods_available": "No sign-in methods available.",
+        "auth.contact_support": "Please contact support for assistance.",
         "select_theme.title": "Select theme",
         "select_theme.light": "Light",
         "select_theme.dark": "Dark",
@@ -444,6 +447,9 @@ export const mockLanguageDtoFra: LanguageDto = {
         "notification.content_not_available.description":
             "La traduction en Français de ce contenu n'est pas encore disponible.",
         "notification.translation_available.title": "Traduction disponible",
+        "auth.sign_in": "Se connecter",
+        "auth.no_methods_available": "Aucune méthode de connexion disponible.",
+        "auth.contact_support": "Veuillez contacter le support pour obtenir de l'aide.",
     },
     default: 0,
 };

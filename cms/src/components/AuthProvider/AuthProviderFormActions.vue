@@ -15,12 +15,14 @@ defineProps<{
 const emit = defineEmits<{
     save: [];
     delete: [];
+    duplicate: [];
     close: [];
     revert: [];
 }>();
 
 const handleSave = () => emit("save");
 const handleDelete = () => emit("delete");
+const handleDuplicate = () => emit("duplicate");
 const handleClose = () => emit("close");
 const handleRevert = () => emit("revert");
 </script>
@@ -44,6 +46,15 @@ const handleRevert = () => emit("revert");
                     :disabled="isLoading"
                 >
                     Delete
+                </LButton>
+                <LButton
+                    v-if="isEditing"
+                    @click="handleDuplicate"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="isLoading"
+                >
+                    Duplicate
                 </LButton>
                 <LButton
                     v-if="isEditing && isDirty"
@@ -73,7 +84,7 @@ const handleRevert = () => emit("revert");
                     :disabled="isLoading || !isFormValid || !isDirty || !isConnected"
                     :loading="isLoading"
                 >
-                    {{ isEditing ? "Update" : "Create" }}
+                    Save
                 </LButton>
             </div>
         </div>
