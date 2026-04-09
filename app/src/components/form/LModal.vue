@@ -32,7 +32,10 @@ const emit = defineEmits(["close"]);
             <div class="divide-y divide-zinc-200 dark:divide-slate-600">
                 <slot></slot>
             </div>
-            <div class="mt-4">
+            <div
+                v-if="$slots.footer"
+                class="mt-4"
+            >
                 <slot name="footer"></slot>
             </div>
         </div>
