@@ -9,7 +9,7 @@ import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 
-async function bootstrap() {
+export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
         bufferLogs: true,
     });
@@ -53,4 +53,7 @@ async function bootstrap() {
 
     await app.listen(process.env.PORT, "0.0.0.0");
 }
-bootstrap();
+/* istanbul ignore next */
+if (require.main === module) {
+    bootstrap();
+}

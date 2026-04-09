@@ -15,7 +15,7 @@
         "test": "dotenv -e .env.test -- jest --forceExit",
         "test:watch": "dotenv -e .env.test -- jest --watch --forceExit",
         "test:detect": "dotenv -e .env.test -- jest --detectOpenHandles",
-        "test:cov": "jest --coverage",
+        "test:cov": "dotenv -e .env.test -- jest --coverage --forceExit",
         "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
         "test:e2e": "jest --config ./test/jest-e2e.json",
         "seed": "nest start -- seed"

@@ -175,6 +175,34 @@ describe("verifyMongoQuery", () => {
         expect(res.error).toMatch(/Template not found|path separators not allowed/);
     });
 
+    it("fails when identifier is a number", async () => {
+        const q: any = { identifier: 123 };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Missing or invalid 'identifier'/);
+    });
+
+    it("passes with optional parentType field in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.parentType = "post";
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("passes with optional language field in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.language = { $in: ["lang-eng", "lang-fra"] };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("passes with optional docType field in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.docType = "post";
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
     it("caches successfully validated templates for performance", async () => {
         // First call - template should be loaded from file
         const q1 = validBaseQuery();

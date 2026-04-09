@@ -11,6 +11,7 @@ const config: Config = {
         "^src/(.*)$": "<rootDir>/$1",
     },
     collectCoverageFrom: ["**/*.(t|j)s"],
+    coveragePathIgnorePatterns: ["/db/schemaUpgrade/", "\\.d\\.ts$", "/test/"],
     coverageDirectory: "../coverage",
     testEnvironment: "node",
 };

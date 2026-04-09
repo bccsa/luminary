@@ -4,6 +4,10 @@ import { v4 as UUID } from "uuid";
 import { storeCryptoData } from "../util/encryption";
 import { DocType, DeleteReason } from "../enums";
 
+import { s3TestConfig } from "../test/s3TestConfig";
+
+const { baseUrl: s3BaseUrl, accessKey: s3AccessKey, secretKey: s3SecretKey, publicUrl: s3PublicUrl } = s3TestConfig;
+
 describe("S3Service", () => {
     let service: S3Service;
     let dbService: any;
@@ -17,10 +21,10 @@ describe("S3Service", () => {
 
         // Create encrypted credentials for the test bucket
         const credentialData = {
-            endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+            endpoint: s3BaseUrl,
             bucketName: testBucket,
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
+            accessKey: s3AccessKey,
+            secretKey: s3SecretKey,
         };
 
         const encryptedCredId = await storeCryptoData(dbService, credentialData);
@@ -32,7 +36,7 @@ describe("S3Service", () => {
             type: "storage",
             name: "Test Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: "http://localhost:9000/test-bucket",
+            publicUrl: `${s3PublicUrl}/test-bucket`,
             StorageType: "s3",
             credential_id: encryptedCredId,
         };
@@ -169,10 +173,10 @@ describe("S3Service", () => {
         // Create a bucket document for a non-existent bucket
         const nonExistentBucketId = "non-existent-" + UUID();
         const credentialData = {
-            endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+            endpoint: s3BaseUrl,
             bucketName: nonExistentBucket,
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
+            accessKey: s3AccessKey,
+            secretKey: s3SecretKey,
         };
         const encryptedCredId = await storeCryptoData(dbService, credentialData);
         await dbService.upsertDoc({
@@ -180,7 +184,7 @@ describe("S3Service", () => {
             type: "storage",
             name: "Non-existent Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: "http://localhost:9000/non-existent",
+            publicUrl: `${s3PublicUrl}/non-existent`,
             StorageType: "s3",
             credential_id: encryptedCredId,
         });
@@ -227,10 +231,10 @@ describe("S3Service", () => {
         // Create a new service instance for a temporary bucket
         const tempBucketName = "temp-bucket-" + UUID();
         const credentialData = {
-            endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+            endpoint: s3BaseUrl,
             bucketName: tempBucketName,
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
+            accessKey: s3AccessKey,
+            secretKey: s3SecretKey,
         };
         const encryptedCredId = await storeCryptoData(dbService, credentialData);
         const tempBucketId = "temp-bucket-doc-" + UUID();
@@ -239,7 +243,7 @@ describe("S3Service", () => {
             type: "storage",
             name: "Temp Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: "http://localhost:9000/temp-bucket",
+            publicUrl: `${s3PublicUrl}/temp-bucket`,
             StorageType: "s3",
             credential_id: encryptedCredId,
         });
@@ -259,7 +263,7 @@ describe("S3Service", () => {
     it("returns false when checking connection with invalid client", async () => {
         // Create a new bucket with invalid credentials
         const invalidCredData = {
-            endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+            endpoint: s3BaseUrl,
             bucketName: testBucket,
             accessKey: "invalid",
             secretKey: "invalid",
@@ -272,7 +276,7 @@ describe("S3Service", () => {
             type: "storage",
             name: "Invalid Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: "http://localhost:9000/invalid-bucket",
+            publicUrl: `${s3PublicUrl}/invalid-bucket`,
             StorageType: "s3",
             credential_id: invalidCredId,
         };
@@ -287,7 +291,7 @@ describe("S3Service", () => {
 
     it("returns unauthorized status for invalid credentials", async () => {
         const invalidCredData = {
-            endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+            endpoint: s3BaseUrl,
             bucketName: testBucket,
             accessKey: "invalid",
             secretKey: "invalid",
@@ -300,7 +304,7 @@ describe("S3Service", () => {
             type: "storage",
             name: "Invalid Cred Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: "http://localhost:9000/invalid-bucket",
+            publicUrl: `${s3PublicUrl}/invalid-bucket`,
             StorageType: "s3",
             credential_id: invalidCredId,
         };
@@ -352,10 +356,10 @@ describe("S3Service", () => {
             // Create a new bucket for this test
             const deleteTestBucket = "delete-test-bucket-" + UUID();
             const credentialData = {
-                endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+                endpoint: s3BaseUrl,
                 bucketName: deleteTestBucket,
-                accessKey: process.env.S3_ACCESS_KEY,
-                secretKey: process.env.S3_SECRET_KEY,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
             };
             const encryptedCredId = await storeCryptoData(dbService, credentialData);
             const deleteTestBucketId = "delete-test-bucket-doc-" + UUID();
@@ -365,7 +369,7 @@ describe("S3Service", () => {
                 type: "storage",
                 name: "Delete Test Bucket",
                 mimeTypes: ["image/*"],
-                publicUrl: "http://localhost:9000/delete-test-bucket",
+                publicUrl: `${s3PublicUrl}/delete-test-bucket`,
                 StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
@@ -425,10 +429,10 @@ describe("S3Service", () => {
             // Create a new bucket for this test
             const timeoutTestBucket = "timeout-test-bucket-" + UUID();
             const credentialData = {
-                endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+                endpoint: s3BaseUrl,
                 bucketName: timeoutTestBucket,
-                accessKey: process.env.S3_ACCESS_KEY,
-                secretKey: process.env.S3_SECRET_KEY,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
             };
             const encryptedCredId = await storeCryptoData(dbService, credentialData);
             const timeoutTestBucketId = "timeout-test-bucket-doc-" + UUID();
@@ -438,7 +442,7 @@ describe("S3Service", () => {
                 type: "storage",
                 name: "Timeout Test Bucket",
                 mimeTypes: ["image/*"],
-                publicUrl: "http://localhost:9000/timeout-test-bucket",
+                publicUrl: `${s3PublicUrl}/timeout-test-bucket`,
                 StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
@@ -479,10 +483,10 @@ describe("S3Service", () => {
             // Create a new bucket for this test
             const accessTimeTestBucket = "access-time-test-bucket-" + UUID();
             const credentialData = {
-                endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+                endpoint: s3BaseUrl,
                 bucketName: accessTimeTestBucket,
-                accessKey: process.env.S3_ACCESS_KEY,
-                secretKey: process.env.S3_SECRET_KEY,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
             };
             const encryptedCredId = await storeCryptoData(dbService, credentialData);
             const accessTimeTestBucketId = "access-time-test-bucket-doc-" + UUID();
@@ -492,7 +496,7 @@ describe("S3Service", () => {
                 type: "storage",
                 name: "Access Time Test Bucket",
                 mimeTypes: ["image/*"],
-                publicUrl: "http://localhost:9000/access-time-test-bucket",
+                publicUrl: `${s3PublicUrl}/access-time-test-bucket`,
                 StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],
@@ -539,10 +543,10 @@ describe("S3Service", () => {
             // Create a new bucket for this test
             const activeTestBucket = "active-test-bucket-" + UUID();
             const credentialData = {
-                endpoint: `http://${process.env.S3_ENDPOINT}:${process.env.S3_PORT}`,
+                endpoint: s3BaseUrl,
                 bucketName: activeTestBucket,
-                accessKey: process.env.S3_ACCESS_KEY,
-                secretKey: process.env.S3_SECRET_KEY,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
             };
             const encryptedCredId = await storeCryptoData(dbService, credentialData);
             const activeTestBucketId = "active-test-bucket-doc-" + UUID();
@@ -552,7 +556,7 @@ describe("S3Service", () => {
                 type: "storage",
                 name: "Active Test Bucket",
                 mimeTypes: ["image/*"],
-                publicUrl: "http://localhost:9000/active-test-bucket",
+                publicUrl: `${s3PublicUrl}/active-test-bucket`,
                 StorageType: "s3",
                 credential_id: encryptedCredId,
                 memberOf: [],

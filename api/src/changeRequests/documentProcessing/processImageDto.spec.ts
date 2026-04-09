@@ -9,6 +9,7 @@ import { DbService } from "../../db/db.service";
 import { v4 as uuidv4 } from "uuid";
 import { StorageType, DocType } from "../../enums";
 import { storeCryptoData } from "../../util/encryption";
+import { s3TestConfig, createTestCredentials } from "../../test/s3TestConfig";
 
 describe("S3ImageHandler", () => {
     let service: S3Service;
@@ -17,12 +18,7 @@ describe("S3ImageHandler", () => {
     let testBucketId: string;
     const resImages: ImageDto[] = [];
 
-    const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
-        bucketName: "", // Will be set in beforeAll
-        accessKey: "minio",
-        secretKey: "minio123",
-    };
+    const testCredentials = createTestCredentials();
 
     beforeAll(async () => {
         const module = await createTestingModule("imagehandling");
@@ -40,7 +36,7 @@ describe("S3ImageHandler", () => {
             type: DocType.Storage,
             name: "Test Bucket",
             mimeTypes: ["image/*"],
-            publicUrl: `http://127.0.0.1:9000/${testBucket}`,
+            publicUrl: `${s3TestConfig.publicUrl}/${testBucket}`,
             StorageType: StorageType.Image,
             credential_id: encryptedCredId,
         };
@@ -169,12 +165,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
     let sourceService: S3Service;
     let targetService: S3Service;
 
-    const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
-        bucketName: "test-bucket", // placeholder
-        accessKey: "minio",
-        secretKey: "minio123",
-    };
+    const testCredentials = createTestCredentials("test-bucket");
 
     beforeAll(async () => {
         const module = await createTestingModule("bucket-migration");
@@ -207,7 +198,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Source Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${sourceBucket}`,
+            publicUrl: `${s3TestConfig.publicUrl}/${sourceBucket}`,
             mimeTypes: ["image/*"],
             credential_id: sourceCredId,
             updatedTimeUtc: Date.now(),
@@ -218,7 +209,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Target Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${targetBucket}`,
+            publicUrl: `${s3TestConfig.publicUrl}/${targetBucket}`,
             mimeTypes: ["image/*"],
             credential_id: targetCredId,
             updatedTimeUtc: Date.now(),
@@ -448,12 +439,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
         // Create an invalid target bucket that doesn't exist physically
         const invalidBucketId = `storage-${uuidv4()}`;
         const invalidBucketName = `nonexistent-bucket-${uuidv4()}`;
-        const invalidCredId = await storeCryptoData(dbService, {
-            endpoint: "http://127.0.0.1:9000",
-            bucketName: invalidBucketName,
-            accessKey: "minio",
-            secretKey: "minio123",
-        });
+        const invalidCredId = await storeCryptoData(
+            dbService,
+            createTestCredentials(invalidBucketName),
+        );
 
         const invalidBucketDto: StorageDto = {
             _id: invalidBucketId,
@@ -461,7 +450,7 @@ describe("S3ImageHandler - Bucket Migration", () => {
             memberOf: ["group-public-content"],
             name: `Invalid Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${invalidBucketName}`,
+            publicUrl: `${s3TestConfig.publicUrl}/${invalidBucketName}`,
             mimeTypes: ["image/*"],
             credential_id: invalidCredId,
             updatedTimeUtc: Date.now(),
@@ -518,12 +507,7 @@ describe("S3ImageHandler - File Type Validation", () => {
     let allowAllBucketDto: StorageDto;
     let restrictedService: S3Service;
 
-    const testCredentials = {
-        endpoint: "http://127.0.0.1:9000",
-        bucketName: "", // will be set in beforeAll
-        accessKey: "minio",
-        secretKey: "minio123",
-    };
+    const testCredentials = createTestCredentials();
 
     beforeAll(async () => {
         const module = await createTestingModule("filetype-validation");
@@ -552,7 +536,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             memberOf: ["group-public-content"],
             name: `Restricted Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${testBucket}/restricted`,
+            publicUrl: `${s3TestConfig.publicUrl}/${testBucket}/restricted`,
             mimeTypes: ["image/jpeg", "image/png"],
             credential_id: restrictedCredId,
             updatedTimeUtc: Date.now(),
@@ -565,7 +549,7 @@ describe("S3ImageHandler - File Type Validation", () => {
             memberOf: ["group-public-content"],
             name: `Allow All Bucket`,
             storageType: StorageType.Image,
-            publicUrl: `http://127.0.0.1:9000/${testBucket}/allow-all`,
+            publicUrl: `${s3TestConfig.publicUrl}/${testBucket}/allow-all`,
             mimeTypes: [],
             credential_id: allowAllCredId,
             updatedTimeUtc: Date.now(),

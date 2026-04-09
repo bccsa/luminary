@@ -23,7 +23,7 @@ describe("Search service", () => {
         }`;
 
         service = (await createTestingModule("search-service")).dbService;
-        searchService = new SearchService(undefined, service);
+        searchService = new SearchService({ error: jest.fn(), warn: jest.fn() } as any, service);
     });
 
     afterAll(async () => {
@@ -115,6 +115,36 @@ describe("Search service", () => {
         expect(res.docs.some((d) => d.type == DocType.DeleteCmd && d._id == "test-delete")).toBe(
             true,
         );
+    });
+
+    it("can query by slug", async () => {
+        const req: SearchReqDto = {
+            apiVersion: "0.0.0",
+            slug: "test-slug-that-does-not-exist",
+        };
+
+        const res = await searchService.processReq(req, "");
+
+        // Should not throw and should return a result (even if empty)
+        expect(res).toBeDefined();
+    });
+
+    it("handles db.search errors gracefully", async () => {
+        // Mock db.search to throw
+        jest.spyOn(service, "search").mockRejectedValueOnce(new Error("DB error"));
+
+        const req: SearchReqDto = {
+            apiVersion: "0.0.0",
+            limit: 10,
+            types: [DocType.Post],
+        };
+
+        const res = await searchService.processReq(req, "");
+
+        // Should return undefined when search fails
+        expect(res).toBeUndefined();
+
+        jest.restoreAllMocks();
     });
 
     it("does not include delete commands in the query result if not requested", async () => {

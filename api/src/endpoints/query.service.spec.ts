@@ -501,6 +501,109 @@ describe("QueryService", () => {
         expect(memberOfGroups).toEqual(expect.arrayContaining(["shared-g1", "post-g2", "tag-g3"]));
     });
 
+    it("handles languageUpdate event to add/update languages", async () => {
+        // Get the languageUpdate callback registered in constructor
+        const onCall = dbService.on.mock.calls.find((c) => c[0] === "languageUpdate");
+        expect(onCall).toBeDefined();
+        const languageUpdateHandler = onCall[1];
+
+        // Add a language
+        languageUpdateHandler({ _id: "lang-test", type: DocType.Language, memberOf: ["g1"] });
+        expect((service as any).languages).toContainEqual(
+            expect.objectContaining({ _id: "lang-test" }),
+        );
+
+        // Update an existing language
+        languageUpdateHandler({
+            _id: "lang-test",
+            type: DocType.Language,
+            memberOf: ["g1", "g2"],
+        });
+        const updated = (service as any).languages.find((l) => l._id === "lang-test");
+        expect(updated.memberOf).toEqual(["g1", "g2"]);
+
+        // Delete a language via DeleteCmd
+        languageUpdateHandler({ _id: "lang-test", type: DocType.DeleteCmd });
+        expect((service as any).languages.find((l) => l._id === "lang-test")).toBeUndefined();
+    });
+
+    it("extracts memberOf from $elemMatch.$in format", async () => {
+        const access = { [DocType.Post]: ["a", "b"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        (selector as any).$and = [
+            { type: DocType.Post },
+            { memberOf: { $elemMatch: { $in: ["a", "c"] } } },
+        ];
+        (query as any).selector = selector;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);
+        expect(memberOfCondition.memberOf.$elemMatch.$in).toEqual(["a"]);
+    });
+
+    it("throws 400 for invalid memberOf format", async () => {
+        const access = { [DocType.Post]: ["a"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        (selector as any).$and = [
+            { type: DocType.Post },
+            { memberOf: { $gt: 5 } }, // Invalid format
+        ];
+        (query as any).selector = selector;
+
+        await expect(service.query(query, "token")).rejects.toThrow("Invalid memberOf field");
+    });
+
+    it("skips publishing filters for Content type when cms flag is true", async () => {
+        const access = {
+            [DocType.Post]: ["p1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        (selector as any).type = DocType.Content;
+        (selector as any).parentType = DocType.Post;
+        (query as any).selector = selector;
+        (query as any).cms = true;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const sel = calledWith.selector;
+
+        // Should NOT contain publishing filters
+        expect(sel.$and).not.toContainEqual(
+            expect.objectContaining({ status: PublishStatus.Published }),
+        );
+    });
+
+    it("extracts memberOf from plain string", async () => {
+        const access = { [DocType.Post]: ["my-group", "b"] } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        (selector as any).$and = [{ type: DocType.Post }, { memberOf: "my-group" }];
+        (query as any).selector = selector;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);
+        expect(memberOfCondition.memberOf.$elemMatch.$in).toEqual(["my-group"]);
+    });
+
     it("throws 403 when user has no Post or Tag access for DeleteCmd Content", async () => {
         const access = {
             [DocType.Post]: [],
