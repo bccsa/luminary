@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
-import * as jwksRsa from "jwks-rsa";
+import jwksRsa from "jwks-rsa";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import {
     AuthProviderCondition,
@@ -294,12 +294,23 @@ export class AuthIdentityService implements OnModuleInit {
             }
 
             if (!primaryUser) {
-                this.logger.warn(
-                    `No user found for the provided token — externalUserId: ${
+                this.logger.log(
+                    `No user doc for externalUserId: ${
                         externalUserId ?? "(none)"
-                    }, email: ${email ?? "(none in JWT)"}`,
+                    }, email: ${
+                        email ?? "(none)"
+                    } — returning default + dynamic groups only`,
                 );
-                throw new UnauthorizedException("No user found");
+                const mergedGroups = Array.from(
+                    new Set([...defaultGroups, ...dynamicGroups]),
+                );
+                const accessMap = PermissionSystem.getAccessMap(mergedGroups);
+                return {
+                    groups: mergedGroups,
+                    email,
+                    jwtPayload: payload as JWT.JwtPayload,
+                    accessMap,
+                };
             }
 
             // Link identity: set externalUserId on the user if not already present

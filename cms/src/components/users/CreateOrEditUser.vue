@@ -3,7 +3,6 @@ import LBadge from "../common/LBadge.vue";
 import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
-import LSelect from "../forms/LSelect.vue";
 import {
     AclPermission,
     ApiLiveQuery,
@@ -14,7 +13,6 @@ import {
     type ApiSearchQuery,
     type UserDto,
     type Uuid,
-    type AuthProviderDto,
     getRest,
     AckStatus,
     useDexieLiveQuery,
@@ -47,21 +45,6 @@ const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
 const original = apiLiveQuery.toRef();
 const isLoading = apiLiveQuery.isLoadingAsRef();
 
-const providerQuery = ref<ApiSearchQuery>({
-    types: [DocType.AuthProvider],
-    limit: 100,
-});
-const providerLiveQuery = new ApiLiveQuery<AuthProviderDto>(providerQuery);
-const authProviders = providerLiveQuery.liveData;
-
-const authProviderOptions = computed(() => [
-    { label: "None", value: "" },
-    ...authProviders.value.map((p) => ({
-        label: p.label || p.domain || p._id,
-        value: p._id,
-    })),
-]);
-
 const { addNotification } = useNotificationStore();
 
 const showDeleteModal = ref(false);
@@ -73,7 +56,6 @@ const editable = ref<UserDto>({
     memberOf: [],
     email: "",
     name: "New user",
-    providerId: "",
 });
 
 // Clone the original user when it's loaded into the editable object
@@ -236,14 +218,8 @@ const saveDisabled = computed(() => {
                 data-test="userEmail"
             />
 
-            <LSelect
-                v-model="editable.providerId"
-                label="Auth Provider"
-                :options="authProviderOptions"
-                :disabled="!canEditOrCreate"
-                class="mb-4 w-full"
-                data-test="authProviderSelector"
-            />
+            <!-- TODO: Re-introduce provider restriction per user — allow assigning a specific
+                 auth provider to a user and rejecting login attempts through other providers. -->
 
             <LCombobox
                 v-model:selected-options="editable.memberOf as string[]"
