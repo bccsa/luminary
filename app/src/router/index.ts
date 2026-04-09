@@ -1,7 +1,7 @@
 import HomePage from "@/pages/HomePage.vue";
 import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
-import OpenAppWarningPage from "@/pages/OpenAppWarningPage.vue";
+import InAppBrowserCheck from "@/pages/InAppBrowserCheck.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
 
 // Preload all route components immediately as separate chunks
@@ -35,7 +35,7 @@ const router = createRouter({
     routes: [
         {
             path: "/open",
-            component: OpenAppWarningPage,
+            component: InAppBrowserCheck,
             name: "open-warning",
             meta: {
                 analyticsIgnore: true,
