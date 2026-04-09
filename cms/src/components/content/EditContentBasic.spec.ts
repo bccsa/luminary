@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
@@ -7,14 +7,21 @@ import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import { DateTime } from "luxon";
-import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
+import { db, accessMap, type ContentDto, type RedirectDto, PublishStatus, DocType, RedirectType } from "luminary-shared";
 import LTextToggle from "../forms/LTextToggle.vue";
+import { Slug } from "@/util/slug";
+import waitForExpect from "wait-for-expect";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
         accessMap.value = mockData.fullAccessToAllContentMap;
+    });
+
+    afterEach(async () => {
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     afterAll(() => {
@@ -420,5 +427,144 @@ describe("EditContentBasic.vue", () => {
         expect(wrapper.text()).toContain(
             "Please set a publish date before using the expiry shortcut.",
         );
+    });
+
+    it("auto-generates slug from title when slug is empty", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            title: "",
+            slug: "",
+            status: PublishStatus.Draft,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("My New Title");
+
+        // Slug should be auto-generated
+        expect(content.value.slug).toBe(Slug.generateNonUnique("My New Title"));
+    });
+
+    it("auto-updates slug in draft mode when title changes", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            title: "Original Title",
+            slug: Slug.generateNonUnique("Original Title"),
+            status: PublishStatus.Draft,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("Updated Title");
+
+        expect(content.value.slug).toBe(Slug.generateNonUnique("Updated Title"));
+    });
+
+    it("clicking slug span opens slug editing", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        // Slug span should be visible initially
+        const slugSpan = wrapper.find('[data-test="slugSpan"]');
+        expect(slugSpan.exists()).toBe(true);
+        expect(slugSpan.isVisible()).toBe(true);
+
+        // Click the slug span to start editing
+        await slugSpan.trigger("click");
+
+        // The slug input should now be visible
+        const slugInput = wrapper.find('[name="slug"]');
+        expect(slugInput.exists()).toBe(true);
+    });
+
+    it("clears slug when title is emptied", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            title: "Some Title",
+            slug: "some-title",
+            status: PublishStatus.Draft,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("");
+
+        expect(content.value.slug).toBe("");
+    });
+
+    it("shows redirect warning when redirect exists for slug", async () => {
+        // Seed the database with a redirect matching the slug
+        await db.docs.put({
+            _id: "redirect-test",
+            type: DocType.Redirect,
+            memberOf: ["group-public-content"],
+            updatedTimeUtc: 0,
+            redirectType: RedirectType.Temporary,
+            slug: "post1-eng",
+            toSlug: "somewhere-else",
+        } as RedirectDto);
+
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            slug: "post1-eng",
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("A redirect exists for this slug");
+        });
+    });
+
+    it("sets publish date via datetime input", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            publishDate: undefined,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        const publishInput = wrapper.find('[name="publishDate"]') as DOMWrapper<HTMLInputElement>;
+        const isoDate = "2024-06-15T10:30";
+        await publishInput.setValue(isoDate);
+
+        expect(content.value.publishDate).toBeDefined();
+        expect(content.value.publishDate).toBe(db.fromIsoDateTime(isoDate));
     });
 });

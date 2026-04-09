@@ -213,4 +213,62 @@ describe("RichTextEditor", () => {
             expect(wrapper.text()).toContain("Plain text string");
         });
     });
+
+    it("renders toolbar with link and unlink buttons", async () => {
+        const wrapper = mount(RichTextEditor, {
+            props: {
+                disabled: false,
+                text: "<p>Some text</p>",
+                textLanguage: "lang-eng",
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.editor).toBeDefined();
+        });
+
+        // Should have Link and Unlink toolbar buttons
+        const linkButton = wrapper.find('button[title="Link"]');
+        const unlinkButton = wrapper.find('button[title="Unlink"]');
+        expect(linkButton.exists()).toBe(true);
+        expect(unlinkButton.exists()).toBe(true);
+    });
+
+    it("renders toolbar buttons including custom icons", async () => {
+        const wrapper = mount(RichTextEditor, {
+            props: {
+                disabled: false,
+                text: "<p>Test</p>",
+                textLanguage: "lang-eng",
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.editor).toBeDefined();
+        });
+
+        // Toolbar should render buttons
+        const buttons = wrapper.findAll("button[title]");
+        expect(buttons.length).toBeGreaterThan(0);
+    });
+
+    it("exposes editor instance via defineExpose", async () => {
+        const wrapper = mount(RichTextEditor, {
+            props: {
+                disabled: false,
+                text: "<p>Test</p>",
+                textLanguage: "lang-eng",
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.editor).toBeDefined();
+        });
+
+        const editor = wrapper.vm.editor;
+        expect(editor).toBeDefined();
+        // Editor should have standard TipTap methods
+        expect(editor?.commands).toBeDefined();
+        expect(editor?.getAttributes).toBeDefined();
+    });
 });
