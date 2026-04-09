@@ -11,6 +11,7 @@ import {
     getCorpusStats,
     setCorpusStats,
     recomputeCorpusStats,
+    scheduleCorpusStatsRecompute,
 } from "./ftsIndexer";
 import { ftsSearch } from "./ftsSearch";
 
@@ -329,5 +330,82 @@ describe("FTS Indexer and Search", () => {
             const results = await ftsSearch({ query: "" });
             expect(results).toEqual([]);
         });
+
+        it("returns empty array when corpus is empty (N=0)", async () => {
+            await db.docs.clear();
+            await db.luminaryInternals.clear();
+            const results = await ftsSearch({ query: "quantum" });
+            expect(results).toEqual([]);
+        });
+
+        it("handles custom BM25 parameters", async () => {
+            const results = await ftsSearch({
+                query: "quantum",
+                bm25k1: 2.0,
+                bm25b: 0.5,
+            });
+            expect(results.length).toBeGreaterThan(0);
+            for (const r of results) {
+                expect(r.score).toBeGreaterThan(0);
+            }
+        });
+
+        it("filters over-represented trigrams via maxTrigramDocPercent", async () => {
+            // With maxTrigramDocPercent=0, all trigrams should be filtered out
+            const results = await ftsSearch({
+                query: "quantum",
+                maxTrigramDocPercent: 0,
+            });
+            expect(results).toEqual([]);
+        });
+
+        it("handles documents with no fts array", async () => {
+            const doc = makeContentDoc({ _id: "no-fts", title: "quantum test" });
+            // Insert without fts data
+            await db.bulkPut([doc]);
+            await recomputeCorpusStats();
+
+            const results = await ftsSearch({ query: "quantum" });
+            // Should still return other docs that have fts data
+            const ids = results.map((r) => r.docId);
+            expect(ids).not.toContain("no-fts");
+        });
+
+        it("handles documents with ftsTokenCount of 0", async () => {
+            const doc = makeContentDoc({ _id: "zero-tc", title: "quantum zero" });
+            doc.ftsTokenCount = 0;
+            doc.fts = [];
+            await db.bulkPut([doc]);
+            await recomputeCorpusStats();
+
+            const results = await ftsSearch({ query: "quantum" });
+            const ids = results.map((r) => r.docId);
+            expect(ids).not.toContain("zero-tc");
+        });
+    });
+
+    describe("scheduleCorpusStatsRecompute", () => {
+        it("triggers recomputation after debounce delay", async () => {
+            const { entries, tokenCount } = generateSimpleFtsEntries("quantum");
+            const doc = makeContentDoc({ _id: "sched-1", title: "quantum" });
+            await ingestDocWithFts(doc, entries, tokenCount);
+
+            // Clear stats so we can verify recomputation happened
+            await db.luminaryInternals.clear();
+            let stats = await getCorpusStats();
+            expect(stats.docCount).toBe(0);
+
+            // Schedule (debounced 10s) — call 3 times to test deduplication
+            scheduleCorpusStatsRecompute();
+            scheduleCorpusStatsRecompute();
+            scheduleCorpusStatsRecompute();
+
+            // Wait for debounce to fire
+            await new Promise((r) => setTimeout(r, 11_000));
+
+            stats = await getCorpusStats();
+            expect(stats.docCount).toBe(1);
+            expect(stats.totalTokenCount).toBe(tokenCount);
+        }, 15_000);
     });
 });

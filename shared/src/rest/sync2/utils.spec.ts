@@ -6,6 +6,7 @@ import {
     getGroups,
     getGroupSets,
     getLanguages,
+    getLanguageSets,
     filterByTypeMemberOf,
     arraysEqual,
 } from "./utils";
@@ -561,6 +562,117 @@ describe("sync2 utils", () => {
 
             const languages = getLanguages();
             expect(languages).toEqual(["es"]);
+        });
+    });
+
+    describe("getLanguageSets", () => {
+        it("returns empty array when type is not Content", () => {
+            const result = getLanguageSets({ type: DocType.Post });
+            expect(result).toEqual([]);
+        });
+
+        it("returns empty array when subType is not provided", () => {
+            const result = getLanguageSets({ type: DocType.Content });
+            expect(result).toEqual([]);
+        });
+
+        it("returns empty array when no matching entries", () => {
+            syncList.value = [];
+            const result = getLanguageSets({
+                type: DocType.Content,
+                subType: DocType.Post,
+                languages: ["en"],
+            });
+            expect(result).toEqual([]);
+        });
+
+        it("returns language sets for matching content entries", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en", "es"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                },
+            ];
+
+            const result = getLanguageSets({
+                type: DocType.Content,
+                subType: DocType.Post,
+                languages: ["en", "es", "fr"],
+            });
+
+            expect(result).toHaveLength(1);
+            expect(result[0]).toContain("en");
+            expect(result[0]).toContain("es");
+        });
+
+        it("skips entries without languages array", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                },
+            ];
+
+            const result = getLanguageSets({
+                type: DocType.Content,
+                subType: DocType.Post,
+                languages: ["en"],
+            });
+
+            expect(result).toEqual([]);
+        });
+
+        it("skips entries where not all languages are in options.languages", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en", "de"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                },
+            ];
+
+            const result = getLanguageSets({
+                type: DocType.Content,
+                subType: DocType.Post,
+                languages: ["en"], // "de" is not included
+            });
+
+            expect(result).toEqual([]);
+        });
+
+        it("deduplicates identical language sets", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en", "es"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group2"],
+                    languages: ["es", "en"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                },
+            ];
+
+            const result = getLanguageSets({
+                type: DocType.Content,
+                subType: DocType.Post,
+                languages: ["en", "es"],
+            });
+
+            // Both entries have the same languages, so should deduplicate
+            expect(result).toHaveLength(1);
         });
     });
 
