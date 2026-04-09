@@ -157,10 +157,9 @@ describe("useFtsSearch", () => {
 
     it("manual mode does not watch query changes", async () => {
         const scope = effectScope();
-        let result: any;
         scope.run(() => {
             const queryRef = ref("quantum physics test");
-            result = useFtsSearch(queryRef, { debounceMs: "manual" });
+            useFtsSearch(queryRef, { debounceMs: "manual" });
         });
 
         await vi.advanceTimersByTimeAsync(1000);

@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeAll, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { db, initDatabase } from "../db/database";
 import { initConfig } from "../config";
 import {
