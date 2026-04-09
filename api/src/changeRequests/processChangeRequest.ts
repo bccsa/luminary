@@ -17,6 +17,8 @@ import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
 import processDefaultPermissionsDto from "./documentProcessing/processDefaultPermissionsDto";
 import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
+import processAuthProviderDto from "./documentProcessing/processAuthProviderDto";
+import { AuthProviderDto } from "../dto/AuthProviderDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -58,8 +60,8 @@ export async function processChangeRequest(
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
         [DocType.DefaultPermissions]: () => processDefaultPermissionsDto(doc as DefaultPermissionsDto),
-        // AuthProvider documents require no post-processing; cache TTL in AuthIdentityService handles staleness
-        [DocType.AuthProvider]: () => Promise.resolve(),
+        [DocType.AuthProvider]: () =>
+            processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
     };
 
     if (docProcessMap[doc.type]) {

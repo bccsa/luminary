@@ -40,7 +40,7 @@ const isBucketSelected = computed(() => !!props.provider?.imageBucketId);
 
 const acceptedMimeTypes = computed(() => {
     if (!props.provider?.imageBucketId) {
-        return "image/jpeg, image/png, image/webp, image/svg+xml";
+        return "image/jpeg, image/png, image/webp";
     }
     const bucket = storage.getBucketById(props.provider.imageBucketId);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
@@ -103,7 +103,6 @@ watch(
                 v-model:parent="provider as unknown as ContentParentDto"
                 :disabled="disabled ?? false"
                 :existing-images-bucket-id="existingImagesBucketId"
-                no-auto-select-bucket
                 @bucket-selected="() => {}"
             />
         </div>
