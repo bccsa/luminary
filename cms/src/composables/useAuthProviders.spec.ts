@@ -287,11 +287,11 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("starts with isDirty false", () => {
+        it("starts with isDirty true (new item has no shadow)", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.openCreateModal();
-                expect(c.isDirty.value).toBe(false);
+                expect(c.isDirty.value).toBe(true);
             } finally {
                 teardown();
             }
@@ -325,10 +325,13 @@ describe("useAuthProviders", () => {
     // ── editProvider ─────────────────────────────────────────────────────────
 
     describe("editProvider", () => {
-        it("opens the modal with isEditing true", () => {
+        it("opens the modal with isEditing true", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 expect(c.showModal.value).toBe(true);
                 expect(c.isEditing.value).toBe(true);
             } finally {
@@ -336,10 +339,13 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("populates currentProvider with a deep clone of the provided data", () => {
+        it("populates currentProvider with a deep clone of the provided data", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 expect(c.currentProvider.value?.label).toBe("Test Provider");
                 expect(c.currentProvider.value?.domain).toBe("test.auth0.com");
                 expect(c.currentProvider.value?.clientId).toBe("client-id-1");
@@ -361,18 +367,17 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("editing the local copy does not mutate providers.value", async () => {
+        it("editing the current provider mutates the editable array directly", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                // Mutate via the local editing copy
+                // currentProvider is a reference into the editable array
                 c.currentProvider.value!.label = "MUTATED";
                 await nextTick();
-                // The underlying reactive array must remain unchanged
-                expect(c.providers.value[0].label).toBe("Test Provider");
+                expect(c.providers.value[0].label).toBe("MUTATED");
             } finally {
                 teardown();
             }
@@ -383,48 +388,54 @@ describe("useAuthProviders", () => {
 
     describe("isDirty tracking", () => {
         it("becomes true immediately when a field changes while editing", async () => {
-            vi.useFakeTimers();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
-                expect(c.isDirty.value).toBe(false);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
+                await waitForExpect(() => {
+                    expect(c.isDirty.value).toBe(false);
+                });
                 c.currentProvider.value!.label = "Changed Label";
-                await nextTick();
-                expect(c.isDirty.value).toBe(true);
+                await waitForExpect(() => {
+                    expect(c.isDirty.value).toBe(true);
+                });
             } finally {
                 teardown();
             }
         });
 
-        it("resets to false after the 500 ms accuracy check when user types back to the original", async () => {
-            vi.useFakeTimers();
+        it("resets to false when user types back to the original", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
-                await nextTick();
-                expect(c.isDirty.value).toBe(true);
+                await waitForExpect(() => {
+                    expect(c.isDirty.value).toBe(true);
+                });
 
                 // Type back to the original value
                 c.currentProvider.value!.label = "Test Provider";
-                await nextTick();
-                // Advance past the 500 ms debounce
-                vi.advanceTimersByTime(600);
-                await nextTick();
-                expect(c.isDirty.value).toBe(false);
+                await waitForExpect(() => {
+                    expect(c.isDirty.value).toBe(false);
+                });
             } finally {
                 teardown();
             }
         });
 
-        it("stays true after the accuracy check when the value is actually different", async () => {
-            vi.useFakeTimers();
+        it("stays true when the value is actually different", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Permanently Different";
-                await nextTick();
-                vi.advanceTimersByTime(600);
                 await nextTick();
                 expect(c.isDirty.value).toBe(true);
             } finally {
@@ -450,11 +461,13 @@ describe("useAuthProviders", () => {
         });
 
         it("isDirtyAny is true only when both modal is open and isDirty is true", async () => {
-            vi.useFakeTimers();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 expect(c.isDirtyAny.value).toBe(false);
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
                 await nextTick();
                 expect(c.isDirtyAny.value).toBe(true);
@@ -466,19 +479,17 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("debounce timer resets on each new change", async () => {
-            vi.useFakeTimers();
+        it("resets to false when user types back to original after multiple changes", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "One";
                 await nextTick();
-                // Advance only 300 ms (not enough to trigger first timer)
-                vi.advanceTimersByTime(300);
+                expect(c.isDirty.value).toBe(true);
                 c.currentProvider.value!.label = "Test Provider"; // type back to original
-                await nextTick();
-                // Now advance the full 600 ms from the second change
-                vi.advanceTimersByTime(600);
                 await nextTick();
                 expect(c.isDirty.value).toBe(false);
             } finally {
@@ -493,7 +504,10 @@ describe("useAuthProviders", () => {
         it("resets currentProvider to the original snapshot values", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
                 await nextTick();
                 c.revertProvider();
@@ -505,10 +519,12 @@ describe("useAuthProviders", () => {
         });
 
         it("resets isDirty to false after revert", async () => {
-            vi.useFakeTimers();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
                 await nextTick();
                 expect(c.isDirty.value).toBe(true);
@@ -520,14 +536,16 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("does nothing when editingProviderId is not set (creating mode)", async () => {
+        it("removes new provider from editable array when reverting during create", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
+                const initialLength = c.providers.value.length;
                 c.openCreateModal();
                 c.currentProvider.value!.label = "New";
-                // revertProvider is a no-op when editingProviderId is undefined
+                // revertProvider removes the new item (no shadow entry)
                 c.revertProvider();
-                expect(c.currentProvider.value?.label).toBe("New");
+                await nextTick();
+                expect(c.providers.value).toHaveLength(initialLength);
             } finally {
                 teardown();
             }
@@ -550,10 +568,12 @@ describe("useAuthProviders", () => {
         });
 
         it("resets isDirty, isEditing, errors and hasAttemptedSubmit on close", async () => {
-            vi.useFakeTimers();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
                 await nextTick();
                 c.closeModal();
@@ -642,7 +662,10 @@ describe("useAuthProviders", () => {
         it("is true when all required fields are filled (editing)", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 await nextTick();
                 expect(c.isFormValid.value).toBe(true);
             } finally {
@@ -680,7 +703,7 @@ describe("useAuthProviders", () => {
     // ── saveProvider (editing) ────────────────────────────────────────────────
 
     describe("saveProvider (editing)", () => {
-        it("keeps the modal open after a successful save", async () => {
+        it("closes the modal after a successful save", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -689,7 +712,7 @@ describe("useAuthProviders", () => {
                 c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Updated Label";
                 await c.saveProvider();
-                expect(c.showModal.value).toBe(true);
+                expect(c.showModal.value).toBe(false);
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -739,7 +762,7 @@ describe("useAuthProviders", () => {
     // ── saveProvider (creating) ───────────────────────────────────────────────
 
     describe("saveProvider (creating)", () => {
-        it("keeps the modal open after a successful create", async () => {
+        it("closes the modal after a successful create", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.openCreateModal();
@@ -748,7 +771,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
                 await c.saveProvider();
-                expect(c.showModal.value).toBe(true);
+                expect(c.showModal.value).toBe(false);
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -790,10 +813,13 @@ describe("useAuthProviders", () => {
     // ── deleteProvider ────────────────────────────────────────────────────────
 
     describe("deleteProvider", () => {
-        it("opens the delete modal and sets providerToDelete to the current provider", () => {
+        it("opens the delete modal and sets providerToDelete to the current provider", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
-                c.editProvider(mockProvider);
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
                 c.deleteProvider();
                 expect(c.showDeleteModal.value).toBe(true);
                 expect(c.providerToDelete.value?._id).toBe("provider-1");

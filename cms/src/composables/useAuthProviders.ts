@@ -40,6 +40,7 @@ export function useAuthProviders() {
     // Auth providers — fetched from API via ApiLiveQueryAsEditable
     const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
         ref<ApiSearchQuery>({ types: [DocType.AuthProvider], limit: 100 }),
+        { filterFn: (item) => ({ ...item }) },
     );
     const providers = providerQuery.editable;
     const isLoadingProviders = providerQuery.isLoading;
@@ -48,6 +49,7 @@ export function useAuthProviders() {
     // Auth provider configs — fetched from API via ApiLiveQueryAsEditable
     const configQuery = new ApiLiveQueryAsEditable<AuthProviderConfigDto>(
         ref<ApiSearchQuery>({ types: [DocType.AuthProviderConfig], limit: 100 }),
+        { filterFn: (item) => ({ ...item }) },
     );
     const configs = configQuery.editable;
 

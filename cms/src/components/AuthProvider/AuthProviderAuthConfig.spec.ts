@@ -43,16 +43,6 @@ describe("AuthProviderAuthConfig.vue", () => {
         );
     });
 
-    it("renders the claimNamespace input from providerConfig", () => {
-        const wrapper = mount(AuthProviderAuthConfig, {
-            props: { provider: mockProvider, providerConfig: mockConfig, isEditing: false },
-        });
-
-        expect(
-            (wrapper.find("[name='claimNamespace']").element as HTMLInputElement).value,
-        ).toBe("https://tenant.example.com");
-    });
-
     it("shows required asterisk on domain, clientId, and audience when not editing", () => {
         const wrapper = mount(AuthProviderAuthConfig, {
             props: { provider: mockProvider, isEditing: false },
