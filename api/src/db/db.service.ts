@@ -334,6 +334,7 @@ export class DbService extends EventEmitter {
             // Generate delete command if the document's memberOf field has changed
             if (
                 existing &&
+                doc.type !== DocType.Group &&
                 (existing as _contentBaseDto).memberOf &&
                 doc.memberOf &&
                 !isDeepStrictEqual(
@@ -523,7 +524,7 @@ export class DbService extends EventEmitter {
         const p = options.prevDoc as unknown as _contentBaseDto;
 
         if (options.reason === DeleteReason.Deleted) {
-            cmd.memberOf = options.doc.type === DocType.Group ? [options.doc._id] : p.memberOf;
+            cmd.memberOf = p.memberOf;
         }
 
         if (options.reason === DeleteReason.StatusChange) {
