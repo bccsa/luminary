@@ -54,6 +54,39 @@ describe("BasePage", () => {
         });
     });
 
+    it("focuses main element on ArrowDown keypress", async () => {
+        const mainEl = wrapper.find("main");
+        const focusSpy = vi.spyOn(mainEl.element, "focus");
+
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+
+        expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it("focuses main element on ArrowUp keypress", async () => {
+        const mainEl = wrapper.find("main");
+        const focusSpy = vi.spyOn(mainEl.element, "focus");
+
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+
+        expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it("does not focus main element on other key presses", async () => {
+        const mainEl = wrapper.find("main");
+        const focusSpy = vi.spyOn(mainEl.element, "focus");
+
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+        expect(focusSpy).not.toHaveBeenCalled();
+    });
+
+    it("removes keydown listener on unmount", () => {
+        const removeEventSpy = vi.spyOn(document, "removeEventListener");
+        wrapper.unmount();
+        expect(removeEventSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
+    });
+
     it("shows whether notification is displayed and visible", async () => {
         const notificationStore = useNotificationStore();
 
