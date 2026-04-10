@@ -75,7 +75,7 @@ onMounted(() => {
         v-if="src"
         :src="src"
         alt=""
-        class="h-full w-full object-contain text-center"
+        class="h-full w-full object-contain"
         :style="opacity !== 1 ? { opacity } : undefined"
     />
     <!-- Icon mode: simple contained rendering, no aspect ratio or cover cropping -->
