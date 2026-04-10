@@ -1079,6 +1079,43 @@ describe("DbService", () => {
                 });
             });
 
+            it("removes existing 'statusChange' deleteCmd docs when a draft document is set to published", async () => {
+                const contentDocId = "delete-test-statusChange-draftToPublished";
+
+                const publishedDoc = {
+                    _id: contentDocId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+
+                // 1) Ensure there is a previously generated statusChange deleteCmd (published -> draft)
+                await service.upsertDoc(publishedDoc);
+
+                const draftDoc = { ...publishedDoc, status: "draft" };
+                await service.upsertDoc(draftDoc);
+
+                const deleteCmdQuery: any = {
+                    selector: {
+                        type: DocType.DeleteCmd,
+                        docId: contentDocId,
+                        deleteReason: DeleteReason.StatusChange,
+                    },
+                    limit: Number.MAX_SAFE_INTEGER,
+                };
+
+                const deleteCmdBefore = await service.executeFindQuery(deleteCmdQuery);
+                expect(deleteCmdBefore.docs.length).toBeGreaterThan(0);
+
+                // 2) Publish the document again (draft -> published) and ensure the old deleteCmd is removed
+                const publishedAgainDoc = { ...draftDoc, status: "published" };
+                await service.upsertDoc(publishedAgainDoc);
+
+                const deleteCmdAfter = await service.executeFindQuery(deleteCmdQuery);
+                expect(deleteCmdAfter.docs.length).toBe(0);
+            });
+
             it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {
                 const doc = {
                     _id: "delete-test-deleted",
