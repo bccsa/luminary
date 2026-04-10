@@ -6,7 +6,7 @@ import * as nano from "nano";
 import { upsertDesignDocs, upsertSeedingDocs } from "../db/db.seedingFunctions";
 import { Socketio } from "../socketio";
 import { jest } from "@jest/globals";
-import { PermissionSystem } from "../permissions/permissions.service";
+import { PermissionSystem, type AccessMap } from "../permissions/permissions.service";
 import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
@@ -55,6 +55,13 @@ export async function createTestingModule(testName: string) {
                 useValue: {
                     resolveIdentity: jest.fn(),
                     getDefaultGroups: jest.fn(),
+                    resolveOrDefault: jest.fn<any>().mockResolvedValue({
+                        status: "anonymous",
+                        userDetails: {
+                            groups: [],
+                            accessMap: new Map() as AccessMap,
+                        },
+                    }),
                 },
             },
             {
