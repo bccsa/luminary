@@ -90,7 +90,7 @@ watch(
 
 <template>
     <div :class="$attrs.class">
-        <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
+        <div class="group relative bg-zinc-100" @mouseover="hover = true" @mouseleave="hover = false">
             <img
                 v-if="!imageElementError"
                 :key="imageKey"

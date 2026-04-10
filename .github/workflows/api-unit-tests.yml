@@ -82,10 +82,10 @@ jobs:
         run: npm rebuild sharp
         working-directory: api
 
-      # - name: Lint
-      #   run: npm run lint
-      #   working-directory: api
+      - name: Lint
+        run: npm run lint
+        working-directory: api
 
-      # - name: Type Check
-      #   run: tsc
-      #   working-directory: api
+      - name: Type Check
+        run: tsc
+        working-directory: api
