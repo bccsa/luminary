@@ -75,11 +75,15 @@ onMounted(() => {
         v-if="src"
         :src="src"
         alt=""
-        class="h-full w-full object-contain"
+        class="h-full w-full object-contain text-center"
         :style="opacity !== 1 ? { opacity } : undefined"
     />
     <!-- Icon mode: simple contained rendering, no aspect ratio or cover cropping -->
-    <div v-else-if="size === 'icon'" ref="parentRef" class="h-full w-full">
+    <div
+        v-else-if="size === 'icon'"
+        ref="parentRef"
+        class="h-full w-full"
+    >
         <LImageProvider
             :parent-id="contentParentId!"
             :parent-width="parentWidth"
@@ -91,7 +95,11 @@ onMounted(() => {
             :key="props.image ? JSON.stringify(props.image) : 'empty'"
         />
     </div>
-    <div v-else ref="parentRef" :class="isModal ? '' : sizes[size]">
+    <div
+        v-else
+        ref="parentRef"
+        :class="isModal ? '' : sizes[size]"
+    >
         <div
             v-if="!isModal"
             :class="[
