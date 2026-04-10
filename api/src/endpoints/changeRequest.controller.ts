@@ -14,9 +14,7 @@ export class ChangeRequestController {
     @Post()
     @UseGuards(AuthGuard)
     @UsePipes()
-    async handleChangeRequest(
-        @Req() request: FastifyRequest,
-    ) {
+    async handleChangeRequest(@Req() request: FastifyRequest) {
         // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
@@ -109,7 +107,10 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(changeRequest, (request as any).user);
+            const result = await this.changeRequestService.changeRequest(
+                changeRequest,
+                (request as any).user,
+            );
 
             return result;
         }
@@ -118,7 +119,10 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, (request as any).user);
+        const result = await this.changeRequestService.changeRequest(
+            cleanedBody,
+            (request as any).user,
+        );
 
         return result;
     }

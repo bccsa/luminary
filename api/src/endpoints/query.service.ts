@@ -62,7 +62,10 @@ export class QueryService {
         removeMemberOf(query.selector);
 
         if (!type || typeof type !== "string")
-            throw new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST);
+            throw new HttpException(
+                "'type' field (string) is required in selector",
+                HttpStatus.BAD_REQUEST,
+            );
 
         if (type === DocType.Content && !parentType)
             throw new HttpException(
@@ -214,9 +217,7 @@ function removeMemberOf(selector: MongoSelectorDto): void {
     }
 
     // Remove any conditions that are now empty after memberOf deletion
-    selector.$and = selector.$and.filter(
-        (condition) => Object.keys(condition).length > 0,
-    );
+    selector.$and = selector.$and.filter((condition) => Object.keys(condition).length > 0);
 }
 
 /**
@@ -232,7 +233,11 @@ function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string)
             const value = condition[fieldName] as T;
 
             // Only accept simple equality values (string, number, boolean)
-            if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+            if (
+                typeof value !== "string" &&
+                typeof value !== "number" &&
+                typeof value !== "boolean"
+            ) {
                 throw new HttpException(
                     `'${fieldName}' field must be a simple equality value`,
                     HttpStatus.BAD_REQUEST,

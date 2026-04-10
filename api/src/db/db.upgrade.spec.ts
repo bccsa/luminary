@@ -1,8 +1,23 @@
-jest.mock("./schemaUpgrade/v9", () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
-jest.mock("./schemaUpgrade/v10", () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
-jest.mock("./schemaUpgrade/v11", () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
-jest.mock("./schemaUpgrade/v12", () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
-jest.mock("./schemaUpgrade/v13", () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
+jest.mock("./schemaUpgrade/v9", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./schemaUpgrade/v10", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./schemaUpgrade/v11", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./schemaUpgrade/v12", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./schemaUpgrade/v13", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
 
 import { upgradeDbSchema } from "./db.upgrade";
 import v9 from "./schemaUpgrade/v9";

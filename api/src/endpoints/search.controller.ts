@@ -12,10 +12,7 @@ export class SearchController {
 
     @Get()
     @UseGuards(AuthGuard)
-    async getDocs(
-        @Headers("X-Query") query: string,
-        @Req() request: FastifyRequest,
-    ): Promise<any> {
+    async getDocs(@Headers("X-Query") query: string, @Req() request: FastifyRequest): Promise<any> {
         const queryObj = xQuery(query, SearchReqDto);
         await validateApiVersion(queryObj.apiVersion); // validate API version
 

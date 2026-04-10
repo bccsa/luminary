@@ -1,12 +1,4 @@
-import {
-    Controller,
-    Get,
-    Query,
-    UseGuards,
-    Req,
-    HttpException,
-    HttpStatus,
-} from "@nestjs/common";
+import { Controller, Get, Query, UseGuards, Req, HttpException, HttpStatus } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";

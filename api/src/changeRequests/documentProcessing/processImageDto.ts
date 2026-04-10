@@ -371,6 +371,20 @@ async function processImageUpload(
                     ),
                 );
             });
+
+            // Fallback: store at original size if image is smaller than all target sizes
+            if (promises.length === 0 && metadata.width > 0) {
+                promises.push(
+                    resizeAndUploadImage(
+                        uploadData,
+                        metadata.width,
+                        s3Service,
+                        defaultImageQuality,
+                        preset,
+                        resultImageCollection,
+                    ),
+                );
+            }
         } catch (error) {
             throw error; // Rethrow connection/lookup errors
         }

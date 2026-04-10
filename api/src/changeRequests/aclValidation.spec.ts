@@ -32,9 +32,7 @@ describe("validateAcl", () => {
     });
 
     it("should remove Edit from Group type when Assign is missing", () => {
-        const acl = [
-            createEntry(DocType.Group, "g1", [AclPermission.View, AclPermission.Edit]),
-        ];
+        const acl = [createEntry(DocType.Group, "g1", [AclPermission.View, AclPermission.Edit])];
         const result = validateAcl(acl);
 
         expect(result[0].permission).not.toContain(AclPermission.Edit);

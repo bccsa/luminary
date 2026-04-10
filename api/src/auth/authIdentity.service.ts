@@ -23,6 +23,11 @@ export type JwtUserDetails = {
     accessMap?: AccessMap;
 };
 
+export type IdentityResult =
+    | { status: "authenticated"; userDetails: JwtUserDetails }
+    | { status: "error"; userDetails: JwtUserDetails; error: unknown }
+    | { status: "anonymous"; userDetails: JwtUserDetails };
+
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
@@ -67,6 +72,38 @@ export class AuthIdentityService implements OnModuleInit {
 
         this.defaultGroupsCache = configRes.docs?.[0]?.defaultGroups ?? [];
         return this.defaultGroupsCache;
+    }
+
+    /**
+     * Resolves a user identity if credentials are provided, otherwise returns
+     * default groups. Returns a discriminated union so callers can react to
+     * the outcome (e.g., logging or emitting events on auth failure).
+     */
+    async resolveOrDefault(token?: string, providerId?: string): Promise<IdentityResult> {
+        if (token && providerId) {
+            try {
+                const userDetails = await this.resolveIdentity(token, providerId);
+                return { status: "authenticated", userDetails };
+            } catch (error) {
+                const defaultGroups = await this.getDefaultGroups();
+                return {
+                    status: "error",
+                    userDetails: {
+                        groups: defaultGroups,
+                        accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                    },
+                    error,
+                };
+            }
+        }
+        const defaultGroups = await this.getDefaultGroups();
+        return {
+            status: "anonymous",
+            userDetails: {
+                groups: defaultGroups,
+                accessMap: PermissionSystem.getAccessMap(defaultGroups),
+            },
+        };
     }
 
     /**
@@ -296,15 +333,11 @@ export class AuthIdentityService implements OnModuleInit {
 
             if (!primaryUser) {
                 this.logger.log(
-                    `No user doc for externalUserId: ${
-                        externalUserId ?? "(none)"
-                    }, email: ${
+                    `No user doc for externalUserId: ${externalUserId ?? "(none)"}, email: ${
                         email ?? "(none)"
                     } — returning default + dynamic groups only`,
                 );
-                const mergedGroups = Array.from(
-                    new Set([...defaultGroups, ...dynamicGroups]),
-                );
+                const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups]));
                 const accessMap = PermissionSystem.getAccessMap(mergedGroups);
                 return {
                     groups: mergedGroups,

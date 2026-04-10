@@ -150,7 +150,9 @@ describe("processStorageDto", () => {
 
         const warnings = await processStorageDto(doc, prevDoc, db);
 
-        expect(warnings.some((w) => w.includes("Failed to delete encrypted credential storage"))).toBe(true);
+        expect(
+            warnings.some((w) => w.includes("Failed to delete encrypted credential storage")),
+        ).toBe(true);
 
         jest.restoreAllMocks();
     });
@@ -169,7 +171,9 @@ describe("processStorageDto", () => {
 
         const warnings = await processStorageDto(doc, prevDoc, db);
 
-        expect(warnings.some((w) => w.includes("Failed to remove previous credentials"))).toBe(true);
+        expect(warnings.some((w) => w.includes("Failed to remove previous credentials"))).toBe(
+            true,
+        );
 
         jest.restoreAllMocks();
     });

@@ -27,7 +27,10 @@ describe("QueryController", () => {
             providers: [
                 { provide: QueryService, useValue: queryService },
                 { provide: ConfigService, useValue: configService },
-                { provide: WINSTON_MODULE_PROVIDER, useValue: { warn: jest.fn(), error: jest.fn() } },
+                {
+                    provide: WINSTON_MODULE_PROVIDER,
+                    useValue: { warn: jest.fn(), error: jest.fn() },
+                },
             ],
         })
             .overrideGuard(AuthGuard)

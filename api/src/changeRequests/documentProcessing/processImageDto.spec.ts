@@ -615,7 +615,8 @@ describe("S3ImageHandler - File Type Validation", () => {
         // Should fail with file type warning (jpeg not allowed when only webp is allowed)
         // Note: Sharp detects "jpeg" format but the code normalizes it to "jpg" in the warning
         const fileTypeWarning = warnings.warnings.find(
-            (w) => w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
+            (w) =>
+                w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
         );
         expect(fileTypeWarning).toBeDefined();
         expect(image.fileCollections.length).toBe(0);

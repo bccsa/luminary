@@ -1,9 +1,4 @@
-import {
-    stripHtml,
-    normalizeText,
-    generateTrigramCounts,
-    computeFtsData,
-} from "./ftsIndexing";
+import { stripHtml, normalizeText, generateTrigramCounts, computeFtsData } from "./ftsIndexing";
 
 describe("FTS Indexing", () => {
     describe("stripHtml", () => {

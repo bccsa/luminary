@@ -73,7 +73,7 @@ const handleClose = () => {
                         :image="provider.imageData"
                         :parentImageBucketId="provider.imageBucketId"
                         :contentParentId="provider._id"
-                        size="smallSquare"
+                        size="icon"
                         :rounded="false"
                         class="h-5 w-5"
                     />

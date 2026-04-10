@@ -351,7 +351,9 @@ describe("processPostTagDto", () => {
     });
 
     it("calls processImage without bucketId when imageBucketId is not specified", async () => {
-        (processImage as jest.Mock).mockResolvedValueOnce({ warnings: ["Bucket is not specified for image processing."] });
+        (processImage as jest.Mock).mockResolvedValueOnce({
+            warnings: ["Bucket is not specified for image processing."],
+        });
 
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-no-img-bucket";
@@ -431,9 +433,9 @@ describe("processPostTagDto", () => {
             db,
         );
 
-        expect(
-            result.warnings.some((w) => w.includes("Bucket image processing failed")),
-        ).toBe(true);
+        expect(result.warnings.some((w) => w.includes("Bucket image processing failed"))).toBe(
+            true,
+        );
     });
 
     it("throws when mediaBucketId is not specified for non-deletion", async () => {
@@ -503,9 +505,9 @@ describe("processPostTagDto", () => {
             db,
         );
 
-        expect(
-            result.warnings.some((w) => w.includes("Bucket media processing failed")),
-        ).toBe(true);
+        expect(result.warnings.some((w) => w.includes("Bucket media processing failed"))).toBe(
+            true,
+        );
     });
 
     it("copies tag properties to content documents for Tag type", async () => {

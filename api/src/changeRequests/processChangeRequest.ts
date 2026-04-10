@@ -59,7 +59,8 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
-        [DocType.DefaultPermissions]: () => processDefaultPermissionsDto(doc as DefaultPermissionsDto),
+        [DocType.DefaultPermissions]: () =>
+            processDefaultPermissionsDto(doc as DefaultPermissionsDto),
         [DocType.AuthProvider]: () =>
             processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
     };

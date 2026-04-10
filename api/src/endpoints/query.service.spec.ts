@@ -63,7 +63,10 @@ describe("QueryService", () => {
             (s as any).type = { $eq: DocType.Post } as any;
         });
         await expect(service.query(query, mockUser)).rejects.toEqual(
-            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
+            new HttpException(
+                "'type' field must be a simple equality value",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 
@@ -120,7 +123,10 @@ describe("QueryService", () => {
         });
 
         await expect(service.query(query, mockUser)).rejects.toEqual(
-            new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST),
+            new HttpException(
+                "'type' field (string) is required in selector",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 
@@ -216,7 +222,10 @@ describe("QueryService", () => {
         });
 
         await expect(service.query(query, mockUser)).rejects.toEqual(
-            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
+            new HttpException(
+                "'type' field must be a simple equality value",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 

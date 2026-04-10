@@ -31,5 +31,4 @@ describe("DeleteCmdDto", () => {
         dto.slug = "my-post";
         expect(validateSync(dto)).toHaveLength(0);
     });
-
 });

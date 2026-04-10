@@ -25,7 +25,10 @@ export class ChangeRequestService {
         this.config = configuration();
     }
 
-    async changeRequest(changeRequest: ChangeReqDto, userDetails: JwtUserDetails): Promise<ChangeReqAckDto> {
+    async changeRequest(
+        changeRequest: ChangeReqDto,
+        userDetails: JwtUserDetails,
+    ): Promise<ChangeReqAckDto> {
         // Process change request
         return await processChangeRequest(
             userDetails.userId,
