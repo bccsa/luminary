@@ -1,5 +1,4 @@
 import { fileURLToPath, URL } from "node:url";
-import { resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
@@ -79,19 +78,6 @@ export default defineConfig({
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
-            // Allow a platform-specific adapter to replace the default web media
-            // player factory at build time.  Set VITE_MEDIA_PLAYER_ADAPTER_PATH
-            // to a path relative to the repo root (process.cwd()) — e.g. from
-            // luminary-deployment:
-            //   VITE_MEDIA_PLAYER_ADAPTER_PATH=../../luminary-plugins/capacitorMediaPlayerAdapter.ts
-            ...(env.VITE_MEDIA_PLAYER_ADAPTER_PATH
-                ? {
-                      "@/platform/adapters/media-player": resolve(
-                          process.cwd(),
-                          env.VITE_MEDIA_PLAYER_ADAPTER_PATH,
-                      ),
-                  }
-                : {}),
         },
     },
     server: {
