@@ -35,7 +35,18 @@ const RECENT_SEARCHES_MAX = 10;
 const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
 const LAST_EXECUTED_SEARCH_QUERY_KEY = "luminary-search-last-executed-query";
 
-function getStorage(): Storage | null {
+/** Current / last-executed query: session-only so closing the tab or app does not keep the last search. */
+const SEARCH_SESSION_KEYS = [CURRENT_SEARCH_QUERY_KEY, LAST_EXECUTED_SEARCH_QUERY_KEY] as const;
+
+function getSearchSessionStorage(): Storage | null {
+    try {
+        return typeof window !== "undefined" ? window.sessionStorage : null;
+    } catch {
+        return null;
+    }
+}
+
+function getRecentSearchesLocalStorage(): Storage | null {
     try {
         return typeof window !== "undefined" ? window.localStorage : null;
     } catch {
@@ -44,13 +55,25 @@ function getStorage(): Storage | null {
 }
 
 function loadFromStorage(key: string): string {
-    return getStorage()?.getItem(key) ?? "";
+    return getSearchSessionStorage()?.getItem(key) ?? "";
 }
 
 function saveToStorage(key: string, value: string | null): void {
     try {
-        if (value === null) getStorage()?.removeItem(key);
-        else getStorage()?.setItem(key, value);
+        if (value === null) getSearchSessionStorage()?.removeItem(key);
+        else getSearchSessionStorage()?.setItem(key, value);
+    } catch {
+        /* ignore */
+    }
+}
+
+/** Remove query keys previously stored in localStorage (now session-only). Keeps `RECENT_SEARCHES_KEY`. */
+function clearLegacySearchLocalStorage() {
+    try {
+        if (typeof window === "undefined") return;
+        for (const key of SEARCH_SESSION_KEYS) {
+            localStorage.removeItem(key);
+        }
     } catch {
         /* ignore */
     }
@@ -63,7 +86,7 @@ function persistLastExecutedQuery(q: string) {
 
 function loadRecentSearches(): string[] {
     try {
-        const raw = getStorage()?.getItem(RECENT_SEARCHES_KEY);
+        const raw = getRecentSearchesLocalStorage()?.getItem(RECENT_SEARCHES_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : [];
@@ -86,7 +109,11 @@ function pushRecentSearch(q: string) {
         RECENT_SEARCHES_MAX,
     );
     recentSearches.value = next;
-    saveToStorage(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    try {
+        getRecentSearchesLocalStorage()?.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
 }
 
 function pickRecentSearch(term: string) {
@@ -452,15 +479,9 @@ watch(isSearchOpen, (open) => {
         }
 
         const q = searchQuery.value.trim();
-        if (q.length >= 3) {
-            if (isManualSearchMode.value) {
-                // Manual mode only: keep the UI/results, but don't re-run the same query on reopen.
-                if (lastSearchedQuery.value !== q) runSearch();
-            } else {
-                // Live mode: avoid re-searching on reopen if we already have results.
-                if ((ftsResults.value as any)?.length === 0) runSearch();
-            }
-        }
+        // Only fetch when the current query has not already been searched (covers live + manual,
+        // including "no results" where ftsResults is empty but lastSearchedQuery matches).
+        if (q.length >= 3 && lastSearchedQuery.value !== q) runSearch();
     });
 }, { immediate: true });
 
@@ -593,6 +614,7 @@ const goToResult = (result: EnrichedResult) => {
 let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
+    clearLegacySearchLocalStorage();
     handleGlobalKeydown = (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
             event.preventDefault();
