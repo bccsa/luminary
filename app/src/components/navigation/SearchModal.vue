@@ -636,7 +636,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     @keydown="handleKeydown"
                 >
                     <div
-                        class="flex items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
+                        class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
                     >
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
@@ -652,7 +652,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
                             "
                             :placeholder="t('search.placeholder')"
-                            class="flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
+                            class="min-w-0 flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
                             autocomplete="off"
                             @keydown="handleInputKeydown"
                             @focus="isInputFocused = true"
