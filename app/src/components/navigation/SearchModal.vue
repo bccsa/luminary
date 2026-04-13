@@ -783,12 +783,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <div
                             v-else-if="showResults"
                             id="search-results-container"
-                            class="py-2 pb-24 md:py-3 md:pb-3"
+                            class="pb-24 pt-0 md:pb-3"
                         >
                             <ul
                                 role="listbox"
                                 :aria-label="t('search.ariaLabel')"
-                                class="divide-y divide-zinc-200 dark:divide-slate-700"
+                                class="list-none divide-y divide-zinc-200 dark:divide-slate-700"
                             >
                                 <li
                                     v-for="(result, index) in results"
@@ -796,14 +796,22 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     :id="`search-result-${index}`"
                                     role="option"
                                     :aria-selected="index === selectedIndex"
-                                    class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
+                                    class="group relative cursor-pointer list-none px-3 md:px-4"
                                     :class="{
-                                        'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
+                                        'hover:bg-zinc-50 dark:hover:bg-slate-800/70':
+                                            index !== selectedIndex,
                                     }"
                                     @click="goToResult(result)"
                                     @mouseenter="selectedIndex = index"
                                 >
-                                    <div class="flex min-w-0 gap-2 self-center md:gap-3">
+                                    <div
+                                        v-if="index === selectedIndex"
+                                        class="pointer-events-none absolute inset-0 z-0 bg-zinc-50 dark:bg-slate-800/70"
+                                        aria-hidden="true"
+                                    />
+                                    <div
+                                        class="relative z-10 flex w-full min-w-0 items-stretch gap-2 py-2.5 md:gap-3 md:py-3"
+                                    >
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
                                                 :image="result.parentImageData"
