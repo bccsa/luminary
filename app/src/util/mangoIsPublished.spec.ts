@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mangoIsPublished } from "./mangoIsPublished";
-import { mangoCompile, type MangoSelector, PublishStatus } from "luminary-shared";
+import { mangoIsPublished, mangoFallbackContentSelector } from "./mangoIsPublished";
+import { DocType, mangoCompile, type MangoSelector, PublishStatus } from "luminary-shared";
 
 /**
  * Helper: compile mangoIsPublished conditions into a predicate.
@@ -209,5 +209,38 @@ describe("mangoIsPublished", () => {
             const wrongType = makeDoc({ type: "tag" });
             expect(pred(wrongType)).toBe(false);
         });
+    });
+});
+
+describe("mangoFallbackContentSelector", () => {
+    it("builds a selector with type, parentType, and parentId $in", () => {
+        const sel = mangoFallbackContentSelector(["p1", "p2"], DocType.Post);
+        expect(sel).toEqual({
+            type: DocType.Content,
+            parentType: DocType.Post,
+            parentId: { $in: ["p1", "p2"] },
+        });
+    });
+
+    it("does not constrain by language (fallback must see all translations)", () => {
+        const sel = mangoFallbackContentSelector(["p1"], DocType.Tag) as Record<string, unknown>;
+        expect(sel).not.toHaveProperty("language");
+        expect(sel).not.toHaveProperty("availableTranslations");
+    });
+
+    it("preserves the parentIds list in order", () => {
+        const ids = ["a", "b", "c", "d"];
+        const sel = mangoFallbackContentSelector(ids, DocType.Post) as any;
+        expect(sel.parentId.$in).toEqual(ids);
+    });
+
+    it("supports tag subType", () => {
+        const sel = mangoFallbackContentSelector(["t1"], DocType.Tag) as any;
+        expect(sel.parentType).toBe(DocType.Tag);
+    });
+
+    it("handles an empty parentIds array (caller's responsibility to skip)", () => {
+        const sel = mangoFallbackContentSelector([], DocType.Post) as any;
+        expect(sel.parentId.$in).toEqual([]);
     });
 });

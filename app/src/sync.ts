@@ -2,11 +2,13 @@ import { ref, watch } from "vue";
 import {
     accessMap,
     AclPermission,
+    db,
     DocType,
     getAccessibleGroups,
     isConnected,
     setCancelSync,
     sync,
+    syncFallbackContent,
     type AccessMap,
 } from "luminary-shared";
 import { appLanguageIdsAsRef, Sentry } from "./globalConfig";
@@ -98,31 +100,17 @@ export function initSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
-            // Sync post content docs
+            // Sync post content docs (phase 1 = preferred languages, phase 2 = fallback)
             if (access[DocType.Post] && access[DocType.Post].length) {
-                sync({
-                    type: DocType.Content,
-                    subType: DocType.Post,
-                    memberOf: access[DocType.Post],
-                    languages: appLanguageIdsAsRef.value,
-                    limit: 100,
-                    cms: false,
-                }).catch((err) => {
+                runContentSync(DocType.Post, access[DocType.Post]).catch((err) => {
                     console.error("Error during sync:", err);
                     Sentry?.captureException(err);
                 });
             }
 
-            // Sync tag content docs
+            // Sync tag content docs (phase 1 + phase 2)
             if (access[DocType.Tag] && access[DocType.Tag].length) {
-                sync({
-                    type: DocType.Content,
-                    subType: DocType.Tag,
-                    memberOf: access[DocType.Tag],
-                    languages: appLanguageIdsAsRef.value,
-                    limit: 100,
-                    cms: false,
-                }).catch((err) => {
+                runContentSync(DocType.Tag, access[DocType.Tag]).catch((err) => {
                     console.error("Error during tag content sync:", err);
                     Sentry?.captureException(err);
                 });
@@ -156,6 +144,66 @@ export function initSync() {
         },
         { immediate: true },
     );
+}
+
+/**
+ * Run phase 1 (preferred-language sync) followed by phase 2 (fallback sync) for
+ * a given content subType. Phase 2 covers parents for which phase 1 produced no
+ * local content doc — without it, the last-resort branch of
+ * `buildLanguagePrioritySelector` in `mangoIsPublished` would have nothing to
+ * match and those parents would silently disappear from the app.
+ */
+async function runContentSync(subType: DocType.Post | DocType.Tag, memberOf: string[]) {
+    await sync({
+        type: DocType.Content,
+        subType,
+        memberOf,
+        languages: appLanguageIdsAsRef.value,
+        limit: 100,
+        cms: false,
+    });
+
+    await runFallbackContentSync(subType, memberOf);
+}
+
+/**
+ * Fallback content sync pass. Finds parents the user can access but for which
+ * no content doc exists locally, and requests any translation of those parents
+ * from the API via `syncFallbackContent`.
+ */
+async function runFallbackContentSync(
+    subType: DocType.Post | DocType.Tag,
+    memberOf: string[],
+) {
+    // All accessible parents of this subType
+    const parents = (await db.docs
+        .where("type")
+        .equals(subType)
+        .and((d: any) => Array.isArray(d.memberOf) && d.memberOf.some((g: string) => memberOf.includes(g)))
+        .toArray()) as Array<{ _id: string }>;
+
+    if (parents.length === 0) return;
+
+    const accessibleParentIds = new Set(parents.map((p) => p._id));
+
+    // Parents that already have at least one local content doc (any language)
+    const localContent = (await db.docs
+        .where("type")
+        .equals(DocType.Content)
+        .and((d: any) => d.parentType === subType)
+        .toArray()) as Array<{ parentId: string }>;
+
+    const coveredParentIds = new Set(localContent.map((c) => c.parentId));
+
+    const uncovered = [...accessibleParentIds].filter((id) => !coveredParentIds.has(id));
+    if (uncovered.length === 0) return;
+
+    await syncFallbackContent({
+        parentIds: uncovered,
+        subType,
+        memberOf,
+        cms: false,
+    });
 }
 
 /**

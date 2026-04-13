@@ -82,6 +82,53 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     await _sync(options);
 }
 
+/**
+ * One-shot fallback content sync.
+ *
+ * Fetches content documents for a specific set of parent IDs without any
+ * language filter. Used to cover parents for which the main (preferred-language)
+ * sync returned nothing — the returned documents feed the last-resort branch of
+ * `buildLanguagePrioritySelector` in `mangoIsPublished`.
+ *
+ * Bypasses the chunking / syncList machinery: this is not an iterative sync,
+ * it does not participate in delete-cmd tracking, and it re-runs fully every
+ * time it is invoked. Scope is kept small by only calling it with parent IDs
+ * that are actually uncovered.
+ */
+export async function syncFallbackContent(options: {
+    parentIds: string[];
+    subType: DocType;
+    memberOf: string[];
+    limit?: number;
+    cms?: boolean;
+}): Promise<void> {
+    if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
+    if (cancelSync) return;
+    if (!options.parentIds.length) return;
+    if (!options.memberOf.length) return;
+
+    const mangoQuery = {
+        selector: {
+            type: DocType.Content,
+            parentType: options.subType,
+            parentId: { $in: options.parentIds },
+            memberOf: {
+                $elemMatch: { $in: options.memberOf },
+            },
+        },
+        limit: options.limit ?? 1000,
+        sort: [{ updatedTimeUtc: "desc" }],
+        use_index: `sync-${options.subType}-content-index`,
+        cms: options.cms,
+        identifier: "syncFallback",
+    };
+
+    const res = await _httpService.post("query", mangoQuery);
+    if (cancelSync) return;
+    if (!res?.docs || !Array.isArray(res.docs)) return;
+    if (res.docs.length) await db.bulkPut(res.docs);
+}
+
 export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Check if sync has been cancelled before starting
     if (cancelSync) return;

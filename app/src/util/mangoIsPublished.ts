@@ -1,4 +1,4 @@
-import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
+import { type Uuid, type MangoSelector, DocType, PublishStatus } from "luminary-shared";
 
 /**
  * Builds Mango selector conditions for the "isPublished" check.
@@ -98,5 +98,32 @@ function buildLanguagePrioritySelector(languageIds: Uuid[]): MangoSelector {
 
     return {
         $or: [...languageConditions, fallbackCondition],
+    };
+}
+
+/**
+ * Builds a Mango selector used by the fallback content sync pass.
+ *
+ * Context: the main content sync filters by the user's preferred languages, so
+ * parents whose only translation is in a non-preferred language never reach the
+ * local DB. Without those documents, the last-resort branch of
+ * `buildLanguagePrioritySelector` has nothing to select and the post is hidden.
+ *
+ * This selector targets an explicit list of "uncovered" parent IDs and does NOT
+ * constrain by language, letting the API return whatever translations exist.
+ * The display-side priority logic in `mangoIsPublished` then picks the best one
+ * per parent at render time.
+ *
+ * Must stay in sync with the API template at
+ * `api/src/db/MongoQueryTemplates/validators/syncFallback.ts`.
+ */
+export function mangoFallbackContentSelector(
+    parentIds: Uuid[],
+    subType: DocType,
+): MangoSelector {
+    return {
+        type: DocType.Content,
+        parentType: subType,
+        parentId: { $in: parentIds },
     };
 }

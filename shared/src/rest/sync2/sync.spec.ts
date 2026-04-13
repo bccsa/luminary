@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { initSync, sync, setCancelSync, cancelSync } from "./sync";
+import { initSync, sync, setCancelSync, cancelSync, syncFallbackContent } from "./sync";
 import { HttpReq } from "../http";
 import { db } from "../../db/database";
 import { syncBatch } from "./syncBatch";
@@ -12,6 +12,7 @@ import { merge, mergeHorizontal } from "./merge";
 vi.mock("../../db/database", () => ({
     db: {
         getSyncList: vi.fn(),
+        bulkPut: vi.fn(),
     },
 }));
 
@@ -1032,6 +1033,113 @@ describe("sync module", () => {
             );
             expect(deleteCmdAfter).toHaveLength(1);
             expect(deleteCmdAfter[0].languages).toEqual(["en", "fr"]);
+        });
+    });
+
+    describe("syncFallbackContent", () => {
+        beforeEach(async () => {
+            await initSync(mockHttpService);
+            vi.mocked(db.bulkPut).mockResolvedValue(undefined as any);
+        });
+
+        it("posts a query with parentId.$in and no language filter", async () => {
+            const postSpy = vi
+                .spyOn(mockHttpService, "post")
+                .mockResolvedValue({ docs: [] } as any);
+
+            await syncFallbackContent({
+                parentIds: ["p1", "p2"],
+                subType: DocType.Post,
+                memberOf: ["g1"],
+            });
+
+            expect(postSpy).toHaveBeenCalledTimes(1);
+            const [endpoint, query] = postSpy.mock.calls[0];
+            expect(endpoint).toBe("query");
+            expect((query as any).identifier).toBe("syncFallback");
+            expect((query as any).selector.type).toBe(DocType.Content);
+            expect((query as any).selector.parentType).toBe(DocType.Post);
+            expect((query as any).selector.parentId).toEqual({ $in: ["p1", "p2"] });
+            expect((query as any).selector.language).toBeUndefined();
+            expect((query as any).selector.updatedTimeUtc).toBeUndefined();
+            expect((query as any).use_index).toBe("sync-post-content-index");
+        });
+
+        it("uses sync-tag-content-index for tag subType", async () => {
+            const postSpy = vi
+                .spyOn(mockHttpService, "post")
+                .mockResolvedValue({ docs: [] } as any);
+
+            await syncFallbackContent({
+                parentIds: ["p1"],
+                subType: DocType.Tag,
+                memberOf: ["g1"],
+            });
+
+            expect((postSpy.mock.calls[0][1] as any).use_index).toBe("sync-tag-content-index");
+        });
+
+        it("bulk puts returned docs to the local DB", async () => {
+            const docs = [{ _id: "c1" }, { _id: "c2" }];
+            vi.spyOn(mockHttpService, "post").mockResolvedValue({ docs } as any);
+
+            await syncFallbackContent({
+                parentIds: ["p1"],
+                subType: DocType.Post,
+                memberOf: ["g1"],
+            });
+
+            expect(db.bulkPut).toHaveBeenCalledWith(docs);
+        });
+
+        it("no-ops when parentIds is empty", async () => {
+            const postSpy = vi.spyOn(mockHttpService, "post");
+
+            await syncFallbackContent({
+                parentIds: [],
+                subType: DocType.Post,
+                memberOf: ["g1"],
+            });
+
+            expect(postSpy).not.toHaveBeenCalled();
+            expect(db.bulkPut).not.toHaveBeenCalled();
+        });
+
+        it("no-ops when memberOf is empty", async () => {
+            const postSpy = vi.spyOn(mockHttpService, "post");
+
+            await syncFallbackContent({
+                parentIds: ["p1"],
+                subType: DocType.Post,
+                memberOf: [],
+            });
+
+            expect(postSpy).not.toHaveBeenCalled();
+        });
+
+        it("does not bulk put when API returns no docs", async () => {
+            vi.spyOn(mockHttpService, "post").mockResolvedValue({ docs: [] } as any);
+
+            await syncFallbackContent({
+                parentIds: ["p1"],
+                subType: DocType.Post,
+                memberOf: ["g1"],
+            });
+
+            expect(db.bulkPut).not.toHaveBeenCalled();
+        });
+
+        it("bails out early when sync has been cancelled", async () => {
+            const postSpy = vi.spyOn(mockHttpService, "post");
+            setCancelSync(true);
+
+            await syncFallbackContent({
+                parentIds: ["p1"],
+                subType: DocType.Post,
+                memberOf: ["g1"],
+            });
+
+            expect(postSpy).not.toHaveBeenCalled();
         });
     });
 });

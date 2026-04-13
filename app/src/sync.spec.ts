@@ -7,6 +7,17 @@ import waitForExpect from "wait-for-expect";
 vi.mock("luminary-shared", async () => {
     const { ref } = await import("vue");
     const actual = await vi.importActual<typeof import("luminary-shared")>("luminary-shared");
+
+    // Minimal chainable stub for db.docs.where(...).equals(...).and(...).toArray()
+    const makeChain = (result: any[] = []) => {
+        const chain: any = {
+            equals: () => chain,
+            and: () => chain,
+            toArray: vi.fn().mockResolvedValue(result),
+        };
+        return chain;
+    };
+
     return {
         ...actual,
         accessMap: ref({}),
@@ -14,6 +25,12 @@ vi.mock("luminary-shared", async () => {
         getAccessibleGroups: vi.fn(),
         setCancelSync: vi.fn(),
         sync: vi.fn(),
+        syncFallbackContent: vi.fn(),
+        db: {
+            docs: {
+                where: vi.fn(() => makeChain([])),
+            },
+        },
     };
 });
 
@@ -31,9 +48,15 @@ vi.mock("./globalConfig", async () => {
 // Import after mocks are set up
 const { initLanguageSync, initSync, triggerSync, syncIterators } = await import("./sync");
 
-const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = await import(
-    "luminary-shared"
-);
+const {
+    accessMap,
+    getAccessibleGroups,
+    isConnected,
+    setCancelSync,
+    sync,
+    syncFallbackContent,
+    db,
+} = await import("luminary-shared");
 
 const { appLanguageIdsAsRef } = await import("./globalConfig");
 
@@ -443,6 +466,153 @@ describe("sync.ts", () => {
                     limit: 100,
                     cms: false,
                 });
+            });
+        });
+    });
+
+    describe("fallback content sync (phase 2)", () => {
+        const accessWith = (overrides: Partial<Record<string, string[]>>) =>
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: [],
+                [DocType.Post]: [],
+                [DocType.Tag]: [],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
+                ...overrides,
+            } as any);
+
+        const setupDbChain = (tables: {
+            parents?: Array<{ _id: string; memberOf: string[] }>;
+            content?: Array<{ parentId: string; parentType: string }>;
+        }) => {
+            (vi.mocked(db.docs.where) as any).mockImplementation((field: string) => {
+                const chain: any = {
+                    equals: (value: string) => {
+                        const chain2: any = {
+                            and: (pred: (d: any) => boolean) => {
+                                let source: any[] = [];
+                                if (field === "type") {
+                                    if (value === DocType.Post || value === DocType.Tag) {
+                                        source = tables.parents ?? [];
+                                    } else if (value === DocType.Content) {
+                                        source = tables.content ?? [];
+                                    }
+                                }
+                                return {
+                                    toArray: vi
+                                        .fn()
+                                        .mockResolvedValue(source.filter(pred)),
+                                };
+                            },
+                        };
+                        return chain2;
+                    },
+                };
+                return chain;
+            });
+        };
+
+        it("triggers fallback sync only for uncovered parents", async () => {
+            accessWith({ [DocType.Post]: ["group1"] });
+            setupDbChain({
+                parents: [
+                    { _id: "p1", memberOf: ["group1"] },
+                    { _id: "p2", memberOf: ["group1"] },
+                    { _id: "p3", memberOf: ["group1"] },
+                ],
+                content: [
+                    // Only p1 is covered locally
+                    { parentId: "p1", parentType: DocType.Post },
+                ],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(syncFallbackContent).toHaveBeenCalledWith({
+                    parentIds: ["p2", "p3"],
+                    subType: DocType.Post,
+                    memberOf: ["group1"],
+                    cms: false,
+                });
+            });
+        });
+
+        it("does not trigger fallback sync when all parents are covered", async () => {
+            accessWith({ [DocType.Post]: ["group1"] });
+            setupDbChain({
+                parents: [{ _id: "p1", memberOf: ["group1"] }],
+                content: [{ parentId: "p1", parentType: DocType.Post }],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            // Give phase 1 promise chain time to resolve
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalled();
+            });
+            await new Promise((r) => setTimeout(r, 10));
+            expect(syncFallbackContent).not.toHaveBeenCalled();
+        });
+
+        it("does not trigger fallback sync when there are no accessible parents", async () => {
+            accessWith({ [DocType.Post]: ["group1"] });
+            setupDbChain({ parents: [], content: [] });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalled();
+            });
+            await new Promise((r) => setTimeout(r, 10));
+            expect(syncFallbackContent).not.toHaveBeenCalled();
+        });
+
+        it("runs a fallback pass for both post and tag subTypes independently", async () => {
+            accessWith({
+                [DocType.Post]: ["group1"],
+                [DocType.Tag]: ["group2"],
+            });
+            // Parents from both post and tag namespaces — filtering inside setupDbChain
+            // reuses the same `parents` array via the `and` predicate.
+            setupDbChain({
+                parents: [
+                    { _id: "post-1", memberOf: ["group1"] },
+                    { _id: "tag-1", memberOf: ["group2"] },
+                ],
+                content: [],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(syncFallbackContent).toHaveBeenCalledWith(
+                    expect.objectContaining({ subType: DocType.Post, parentIds: ["post-1"] }),
+                );
+                expect(syncFallbackContent).toHaveBeenCalledWith(
+                    expect.objectContaining({ subType: DocType.Tag, parentIds: ["tag-1"] }),
+                );
             });
         });
     });

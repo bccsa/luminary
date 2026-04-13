@@ -175,6 +175,98 @@ describe("verifyMongoQuery", () => {
         expect(res.error).toMatch(/Template not found|path separators not allowed/);
     });
 
+    describe("syncFallback template", () => {
+        const validFallbackQuery = () => ({
+            identifier: "syncFallback",
+            selector: {
+                type: "content",
+                parentType: "post",
+                parentId: { $in: ["parent-1", "parent-2"] },
+                memberOf: { $elemMatch: { $in: ["group-public-content"] } },
+            },
+            limit: 1000,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: "sync-post-content-index",
+        });
+
+        it("passes for a valid fallback query", () => {
+            const res = validateMongoQuery(validFallbackQuery() as any);
+            expect(res.valid).toBe(true);
+            expect(res.error).toBe("");
+        });
+
+        it("passes for tag subType", () => {
+            const q: any = validFallbackQuery();
+            q.selector.parentType = "tag";
+            q.use_index = "sync-tag-content-index";
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(true);
+        });
+
+        it("fails when type is not 'content'", () => {
+            const q: any = validFallbackQuery();
+            q.selector.type = "post";
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when parentId is missing", () => {
+            const q: any = validFallbackQuery();
+            delete q.selector.parentId;
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when parentId.$in is empty", () => {
+            const q: any = validFallbackQuery();
+            q.selector.parentId = { $in: [] };
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when parentId.$in contains non-strings", () => {
+            const q: any = validFallbackQuery();
+            q.selector.parentId = { $in: ["ok", 42] };
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when language field is present (fallback must not filter by language)", () => {
+            const q: any = validFallbackQuery();
+            q.selector.language = { $in: ["lang-eng"] };
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when updatedTimeUtc range is present (fallback is one-shot)", () => {
+            const q: any = validFallbackQuery();
+            q.selector.updatedTimeUtc = { $lte: Date.now(), $gte: 0 };
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when extra selector keys are present", () => {
+            const q: any = validFallbackQuery();
+            q.selector.unknownField = "x";
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when use_index does not end in -content-index", () => {
+            const q: any = validFallbackQuery();
+            q.use_index = "sync-post-index";
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+
+        it("fails when memberOf is missing", () => {
+            const q: any = validFallbackQuery();
+            delete q.selector.memberOf;
+            const res = validateMongoQuery(q as any);
+            expect(res.valid).toBe(false);
+        });
+    });
+
     it("caches successfully validated templates for performance", async () => {
         // First call - template should be loaded from file
         const q1 = validBaseQuery();
