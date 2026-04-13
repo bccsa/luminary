@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { accessMap, DocType, type AuthProviderDto, type GroupDto } from "luminary-shared";
-import AuthProviderDisplayCard from "./AuthProviderDisplayCard.vue";
+import DisplayCard from "./DisplayCard.vue";
 
 const mockProvider: AuthProviderDto = {
     _id: "provider-1",
@@ -37,7 +37,7 @@ const readOnlyAccessMap = {
     },
 } as any;
 
-describe("AuthProviderDisplayCard.vue", () => {
+describe("DisplayCard.vue", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
         accessMap.value = authProviderEditAccessMap;
@@ -50,7 +50,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     // ── Label display ─────────────────────────────────────────────────────────
 
     it("displays the provider label (capitalised)", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: { ...mockProvider, label: "acme corp" }, groups: [] },
         });
 
@@ -58,7 +58,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("falls back to domain when label is empty", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: {
                 provider: { ...mockProvider, label: "", domain: "fallback.auth0.com" },
                 groups: [],
@@ -69,7 +69,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("falls back to 'Auth provider' when both label and domain are empty", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: {
                 provider: { ...mockProvider, label: "", domain: "" },
                 groups: [],
@@ -82,7 +82,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     // ── Credentials badge ─────────────────────────────────────────────────────
 
     it("shows 'Credentials Configured' badge when domain and clientId are set", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [] },
         });
 
@@ -91,7 +91,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("shows 'No Credentials' badge when domain is missing", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: { ...mockProvider, domain: "" }, groups: [] },
         });
 
@@ -100,7 +100,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("shows 'No Credentials' badge when clientId is missing", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: { ...mockProvider, clientId: "" }, groups: [] },
         });
 
@@ -110,7 +110,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     // ── Incoming edit badge ───────────────────────────────────────────────────
 
     it("shows 'Incoming edit' badge when isModified is true", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [], isModified: true },
         });
 
@@ -118,7 +118,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("hides 'Incoming edit' badge when isModified is false", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [], isModified: false },
         });
 
@@ -128,7 +128,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     // ── Group membership display ──────────────────────────────────────────────
 
     it("shows group name for groups in provider.memberOf", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [mockGroup] },
         });
 
@@ -136,7 +136,7 @@ describe("AuthProviderDisplayCard.vue", () => {
     });
 
     it("shows 'No groups' when provider has no matching groups", () => {
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: {
                 provider: { ...mockProvider, memberOf: ["group-unknown"] },
                 groups: [mockGroup],
@@ -150,7 +150,7 @@ describe("AuthProviderDisplayCard.vue", () => {
 
     it("emits 'edit' with the provider when clicked and user has edit permission", async () => {
         accessMap.value = authProviderEditAccessMap;
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [] },
         });
 
@@ -162,7 +162,7 @@ describe("AuthProviderDisplayCard.vue", () => {
 
     it("does not emit 'edit' when user lacks edit permission", async () => {
         accessMap.value = readOnlyAccessMap;
-        const wrapper = mount(AuthProviderDisplayCard, {
+        const wrapper = mount(DisplayCard, {
             props: { provider: mockProvider, groups: [] },
         });
 

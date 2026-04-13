@@ -4,14 +4,14 @@ import { computed, ref } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
-import AuthProviderFormErrors from "./AuthProviderFormErrors.vue";
-import AuthProviderAuthConfig from "./AuthProviderAuthConfig.vue";
-import AuthProviderLabelAndType from "./AuthProviderLabelAndType.vue";
-import AuthProviderIconSection from "./AuthProviderIconSection.vue";
-import AuthProviderAppearance from "./AuthProviderAppearance.vue";
-import AuthProviderUserFieldMappings from "./AuthProviderUserFieldMappings.vue";
-import AuthProviderGroupMappings from "./AuthProviderGroupMappings.vue";
-import AuthProviderFormActions from "./AuthProviderFormActions.vue";
+import FormErrors from "./FormErrors.vue";
+import AuthConfig from "./AuthConfig.vue";
+import LabelAndType from "./LabelAndType.vue";
+import IconSection from "./IconSection.vue";
+import Appearance from "./Appearance.vue";
+import UserFieldMappings from "./UserFieldMappings.vue";
+import GroupMappings from "./GroupMappings.vue";
+import FormActions from "./FormActions.vue";
 
 const props = defineProps<{
     isEditing: boolean;
@@ -55,7 +55,7 @@ const beforeClose = (): boolean => {
     return true;
 };
 
-// Called by the Cancel button in AuthProviderFormActions
+// Called by the Cancel button in FormActions
 const closeModal = () => {
     if (props.isDirty && props.isEditing) {
         showDiscardConfirm.value = true;
@@ -105,9 +105,9 @@ const handleRevert = () => {
         >
             <!-- Left column -->
             <div v-if="provider" class="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
-                <AuthProviderFormErrors :errors="errors ?? []" :validations="providerValidations" />
+                <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 
-                <AuthProviderLabelAndType v-model:provider="provider" :disabled="isLoading" />
+                <LabelAndType v-model:provider="provider" :disabled="isLoading" />
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <LCombobox
@@ -121,13 +121,13 @@ const handleRevert = () => {
                     />
                 </div>
 
-                <AuthProviderAuthConfig
+                <AuthConfig
                     v-model:provider="provider"
                     :is-editing="isEditing"
                     :disabled="isLoading"
                 />
 
-                <AuthProviderIconSection
+                <IconSection
                     :provider="provider"
                     :disabled="isLoading"
                     @update:icon-opacity="
@@ -137,7 +137,7 @@ const handleRevert = () => {
                     "
                 />
 
-                <AuthProviderAppearance v-model:provider="provider" :disabled="isLoading" />
+                <Appearance v-model:provider="provider" :disabled="isLoading" />
             </div>
 
             <!-- Right column -->
@@ -149,12 +149,12 @@ const handleRevert = () => {
                     >Automatically assign users to groups based on claims or attributes returned by
                     this authentication provider.</span
                 >
-                <AuthProviderUserFieldMappings
+                <UserFieldMappings
                     v-model:providerConfig="providerConfig"
                     :disabled="isLoading"
                 />
 
-                <AuthProviderGroupMappings
+                <GroupMappings
                     v-if="providerConfig"
                     v-model="providerConfig.groupMappings"
                     :available-groups="availableGroups"
@@ -163,7 +163,7 @@ const handleRevert = () => {
             </div>
         </div>
 
-        <AuthProviderFormActions
+        <FormActions
             :is-editing="isEditing"
             :is-loading="isLoading"
             :can-delete="canDelete"

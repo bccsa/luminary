@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AuthProviderFormErrors from "./AuthProviderFormErrors.vue";
+import FormErrors from "./FormErrors.vue";
 
-describe("AuthProviderFormErrors.vue", () => {
+describe("FormErrors.vue", () => {
     it("renders nothing when errors array is empty", () => {
-        const wrapper = mount(AuthProviderFormErrors, {
+        const wrapper = mount(FormErrors, {
             props: { errors: [] },
         });
 
@@ -12,7 +12,7 @@ describe("AuthProviderFormErrors.vue", () => {
     });
 
     it("renders each error message", () => {
-        const wrapper = mount(AuthProviderFormErrors, {
+        const wrapper = mount(FormErrors, {
             props: { errors: ["Field is required", "Invalid domain format"] },
         });
 
@@ -21,7 +21,7 @@ describe("AuthProviderFormErrors.vue", () => {
     });
 
     it("renders one entry per error", () => {
-        const wrapper = mount(AuthProviderFormErrors, {
+        const wrapper = mount(FormErrors, {
             props: { errors: ["Error A", "Error B", "Error C"] },
         });
 
@@ -30,7 +30,7 @@ describe("AuthProviderFormErrors.vue", () => {
     });
 
     it("renders an icon alongside each error message", () => {
-        const wrapper = mount(AuthProviderFormErrors, {
+        const wrapper = mount(FormErrors, {
             props: { errors: ["Something went wrong"] },
         });
 

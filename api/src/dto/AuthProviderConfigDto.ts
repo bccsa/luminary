@@ -101,5 +101,9 @@ export class AuthProviderConfigDto extends _baseDto {
     @IsObject()
     @IsOptional()
     @Expose()
-    public userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
+    public userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
 }

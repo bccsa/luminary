@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import AuthProviderDisplayCard from "./AuthProviderDisplayCard.vue";
-import AuthProviderFormModal from "./AuthProviderFormModal.vue";
+import DisplayCard from "./DisplayCard.vue";
+import FormModal from "./FormModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
@@ -117,7 +117,7 @@ defineExpose({
             </div>
 
             <div v-else class="flex flex-col gap-[3px]">
-                <AuthProviderDisplayCard
+                <DisplayCard
                     v-for="(provider, i) in providers"
                     :key="provider._id || provider.label"
                     :provider="provider"
@@ -131,7 +131,7 @@ defineExpose({
     </BasePage>
 
     <!-- Create/Edit Provider Modal -->
-    <AuthProviderFormModal
+    <FormModal
         v-model:isVisible="showModal"
         v-model:provider="currentProvider"
         v-model:providerConfig="currentProviderConfig"

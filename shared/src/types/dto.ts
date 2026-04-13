@@ -296,5 +296,9 @@ export type AuthProviderConfigDto = BaseDocumentDto & {
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
     /** Override standard OIDC claim paths (defaults: sub, email, name) */
-    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
+    userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
 };

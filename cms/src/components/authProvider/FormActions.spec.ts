@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { isConnected } from "luminary-shared";
-import AuthProviderFormActions from "./AuthProviderFormActions.vue";
+import FormActions from "./FormActions.vue";
 
 const baseProps = {
     isEditing: false,
@@ -11,7 +11,7 @@ const baseProps = {
     isDirty: true,
 };
 
-describe("AuthProviderFormActions.vue", () => {
+describe("FormActions.vue", () => {
     beforeEach(() => {
         isConnected.value = true;
     });
@@ -23,7 +23,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Button label ─────────────────────────────────────────────────────────
 
     it("shows 'Save' as the save button label", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: false },
         });
 
@@ -33,7 +33,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Delete button ─────────────────────────────────────────────────────────
 
     it("hides Delete button when not editing", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: false, canDelete: true },
         });
 
@@ -41,7 +41,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("hides Delete button when canDelete is false", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, canDelete: false },
         });
 
@@ -49,7 +49,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("shows Delete button when editing and canDelete is true", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, canDelete: true },
         });
 
@@ -59,7 +59,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Revert button ─────────────────────────────────────────────────────────
 
     it("hides Revert button when not editing", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: false, isDirty: true },
         });
 
@@ -67,7 +67,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("hides Revert button when not dirty", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, isDirty: false },
         });
 
@@ -75,7 +75,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("shows Revert button when editing and dirty", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, isDirty: true },
         });
 
@@ -85,7 +85,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Unsaved changes badge ─────────────────────────────────────────────────
 
     it("shows 'Unsaved changes' badge when editing and dirty", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, isDirty: true },
         });
 
@@ -93,7 +93,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("hides 'Unsaved changes' badge when not editing", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: false, isDirty: true },
         });
 
@@ -104,7 +104,7 @@ describe("AuthProviderFormActions.vue", () => {
 
     it("shows offline warning when not connected", () => {
         isConnected.value = false;
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: baseProps,
         });
 
@@ -113,7 +113,7 @@ describe("AuthProviderFormActions.vue", () => {
 
     it("does not show offline warning when connected", () => {
         isConnected.value = true;
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: baseProps,
         });
 
@@ -123,7 +123,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Save button disabled states ───────────────────────────────────────────
 
     it("disables save button when form is invalid", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isFormValid: false, isDirty: true },
         });
 
@@ -132,7 +132,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("disables save button when not dirty", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isFormValid: true, isDirty: false },
         });
 
@@ -142,7 +142,7 @@ describe("AuthProviderFormActions.vue", () => {
 
     it("disables save button when offline", () => {
         isConnected.value = false;
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
@@ -151,7 +151,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("enables save button when form is valid, dirty, and online", () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
@@ -162,7 +162,7 @@ describe("AuthProviderFormActions.vue", () => {
     // ── Emitted events ────────────────────────────────────────────────────────
 
     it("emits 'save' when the save button is clicked", async () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isFormValid: true, isDirty: true },
         });
 
@@ -173,7 +173,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("emits 'close' when Cancel is clicked", async () => {
-        const wrapper = mount(AuthProviderFormActions, { props: baseProps });
+        const wrapper = mount(FormActions, { props: baseProps });
 
         const cancelBtn = wrapper.findAll("button").find((b) => b.text() === "Cancel");
         await cancelBtn!.trigger("click");
@@ -182,7 +182,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("emits 'delete' when Delete is clicked", async () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, canDelete: true },
         });
 
@@ -193,7 +193,7 @@ describe("AuthProviderFormActions.vue", () => {
     });
 
     it("emits 'revert' when Revert is clicked", async () => {
-        const wrapper = mount(AuthProviderFormActions, {
+        const wrapper = mount(FormActions, {
             props: { ...baseProps, isEditing: true, isDirty: true },
         });
 

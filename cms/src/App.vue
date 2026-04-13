@@ -9,7 +9,7 @@ import router from "./router";
 import MobileSideBar from "@/components/navigation/MobileSideBar.vue";
 import SideBar from "@/components/navigation/SideBar.vue";
 import { isAuthBypassed, showProviderSelectionModal } from "@/auth";
-import AuthProviderSelectionModal from "@/components/AuthProvider/AuthProviderSelectionModal.vue";
+import SelectionModal from "@/components/authProvider/SelectionModal.vue";
 
 // In auth bypass mode, always treat as authenticated
 const auth0 = isAuthBypassed ? null : useAuth0();
@@ -42,10 +42,7 @@ const routeKey = computed(() => {
                 <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                 routes (e.g. Post / Tag overviews) -->
                 <RouterView :key="routeKey" v-slot="{ Component }">
-                    <component
-                        :is="Component"
-                        :onOpenMobileSidebar="() => (sidebarOpen = true)"
-                    />
+                    <component :is="Component" :onOpenMobileSidebar="() => (sidebarOpen = true)" />
                 </RouterView>
             </div>
         </div>
@@ -60,6 +57,6 @@ const routeKey = computed(() => {
 
     <Teleport to="body">
         <NotificationManager />
-        <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
+        <SelectionModal v-model:isVisible="showProviderSelectionModal" />
     </Teleport>
 </template>

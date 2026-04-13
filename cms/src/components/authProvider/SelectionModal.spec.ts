@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { db, DocType, type AuthProviderDto } from "luminary-shared";
-import AuthProviderSelectionModal from "./AuthProviderSelectionModal.vue";
+import SelectionModal from "./SelectionModal.vue";
 import waitForExpect from "wait-for-expect";
 
 // Mock loginWithProvider from @/auth so we don't trigger real OAuth flows
@@ -36,7 +36,7 @@ const mockProviderB: AuthProviderDto = {
     textColor: "#ffffff",
 };
 
-describe("AuthProviderSelectionModal.vue", () => {
+describe("SelectionModal.vue", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         await db.docs.clear();
@@ -49,7 +49,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     // ── Empty state ───────────────────────────────────────────────────────────
 
     it("shows empty state when no providers are available", async () => {
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: true },
         });
 
@@ -63,7 +63,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     it("renders a button for each provider stored in Dexie", async () => {
         await db.docs.bulkPut([mockProviderA, mockProviderB]);
 
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: true },
         });
 
@@ -76,7 +76,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     it("hides empty state when providers are present", async () => {
         await db.docs.bulkPut([mockProviderA]);
 
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: true },
         });
 
@@ -90,7 +90,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     it("calls loginWithProvider with the selected provider when a button is clicked", async () => {
         await db.docs.put(mockProviderA);
 
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: true },
         });
 
@@ -114,7 +114,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     it("applies custom backgroundColor from the provider to its button", async () => {
         await db.docs.put(mockProviderB);
 
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: true },
         });
 
@@ -131,7 +131,7 @@ describe("AuthProviderSelectionModal.vue", () => {
     // ── Visibility ────────────────────────────────────────────────────────────
 
     it("is hidden when isVisible is false", () => {
-        const wrapper = mount(AuthProviderSelectionModal, {
+        const wrapper = mount(SelectionModal, {
             props: { isVisible: false },
         });
 

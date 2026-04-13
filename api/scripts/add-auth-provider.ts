@@ -101,7 +101,7 @@ interface FindResult<T> {
 // ── Environment ─────────────────────────────────────────────────────────────────
 
 const apiDir = path.resolve(__dirname);
-const envPath = path.join(apiDir, ".env");
+const envPath = path.join(apiDir, "..", ".env");
 
 if (!fs.existsSync(envPath)) {
     console.error(`Error: .env file not found in the api directory at ${apiDir}.`);

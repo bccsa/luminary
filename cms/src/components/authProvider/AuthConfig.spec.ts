@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
 import { DocType, type AuthProviderDto } from "luminary-shared";
-import AuthProviderAuthConfig from "./AuthProviderAuthConfig.vue";
+import AuthConfig from "./AuthConfig.vue";
 
 const mockProvider: AuthProviderDto = {
     _id: "provider-1",
@@ -15,11 +15,11 @@ const mockProvider: AuthProviderDto = {
     audience: "https://api.test.com",
 };
 
-describe("AuthProviderAuthConfig.vue", () => {
+describe("AuthConfig.vue", () => {
     // ── Field rendering ───────────────────────────────────────────────────────
 
     it("renders domain, clientId, and audience inputs with current values", () => {
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider: mockProvider, isEditing: false },
         });
 
@@ -35,7 +35,7 @@ describe("AuthProviderAuthConfig.vue", () => {
     });
 
     it("shows required asterisk on domain, clientId, and audience when not editing", () => {
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider: mockProvider, isEditing: false },
         });
 
@@ -45,7 +45,7 @@ describe("AuthProviderAuthConfig.vue", () => {
     });
 
     it("hides required asterisks when editing", () => {
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider: mockProvider, isEditing: true },
         });
 
@@ -54,7 +54,7 @@ describe("AuthProviderAuthConfig.vue", () => {
     });
 
     it("disables all inputs when disabled prop is true", () => {
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider: mockProvider, isEditing: false, disabled: true },
         });
 
@@ -72,7 +72,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("strips https:// protocol from domain on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 
@@ -86,7 +86,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("strips http:// protocol from domain on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 
@@ -100,7 +100,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("strips trailing slashes from domain on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 
@@ -114,7 +114,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("strips paths after the hostname on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 
@@ -128,7 +128,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("lowercases the domain on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 
@@ -142,7 +142,7 @@ describe("AuthProviderAuthConfig.vue", () => {
 
     it("leaves a blank domain empty on blur", async () => {
         const provider = reactive({ ...mockProvider, domain: "" });
-        const wrapper = mount(AuthProviderAuthConfig, {
+        const wrapper = mount(AuthConfig, {
             props: { provider, isEditing: false },
         });
 

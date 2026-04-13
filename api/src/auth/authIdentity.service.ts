@@ -347,7 +347,7 @@ export class AuthIdentityService implements OnModuleInit {
                 };
             }
 
-            // Link identity: set externalUserId on the user if not already present
+            // Link identity: set externalUserId on the user if not already present.
             const needsIdentityLink = !primaryUser.externalUserId && externalUserId;
             if (needsIdentityLink) {
                 primaryUser = { ...primaryUser, externalUserId };

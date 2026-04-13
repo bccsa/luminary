@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
 import { DocType, type AuthProviderDto } from "luminary-shared";
-import AuthProviderLabelAndType from "./AuthProviderLabelAndType.vue";
+import LabelAndType from "./LabelAndType.vue";
 
 const mockProvider: AuthProviderDto = {
     _id: "provider-1",
@@ -15,9 +15,9 @@ const mockProvider: AuthProviderDto = {
     audience: "https://api.acme.com",
 };
 
-describe("AuthProviderLabelAndType.vue", () => {
+describe("LabelAndType.vue", () => {
     it("renders the current label value in the input", () => {
-        const wrapper = mount(AuthProviderLabelAndType, {
+        const wrapper = mount(LabelAndType, {
             props: { provider: mockProvider },
         });
 
@@ -28,7 +28,7 @@ describe("AuthProviderLabelAndType.vue", () => {
     it("updates provider.label when the input changes", async () => {
         // Use a reactive object so we can observe direct property mutations from defineModel
         const provider = reactive({ ...mockProvider });
-        const wrapper = mount(AuthProviderLabelAndType, {
+        const wrapper = mount(LabelAndType, {
             props: { provider },
         });
 
@@ -39,7 +39,7 @@ describe("AuthProviderLabelAndType.vue", () => {
     });
 
     it("renders as disabled when the disabled prop is set", () => {
-        const wrapper = mount(AuthProviderLabelAndType, {
+        const wrapper = mount(LabelAndType, {
             props: { provider: mockProvider, disabled: true },
         });
 
@@ -48,7 +48,7 @@ describe("AuthProviderLabelAndType.vue", () => {
     });
 
     it("shows the required asterisk in the label", () => {
-        const wrapper = mount(AuthProviderLabelAndType, {
+        const wrapper = mount(LabelAndType, {
             props: { provider: mockProvider },
         });
 

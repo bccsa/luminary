@@ -260,6 +260,10 @@ describe("AuthGuard (Integrated)", () => {
     });
 
     it("should fall back to default groups when no matching identity or email exists", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
         mockDbService.executeFindQuery
             .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions (inside resolveIdentity)
             .mockResolvedValueOnce({ docs: [] }) // providerConfig
@@ -297,7 +301,11 @@ describe("AuthGuard (Integrated)", () => {
         expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
     });
 
-    it("should link identity to existing user found by email (fallback)", async () => {
+    it("should link identity to existing user found by email (fallback) when email is verified", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
         const existingUser = {
             _id: "user-123",
             _rev: "1-abc",
@@ -457,6 +465,10 @@ describe("AuthGuard (Integrated)", () => {
     });
 
     it("should merge memberOf from multiple user docs with the same email", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
         const userDoc1 = {
             _id: "user-a",
             _rev: "1-aaa",

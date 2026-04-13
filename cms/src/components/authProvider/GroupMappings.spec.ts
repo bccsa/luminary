@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { DocType, type AuthProviderGroupMapping, type GroupDto } from "luminary-shared";
-import AuthProviderGroupMappings from "./AuthProviderGroupMappings.vue";
+import GroupMappings from "./GroupMappings.vue";
 
 const mockGroups: GroupDto[] = [
     {
@@ -32,11 +32,11 @@ const claimInMapping: AuthProviderGroupMapping = {
     conditions: [{ type: "claimIn", claimPath: "roles", values: ["admin", "superadmin"] }],
 };
 
-describe("AuthProviderGroupMappings.vue", () => {
+describe("GroupMappings.vue", () => {
     // ── Empty state ───────────────────────────────────────────────────────────
 
     it("shows empty state text when there are no mappings", () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [], availableGroups: mockGroups },
         });
 
@@ -44,7 +44,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     });
 
     it("hides empty state text when mappings exist", () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [claimEqualsMapping], availableGroups: mockGroups },
         });
 
@@ -54,7 +54,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     // ── Add mapping ───────────────────────────────────────────────────────────
 
     it("emits 'update:modelValue' with a new empty mapping when '+ Add Rule' is clicked", async () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [], availableGroups: mockGroups },
         });
 
@@ -71,7 +71,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     // ── Remove mapping ────────────────────────────────────────────────────────
 
     it("emits 'update:modelValue' with the mapping removed when the trash button is clicked", async () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: {
                 modelValue: [claimEqualsMapping, claimInMapping],
                 availableGroups: mockGroups,
@@ -98,7 +98,7 @@ describe("AuthProviderGroupMappings.vue", () => {
             groupId: "group-editors",
             conditions: [],
         };
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [noConditionMapping], availableGroups: mockGroups },
         });
 
@@ -106,7 +106,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     });
 
     it("shows claimEquals condition summary in view mode", () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [claimEqualsMapping], availableGroups: mockGroups },
         });
 
@@ -116,7 +116,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     });
 
     it("shows claimIn condition summary in view mode", () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [claimInMapping], availableGroups: mockGroups },
         });
 
@@ -128,7 +128,7 @@ describe("AuthProviderGroupMappings.vue", () => {
 
     it("emits 'update:modelValue' with a new claimEquals condition when '+ Add Condition' is clicked", async () => {
         const emptyMapping: AuthProviderGroupMapping = { groupId: "", conditions: [] };
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [emptyMapping], availableGroups: mockGroups },
         });
 
@@ -148,7 +148,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     // ── Remove condition ──────────────────────────────────────────────────────
 
     it("emits 'update:modelValue' with the condition removed when remove-condition is clicked", async () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [claimEqualsMapping], availableGroups: mockGroups },
         });
 
@@ -164,7 +164,7 @@ describe("AuthProviderGroupMappings.vue", () => {
     // ── Disabled state ────────────────────────────────────────────────────────
 
     it("disables '+ Add Rule' when disabled prop is true", () => {
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [], availableGroups: mockGroups, disabled: true },
         });
 
@@ -174,7 +174,7 @@ describe("AuthProviderGroupMappings.vue", () => {
 
     it("disables '+ Add Condition' and the remove-rule button when disabled prop is true", () => {
         const emptyMapping: AuthProviderGroupMapping = { groupId: "", conditions: [] };
-        const wrapper = mount(AuthProviderGroupMappings, {
+        const wrapper = mount(GroupMappings, {
             props: { modelValue: [emptyMapping], availableGroups: mockGroups, disabled: true },
         });
 
