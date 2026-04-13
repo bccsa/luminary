@@ -301,6 +301,8 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
 type EnrichedResult = ContentDto & {
     highlight: string | undefined;
     titleHighlight: string;
+    /** HTML with <mark> for query terms; only set when `author` is present */
+    authorHighlight: string | undefined;
     languageName: string;
 };
 
@@ -358,6 +360,9 @@ const results = computed<EnrichedResult[]>(() => {
             ...doc,
             titleHighlight: applyTermHighlights(stripHtml(doc.title ?? ""), query),
             highlight: createHighlight(doc, query),
+            authorHighlight: doc.author
+                ? applyTermHighlights(stripHtml(doc.author), query)
+                : undefined,
             languageName: languageNames.value.get(doc.language) ?? "",
         }));
 });
@@ -847,8 +852,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                 <span
                                                     v-if="result.author"
                                                     class="truncate"
-                                                    >{{ result.author }}</span
                                                 >
+                                                    <span
+                                                        v-if="result.authorHighlight"
+                                                        v-html="result.authorHighlight"
+                                                    />
+                                                    <template v-else>{{ result.author }}</template>
+                                                </span>
                                                 <span
                                                     v-if="
                                                         result.author &&
