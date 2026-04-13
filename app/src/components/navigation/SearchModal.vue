@@ -641,24 +641,29 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
                         />
-                        <input
-                            ref="inputRef"
-                            v-model="searchQuery"
-                            type="text"
-                            role="combobox"
-                            aria-haspopup="listbox"
-                            :aria-expanded="showResults"
-                            :aria-activedescendant="
-                                selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
-                            "
-                            :placeholder="t('search.placeholder')"
-                            class="min-w-0 flex-1 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
-                            autocomplete="off"
-                            @keydown="handleInputKeydown"
-                            @focus="isInputFocused = true"
-                            @blur="isInputFocused = false"
-                        />
-                        <div class="flex h-9 flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0">
+                        <!-- Isolate the field in its own flex item so a long query cannot paint over the actions (mobile keyboard / overflow). -->
+                        <div class="relative z-0 min-w-0 flex-1">
+                            <input
+                                ref="inputRef"
+                                v-model="searchQuery"
+                                type="text"
+                                role="combobox"
+                                aria-haspopup="listbox"
+                                :aria-expanded="showResults"
+                                :aria-activedescendant="
+                                    selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
+                                "
+                                :placeholder="t('search.placeholder')"
+                                class="w-full min-w-0 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
+                                autocomplete="off"
+                                @keydown="handleInputKeydown"
+                                @focus="isInputFocused = true"
+                                @blur="isInputFocused = false"
+                            />
+                        </div>
+                        <div
+                            class="relative z-10 flex h-9 flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0"
+                        >
                             <button
                                 v-if="showGoButton"
                                 type="button"
