@@ -129,7 +129,7 @@ const {
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
 useInfiniteScroll(
-    searchResultsContainerRef,
+    () => searchResultsContainerRef.value,
     () => {
         if (hasMore.value && !isSearching.value) loadMore();
     },
@@ -641,7 +641,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <MagnifyingGlassIcon
                             class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
                         />
-                        <!-- Isolate the field in its own flex item so a long query cannot paint over the actions (mobile keyboard / overflow). -->
+
                         <div class="relative z-0 min-w-0 flex-1">
                             <input
                                 ref="inputRef"
