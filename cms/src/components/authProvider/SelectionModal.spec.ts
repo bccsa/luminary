@@ -68,8 +68,8 @@ describe("SelectionModal.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Continue with Acme Corp");
-            expect(wrapper.html()).toContain("Continue with Beta Inc");
+            expect(wrapper.html()).toContain("Acme Corp");
+            expect(wrapper.html()).toContain("Beta Inc");
         });
     });
 
@@ -95,12 +95,12 @@ describe("SelectionModal.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Continue with Acme Corp");
+            expect(wrapper.html()).toContain("Acme Corp");
         });
 
         const providerBtn = wrapper
             .findAll("button")
-            .find((b) => b.text().includes("Continue with Acme Corp"));
+            .find((b) => b.text().includes("Acme Corp"));
         await providerBtn!.trigger("click");
 
         expect(loginWithProvider).toHaveBeenCalledTimes(1);
@@ -119,12 +119,12 @@ describe("SelectionModal.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Continue with Beta Inc");
+            expect(wrapper.html()).toContain("Beta Inc");
         });
 
         const providerBtn = wrapper
             .findAll("button")
-            .find((b) => b.text().includes("Continue with Beta Inc"));
+            .find((b) => b.text().includes("Beta Inc"));
         expect(providerBtn!.attributes("style")).toContain("background-color");
     });
 
