@@ -1170,4 +1170,119 @@ describe("EditContent.vue", () => {
             });
         });
     });
+
+    describe("dirty state on load", () => {
+        // Regression tests for a bug where MediaEditor / ImageEditor auto-selected the
+        // single available storage bucket on mount and wrote it only to editableParent,
+        // which made the diff against existingParent flag a phantom dirty state every
+        // time a legacy doc (no bucket IDs persisted) was opened.
+
+        const loadWithoutUserEdits = async (postOverride: Partial<PostDto> = {}) => {
+            await db.docs.clear();
+            await db.localChanges.clear();
+
+            const legacyPost: PostDto = {
+                ...mockData.mockPostDto,
+                ...postOverride,
+            };
+            delete (legacyPost as Partial<PostDto>).mediaBucketId;
+            delete (legacyPost as Partial<PostDto>).imageBucketId;
+
+            await db.docs.bulkPut([legacyPost]);
+            await db.docs.bulkPut([
+                mockData.mockEnglishContentDto,
+                mockData.mockFrenchContentDto,
+                mockData.mockSwahiliContentDto,
+            ]);
+            await db.docs.bulkPut([
+                mockData.mockLanguageDtoEng,
+                mockData.mockLanguageDtoFra,
+                mockData.mockLanguageDtoSwa,
+            ]);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: legacyPost._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+            // Let storage-bucket live query resolve and any post-load watchers settle.
+            await wait(50);
+            return wrapper;
+        };
+
+        it("is not dirty on load when the post has no bucket IDs and a single media bucket is auto-selected", async () => {
+            await db.docs.bulkPut([mockData.mockStorageDtoWithEncryptedCredentials]);
+
+            const wrapper = await loadWithoutUserEdits();
+
+            // Revert action is only rendered while isDirty is true — its absence proves
+            // the dirty state stayed clean across the bucket auto-select watcher.
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        });
+
+        it("is not dirty on load when the post has no bucket IDs and a single image bucket is auto-selected", async () => {
+            await db.docs.bulkPut([mockData.mockStorageDto]);
+
+            const wrapper = await loadWithoutUserEdits();
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        });
+
+        it("is not dirty on load when both image and media buckets are auto-selected", async () => {
+            await db.docs.bulkPut([
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+
+            const wrapper = await loadWithoutUserEdits();
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        });
+
+        it("is not dirty on load when no storage buckets exist", async () => {
+            const wrapper = await loadWithoutUserEdits();
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        });
+
+        it("is not dirty on load when the post already has bucket IDs persisted", async () => {
+            await db.docs.bulkPut([
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+
+            const wrapper = await loadWithoutUserEdits({
+                imageBucketId: mockData.mockStorageDto._id,
+                mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+            });
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        });
+
+        it("becomes dirty after a genuine user edit on a legacy post with auto-selected buckets", async () => {
+            await db.docs.bulkPut([
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+
+            const wrapper = await loadWithoutUserEdits();
+
+            // Baseline must be clean before the edit — otherwise the next assertion
+            // could pass for the wrong reason.
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+
+            await wrapper.find('input[name="title"]').setValue("Edited title");
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+        });
+    });
 });
