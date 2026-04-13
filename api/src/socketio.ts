@@ -102,14 +102,20 @@ export class Socketio implements OnGatewayInit {
             const token = socket.handshake.auth?.token as string | undefined;
             const providerId = socket.handshake.auth?.providerId as string | undefined;
 
-            const result = await this.authIdentityService.resolveOrDefault(token, providerId);
-            socket.data.userDetails = result.userDetails;
-
-            if (result.status === "error") {
+            try {
+                const authIdentity = await this.authIdentityService.resolveOrDefault(
+                    token,
+                    providerId,
+                );
+                socket.data.userDetails = authIdentity.userDetails;
+            } catch (error) {
                 this.logger.error("Socket auth failed for providerId=" + providerId, {
-                    error: result.error instanceof Error ? result.error.message : result.error,
+                    error: error instanceof Error ? error.message : error,
                 });
                 socket.emit("apiAuthFailed");
+                // Disconnect the client to prevent further communication.
+                socket.disconnect(true);
+                return;
             }
             next();
         });

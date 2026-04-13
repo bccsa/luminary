@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, UnauthorizedException, ValidationPipe } from "@nestjs/common";
+import { INestApplication, ValidationPipe } from "@nestjs/common";
 import * as request from "supertest";
 import { StorageStatusController } from "./storageStatus.controller";
 import { S3Service } from "../s3/s3.service";
@@ -32,9 +32,6 @@ describe("StorageController", () => {
             .useValue({
                 canActivate: (context: any) => {
                     const req = context.switchToHttp().getRequest();
-                    if (!req.headers?.authorization) {
-                        throw new UnauthorizedException("Authorization token required");
-                    }
                     req.user = { groups: ["group-public-users"], userId: "user-123" };
                     return true;
                 },
@@ -369,14 +366,5 @@ describe("StorageController", () => {
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
-        it("should require authentication", async () => {
-            const response = await request(app.getHttpServer())
-                .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" });
-            // No Authorization header - should fail with 401
-
-            expect(response.status).toBe(401);
-            expect(response.body.message).toBe("Authorization token required");
-        });
     });
 });

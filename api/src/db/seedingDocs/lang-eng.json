@@ -123,7 +123,6 @@
         "openapp_warning.button_cancel": "Cancel",
         "singlecontent.listen": "Listen",
         "auth.sign_in": "Sign in",
-        "auth.no_methods_available": "No sign-in methods available.",
-        "auth.contact_support": "Please contact support for assistance."
+        "auth.no_methods_available": "No sign-in methods available."
     }
 }

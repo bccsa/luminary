@@ -47,6 +47,6 @@ export class QueryController {
         }
 
         delete body.identifier;
-        return this.queryService.query(body as MongoQueryDto, (request as any).user);
+        return this.queryService.query(body as MongoQueryDto, request.user);
     }
 }

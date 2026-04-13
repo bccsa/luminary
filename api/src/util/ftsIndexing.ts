@@ -230,7 +230,9 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
 
     if (aggregatedTf.size === 0) return undefined;
 
-    const fts: string[] = Array.from(aggregatedTf.entries()).map(([token, tf]) => token + ":" + tf);
+    const fts: string[] = Array.from(aggregatedTf.entries()).map(
+        ([token, tf]) => token + ":" + tf,
+    );
 
     return { fts, ftsTokenCount: totalTokenCount };
 }

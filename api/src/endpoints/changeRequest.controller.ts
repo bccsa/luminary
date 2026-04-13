@@ -109,7 +109,7 @@ export class ChangeRequestController {
 
             const result = await this.changeRequestService.changeRequest(
                 changeRequest,
-                (request as any).user,
+                request.user,
             );
 
             return result;
@@ -119,10 +119,7 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(
-            cleanedBody,
-            (request as any).user,
-        );
+        const result = await this.changeRequestService.changeRequest(cleanedBody, request.user);
 
         return result;
     }

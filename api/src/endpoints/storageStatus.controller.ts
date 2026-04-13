@@ -5,6 +5,7 @@ import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AclPermission, DocType } from "../enums";
+import { FastifyRequest } from "fastify";
 
 export type StorageStatusResponseDto = {
     status: "connected" | "unreachable" | "unauthorized" | "not-found" | "no-credentials";
@@ -20,14 +21,11 @@ export class StorageStatusController {
     async getStorageStatus(
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
-        @Req() request: any,
+        @Req() request: FastifyRequest,
     ): Promise<StorageStatusResponseDto> {
         await validateApiVersion(apiVersion);
 
         const userDetails = request.user;
-        if (!userDetails) {
-            throw new HttpException("Authorization token required", HttpStatus.UNAUTHORIZED);
-        }
 
         // Validate bucketId parameter
         if (!bucketId) {

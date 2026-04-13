@@ -16,6 +16,6 @@ export class SearchController {
         const queryObj = xQuery(query, SearchReqDto);
         await validateApiVersion(queryObj.apiVersion); // validate API version
 
-        return this.searchService.processReq(queryObj, (request as any).user);
+        return this.searchService.processReq(queryObj, request.user);
     }
 }

@@ -77,18 +77,15 @@ describe("AuthGuard", () => {
         expect(context._request.user).toEqual(defaultUserDetails);
     });
 
-    it("should fall back to default groups when identity resolution fails", async () => {
-        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
-            status: "error",
-            userDetails: defaultUserDetails,
-            error: new Error("Token expired"),
-        } as IdentityResult);
+    it("should propagate UnauthorizedException when identity resolution fails", async () => {
+        const { UnauthorizedException } = await import("@nestjs/common");
+        (authIdentityService.resolveOrDefault as jest.Mock).mockRejectedValue(
+            new UnauthorizedException("Token expired"),
+        );
 
         const context = createMockContext("Bearer expired-token", "provider-1");
-        const result = await guard.canActivate(context);
 
-        expect(result).toBe(true);
-        expect(context._request.user).toEqual(defaultUserDetails);
+        await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it("should fall back to default groups when no provider ID is given", async () => {
@@ -102,9 +99,6 @@ describe("AuthGuard", () => {
 
         expect(result).toBe(true);
         expect(context._request.user).toEqual(defaultUserDetails);
-        expect(authIdentityService.resolveOrDefault).toHaveBeenCalledWith(
-            "some-token",
-            undefined,
-        );
+        expect(authIdentityService.resolveOrDefault).toHaveBeenCalledWith("some-token", undefined);
     });
 });

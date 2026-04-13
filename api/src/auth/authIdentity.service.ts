@@ -25,7 +25,6 @@ export type JwtUserDetails = {
 
 export type IdentityResult =
     | { status: "authenticated"; userDetails: JwtUserDetails }
-    | { status: "error"; userDetails: JwtUserDetails; error: unknown }
     | { status: "anonymous"; userDetails: JwtUserDetails };
 
 @Injectable()
@@ -85,15 +84,9 @@ export class AuthIdentityService implements OnModuleInit {
                 const userDetails = await this.resolveIdentity(token, providerId);
                 return { status: "authenticated", userDetails };
             } catch (error) {
-                const defaultGroups = await this.getDefaultGroups();
-                return {
-                    status: "error",
-                    userDetails: {
-                        groups: defaultGroups,
-                        accessMap: PermissionSystem.getAccessMap(defaultGroups),
-                    },
-                    error,
-                };
+                throw new UnauthorizedException(
+                    error instanceof Error ? error.message : "Invalid authentication token",
+                );
             }
         }
         const defaultGroups = await this.getDefaultGroups();

@@ -123,7 +123,6 @@
         "openapp_warning.button_cancel": "Annuler",
         "singlecontent.listen": "Écouter",
         "auth.sign_in": "Se connecter",
-        "auth.no_methods_available": "Aucune méthode de connexion disponible.",
-        "auth.contact_support": "Veuillez contacter le support pour obtenir de l'aide."
+        "auth.no_methods_available": "Aucune méthode de connexion disponible."
     }
 }
