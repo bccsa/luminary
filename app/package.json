@@ -7,9 +7,6 @@
         "build": "run-p type-check \"build-only {@}\" --",
         "preview": "vite preview",
         "test:unit": "vitest",
-        "test:e2e": "playwright test",
-        "test:e2e:codegen": "playwright codegen http://localhost:4174",
-        "test:e2e:codegen:preview": "playwright codegen http://localhost:5173",
         "test": "vitest",
         "build-only": "vite build",
         "type-check": "vue-tsc --build --force",
@@ -42,7 +39,6 @@
     "devDependencies": {
         "@heroicons/vue": "^2.1.3",
         "@pinia/testing": "^0.1.3",
-        "@playwright/test": "^1.40.1",
         "@rushstack/eslint-patch": "^1.3.3",
         "@tailwindcss/typography": "^0.5.16",
         "@tsconfig/node18": "^18.2.2",
