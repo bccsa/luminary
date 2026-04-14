@@ -4,6 +4,11 @@ import { _baseDto } from "./_baseDto";
 import { IsString, IsNotEmpty, IsOptional, IsArray, IsObject, IsNumber } from "class-validator";
 import { Expose } from "class-transformer";
 
+/**
+ * Public-facing OIDC auth provider configuration synced to both the app and CMS.
+ * Holds the non-sensitive information needed to render a login button and initiate
+ * an OIDC flow. Server-side JWT processing rules live in the linked AuthProviderConfigDto.
+ */
 export class AuthProviderDto extends _baseDto {
     public constructor(init?: Partial<AuthProviderDto>) {
         super();

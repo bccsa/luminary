@@ -11,21 +11,41 @@ import {
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
 
+/**
+ * A single rule evaluated against a user's JWT to decide whether a group mapping applies.
+ */
 export class AuthProviderCondition {
+    /**
+     * The kind of check to perform:
+     * - `authenticated`: matches any successfully authenticated user.
+     * - `claimEquals`: matches when the claim at `claimPath` equals `value`.
+     * - `claimIn`: matches when the claim at `claimPath` is contained in `values`.
+     */
     @IsString()
     @IsNotEmpty()
     @Expose()
     type!: "authenticated" | "claimEquals" | "claimIn";
 
+    /**
+     * Dot-notation path to the JWT claim being inspected (e.g. `realm_access.roles`).
+     * Required for `claimEquals` and `claimIn`.
+     */
     @IsOptional()
     @IsString()
     @Expose()
     claimPath?: string;
 
+    /**
+     * Expected claim value for `claimEquals`.
+     */
     @IsOptional()
     @Expose()
     value?: string | string[];
 
+    /**
+     * Allowed claim values for `claimIn` — matches if the claim equals any entry,
+     * or (for array claims) if any element of the claim is in this list.
+     */
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
@@ -33,12 +53,23 @@ export class AuthProviderCondition {
     values?: string[];
 }
 
+/**
+ * Maps a remote JWT shape to a local group: if all `conditions` pass for an
+ * incoming user, they are granted membership in `groupId`.
+ */
 export class AuthProviderGroupMapping {
+    /**
+     * The _id of the local group to assign when all conditions match.
+     */
     @IsString()
     @IsNotEmpty()
     @Expose()
     groupId!: string;
 
+    /**
+     * Conditions evaluated with AND semantics — every condition must pass for
+     * the mapping to apply.
+     */
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => AuthProviderCondition)

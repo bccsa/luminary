@@ -46,10 +46,6 @@ describe("Socketio", () => {
         process.env = oldEnv;
     });
 
-    afterEach(() => {
-        // JWT state is now managed by AuthIdentityService
-    });
-
     it("can be instantiated", () => {
         expect(server).toBeDefined();
     });
