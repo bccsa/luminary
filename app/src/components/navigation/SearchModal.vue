@@ -30,6 +30,9 @@ const isManualSearchMode = ref(isMdScreen.value);
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
+/** Desktop-only: hide the header X while the input is focused to reduce clutter. On mobile, focus/blur is unreliable (OS keyboard, programmatic focus), so always show close. */
+const showHeaderCloseButton = computed(() => isMdScreen.value || !isInputFocused.value);
+
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
 
@@ -606,7 +609,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         >
             <div
                 v-show="isOpen"
-                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+                class="fixed inset-x-0 top-0 bottom-0 z-50 flex max-lg:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
                 <div
@@ -657,7 +660,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
                             <button
-                                v-if="!isInputFocused"
+                                v-if="showHeaderCloseButton"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="t('search.close')"
                                 @click="closeSearch"

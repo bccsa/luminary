@@ -140,6 +140,9 @@ describe("SearchButton", () => {
         routePushMock.mockReset();
         window.localStorage.clear();
         window.sessionStorage.clear();
+        // Widen viewport so isMdScreen matches desktop; other tests set 600px and resize is global.
+        window.innerWidth = 1024;
+        window.dispatchEvent(new Event("resize"));
     });
 
     afterEach(() => {
@@ -611,6 +614,22 @@ describe("SearchButton", () => {
             await flushPromises();
 
             expect(wrapper.find("input").isVisible()).toBe(false);
+        });
+
+        it("keeps the close button visible when the input is focused on mobile width", async () => {
+            window.innerWidth = 600;
+            window.dispatchEvent(new Event("resize"));
+
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+
+            const closeBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Close search");
+            expect(closeBtn).toBeDefined();
         });
     });
 
