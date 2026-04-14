@@ -148,7 +148,7 @@ export const router = createRouter({
                 {
                     path: "auth-providers",
                     name: "auth-providers",
-                    component: () => import("../components/authProvider/Overview.vue"),
+                    component: () => import("../components/authProvider/AuthProviderOverview.vue"),
                     meta: {
                         title: "Auth Providers",
                         canAccess: {

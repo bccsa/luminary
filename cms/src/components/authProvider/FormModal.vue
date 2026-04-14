@@ -8,7 +8,7 @@ import FormErrors from "./FormErrors.vue";
 import AuthConfig from "./AuthConfig.vue";
 import LabelAndType from "./LabelAndType.vue";
 import IconSection from "./IconSection.vue";
-import Appearance from "./Appearance.vue";
+import Appearance from "./LabelAppearance.vue";
 import UserFieldMappings from "./UserFieldMappings.vue";
 import GroupMappings from "./GroupMappings.vue";
 import FormActions from "./FormActions.vue";
@@ -149,10 +149,7 @@ const handleRevert = () => {
                     >Automatically assign users to groups based on claims or attributes returned by
                     this authentication provider.</span
                 >
-                <UserFieldMappings
-                    v-model:providerConfig="providerConfig"
-                    :disabled="isLoading"
-                />
+                <UserFieldMappings v-model:providerConfig="providerConfig" :disabled="isLoading" />
 
                 <GroupMappings
                     v-if="providerConfig"
