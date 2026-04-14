@@ -12,7 +12,7 @@ import LModal from "../modals/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     /**
@@ -40,6 +40,13 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                 ...a,
                 groupId: targetGroup._id,
             })),
+    );
+};
+
+const removeAssignedGroup = () => {
+    if (!group.value) return;
+    group.value.acl = group.value.acl.filter(
+        (a: GroupAclEntryDto) => a.groupId !== props.assignedGroup._id,
     );
 };
 
@@ -116,15 +123,27 @@ onMounted(() => {
                 >
                     {{ assignedGroup.name }}
                 </div>
-                <div v-if="typesWithActivePermissions.length > 0">
-                    <DuplicateGroupAclButton
-                        :groups="availableGroups"
-                        @select="duplicateGroup"
-                        data-test="duplicateAcl"
+                <div class="flex">
+                    <LButton
+                        variant="tertiary"
+                        size="sm"
+                        :icon="TrashIcon"
+                        title="Remove group access"
+                        class="gap-x-0"
+                        @click.stop="removeAssignedGroup"
+                        mainDynamicCss="text-zinc-400"
                         v-if="!disabled"
                     />
+
+                    <div v-if="typesWithActivePermissions.length > 0">
+                        <DuplicateGroupAclButton
+                            :groups="availableGroups"
+                            @select="duplicateGroup"
+                            data-test="duplicateAcl"
+                            v-if="!disabled"
+                        />
+                    </div>
                 </div>
-                <div v-if="typesWithActivePermissions.length == 0" class="py-3"></div>
             </div>
             <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
                 <div
