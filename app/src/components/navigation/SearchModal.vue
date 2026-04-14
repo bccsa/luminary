@@ -24,9 +24,9 @@ const isInputFocused = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-// Lock the mode when the overlay opens to avoid flicker if `window.innerWidth`
-// changes while typing (e.g. mobile on-screen keyboard). Same breakpoint as MobileMenu (lg).
-const isManualSearchMode = ref(isMobileScreen.value);
+// Same breakpoint as MobileMenu (`lg` / isMobileScreen). Keep in sync with viewport width so
+// manual search + Go never stick after resize to desktop; keyboards rarely change innerWidth.
+const isManualSearchMode = computed(() => isMobileScreen.value);
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
@@ -399,8 +399,6 @@ watch(isSearchOpen, (open) => {
         selectedIndex.value = -1;
         return;
     }
-
-    isManualSearchMode.value = isMobileScreen.value;
 
     // Mobile manual mode: reset so the user explicitly re-runs the search.
     // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
