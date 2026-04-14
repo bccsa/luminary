@@ -3,11 +3,8 @@ import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
-import SearchButton from "./SearchModal.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { getRouteHistory } from "@/router";
-import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { isMdScreen } from "@/globalConfig";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -77,17 +74,6 @@ onMounted(() => {
 const isPostAndNoHistory = computed(() => {
     return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
 });
-
-// On desktop (md+), mount SearchModal immediately so keyboard shortcuts (Ctrl+K) work.
-// On mobile, defer mounting until the user first opens search to avoid initialisation errors.
-const { isSearchOpen } = useSearchOverlay();
-const searchMounted = ref(isMdScreen.value);
-const unwatch = watch(isSearchOpen, (open) => {
-    if (open) {
-        searchMounted.value = true;
-        unwatch();
-    }
-});
 </script>
 
 <template>
@@ -133,10 +119,5 @@ const unwatch = watch(isSearchOpen, (open) => {
                 <ProfileMenu />
             </div>
         </div>
-        <!-- SearchButton: always mounted on desktop for keyboard shortcuts; lazily mounted on mobile -->
-        <SearchButton
-            v-if="searchMounted"
-            ref="searchButtonRef"
-        />
     </header>
 </template>

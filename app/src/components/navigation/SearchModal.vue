@@ -32,19 +32,12 @@ const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
-const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
-const LAST_EXECUTED_SEARCH_QUERY_KEY = "luminary-search-last-executed-query";
 
-/** Current / last-executed query: session-only so closing the tab or app does not keep the last search. */
-const SEARCH_SESSION_KEYS = [CURRENT_SEARCH_QUERY_KEY, LAST_EXECUTED_SEARCH_QUERY_KEY] as const;
-
-function getSearchSessionStorage(): Storage | null {
-    try {
-        return typeof window !== "undefined" ? window.sessionStorage : null;
-    } catch {
-        return null;
-    }
-}
+/** Legacy keys: previously stored in localStorage or sessionStorage; remove on mount. */
+const LEGACY_QUERY_STORAGE_KEYS = [
+    "luminary-search-current-query",
+    "luminary-search-last-executed-query",
+] as const;
 
 function getRecentSearchesLocalStorage(): Storage | null {
     try {
@@ -54,34 +47,16 @@ function getRecentSearchesLocalStorage(): Storage | null {
     }
 }
 
-function loadFromStorage(key: string): string {
-    return getSearchSessionStorage()?.getItem(key) ?? "";
-}
-
-function saveToStorage(key: string, value: string | null): void {
-    try {
-        if (value === null) getSearchSessionStorage()?.removeItem(key);
-        else getSearchSessionStorage()?.setItem(key, value);
-    } catch {
-        /* ignore */
-    }
-}
-
-/** Remove query keys previously stored in localStorage (now session-only). Keeps `RECENT_SEARCHES_KEY`. */
-function clearLegacySearchLocalStorage() {
+function clearLegacySearchStorage() {
     try {
         if (typeof window === "undefined") return;
-        for (const key of SEARCH_SESSION_KEYS) {
+        for (const key of LEGACY_QUERY_STORAGE_KEYS) {
             localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
         }
     } catch {
         /* ignore */
     }
-}
-
-function persistLastExecutedQuery(q: string) {
-    const trimmed = q.trim();
-    if (trimmed.length >= 3) saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, trimmed);
 }
 
 function loadRecentSearches(): string[] {
@@ -95,9 +70,7 @@ function loadRecentSearches(): string[] {
     }
 }
 
-const searchQuery = ref(
-    loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) || loadFromStorage(CURRENT_SEARCH_QUERY_KEY),
-);
+const searchQuery = ref("");
 const recentSearches = ref<string[]>(loadRecentSearches());
 
 function pushRecentSearch(q: string) {
@@ -118,7 +91,6 @@ function pushRecentSearch(q: string) {
 
 function pickRecentSearch(term: string) {
     searchQuery.value = term;
-    persistLastExecutedQuery(term);
     runSearch();
     // Clicking a recent-search chip moves focus to the button.
     // Bring focus back to the input and select the query so arrow keys work within the modal.
@@ -409,13 +381,7 @@ watch(
         const trimmed = newQuery.trim();
         // Editing the query should cancel any selected result so Enter applies the search.
         if (newQuery !== oldQuery) selectedIndex.value = -1;
-        if (trimmed) {
-            saveToStorage(CURRENT_SEARCH_QUERY_KEY, trimmed);
-        } else {
-            saveToStorage(CURRENT_SEARCH_QUERY_KEY, null);
-            // Clearing the input should also clear the last executed query,
-            // so reopening doesn't restore a previous search.
-            saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, null);
+        if (!trimmed) {
             ftsResults.value = [];
             resolvedDocs.value = new Map();
             lastSearchedQuery.value = "";
@@ -423,10 +389,6 @@ watch(
         }
     },
 );
-
-watch(lastSearchedQuery, (q) => {
-    if (q) persistLastExecutedQuery(q);
-});
 
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
@@ -436,13 +398,6 @@ watch(isSearchOpen, (open) => {
     }
 
     isManualSearchMode.value = isMdScreen.value;
-
-    const persistedQuery =
-        loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) ||
-        loadFromStorage(CURRENT_SEARCH_QUERY_KEY);
-    if (persistedQuery !== searchQuery.value.trim()) {
-        searchQuery.value = persistedQuery;
-    }
 
     // Mobile manual mode: reset so the user explicitly re-runs the search.
     // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
@@ -562,7 +517,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         // Enter should apply the current query if it hasn't been searched yet.
         if (q.length >= 3 && isNewQuery) {
             pushRecentSearch(q);
-            persistLastExecutedQuery(q);
             runSearch();
             if (isManualSearchMode.value) inputRef.value?.blur();
             return;
@@ -574,7 +528,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             if (!isManualSearchMode.value) return;
             if (q.length < 3) return;
             pushRecentSearch(q);
-            persistLastExecutedQuery(q);
             runSearch();
             inputRef.value?.blur();
         }
@@ -604,7 +557,6 @@ function onGoClick() {
     const q = searchQuery.value.trim();
     if (q.length < 3) return;
     pushRecentSearch(q);
-    persistLastExecutedQuery(q);
     runSearch();
     if (isManualSearchMode.value) inputRef.value?.blur();
 }
@@ -619,7 +571,7 @@ const goToResult = (result: EnrichedResult) => {
 let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
-    clearLegacySearchLocalStorage();
+    clearLegacySearchStorage();
     handleGlobalKeydown = (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
             event.preventDefault();

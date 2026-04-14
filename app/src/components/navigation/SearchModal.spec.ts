@@ -213,6 +213,12 @@ describe("SearchButton", () => {
             });
 
             const wrapper = mountComponent();
+            await openOverlay();
+            await wrapper.find("input").setValue("willowdale");
+            await nextTick();
+            const { closeSearch } = useSearchOverlay();
+            closeSearch();
+            await flushPromises();
 
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
             await nextTick();
