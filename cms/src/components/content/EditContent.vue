@@ -48,7 +48,6 @@ import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "../common/LDropdown.vue";
-import { storageSelection } from "@/composables/storageSelection";
 
 type Props = {
     id: Uuid;
@@ -149,34 +148,6 @@ const loadData = (id: string, isNew: boolean) => {
 };
 
 loadData(parentId, newDocument);
-
-// Keep auto-selected storage buckets in lock-step between editable and existing
-// so that MediaEditor/ImageEditor's auto-select-on-mount logic does not appear as
-// a user edit (spurious dirty state) when the loaded doc predates the feature or
-// only has one bucket configured.
-const { autoSelectMediaBucket, autoSelectImageBucket } = storageSelection();
-
-watch(
-    [autoSelectMediaBucket, autoSelectImageBucket, existingParent],
-    ([mediaBucketId, imageBucketId, existing]) => {
-        if (!existing) return;
-
-        if (mediaBucketId && !existing.mediaBucketId) {
-            existingParent.value = { ...existing, mediaBucketId };
-            if (editableParent.value && !editableParent.value.mediaBucketId) {
-                editableParent.value.mediaBucketId = mediaBucketId;
-            }
-        }
-
-        if (imageBucketId && !existingParent.value?.imageBucketId) {
-            existingParent.value = { ...existingParent.value!, imageBucketId };
-            if (editableParent.value && !editableParent.value.imageBucketId) {
-                editableParent.value.imageBucketId = imageBucketId;
-            }
-        }
-    },
-    { immediate: true },
-);
 
 watch(
     () => props.id,

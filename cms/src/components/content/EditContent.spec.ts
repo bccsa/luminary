@@ -1181,12 +1181,10 @@ describe("EditContent.vue", () => {
             await db.docs.clear();
             await db.localChanges.clear();
 
-            const legacyPost: PostDto = {
-                ...mockData.mockPostDto,
-                ...postOverride,
-            };
-            delete (legacyPost as Partial<PostDto>).mediaBucketId;
-            delete (legacyPost as Partial<PostDto>).imageBucketId;
+            const basePost: PostDto = { ...mockData.mockPostDto };
+            delete (basePost as Partial<PostDto>).mediaBucketId;
+            delete (basePost as Partial<PostDto>).imageBucketId;
+            const legacyPost: PostDto = { ...basePost, ...postOverride };
 
             await db.docs.bulkPut([legacyPost]);
             await db.docs.bulkPut([
