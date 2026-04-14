@@ -5,9 +5,9 @@ import {
     IsString,
     IsNotEmpty,
     IsOptional,
-    ValidateNested,
     IsArray,
     IsObject,
+    ValidateNested,
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
 
@@ -78,9 +78,50 @@ export class AuthProviderGroupMapping {
 }
 
 /**
- * Sensitive provider configuration synced only to the CMS.
- * Contains server-side JWT processing rules that the app does not need.
- * Links to AuthProviderDto via providerId.
+ * Per-provider JWT processing settings — one entry inside
+ * `AuthProviderConfigDto.providers`, keyed by `AuthProviderDto.configId`.
+ */
+export class AuthProviderProviderConfig {
+    /**
+     * Custom namespace for JWT claims (e.g. https://yourdomain.com/metadata).
+     */
+    @IsString()
+    @IsOptional()
+    @Expose()
+    claimNamespace?: string;
+
+    /**
+     * Mapping rules that derive a user's local groups from remote JWT claims.
+     */
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => AuthProviderGroupMapping)
+    @IsOptional()
+    @Expose()
+    groupMappings?: AuthProviderGroupMapping[];
+
+    /**
+     * Override the standard OIDC claim paths used to identify a user.
+     * Defaults: externalUserId → "sub", email → "email", name → "name".
+     */
+    @IsObject()
+    @IsOptional()
+    @Expose()
+    userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
+}
+
+/**
+ * Singleton document holding sensitive JWT processing settings for every auth
+ * provider on the platform.
+ *
+ * The `_id` is fixed to `"authProviderConfig"` and `memberOf` is locked to
+ * `["group-super-admins"]` by `processAuthProviderConfigDto`, so only
+ * super-admins can view or edit it. Per-provider entries live under
+ * `providers`, keyed by `AuthProviderDto.configId`.
  */
 export class AuthProviderConfigDto extends _baseDto {
     public constructor(init?: Partial<AuthProviderConfigDto>) {
@@ -90,51 +131,19 @@ export class AuthProviderConfigDto extends _baseDto {
     }
 
     /**
-     * Group membership for sync and ACL — must mirror the linked AuthProviderDto.memberOf.
+     * Group membership for sync and ACL — always enforced to
+     * `["group-super-admins"]` by `processAuthProviderConfigDto`.
      */
-    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     @Expose()
-    public memberOf?: Uuid[];
+    public memberOf!: Uuid[];
 
     /**
-     * The _id of the linked AuthProviderDto.
-     */
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    public providerId!: string;
-
-    /**
-     * Custom namespace for JWT claims
-     * e.g. https://yourdomain.com/metadata
-     */
-    @IsString()
-    @IsOptional()
-    @Expose()
-    public claimNamespace?: string;
-
-    /**
-     * Mapping rules to determine a user's local groups from remote JWT information.
-     */
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => AuthProviderGroupMapping)
-    @IsOptional()
-    @Expose()
-    public groupMappings?: AuthProviderGroupMapping[];
-
-    /**
-     * Override the standard OIDC claim paths used to identify a user.
-     * Defaults: externalUserId → "sub", email → "email", name → "name"
+     * Map of per-provider JWT processing settings, keyed by
+     * `AuthProviderDto.configId`.
      */
     @IsObject()
-    @IsOptional()
     @Expose()
-    public userFieldMappings?: {
-        externalUserId?: string;
-        email?: string;
-        name?: string;
-    };
+    public providers!: Record<string, AuthProviderProviderConfig>;
 }

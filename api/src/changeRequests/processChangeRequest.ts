@@ -19,6 +19,8 @@ import processDefaultPermissionsDto from "./documentProcessing/processDefaultPer
 import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
 import processAuthProviderDto from "./documentProcessing/processAuthProviderDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
+import processAuthProviderConfigDto from "./documentProcessing/processAuthProviderConfigDto";
+import { AuthProviderConfigDto } from "../dto/AuthProviderConfigDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -63,6 +65,8 @@ export async function processChangeRequest(
             processDefaultPermissionsDto(doc as DefaultPermissionsDto),
         [DocType.AuthProvider]: () =>
             processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
+        [DocType.AuthProviderConfig]: () =>
+            processAuthProviderConfigDto(doc as AuthProviderConfigDto),
     };
 
     if (docProcessMap[doc.type]) {

@@ -8,6 +8,7 @@ import {
     AuthProviderCondition,
     AuthProviderConfigDto,
     AuthProviderGroupMapping,
+    AuthProviderProviderConfig,
 } from "../dto/AuthProviderConfigDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
@@ -32,7 +33,8 @@ export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
     private jwksClients: Map<string, jwksRsa.JwksClient> = new Map();
     private providerCache: Map<string, AuthProviderDto> = new Map();
-    private configCache: Map<string, AuthProviderConfigDto> = new Map();
+    // undefined = not loaded; null = loaded but missing from DB; object = loaded
+    private singletonConfigCache: AuthProviderConfigDto | null | undefined = undefined;
     private defaultGroupsCache: string[] | null = null;
 
     constructor(
@@ -47,11 +49,32 @@ export class AuthIdentityService implements OnModuleInit {
                 // Clear associated JWKS client so it's rebuilt with new domain settings
                 this.jwksClients.delete(doc.domain);
             } else if (doc.type === DocType.AuthProviderConfig) {
-                this.configCache.set(doc.providerId, doc as AuthProviderConfigDto);
+                this.singletonConfigCache = doc as AuthProviderConfigDto;
             } else if (doc.type === DocType.DefaultPermissions) {
                 this.defaultGroupsCache = doc.defaultGroups ?? [];
             }
         });
+    }
+
+    /**
+     * Returns the AuthProviderConfig singleton document — the server-side JWT
+     * processing settings for every auth provider, keyed by
+     * `AuthProviderDto.configId`. Cached in memory and kept fresh via the DB
+     * change feed.
+     */
+    async getAuthProviderConfig(): Promise<AuthProviderConfigDto | null> {
+        if (this.singletonConfigCache !== undefined) {
+            return this.singletonConfigCache;
+        }
+
+        const configRes = await this.dbService.executeFindQuery({
+            selector: { type: DocType.AuthProviderConfig },
+            limit: 1,
+        });
+
+        const doc = (configRes.docs?.[0] as AuthProviderConfigDto) ?? null;
+        this.singletonConfigCache = doc;
+        return doc;
     }
 
     /**
@@ -235,18 +258,10 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(providerId, provider);
             }
 
-            let providerConfig: AuthProviderConfigDto | undefined =
-                this.configCache.get(providerId);
-            if (!providerConfig) {
-                const configRes = await this.dbService.executeFindQuery({
-                    selector: { type: DocType.AuthProviderConfig, providerId },
-                    limit: 1,
-                });
-                if (configRes.docs?.length) {
-                    providerConfig = configRes.docs[0] as AuthProviderConfigDto;
-                    this.configCache.set(providerId, providerConfig);
-                }
-            }
+            const configDoc = await this.getAuthProviderConfig();
+            const providerConfig: AuthProviderProviderConfig | undefined = provider.configId
+                ? configDoc?.providers?.[provider.configId]
+                : undefined;
 
             let jwksClient = this.jwksClients.get(provider.domain);
             if (!jwksClient) {

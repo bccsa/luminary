@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuthProviderConfigDto, AuthProviderDto, GroupDto } from "luminary-shared";
+import type { AuthProviderDto, AuthProviderProviderConfig, GroupDto } from "luminary-shared";
 import { computed, ref } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<AuthProviderDto | undefined>("provider");
-const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerConfig");
+const providerConfig = defineModel<AuthProviderProviderConfig | undefined>("providerConfig");
 
 const showDiscardConfirm = ref(false);
 

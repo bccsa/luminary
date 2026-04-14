@@ -4,6 +4,7 @@ import {
     DocType,
     type AuthProviderConfigDto,
     type AuthProviderDto,
+    type AuthProviderProviderConfig,
     type DefaultPermissionsDto,
     useDexieLiveQuery,
     type GroupDto,
@@ -15,6 +16,18 @@ import {
     ApiLiveQueryAsEditable,
     type ApiSearchQuery,
 } from "luminary-shared";
+
+const AUTH_PROVIDER_CONFIG_SINGLETON_ID = "authProviderConfig";
+
+function buildEmptySingleton(): AuthProviderConfigDto {
+    return {
+        _id: AUTH_PROVIDER_CONFIG_SINGLETON_ID,
+        type: DocType.AuthProviderConfig,
+        updatedTimeUtc: Date.now(),
+        memberOf: ["group-super-admins"],
+        providers: {},
+    } as AuthProviderConfigDto;
+}
 import { useNotificationStore } from "@/stores/notification";
 import { validate, type Validation } from "@/components/content/ContentValidator";
 import _ from "lodash";
@@ -46,12 +59,29 @@ export function useAuthProviders() {
     const isLoadingProviders = providerQuery.isLoading;
     const providerIsModified = providerQuery.isModified;
 
-    // Auth provider configs — fetched from API via ApiLiveQueryAsEditable
+    // Auth provider config — singleton document fetched from the API. The
+    // editable array contains at most one doc (the singleton); per-provider
+    // entries live under `providers[configId]`.
     const configQuery = new ApiLiveQueryAsEditable<AuthProviderConfigDto>(
         ref<ApiSearchQuery>({ types: [DocType.AuthProviderConfig] }),
         { filterFn: (item) => ({ ...item }) },
     );
     const configs = configQuery.editable;
+
+    /**
+     * Returns the editable singleton, seeding an empty one into the editable
+     * array if the DB has no AuthProviderConfig doc yet.
+     */
+    function ensureSingleton(): AuthProviderConfigDto {
+        let singleton = configs.value.find((c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID);
+        if (!singleton) singleton = configs.value[0];
+        if (!singleton) {
+            singleton = buildEmptySingleton();
+            configs.value.push(singleton);
+        }
+        if (!singleton.providers) singleton.providers = {};
+        return singleton;
+    }
 
     // DefaultPermissions — still synced to Dexie
     const defaultPermissions = useDexieLiveQuery(
@@ -102,18 +132,23 @@ export function useAuthProviders() {
         },
     });
 
-    // Current config — always points at the item in the editable array.
-    const currentProviderConfig = computed({
-        get: () =>
-            editingProviderId.value
-                ? configs.value.find((c) => c.providerId === editingProviderId.value)
-                : undefined,
-        set: (value) => {
-            if (!editingProviderId.value || !value) return;
-            const idx = configs.value.findIndex(
-                (c) => c.providerId === editingProviderId.value,
+    // Current config — the per-provider entry inside the singleton's providers map.
+    // Writing via this computed mutates `singleton.providers[provider.configId]`
+    // so the existing dirty tracking on the singleton doc picks it up.
+    const currentProviderConfig = computed<AuthProviderProviderConfig | undefined>({
+        get: () => {
+            const provider = currentProvider.value;
+            if (!provider?.configId) return undefined;
+            const singleton = configs.value.find(
+                (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
             );
-            if (idx !== -1) configs.value[idx] = value;
+            return singleton?.providers?.[provider.configId];
+        },
+        set: (value) => {
+            const provider = currentProvider.value;
+            if (!provider?.configId || !value) return;
+            const singleton = ensureSingleton();
+            singleton.providers[provider.configId] = value;
         },
     });
 
@@ -122,12 +157,9 @@ export function useAuthProviders() {
     // For new providers, dirty as soon as anything non-empty is typed.
     const isDirty = computed(() => {
         if (!editingProviderId.value) return false;
-        const configId = configs.value.find(
-            (c) => c.providerId === editingProviderId.value,
-        )?._id;
         return (
             providerQuery.isEdited.value(editingProviderId.value) ||
-            (configId ? configQuery.isEdited.value(configId) : false)
+            configQuery.isEdited.value(AUTH_PROVIDER_CONFIG_SINGLETON_ID)
         );
     });
 
@@ -180,8 +212,7 @@ export function useAuthProviders() {
     function revertProvider() {
         if (!editingProviderId.value) return;
         providerQuery.revert(editingProviderId.value);
-        const configDoc = configs.value.find((c) => c.providerId === editingProviderId.value);
-        if (configDoc) configQuery.revert(configDoc._id);
+        configQuery.revert(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
     }
 
     watch(showModal, (visible) => {
@@ -214,8 +245,9 @@ export function useAuthProviders() {
     });
 
     function openCreateModal() {
-        // Push new empty docs into the editable arrays (same pattern as GroupOverview.createGroup)
+        // Push a new provider into the editable array (same pattern as GroupOverview.createGroup)
         const newId = db.uuid();
+        const configId = db.uuid();
         const newProvider: AuthProviderDto = {
             _id: newId,
             type: DocType.AuthProvider,
@@ -225,34 +257,34 @@ export function useAuthProviders() {
             domain: "",
             clientId: "",
             audience: "",
+            configId,
         };
-        const newConfig: AuthProviderConfigDto = {
-            _id: db.uuid(),
-            type: DocType.AuthProviderConfig,
-            updatedTimeUtc: Date.now(),
-            memberOf: [],
-            providerId: newId,
-        };
-
         providers.value.push(newProvider);
-        configs.value.push(newConfig);
+
+        // Seed an empty entry on the singleton so the modal can bind to it.
+        const singleton = ensureSingleton();
+        singleton.providers[configId] = {};
 
         editingProviderId.value = newId;
         openModal();
     }
 
     function editProvider(provider: AuthProviderDto) {
-        editingProviderId.value = provider._id;
+        // Stale dev data may have providers without a configId. Stamp one now so
+        // the save flow persists it on the provider doc.
+        if (!provider.configId) {
+            const providerInEditable = providers.value.find((p) => p._id === provider._id);
+            if (providerInEditable) providerInEditable.configId = db.uuid();
+        }
 
-        // Ensure a config stub exists in the editable array
-        if (!configs.value.find((c) => c.providerId === provider._id)) {
-            configs.value.push({
-                _id: db.uuid(),
-                type: DocType.AuthProviderConfig as DocType.AuthProviderConfig,
-                updatedTimeUtc: Date.now(),
-                memberOf: [...(provider.memberOf ?? [])],
-                providerId: provider._id,
-            });
+        const editableProvider =
+            providers.value.find((p) => p._id === provider._id) ?? provider;
+        editingProviderId.value = editableProvider._id;
+
+        // Ensure the singleton has an entry for this provider's configId.
+        const singleton = ensureSingleton();
+        if (editableProvider.configId && !singleton.providers[editableProvider.configId]) {
+            singleton.providers[editableProvider.configId] = {};
         }
 
         openModal();
@@ -287,6 +319,7 @@ export function useAuthProviders() {
         try {
             const providerLabel = providerToDelete.value.label;
             const providerId = providerToDelete.value._id;
+            const configId = providerToDelete.value.configId;
 
             // Set deleteReq on provider in the editable array and save via changeRequest
             const providerInEditable = providers.value.find((p) => p._id === providerId);
@@ -295,11 +328,14 @@ export function useAuthProviders() {
                 await providerQuery.save(providerId);
             }
 
-            // Also delete the associated config doc if it exists
-            const configDoc = configs.value.find((c) => c.providerId === providerId);
-            if (configDoc) {
-                configDoc.deleteReq = 1;
-                await configQuery.save(configDoc._id);
+            // Remove this provider's entry from the singleton and save it.
+            // Never delete the singleton doc itself — other providers still live there.
+            const singleton = configs.value.find(
+                (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
+            );
+            if (singleton && configId && singleton.providers?.[configId]) {
+                delete singleton.providers[configId];
+                await configQuery.save(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
             }
 
             showDeleteModal.value = false;
@@ -333,81 +369,42 @@ export function useAuthProviders() {
                 return;
             }
 
-            if (isEditing.value && editingProviderId.value) {
-                // Sync memberOf from provider to config
-                const provider = currentProvider.value;
-                const config = currentProviderConfig.value;
-                if (!provider) return;
+            const provider = currentProvider.value;
+            if (!provider || !editingProviderId.value) return;
 
-                if (config) {
-                    config.memberOf = Array.isArray(provider.memberOf)
-                        ? [...provider.memberOf]
-                        : [];
-                }
+            const label = provider.label ?? "";
+            const creating = !isEditing.value;
 
-                const label = provider.label ?? "";
-
-                // Only save docs that were actually edited
-                if (providerQuery.isEdited.value(editingProviderId.value)) {
-                    const providerRes = await providerQuery.save(editingProviderId.value);
-                    if (providerRes?.ack === AckStatus.Rejected) {
-                        errors.value = [providerRes.message || "Failed to save provider"];
-                        return;
-                    }
-                }
-
-                if (config && configQuery.isEdited.value(config._id)) {
-                    const configRes = await configQuery.save(config._id);
-                    if (configRes?.ack === AckStatus.Rejected) {
-                        errors.value = [configRes.message || "Failed to save provider config"];
-                        return;
-                    }
-                }
-
-                editingProviderId.value = undefined;
-                closeModal();
-                notification.addNotification({
-                    title: `Provider ${label} updated`,
-                    description: `Your provider has been successfully updated.`,
-                    state: "success",
-                });
-            } else {
-                // Create: items are already in the editable arrays (pushed in openCreateModal)
-                const provider = currentProvider.value;
-                const config = currentProviderConfig.value;
-                if (!provider) return;
-
-                // Sync memberOf from provider to config
-                if (config) {
-                    config.memberOf = Array.isArray(provider.memberOf)
-                        ? [...provider.memberOf]
-                        : [];
-                }
-
-                const label = provider.label ?? "";
-
-                const providerRes = await providerQuery.save(provider._id);
+            // Save provider doc if edited (always on create).
+            if (creating || providerQuery.isEdited.value(editingProviderId.value)) {
+                const providerRes = await providerQuery.save(editingProviderId.value);
                 if (providerRes?.ack === AckStatus.Rejected) {
-                    errors.value = [providerRes.message || "Failed to create provider"];
+                    errors.value = [
+                        providerRes.message ||
+                            (creating ? "Failed to create provider" : "Failed to save provider"),
+                    ];
                     return;
                 }
-
-                if (config) {
-                    const configRes = await configQuery.save(config._id);
-                    if (configRes?.ack === AckStatus.Rejected) {
-                        errors.value = [configRes.message || "Failed to save provider config"];
-                        return;
-                    }
-                }
-
-                editingProviderId.value = undefined;
-                closeModal();
-                notification.addNotification({
-                    title: `Provider ${label} created`,
-                    description: `Your provider has been successfully created.`,
-                    state: "success",
-                });
             }
+
+            // Save the singleton if any provider's entry was edited this session.
+            if (configQuery.isEdited.value(AUTH_PROVIDER_CONFIG_SINGLETON_ID)) {
+                const configRes = await configQuery.save(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
+                if (configRes?.ack === AckStatus.Rejected) {
+                    errors.value = [configRes.message || "Failed to save provider config"];
+                    return;
+                }
+            }
+
+            editingProviderId.value = undefined;
+            closeModal();
+            notification.addNotification({
+                title: creating ? `Provider ${label} created` : `Provider ${label} updated`,
+                description: creating
+                    ? `Your provider has been successfully created.`
+                    : `Your provider has been successfully updated.`,
+                state: "success",
+            });
         } catch (err) {
             console.error("Failed to save provider:", err);
             errors.value = [err instanceof Error ? err.message : "Failed to save provider"];
@@ -418,36 +415,30 @@ export function useAuthProviders() {
 
     function duplicateProvider() {
         const provider = currentProvider.value;
-        const config = currentProviderConfig.value;
         if (!provider) return;
 
         const newId = db.uuid();
+        const newConfigId = db.uuid();
 
         const clonedProvider = _.cloneDeep(toRaw(provider)) as AuthProviderDto;
         clonedProvider._id = newId;
+        clonedProvider.configId = newConfigId;
         delete (clonedProvider as any)._rev;
         clonedProvider.label = (clonedProvider.label ?? "") + " (Copy)";
         if (clonedProvider.imageData?.fileCollections) {
             clonedProvider.imageData.fileCollections = [];
         }
 
-        const clonedConfig: AuthProviderConfigDto = config
-            ? {
-                  ..._.cloneDeep(toRaw(config)),
-                  _id: db.uuid(),
-                  providerId: newId,
-              }
-            : {
-                  _id: db.uuid(),
-                  type: DocType.AuthProviderConfig as DocType.AuthProviderConfig,
-                  updatedTimeUtc: Date.now(),
-                  memberOf: [...(clonedProvider.memberOf ?? [])],
-                  providerId: newId,
-              };
-        delete (clonedConfig as any)._rev;
+        // Copy the source entry (if any) into a fresh key on the singleton.
+        const singleton = ensureSingleton();
+        const sourceEntry = provider.configId
+            ? singleton.providers[provider.configId]
+            : undefined;
+        singleton.providers[newConfigId] = sourceEntry
+            ? _.cloneDeep(toRaw(sourceEntry))
+            : {};
 
         providers.value.push(clonedProvider);
-        configs.value.push(clonedConfig);
         editingProviderId.value = newId;
         hasAttemptedSubmit.value = false;
 

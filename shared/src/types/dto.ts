@@ -275,6 +275,11 @@ export type AuthProviderDto = BaseDocumentDto & {
     domain: string;
     audience: string;
     clientId: string;
+    /**
+     * UUID that keys this provider's entry inside the AuthProviderConfigDto
+     * singleton's `providers` map.
+     */
+    configId: string;
     /** Optional display fields for login UI */
     label?: string;
     icon?: string;
@@ -286,13 +291,10 @@ export type AuthProviderDto = BaseDocumentDto & {
 };
 
 /**
- * Sensitive provider configuration synced only to the CMS.
- * Contains server-side JWT processing rules that the app does not need.
- * Links to AuthProviderDto via providerId.
+ * Per-provider JWT processing settings stored as an entry inside the
+ * AuthProviderConfigDto singleton's `providers` map.
  */
-export type AuthProviderConfigDto = BaseDocumentDto & {
-    type: DocType.AuthProviderConfig;
-    providerId: string;
+export type AuthProviderProviderConfig = {
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
     /** Override standard OIDC claim paths (defaults: sub, email, name) */
@@ -301,4 +303,16 @@ export type AuthProviderConfigDto = BaseDocumentDto & {
         email?: string;
         name?: string;
     };
+};
+
+/**
+ * Singleton document containing sensitive JWT processing settings for every
+ * auth provider on the platform. Only `group-super-admins` can view/edit it.
+ *
+ * The document `_id` is fixed to `"authProviderConfig"` and the per-provider
+ * entries live under `providers`, keyed by `AuthProviderDto.configId`.
+ */
+export type AuthProviderConfigDto = BaseDocumentDto & {
+    type: DocType.AuthProviderConfig;
+    providers: Record<string, AuthProviderProviderConfig>;
 };

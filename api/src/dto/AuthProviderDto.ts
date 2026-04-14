@@ -7,7 +7,11 @@ import { Expose } from "class-transformer";
 /**
  * Public-facing OIDC auth provider configuration synced to both the app and CMS.
  * Holds the non-sensitive information needed to render a login button and initiate
- * an OIDC flow. Server-side JWT processing rules live in the linked AuthProviderConfigDto.
+ * an OIDC flow.
+ *
+ * Server-side JWT processing rules live in the `AuthProviderConfigDto` singleton,
+ * addressed via `configId` — a UUID that keys this provider's entry inside the
+ * singleton's `providers` map.
  */
 export class AuthProviderDto extends _baseDto {
     public constructor(init?: Partial<AuthProviderDto>) {
@@ -48,6 +52,15 @@ export class AuthProviderDto extends _baseDto {
     @IsNotEmpty()
     @Expose()
     public clientId!: string;
+
+    /**
+     * UUID that keys this provider's entry inside the AuthProviderConfigDto
+     * singleton's `providers` map.
+     */
+    @IsString()
+    @IsNotEmpty()
+    @Expose()
+    public configId!: string;
 
     /** Display label shown in the login UI */
     @IsString()

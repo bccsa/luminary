@@ -13,6 +13,7 @@ const mockProvider: AuthProviderDto = {
     domain: "test.auth0.com",
     clientId: "client-id-1",
     audience: "https://api.test.com",
+    configId: "config-entry-1",
 };
 
 describe("AuthConfig.vue", () => {

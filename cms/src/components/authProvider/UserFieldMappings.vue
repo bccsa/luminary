@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { AuthProviderConfigDto } from "luminary-shared";
+import type { AuthProviderProviderConfig } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 defineProps<{
     disabled?: boolean;
 }>();
 
-const providerConfig = defineModel<AuthProviderConfigDto | undefined>("providerConfig");
+const providerConfig = defineModel<AuthProviderProviderConfig | undefined>("providerConfig");
 
 function ensureUserFieldMappings() {
     if (!providerConfig.value) return;

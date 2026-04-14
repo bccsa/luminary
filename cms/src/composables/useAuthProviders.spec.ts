@@ -45,14 +45,17 @@ const mockProvider: AuthProviderDto = {
     domain: "test.auth0.com",
     clientId: "client-id-1",
     audience: "https://api.test.com",
+    configId: "config-entry-1",
 };
 
 const mockConfig: AuthProviderConfigDto = {
-    _id: "config-1",
+    _id: "authProviderConfig",
     type: DocType.AuthProviderConfig,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-super-admins"],
-    providerId: "provider-1",
+    providers: {
+        "config-entry-1": {},
+    },
 };
 
 const mockDefaultPermissions: DefaultPermissionsDto = {

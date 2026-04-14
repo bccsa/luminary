@@ -16,6 +16,7 @@ interface AuthProviderDoc {
     domain: string;
     audience: string;
     clientId: string;
+    configId: string;
     memberOf: string[];
     label?: string;
     icon?: string;
@@ -47,15 +48,18 @@ const AUTO_GROUP_MAPPINGS: AuthProviderGroupMapping[] = [
     { groupId: "group-public-users", conditions: [{ type: "authenticated" }] },
 ];
 
-interface AuthProviderConfigDoc {
-    _id: string;
-    _rev?: string;
-    type: "authProviderConfig";
-    providerId: string;
-    memberOf: string[];
+interface AuthProviderProviderConfig {
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
     userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
+}
+
+interface AuthProviderConfigDoc {
+    _id: "authProviderConfig";
+    _rev?: string;
+    type: "authProviderConfig";
+    memberOf: string[];
+    providers: Record<string, AuthProviderProviderConfig>;
     updatedTimeUtc: number;
 }
 
@@ -244,6 +248,20 @@ async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
     return mappings;
 }
 
+// ── AuthProviderConfig singleton helper ─────────────────────────────────────────
+
+async function loadAuthProviderConfigSingleton(): Promise<AuthProviderConfigDoc | null> {
+    try {
+        const doc = await getDoc<AuthProviderConfigDoc & { error?: string }>("authProviderConfig");
+        if (doc.error) return null;
+        // Normalize: ensure the providers map exists even for legacy docs.
+        if (!doc.providers) doc.providers = {};
+        return doc;
+    } catch {
+        return null;
+    }
+}
+
 // ── Ensure unique array values ──────────────────────────────────────────────────
 
 function uniqueStrings(...arrays: string[][]): string[] {
@@ -333,6 +351,7 @@ async function addAuthProvider(): Promise<string | null> {
 
     // Build documents
     const providerId = randomUUID();
+    const configId = randomUUID();
     const now = Date.now();
 
     const providerDoc: AuthProviderDoc = {
@@ -341,32 +360,42 @@ async function addAuthProvider(): Promise<string | null> {
         domain,
         audience,
         clientId,
+        configId,
         memberOf,
         updatedTimeUtc: now,
     };
     if (label) providerDoc.label = label;
 
-    const configDoc: AuthProviderConfigDoc = {
-        _id: randomUUID(),
-        type: "authProviderConfig",
-        providerId,
-        memberOf: ["group-super-admins"],
-        updatedTimeUtc: now,
+    const providerEntry: AuthProviderProviderConfig = {
+        userFieldMappings: {
+            externalUserId: ufmExternalUserId,
+            email: ufmEmail,
+            name: ufmName,
+        },
     };
-    if (claimNamespace) configDoc.claimNamespace = claimNamespace;
-    if (groupMappings.length > 0) configDoc.groupMappings = groupMappings;
+    if (claimNamespace) providerEntry.claimNamespace = claimNamespace;
+    if (groupMappings.length > 0) providerEntry.groupMappings = groupMappings;
 
-    configDoc.userFieldMappings = {
-        externalUserId: ufmExternalUserId,
-        email: ufmEmail,
-        name: ufmName,
-    };
+    // Fetch-or-create the singleton and stage the new per-provider entry.
+    const existingSingleton = await loadAuthProviderConfigSingleton();
+    const configDoc: AuthProviderConfigDoc = existingSingleton
+        ? { ...existingSingleton, updatedTimeUtc: now }
+        : {
+              _id: "authProviderConfig",
+              type: "authProviderConfig",
+              memberOf: ["group-super-admins"],
+              providers: {},
+              updatedTimeUtc: now,
+          };
+    configDoc.providers = { ...(configDoc.providers ?? {}), [configId]: providerEntry };
 
     console.log("");
     console.log("Generated AuthProvider payload:");
     prettyPrint(providerDoc);
     console.log("");
-    console.log("Generated AuthProviderConfig payload:");
+    console.log(
+        `AuthProviderConfig singleton to be written (new entry at providers['${configId}']):`,
+    );
     prettyPrint(configDoc);
     console.log("");
 
@@ -381,7 +410,7 @@ async function addAuthProvider(): Promise<string | null> {
     prettyPrint(providerRes);
 
     const configRes = await putDoc(configDoc._id, configDoc);
-    console.log("\nAuthProviderConfig response from CouchDB:");
+    console.log("\nAuthProviderConfig singleton response from CouchDB:");
     prettyPrint(configRes);
 
     // Ensure group ACLs include the auth provider doc types
@@ -570,14 +599,20 @@ async function modifyAuthProvider() {
     }
 
     const currentProvider = providers[choice - 1];
-    const currentId = currentProvider._id;
 
-    // Fetch associated config
-    const configResult = await find<AuthProviderConfigDoc>(
-        { type: "authProviderConfig", providerId: currentId },
-        1,
-    );
-    const currentConfig = configResult.docs?.[0] || null;
+    // Ensure the provider has a configId — stale dev data may predate this field.
+    let configId = currentProvider.configId;
+    if (!configId) {
+        configId = randomUUID();
+        console.log(
+            `  ⚠ Provider has no configId. Generating new configId '${configId}' — it will be persisted on save.`,
+        );
+    }
+
+    // Load the singleton and extract this provider's entry (may be empty).
+    const singleton = await loadAuthProviderConfigSingleton();
+    const currentEntry: AuthProviderProviderConfig | null =
+        singleton?.providers?.[configId] ?? null;
 
     // Initialize working variables
     let domain = currentProvider.domain;
@@ -585,15 +620,15 @@ async function modifyAuthProvider() {
     let clientId = currentProvider.clientId;
     let label = currentProvider.label || "";
     let memberOf = currentProvider.memberOf || [...AUTO_MEMBER_OF];
-    let claimNamespace = currentConfig?.claimNamespace || "";
+    let claimNamespace = currentEntry?.claimNamespace || "";
     let ufmExternalUserId =
-        currentConfig?.userFieldMappings?.externalUserId ||
+        currentEntry?.userFieldMappings?.externalUserId ||
         (claimNamespace ? `${claimNamespace}.userId` : "sub");
     let ufmEmail =
-        currentConfig?.userFieldMappings?.email ||
+        currentEntry?.userFieldMappings?.email ||
         (claimNamespace ? `${claimNamespace}.email` : "email");
     let ufmName =
-        currentConfig?.userFieldMappings?.name ||
+        currentEntry?.userFieldMappings?.name ||
         (claimNamespace ? `${claimNamespace}.username` : "name");
 
     // Auto-fix slash-notation claim paths loaded from the database.
@@ -622,7 +657,7 @@ async function modifyAuthProvider() {
             ufmName = fixedName;
         }
     }
-    let groupMappings = currentConfig?.groupMappings || [];
+    let groupMappings = currentEntry?.groupMappings || [];
 
     console.log("");
     console.log("Select a field to edit. Changes are staged until you confirm.");
@@ -783,43 +818,43 @@ async function modifyAuthProvider() {
         domain,
         audience,
         clientId,
+        configId,
         memberOf,
         updatedTimeUtc: now,
     };
     if (label) providerDoc.label = label;
     else delete providerDoc.label;
 
-    // Build updated config doc
-    const configBase: AuthProviderConfigDoc = currentConfig || {
-        _id: randomUUID(),
-        type: "authProviderConfig",
-        providerId: currentId,
-        memberOf: ["group-super-admins"],
-        updatedTimeUtc: now,
+    // Build updated singleton: start from what's in the DB (or a fresh shell),
+    // then overwrite just this provider's entry at configId.
+    const updatedEntry: AuthProviderProviderConfig = {
+        userFieldMappings: {
+            externalUserId: ufmExternalUserId,
+            email: ufmEmail,
+            name: ufmName,
+        },
     };
-    const configDoc: AuthProviderConfigDoc = {
-        ...configBase,
-        memberOf: ["group-super-admins"],
-        updatedTimeUtc: now,
-    };
+    if (claimNamespace) updatedEntry.claimNamespace = claimNamespace;
+    if (groupMappings.length > 0) updatedEntry.groupMappings = groupMappings;
 
-    if (claimNamespace) configDoc.claimNamespace = claimNamespace;
-    else delete configDoc.claimNamespace;
-
-    if (groupMappings.length > 0) configDoc.groupMappings = groupMappings;
-    else delete configDoc.groupMappings;
-
-    configDoc.userFieldMappings = {
-        externalUserId: ufmExternalUserId,
-        email: ufmEmail,
-        name: ufmName,
-    };
+    const configDoc: AuthProviderConfigDoc = singleton
+        ? { ...singleton, memberOf: ["group-super-admins"], updatedTimeUtc: now }
+        : {
+              _id: "authProviderConfig",
+              type: "authProviderConfig",
+              memberOf: ["group-super-admins"],
+              providers: {},
+              updatedTimeUtc: now,
+          };
+    configDoc.providers = { ...(configDoc.providers ?? {}), [configId]: updatedEntry };
 
     console.log("");
     console.log("Updated AuthProvider payload:");
     prettyPrint(providerDoc);
     console.log("");
-    console.log("Updated AuthProviderConfig payload:");
+    console.log(
+        `AuthProviderConfig singleton to be written (updated entry at providers['${configId}']):`,
+    );
     prettyPrint(configDoc);
     console.log("");
 
@@ -834,7 +869,7 @@ async function modifyAuthProvider() {
     prettyPrint(providerRes);
 
     const configRes = await putDoc(configDoc._id, configDoc);
-    console.log("\nAuthProviderConfig response from CouchDB:");
+    console.log("\nAuthProviderConfig singleton response from CouchDB:");
     prettyPrint(configRes);
 }
 
