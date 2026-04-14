@@ -91,6 +91,7 @@ describe("ChangeRequest service", () => {
                 domain: "test.auth0.com",
                 clientId: "client-id-1",
                 audience: "https://api.test.com",
+                configId: "config-entry-test-1",
                 label: "Test Provider",
             },
         };
