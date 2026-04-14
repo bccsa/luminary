@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw } from "vue";
+import { computed, nextTick, ref, toRaw, watch } from "vue";
 import {
     type GroupAclEntryDto,
     AclPermission,
@@ -33,8 +33,18 @@ type Props = {
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { liveData, isEdited, revert, duplicate } = props.groupQuery;
+const { liveData, isEdited, revert, duplicate, save } = props.groupQuery;
 const showDeleteConfirm = ref(false);
+const isDeleting = ref(false);
+
+watch(showDeleteConfirm, (isOpen) => {
+    if (isOpen) {
+        isDeleting.value = false;
+        group.value.deleteReq = 1;
+    } else if (!isDeleting.value) {
+        delete group.value.deleteReq;
+    }
+});
 
 const isDirty = computed(() => {
     // Check if the group has been modified
@@ -187,15 +197,18 @@ const deleteGroup = async () => {
         return;
     }
 
+    isDeleting.value = true;
     group.value.deleteReq = 1;
 
-    save();
+    const res = await save(group.value._id);
 
-    addNotification({
-        title: `${group.value.name} deleted`,
-        description: `The group was successfully deleted`,
-        state: "success",
-    });
+    if (res && res.ack == AckStatus.Accepted) {
+        addNotification({
+            title: `${group.value.name} deleted`,
+            description: `The group was successfully deleted`,
+            state: "success",
+        });
+    }
 };
 
 const duplicateGroup = async () => {
@@ -226,22 +239,6 @@ const duplicateGroup = async () => {
         state: res && res.ack == AckStatus.Accepted ? "success" : "error",
     });
 };
-
-const save = async () => {
-    // Bypass save if the group is new and marked for deletion
-    if (!(isNewGroup.value && group.value.deleteReq)) {
-        group.value.updatedTimeUtc = Date.now();
-        await db.upsert({ doc: group.value });
-    }
-    if (!group.value.deleteReq) {
-        useNotificationStore().addNotification({
-            title: !isNewGroup.value ? `Group updated` : `Group created`,
-            description: `Group ${group.value.name} has been updated`,
-            state: "success",
-        });
-    }
-    emit("close");
-};
 </script>
 
 <template>
@@ -251,7 +248,7 @@ const save = async () => {
         @update:open="(val) => !val && emit('close')"
         :primaryAction="
             () => {
-                save();
+                save(group._id);
             }
         "
         :primaryButtonText="!isNewGroup ? 'Save' : 'Create'"
@@ -403,9 +400,9 @@ const save = async () => {
             :title="`Delete ${group.name} ?`"
             :description="`Are you sure you want to delete this group? This action cannot be undone.`"
             :primaryAction="
-                () => {
+                async () => {
+                    await deleteGroup();
                     showDeleteConfirm = false;
-                    deleteGroup();
                     emit('close');
                 }
             "
