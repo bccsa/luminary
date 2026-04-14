@@ -16,7 +16,7 @@ export const changeRequest_post = () => {
             image: randomString(),
             tags: ["tag-category1", "tag-topicA"],
             publishDateVisible: true,
-    showComingSoon: false,
+            showComingSoon: false,
             postType: "blog",
             deleteReq: 0,
             imageBucketId: "storage-bucket-1",
@@ -34,7 +34,7 @@ export const changeRequest_tag = () => {
             image: randomString(),
             tags: [],
             publishDateVisible: false,
-    showComingSoon: false,
+            showComingSoon: false,
         },
     };
 };

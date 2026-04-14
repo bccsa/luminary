@@ -139,7 +139,7 @@ describe("processContentDto", () => {
                 image: "test1234.jpg",
                 tags: ["tag1", "tag2"],
                 publishDateVisible: true,
-    showComingSoon: false,
+                showComingSoon: false,
                 postType: "blog",
             } as PostDto,
         };

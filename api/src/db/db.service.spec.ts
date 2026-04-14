@@ -850,7 +850,7 @@ describe("DbService", () => {
                 postType: PostType.Blog,
                 tags: [],
                 publishDateVisible: true,
-    showComingSoon: false,
+                showComingSoon: false,
             };
 
             const insertResult = await service.insertDeleteCmd({
