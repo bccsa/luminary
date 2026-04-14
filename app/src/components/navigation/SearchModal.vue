@@ -4,7 +4,7 @@ import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/2
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef, isMac, isMdScreen } from "@/globalConfig";
+import { appLanguageIdsAsRef, isMac, isMobileScreen } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db, stripHtml } from "luminary-shared";
@@ -25,13 +25,13 @@ const isInputFocused = ref(false);
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
 // Lock the mode when the overlay opens to avoid flicker if `window.innerWidth`
-// changes while typing (e.g. mobile on-screen keyboard).
-const isManualSearchMode = ref(isMdScreen.value);
+// changes while typing (e.g. mobile on-screen keyboard). Same breakpoint as MobileMenu (lg).
+const isManualSearchMode = ref(isMobileScreen.value);
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
-/** Desktop-only: hide the header X while the input is focused to reduce clutter. On mobile, focus/blur is unreliable (OS keyboard, programmatic focus), so always show close. */
-const showHeaderCloseButton = computed(() => isMdScreen.value || !isInputFocused.value);
+/** Wide screens only: hide the header X while the input is focused. Below lg (mobile menu), focus/blur is unreliable, so always show close. */
+const showHeaderCloseButton = computed(() => isMobileScreen.value || !isInputFocused.value);
 
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
@@ -400,7 +400,7 @@ watch(isSearchOpen, (open) => {
         return;
     }
 
-    isManualSearchMode.value = isMdScreen.value;
+    isManualSearchMode.value = isMobileScreen.value;
 
     // Mobile manual mode: reset so the user explicitly re-runs the search.
     // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.

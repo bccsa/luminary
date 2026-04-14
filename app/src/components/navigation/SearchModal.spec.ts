@@ -140,7 +140,7 @@ describe("SearchButton", () => {
         routePushMock.mockReset();
         window.localStorage.clear();
         window.sessionStorage.clear();
-        // Widen viewport so isMdScreen matches desktop; other tests set 600px and resize is global.
+        // Widen viewport so isMobileScreen matches desktop (lg); other tests set 600px and resize is global.
         window.innerWidth = 1024;
         window.dispatchEvent(new Event("resize"));
     });
