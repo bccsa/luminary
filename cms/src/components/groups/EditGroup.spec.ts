@@ -22,7 +22,6 @@ import {
 } from "luminary-shared";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
-import { useNotificationStore } from "@/stores/notification";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -40,12 +39,11 @@ vi.mock("luminary-shared", async (importOriginal) => {
         isConnected: ref(true),
         db: {
             uuid: vi.fn(() => "new-uuid-123"),
-            upsert: vi.fn(),
         },
     };
 });
 
-const { verifyAccess, isConnected, db } = await import("luminary-shared");
+const { verifyAccess, isConnected } = await import("luminary-shared");
 
 describe("EditGroup", () => {
     let mockGroupQuery: Partial<ApiLiveQueryAsEditable<GroupDto>>;
@@ -200,22 +198,12 @@ describe("EditGroup", () => {
 
         it("calls save when save changes is clicked", async () => {
             isEditedMock.mockReturnValue(true);
-            vi.mocked(db.upsert).mockResolvedValue({} as any);
 
             const wrapper = createWrapper();
 
             await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
 
-            expect(db.upsert).toHaveBeenCalled();
-            expect(wrapper.emitted("close")).toBeTruthy();
-
-            const notificationStore = useNotificationStore();
-            expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: "Group updated",
-                    state: "success",
-                }),
-            );
+            expect(mockGroupQuery.save).toHaveBeenCalledWith(testGroup._id);
         });
 
         it("does not show save button when user lacks edit permissions", async () => {
