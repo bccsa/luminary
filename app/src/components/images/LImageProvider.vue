@@ -43,6 +43,11 @@ type Props = {
     isModal?: boolean;
     isIcon?: boolean;
     bucketPublicUrl?: string;
+    /**
+     * Descriptive alt text for the image. Leave empty for purely decorative images
+     * so screen readers will skip them (WCAG-compliant).
+     */
+    alt?: string;
 };
 
 const aspectRatiosCSS = {
@@ -79,6 +84,14 @@ const props = withDefaults(defineProps<Props>(), {
     rounded: true,
     isModal: false,
     isIcon: false,
+    alt: "Content image",
+});
+
+const resolvedAlt = computed(() => {
+    if (props.alt !== "Content image") return props.alt;
+    if (props.isIcon) return "Icon Image";
+    if (props.isModal) return "Enlarged image preview";
+    return props.alt;
 });
 
 const baseUrl = computed(() => props.bucketPublicUrl);
@@ -312,7 +325,7 @@ watch(
         v-if="isModal && modalSrc && !modalImageError"
         :src="modalSrc"
         :srcset="modalSrcset || undefined"
-        :alt="''"
+        :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
         data-test="image-element1"
@@ -321,7 +334,7 @@ watch(
     <img
         v-else-if="isModal && fallbackImageUrl"
         :src="fallbackImageUrl"
-        :alt="''"
+        :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
         data-test="image-element1"
@@ -331,7 +344,7 @@ watch(
         v-else-if="isIcon && iconSrc"
         :src="iconSrc"
         class="h-full w-full object-contain"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element1"
         loading="lazy"
         draggable="false"
@@ -347,7 +360,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element1"
         loading="lazy"
         @error="imageElement1Error = true"
@@ -363,7 +376,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"
@@ -377,7 +390,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"
