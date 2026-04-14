@@ -3,7 +3,7 @@ import { createAuth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
-import { config, setTokenConfig, setAuthProviderGetter, getSocket } from "luminary-shared";
+import { setCustomHeader, removeCustomHeader, getSocket } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
@@ -117,8 +117,6 @@ export async function setupAuth(app: App<Element>, router: Router) {
         skipRedirectCallback: true,
     });
 
-    setAuthProviderGetter(() => activeProviderId.value ?? null);
-
     async function handleRedirectCallbackIfPresent(): Promise<{ handled: boolean; url: URL }> {
         const url = new URL(location.href);
         if (!url.searchParams.has("code") || !url.searchParams.has("state"))
@@ -144,13 +142,16 @@ export async function setupAuth(app: App<Element>, router: Router) {
         const postFootprint = readAuth0NativeStorage();
         if (postFootprint) {
             const resolvedProvider = await getProviderByClientId(postFootprint.client_id);
-            if (resolvedProvider) activeProviderId.value = resolvedProvider._id;
+            if (resolvedProvider) {
+                activeProviderId.value = resolvedProvider._id;
+                setCustomHeader("x-auth-provider-id", resolvedProvider._id);
+            }
         }
         try {
             const token = await oauth.getAccessTokenSilently();
             if (token) {
-                setTokenConfig(token);
-                getSocket().setToken(token);
+                setCustomHeader("Authorization", `Bearer ${token}`);
+                getSocket().setAuth(token, activeProviderId.value);
                 getSocket().reconnect();
             }
         } catch {
@@ -160,11 +161,12 @@ export async function setupAuth(app: App<Element>, router: Router) {
         router.replace(path || "/").catch(() => {});
     } else if (provider) {
         activeProviderId.value = provider._id;
+        setCustomHeader("x-auth-provider-id", provider._id);
         try {
             const token = await oauth.getAccessTokenSilently();
             if (token) {
-                setTokenConfig(token);
-                getSocket().setToken(token);
+                setCustomHeader("Authorization", `Bearer ${token}`);
+                getSocket().setAuth(token, activeProviderId.value);
                 getSocket().reconnect();
             }
         } catch {
@@ -238,11 +240,12 @@ export async function loginWithProvider(
  */
 export function clearAuth0Cache(): void {
     activeProviderId.value = null;
-    if (config) config.token = undefined;
+    removeCustomHeader("Authorization");
+    removeCustomHeader("x-auth-provider-id");
 
     try {
         const socket = getSocket();
-        socket.setToken("");
+        socket.setAuth("", null);
         socket.reconnect();
     } catch {
         // socket may not be initialized yet
@@ -288,14 +291,22 @@ export async function resolveProviderId(): Promise<void> {
     const footprint = readAuth0NativeStorage();
     if (!footprint?.client_id) {
         activeProviderId.value = null;
+        removeCustomHeader("x-auth-provider-id");
         return;
     }
     try {
         const provider = await getProviderByClientId(footprint.client_id);
-        activeProviderId.value = provider ? provider._id : null;
+        if (provider) {
+            activeProviderId.value = provider._id;
+            setCustomHeader("x-auth-provider-id", provider._id);
+        } else {
+            activeProviderId.value = null;
+            removeCustomHeader("x-auth-provider-id");
+        }
     } catch (e) {
         Sentry?.captureException(e);
         activeProviderId.value = null;
+        removeCustomHeader("x-auth-provider-id");
     }
 }
 

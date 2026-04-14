@@ -1,27 +1,26 @@
-import { config } from "../config";
+const customHeaders: Record<string, string> = {};
 
-let activeProviderIdGetter: () => string | null = () => null;
-
-export function setAuthProviderGetter(getter: () => string | null) {
-    activeProviderIdGetter = getter;
+/**
+ * Set a global HTTP header that will be sent with every request made through HttpReq.
+ * Headers set this way are in-memory only and do not persist across page reloads —
+ * clients are responsible for re-applying them on boot.
+ */
+export function setCustomHeader(name: string, value: string) {
+    customHeaders[name] = value;
 }
 
-export function getActiveProviderId(): string | null {
-    return activeProviderIdGetter();
+/**
+ * Remove a previously set global HTTP header.
+ */
+export function removeCustomHeader(name: string) {
+    delete customHeaders[name];
 }
 
 export class HttpReq<T> {
     private apiUrl: string;
-    private token?: string;
 
-    constructor(apiUrl: string, token?: string) {
-        this.token = token;
+    constructor(apiUrl: string) {
         this.apiUrl = apiUrl;
-    }
-
-    /** Use config.token when set (e.g. after login), otherwise constructor token. */
-    private getToken(): string | undefined {
-        return config?.token ?? this.token;
     }
 
     async get(endpoint: string, query: T) {
@@ -30,13 +29,8 @@ export class HttpReq<T> {
         );
         const headers: any = {
             "X-Query": JSON.stringify(query),
+            ...customHeaders,
         };
-        const providerId = activeProviderIdGetter();
-        if (providerId) {
-            headers["x-auth-provider-id"] = providerId;
-        }
-        const token = this.getToken();
-        token && (headers.Authorization = `Bearer ${token}`);
 
         try {
             const schema = "https://";
@@ -56,13 +50,7 @@ export class HttpReq<T> {
     }
 
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
-        const headers: any = {};
-        const providerId = activeProviderIdGetter();
-        if (providerId) {
-            headers["x-auth-provider-id"] = providerId;
-        }
-        const token = this.getToken();
-        token && (headers.Authorization = `Bearer ${token}`);
+        const headers: any = { ...customHeaders };
 
         try {
             const schema = "https://";
@@ -90,15 +78,10 @@ export class HttpReq<T> {
             const regex = /^https?:\/\//;
             const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
             const isFormData = query instanceof FormData;
-            const token = this.getToken();
             const headers: any = {
-                Authorization: token ? `Bearer ${token}` : "",
                 ...(!isFormData && { "Content-Type": "application/json" }),
+                ...customHeaders,
             };
-            const providerId = activeProviderIdGetter();
-            if (providerId) {
-                headers["x-auth-provider-id"] = providerId;
-            }
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
                 headers,

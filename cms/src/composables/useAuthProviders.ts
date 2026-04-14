@@ -132,34 +132,51 @@ export function useAuthProviders() {
         },
     });
 
-    // Current config — the per-provider entry inside the singleton's providers map.
-    // Writing via this computed mutates `singleton.providers[provider.configId]`
-    // so the existing dirty tracking on the singleton doc picks it up.
-    const currentProviderConfig = computed<AuthProviderProviderConfig | undefined>({
-        get: () => {
-            const provider = currentProvider.value;
-            if (!provider?.configId) return undefined;
-            const singleton = configs.value.find(
-                (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
-            );
-            return singleton?.providers?.[provider.configId];
-        },
-        set: (value) => {
-            const provider = currentProvider.value;
-            if (!provider?.configId || !value) return;
-            const singleton = ensureSingleton();
-            singleton.providers[provider.configId] = value;
-        },
-    });
+    // Current config — a local staging object for the per-provider JWT entry.
+    // We never mutate the singleton editable until save time, because any
+    // change to an editable doc causes createEditable to block subsequent
+    // source→editable sync updates for that doc, which blocks incoming doc
+    // refreshes from the server.
+    const stagingProviderConfig = ref<AuthProviderProviderConfig | undefined>(undefined);
+    const currentProviderConfig = stagingProviderConfig;
+
+    function loadStagingConfigForCurrentProvider() {
+        const provider = currentProvider.value;
+        if (!provider?.configId) {
+            stagingProviderConfig.value = undefined;
+            return;
+        }
+        const singleton = configs.value.find(
+            (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
+        );
+        const existing = singleton?.providers?.[provider.configId];
+        // Deep clone so v-model edits don't leak into the source singleton.
+        stagingProviderConfig.value = existing ? _.cloneDeep(toRaw(existing)) : {};
+    }
+
+    // Deep equal between the staging JWT config and what's currently in the
+    // singleton for this provider. Used by isDirty below.
+    function stagingDiffersFromSingleton(): boolean {
+        const provider = currentProvider.value;
+        if (!provider?.configId) return false;
+        const singleton = configs.value.find(
+            (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
+        );
+        const sourceEntry = singleton?.providers?.[provider.configId];
+        return !_.isEqual(toRaw(stagingProviderConfig.value ?? {}), sourceEntry ?? {});
+    }
 
     // ── Dirty tracking ───────────────────────────────────────────────────────
-    // Uses isEdited from the query instances (same pattern as EditGroup.vue).
-    // For new providers, dirty as soon as anything non-empty is typed.
+    // Uses isEdited from the provider query plus a deep compare of the staged
+    // JWT config against the singleton for this provider. We deliberately do
+    // NOT consult configQuery.isEdited: the singleton is shared across all
+    // providers, and a dirty entry for a different provider must not count as
+    // dirty here.
     const isDirty = computed(() => {
         if (!editingProviderId.value) return false;
         return (
             providerQuery.isEdited.value(editingProviderId.value) ||
-            configQuery.isEdited.value(AUTH_PROVIDER_CONFIG_SINGLETON_ID)
+            stagingDiffersFromSingleton()
         );
     });
 
@@ -212,7 +229,8 @@ export function useAuthProviders() {
     function revertProvider() {
         if (!editingProviderId.value) return;
         providerQuery.revert(editingProviderId.value);
-        configQuery.revert(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
+        // Reset the staging JWT config; the singleton was never mutated.
+        loadStagingConfigForCurrentProvider();
     }
 
     watch(showModal, (visible) => {
@@ -261,32 +279,21 @@ export function useAuthProviders() {
         };
         providers.value.push(newProvider);
 
-        // Seed an empty entry on the singleton so the modal can bind to it.
-        const singleton = ensureSingleton();
-        singleton.providers[configId] = {};
-
         editingProviderId.value = newId;
+        stagingProviderConfig.value = {};
         openModal();
     }
 
     function editProvider(provider: AuthProviderDto) {
-        // Stale dev data may have providers without a configId. Stamp one now so
-        // the save flow persists it on the provider doc.
-        if (!provider.configId) {
-            const providerInEditable = providers.value.find((p) => p._id === provider._id);
-            if (providerInEditable) providerInEditable.configId = db.uuid();
-        }
-
-        const editableProvider =
-            providers.value.find((p) => p._id === provider._id) ?? provider;
-        editingProviderId.value = editableProvider._id;
-
-        // Ensure the singleton has an entry for this provider's configId.
-        const singleton = ensureSingleton();
-        if (editableProvider.configId && !singleton.providers[editableProvider.configId]) {
-            singleton.providers[editableProvider.configId] = {};
-        }
-
+        // Do NOT mutate the editable provider or seed singleton entries here —
+        // createEditable treats any editable≠shadow divergence as "user is
+        // editing" and blocks subsequent source→editable sync updates for that
+        // item, which causes stale reads and prevents the post-save server
+        // round-trip from replacing imageData.uploadData with the processed
+        // fileCollections. JWT edits go into a staging ref that's committed
+        // to the singleton only at save time.
+        editingProviderId.value = provider._id;
+        loadStagingConfigForCurrentProvider();
         openModal();
     }
 
@@ -372,6 +379,14 @@ export function useAuthProviders() {
             const provider = currentProvider.value;
             if (!provider || !editingProviderId.value) return;
 
+            // Stamp a configId on legacy providers that predate the field.
+            // Done at save time (not on open) so the editable≠shadow window is
+            // narrow — save() calls updateShadow() immediately after success,
+            // restoring the sync path.
+            if (!provider.configId) {
+                provider.configId = db.uuid();
+            }
+
             const label = provider.label ?? "";
             const creating = !isEditing.value;
 
@@ -387,8 +402,16 @@ export function useAuthProviders() {
                 }
             }
 
-            // Save the singleton if any provider's entry was edited this session.
-            if (configQuery.isEdited.value(AUTH_PROVIDER_CONFIG_SINGLETON_ID)) {
+            // Commit staged JWT config into the singleton and save it, but
+            // only if the staged entry actually differs from what's already
+            // in the singleton for this provider. This keeps opens with no
+            // JWT edits from touching (and therefore blocking sync on) the
+            // singleton.
+            if (provider.configId && stagingDiffersFromSingleton()) {
+                const singleton = ensureSingleton();
+                singleton.providers[provider.configId] = _.cloneDeep(
+                    toRaw(stagingProviderConfig.value ?? {}),
+                );
                 const configRes = await configQuery.save(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
                 if (configRes?.ack === AckStatus.Rejected) {
                     errors.value = [configRes.message || "Failed to save provider config"];
@@ -397,6 +420,7 @@ export function useAuthProviders() {
             }
 
             editingProviderId.value = undefined;
+            stagingProviderConfig.value = undefined;
             closeModal();
             notification.addNotification({
                 title: creating ? `Provider ${label} created` : `Provider ${label} updated`,
@@ -429,17 +453,16 @@ export function useAuthProviders() {
             clonedProvider.imageData.fileCollections = [];
         }
 
-        // Copy the source entry (if any) into a fresh key on the singleton.
-        const singleton = ensureSingleton();
-        const sourceEntry = provider.configId
-            ? singleton.providers[provider.configId]
-            : undefined;
-        singleton.providers[newConfigId] = sourceEntry
-            ? _.cloneDeep(toRaw(sourceEntry))
+        // Carry the current JWT config (which may be the user's in-progress
+        // staging copy) into the duplicate's staging buffer. The singleton
+        // itself is not touched until save.
+        const sourceStaged = stagingProviderConfig.value
+            ? _.cloneDeep(toRaw(stagingProviderConfig.value))
             : {};
 
         providers.value.push(clonedProvider);
         editingProviderId.value = newId;
+        stagingProviderConfig.value = sourceStaged;
         hasAttemptedSubmit.value = false;
 
         notification.addNotification({

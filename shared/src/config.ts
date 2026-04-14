@@ -22,10 +22,6 @@ export type SharedConfig = {
      */
     apiUrl: string;
     /**
-     * Access token
-     */
-    token?: string;
-    /**
      * Array of API Sync queries passed to the shared library, that the client needs to sync down
      */
     syncList?: Array<ApiSyncQuery>;
@@ -45,10 +41,4 @@ export function initConfig(newConfig: SharedConfig) {
     });
 
     config = newConfig;
-}
-
-export function setTokenConfig(token: string) {
-    if (config) {
-        config.token = token;
-    }
 }

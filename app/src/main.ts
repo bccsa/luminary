@@ -40,7 +40,6 @@ async function Startup() {
         cms: false,
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
-        token: undefined,
         appLanguageIdsAsRef,
         syncList: [
             {

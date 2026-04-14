@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { HttpReq } from "./http";
+import { HttpReq, setCustomHeader, removeCustomHeader } from "./http";
 
 describe("HttpReq", () => {
     let mockFetch: ReturnType<typeof vi.fn>;
@@ -7,17 +7,20 @@ describe("HttpReq", () => {
     beforeEach(() => {
         mockFetch = vi.fn();
         vi.stubGlobal("fetch", mockFetch);
+        removeCustomHeader("Authorization");
+        removeCustomHeader("x-auth-provider-id");
     });
 
     describe("get", () => {
-        it("sends GET with X-Query header and Authorization", async () => {
+        it("sends GET with X-Query header and custom headers", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({ data: "result" }),
             });
             const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const http = new HttpReq("https://api.example.com", "my-token");
+            setCustomHeader("Authorization", "Bearer my-token");
+            const http = new HttpReq("https://api.example.com");
             const result = await http.get("search", { type: "post" });
 
             expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/search", {
@@ -31,7 +34,7 @@ describe("HttpReq", () => {
             consoleSpy.mockRestore();
         });
 
-        it("sends GET without Authorization when no token", async () => {
+        it("sends GET without Authorization when no custom header set", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({}),
@@ -104,20 +107,22 @@ describe("HttpReq", () => {
                 json: () => Promise.resolve({ status: "ok" }),
             });
 
-            const http = new HttpReq("https://api.example.com", "my-token");
+            setCustomHeader("Authorization", "Bearer my-token");
+            const http = new HttpReq("https://api.example.com");
             const result = await http.getWithQueryParams("status", { id: "123" });
 
             expect(mockFetch.mock.calls[0][0]).toContain("status?id=123");
             expect(result).toEqual({ status: "ok" });
         });
 
-        it("sends Authorization header when token present", async () => {
+        it("sends Authorization header when custom header set", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({}),
             });
 
-            const http = new HttpReq("https://api.example.com", "token");
+            setCustomHeader("Authorization", "Bearer token");
+            const http = new HttpReq("https://api.example.com");
             await http.getWithQueryParams("endpoint", {});
 
             const headers = mockFetch.mock.calls[0][1].headers;
@@ -182,7 +187,8 @@ describe("HttpReq", () => {
                 json: () => Promise.resolve({ id: 1 }),
             });
 
-            const http = new HttpReq("https://api.example.com", "token");
+            setCustomHeader("Authorization", "Bearer token");
+            const http = new HttpReq("https://api.example.com");
             const result = await http.post("changerequest", { type: "post" });
 
             const [url, opts] = mockFetch.mock.calls[0];
@@ -203,7 +209,8 @@ describe("HttpReq", () => {
             const formData = new FormData();
             formData.append("key", "value");
 
-            const http = new HttpReq("https://api.example.com", "token");
+            setCustomHeader("Authorization", "Bearer token");
+            const http = new HttpReq("https://api.example.com");
             await http.post("upload", formData as any);
 
             const [, opts] = mockFetch.mock.calls[0];
@@ -211,7 +218,7 @@ describe("HttpReq", () => {
             expect(opts.body).toBe(formData);
         });
 
-        it("sends empty Authorization when no token", async () => {
+        it("sends no Authorization header when no custom header set", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({}),
@@ -221,7 +228,7 @@ describe("HttpReq", () => {
             await http.post("endpoint", {});
 
             const headers = mockFetch.mock.calls[0][1].headers;
-            expect(headers.Authorization).toBe("");
+            expect(headers.Authorization).toBeUndefined();
         });
 
         it("prepends https:// when needed", async () => {
@@ -272,6 +279,23 @@ describe("HttpReq", () => {
 
             expect(result).toBeUndefined();
             consoleSpy.mockRestore();
+        });
+    });
+
+    describe("setCustomHeader/removeCustomHeader", () => {
+        it("includes custom headers on requests and removes them when cleared", async () => {
+            mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+
+            setCustomHeader("x-auth-provider-id", "provider-123");
+            const http = new HttpReq("https://api.example.com");
+            await http.post("endpoint", {});
+
+            expect(mockFetch.mock.calls[0][1].headers["x-auth-provider-id"]).toBe("provider-123");
+
+            removeCustomHeader("x-auth-provider-id");
+            await http.post("endpoint", {});
+
+            expect(mockFetch.mock.calls[1][1].headers["x-auth-provider-id"]).toBeUndefined();
         });
     });
 });
