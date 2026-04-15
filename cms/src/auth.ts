@@ -222,20 +222,9 @@ export async function loginWithProvider(
     provider: AuthProviderDto,
     opts?: { prompt?: Auth0Prompt },
 ): Promise<void> {
-    const webOrigin = window.location.origin;
-
     sessionStorage.setItem("pending_provider", provider.clientId);
 
-    const client = await createAuth0Client({
-        domain: provider.domain,
-        clientId: provider.clientId,
-        cacheLocation: "localstorage",
-        authorizationParams: {
-            audience: provider.audience,
-            scope: "openid profile email offline_access",
-            redirect_uri: webOrigin,
-        },
-    });
+    const client = await createAuth0Client(buildAuth0Options(provider));
     await client.loginWithRedirect({
         authorizationParams: opts?.prompt ? { prompt: opts.prompt } : undefined,
     });

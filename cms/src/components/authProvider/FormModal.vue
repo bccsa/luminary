@@ -69,7 +69,10 @@ function stagingDiffersFromSingleton(): boolean {
     const p = provider.value;
     if (!p?.configId) return false;
     const sourceEntry = props.authProviderConfig?.providers?.[p.configId];
-    return !_.isEqual(toRaw(stagingProviderConfig.value), sourceEntry ?? {});
+    // Walk the reactive proxy (no toRaw) so every nested property access is
+    // registered as a dependency of the enclosing computed — otherwise inner
+    // mutations (e.g. splicing a condition) don't invalidate `isDirtyComputed`.
+    return !_.isEqual(stagingProviderConfig.value, sourceEntry ?? {});
 }
 
 // When the edited provider changes (modal opening or parent-driven switch),

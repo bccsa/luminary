@@ -102,13 +102,15 @@ export function useAuthProviders() {
         return providerQuery.isEdited.value(id);
     }
 
-    // DefaultPermissions — still synced to Dexie
-    const defaultPermissions = useDexieLiveQuery(
-        () =>
-            db.docs.where({ type: DocType.DefaultPermissions }).first() as unknown as Promise<
-                DefaultPermissionsDto | undefined
-            >,
-        { initialValue: undefined as DefaultPermissionsDto | undefined },
+    // DefaultPermissions — singleton fetched from the API via ApiLiveQueryAsEditable.
+    // Not mirrored into Dexie; edits are committed straight back via the query's save().
+    const defaultPermissionsQuery = new ApiLiveQueryAsEditable<DefaultPermissionsDto>(
+        ref<ApiSearchQuery>({ types: [DocType.DefaultPermissions] }),
+        { filterFn: (item) => ({ ...item }) },
+    );
+    const defaultPermissionsDocs = defaultPermissionsQuery.editable;
+    const defaultPermissions = computed<DefaultPermissionsDto | undefined>(
+        () => defaultPermissionsDocs.value[0],
     );
 
     // Permission computeds
@@ -490,15 +492,25 @@ export function useAuthProviders() {
     }
 
     async function saveDefaultGroups() {
-        if (!defaultPermissions.value) return;
+        const target = defaultPermissionsDocs.value[0];
+        if (!target) return;
         isSavingDefaultGroups.value = true;
         try {
-            const doc = {
-                ...toRaw(defaultPermissions.value),
-                defaultGroups: [...editableDefaultGroups.value],
-                updatedTimeUtc: Date.now(),
-            };
-            await db.upsert({ doc });
+            target.defaultGroups = [...editableDefaultGroups.value];
+            target.updatedTimeUtc = Date.now();
+            // createEditable tracks dirty state on the next microtask, so we
+            // must await a tick before save() or it no-ops. Same pattern as
+            // confirmDelete above.
+            await nextTick();
+            const res = await defaultPermissionsQuery.save(target._id);
+            if (res?.ack === AckStatus.Rejected) {
+                notification.addNotification({
+                    title: "Failed to save default groups",
+                    description: res.message || "The server rejected the update.",
+                    state: "error",
+                });
+                return;
+            }
             showDefaultGroupsDialog.value = false;
             notification.addNotification({
                 title: "Default groups saved",
@@ -520,6 +532,7 @@ export function useAuthProviders() {
     onBeforeUnmount(() => {
         providerQuery.stopLiveQuery();
         configQuery.stopLiveQuery();
+        defaultPermissionsQuery.stopLiveQuery();
     });
 
     return {
