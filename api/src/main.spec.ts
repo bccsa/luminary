@@ -45,6 +45,7 @@ describe("bootstrap", () => {
             get: jest.fn().mockReturnValue({}),
             enableCors: jest.fn(),
             useGlobalPipes: jest.fn(),
+            useGlobalFilters: jest.fn(),
             listen: jest.fn().mockResolvedValue(undefined),
         };
 

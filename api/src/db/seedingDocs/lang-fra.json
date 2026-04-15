@@ -121,8 +121,6 @@
         "openapp_warning.description": "Nous avons remarqué que vous êtes sur Telegram. Veuillez cliquer sur Continuer pour voir le contenu correctement dans l'application {appName}.",
         "openapp_warning.button_continue": "Continuer",
         "openapp_warning.button_cancel": "Annuler",
-        "singlecontent.listen": "Écouter",
-        "auth.sign_in": "Se connecter",
-        "auth.no_methods_available": "Aucune méthode de connexion disponible."
+        "singlecontent.listen": "Écouter"
     }
 }

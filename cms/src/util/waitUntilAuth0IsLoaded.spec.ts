@@ -11,6 +11,7 @@ vi.mock("@auth0/auth0-vue", () => ({
 
 vi.mock("@/auth", () => ({
     isAuthBypassed: false,
+    isAuthPluginInstalled: { value: true },
 }));
 
 import { waitUntilAuth0IsLoaded } from "./waitUntilAuth0IsLoaded";
