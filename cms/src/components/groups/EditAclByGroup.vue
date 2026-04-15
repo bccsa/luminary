@@ -131,7 +131,7 @@ onMounted(() => {
                         title="Remove group access"
                         class="gap-x-0"
                         @click.stop="removeAssignedGroup"
-                        mainDynamicCss="text-zinc-400"
+                        mainDynamicCss="text-zinc-400 hover:text-red-500"
                         v-if="!disabled"
                     />
 
