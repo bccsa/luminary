@@ -187,7 +187,7 @@ const saveDisabled = computed(() => {
         secondaryButtonText="Cancel"
         stickToEdges
     >
-        <div class="mb-4">
+        <div>
             <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
             <LBadge v-else-if="!isConnected" variant="warning"
                 >You can not create or edit users when offline...</LBadge
