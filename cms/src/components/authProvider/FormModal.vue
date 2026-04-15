@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import type { AuthProviderDto, AuthProviderProviderConfig, GroupDto } from "luminary-shared";
-import { computed, ref } from "vue";
+import type {
+    AuthProviderConfigDto,
+    AuthProviderDto,
+    AuthProviderProviderConfig,
+    GroupDto,
+} from "luminary-shared";
+import { computed, ref, toRaw, watch } from "vue";
+import _ from "lodash";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -12,6 +18,7 @@ import Appearance from "./LabelAppearance.vue";
 import UserFieldMappings from "./UserFieldMappings.vue";
 import GroupMappings from "./GroupMappings.vue";
 import FormActions from "./FormActions.vue";
+import { validate, type Validation } from "@/components/content/ContentValidator";
 
 const props = defineProps<{
     isEditing: boolean;
@@ -19,24 +26,186 @@ const props = defineProps<{
     errors: string[] | undefined;
     availableGroups: GroupDto[];
     canDelete: boolean;
-    isFormValid: boolean;
-    isDirty: boolean;
-    hasAttemptedSubmit: boolean;
-    providerValidations?: { id: string; isValid: boolean; message: string }[];
+    /** Provider-level edit state from the parent's query (editable ≠ shadow). */
+    providerIsEdited: boolean;
+    /** Singleton AuthProviderConfig — read-only; staging is committed on save. */
+    authProviderConfig: AuthProviderConfigDto | undefined;
 }>();
 
 const emit = defineEmits<{
-    save: [];
+    save: [payload: { stagingConfig: AuthProviderProviderConfig }];
     delete: [];
-    duplicate: [];
+    duplicate: [payload: { stagingConfig: AuthProviderProviderConfig }];
     revert: [];
 }>();
 
 const isVisible = defineModel<boolean>("isVisible");
 const provider = defineModel<AuthProviderDto | undefined>("provider");
-const providerConfig = defineModel<AuthProviderProviderConfig | undefined>("providerConfig");
+const isDirty = defineModel<boolean>("isDirty", { default: false });
+const hasAttemptedSubmit = defineModel<boolean>("hasAttemptedSubmit", { default: false });
 
 const showDiscardConfirm = ref(false);
+
+// Per-provider JWT config lives as an entry inside the shared AuthProviderConfig
+// singleton (`singleton.providers[configId]`). We stage edits in a local deep
+// clone so the singleton is never mutated while the modal is open: touching the
+// singleton would mark it editable≠shadow, which blocks createEditable's server
+// sync for every *other* provider's entry until the user saves. Staging is
+// committed into the singleton at save time (via the emit payload) and never
+// before. See useAuthProviders.spec for the sync-block regression this prevents.
+const stagingProviderConfig = ref<AuthProviderProviderConfig>({});
+
+function loadStagingConfigForCurrentProvider() {
+    const p = provider.value;
+    if (!p?.configId) {
+        stagingProviderConfig.value = {};
+        return;
+    }
+    const existing = props.authProviderConfig?.providers?.[p.configId];
+    stagingProviderConfig.value = existing ? _.cloneDeep(toRaw(existing)) : {};
+}
+
+function stagingDiffersFromSingleton(): boolean {
+    const p = provider.value;
+    if (!p?.configId) return false;
+    const sourceEntry = props.authProviderConfig?.providers?.[p.configId];
+    return !_.isEqual(toRaw(stagingProviderConfig.value), sourceEntry ?? {});
+}
+
+// When the edited provider changes (modal opening or parent-driven switch),
+// reload staging from the singleton — unless `prepareForDuplicate` has marked
+// the next change as a duplicate, in which case we keep the user's in-progress
+// staging so it carries over to the new clone.
+let skipNextStagingReload = false;
+watch(
+    () => provider.value?._id,
+    () => {
+        if (skipNextStagingReload) {
+            skipNextStagingReload = false;
+            return;
+        }
+        loadStagingConfigForCurrentProvider();
+    },
+    { immediate: true },
+);
+
+// Imperative handoff for duplicate: parent calls this *before* flipping the
+// v-model'd provider to the new clone, so the staging watcher skips its reload
+// and the user's unsaved JWT edits follow them into the duplicate.
+defineExpose({
+    prepareForDuplicate() {
+        skipNextStagingReload = true;
+        hasAttemptedSubmit.value = false;
+    },
+});
+
+const providerConfig = computed<AuthProviderProviderConfig | undefined>({
+    get: () => stagingProviderConfig.value,
+    set: (value) => {
+        stagingProviderConfig.value = value ?? {};
+    },
+});
+
+// ── Validation ──────────────────────────────────────────────────────────────
+// Credential rules are intentionally provider-agnostic (not Auth0-only) since
+// the auth layer is slated to accept other OIDC providers — see the note in
+// cms/src/auth.ts clearAuth0Cache. Rules reject only values that clearly can't
+// talk to *any* OIDC endpoint, not values that just look non-Auth0.
+
+// RFC 1123-ish hostname: labels of [a-z0-9-] separated by dots, at least one
+// dot (so bare "localhost" is rejected), no leading/trailing dash.
+const HOSTNAME_RE =
+    /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i;
+
+function isValidDomain(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    // Reject scheme, path, port, query, fragment, or whitespace — domain
+    // should be just the host. Catches paste of "https://tenant.auth0.com/".
+    if (/[\s/:?#]/.test(trimmed)) return false;
+    return HOSTNAME_RE.test(trimmed);
+}
+
+function isValidClientId(value: string): boolean {
+    const trimmed = value.trim();
+    // Auth0 uses 32 alphanumeric; other OIDC providers vary. 8 chars is a
+    // "clearly not a typo" floor that still accepts every provider we've seen.
+    if (trimmed.length < 8) return false;
+    return !/\s/.test(trimmed);
+}
+
+function isValidAudience(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    try {
+        const url = new URL(trimmed);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+const providerValidations = ref<Validation[]>([]);
+
+watch(
+    [provider, hasAttemptedSubmit],
+    ([p, attempted]) => {
+        if (!p || !attempted) return;
+        validate("Label is required", "label", providerValidations.value, p, (x) =>
+            !!(x.label ?? "").trim(),
+        );
+        validate(
+            "Domain must be a hostname like tenant.auth0.com (no https:// or path)",
+            "domain",
+            providerValidations.value,
+            p,
+            (x) => isValidDomain(x.domain ?? ""),
+        );
+        validate(
+            "Client ID must be at least 8 characters and contain no whitespace",
+            "clientId",
+            providerValidations.value,
+            p,
+            (x) => isValidClientId(x.clientId ?? ""),
+        );
+        validate(
+            "Audience must be an absolute URL (e.g. https://api.example.com)",
+            "audience",
+            providerValidations.value,
+            p,
+            (x) => isValidAudience(x.audience ?? ""),
+        );
+    },
+    { deep: true },
+);
+
+const isFormValid = computed(() => {
+    const p = provider.value;
+    if (!p) return false;
+    if (!(p.label ?? "").trim()) return false;
+    return (
+        isValidDomain(p.domain ?? "") &&
+        isValidClientId(p.clientId ?? "") &&
+        isValidAudience(p.audience ?? "")
+    );
+});
+
+// ── Dirty tracking ──────────────────────────────────────────────────────────
+// Mirrors the logic that used to live in useAuthProviders: a provider is
+// dirty when its editable doc diverges from the shadow (providerIsEdited,
+// reported by the parent's query) OR when the staged JWT config differs
+// from the singleton entry for this provider.
+const isDirtyComputed = computed(
+    () => props.providerIsEdited || stagingDiffersFromSingleton(),
+);
+
+watch(
+    isDirtyComputed,
+    (value) => {
+        isDirty.value = value;
+    },
+    { immediate: true },
+);
 
 const groupOptions = computed(() =>
     props.availableGroups.map((group: GroupDto) => ({
@@ -46,9 +215,19 @@ const groupOptions = computed(() =>
     })),
 );
 
+// Writable proxy for the config entry's memberOf so LCombobox's v-model
+// writes land on the defineModel-backed providerConfig object.
+const configMemberOf = computed<string[]>({
+    get: () => (providerConfig.value?.memberOf as string[] | undefined) ?? [],
+    set: (value) => {
+        if (!providerConfig.value) return;
+        providerConfig.value = { ...providerConfig.value, memberOf: value };
+    },
+});
+
 // Called by LModal before closing via backdrop, ESC, or X button
 const beforeClose = (): boolean => {
-    if (props.isDirty && props.isEditing) {
+    if (isDirty.value && props.isEditing) {
         showDiscardConfirm.value = true;
         return false;
     }
@@ -57,7 +236,7 @@ const beforeClose = (): boolean => {
 
 // Called by the Cancel button in FormActions
 const closeModal = () => {
-    if (props.isDirty && props.isEditing) {
+    if (isDirty.value && props.isEditing) {
         showDiscardConfirm.value = true;
     } else {
         isVisible.value = false;
@@ -75,7 +254,8 @@ const keepEditing = () => {
 };
 
 const handleSave = () => {
-    emit("save");
+    hasAttemptedSubmit.value = true;
+    emit("save", { stagingConfig: _.cloneDeep(toRaw(stagingProviderConfig.value)) });
 };
 
 const handleDelete = () => {
@@ -83,11 +263,12 @@ const handleDelete = () => {
 };
 
 const handleDuplicate = () => {
-    emit("duplicate");
+    emit("duplicate", { stagingConfig: _.cloneDeep(toRaw(stagingProviderConfig.value)) });
 };
 
 const handleRevert = () => {
     emit("revert");
+    loadStagingConfigForCurrentProvider();
 };
 </script>
 
@@ -118,6 +299,21 @@ const handleRevert = () => {
                         :showSelectedLabels="true"
                         :disabled="false"
                         data-test="groupSelector"
+                    />
+                </div>
+
+                <div
+                    v-if="providerConfig"
+                    class="rounded-md border border-zinc-200 bg-white p-2"
+                >
+                    <LCombobox
+                        v-model:selected-options="configMemberOf"
+                        :label="`Config Group Access`"
+                        :options="groupOptions"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="true"
+                        :disabled="isLoading"
+                        data-test="configGroupSelector"
                     />
                 </div>
 

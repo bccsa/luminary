@@ -51,9 +51,9 @@ watch(
 );
 
 /**
- * Initialize language document sync watcher.
+ * Initialize the auth-provider and language document sync watcher.
  */
-export function initLanguageSync() {
+export function initAuthLangSync() {
     watch(
         () => syncIterators.value.language,
         async () => {
@@ -86,7 +86,6 @@ export function initLanguageSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during language sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -120,7 +119,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -135,7 +133,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during tag content sync:", err);
                     Sentry?.captureException(err);
                 });
             }

@@ -5,11 +5,12 @@ import {
     PlayIcon as FilledPlayIcon,
     MagnifyingGlassIcon as FilledMagnifyingGlassIcon,
 } from "@heroicons/vue/24/solid";
-import { useI18n } from "vue-i18n";
 
-export function getNavigationItems() {
-    const { t } = useI18n();
-
+/**
+ * Build the navigation items. `t` is passed in so this can be called from a
+ * computed/watcher (outside a setup context), where `useI18n()` would throw.
+ */
+export function getNavigationItems(t: (key: string) => string) {
     const navigationItems = [
         {
             name: t("menu.home"),

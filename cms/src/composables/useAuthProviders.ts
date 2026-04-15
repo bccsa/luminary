@@ -1,4 +1,4 @@
-import { ref, computed, watch, toRaw, onBeforeUnmount } from "vue";
+import { ref, computed, nextTick, watch, toRaw, onBeforeUnmount } from "vue";
 import {
     db,
     DocType,
@@ -16,6 +16,8 @@ import {
     ApiLiveQueryAsEditable,
     type ApiSearchQuery,
 } from "luminary-shared";
+import { useNotificationStore } from "@/stores/notification";
+import _ from "lodash";
 
 const AUTH_PROVIDER_CONFIG_SINGLETON_ID = "authProviderConfig";
 
@@ -28,9 +30,6 @@ function buildEmptySingleton(): AuthProviderConfigDto {
         providers: {},
     } as AuthProviderConfigDto;
 }
-import { useNotificationStore } from "@/stores/notification";
-import { validate, type Validation } from "@/components/content/ContentValidator";
-import _ from "lodash";
 
 export function useAuthProviders() {
     const notification = useNotificationStore();
@@ -69,8 +68,19 @@ export function useAuthProviders() {
     const configs = configQuery.editable;
 
     /**
+     * The singleton AuthProviderConfig doc — the shared container for every
+     * provider's JWT config entry. Exposed to FormModal as a read-only prop so
+     * it can look up the current entry for staging. Never mutated outside of
+     * saveProvider/confirmDelete.
+     */
+    const authProviderConfig = computed<AuthProviderConfigDto | undefined>(() =>
+        configs.value.find((c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID),
+    );
+
+    /**
      * Returns the editable singleton, seeding an empty one into the editable
-     * array if the DB has no AuthProviderConfig doc yet.
+     * array if the DB has no AuthProviderConfig doc yet. Only call from mutation
+     * paths (save/delete) — reads should use `authProviderConfig` instead.
      */
     function ensureSingleton(): AuthProviderConfigDto {
         let singleton = configs.value.find((c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID);
@@ -81,6 +91,15 @@ export function useAuthProviders() {
         }
         if (!singleton.providers) singleton.providers = {};
         return singleton;
+    }
+
+    /**
+     * Whether a given provider doc has unsaved edits (editable ≠ shadow).
+     * FormModal combines this with its own staging-diff to derive isDirty.
+     */
+    function isProviderEdited(id: string | undefined): boolean {
+        if (!id) return false;
+        return providerQuery.isEdited.value(id);
     }
 
     // DefaultPermissions — still synced to Dexie
@@ -132,93 +151,18 @@ export function useAuthProviders() {
         },
     });
 
-    // Current config — a local staging object for the per-provider JWT entry.
-    // We never mutate the singleton editable until save time, because any
-    // change to an editable doc causes createEditable to block subsequent
-    // source→editable sync updates for that doc, which blocks incoming doc
-    // refreshes from the server.
-    const stagingProviderConfig = ref<AuthProviderProviderConfig | undefined>(undefined);
-    const currentProviderConfig = stagingProviderConfig;
-
-    function loadStagingConfigForCurrentProvider() {
-        const provider = currentProvider.value;
-        if (!provider?.configId) {
-            stagingProviderConfig.value = undefined;
-            return;
-        }
-        const singleton = configs.value.find(
-            (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
-        );
-        const existing = singleton?.providers?.[provider.configId];
-        // Deep clone so v-model edits don't leak into the source singleton.
-        stagingProviderConfig.value = existing ? _.cloneDeep(toRaw(existing)) : {};
-    }
-
-    // Deep equal between the staging JWT config and what's currently in the
-    // singleton for this provider. Used by isDirty below.
-    function stagingDiffersFromSingleton(): boolean {
-        const provider = currentProvider.value;
-        if (!provider?.configId) return false;
-        const singleton = configs.value.find(
-            (c) => c._id === AUTH_PROVIDER_CONFIG_SINGLETON_ID,
-        );
-        const sourceEntry = singleton?.providers?.[provider.configId];
-        return !_.isEqual(toRaw(stagingProviderConfig.value ?? {}), sourceEntry ?? {});
-    }
-
-    // ── Dirty tracking ───────────────────────────────────────────────────────
-    // Uses isEdited from the provider query plus a deep compare of the staged
-    // JWT config against the singleton for this provider. We deliberately do
-    // NOT consult configQuery.isEdited: the singleton is shared across all
-    // providers, and a dirty entry for a different provider must not count as
-    // dirty here.
-    const isDirty = computed(() => {
-        if (!editingProviderId.value) return false;
-        return (
-            providerQuery.isEdited.value(editingProviderId.value) ||
-            stagingDiffersFromSingleton()
-        );
-    });
+    /**
+     * Dirty state is sourced from FormModal via `v-model:isDirty`. FormModal
+     * combines its local staging-diff with the provider's editable≠shadow
+     * status (via `isProviderEdited`) and writes the result back here. The
+     * route guard + close-without-save handling rely on this ref.
+     */
+    const isFormDirty = ref(false);
 
     // Route guard: dirty if the modal is open and has unsaved edits.
-    const isDirtyAny = computed(() => showModal.value && isDirty.value);
-
-    // Validation state
-    const hasAttemptedSubmit = ref(false);
-
-    // Field-level validation
-    const providerValidations = ref<Validation[]>([]);
-
-    watch(
-        [currentProvider, hasAttemptedSubmit],
-        ([provider, attempted]) => {
-            if (!provider || !attempted) return;
-            validate("Label is required", "label", providerValidations.value, provider, (p) => !!(p.label ?? "").trim());
-            validate("Domain is required", "domain", providerValidations.value, provider, (p) => !!(p.domain ?? "").trim());
-            validate("Client ID is required", "clientId", providerValidations.value, provider, (p) => !!(p.clientId ?? "").trim());
-            validate("Audience is required", "audience", providerValidations.value, provider, (p) => !!(p.audience ?? "").trim());
-        },
-        { deep: true },
-    );
-
-    const hasValidCredentials = computed(() => {
-        const p = currentProvider.value;
-        if (!p) return false;
-        return Boolean(
-            (p.domain || "").trim() && (p.clientId || "").trim() && (p.audience || "").trim(),
-        );
-    });
-
-    const isFormValid = computed(() => {
-        const provider = currentProvider.value;
-        if (!provider) return false;
-        if (!(provider.label ?? "").trim()) return false;
-        if (!hasValidCredentials.value) return false;
-        return true;
-    });
+    const isDirtyAny = computed(() => showModal.value && isFormDirty.value);
 
     function openModal() {
-        hasAttemptedSubmit.value = false;
         showModal.value = true;
     }
 
@@ -229,22 +173,31 @@ export function useAuthProviders() {
     function revertProvider() {
         if (!editingProviderId.value) return;
         providerQuery.revert(editingProviderId.value);
-        // Reset the staging JWT config; the singleton was never mutated.
-        loadStagingConfigForCurrentProvider();
+        // Staging lives in FormModal — FormModal re-loads it from the singleton
+        // after the revert emit, so nothing to reset here.
     }
 
-    watch(showModal, (visible) => {
-        if (!visible) {
-            // Revert unsaved changes (for both edit and create).
-            // For new providers, revert removes them from the editable arrays.
-            if (editingProviderId.value && isDirty.value) {
-                revertProvider();
+    // `flush: 'sync'` ensures close-cleanup runs the moment `showModal` flips
+    // to false, rather than waiting for the next render cycle. The route guard
+    // + ConfirmBeforeLeavingModal read `isDirtyAny` synchronously on navigation,
+    // and the composable spec's withSetup harness never renders at all — both
+    // rely on the cleanup having already happened by the time they look.
+    watch(
+        showModal,
+        (visible) => {
+            if (!visible) {
+                // Revert unsaved changes (for both edit and create).
+                // For new providers, revert removes them from the editable arrays.
+                if (editingProviderId.value && isFormDirty.value) {
+                    revertProvider();
+                }
+                editingProviderId.value = undefined;
+                errors.value = undefined;
+                isFormDirty.value = false;
             }
-            editingProviderId.value = undefined;
-            errors.value = undefined;
-            hasAttemptedSubmit.value = false;
-        }
-    });
+        },
+        { flush: "sync" },
+    );
 
     watch(changeReqErrors, (errs) => {
         if (errs && errs.length > 0) {
@@ -263,7 +216,8 @@ export function useAuthProviders() {
     });
 
     function openCreateModal() {
-        // Push a new provider into the editable array (same pattern as GroupOverview.createGroup)
+        // Push a new provider into the editable array (same pattern as GroupOverview.createGroup).
+        // FormModal's staging ref initializes to {} on mount; no seeding needed here.
         const newId = db.uuid();
         const configId = db.uuid();
         const newProvider: AuthProviderDto = {
@@ -280,7 +234,6 @@ export function useAuthProviders() {
         providers.value.push(newProvider);
 
         editingProviderId.value = newId;
-        stagingProviderConfig.value = {};
         openModal();
     }
 
@@ -290,10 +243,9 @@ export function useAuthProviders() {
         // editing" and blocks subsequent source→editable sync updates for that
         // item, which causes stale reads and prevents the post-save server
         // round-trip from replacing imageData.uploadData with the processed
-        // fileCollections. JWT edits go into a staging ref that's committed
-        // to the singleton only at save time.
+        // fileCollections. JWT edits go into FormModal's local staging ref
+        // which is committed to the singleton only at save time.
         editingProviderId.value = provider._id;
-        loadStagingConfigForCurrentProvider();
         openModal();
     }
 
@@ -328,10 +280,14 @@ export function useAuthProviders() {
             const providerId = providerToDelete.value._id;
             const configId = providerToDelete.value.configId;
 
-            // Set deleteReq on provider in the editable array and save via changeRequest
+            // Set deleteReq on provider in the editable array and save via changeRequest.
+            // `createEditable` tracks dirty state via deep-watched refs that update on the
+            // next microtask, so we must `await nextTick()` before `save()` — otherwise
+            // `isEdited` still reports false and `save()` no-ops.
             const providerInEditable = providers.value.find((p) => p._id === providerId);
             if (providerInEditable) {
                 providerInEditable.deleteReq = 1;
+                await nextTick();
                 await providerQuery.save(providerId);
             }
 
@@ -365,17 +321,22 @@ export function useAuthProviders() {
         }
     }
 
-    async function saveProvider() {
+    /**
+     * Persist the current provider and its staged JWT config.
+     *
+     * `stagingConfig` is passed in from FormModal because staging lives there
+     * (see FormModal.vue). We compute the diff against the singleton here —
+     * that way FormModal stays unaware of the createEditable sync constraints,
+     * and this function stays the single owner of the singleton mutation.
+     *
+     * FormModal is expected to have already validated the form before emitting
+     * save; this function trusts the call and persists whatever it's given.
+     */
+    async function saveProvider(stagingConfig: AuthProviderProviderConfig) {
         isLoading.value = true;
         errors.value = undefined;
-        hasAttemptedSubmit.value = true;
 
         try {
-            if (!isFormValid.value) {
-                errors.value = ["Please fill in all required fields"];
-                return;
-            }
-
             const provider = currentProvider.value;
             if (!provider || !editingProviderId.value) return;
 
@@ -407,20 +368,24 @@ export function useAuthProviders() {
             // in the singleton for this provider. This keeps opens with no
             // JWT edits from touching (and therefore blocking sync on) the
             // singleton.
-            if (provider.configId && stagingDiffersFromSingleton()) {
+            if (provider.configId) {
                 const singleton = ensureSingleton();
-                singleton.providers[provider.configId] = _.cloneDeep(
-                    toRaw(stagingProviderConfig.value ?? {}),
-                );
-                const configRes = await configQuery.save(AUTH_PROVIDER_CONFIG_SINGLETON_ID);
-                if (configRes?.ack === AckStatus.Rejected) {
-                    errors.value = [configRes.message || "Failed to save provider config"];
-                    return;
+                const currentEntry = singleton.providers?.[provider.configId];
+                if (!_.isEqual(stagingConfig, currentEntry ?? {})) {
+                    singleton.providers[provider.configId] = _.cloneDeep(stagingConfig);
+                    const configRes = await configQuery.save(
+                        AUTH_PROVIDER_CONFIG_SINGLETON_ID,
+                    );
+                    if (configRes?.ack === AckStatus.Rejected) {
+                        errors.value = [
+                            configRes.message || "Failed to save provider config",
+                        ];
+                        return;
+                    }
                 }
             }
 
             editingProviderId.value = undefined;
-            stagingProviderConfig.value = undefined;
             closeModal();
             notification.addNotification({
                 title: creating ? `Provider ${label} created` : `Provider ${label} updated`,
@@ -437,6 +402,13 @@ export function useAuthProviders() {
         }
     }
 
+    /**
+     * Clone the current provider into a new editable and switch the modal to
+     * edit it. The carry-over of the user's in-progress JWT staging happens
+     * inside FormModal via its `prepareForDuplicate()` handoff — the parent
+     * view is expected to call that *before* invoking `duplicateProvider` so
+     * the staging watcher skips its reload on the id flip.
+     */
     function duplicateProvider() {
         const provider = currentProvider.value;
         if (!provider) return;
@@ -453,17 +425,8 @@ export function useAuthProviders() {
             clonedProvider.imageData.fileCollections = [];
         }
 
-        // Carry the current JWT config (which may be the user's in-progress
-        // staging copy) into the duplicate's staging buffer. The singleton
-        // itself is not touched until save.
-        const sourceStaged = stagingProviderConfig.value
-            ? _.cloneDeep(toRaw(stagingProviderConfig.value))
-            : {};
-
         providers.value.push(clonedProvider);
         editingProviderId.value = newId;
-        stagingProviderConfig.value = sourceStaged;
-        hasAttemptedSubmit.value = false;
 
         notification.addNotification({
             title: "Provider duplicated",
@@ -564,6 +527,7 @@ export function useAuthProviders() {
         groups,
         availableGroups,
         providers,
+        authProviderConfig,
         isLoadingProviders,
         defaultPermissions,
 
@@ -579,15 +543,12 @@ export function useAuthProviders() {
         editingProviderId,
         isEditing,
         currentProvider,
-        currentProviderConfig,
         isLoading,
         errors,
-        isDirty,
+        isFormDirty,
         isDirtyAny,
         providerIsModified,
-        hasAttemptedSubmit,
-        isFormValid,
-        providerValidations,
+        isProviderEdited,
 
         // Provider actions
         openCreateModal,

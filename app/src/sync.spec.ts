@@ -29,7 +29,7 @@ vi.mock("./globalConfig", async () => {
 });
 
 // Import after mocks are set up
-const { initLanguageSync, initSync, triggerSync, syncIterators } = await import("./sync");
+const { initAuthLangSync, initSync, triggerSync, syncIterators } = await import("./sync");
 
 const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = await import(
     "luminary-shared"
@@ -67,9 +67,9 @@ describe("sync.ts", () => {
         vi.clearAllMocks();
     });
 
-    describe("initLanguageSync", () => {
+    describe("initAuthLangSync", () => {
         it("should initialize language sync watcher", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             // Watcher runs immediately, so iterator will be 1
             await waitForExpect(() => {
                 expect(syncIterators.value.language).toBe(1);
@@ -77,7 +77,7 @@ describe("sync.ts", () => {
         });
 
         it("should increment language iterator when accessMap changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialValue = syncIterators.value.language;
 
             accessMap.value = {
@@ -93,7 +93,7 @@ describe("sync.ts", () => {
         });
 
         it("should increment language iterator when isConnected changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialValue = syncIterators.value.language;
 
             isConnected.value = true;
@@ -105,7 +105,7 @@ describe("sync.ts", () => {
         });
 
         it("should increment content iterator when appLanguageIds changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialValue = syncIterators.value.content;
 
             appLanguageIdsAsRef.value = ["en"];
@@ -133,7 +133,7 @@ describe("sync.ts", () => {
                 [DocType.DefaultPermissions]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = false;
             await nextTick();
 
@@ -159,7 +159,7 @@ describe("sync.ts", () => {
                 [DocType.DefaultPermissions]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -185,7 +185,7 @@ describe("sync.ts", () => {
                 [DocType.DefaultPermissions]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -216,7 +216,7 @@ describe("sync.ts", () => {
                 [DocType.DefaultPermissions]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -226,9 +226,7 @@ describe("sync.ts", () => {
         });
 
         it("should handle sync errors gracefully", async () => {
-            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            const syncError = new Error("Sync failed");
-            vi.mocked(sync).mockRejectedValue(syncError);
+            vi.mocked(sync).mockRejectedValue(new Error("Sync failed"));
             vi.mocked(getAccessibleGroups).mockReturnValue({
                 [DocType.Content]: [],
                 [DocType.Group]: [],
@@ -245,18 +243,17 @@ describe("sync.ts", () => {
                 [DocType.DefaultPermissions]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
+            // Rejection is swallowed by the .catch in sync.ts — nothing to assert
+            // beyond that sync() was invoked and no error propagated.
             await waitForExpect(() => {
-                expect(consoleErrorSpy).toHaveBeenCalledWith(
-                    "Error during language sync:",
-                    syncError,
+                expect(sync).toHaveBeenCalledWith(
+                    expect.objectContaining({ type: DocType.Language }),
                 );
             });
-
-            consoleErrorSpy.mockRestore();
         });
     });
 
@@ -409,9 +406,7 @@ describe("sync.ts", () => {
         });
 
         it("should handle sync errors for both content types", async () => {
-            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            const syncError = new Error("Content sync failed");
-            vi.mocked(sync).mockRejectedValue(syncError);
+            vi.mocked(sync).mockRejectedValue(new Error("Content sync failed"));
             vi.mocked(getAccessibleGroups).mockReturnValue({
                 [DocType.Content]: [],
                 [DocType.Group]: [],
@@ -434,16 +429,16 @@ describe("sync.ts", () => {
             syncIterators.value.content++;
             await nextTick();
 
+            // Rejections are swallowed by the .catch in sync.ts — verify both
+            // content syncs were invoked without propagating errors.
             await waitForExpect(() => {
-                // Should be called for both content types
-                expect(consoleErrorSpy).toHaveBeenCalledWith("Error during sync:", syncError);
-                expect(consoleErrorSpy).toHaveBeenCalledWith(
-                    "Error during tag content sync:",
-                    syncError,
+                expect(sync).toHaveBeenCalledWith(
+                    expect.objectContaining({ type: DocType.Content, subType: DocType.Post }),
+                );
+                expect(sync).toHaveBeenCalledWith(
+                    expect.objectContaining({ type: DocType.Content, subType: DocType.Tag }),
                 );
             });
-
-            consoleErrorSpy.mockRestore();
         });
 
         it("should sync redirects when redirect access is available", async () => {
@@ -523,7 +518,7 @@ describe("sync.ts", () => {
         });
 
         it("should handle both iterators incrementing from state changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
 

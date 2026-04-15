@@ -1,5 +1,5 @@
 import { DocType, Uuid } from "../enums";
-import { _baseDto } from "./_baseDto";
+import { _contentBaseDto } from "./_contentBaseDto";
 
 import {
     IsString,
@@ -83,6 +83,15 @@ export class AuthProviderGroupMapping {
  */
 export class AuthProviderProviderConfig {
     /**
+     * Groups granted access to this provider's JWT processing config entry.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    memberOf?: Uuid[];
+
+    /**
      * Custom namespace for JWT claims (e.g. https://yourdomain.com/metadata).
      */
     @IsString()
@@ -123,21 +132,12 @@ export class AuthProviderProviderConfig {
  * super-admins can view or edit it. Per-provider entries live under
  * `providers`, keyed by `AuthProviderDto.configId`.
  */
-export class AuthProviderConfigDto extends _baseDto {
+export class AuthProviderConfigDto extends _contentBaseDto {
     public constructor(init?: Partial<AuthProviderConfigDto>) {
         super();
         this.type = DocType.AuthProviderConfig;
         Object.assign(this, init);
     }
-
-    /**
-     * Group membership for sync and ACL — always enforced to
-     * `["group-super-admins"]` by `processAuthProviderConfigDto`.
-     */
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    public memberOf!: Uuid[];
 
     /**
      * Map of per-provider JWT processing settings, keyed by

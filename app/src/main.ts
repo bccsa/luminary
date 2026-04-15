@@ -3,14 +3,21 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import { setupAuth, resolveProviderId, openProviderModal } from "@/auth";
+import {
+    setupAuth,
+    resolveProviderId,
+    openProviderModal,
+    clearAuth0Cache,
+    getLastSelectedProvider,
+    loginWithProvider,
+} from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-import { initSync, initLanguageSync } from "./sync";
+import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 
 export const app = createApp(App);
@@ -67,13 +74,24 @@ async function Startup() {
     getSocket().connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
     await resolveProviderId();
 
-    getSocket().on("apiAuthFailed", () => {
-        console.error("API authentication failed, opening provider selection");
-        Sentry?.captureMessage("API authentication failed, opening provider selection");
-        openProviderModal();
+    // On auth failure: resolve the user's most recently selected provider BEFORE
+    // clearing the cache, then redirect straight to that provider's login. If
+    // we can't identify a previous provider, fall back to the selection modal.
+    getSocket().on("apiAuthFailed", async () => {
+        Sentry?.captureMessage("API authentication failed");
+        const lastProvider = await getLastSelectedProvider();
+        clearAuth0Cache();
+        const socket = getSocket();
+        socket.setAuth("", null);
+        socket.reconnect();
+        if (lastProvider) {
+            await loginWithProvider(lastProvider, { prompt: "login" });
+        } else {
+            openProviderModal();
+        }
     });
 
-    initLanguageSync();
+    initAuthLangSync();
     await initLanguage();
     initSync();
 

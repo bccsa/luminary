@@ -295,6 +295,8 @@ export type AuthProviderDto = BaseDocumentDto & {
  * AuthProviderConfigDto singleton's `providers` map.
  */
 export type AuthProviderProviderConfig = {
+    /** Groups granted access to this provider's JWT processing config entry. */
+    memberOf?: Uuid[];
     claimNamespace?: string;
     groupMappings?: AuthProviderGroupMapping[];
     /** Override standard OIDC claim paths (defaults: sub, email, name) */

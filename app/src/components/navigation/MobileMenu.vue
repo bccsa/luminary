@@ -23,7 +23,7 @@ const isSearchActive = computed(() => isSearchOpen.value);
 const isNavItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 // Store navigation items to avoid multiple function calls
-const navigationItems = computed(() => getNavigationItems());
+const navigationItems = computed(() => getNavigationItems(t));
 
 const handleSearchClick = () => {
     openSearch();

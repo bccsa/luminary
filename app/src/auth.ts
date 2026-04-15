@@ -7,15 +7,19 @@ import { setCustomHeader, removeCustomHeader, getSocket } from "luminary-shared"
 import { db, DocType } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
-const GUEST_DOMAIN = "guest.auth0.com";
-const GUEST_CLIENT_ID = "guest";
-const GUEST_AUDIENCE = "https://guest";
-
-/** Ref for the currently active OAuth provider document id (or null when guest). Used by shared HTTP to send x-auth-provider-id. */
+/** Ref for the currently active OAuth provider document id (or null when unauthenticated). Used by shared HTTP to send x-auth-provider-id. */
 export const activeProviderId = ref<string | null>(null);
 
 /** When true, the provider selection modal should be shown. */
 export const showProviderSelectionModal = ref(false);
+
+/**
+ * True once `setupAuth` has installed the Auth0 Vue plugin. Callers should
+ * check this before calling `useAuth0()` to avoid the
+ * `[Vue warn]: injection "Symbol($auth0)" not found` noise and the
+ * `"Please ensure Auth0's Vue plugin is correctly installed"` throw.
+ */
+export const isAuthPluginInstalled = ref(false);
 
 /**
  * Extract client_id from Auth0's native storage footprint (read-only).
@@ -42,19 +46,6 @@ export function readAuth0NativeStorage(): { client_id: string } | null {
     return null;
 }
 
-/** Wait until db.docs is ready (e.g. after init()). */
-async function waitForDbReady(): Promise<void> {
-    for (let i = 0; i < 100; i++) {
-        try {
-            await db.docs.count();
-            return;
-        } catch {
-            await new Promise((r) => setTimeout(r, 50));
-        }
-    }
-    throw new Error("auth: db.docs not ready");
-}
-
 /** Look up OAuthProvider doc by clientId in Dexie. */
 async function getProviderByClientId(clientId: string): Promise<AuthProviderDto | null> {
     const doc = await db.docs
@@ -65,31 +56,17 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
     return (doc as AuthProviderDto) ?? null;
 }
 
-function buildAuth0Options(provider: AuthProviderDto | null) {
-    const webOrigin = window.location.origin;
-    if (provider) {
-        return {
-            domain: provider.domain,
-            clientId: provider.clientId,
-            useRefreshTokens: true,
-            useRefreshTokensFallback: true,
-            cacheLocation: "localstorage" as const,
-            authorizationParams: {
-                audience: provider.audience,
-                scope: "openid profile email offline_access",
-                redirect_uri: webOrigin,
-            },
-        };
-    }
+function buildAuth0Options(provider: AuthProviderDto) {
     return {
-        domain: GUEST_DOMAIN,
-        clientId: GUEST_CLIENT_ID,
-        useRefreshTokens: false,
+        domain: provider.domain,
+        clientId: provider.clientId,
+        useRefreshTokens: true,
+        useRefreshTokensFallback: true,
         cacheLocation: "localstorage" as const,
         authorizationParams: {
-            audience: GUEST_AUDIENCE,
-            scope: "openid profile email",
-            redirect_uri: webOrigin,
+            audience: provider.audience,
+            scope: "openid profile email offline_access",
+            redirect_uri: window.location.origin,
         },
     };
 }
@@ -97,13 +74,12 @@ function buildAuth0Options(provider: AuthProviderDto | null) {
 export type AuthPlugin = Awaited<ReturnType<typeof setupAuth>>;
 
 /**
- * Setup Auth0: wait for db, read footprint, resolve provider from Dexie, then always install
- * createAuth0 (dummy config when no provider so useAuth0() never throws).
+ * Setup Auth0: read the storage footprint, resolve the provider from Dexie, and
+ * install createAuth0 only when a provider is found. With no provider the app
+ * runs unauthenticated — consumers of useAuth0() must handle the undefined case.
  */
 export async function setupAuth(app: App<Element>, router: Router) {
     app.config.globalProperties.$auth = null;
-
-    await waitForDbReady();
 
     const footprint = readAuth0NativeStorage();
 
@@ -111,11 +87,12 @@ export async function setupAuth(app: App<Element>, router: Router) {
     sessionStorage.removeItem("pending_provider");
 
     const provider = footprint ? await getProviderByClientId(footprint.client_id) : null;
-    const options = buildAuth0Options(provider);
+    if (!provider) return undefined;
 
-    const oauth = createAuth0(options, {
+    const oauth = createAuth0(buildAuth0Options(provider), {
         skipRedirectCallback: true,
     });
+    isAuthPluginInstalled.value = true;
 
     async function handleRedirectCallbackIfPresent(): Promise<{ handled: boolean; url: URL }> {
         const url = new URL(location.href);
@@ -138,40 +115,35 @@ export async function setupAuth(app: App<Element>, router: Router) {
     app.use(oauth);
 
     const { handled, url } = await handleRedirectCallbackIfPresent();
+
+    const effectiveProvider = handled
+        ? await (async () => {
+              const postFootprint = readAuth0NativeStorage();
+              return postFootprint
+                  ? await getProviderByClientId(postFootprint.client_id)
+                  : null;
+          })()
+        : provider;
+
+    if (effectiveProvider) {
+        activeProviderId.value = effectiveProvider._id;
+        setCustomHeader("x-auth-provider-id", effectiveProvider._id);
+    }
+
+    try {
+        const token = await oauth.getAccessTokenSilently();
+        if (token) {
+            setCustomHeader("Authorization", `Bearer ${token}`);
+            getSocket().setAuth(token, activeProviderId.value);
+            getSocket().reconnect();
+        }
+    } catch {
+        // The app has a valid unauthenticated state (public content), so swallow.
+    }
+
     if (handled) {
-        const postFootprint = readAuth0NativeStorage();
-        if (postFootprint) {
-            const resolvedProvider = await getProviderByClientId(postFootprint.client_id);
-            if (resolvedProvider) {
-                activeProviderId.value = resolvedProvider._id;
-                setCustomHeader("x-auth-provider-id", resolvedProvider._id);
-            }
-        }
-        try {
-            const token = await oauth.getAccessTokenSilently();
-            if (token) {
-                setCustomHeader("Authorization", `Bearer ${token}`);
-                getSocket().setAuth(token, activeProviderId.value);
-                getSocket().reconnect();
-            }
-        } catch {
-            // not authenticated
-        }
         const path = url.pathname + (url.hash || "");
         router.replace(path || "/").catch(() => {});
-    } else if (provider) {
-        activeProviderId.value = provider._id;
-        setCustomHeader("x-auth-provider-id", provider._id);
-        try {
-            const token = await oauth.getAccessTokenSilently();
-            if (token) {
-                setCustomHeader("Authorization", `Bearer ${token}`);
-                getSocket().setAuth(token, activeProviderId.value);
-                getSocket().reconnect();
-            }
-        } catch {
-            // not authenticated
-        }
     }
 
     await new Promise<void>((resolve) => {
@@ -189,16 +161,6 @@ export async function setupAuth(app: App<Element>, router: Router) {
             },
         );
     });
-
-    // Intercept the SDK's login method. If no provider is active, show the modal instead.
-    const originalLoginWithRedirect = oauth.loginWithRedirect;
-    oauth.loginWithRedirect = async (opts?: any) => {
-        if (!activeProviderId.value) {
-            openProviderModal();
-            return;
-        }
-        return originalLoginWithRedirect(opts);
-    };
 
     return oauth;
 }
@@ -236,21 +198,17 @@ export async function loginWithProvider(
 
 /**
  * Clear Auth0 native cache keys, active provider id, and shared token.
- * Use when switching provider or logging out.
+ * Use when switching provider or logging out. Callers are responsible for
+ * refreshing any downstream state (e.g. reconnecting the socket) afterwards.
  */
 export function clearAuth0Cache(): void {
     activeProviderId.value = null;
     removeCustomHeader("Authorization");
     removeCustomHeader("x-auth-provider-id");
 
-    try {
-        const socket = getSocket();
-        socket.setAuth("", null);
-        socket.reconnect();
-    } catch {
-        // socket may not be initialized yet
-    }
-
+    // NOTE: these storage key prefixes are specific to the Auth0 SPA SDK. If we
+    // add non-Auth0 OIDC providers, this cleanup will need to be made generic
+    // (or delegated to each provider adapter).
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -269,6 +227,22 @@ export function clearAuth0Cache(): void {
 /** Open the provider selection modal (e.g. on apiAuthFailed). */
 export function openProviderModal(): void {
     showProviderSelectionModal.value = true;
+}
+
+/**
+ * Resolve the auth provider the user most recently used by reading the Auth0
+ * storage footprint and looking it up in Dexie. Call BEFORE clearAuth0Cache(),
+ * otherwise the footprint will have been wiped.
+ */
+export async function getLastSelectedProvider(): Promise<AuthProviderDto | null> {
+    const footprint = readAuth0NativeStorage();
+    if (!footprint?.client_id) return null;
+    try {
+        return await getProviderByClientId(footprint.client_id);
+    } catch (e) {
+        Sentry?.captureException(e);
+        return null;
+    }
 }
 
 /**

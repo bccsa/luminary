@@ -55,9 +55,13 @@ watch(
 );
 
 /**
- * Initialize language document sync watcher.
+ * Initialize auth-provider and language document sync watcher.
+ *
+ * DefaultPermissions and AuthProviderConfig are intentionally NOT synced here:
+ * they are edited directly against the API via ApiLiveQuery, so there is no
+ * need to mirror them into Dexie for offline editing.
  */
-export function initLanguageSync() {
+export function initAuthLangSync() {
     watch(
         () => syncIterators.value.language,
         async () => {
@@ -70,20 +74,6 @@ export function initLanguageSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
-            // Sync global config
-            if (access[DocType.DefaultPermissions] && access[DocType.DefaultPermissions].length) {
-                sync({
-                    type: DocType.DefaultPermissions,
-                    memberOf: access[DocType.DefaultPermissions],
-                    limit: 100,
-                    cms: true,
-                    includeDeleteCmds: false,
-                }).catch((err) => {
-                    console.error("Error during global config sync:", err);
-                    Sentry?.captureException(err);
-                });
-            }
-
             // Sync auth providers
             if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
                 sync({
@@ -94,20 +84,6 @@ export function initLanguageSync() {
                     includeDeleteCmds: true,
                 }).catch((err) => {
                     console.error("Error during auth provider sync:", err);
-                    Sentry?.captureException(err);
-                });
-            }
-
-            // Sync auth provider configs
-            if (access[DocType.AuthProviderConfig] && access[DocType.AuthProviderConfig].length) {
-                sync({
-                    type: DocType.AuthProviderConfig,
-                    memberOf: access[DocType.AuthProviderConfig],
-                    limit: 100,
-                    cms: true,
-                    includeDeleteCmds: true,
-                }).catch((err) => {
-                    console.error("Error during auth provider config sync:", err);
                     Sentry?.captureException(err);
                 });
             }

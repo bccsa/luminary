@@ -3,8 +3,8 @@ import processDefaultPermissionsDto from "./processDefaultPermissionsDto";
 import { DefaultPermissionsDto } from "src/dto/DefaultPermissionsDto";
 
 // defaultPermissions is a singleton document that controls which groups are automatically
-// assigned to every user (defaultGroups). Its _id is always "defaultPermissions" and its
-// memberOf is always ["group-super-admins"] so only super-admins can edit it via ACL.
+// assigned to every user (defaultGroups). Its _id is always "defaultPermissions"; memberOf
+// is assigned by the caller like other docTypes and enforced via ACL.
 
 describe("processDefaultPermissionsDto", () => {
     it("enforces the singleton _id of 'defaultPermissions' to prevent duplicate docs", async () => {
@@ -31,16 +31,16 @@ describe("processDefaultPermissionsDto", () => {
         expect(doc._id).toBe("defaultPermissions");
     });
 
-    it("locks memberOf to ['group-super-admins'] to prevent privilege escalation on the singleton", async () => {
+    it("preserves caller-supplied memberOf so it can be assigned like other docTypes", async () => {
         const doc = {
             _id: "defaultPermissions",
-            memberOf: ["group-public", "group-editors"],
+            memberOf: ["group-super-admins", "group-editors"],
             defaultGroups: [],
         } as unknown as DefaultPermissionsDto;
 
         await processDefaultPermissionsDto(doc);
 
-        expect(doc.memberOf).toEqual(["group-super-admins"]);
+        expect(doc.memberOf).toEqual(["group-super-admins", "group-editors"]);
     });
 
     it("preserves defaultGroups unchanged — these are the groups auto-assigned to every user", async () => {

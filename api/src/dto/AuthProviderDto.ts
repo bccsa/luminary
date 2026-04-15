@@ -1,7 +1,7 @@
-import { DocType, Uuid } from "../enums";
-import { _baseDto } from "./_baseDto";
+import { DocType } from "../enums";
+import { _contentBaseDto } from "./_contentBaseDto";
 
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsObject, IsNumber } from "class-validator";
+import { IsString, IsNotEmpty, IsOptional, IsObject, IsNumber } from "class-validator";
 import { Expose } from "class-transformer";
 
 /**
@@ -13,21 +13,12 @@ import { Expose } from "class-transformer";
  * addressed via `configId` — a UUID that keys this provider's entry inside the
  * singleton's `providers` map.
  */
-export class AuthProviderDto extends _baseDto {
+export class AuthProviderDto extends _contentBaseDto {
     public constructor(init?: Partial<AuthProviderDto>) {
         super();
         this.type = DocType.AuthProvider;
         Object.assign(this, init);
     }
-
-    /**
-     * Group membership for sync and ACL.
-     */
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    public memberOf?: Uuid[];
 
     /**
      * OIDC issuer domain (e.g. auth.example.com)

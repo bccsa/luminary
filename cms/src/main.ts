@@ -9,7 +9,7 @@ import { apiUrl, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
-import { initLanguageSync, initSync } from "./sync";
+import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
@@ -92,13 +92,21 @@ async function Startup() {
     const socket = getSocket();
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // On auth failure: clear the stale cache and prompt the user to re-select a provider
+    // On auth failure: resolve the user's most recently selected provider BEFORE
+    // clearing the cache, then redirect straight to that provider's login. If
+    // we can't identify a previous provider, fall back to the selection modal.
     if (!isAuthBypassed) {
-        socket.on("apiAuthFailed", () => {
-            console.error("API authentication failed");
+        socket.on("apiAuthFailed", async () => {
             Sentry.captureMessage("API authentication failed");
+            const lastProvider = await auth.getLastSelectedProvider();
             auth.clearAuth0Cache();
-            auth.openProviderModal();
+            socket.setAuth("", null);
+            socket.reconnect();
+            if (lastProvider) {
+                await auth.loginWithProvider(lastProvider, { prompt: "login" });
+            } else {
+                auth.openProviderModal();
+            }
         });
     }
 
@@ -125,7 +133,7 @@ async function Startup() {
         }
     });
 
-    initLanguageSync();
+    initAuthLangSync();
     await initLanguage();
     initSync();
 

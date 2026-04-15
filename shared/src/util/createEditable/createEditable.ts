@@ -37,22 +37,37 @@ export function createEditable<T extends BaseDocumentDto>(
     ) as Ref<Array<T>>;
     const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
 
-    const source_filtered = computed(() =>
-        source.value
-            .map((item) => _applyFilter(item))
-            .filter((item) => item !== undefined),
+    const source_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
+    watch(
+        source,
+        () => {
+            source_filtered.value = source.value
+                .map((item) => _applyFilter(item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
     );
 
-    const editable_filtered = computed(() =>
-        editable.value
-            .map((item) => _applyFilter(item))
-            .filter((item) => item !== undefined),
+    const editable_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
+    watch(
+        editable,
+        () => {
+            editable_filtered.value = editable.value
+                .map((item) => _applyFilter(item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
     );
 
-    const shadow_filtered = computed(() =>
-        shadow.value
-            .map((item) => _applyFilter(item))
-            .filter((item) => item !== undefined),
+    const shadow_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
+    watch(
+        shadow,
+        () => {
+            shadow_filtered.value = shadow.value
+                .map((item) => _applyFilter(item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
     );
 
     // monitor the source array for changes and update the shadow copy and editable copy accordingly

@@ -6,8 +6,9 @@ import {
 import { useAuth0 } from "@auth0/auth0-vue";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { ref } from "vue";
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import waitForExpect from "wait-for-expect";
+import { isAuthPluginInstalled } from "@/auth";
 
 // Mock Auth0
 vi.mock("@auth0/auth0-vue", () => ({
@@ -77,6 +78,13 @@ describe("useAuthWithPrivacyPolicy", () => {
         (userPreferencesAsRef as any).value = userPreferencesMock.value; // Necessary cast
         showPrivacyPolicyModal.value = false;
         hasPendingLogin.value = false;
+        // Tests mock useAuth0; pretend the plugin is installed so the
+        // composable actually calls it instead of short-circuiting.
+        isAuthPluginInstalled.value = true;
+    });
+
+    afterEach(() => {
+        isAuthPluginInstalled.value = false;
     });
 
     it("loginWithRedirect calls originalLoginWithRedirect when privacy policy is accepted", () => {
@@ -144,8 +152,8 @@ describe("useAuthWithPrivacyPolicy", () => {
         });
     });
 
-    it("returns fallback object when useAuth0 returns undefined", () => {
-        (useAuth0 as Mock).mockReturnValueOnce(undefined);
+    it("returns fallback object when the Auth0 plugin is not installed", () => {
+        isAuthPluginInstalled.value = false;
 
         const result = useAuthWithPrivacyPolicy();
 

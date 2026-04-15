@@ -10,10 +10,15 @@ import { useI18n } from "vue-i18n";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
+import { isAuthPluginInstalled } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const { t } = useI18n();
-const { isAuthenticated, logout } = useAuth0();
+// Only call useAuth0() if the plugin was actually installed at boot; otherwise
+// fall back to unauthenticated + no-op logout.
+const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
+const isAuthenticated = auth0?.isAuthenticated ?? computed(() => false);
+const logout = auth0?.logout ?? (() => {});
 const router = useRouter();
 
 const show = defineModel<boolean>("show");

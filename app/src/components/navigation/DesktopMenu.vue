@@ -16,7 +16,7 @@ const handleSearchClick = () => {
 <template>
     <nav class="flex items-center gap-4">
         <RouterLink
-            v-for="item in getNavigationItems()"
+            v-for="item in getNavigationItems(t)"
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive, navigate }"

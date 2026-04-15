@@ -12,6 +12,7 @@ import { ref } from "vue";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
+import { isAuthPluginInstalled } from "@/auth";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -34,10 +35,15 @@ describe("PrivacyPolicyModal.vue", () => {
 
         // Reset hasPendingLogin before each test
         hasPendingLogin.value = false;
+
+        // Tests mock useAuth0; pretend the plugin is installed so the
+        // component actually calls it instead of short-circuiting.
+        isAuthPluginInstalled.value = true;
     });
     afterEach(() => {
         vi.clearAllMocks();
         db.docs.clear();
+        isAuthPluginInstalled.value = false;
     });
 
     it("shows the privacy notification", async () => {

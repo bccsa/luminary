@@ -290,26 +290,6 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("starts with isDirty true (new item has no shadow)", () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.openCreateModal();
-                expect(c.isDirty.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("resets hasAttemptedSubmit to false", () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.openCreateModal();
-                expect(c.hasAttemptedSubmit.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
         it("each call generates a fresh provider with a new ID", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
@@ -387,91 +367,31 @@ describe("useAuthProviders", () => {
         });
     });
 
-    // ── isDirty tracking ─────────────────────────────────────────────────────
+    // ── isProviderEdited / isDirtyAny ────────────────────────────────────────
+    // Per-field dirty tracking + isDirty/isFormValid live in FormModal.vue
+    // after the refactor — see FormModal tests for label/domain/clientId/audience
+    // edit coverage. Here we only verify the composable's role in the route
+    // guard: isDirtyAny is a function of `showModal` AND the `isFormDirty` ref
+    // that FormModal writes back via v-model.
 
-    describe("isDirty tracking", () => {
-        it("becomes true immediately when a field changes while editing", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.providers.value).toHaveLength(1);
-                });
-                c.editProvider(c.providers.value[0]);
-                await waitForExpect(() => {
-                    expect(c.isDirty.value).toBe(false);
-                });
-                c.currentProvider.value!.label = "Changed Label";
-                await waitForExpect(() => {
-                    expect(c.isDirty.value).toBe(true);
-                });
-            } finally {
-                teardown();
-            }
-        });
-
-        it("resets to false when user types back to the original", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.providers.value).toHaveLength(1);
-                });
-                c.editProvider(c.providers.value[0]);
-                c.currentProvider.value!.label = "Changed";
-                await waitForExpect(() => {
-                    expect(c.isDirty.value).toBe(true);
-                });
-
-                // Type back to the original value
-                c.currentProvider.value!.label = "Test Provider";
-                await waitForExpect(() => {
-                    expect(c.isDirty.value).toBe(false);
-                });
-            } finally {
-                teardown();
-            }
-        });
-
-        it("stays true when the value is actually different", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.providers.value).toHaveLength(1);
-                });
-                c.editProvider(c.providers.value[0]);
-                c.currentProvider.value!.label = "Permanently Different";
-                await nextTick();
-                expect(c.isDirty.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("does not run the accuracy check for new providers (stays dirty)", async () => {
-            vi.useFakeTimers();
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.openCreateModal();
-                c.currentProvider.value!.label = "New Provider";
-                await nextTick();
-                expect(c.isDirty.value).toBe(true);
-                // No snapshot → accuracy check branch not taken → still dirty
-                vi.advanceTimersByTime(600);
-                await nextTick();
-                expect(c.isDirty.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("isDirtyAny is true only when both modal is open and isDirty is true", async () => {
+    describe("isDirtyAny route guard", () => {
+        it("is false when modal is closed", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 expect(c.isDirtyAny.value).toBe(false);
+            } finally {
+                teardown();
+            }
+        });
+
+        it("is true when the modal is open and FormModal reports dirty", async () => {
+            const [c, teardown] = withSetup(() => useAuthProviders());
+            try {
                 await waitForExpect(() => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                c.currentProvider.value!.label = "Changed";
+                c.isFormDirty.value = true; // simulate FormModal's v-model write
                 await nextTick();
                 expect(c.isDirtyAny.value).toBe(true);
                 c.closeModal();
@@ -481,20 +401,43 @@ describe("useAuthProviders", () => {
                 teardown();
             }
         });
+    });
 
-        it("resets to false when user types back to original after multiple changes", async () => {
+    // ── isProviderEdited ──────────────────────────────────────────────────────
+
+    describe("isProviderEdited", () => {
+        it("returns false for an unedited provider", async () => {
+            const [c, teardown] = withSetup(() => useAuthProviders());
+            try {
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                expect(c.isProviderEdited(c.providers.value[0]._id)).toBe(false);
+            } finally {
+                teardown();
+            }
+        });
+
+        it("returns true once the editable provider diverges from the shadow", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                c.currentProvider.value!.label = "One";
+                c.currentProvider.value!.label = "Changed";
                 await nextTick();
-                expect(c.isDirty.value).toBe(true);
-                c.currentProvider.value!.label = "Test Provider"; // type back to original
-                await nextTick();
-                expect(c.isDirty.value).toBe(false);
+                expect(c.isProviderEdited(c.providers.value[0]._id)).toBe(true);
+            } finally {
+                teardown();
+            }
+        });
+
+        it("returns false for an unknown id", () => {
+            const [c, teardown] = withSetup(() => useAuthProviders());
+            try {
+                expect(c.isProviderEdited("nope")).toBe(false);
+                expect(c.isProviderEdited(undefined)).toBe(false);
             } finally {
                 teardown();
             }
@@ -521,7 +464,7 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("resets isDirty to false after revert", async () => {
+        it("clears the provider's edited state after revert", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -530,10 +473,10 @@ describe("useAuthProviders", () => {
                 c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Changed";
                 await nextTick();
-                expect(c.isDirty.value).toBe(true);
+                expect(c.isProviderEdited(c.providers.value[0]._id)).toBe(true);
                 c.revertProvider();
                 await nextTick();
-                expect(c.isDirty.value).toBe(false);
+                expect(c.isProviderEdited(c.providers.value[0]._id)).toBe(false);
             } finally {
                 teardown();
             }
@@ -570,21 +513,21 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("resets isDirty, isEditing, errors and hasAttemptedSubmit on close", async () => {
+        it("resets isFormDirty, isEditing, and errors on close", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                c.currentProvider.value!.label = "Changed";
-                await nextTick();
+                c.isFormDirty.value = true; // simulate FormModal's v-model write
+                c.errors.value = ["boom"];
                 c.closeModal();
-                await nextTick();
-                expect(c.isDirty.value).toBe(false);
-                expect(c.isEditing.value).toBe(false);
-                expect(c.errors.value).toBeUndefined();
-                expect(c.hasAttemptedSubmit.value).toBe(false);
+                await waitForExpect(() => {
+                    expect(c.isFormDirty.value).toBe(false);
+                    expect(c.isEditing.value).toBe(false);
+                    expect(c.errors.value).toBeUndefined();
+                });
             } finally {
                 teardown();
             }
@@ -606,104 +549,15 @@ describe("useAuthProviders", () => {
         });
     });
 
-    // ── isFormValid ───────────────────────────────────────────────────────────
-
-    describe("isFormValid", () => {
-        it("is false when no modal is open", () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is false when label is empty", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, label: "" });
-                await nextTick();
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is false when domain is empty", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, domain: "" });
-                await nextTick();
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is false when clientId is empty", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, clientId: "" });
-                await nextTick();
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is false when audience is empty", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, audience: "" });
-                await nextTick();
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is true when all required fields are filled (editing)", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.providers.value).toHaveLength(1);
-                });
-                c.editProvider(c.providers.value[0]);
-                await nextTick();
-                expect(c.isFormValid.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is true when all required fields are filled (creating)", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.openCreateModal();
-                c.currentProvider.value!.label = "My Provider";
-                c.currentProvider.value!.domain = "test.auth0.com";
-                c.currentProvider.value!.clientId = "client-1";
-                c.currentProvider.value!.audience = "https://api.test.com";
-                await nextTick();
-                expect(c.isFormValid.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("is false for whitespace-only fields", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, label: "   " });
-                await nextTick();
-                expect(c.isFormValid.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-    });
+    // NOTE: `isFormValid` and per-field validation now live in FormModal.vue
+    // alongside the form they validate. See FormModal tests for coverage.
 
     // ── saveProvider (editing) ────────────────────────────────────────────────
+
+    // NOTE: `saveProvider` now trusts the caller to have validated the form
+    // (FormModal does this before emitting save). It no longer sets errors for
+    // empty fields — it persists whatever staging config it's handed. Form-level
+    // validation tests live in FormModal.spec.ts.
 
     describe("saveProvider (editing)", () => {
         it("closes the modal after a successful save", async () => {
@@ -714,34 +568,9 @@ describe("useAuthProviders", () => {
                 });
                 c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Updated Label";
-                await c.saveProvider();
+                await c.saveProvider({});
                 expect(c.showModal.value).toBe(false);
                 expect(c.isLoading.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("sets hasAttemptedSubmit to true when save is called (visible while form is invalid)", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                // Use an invalid form so the modal stays open and hasAttemptedSubmit remains set
-                c.editProvider({ ...mockProvider, label: "" });
-                await c.saveProvider();
-                expect(c.hasAttemptedSubmit.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("sets errors and keeps the modal open when the form is invalid", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.editProvider({ ...mockProvider, label: "" });
-                await c.saveProvider();
-                expect(c.errors.value).toBeDefined();
-                expect(c.errors.value!.length).toBeGreaterThan(0);
-                expect(c.showModal.value).toBe(true);
             } finally {
                 teardown();
             }
@@ -754,7 +583,7 @@ describe("useAuthProviders", () => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                await c.saveProvider();
+                await c.saveProvider({});
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -773,7 +602,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.domain = "new.auth0.com";
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
-                await c.saveProvider();
+                await c.saveProvider({});
                 expect(c.showModal.value).toBe(false);
                 expect(c.isLoading.value).toBe(false);
             } finally {
@@ -790,7 +619,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.domain = "new.auth0.com";
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
-                await c.saveProvider();
+                await c.saveProvider({});
                 c.openCreateModal();
                 expect(c.currentProvider.value?._id).not.toBe(firstId);
                 expect(c.currentProvider.value?.label).toBe("");
@@ -799,14 +628,19 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("sets errors and keeps the modal open when the form is invalid", async () => {
+        it("commits a non-empty stagingConfig into the singleton on save", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.openCreateModal();
-                // Leave required fields empty
-                await c.saveProvider();
-                expect(c.errors.value).toBeDefined();
-                expect(c.showModal.value).toBe(true);
+                const newConfigId = c.currentProvider.value!.configId!;
+                c.currentProvider.value!.label = "WithStaging";
+                c.currentProvider.value!.domain = "x.auth0.com";
+                c.currentProvider.value!.clientId = "client";
+                c.currentProvider.value!.audience = "https://api.x";
+                await c.saveProvider({ memberOf: ["group-super-admins"] });
+                expect(c.authProviderConfig.value?.providers?.[newConfigId]).toEqual({
+                    memberOf: ["group-super-admins"],
+                });
             } finally {
                 teardown();
             }

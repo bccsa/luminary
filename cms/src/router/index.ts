@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type NavigationGuard } from "vue-router";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { appName } from "@/globalConfig";
@@ -7,6 +7,24 @@ import NotFoundPage from "@/pages/NotFoundPage.vue";
 import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
+import { isAuthBypassed, isAuthPluginInstalled, openProviderModal } from "@/auth";
+
+/**
+ * Wraps Auth0's `authGuard` so the router doesn't crash when no provider was
+ * resolved at boot. In that state the Auth0 Vue plugin was never installed, so
+ * `authGuard` — which calls `useAuth0()` internally — would throw. We open the
+ * provider selection modal and let the navigation proceed so App.vue can
+ * mount; App.vue keeps the routed content hidden behind `v-if="isAuthenticated"`
+ * until the user picks a provider and logs in.
+ */
+const conditionalAuthGuard: NavigationGuard = async (to) => {
+    if (isAuthBypassed) return true;
+    if (!isAuthPluginInstalled.value) {
+        openProviderModal();
+        return true;
+    }
+    return authGuard(to);
+};
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -27,7 +45,7 @@ export const router = createRouter({
     routes: [
         {
             path: "/",
-            beforeEnter: authGuard,
+            beforeEnter: conditionalAuthGuard,
             redirect:
                 typeof import.meta.env.VITE_INITIAL_PAGE === "string" &&
                 import.meta.env.VITE_INITIAL_PAGE.trim() !== ""

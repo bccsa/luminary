@@ -1,6 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { computed, ref } from "vue";
 import { userPreferencesAsRef } from "@/globalConfig";
+import { isAuthPluginInstalled, openProviderModal } from "@/auth";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);
@@ -13,15 +14,17 @@ export const hasPendingLogin = ref(false);
  * Enhanced authentication composable that enforces privacy policy acceptance before login.
  */
 export function useAuthWithPrivacyPolicy() {
-    const auth0 = useAuth0();
+    // Only call useAuth0() if the plugin was actually installed at boot.
+    // Otherwise treat it as "not logged in" and fall back to the provider
+    // selection modal.
+    const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
 
-    // Guard against undefined auth0 (can happen in test environments)
     if (!auth0) {
         return {
             isAuthenticated: computed(() => false),
             user: computed(() => null),
             logout: () => {},
-            loginWithRedirect: () => {},
+            loginWithRedirect: () => openProviderModal(),
             isPrivacyPolicyAccepted: computed(() => false),
             showPrivacyPolicyModal,
             hasPendingLogin,

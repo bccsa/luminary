@@ -10,6 +10,8 @@ import { PlusIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
+import { computed, nextTick, ref, useTemplateRef } from "vue";
+import type { AuthProviderProviderConfig } from "luminary-shared";
 
 type Props = {
     onOpenMobileSidebar?: () => void;
@@ -21,6 +23,7 @@ const {
     groups,
     availableGroups,
     providers,
+    authProviderConfig,
     isLoadingProviders,
     defaultPermissions,
     canDelete,
@@ -30,16 +33,14 @@ const {
     showDeleteModal,
     providerToDelete,
     isEditing,
+    editingProviderId,
     currentProvider,
-    currentProviderConfig,
     isLoading,
     errors,
-    isDirty,
+    isFormDirty,
     isDirtyAny,
     providerIsModified,
-    hasAttemptedSubmit,
-    isFormValid,
-    providerValidations,
+    isProviderEdited,
     openCreateModal,
     editProvider,
     deleteProvider,
@@ -56,6 +57,27 @@ const {
     openDefaultGroupsDialog,
     saveDefaultGroups,
 } = useAuthProviders();
+
+// Provider edit-state (editable ≠ shadow) for the currently edited provider.
+// FormModal combines this with its local staging-diff to derive isDirty.
+const currentProviderIsEdited = computed(() => isProviderEdited(editingProviderId.value));
+
+// Imperative handle for FormModal's duplicate handoff — see prepareForDuplicate
+// in FormModal.vue for why this dance is needed.
+const formModalRef = useTemplateRef<{ prepareForDuplicate: () => void }>("formModalRef");
+
+const hasAttemptedSubmit = ref(false);
+
+async function handleSave(payload: { stagingConfig: AuthProviderProviderConfig }) {
+    await saveProvider(payload.stagingConfig);
+}
+
+function handleDuplicate() {
+    // Tell FormModal to preserve its staging across the upcoming provider swap,
+    // then clone the doc and flip editingProviderId via the composable.
+    formModalRef.value?.prepareForDuplicate();
+    duplicateProvider();
+}
 
 defineExpose({
     openCreateModal,
@@ -132,21 +154,21 @@ defineExpose({
 
     <!-- Create/Edit Provider Modal -->
     <FormModal
+        ref="formModalRef"
         v-model:isVisible="showModal"
         v-model:provider="currentProvider"
-        v-model:providerConfig="currentProviderConfig"
+        v-model:isDirty="isFormDirty"
+        v-model:hasAttemptedSubmit="hasAttemptedSubmit"
         :isEditing="isEditing"
         :isLoading="isLoading"
         :errors="errors"
         :availableGroups="availableGroups"
         :canDelete="canDelete"
-        :isFormValid="isFormValid"
-        :isDirty="isDirty"
-        :hasAttemptedSubmit="hasAttemptedSubmit"
-        :providerValidations="providerValidations"
-        @save="saveProvider"
+        :providerIsEdited="currentProviderIsEdited"
+        :authProviderConfig="authProviderConfig"
+        @save="handleSave"
         @delete="deleteProvider"
-        @duplicate="duplicateProvider"
+        @duplicate="handleDuplicate"
         @revert="revertProvider"
     />
 
