@@ -20,7 +20,7 @@ type Props = {
     onOpenMobileSidebar?: () => void;
 };
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     loading: false,
     shouldShowPageTitle: true,
     centered: false,
@@ -33,6 +33,12 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 const isEditLanguagePage = router.currentRoute.value.name === "language";
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("lg");
+
+const handleMobileSidebarToggle = () => {
+    if (isEditContentPage) router.push({ name: "overview" });
+    else if (isEditLanguagePage) router.push({ name: "languages" });
+    else props.onOpenMobileSidebar?.();
+};
 </script>
 
 <template>
@@ -50,13 +56,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                     type="button"
                     data-test="chevron-icon"
                     class="text-zinc-500 max-sm:ml-5"
-                    @click="
-                        () => {
-                            if (isEditContentPage) router.push({ name: 'overview' });
-                            else if (isEditLanguagePage) router.push({ name: 'languages' });
-                            else onOpenMobileSidebar?.();
-                        }
-                    "
+                    @click="handleMobileSidebarToggle"
                 >
                     <span class="sr-only">Open sidebar</span>
                     <Bars3Icon
