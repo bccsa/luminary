@@ -137,7 +137,14 @@ export class AuthIdentityService implements OnModuleInit {
         const assignedGroups = new Set<string>();
 
         for (const mapping of mappings) {
-            if (!mapping.groupId || !Array.isArray(mapping.conditions)) {
+            // TODO(post-migration): drop the legacy `groupId` fallback once every
+            // deployment has saved its AuthProviderConfig singleton at least once
+            // post-release — processAuthProviderConfigDto normalizes legacy docs
+            // on write, so this branch only covers read-before-first-save.
+            const legacyGroupId = (mapping as unknown as { groupId?: string }).groupId;
+            const groupIds =
+                mapping.groupIds ?? (legacyGroupId ? [legacyGroupId] : []);
+            if (groupIds.length === 0 || !Array.isArray(mapping.conditions)) {
                 continue;
             }
 
@@ -147,7 +154,7 @@ export class AuthIdentityService implements OnModuleInit {
             );
 
             if (isAssigned) {
-                assignedGroups.add(mapping.groupId);
+                for (const id of groupIds) assignedGroups.add(id);
             }
         }
 

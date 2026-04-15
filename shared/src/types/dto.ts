@@ -261,7 +261,12 @@ export type AuthProviderCondition = {
 };
 
 export type AuthProviderGroupMapping = {
-    groupId: string;
+    /**
+     * The _ids of the local groups to assign when all conditions match. Must
+     * contain at least one group; legacy `groupId` docs are normalized to
+     * `groupIds` by the API's processAuthProviderConfigDto.
+     */
+    groupIds: string[];
     conditions: AuthProviderCondition[];
 };
 

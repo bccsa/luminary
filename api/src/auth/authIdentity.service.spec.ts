@@ -63,7 +63,7 @@ describe("AuthIdentityService", () => {
     describe("evaluateGroupAssignments", () => {
         it("should assign group if 'authenticated' condition is met", () => {
             const mappings: AuthProviderGroupMapping[] = [
-                { groupId: "group-auth", conditions: [{ type: "authenticated" }] },
+                { groupIds: ["group-auth"], conditions: [{ type: "authenticated" }] },
             ];
             expect(service.evaluateGroupAssignments({}, mappings)).toContain("group-auth");
         });
@@ -71,7 +71,7 @@ describe("AuthIdentityService", () => {
         it("should handle 'claimEquals' properly", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
-                    groupId: "group-admin",
+                    groupIds: ["group-admin"],
                     conditions: [{ type: "claimEquals", claimPath: "role", value: "admin" }],
                 },
             ];
@@ -86,7 +86,7 @@ describe("AuthIdentityService", () => {
         it("should handle 'claimIn' when claim is a single string", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
-                    groupId: "group-staff",
+                    groupIds: ["group-staff"],
                     conditions: [
                         { type: "claimIn", claimPath: "department", values: ["sales", "it"] },
                     ],
@@ -103,7 +103,7 @@ describe("AuthIdentityService", () => {
         it("should handle 'claimIn' when claim is an array", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
-                    groupId: "group-managers",
+                    groupIds: ["group-managers"],
                     conditions: [
                         { type: "claimIn", claimPath: "roles", values: ["manager", "supervisor"] },
                     ],
@@ -120,7 +120,7 @@ describe("AuthIdentityService", () => {
         it("should support OR logic for a single group with multiple conditions", () => {
             const mappings: AuthProviderGroupMapping[] = [
                 {
-                    groupId: "group-or",
+                    groupIds: ["group-or"],
                     conditions: [
                         { type: "claimEquals", claimPath: "department", value: "executive" },
                         { type: "claimEquals", claimPath: "title", value: "ceo" },
@@ -142,6 +142,56 @@ describe("AuthIdentityService", () => {
                     mappings,
                 ),
             ).not.toContain("group-or");
+        });
+
+        it("should assign every group in groupIds when the mapping matches", () => {
+            const mappings: AuthProviderGroupMapping[] = [
+                {
+                    groupIds: ["group-editors", "group-reviewers"],
+                    conditions: [{ type: "claimEquals", claimPath: "role", value: "editor" }],
+                },
+            ];
+            const assigned = service.evaluateGroupAssignments({ role: "editor" }, mappings);
+            expect(assigned).toEqual(
+                expect.arrayContaining(["group-editors", "group-reviewers"]),
+            );
+            expect(assigned).toHaveLength(2);
+        });
+
+        it("should de-duplicate across mappings assigning the same group", () => {
+            const mappings: AuthProviderGroupMapping[] = [
+                {
+                    groupIds: ["group-shared"],
+                    conditions: [{ type: "claimEquals", claimPath: "role", value: "editor" }],
+                },
+                {
+                    groupIds: ["group-shared", "group-extra"],
+                    conditions: [{ type: "authenticated" }],
+                },
+            ];
+            const assigned = service.evaluateGroupAssignments({ role: "editor" }, mappings);
+            expect(assigned.sort()).toEqual(["group-extra", "group-shared"]);
+        });
+
+        it("should fall back to legacy groupId when groupIds is absent (back-compat)", () => {
+            // TODO(post-migration): this test locks in the runtime fallback in
+            // evaluateGroupAssignments so its eventual removal is deliberate.
+            const legacyMappings = [
+                {
+                    groupId: "group-legacy",
+                    conditions: [{ type: "authenticated" }],
+                },
+            ] as unknown as AuthProviderGroupMapping[];
+            expect(service.evaluateGroupAssignments({}, legacyMappings)).toContain(
+                "group-legacy",
+            );
+        });
+
+        it("should skip mappings with empty groupIds and no legacy fallback", () => {
+            const mappings: AuthProviderGroupMapping[] = [
+                { groupIds: [], conditions: [{ type: "authenticated" }] },
+            ];
+            expect(service.evaluateGroupAssignments({}, mappings)).toEqual([]);
         });
     });
 

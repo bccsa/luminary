@@ -44,26 +44,126 @@ describe("processAuthProviderConfigDto", () => {
         expect(doc.memberOf).toEqual(["group-super-admins", "group-editors"]);
     });
 
-it("preserves the providers map unchanged — these are the per-provider JWT settings", async () => {
-        const providers = {
-            "config-1": {
-                claimNamespace: "https://example.com/meta",
-                userFieldMappings: { externalUserId: "sub", email: "email", name: "name" },
-            },
-            "config-2": {
-                groupMappings: [
-                    { groupId: "group-editors", conditions: [{ type: "authenticated" }] },
-                ],
-            },
-        };
+    it("preserves non-mapping provider fields unchanged — these are the per-provider JWT settings", async () => {
         const doc = {
             _id: "authProviderConfig",
             memberOf: [],
-            providers,
+            providers: {
+                "config-1": {
+                    claimNamespace: "https://example.com/meta",
+                    userFieldMappings: { externalUserId: "sub", email: "email", name: "name" },
+                },
+                "config-2": {
+                    groupMappings: [
+                        { groupIds: ["group-editors"], conditions: [{ type: "authenticated" }] },
+                    ],
+                },
+            },
         } as unknown as AuthProviderConfigDto;
 
         await processAuthProviderConfigDto(doc);
 
-        expect(doc.providers).toEqual(providers);
+        expect(doc.providers["config-1"]).toEqual({
+            claimNamespace: "https://example.com/meta",
+            userFieldMappings: { externalUserId: "sub", email: "email", name: "name" },
+        });
+        expect(doc.providers["config-2"].groupMappings).toEqual([
+            { groupIds: ["group-editors"], conditions: [{ type: "authenticated" }] },
+        ]);
+    });
+
+    describe("groupMappings legacy-shape normalization", () => {
+        it("converts { groupId } to { groupIds: [groupId] } and drops the legacy key", async () => {
+            const doc = {
+                _id: "authProviderConfig",
+                memberOf: [],
+                providers: {
+                    "config-1": {
+                        groupMappings: [
+                            { groupId: "group-legacy", conditions: [{ type: "authenticated" }] },
+                        ],
+                    },
+                },
+            } as unknown as AuthProviderConfigDto;
+
+            await processAuthProviderConfigDto(doc);
+
+            const mapping = doc.providers["config-1"].groupMappings![0] as unknown as {
+                groupId?: string;
+                groupIds?: string[];
+            };
+            expect(mapping.groupIds).toEqual(["group-legacy"]);
+            expect(mapping.groupId).toBeUndefined();
+        });
+
+        it("prefers existing groupIds when both keys are present and drops the stray groupId", async () => {
+            const doc = {
+                _id: "authProviderConfig",
+                memberOf: [],
+                providers: {
+                    "config-1": {
+                        groupMappings: [
+                            {
+                                groupId: "group-stale",
+                                groupIds: ["group-new"],
+                                conditions: [{ type: "authenticated" }],
+                            },
+                        ],
+                    },
+                },
+            } as unknown as AuthProviderConfigDto;
+
+            await processAuthProviderConfigDto(doc);
+
+            const mapping = doc.providers["config-1"].groupMappings![0] as unknown as {
+                groupId?: string;
+                groupIds?: string[];
+            };
+            expect(mapping.groupIds).toEqual(["group-new"]);
+            expect(mapping.groupId).toBeUndefined();
+        });
+
+        it("produces an empty groupIds array when neither key is present", async () => {
+            const doc = {
+                _id: "authProviderConfig",
+                memberOf: [],
+                providers: {
+                    "config-1": {
+                        groupMappings: [{ conditions: [{ type: "authenticated" }] }],
+                    },
+                },
+            } as unknown as AuthProviderConfigDto;
+
+            await processAuthProviderConfigDto(doc);
+
+            expect(doc.providers["config-1"].groupMappings![0].groupIds).toEqual([]);
+        });
+
+        it("is a no-op when providers is missing", async () => {
+            const doc = {
+                _id: "authProviderConfig",
+                memberOf: [],
+            } as unknown as AuthProviderConfigDto;
+
+            await expect(processAuthProviderConfigDto(doc)).resolves.toBeUndefined();
+        });
+
+        it("is a no-op when a provider's groupMappings is missing or not an array", async () => {
+            const doc = {
+                _id: "authProviderConfig",
+                memberOf: [],
+                providers: {
+                    "config-1": { claimNamespace: "https://x/y" },
+                    "config-2": { groupMappings: "not-an-array" },
+                },
+            } as unknown as AuthProviderConfigDto;
+
+            await processAuthProviderConfigDto(doc);
+
+            expect(doc.providers["config-1"]).toEqual({ claimNamespace: "https://x/y" });
+            expect(
+                (doc.providers["config-2"] as unknown as { groupMappings: unknown }).groupMappings,
+            ).toBe("not-an-array");
+        });
     });
 });

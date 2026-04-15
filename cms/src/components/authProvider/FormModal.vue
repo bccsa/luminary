@@ -179,6 +179,15 @@ watch(
     { deep: true },
 );
 
+// Group mappings in the staged JWT config must each assign at least one group.
+// Empty `groupIds` matches what the API's class-validator @ArrayNotEmpty rejects,
+// and surfacing it client-side keeps the save button honest instead of
+// bouncing off server validation.
+const hasValidGroupMappings = computed(() => {
+    const mappings = stagingProviderConfig.value?.groupMappings ?? [];
+    return mappings.every((m) => Array.isArray(m.groupIds) && m.groupIds.length > 0);
+});
+
 const isFormValid = computed(() => {
     const p = provider.value;
     if (!p) return false;
@@ -186,7 +195,8 @@ const isFormValid = computed(() => {
     return (
         isValidDomain(p.domain ?? "") &&
         isValidClientId(p.clientId ?? "") &&
-        isValidAudience(p.audience ?? "")
+        isValidAudience(p.audience ?? "") &&
+        hasValidGroupMappings.value
     );
 });
 

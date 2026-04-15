@@ -23,12 +23,12 @@ const mockGroups: GroupDto[] = [
 ];
 
 const claimEqualsMapping: AuthProviderGroupMapping = {
-    groupId: "group-editors",
+    groupIds: ["group-editors"],
     conditions: [{ type: "claimEquals", claimPath: "role", value: "editor" }],
 };
 
 const claimInMapping: AuthProviderGroupMapping = {
-    groupId: "group-admins",
+    groupIds: ["group-admins"],
     conditions: [{ type: "claimIn", claimPath: "roles", values: ["admin", "superadmin"] }],
 };
 
@@ -64,7 +64,7 @@ describe("GroupMappings.vue", () => {
         expect(emitted).toBeDefined();
         const newList = emitted![0][0] as AuthProviderGroupMapping[];
         expect(newList).toHaveLength(1);
-        expect(newList[0].groupId).toBe("");
+        expect(newList[0].groupIds).toEqual([]);
         expect(newList[0].conditions).toEqual([]);
     });
 
@@ -88,14 +88,14 @@ describe("GroupMappings.vue", () => {
         expect(emitted).toBeDefined();
         const newList = emitted![0][0] as AuthProviderGroupMapping[];
         expect(newList).toHaveLength(1);
-        expect(newList[0].groupId).toBe("group-admins");
+        expect(newList[0].groupIds).toEqual(["group-admins"]);
     });
 
     // ── Condition summaries ───────────────────────────────────────────────────
 
     it("shows 'Assigned to all authenticated users' when mapping has no extra conditions", () => {
         const noConditionMapping: AuthProviderGroupMapping = {
-            groupId: "group-editors",
+            groupIds: ["group-editors"],
             conditions: [],
         };
         const wrapper = mount(GroupMappings, {
@@ -127,7 +127,7 @@ describe("GroupMappings.vue", () => {
     // ── Add condition ─────────────────────────────────────────────────────────
 
     it("emits 'update:modelValue' with a new claimEquals condition when '+ Add Condition' is clicked", async () => {
-        const emptyMapping: AuthProviderGroupMapping = { groupId: "", conditions: [] };
+        const emptyMapping: AuthProviderGroupMapping = { groupIds: [], conditions: [] };
         const wrapper = mount(GroupMappings, {
             props: { modelValue: [emptyMapping], availableGroups: mockGroups },
         });
@@ -173,7 +173,7 @@ describe("GroupMappings.vue", () => {
     });
 
     it("disables '+ Add Condition' and the remove-rule button when disabled prop is true", () => {
-        const emptyMapping: AuthProviderGroupMapping = { groupId: "", conditions: [] };
+        const emptyMapping: AuthProviderGroupMapping = { groupIds: [], conditions: [] };
         const wrapper = mount(GroupMappings, {
             props: { modelValue: [emptyMapping], availableGroups: mockGroups, disabled: true },
         });
@@ -184,5 +184,43 @@ describe("GroupMappings.vue", () => {
 
         const removeRuleBtn = wrapper.find("[aria-label='Remove rule']");
         expect((removeRuleBtn.element as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // ── Multi-group support ───────────────────────────────────────────────────
+
+    it("emits a new groupIds array with all selected groups when the internal selection changes", async () => {
+        const wrapper = mount(GroupMappings, {
+            props: {
+                modelValue: [{ groupIds: ["group-editors"], conditions: [] }],
+                availableGroups: mockGroups,
+            },
+        });
+
+        // Simulate LCombobox pushing another group into the per-row selection ref.
+        // The component's deep watcher should emit the full new groupIds array.
+        const vm = wrapper.vm as unknown as { groupSelectionByIndex: string[][] };
+        vm.groupSelectionByIndex[0].push("group-admins");
+        await wrapper.vm.$nextTick();
+
+        const emitted = wrapper.emitted("update:modelValue");
+        expect(emitted).toBeDefined();
+        const lastList = emitted!.at(-1)![0] as AuthProviderGroupMapping[];
+        expect(lastList[0].groupIds).toEqual(["group-editors", "group-admins"]);
+    });
+
+    it("normalizes legacy { groupId } mappings to the multi-select shape on render", () => {
+        // Existing singleton docs saved before the refactor still carry `groupId`.
+        // GroupMappings should render them correctly until the next save migrates
+        // them server-side via processAuthProviderConfigDto.
+        const legacyMapping = {
+            groupId: "group-editors",
+            conditions: [],
+        } as unknown as AuthProviderGroupMapping;
+        const wrapper = mount(GroupMappings, {
+            props: { modelValue: [legacyMapping], availableGroups: mockGroups },
+        });
+
+        const vm = wrapper.vm as unknown as { groupSelectionByIndex: string[][] };
+        expect(vm.groupSelectionByIndex[0]).toEqual(["group-editors"]);
     });
 });

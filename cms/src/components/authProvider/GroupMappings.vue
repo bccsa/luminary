@@ -32,11 +32,18 @@ const mappings = computed({
 });
 
 // Mutable refs per row so LCombobox (push/splice) can update selection; we sync to parent.
+// Each row is the set of group _ids assigned by that mapping when its conditions match.
 const groupSelectionByIndex = ref<string[][]>([]);
 watch(
     () => props.modelValue,
     (val) => {
-        groupSelectionByIndex.value = (val ?? []).map((m) => (m.groupId ? [m.groupId] : []));
+        groupSelectionByIndex.value = (val ?? []).map((m) => {
+            // Prefer new `groupIds`; fall back to legacy scalar `groupId` so mid-migration
+            // docs render correctly until the next save normalizes them server-side.
+            if (Array.isArray(m.groupIds)) return m.groupIds.slice();
+            const legacyId = (m as unknown as { groupId?: string }).groupId;
+            return legacyId ? [legacyId] : [];
+        });
     },
     { immediate: true },
 );
@@ -44,14 +51,20 @@ watch(
     groupSelectionByIndex,
     (rows) => {
         rows.forEach((arr, idx) => {
-            const groupId = arr.length ? arr[arr.length - 1] : "";
-            if (props.modelValue?.[idx]?.groupId !== groupId) {
-                updateMappingGroupId(idx, groupId);
+            const current = props.modelValue?.[idx]?.groupIds ?? [];
+            if (!arraysShallowEqual(current, arr)) {
+                updateMappingGroupIds(idx, arr.slice());
             }
         });
     },
     { deep: true },
 );
+
+function arraysShallowEqual(a: readonly string[], b: readonly string[]): boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+}
 
 const groupOptions = computed(() =>
     props.availableGroups.map((g) => ({
@@ -67,10 +80,12 @@ const filteredMappings = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     const indexed = mappings.value.map((m, i) => ({ mapping: m, originalIndex: i }));
     if (!q) return indexed;
-    return indexed.filter(({ mapping }) => {
-        const group = props.availableGroups.find((g) => g._id === mapping.groupId);
-        return group?.name?.toLowerCase().includes(q) ?? false;
-    });
+    return indexed.filter(({ mapping }) =>
+        (mapping.groupIds ?? []).some((id) => {
+            const group = props.availableGroups.find((g) => g._id === id);
+            return group?.name?.toLowerCase().includes(q) ?? false;
+        }),
+    );
 });
 
 const CONDITION_TYPES: {
@@ -138,7 +153,7 @@ function addGroupMapping() {
     searchQuery.value = "";
     const list = [...(props.modelValue ?? [])];
     list.push({
-        groupId: "",
+        groupIds: [],
         conditions: [],
     });
     emit("update:modelValue", list);
@@ -208,12 +223,12 @@ function setConditionType(
     emit("update:modelValue", next);
 }
 
-function updateMappingGroupId(mappingIdx: number, groupId: string) {
+function updateMappingGroupIds(mappingIdx: number, groupIds: string[]) {
     const list = props.modelValue ?? [];
     const mapping = list[mappingIdx];
     if (!mapping) return;
     const next = list.slice();
-    next[mappingIdx] = { ...mapping, groupId };
+    next[mappingIdx] = { ...mapping, groupIds };
     emit("update:modelValue", next);
 }
 
@@ -265,8 +280,9 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             <div>
                 <label class="text-sm font-medium text-gray-800">Group Assignments</label>
                 <p class="mt-0.5 text-[11px] text-gray-400">
-                    Assign a group when all conditions are true (AND). e.g. Assign "St Mary's
-                    Editors" if Authenticated and churchName equals "St Mary's".
+                    Assign one or more groups when all conditions are true (AND). e.g. Assign
+                    "St Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName
+                    equals "St Mary's".
                 </p>
             </div>
             <LButton
@@ -308,8 +324,8 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                     :show-selected-in-dropdown="false"
                     :placeholder="
                         groupSelectionByIndex[aIdx]?.length
-                            ? 'Change group assignment...'
-                            : 'Select group to assign...'
+                            ? 'Add or remove groups...'
+                            : 'Select groups to assign...'
                     "
                     :inline-tags="true"
                     no-border

@@ -36,7 +36,7 @@ interface AuthProviderCondition {
 }
 
 interface AuthProviderGroupMapping {
-    groupId: string;
+    groupIds: string[];
     conditions: AuthProviderCondition[];
 }
 
@@ -45,7 +45,7 @@ interface AuthProviderGroupMapping {
 const AUTO_MEMBER_OF = ["group-super-admins", "group-public-users"];
 const AUTO_DEFAULT_GROUPS = ["group-public-users"];
 const AUTO_GROUP_MAPPINGS: AuthProviderGroupMapping[] = [
-    { groupId: "group-public-users", conditions: [{ type: "authenticated" }] },
+    { groupIds: ["group-public-users"], conditions: [{ type: "authenticated" }] },
 ];
 
 interface AuthProviderProviderConfig {
@@ -204,10 +204,20 @@ async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
     const mappings: AuthProviderGroupMapping[] = [];
 
     while (true) {
-        const groupId = await prompt("  Group ID (or blank to finish): ");
-        if (!groupId) break;
+        const groupsRaw = await prompt(
+            "  Group IDs (comma-separated, or blank to finish): ",
+        );
+        if (!groupsRaw) break;
+        const groupIds = groupsRaw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        if (groupIds.length === 0) {
+            console.log("  No valid group IDs, skipping.");
+            continue;
+        }
 
-        console.log(`  Condition type for '${groupId}':`);
+        console.log(`  Condition type for [${groupIds.join(", ")}]:`);
         console.log("    1) authenticated  — any successfully authenticated user");
         console.log("    2) claimEquals    — a JWT claim equals a specific value");
         console.log("    3) claimIn        — a JWT claim is one of a list of values");
@@ -242,7 +252,7 @@ async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
                 continue;
         }
 
-        mappings.push({ groupId, conditions: [condition] });
+        mappings.push({ groupIds, conditions: [condition] });
     }
 
     return mappings;
@@ -337,15 +347,20 @@ async function addAuthProvider(): Promise<string | null> {
     console.log("");
     console.log("Group mappings: rules that assign authenticated users to local groups.");
     console.log(
-        `  Auto-included: ${AUTO_GROUP_MAPPINGS.map((m) => m.groupId).join(", ")} (authenticated)`,
+        `  Auto-included: ${AUTO_GROUP_MAPPINGS.map((m) => `[${m.groupIds.join(", ")}]`).join(
+            ", ",
+        )} (authenticated)`,
     );
-    console.log("  Enter additional mappings one by one. Leave group ID blank to finish.");
+    console.log("  Enter additional mappings one by one. Leave group IDs blank to finish.");
     console.log("");
     const extraMappings = await collectGroupMappings();
 
-    // Merge auto + extra mappings, letting extra mappings override auto ones for the same groupId
+    // Merge auto + extra mappings, keyed on a sorted-joined groupIds signature so an
+    // extra mapping that targets exactly the same set of groups as an auto-included
+    // one overrides it. Different group sets are kept as distinct rules.
+    const sig = (m: AuthProviderGroupMapping) => [...m.groupIds].sort().join(",");
     const groupMappings = [
-        ...AUTO_GROUP_MAPPINGS.filter((m) => !extraMappings.some((e) => e.groupId === m.groupId)),
+        ...AUTO_GROUP_MAPPINGS.filter((a) => !extraMappings.some((e) => sig(e) === sig(a))),
         ...extraMappings,
     ];
 

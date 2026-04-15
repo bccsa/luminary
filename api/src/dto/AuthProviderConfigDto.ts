@@ -6,6 +6,7 @@ import {
     IsNotEmpty,
     IsOptional,
     IsArray,
+    ArrayNotEmpty,
     IsObject,
     ValidateNested,
 } from "class-validator";
@@ -54,17 +55,21 @@ export class AuthProviderCondition {
 }
 
 /**
- * Maps a remote JWT shape to a local group: if all `conditions` pass for an
- * incoming user, they are granted membership in `groupId`.
+ * Maps a remote JWT shape to one or more local groups: if all `conditions`
+ * pass for an incoming user, they are granted membership in every entry of
+ * `groupIds`.
  */
 export class AuthProviderGroupMapping {
     /**
-     * The _id of the local group to assign when all conditions match.
+     * The _ids of the local groups to assign when all conditions match. Must
+     * contain at least one group; legacy `groupId` docs are normalized to
+     * `groupIds` by `processAuthProviderConfigDto`.
      */
-    @IsString()
-    @IsNotEmpty()
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
     @Expose()
-    groupId!: string;
+    groupIds!: string[];
 
     /**
      * Conditions evaluated with AND semantics — every condition must pass for
