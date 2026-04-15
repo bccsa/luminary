@@ -77,6 +77,8 @@ const port = randomPort();
 
 let providerSearchDocs: AuthProviderDto[] = [];
 let configSearchDocs: AuthProviderConfigDto[] = [];
+let defaultPermissionsSearchDocs: DefaultPermissionsDto[] = [];
+let lastChangeRequest: any = null;
 
 expressApp.get("/search", (req, res) => {
     const query = JSON.parse(req.headers["x-query"] as string);
@@ -85,12 +87,15 @@ expressApp.get("/search", (req, res) => {
         res.end(JSON.stringify({ docs: providerSearchDocs }));
     } else if (query.types?.includes(DocType.AuthProviderConfig)) {
         res.end(JSON.stringify({ docs: configSearchDocs }));
+    } else if (query.types?.includes(DocType.DefaultPermissions)) {
+        res.end(JSON.stringify({ docs: defaultPermissionsSearchDocs }));
     } else {
         res.end(JSON.stringify({ docs: [] }));
     }
 });
 
-expressApp.post("/changerequest", (_req, res) => {
+expressApp.post("/changerequest", (req, res) => {
+    lastChangeRequest = req.body;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ack: AckStatus.Accepted }));
 });
@@ -140,6 +145,8 @@ describe("useAuthProviders", () => {
         isConnected.value = true;
         providerSearchDocs = [mockProvider];
         configSearchDocs = [mockConfig];
+        defaultPermissionsSearchDocs = [];
+        lastChangeRequest = null;
     });
 
     afterEach(async () => {
@@ -188,8 +195,8 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("loads defaultPermissions from Dexie", async () => {
-            await db.docs.put(mockDefaultPermissions);
+        it("loads defaultPermissions from the API", async () => {
+            defaultPermissionsSearchDocs = [mockDefaultPermissions];
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -739,8 +746,8 @@ describe("useAuthProviders", () => {
     // ── default groups ────────────────────────────────────────────────────────
 
     describe("default groups", () => {
-        beforeEach(async () => {
-            await db.docs.put(mockDefaultPermissions);
+        beforeEach(() => {
+            defaultPermissionsSearchDocs = [mockDefaultPermissions];
         });
 
         it("openDefaultGroupsDialog opens the dialog with the current defaultGroups", async () => {
@@ -786,7 +793,7 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("saveDefaultGroups persists changes to Dexie and closes the dialog", async () => {
+        it("saveDefaultGroups persists changes via a change request and closes the dialog", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -796,8 +803,8 @@ describe("useAuthProviders", () => {
                 c.editableDefaultGroups.value = [];
                 await c.saveDefaultGroups();
                 expect(c.showDefaultGroupsDialog.value).toBe(false);
-                const saved = (await db.docs.get("default-permissions-1")) as DefaultPermissionsDto;
-                expect(saved?.defaultGroups).toEqual([]);
+                expect(lastChangeRequest?.doc?._id).toBe("default-permissions-1");
+                expect(lastChangeRequest?.doc?.defaultGroups).toEqual([]);
             } finally {
                 teardown();
             }
@@ -818,14 +825,15 @@ describe("useAuthProviders", () => {
         });
 
         it("saveDefaultGroups is a no-op when defaultPermissions has not loaded", async () => {
-            // Remove the defaultPermissions doc so the live query returns undefined
-            await db.docs.delete("default-permissions-1");
+            // Have the API return no DefaultPermissions doc so the query stays empty
+            defaultPermissionsSearchDocs = [];
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.showDefaultGroupsDialog.value = true;
                 await c.saveDefaultGroups();
                 // Dialog should remain open (early return)
                 expect(c.showDefaultGroupsDialog.value).toBe(true);
+                expect(lastChangeRequest).toBeNull();
             } finally {
                 teardown();
             }
