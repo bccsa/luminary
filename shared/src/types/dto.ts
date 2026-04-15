@@ -246,9 +246,8 @@ export type ApiQueryResult<T> = {
     contentOnly?: boolean;
 };
 
-export type DefaultPermissionsDto = BaseDocumentDto & {
+export type DefaultPermissionsDto = ContentBaseDto & {
     type: DocType.DefaultPermissions;
-    memberOf: Uuid[];
     defaultGroups: Uuid[];
 };
 

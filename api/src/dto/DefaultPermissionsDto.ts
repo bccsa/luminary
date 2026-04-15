@@ -1,5 +1,5 @@
 import { DocType, Uuid } from "../enums";
-import { _baseDto } from "./_baseDto";
+import { _contentBaseDto } from "./_contentBaseDto";
 import { IsArray, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 
@@ -13,21 +13,12 @@ import { Expose } from "class-transformer";
  * document itself is locked to the super-admins group via `memberOf` so only
  * super-admins can modify the platform-wide defaults.
  */
-export class DefaultPermissionsDto extends _baseDto {
+export class DefaultPermissionsDto extends _contentBaseDto {
     public constructor(init?: Partial<DefaultPermissionsDto>) {
         super();
         this.type = DocType.DefaultPermissions;
         Object.assign(this, init);
     }
-
-    /**
-     * Group membership for sync and ACL.
-     * Always enforced to ["group-super-admins"] by processDefaultPermissionsDto.
-     */
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    public memberOf!: Uuid[];
 
     /**
      * Group IDs automatically assigned to all users unauthenticated or authenticated.
