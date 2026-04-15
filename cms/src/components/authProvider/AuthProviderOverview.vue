@@ -10,7 +10,7 @@ import { PlusIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
-import { computed, nextTick, ref, useTemplateRef } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 import type { AuthProviderProviderConfig } from "luminary-shared";
 
 type Props = {

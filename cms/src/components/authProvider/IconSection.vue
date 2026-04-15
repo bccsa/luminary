@@ -108,7 +108,7 @@ watch(
         </div>
         <div class="mt-2">
             <label for="icon-opacity" class="mb-1 block text-xs font-medium text-gray-700">
-                Icon transparency
+                Icon Opacity
             </label>
             <div class="flex items-center gap-2">
                 <input

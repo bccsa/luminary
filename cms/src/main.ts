@@ -86,7 +86,7 @@ async function Startup() {
         Sentry.captureException(err);
     });
 
-    await auth.setupAuth(app, router);
+    await auth.setupAuth(app);
     await auth.resolveProviderId();
 
     const socket = getSocket();

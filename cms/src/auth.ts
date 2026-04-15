@@ -1,7 +1,6 @@
 import { createAuth0 } from "@auth0/auth0-vue";
 import { createAuth0Client } from "@auth0/auth0-spa-js";
 import { type App, ref, watch } from "vue";
-import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { setCustomHeader, removeCustomHeader, getSocket } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
@@ -108,7 +107,7 @@ export type AuthPlugin = Awaited<ReturnType<typeof setupAuth>>;
  * runs unauthenticated — consumers of useAuth0() must handle the undefined case.
  * In bypass mode, returns a mock auth plugin.
  */
-export async function setupAuth(app: App<Element>, router: Router) {
+export async function setupAuth(app: App<Element>) {
     if (isAuthBypassed) {
         console.warn(
             "⚠️ Auth bypass mode enabled - this should only be used for development/E2E testing",
@@ -188,8 +187,8 @@ export async function setupAuth(app: App<Element>, router: Router) {
     }
 
     if (handled) {
-        const path = url.pathname + (url.hash || "");
-        router.replace(path || "/").catch(() => {});
+        const path = (url.pathname + (url.hash || "")) || "/";
+        history.replaceState(history.state, "", path);
     }
 
     await new Promise<void>((resolve) => {

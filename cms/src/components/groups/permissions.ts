@@ -38,6 +38,13 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Delete,
     ],
+    [DocType.AuthProvider]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.Assign,
+    ],
+    [DocType.AuthProviderConfig]: [AclPermission.View, AclPermission.Edit],
 };
 
 /**
