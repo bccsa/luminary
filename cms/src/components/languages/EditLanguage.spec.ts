@@ -13,7 +13,6 @@ import {
     superAdminAccessMap,
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
-import { PlusCircleIcon } from "@heroicons/vue/20/solid";
 import { ref } from "vue";
 
 // Mock the vue router
@@ -96,7 +95,7 @@ describe("EditLanguage.vue", () => {
         await currentLanguage[1].setValue("eng (updated)");
 
         // Trigger save action
-        await wrapper.find("[data-test='save-button']").trigger("click");
+        await wrapper.find('[data-test="save-button"]').trigger("click");
 
         // Wait for the database to update
         await waitForExpect(async () => {
@@ -122,10 +121,10 @@ describe("EditLanguage.vue", () => {
         });
 
         // Wait for the textareas and buttons to be available in the DOM
-        const keytextarea = wrapper.find("input[data-test='key-input']");
-        const valuetextarea = wrapper.find("input[data-test='value-input']");
-        const addButton = wrapper.find("button[data-test='add-key-button']");
-        const saveButton = wrapper.find("button[data-test='save-button']");
+        const keytextarea = wrapper.find("[data-test='key-input']");
+        const valuetextarea = wrapper.find("[data-test='value-input']");
+        const addButton = wrapper.find("[data-test='add-key-button']");
+        const saveButton = wrapper.find("[data-test='save-button']");
 
         // Assert that all required elements are present
         expect(keytextarea.exists()).toBe(true);
@@ -160,24 +159,25 @@ describe("EditLanguage.vue", () => {
             },
         });
 
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockLanguageDtoEng.name);
+        });
+
+        const translationRow = wrapper
+            .findAll('[data-test="translation-row"]')
+            .find((r) => r.html().includes("bookmarks.empty_page"));
+        if (!translationRow) throw new Error("Translation row not found");
+
+        const keyInput = translationRow.find('[data-test="edit-key-input"]');
+        await keyInput.setValue("bookmarks.empty_page_updated");
+        await wrapper.find("[data-test='save-button']").trigger("click");
+
         await waitForExpect(async () => {
-            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+            const updatedLanguage = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
 
-            const translationRow = wrapper.findAll("tr")[2];
-            const textarea = translationRow.findAll("textarea");
-
-            await textarea[0].setValue("bookmarks.empty_page_updated");
-
-            await wrapper.findComponent(PlusCircleIcon).trigger("click");
-            await wrapper.find("button[data-test='save-button']").trigger("click");
-
-            await waitForExpect(async () => {
-                const updatedLanguage = (
-                    await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
-                )[0] as LanguageDto;
-
-                expect(updatedLanguage.translations).toHaveProperty("bookmarks.empty_page_updated");
-            });
+            expect(updatedLanguage.translations).toHaveProperty("bookmarks.empty_page_updated");
         });
     });
 
@@ -188,27 +188,28 @@ describe("EditLanguage.vue", () => {
             },
         });
 
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockLanguageDtoEng.name);
+        });
+
+        const translationRow = wrapper
+            .findAll('[data-test="translation-row"]')
+            .find((r) => r.html().includes("bookmarks.empty_page"));
+        if (!translationRow) throw new Error("Translation row not found");
+
+        const valueInput = translationRow.find('[data-test="edit-value-input"]');
+        await valueInput.setValue("You should try this!");
+        await wrapper.find("[data-test='save-button']").trigger("click");
+
         await waitForExpect(async () => {
-            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+            const updatedLanguage = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
 
-            const translationRow = wrapper.findAll("tr")[2];
-            const textarea = translationRow.findAll("textarea");
-
-            await textarea[1].setValue("You should try this!");
-
-            await wrapper.findComponent(PlusCircleIcon).trigger("click");
-            await wrapper.find("button[data-test='save-button']").trigger("click");
-
-            await waitForExpect(async () => {
-                const updatedLanguage = (
-                    await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
-                )[0] as LanguageDto;
-
-                expect(updatedLanguage.translations).toHaveProperty(
-                    "bookmarks.empty_page",
-                    "You should try this!",
-                );
-            });
+            expect(updatedLanguage.translations).toHaveProperty(
+                "bookmarks.empty_page",
+                "You should try this!",
+            );
         });
     });
 
@@ -223,6 +224,12 @@ describe("EditLanguage.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
         });
+        let dropdownTrigger;
+        await waitForExpect(async () => {
+            dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
+            expect(dropdownTrigger.exists()).toBe(true);
+        });
+        await dropdownTrigger!.trigger("click");
 
         let deleteButton;
         await waitForExpect(async () => {

@@ -239,10 +239,11 @@ defineExpose({ open, inputElement });
             title="Edit Selection"
             v-model:open="showEditModal"
             :heading="label"
+            :showClosingButton="false"
         >
             <div
                 ref="triggerRef"
-                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
                 :class="[smallInput && isMobileScreen ? 'pl-1 pr-3' : 'pl-3 pr-8']"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"

@@ -50,6 +50,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: () => ({
             currentRoute: {
                 value: {
+                    name: "edit",
                     params: {
                         languageCode: "eng",
                     },

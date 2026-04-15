@@ -30,6 +30,7 @@ withDefaults(defineProps<Props>(), {
 
 const router = useRouter();
 const isEditContentPage = router.currentRoute.value.name === "edit";
+const isEditLanguagePage = router.currentRoute.value.name === "language";
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("lg");
 </script>
@@ -38,30 +39,33 @@ const isMobileScreen = breakpoints.smaller("lg");
     <div class="flex h-full flex-col overflow-hidden">
         <div class="flex-shrink-0">
             <div
-                class="mr-2.5 flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
+                class="flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
                 :class="[
                     { 'border-b border-zinc-200': !$slots.internalPageHeader },
                     isSmallScreen ? 'sm:pl-5 sm:pr-1' : 'lg:pl-9 lg:pr-5',
                 ]"
             >
                 <button
+                    v-if="isEditContentPage || isMobileScreen || isEditLanguagePage"
                     type="button"
                     data-test="chevron-icon"
-                    class="pl-2.5 text-zinc-500"
+                    class="text-zinc-500 max-sm:ml-5"
                     @click="
-                        !isEditContentPage
-                            ? onOpenMobileSidebar?.()
-                            : router.push({ name: 'overview' })
+                        () => {
+                            if (isEditContentPage) router.push({ name: 'overview' });
+                            else if (isEditLanguagePage) router.push({ name: 'languages' });
+                            else onOpenMobileSidebar?.();
+                        }
                     "
                 >
                     <span class="sr-only">Open sidebar</span>
                     <Bars3Icon
-                        v-if="!isEditContentPage && isMobileScreen"
+                        v-if="!isEditContentPage && !isEditLanguagePage && isMobileScreen"
                         class="h-6 w-6"
                         aria-hidden="true"
                     />
                     <ChevronLeftIcon
-                        v-else-if="isEditContentPage"
+                        v-else-if="isEditContentPage || isEditLanguagePage"
                         class="size-5"
                         aria-hidden="true"
                     />
@@ -70,7 +74,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                 <!-- Separator -->
                 <div
                     class="h-6 w-px bg-zinc-900/10"
-                    :class="{ hidden: !isEditContentPage }"
+                    :class="{ hidden: !isEditContentPage && !isEditLanguagePage }"
                     aria-hidden="true"
                 />
 
@@ -108,7 +112,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                 v-if="backLinkLocation"
                 :to="backLinkLocation"
                 :params="backLinkParams"
-                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-60"
+                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-6"
             >
                 <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
             </RouterLink>
