@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import { DocType, type AuthProviderGroupMapping, type GroupDto } from "luminary-shared";
+import { DocType, type AuthProviderCondition, type GroupDto } from "luminary-shared";
+
+type AuthProviderGroupMapping = {
+    groupIds: string[];
+    conditions: AuthProviderCondition[];
+};
 import GroupMappings from "./GroupMappings.vue";
 
 const mockGroups: GroupDto[] = [

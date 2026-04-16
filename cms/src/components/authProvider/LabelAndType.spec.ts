@@ -13,7 +13,6 @@ const mockProvider: AuthProviderDto = {
     domain: "acme.auth0.com",
     clientId: "client-1",
     audience: "https://api.acme.com",
-    configId: "config-entry-1",
 };
 
 describe("LabelAndType.vue", () => {

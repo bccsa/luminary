@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import {
-    type AuthProviderCondition,
-    type AuthProviderGroupMapping,
-    type GroupDto,
-} from "luminary-shared";
+import { type AuthProviderCondition, type GroupDto } from "luminary-shared";
+
+type AuthProviderGroupMapping = {
+    groupIds: string[];
+    conditions: AuthProviderCondition[];
+};
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
@@ -81,7 +82,7 @@ const filteredMappings = computed(() => {
     const indexed = mappings.value.map((m, i) => ({ mapping: m, originalIndex: i }));
     if (!q) return indexed;
     return indexed.filter(({ mapping }) =>
-        (mapping.groupIds ?? []).some((id) => {
+        (mapping.groupIds ?? []).some((id: string) => {
             const group = props.availableGroups.find((g) => g._id === id);
             return group?.name?.toLowerCase().includes(q) ?? false;
         }),
@@ -348,7 +349,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                 </p>
 
                 <p
-                    v-if="mapping.conditions.filter((c) => c.type !== 'authenticated').length === 0"
+                    v-if="mapping.conditions.filter((c: AuthProviderCondition) => c.type !== 'authenticated').length === 0"
                     class="mb-1 text-[11px] italic text-gray-400"
                 >
                     Assigned to all authenticated users.

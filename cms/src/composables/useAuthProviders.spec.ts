@@ -12,7 +12,6 @@ import {
     getRest,
     initConfig,
     isConnected,
-    type AuthProviderConfigDto,
     type AuthProviderDto,
     type DefaultPermissionsDto,
 } from "luminary-shared";
@@ -45,17 +44,6 @@ const mockProvider: AuthProviderDto = {
     domain: "test.auth0.com",
     clientId: "client-id-1",
     audience: "https://api.test.com",
-    configId: "config-entry-1",
-};
-
-const mockConfig: AuthProviderConfigDto = {
-    _id: "authProviderConfig",
-    type: DocType.AuthProviderConfig,
-    updatedTimeUtc: 1704114000000,
-    memberOf: ["group-super-admins"],
-    providers: {
-        "config-entry-1": {},
-    },
 };
 
 const mockDefaultPermissions: DefaultPermissionsDto = {
@@ -76,7 +64,6 @@ const randomPort = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 const port = randomPort();
 
 let providerSearchDocs: AuthProviderDto[] = [];
-let configSearchDocs: AuthProviderConfigDto[] = [];
 let defaultPermissionsSearchDocs: DefaultPermissionsDto[] = [];
 let lastChangeRequest: any = null;
 
@@ -85,8 +72,6 @@ expressApp.get("/search", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     if (query.types?.includes(DocType.AuthProvider)) {
         res.end(JSON.stringify({ docs: providerSearchDocs }));
-    } else if (query.types?.includes(DocType.AuthProviderConfig)) {
-        res.end(JSON.stringify({ docs: configSearchDocs }));
     } else if (query.types?.includes(DocType.DefaultPermissions)) {
         res.end(JSON.stringify({ docs: defaultPermissionsSearchDocs }));
     } else {
@@ -131,7 +116,7 @@ describe("useAuthProviders", () => {
             apiUrl: `http://localhost:${port}`,
             syncList: [
                 { type: DocType.AuthProvider, contentOnly: true, syncPriority: 10 },
-                { type: DocType.AuthProviderConfig, contentOnly: true, syncPriority: 20 },
+                { type: DocType.AutoGroupMappings, contentOnly: true, syncPriority: 20 },
                 { type: DocType.Group, contentOnly: true, syncPriority: 30 },
             ],
         });
@@ -144,7 +129,7 @@ describe("useAuthProviders", () => {
         await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
         isConnected.value = true;
         providerSearchDocs = [mockProvider];
-        configSearchDocs = [mockConfig];
+        // configSearchDocs removed — authProviderConfig singleton no longer exists
         defaultPermissionsSearchDocs = [];
         lastChangeRequest = null;
     });
@@ -575,7 +560,7 @@ describe("useAuthProviders", () => {
                 });
                 c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Updated Label";
-                await c.saveProvider({});
+                await c.saveProvider();
                 expect(c.showModal.value).toBe(true);
                 expect(c.isLoading.value).toBe(false);
             } finally {
@@ -590,7 +575,7 @@ describe("useAuthProviders", () => {
                     expect(c.providers.value).toHaveLength(1);
                 });
                 c.editProvider(c.providers.value[0]);
-                await c.saveProvider({});
+                await c.saveProvider();
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -609,7 +594,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.domain = "new.auth0.com";
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
-                await c.saveProvider({});
+                await c.saveProvider();
                 expect(c.showModal.value).toBe(true);
                 expect(c.isLoading.value).toBe(false);
             } finally {
@@ -626,7 +611,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.domain = "new.auth0.com";
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
-                await c.saveProvider({});
+                await c.saveProvider();
                 c.openCreateModal();
                 expect(c.currentProvider.value?._id).not.toBe(firstId);
                 expect(c.currentProvider.value?.label).toBe("");

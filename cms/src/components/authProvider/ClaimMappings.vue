@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import type { AuthProviderClaimMapping } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 
+type ClaimMapping = { claim: string; target: string };
+
 const props = defineProps<{
-    modelValue: AuthProviderClaimMapping[] | undefined;
+    modelValue: ClaimMapping[] | undefined;
     disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
-    "update:modelValue": [value: AuthProviderClaimMapping[]];
+    "update:modelValue": [value: ClaimMapping[]];
 }>();
 
 const mappings = () => props.modelValue ?? [];

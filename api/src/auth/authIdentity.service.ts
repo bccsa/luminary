@@ -44,10 +44,18 @@ export class AuthIdentityService implements OnModuleInit {
                 this.jwksClients.delete(doc.domain);
             } else if (doc.type === DocType.AutoGroupMappings) {
                 const mapping = doc as AutoGroupMappingsDto;
-                // Invalidate the cache for this provider so it's re-fetched
                 this.autoGroupMappingsCache.delete(mapping.providerId);
             } else if (doc.type === DocType.DefaultPermissions) {
                 this.defaultGroupsCache = doc.defaultGroups ?? [];
+            } else if (doc.type === DocType.DeleteCmd) {
+                // Evict deleted providers and their JWKS clients from cache
+                const deletedProvider = this.providerCache.get(doc.docId);
+                if (deletedProvider) {
+                    this.jwksClients.delete(deletedProvider.domain);
+                    this.providerCache.delete(doc.docId);
+                }
+                // Also evict any auto-group-mapping cache for the deleted doc
+                this.autoGroupMappingsCache.delete(doc.docId);
             }
         });
     }
@@ -95,9 +103,14 @@ export class AuthIdentityService implements OnModuleInit {
                 const userDetails = await this.resolveIdentity(token, providerId);
                 return { status: "authenticated", userDetails };
             } catch (error) {
-                throw new UnauthorizedException(
-                    error instanceof Error ? error.message : "Invalid authentication token",
-                );
+                // Log the real reason for debugging but never expose it to the client —
+                // detailed error messages (e.g. "jwt audience invalid. expected: ...") act
+                // as an error oracle that helps attackers probe the system.
+                this.logger.warn("Token validation failed", {
+                    reason: error instanceof Error ? error.message : error,
+                    providerId,
+                });
+                throw new UnauthorizedException("Invalid authentication token");
             }
         }
         const defaultGroups = await this.getDefaultGroups();

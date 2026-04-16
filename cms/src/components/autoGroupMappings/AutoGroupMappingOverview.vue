@@ -12,7 +12,6 @@ import {
     db,
     useDexieLiveQuery,
     AckStatus,
-    verifyAccess,
 } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import AutoGroupMappingDisplayCard from "./AutoGroupMappingDisplayCard.vue";
@@ -71,14 +70,6 @@ const canEditDefaultPermissions = computed(() =>
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
-);
-
-const availableGroups = computed(() =>
-    groups.value.filter(
-        (g) =>
-            verifyAccess([g._id], DocType.Group, AclPermission.Edit) &&
-            verifyAccess([g._id], DocType.Group, AclPermission.Assign),
-    ),
 );
 
 // ── Filter state ────────────────────────────────────────────────────────────
