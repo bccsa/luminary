@@ -124,6 +124,21 @@ export const router = createRouter({
                     name: "redirects",
                     component: () => import("../components/redirects/RedirectOverview.vue"),
                 },
+                {
+                    path: "auto-group-mappings",
+                    name: "auto-group-mappings",
+                    component: () =>
+                        import(
+                            "../components/autoGroupMappings/AutoGroupMappingOverview.vue"
+                        ),
+                    meta: {
+                        title: "Auto Group Mappings",
+                        canAccess: {
+                            docType: DocType.AutoGroupMappings,
+                            permission: AclPermission.View,
+                        },
+                    },
+                },
 
                 {
                     path: "users",

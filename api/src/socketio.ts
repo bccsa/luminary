@@ -109,12 +109,14 @@ export class Socketio implements OnGatewayInit {
                 );
                 socket.data.userDetails = authIdentity.userDetails;
             } catch (error) {
-                this.logger.error("Socket auth failed for providerId=" + providerId, {
+                this.logger.warn("Socket auth failed for providerId=" + providerId, {
                     error: error instanceof Error ? error.message : error,
                 });
-                socket.emit("apiAuthFailed");
-                // Disconnect the client to prevent further communication.
-                socket.disconnect(true);
+                // Reject the connection properly via next(err).
+                // The client receives this as a connect_error with err.message.
+                const err = new Error("auth_failed");
+                (err as any).data = { type: "auth_failed" };
+                next(err);
                 return;
             }
             next();

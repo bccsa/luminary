@@ -54,9 +54,19 @@ const navigation = computed(() => [
     },
     {
         name: "Groups",
-        to: { name: "groups" },
         icon: RectangleStackIcon,
-        visible: hasAnyPermission(DocType.Group, AclPermission.View),
+        open: sidebarSectionExpanded.value.groups,
+        visible:
+            hasAnyPermission(DocType.Group, AclPermission.View) ||
+            hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View),
+        children: [
+            ...(hasAnyPermission(DocType.Group, AclPermission.View)
+                ? [{ name: "Groups", to: { name: "groups" } }]
+                : []),
+            ...(hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View)
+                ? [{ name: "Auto Group Mappings", to: { name: "auto-group-mappings" } }]
+                : []),
+        ],
     },
     {
         name: "Redirects",
@@ -95,6 +105,8 @@ const toggleOpen = (item: NavigationEntry) => {
         sidebarSectionExpanded.value.posts = !sidebarSectionExpanded.value.posts;
     } else if (item.name === "Tags") {
         sidebarSectionExpanded.value.tags = !sidebarSectionExpanded.value.tags;
+    } else if (item.name === "Groups") {
+        sidebarSectionExpanded.value.groups = !sidebarSectionExpanded.value.groups;
     }
 };
 </script>

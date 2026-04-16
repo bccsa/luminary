@@ -15,7 +15,7 @@ import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
-import { AuthProviderConfigDto } from "../dto/AuthProviderConfigDto";
+import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
 
 /**
@@ -31,7 +31,7 @@ const DocTypeMap = {
     user: UserDto,
     storage: StorageDto,
     authProvider: AuthProviderDto,
-    authProviderConfig: AuthProviderConfigDto,
+    autoGroupMappings: AutoGroupMappingsDto,
     defaultPermissions: DefaultPermissionsDto,
 };
 
@@ -81,6 +81,13 @@ export async function validateChangeRequest(
         }
     }
 
+    // Validate and compact ACL's in Group Documents before DTO validation
+    // so that stale DocType values are stripped before @IsEnum checks run.
+    if (changeRequest.doc.type === DocType.Group) {
+        const groupDoc = changeRequest.doc as GroupDto;
+        groupDoc.acl = validateAcl(groupDoc.acl);
+    }
+
     // Check included document validity
     const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
         enableImplicitConversion: true,
@@ -90,12 +97,6 @@ export async function validateChangeRequest(
 
     if (!validationResult.validated) {
         return validationResult;
-    }
-
-    // Validate and compact ACL's in Group Documents
-    if (changeRequest.doc.type === DocType.Group) {
-        const groupDoc = changeRequest.doc as GroupDto;
-        groupDoc.acl = validateAcl(groupDoc.acl);
     }
 
     // Replace the included document in the change request with the validated document

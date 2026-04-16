@@ -567,7 +567,7 @@ describe("useAuthProviders", () => {
     // validation tests live in FormModal.spec.ts.
 
     describe("saveProvider (editing)", () => {
-        it("closes the modal after a successful save", async () => {
+        it("keeps the modal open after a successful save", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -576,7 +576,7 @@ describe("useAuthProviders", () => {
                 c.editProvider(c.providers.value[0]);
                 c.currentProvider.value!.label = "Updated Label";
                 await c.saveProvider({});
-                expect(c.showModal.value).toBe(false);
+                expect(c.showModal.value).toBe(true);
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -601,7 +601,7 @@ describe("useAuthProviders", () => {
     // ── saveProvider (creating) ───────────────────────────────────────────────
 
     describe("saveProvider (creating)", () => {
-        it("closes the modal after a successful create", async () => {
+        it("keeps the modal open after a successful create", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.openCreateModal();
@@ -610,7 +610,7 @@ describe("useAuthProviders", () => {
                 c.currentProvider.value!.clientId = "new-client";
                 c.currentProvider.value!.audience = "https://api.new.com";
                 await c.saveProvider({});
-                expect(c.showModal.value).toBe(false);
+                expect(c.showModal.value).toBe(true);
                 expect(c.isLoading.value).toBe(false);
             } finally {
                 teardown();
@@ -635,23 +635,6 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("commits a non-empty stagingConfig into the singleton on save", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.openCreateModal();
-                const newConfigId = c.currentProvider.value!.configId!;
-                c.currentProvider.value!.label = "WithStaging";
-                c.currentProvider.value!.domain = "x.auth0.com";
-                c.currentProvider.value!.clientId = "client";
-                c.currentProvider.value!.audience = "https://api.x";
-                await c.saveProvider({ memberOf: ["group-super-admins"] });
-                expect(c.authProviderConfig.value?.providers?.[newConfigId]).toEqual({
-                    memberOf: ["group-super-admins"],
-                });
-            } finally {
-                teardown();
-            }
-        });
     });
 
     // ── deleteProvider ────────────────────────────────────────────────────────

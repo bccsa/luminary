@@ -6,6 +6,7 @@ import FormActions from "./FormActions.vue";
 const baseProps = {
     isEditing: false,
     isLoading: false,
+    canEdit: true,
     canDelete: false,
     isFormValid: true,
     isDirty: true,
@@ -118,6 +119,33 @@ describe("FormActions.vue", () => {
         });
 
         expect(wrapper.html()).not.toContain("offline");
+    });
+
+    // ── Permission warning ─────────────────────────────────────────────────────
+
+    it("shows permission warning when canEdit is false", () => {
+        const wrapper = mount(FormActions, {
+            props: { ...baseProps, canEdit: false },
+        });
+
+        expect(wrapper.html()).toContain("do not have permission");
+    });
+
+    it("hides permission warning when canEdit is true", () => {
+        const wrapper = mount(FormActions, {
+            props: { ...baseProps, canEdit: true },
+        });
+
+        expect(wrapper.html()).not.toContain("do not have permission");
+    });
+
+    it("disables save button when canEdit is false", () => {
+        const wrapper = mount(FormActions, {
+            props: { ...baseProps, canEdit: false, isFormValid: true, isDirty: true },
+        });
+
+        const saveBtn = wrapper.findAll("button").find((b) => b.text().includes("Save"));
+        expect((saveBtn!.element as HTMLButtonElement).disabled).toBe(true);
     });
 
     // ── Save button disabled states ───────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
     clearAuth0Cache,
     getLastSelectedProvider,
     loginWithProvider,
+    stopTokenRefresh,
 } from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
@@ -70,26 +71,28 @@ async function Startup() {
         Sentry?.captureException(err);
     });
 
-    await setupAuth(app, router);
-    getSocket().connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
-    await resolveProviderId();
+    const socket = getSocket();
 
-    // On auth failure: resolve the user's most recently selected provider BEFORE
-    // clearing the cache, then redirect straight to that provider's login. If
-    // we can't identify a previous provider, fall back to the selection modal.
-    getSocket().on("apiAuthFailed", async () => {
+    // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
+    // may connect the socket with an expired token — if the listener isn't ready
+    // by then, the event is lost and the client loops forever.
+    socket.on("connect_error", async (err: Error) => {
+        if ((err as any)?.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
         Sentry?.captureMessage("API authentication failed");
+        stopTokenRefresh();
         const lastProvider = await getLastSelectedProvider();
         clearAuth0Cache();
-        const socket = getSocket();
         socket.setAuth("", null);
-        socket.reconnect();
         if (lastProvider) {
             await loginWithProvider(lastProvider, { prompt: "login" });
         } else {
             openProviderModal();
         }
     });
+
+    await setupAuth(app, router);
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+    await resolveProviderId();
 
     initAuthLangSync();
     await initLanguage();

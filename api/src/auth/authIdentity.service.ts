@@ -4,12 +4,7 @@ import * as JWT from "jsonwebtoken";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import jwksRsa = require("jwks-rsa");
 import { AuthProviderDto } from "../dto/AuthProviderDto";
-import {
-    AuthProviderCondition,
-    AuthProviderConfigDto,
-    AuthProviderGroupMapping,
-    AuthProviderProviderConfig,
-} from "../dto/AuthProviderConfigDto";
+import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { DocType, Uuid } from "../enums";
@@ -33,8 +28,7 @@ export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
     private jwksClients: Map<string, jwksRsa.JwksClient> = new Map();
     private providerCache: Map<string, AuthProviderDto> = new Map();
-    // undefined = not loaded; null = loaded but missing from DB; object = loaded
-    private singletonConfigCache: AuthProviderConfigDto | null | undefined = undefined;
+    private autoGroupMappingsCache: Map<string, AutoGroupMappingsDto[]> = new Map();
     private defaultGroupsCache: string[] | null = null;
 
     constructor(
@@ -48,33 +42,27 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(doc._id, doc as AuthProviderDto);
                 // Clear associated JWKS client so it's rebuilt with new domain settings
                 this.jwksClients.delete(doc.domain);
-            } else if (doc.type === DocType.AuthProviderConfig) {
-                this.singletonConfigCache = doc as AuthProviderConfigDto;
+            } else if (doc.type === DocType.AutoGroupMappings) {
+                const mapping = doc as AutoGroupMappingsDto;
+                // Invalidate the cache for this provider so it's re-fetched
+                this.autoGroupMappingsCache.delete(mapping.providerId);
             } else if (doc.type === DocType.DefaultPermissions) {
                 this.defaultGroupsCache = doc.defaultGroups ?? [];
             }
         });
     }
 
-    /**
-     * Returns the AuthProviderConfig singleton document — the server-side JWT
-     * processing settings for every auth provider, keyed by
-     * `AuthProviderDto.configId`. Cached in memory and kept fresh via the DB
-     * change feed.
-     */
-    async getAuthProviderConfig(): Promise<AuthProviderConfigDto | null> {
-        if (this.singletonConfigCache !== undefined) {
-            return this.singletonConfigCache;
-        }
+    async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {
+        const cached = this.autoGroupMappingsCache.get(providerId);
+        if (cached) return cached;
 
-        const configRes = await this.dbService.executeFindQuery({
-            selector: { type: DocType.AuthProviderConfig },
-            limit: 1,
+        const res = await this.dbService.executeFindQuery({
+            selector: { type: DocType.AutoGroupMappings, providerId },
         });
 
-        const doc = (configRes.docs?.[0] as AuthProviderConfigDto) ?? null;
-        this.singletonConfigCache = doc;
-        return doc;
+        const docs = (res.docs as AutoGroupMappingsDto[]) ?? [];
+        this.autoGroupMappingsCache.set(providerId, docs);
+        return docs;
     }
 
     /**
@@ -128,7 +116,7 @@ export class AuthIdentityService implements OnModuleInit {
      */
     public evaluateGroupAssignments(
         jwtPayload: any,
-        mappings: AuthProviderGroupMapping[],
+        mappings: AutoGroupMappingsDto[],
     ): string[] {
         if (!jwtPayload || !mappings || !Array.isArray(mappings)) {
             return [];
@@ -137,24 +125,16 @@ export class AuthIdentityService implements OnModuleInit {
         const assignedGroups = new Set<string>();
 
         for (const mapping of mappings) {
-            // TODO(post-migration): drop the legacy `groupId` fallback once every
-            // deployment has saved its AuthProviderConfig singleton at least once
-            // post-release — processAuthProviderConfigDto normalizes legacy docs
-            // on write, so this branch only covers read-before-first-save.
-            const legacyGroupId = (mapping as unknown as { groupId?: string }).groupId;
-            const groupIds =
-                mapping.groupIds ?? (legacyGroupId ? [legacyGroupId] : []);
-            if (groupIds.length === 0 || !Array.isArray(mapping.conditions)) {
+            if (!mapping.groupIds?.length || !Array.isArray(mapping.conditions)) {
                 continue;
             }
 
-            // A group is assigned if AT LEAST ONE condition evaluates to true (OR logic)
             const isAssigned = mapping.conditions.some((condition) =>
                 this.evaluateCondition(jwtPayload, condition),
             );
 
             if (isAssigned) {
-                for (const id of groupIds) assignedGroups.add(id);
+                for (const id of mapping.groupIds) assignedGroups.add(id);
             }
         }
 
@@ -265,10 +245,7 @@ export class AuthIdentityService implements OnModuleInit {
                 this.providerCache.set(providerId, provider);
             }
 
-            const configDoc = await this.getAuthProviderConfig();
-            const providerConfig: AuthProviderProviderConfig | undefined = provider.configId
-                ? configDoc?.providers?.[provider.configId]
-                : undefined;
+            const providerMappings = await this.getAutoGroupMappings(provider._id);
 
             let jwksClient = this.jwksClients.get(provider.domain);
             if (!jwksClient) {
@@ -299,22 +276,18 @@ export class AuthIdentityService implements OnModuleInit {
                 algorithms: ["RS256"],
             });
 
-            const dynamicGroups = this.evaluateGroupAssignments(
-                payload,
-                providerConfig?.groupMappings ?? [],
-            );
+            const dynamicGroups = this.evaluateGroupAssignments(payload, providerMappings);
 
             // ── Phase 3: Master user account linking ────────────────────────────────
-            // Use configured claim paths, falling back to standard OIDC claim names
             const externalUserId: string | undefined =
                 this.extractClaimValue(
                     payload,
-                    providerConfig?.userFieldMappings?.externalUserId || "sub",
+                    provider.userFieldMappings?.externalUserId || "sub",
                 ) ?? this.extractClaimValue(payload, "sub");
             const email: string | undefined =
                 this.extractClaimValue(
                     payload,
-                    providerConfig?.userFieldMappings?.email || "email",
+                    provider.userFieldMappings?.email || "email",
                 ) ?? this.extractClaimValue(payload, "email");
 
             let primaryUser: UserDto | null = null;
@@ -404,5 +377,3 @@ export class AuthIdentityService implements OnModuleInit {
         }
     }
 }
-// TODO
-// Transparency on Logo instead of opacity

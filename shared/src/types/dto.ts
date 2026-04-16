@@ -251,7 +251,6 @@ export type DefaultPermissionsDto = ContentBaseDto & {
     defaultGroups: Uuid[];
 };
 
-/** Mirrors api/src/dto/AuthProviderDto.ts */
 export type AuthProviderCondition = {
     type: "authenticated" | "claimEquals" | "claimIn";
     claimPath?: string;
@@ -259,32 +258,16 @@ export type AuthProviderCondition = {
     values?: string[];
 };
 
-export type AuthProviderGroupMapping = {
-    /**
-     * The _ids of the local groups to assign when all conditions match. Must
-     * contain at least one group; legacy `groupId` docs are normalized to
-     * `groupIds` by the API's processAuthProviderConfigDto.
-     */
-    groupIds: string[];
-    conditions: AuthProviderCondition[];
-};
-
-export type AuthProviderClaimMapping = {
-    claim: string;
-    target: string;
-};
-
 export type AuthProviderDto = BaseDocumentDto & {
     type: DocType.AuthProvider;
     domain: string;
     audience: string;
     clientId: string;
-    /**
-     * UUID that keys this provider's entry inside the AuthProviderConfigDto
-     * singleton's `providers` map.
-     */
-    configId: string;
-    /** Optional display fields for login UI */
+    userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
     label?: string;
     icon?: string;
     backgroundColor?: string;
@@ -294,31 +277,9 @@ export type AuthProviderDto = BaseDocumentDto & {
     imageData?: ImageDto;
 };
 
-/**
- * Per-provider JWT processing settings stored as an entry inside the
- * AuthProviderConfigDto singleton's `providers` map.
- */
-export type AuthProviderProviderConfig = {
-    /** Groups granted access to this provider's JWT processing config entry. */
-    memberOf?: Uuid[];
-    claimNamespace?: string;
-    groupMappings?: AuthProviderGroupMapping[];
-    /** Override standard OIDC claim paths (defaults: sub, email, name) */
-    userFieldMappings?: {
-        externalUserId?: string;
-        email?: string;
-        name?: string;
-    };
-};
-
-/**
- * Singleton document containing sensitive JWT processing settings for every
- * auth provider on the platform. Only `group-super-admins` can view/edit it.
- *
- * The document `_id` is fixed to `"authProviderConfig"` and the per-provider
- * entries live under `providers`, keyed by `AuthProviderDto.configId`.
- */
-export type AuthProviderConfigDto = BaseDocumentDto & {
-    type: DocType.AuthProviderConfig;
-    providers: Record<string, AuthProviderProviderConfig>;
+export type AutoGroupMappingsDto = ContentBaseDto & {
+    type: DocType.AutoGroupMappings;
+    providerId: string;
+    groupIds: string[];
+    conditions: AuthProviderCondition[];
 };

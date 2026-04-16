@@ -6,7 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth, { isAuthBypassed } from "./auth";
+import auth, { isAuthBypassed, stopTokenRefresh } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initAuthLangSync, initSync } from "./sync";
@@ -41,7 +41,7 @@ async function Startup() {
                 skipWaitForLanguageSync: true,
             },
             {
-                type: DocType.AuthProviderConfig,
+                type: DocType.AutoGroupMappings,
                 syncPriority: 1,
                 skipWaitForLanguageSync: true,
             },
@@ -86,22 +86,19 @@ async function Startup() {
         Sentry.captureException(err);
     });
 
-    await auth.setupAuth(app);
-    await auth.resolveProviderId();
-
     const socket = getSocket();
-    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // On auth failure: resolve the user's most recently selected provider BEFORE
-    // clearing the cache, then redirect straight to that provider's login. If
-    // we can't identify a previous provider, fall back to the selection modal.
+    // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
+    // may connect the socket with an expired token — if the listener isn't ready
+    // by then, the event is lost and the client loops forever.
     if (!isAuthBypassed) {
-        socket.on("apiAuthFailed", async () => {
+        socket.on("connect_error", async (err: Error) => {
+            if ((err as any)?.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
             Sentry.captureMessage("API authentication failed");
+            stopTokenRefresh();
             const lastProvider = await auth.getLastSelectedProvider();
             auth.clearAuth0Cache();
             socket.setAuth("", null);
-            socket.reconnect();
             if (lastProvider) {
                 await auth.loginWithProvider(lastProvider, { prompt: "login" });
             } else {
@@ -109,6 +106,10 @@ async function Startup() {
             }
         });
     }
+
+    await auth.setupAuth(app);
+    await auth.resolveProviderId();
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {

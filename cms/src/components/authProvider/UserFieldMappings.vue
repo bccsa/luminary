@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { AuthProviderProviderConfig } from "luminary-shared";
+import type { AuthProviderDto } from "luminary-shared";
 import LInput from "../forms/LInput.vue";
 
 defineProps<{
     disabled?: boolean;
 }>();
 
-const providerConfig = defineModel<AuthProviderProviderConfig | undefined>("providerConfig");
+const provider = defineModel<AuthProviderDto | undefined>("provider");
 
 function ensureUserFieldMappings() {
-    if (!providerConfig.value) return;
-    if (!providerConfig.value.userFieldMappings) {
-        providerConfig.value.userFieldMappings = {};
+    if (!provider.value) return;
+    if (!provider.value.userFieldMappings) {
+        provider.value.userFieldMappings = {};
     }
 }
 </script>
@@ -31,14 +31,14 @@ function ensureUserFieldMappings() {
                 <LInput
                     id="ufm-userId"
                     name="ufm-userId"
-                    :model-value="providerConfig?.userFieldMappings?.externalUserId ?? ''"
+                    :model-value="provider?.userFieldMappings?.externalUserId ?? ''"
                     type="text"
                     placeholder="sub"
-                    :disabled="disabled || !providerConfig"
+                    :disabled="disabled || !provider"
                     @update:model-value="
                         (v) => {
                             ensureUserFieldMappings();
-                            providerConfig!.userFieldMappings!.externalUserId = v || undefined;
+                            provider!.userFieldMappings!.externalUserId = v || undefined;
                         }
                     "
                 />
@@ -50,14 +50,14 @@ function ensureUserFieldMappings() {
                 <LInput
                     id="ufm-email"
                     name="ufm-email"
-                    :model-value="providerConfig?.userFieldMappings?.email ?? ''"
+                    :model-value="provider?.userFieldMappings?.email ?? ''"
                     type="text"
                     placeholder="email"
-                    :disabled="disabled || !providerConfig"
+                    :disabled="disabled || !provider"
                     @update:model-value="
                         (v) => {
                             ensureUserFieldMappings();
-                            providerConfig!.userFieldMappings!.email = v || undefined;
+                            provider!.userFieldMappings!.email = v || undefined;
                         }
                     "
                 />
@@ -69,14 +69,14 @@ function ensureUserFieldMappings() {
                 <LInput
                     id="ufm-name"
                     name="ufm-name"
-                    :model-value="providerConfig?.userFieldMappings?.name ?? ''"
+                    :model-value="provider?.userFieldMappings?.name ?? ''"
                     type="text"
                     placeholder="name"
-                    :disabled="disabled || !providerConfig"
+                    :disabled="disabled || !provider"
                     @update:model-value="
                         (v) => {
                             ensureUserFieldMappings();
-                            providerConfig!.userFieldMappings!.name = v || undefined;
+                            provider!.userFieldMappings!.name = v || undefined;
                         }
                     "
                 />

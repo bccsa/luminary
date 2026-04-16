@@ -1,5 +1,5 @@
 #!/usr/bin/env ts-node
-// docker exec -it <container> npm run auth-setup
+// Run inside the API container: docker exec -it <container> npm run auth-setup
 import * as readline from "readline";
 import * as fs from "fs";
 import * as path from "path";
@@ -8,6 +8,9 @@ import * as https from "https";
 import { randomUUID } from "crypto";
 
 // ── Types ───────────────────────────────────────────────────────────────────────
+//
+// These mirror the DTO types defined in api/src/dto/. The script writes directly
+// to CouchDB so it doesn't go through the API's validation pipeline.
 
 interface AuthProviderDoc {
     _id: string;
@@ -16,8 +19,12 @@ interface AuthProviderDoc {
     domain: string;
     audience: string;
     clientId: string;
-    configId: string;
     memberOf: string[];
+    userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
     label?: string;
     icon?: string;
     backgroundColor?: string;
@@ -35,34 +42,26 @@ interface AuthProviderCondition {
     values?: string[];
 }
 
-interface AuthProviderGroupMapping {
+/**
+ * Each auto group mapping is its own document in the database.
+ * It links to an auth provider via `providerId` and defines which groups
+ * to assign when certain JWT claim conditions are met.
+ */
+interface AutoGroupMappingDoc {
+    _id: string;
+    _rev?: string;
+    type: "autoGroupMappings";
+    providerId: string;
     groupIds: string[];
     conditions: AuthProviderCondition[];
-}
-
-// ── Constants ───────────────────────────────────────────────────────────────────
-
-const AUTO_MEMBER_OF = ["group-super-admins", "group-public-users"];
-const AUTO_DEFAULT_GROUPS = ["group-public-users"];
-const AUTO_GROUP_MAPPINGS: AuthProviderGroupMapping[] = [
-    { groupIds: ["group-public-users"], conditions: [{ type: "authenticated" }] },
-];
-
-interface AuthProviderProviderConfig {
-    claimNamespace?: string;
-    groupMappings?: AuthProviderGroupMapping[];
-    userFieldMappings?: { externalUserId?: string; email?: string; name?: string };
-}
-
-interface AuthProviderConfigDoc {
-    _id: "authProviderConfig";
-    _rev?: string;
-    type: "authProviderConfig";
     memberOf: string[];
-    providers: Record<string, AuthProviderProviderConfig>;
     updatedTimeUtc: number;
 }
 
+/**
+ * Singleton document that defines which groups are assigned to ALL users,
+ * including unauthenticated guests. This is the baseline permission floor.
+ */
 interface DefaultPermissionsDoc {
     _id: "defaultPermissions";
     _rev?: string;
@@ -102,13 +101,22 @@ interface FindResult<T> {
     bookmark?: string;
 }
 
+// ── Constants ───────────────────────────────────────────────────────────────────
+
+/** Groups that every auth provider document is automatically a member of (for ACL visibility). */
+const AUTO_MEMBER_OF = ["group-super-admins", "group-public-users"];
+
+/** Groups automatically assigned to all users (including unauthenticated guests). */
+const AUTO_DEFAULT_GROUPS = ["group-public-users"];
+
 // ── Environment ─────────────────────────────────────────────────────────────────
 
 const apiDir = path.resolve(__dirname);
 const envPath = path.join(apiDir, "..", ".env");
 
 if (!fs.existsSync(envPath)) {
-    console.error(`Error: .env file not found in the api directory at ${apiDir}.`);
+    console.error(`Error: .env file not found at ${envPath}`);
+    console.error("Make sure you're running this script from the api directory.");
     process.exit(1);
 }
 
@@ -198,30 +206,48 @@ function prettyPrint(obj: unknown) {
     console.log(JSON.stringify(obj, null, 2));
 }
 
-// ── Group mappings collector ────────────────────────────────────────────────────
+/** Merge multiple string arrays into a single array with no duplicates. */
+function uniqueStrings(...arrays: string[][]): string[] {
+    return Array.from(new Set(arrays.flat()));
+}
 
-async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
-    const mappings: AuthProviderGroupMapping[] = [];
+// ── Group mapping helpers ───────────────────────────────────────────────────────
+
+/**
+ * Interactive wizard that collects auto group mapping rules from the user.
+ *
+ * Each rule says: "When a user's JWT matches this condition, assign them
+ * to these groups." Multiple conditions on the same mapping use OR logic.
+ */
+async function collectGroupMappings(): Promise<
+    { groupIds: string[]; conditions: AuthProviderCondition[] }[]
+> {
+    const mappings: { groupIds: string[]; conditions: AuthProviderCondition[] }[] = [];
 
     while (true) {
+        console.log("");
         const groupsRaw = await prompt(
-            "  Group IDs (comma-separated, or blank to finish): ",
+            "  Group IDs to assign (comma-separated, or press Enter to finish): ",
         );
         if (!groupsRaw) break;
+
         const groupIds = groupsRaw
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
         if (groupIds.length === 0) {
-            console.log("  No valid group IDs, skipping.");
+            console.log("  No valid group IDs entered, skipping this mapping.");
             continue;
         }
 
-        console.log(`  Condition type for [${groupIds.join(", ")}]:`);
-        console.log("    1) authenticated  — any successfully authenticated user");
-        console.log("    2) claimEquals    — a JWT claim equals a specific value");
-        console.log("    3) claimIn        — a JWT claim is one of a list of values");
-        const choice = await prompt("  Select [1-3]: ");
+        console.log("");
+        console.log(`  When should users be assigned to [${groupIds.join(", ")}]?`);
+        console.log("");
+        console.log("    1) Always           -- Any authenticated user gets these groups");
+        console.log("    2) Claim equals     -- A specific JWT claim must equal a value");
+        console.log("    3) Claim is in list -- A JWT claim must match one of several values");
+        console.log("");
+        const choice = await prompt("  Select condition type [1-3]: ");
 
         const condition: AuthProviderCondition = {} as AuthProviderCondition;
 
@@ -231,13 +257,17 @@ async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
                 break;
             case "2":
                 condition.type = "claimEquals";
-                condition.claimPath = await prompt("  Claim path (e.g., roles): ");
-                condition.value = await prompt("  Claim value (exact match): ");
+                condition.claimPath = await prompt(
+                    "  JWT claim path (e.g. 'roles', 'https://example.com/metadata.role'): ",
+                );
+                condition.value = await prompt("  Required value (exact match): ");
                 break;
             case "3": {
                 condition.type = "claimIn";
-                condition.claimPath = await prompt("  Claim path (e.g., roles): ");
-                console.log("  Enter values one per line. Leave blank to finish.");
+                condition.claimPath = await prompt(
+                    "  JWT claim path (e.g. 'roles', 'https://example.com/metadata.role'): ",
+                );
+                console.log("  Enter allowed values one per line. Press Enter on an empty line to finish.");
                 const values: string[] = [];
                 while (true) {
                     const val = await prompt("    Value: ");
@@ -248,125 +278,108 @@ async function collectGroupMappings(): Promise<AuthProviderGroupMapping[]> {
                 break;
             }
             default:
-                console.log("  Invalid choice, skipping.");
+                console.log("  Invalid choice, skipping this mapping.");
                 continue;
         }
 
         mappings.push({ groupIds, conditions: [condition] });
+        console.log("  Mapping added.");
     }
 
     return mappings;
-}
-
-// ── AuthProviderConfig singleton helper ─────────────────────────────────────────
-
-async function loadAuthProviderConfigSingleton(): Promise<AuthProviderConfigDoc | null> {
-    try {
-        const doc = await getDoc<AuthProviderConfigDoc & { error?: string }>("authProviderConfig");
-        if (doc.error) return null;
-        // Normalize: ensure the providers map exists even for legacy docs.
-        if (!doc.providers) doc.providers = {};
-        return doc;
-    } catch {
-        return null;
-    }
-}
-
-// ── Ensure unique array values ──────────────────────────────────────────────────
-
-function uniqueStrings(...arrays: string[][]): string[] {
-    return Array.from(new Set(arrays.flat()));
 }
 
 // ── Add Auth Provider ───────────────────────────────────────────────────────────
 
 async function addAuthProvider(): Promise<string | null> {
     console.log("");
-    console.log("=====================================");
-    console.log("   Add AuthProvider to CouchDB");
-    console.log("=====================================");
+    console.log("=".repeat(60));
+    console.log("  Add a New Auth Provider (OIDC / Auth0)");
+    console.log("=".repeat(60));
+    console.log("");
+    console.log("This will create the database documents needed for users to");
+    console.log("log in with an external identity provider (e.g. Auth0, Okta).");
     console.log("");
 
-    const domain = await prompt("Domain (e.g., yourdomain.auth0.com): ");
+    // ── Required fields ────────────────────────────────────────────────────
+
+    const domain = await prompt("OIDC domain (e.g. yourapp.auth0.com): ");
     if (!domain) {
-        console.log("Domain is required.");
+        console.log("Domain is required. Aborting.");
         return null;
     }
 
     const defaultAudience = `https://${domain}`;
-    const audienceInput = await prompt(`Audience [default: ${defaultAudience}]: `);
+    const audienceInput = await prompt(
+        `API audience / resource identifier [default: ${defaultAudience}]: `,
+    );
     const audience = audienceInput || defaultAudience;
 
-    const clientId = await prompt("Client ID: ");
+    const clientId = await prompt("Client ID (from your OIDC provider dashboard): ");
     if (!clientId) {
-        console.log("Client ID is required.");
+        console.log("Client ID is required. Aborting.");
         return null;
     }
 
-    const label = await prompt("Display label (e.g., 'Sign in with Google') [optional]: ");
+    const label = await prompt("Button label shown on login screen (e.g. 'Sign in with Google') [optional]: ");
+
+    // ── Group membership (ACL visibility) ──────────────────────────────────
 
     console.log("");
-    console.log("Additional groups this auth provider should be visible to?");
-    console.log(`  Auto-included: ${AUTO_MEMBER_OF.join(", ")}`);
-    console.log("  Enter additional group IDs one per line. Leave blank to finish.");
+    console.log("-- Group Membership --");
     console.log("");
+    console.log("The auth provider document needs to be a member of at least one");
+    console.log("group so that users with permission to that group can see it.");
+    console.log(`Auto-included: ${AUTO_MEMBER_OF.join(", ")}`);
+    console.log("");
+    console.log("Add any extra groups below. Press Enter on an empty line to finish.");
 
     const extraGroups: string[] = [];
     while (true) {
-        const group = await prompt("  Group ID (or blank to finish): ");
+        const group = await prompt("  Extra group ID: ");
         if (!group) break;
         extraGroups.push(group);
     }
-
     const memberOf = uniqueStrings(AUTO_MEMBER_OF, extraGroups);
 
-    console.log("");
-    console.log("Custom JWT claim namespace (optional).");
-    console.log("  e.g. https://yourdomain.com/metadata");
-    const claimNamespace = await prompt("Claim namespace [optional]: ");
-
-    // Derive default user field mappings from claim namespace (dot notation for nested access)
-    const defaultExternalUserId = claimNamespace ? `${claimNamespace}.userId` : "sub";
-    const defaultEmail = claimNamespace ? `${claimNamespace}.email` : "email";
-    const defaultName = claimNamespace ? `${claimNamespace}.username` : "name";
+    // ── User field mappings ────────────────────────────────────────────────
 
     console.log("");
-    console.log("User field mappings: JWT claim paths used to extract standard user fields.");
-    if (claimNamespace) {
-        console.log(`  Defaults derived from claim namespace: ${claimNamespace}`);
-    }
-    console.log(`  Press Enter to accept the defaults shown in brackets.`);
+    console.log("-- JWT Claim Mappings --");
+    console.log("");
+    console.log("Tell us which JWT claims contain the user's identity fields.");
+    console.log("These are used to match incoming tokens to user accounts.");
+    console.log("Press Enter to accept the defaults shown in brackets.");
+    console.log("");
+
     const ufmExternalUserId =
-        (await prompt(`  externalUserId claim [default: ${defaultExternalUserId}]: `)) ||
-        defaultExternalUserId;
-    const ufmEmail =
-        (await prompt(`  email claim          [default: ${defaultEmail}]: `)) || defaultEmail;
-    const ufmName =
-        (await prompt(`  name claim           [default: ${defaultName}]: `)) || defaultName;
+        (await prompt("  External user ID claim [default: sub]: ")) || "sub";
+    const ufmEmail = (await prompt("  Email claim            [default: email]: ")) || "email";
+    const ufmName = (await prompt("  Display name claim     [default: name]: ")) || "name";
+
+    // ── Auto group mappings ────────────────────────────────────────────────
 
     console.log("");
-    console.log("Group mappings: rules that assign authenticated users to local groups.");
-    console.log(
-        `  Auto-included: ${AUTO_GROUP_MAPPINGS.map((m) => `[${m.groupIds.join(", ")}]`).join(
-            ", ",
-        )} (authenticated)`,
-    );
-    console.log("  Enter additional mappings one by one. Leave group IDs blank to finish.");
+    console.log("-- Auto Group Mappings --");
     console.log("");
+    console.log("Auto group mappings automatically assign users to groups based");
+    console.log("on their JWT claims when they log in through this provider.");
+    console.log("");
+    console.log("A default mapping will be created that assigns all authenticated");
+    console.log("users to 'group-public-users'. You can add more rules below.");
+    console.log("");
+
     const extraMappings = await collectGroupMappings();
 
-    // Merge auto + extra mappings, keyed on a sorted-joined groupIds signature so an
-    // extra mapping that targets exactly the same set of groups as an auto-included
-    // one overrides it. Different group sets are kept as distinct rules.
-    const sig = (m: AuthProviderGroupMapping) => [...m.groupIds].sort().join(",");
-    const groupMappings = [
-        ...AUTO_GROUP_MAPPINGS.filter((a) => !extraMappings.some((e) => sig(e) === sig(a))),
+    // Build the list: default "authenticated" mapping + any extras
+    const allMappingRules: { groupIds: string[]; conditions: AuthProviderCondition[] }[] = [
+        { groupIds: ["group-public-users"], conditions: [{ type: "authenticated" }] },
         ...extraMappings,
     ];
 
-    // Build documents
+    // ── Build documents ────────────────────────────────────────────────────
+
     const providerId = randomUUID();
-    const configId = randomUUID();
     const now = Date.now();
 
     const providerDoc: AuthProviderDoc = {
@@ -375,78 +388,100 @@ async function addAuthProvider(): Promise<string | null> {
         domain,
         audience,
         clientId,
-        configId,
         memberOf,
-        updatedTimeUtc: now,
-    };
-    if (label) providerDoc.label = label;
-
-    const providerEntry: AuthProviderProviderConfig = {
         userFieldMappings: {
             externalUserId: ufmExternalUserId,
             email: ufmEmail,
             name: ufmName,
         },
+        updatedTimeUtc: now,
     };
-    if (claimNamespace) providerEntry.claimNamespace = claimNamespace;
-    if (groupMappings.length > 0) providerEntry.groupMappings = groupMappings;
+    if (label) providerDoc.label = label;
 
-    // Fetch-or-create the singleton and stage the new per-provider entry.
-    const existingSingleton = await loadAuthProviderConfigSingleton();
-    const configDoc: AuthProviderConfigDoc = existingSingleton
-        ? { ...existingSingleton, updatedTimeUtc: now }
-        : {
-              _id: "authProviderConfig",
-              type: "authProviderConfig",
-              memberOf: ["group-super-admins"],
-              providers: {},
-              updatedTimeUtc: now,
-          };
-    configDoc.providers = { ...(configDoc.providers ?? {}), [configId]: providerEntry };
+    // Each mapping rule becomes its own AutoGroupMappings document
+    const mappingDocs: AutoGroupMappingDoc[] = allMappingRules.map((rule) => ({
+        _id: randomUUID(),
+        type: "autoGroupMappings",
+        providerId,
+        groupIds: rule.groupIds,
+        conditions: rule.conditions,
+        memberOf, // same visibility as the provider
+        updatedTimeUtc: now,
+    }));
+
+    // ── Confirm and write ──────────────────────────────────────────────────
 
     console.log("");
-    console.log("Generated AuthProvider payload:");
+    console.log("-".repeat(60));
+    console.log("  Review: Auth Provider");
+    console.log("-".repeat(60));
     prettyPrint(providerDoc);
-    console.log("");
-    console.log(
-        `AuthProviderConfig singleton to be written (new entry at providers['${configId}']):`,
-    );
-    prettyPrint(configDoc);
-    console.log("");
 
-    const confirm = await prompt("Proceed with insertion into CouchDB? (y/n): ");
+    console.log("");
+    console.log("-".repeat(60));
+    console.log(`  Review: ${mappingDocs.length} Auto Group Mapping(s)`);
+    console.log("-".repeat(60));
+    mappingDocs.forEach((m, i) => {
+        console.log(`\n  Mapping ${i + 1}: assign [${m.groupIds.join(", ")}] when:`);
+        m.conditions.forEach((c) => {
+            if (c.type === "authenticated") console.log("    - User is authenticated");
+            if (c.type === "claimEquals") console.log(`    - ${c.claimPath} = "${c.value}"`);
+            if (c.type === "claimIn")
+                console.log(`    - ${c.claimPath} IN [${(c.values ?? []).join(", ")}]`);
+        });
+    });
+
+    console.log("");
+    const confirm = await prompt("Write these documents to CouchDB? (y/n): ");
     if (confirm.toLowerCase() !== "y") {
-        console.log("Aborted.");
+        console.log("Aborted. No changes were made.");
         return null;
     }
 
+    // Write provider
     const providerRes = await putDoc(providerDoc._id, providerDoc);
-    console.log("\nAuthProvider response from CouchDB:");
-    prettyPrint(providerRes);
+    if (providerRes.ok) {
+        console.log(`\n  Auth provider created: ${providerDoc._id}`);
+    } else {
+        console.log(`\n  Failed to create auth provider: ${providerRes.error} - ${providerRes.reason}`);
+        return null;
+    }
 
-    const configRes = await putDoc(configDoc._id, configDoc);
-    console.log("\nAuthProviderConfig singleton response from CouchDB:");
-    prettyPrint(configRes);
+    // Write mappings
+    const mappingResults = await bulkDocs(mappingDocs);
+    const mappingErrors = mappingResults.filter((r) => r.error);
+    if (mappingErrors.length === 0) {
+        console.log(`  ${mappingDocs.length} auto group mapping(s) created.`);
+    } else {
+        console.log(`  ${mappingErrors.length} mapping(s) failed to create:`);
+        mappingErrors.forEach((e) => console.log(`    ${e.error}: ${e.reason}`));
+    }
 
-    // Ensure group ACLs include the auth provider doc types
+    // Ensure ACLs
     await ensureGroupAcls();
 
-    // Backfill providerId on existing users
+    // Offer to backfill users
     console.log("");
-    const backfillConfirm = await prompt(
-        `Backfill providerId='${providerId}' onto all existing users? (y/n): `,
-    );
+    console.log("-- Backfill Existing Users --");
+    console.log("");
+    console.log("If you have existing user documents in the database, you can");
+    console.log("set their providerId field to link them to this new provider.");
+    console.log("This is useful when migrating from a single-provider setup.");
+    console.log("");
+    const backfillConfirm = await prompt("Backfill existing users with this provider? (y/n): ");
     if (backfillConfirm.toLowerCase() === "y") {
         await backfillUsers(providerId);
     }
 
+    console.log("");
+    console.log("Done! Users can now log in with this provider.");
     return providerId;
 }
 
 // ── Backfill users ──────────────────────────────────────────────────────────────
 
 async function backfillUsers(providerId: string) {
-    console.log("Fetching all user documents...");
+    console.log("  Fetching all user documents...");
 
     const allUsers: any[] = [];
     let bookmark: string | undefined;
@@ -465,15 +500,14 @@ async function backfillUsers(providerId: string) {
         }
     }
 
-    console.log(`Found ${allUsers.length} user(s).`);
-
+    console.log(`  Found ${allUsers.length} user(s).`);
     if (allUsers.length === 0) return;
 
     let migratedUserIdCount = 0;
     const bulk = allUsers.map((u) => {
         const updated = { ...u, providerId };
 
-        // Migrate deprecated userId → externalUserId if not already set
+        // Migrate legacy userId field to the current externalUserId field
         if (!updated.externalUserId && updated.userId) {
             updated.externalUserId = updated.userId;
             migratedUserIdCount++;
@@ -482,28 +516,38 @@ async function backfillUsers(providerId: string) {
         return updated;
     });
 
-    console.log(`Updating ${allUsers.length} user(s) with providerId='${providerId}'...`);
+    console.log(`  Updating ${allUsers.length} user(s)...`);
     if (migratedUserIdCount > 0) {
-        console.log(`  Also migrating userId → externalUserId for ${migratedUserIdCount} user(s).`);
+        console.log(`  Also migrating legacy userId -> externalUserId for ${migratedUserIdCount} user(s).`);
     }
 
     const results = await bulkDocs(bulk);
     const errors = results.filter((r) => r.error);
 
     if (errors.length === 0) {
-        console.log(`Successfully updated ${allUsers.length} user(s).`);
+        console.log(`  Successfully updated ${allUsers.length} user(s).`);
     } else {
-        console.log(`Completed with ${errors.length} error(s):`);
-        errors.forEach((e) => console.log(JSON.stringify(e)));
+        console.log(`  Completed with ${errors.length} error(s):`);
+        errors.forEach((e) => console.log(`    ${JSON.stringify(e)}`));
     }
 }
 
-// ── Ensure group ACLs for auth provider doc types ───────────────────────────────
+// ── Ensure group ACLs ───────────────────────────────────────────────────────────
+//
+// The ACL system controls which user groups can view/edit/delete each document
+// type. This function ensures the seed groups have the right permissions for
+// the auth-related document types.
 
 const REQUIRED_ACLS: { groupId: string; entries: AclEntry[] }[] = [
     {
         groupId: "group-public-users",
-        entries: [{ type: "authProvider", groupId: "group-public-users", permission: ["view"] }],
+        entries: [
+            {
+                type: "authProvider",
+                groupId: "group-public-users",
+                permission: ["view"],
+            },
+        ],
     },
     {
         groupId: "group-super-admins",
@@ -511,17 +555,17 @@ const REQUIRED_ACLS: { groupId: string; entries: AclEntry[] }[] = [
             {
                 type: "authProvider",
                 groupId: "group-super-admins",
-                permission: ["view", "create", "edit", "delete", "assign"],
+                permission: ["view", "edit", "delete", "assign"],
             },
             {
-                type: "authProviderConfig",
+                type: "autoGroupMappings",
                 groupId: "group-super-admins",
-                permission: ["view", "create", "edit", "delete", "assign"],
+                permission: ["view", "edit", "delete", "assign"],
             },
             {
                 type: "defaultPermissions",
                 groupId: "group-super-admins",
-                permission: ["view", "create", "edit", "delete", "assign"],
+                permission: ["view", "edit", "delete", "assign"],
             },
         ],
     },
@@ -529,22 +573,38 @@ const REQUIRED_ACLS: { groupId: string; entries: AclEntry[] }[] = [
 
 async function ensureGroupAcls() {
     console.log("");
-    console.log("Ensuring group ACLs include auth provider doc types...");
+    console.log("-- Checking Group ACL Permissions --");
+    console.log("");
+    console.log("Making sure the seed groups have the right permissions for");
+    console.log("auth providers, auto group mappings, and default permissions.");
+    console.log("");
 
     for (const { groupId, entries } of REQUIRED_ACLS) {
         let groupDoc: GroupDoc;
         try {
             groupDoc = await getDoc<GroupDoc>(groupId);
             if ((groupDoc as any).error) {
-                console.log(`  ⚠ Group '${groupId}' not found in database, skipping.`);
+                console.log(`  Warning: Group '${groupId}' not found in database, skipping.`);
                 continue;
             }
         } catch {
-            console.log(`  ⚠ Could not fetch '${groupId}', skipping.`);
+            console.log(`  Warning: Could not fetch '${groupId}', skipping.`);
             continue;
         }
 
-        let changed = false;
+        // Clean up stale/invalid ACL entries (e.g. removed doc types, undefined types)
+        const validTypes = [
+            "post", "tag", "group", "user", "language", "redirect",
+            "storage", "authProvider", "autoGroupMappings", "defaultPermissions",
+        ];
+        const beforeCount = groupDoc.acl.length;
+        groupDoc.acl = groupDoc.acl.filter((a) => a.type && validTypes.includes(a.type));
+        const removed = beforeCount - groupDoc.acl.length;
+        let changed = removed > 0;
+        if (removed > 0) {
+            console.log(`  - Removed ${removed} stale/invalid ACL entry(s) from ${groupId}`);
+        }
+
         for (const required of entries) {
             const existing = groupDoc.acl.find(
                 (a) => a.type === required.type && a.groupId === required.groupId,
@@ -552,17 +612,14 @@ async function ensureGroupAcls() {
             if (!existing) {
                 groupDoc.acl.push(required);
                 changed = true;
-                console.log(`  + Added ${required.type} ACL to ${groupId}`);
+                console.log(`  + Added ${required.type} permissions to ${groupId}`);
             } else {
-                // Ensure all required permissions are present
                 const missing = required.permission.filter((p) => !existing.permission.includes(p));
                 if (missing.length > 0) {
                     existing.permission.push(...missing);
                     changed = true;
                     console.log(
-                        `  + Added missing permissions [${missing.join(", ")}] to ${
-                            required.type
-                        } ACL on ${groupId}`,
+                        `  + Added missing [${missing.join(", ")}] to ${required.type} on ${groupId}`,
                     );
                 }
             }
@@ -572,12 +629,12 @@ async function ensureGroupAcls() {
             groupDoc.updatedTimeUtc = Date.now();
             const res = await putDoc(groupDoc._id, groupDoc);
             if (res.ok) {
-                console.log(`  ✓ Updated ${groupId}`);
+                console.log(`  Updated ${groupId}`);
             } else {
-                console.log(`  ✗ Failed to update ${groupId}: ${res.error} — ${res.reason}`);
+                console.log(`  Failed to update ${groupId}: ${res.error} - ${res.reason}`);
             }
         } else {
-            console.log(`  ✓ ${groupId} already has required ACLs`);
+            console.log(`  ${groupId} already has all required permissions.`);
         }
     }
 }
@@ -586,214 +643,152 @@ async function ensureGroupAcls() {
 
 async function modifyAuthProvider() {
     console.log("");
-    console.log("=====================================");
-    console.log("   Modify Auth Provider");
-    console.log("=====================================");
+    console.log("=".repeat(60));
+    console.log("  Modify an Existing Auth Provider");
+    console.log("=".repeat(60));
     console.log("");
 
     const result = await find<AuthProviderDoc>({ type: "authProvider" });
     const providers = result.docs || [];
 
     if (providers.length === 0) {
-        console.log("No auth providers found. Use 'Add Auth Provider' to create one.");
+        console.log("No auth providers found. Use 'Add Auth Provider' to create one first.");
         return;
     }
 
-    console.log("Existing auth providers:");
+    console.log("Select the auth provider to modify:");
+    console.log("");
     providers.forEach((p, i) => {
-        const tag = p.label ? `${p.label} — ` : "";
-        console.log(`  ${i + 1}) ${tag}${p.domain} (${p._id})`);
+        const tag = p.label ? `${p.label} - ` : "";
+        console.log(`  ${i + 1}) ${tag}${p.domain} (ID: ${p._id})`);
     });
     console.log("");
 
-    const choiceStr = await prompt(`Select provider to modify [1-${providers.length}]: `);
+    const choiceStr = await prompt(`Select [1-${providers.length}]: `);
     const choice = parseInt(choiceStr, 10);
     if (isNaN(choice) || choice < 1 || choice > providers.length) {
-        console.log("Invalid selection. Exiting.");
+        console.log("Invalid selection.");
         return;
     }
 
-    const currentProvider = providers[choice - 1];
+    const provider = providers[choice - 1];
 
-    // Ensure the provider has a configId — stale dev data may predate this field.
-    let configId = currentProvider.configId;
-    if (!configId) {
-        configId = randomUUID();
-        console.log(
-            `  ⚠ Provider has no configId. Generating new configId '${configId}' — it will be persisted on save.`,
-        );
-    }
+    // Load current values
+    let domain = provider.domain;
+    let audience = provider.audience;
+    let clientId = provider.clientId;
+    let label = provider.label || "";
+    let memberOf = provider.memberOf || [...AUTO_MEMBER_OF];
+    let ufmExternalUserId = provider.userFieldMappings?.externalUserId || "sub";
+    let ufmEmail = provider.userFieldMappings?.email || "email";
+    let ufmName = provider.userFieldMappings?.name || "name";
 
-    // Load the singleton and extract this provider's entry (may be empty).
-    const singleton = await loadAuthProviderConfigSingleton();
-    const currentEntry: AuthProviderProviderConfig | null =
-        singleton?.providers?.[configId] ?? null;
-
-    // Initialize working variables
-    let domain = currentProvider.domain;
-    let audience = currentProvider.audience;
-    let clientId = currentProvider.clientId;
-    let label = currentProvider.label || "";
-    let memberOf = currentProvider.memberOf || [...AUTO_MEMBER_OF];
-    let claimNamespace = currentEntry?.claimNamespace || "";
-    let ufmExternalUserId =
-        currentEntry?.userFieldMappings?.externalUserId ||
-        (claimNamespace ? `${claimNamespace}.userId` : "sub");
-    let ufmEmail =
-        currentEntry?.userFieldMappings?.email ||
-        (claimNamespace ? `${claimNamespace}.email` : "email");
-    let ufmName =
-        currentEntry?.userFieldMappings?.name ||
-        (claimNamespace ? `${claimNamespace}.username` : "name");
-
-    // Auto-fix slash-notation claim paths loaded from the database.
-    // Old script versions used "namespace/field" instead of "namespace.field".
-    if (claimNamespace) {
-        const slashPrefix = claimNamespace + "/";
-        const dotPrefix = claimNamespace + ".";
-        const fixPath = (p: string) =>
-            p.startsWith(slashPrefix) ? dotPrefix + p.slice(slashPrefix.length) : p;
-
-        const fixedExt = fixPath(ufmExternalUserId);
-        const fixedEmail = fixPath(ufmEmail);
-        const fixedName = fixPath(ufmName);
-
-        if (fixedExt !== ufmExternalUserId || fixedEmail !== ufmEmail || fixedName !== ufmName) {
-            console.log("");
-            console.log(
-                "  ⚠ Detected old slash-notation in user field mappings. Auto-correcting to dot notation:",
-            );
-            if (fixedExt !== ufmExternalUserId)
-                console.log(`    externalUserId: ${ufmExternalUserId} → ${fixedExt}`);
-            if (fixedEmail !== ufmEmail) console.log(`    email: ${ufmEmail} → ${fixedEmail}`);
-            if (fixedName !== ufmName) console.log(`    name: ${ufmName} → ${fixedName}`);
-            ufmExternalUserId = fixedExt;
-            ufmEmail = fixedEmail;
-            ufmName = fixedName;
-        }
-    }
-    let groupMappings = currentEntry?.groupMappings || [];
+    // Load existing auto group mappings for this provider
+    const existingMappingsResult = await find<AutoGroupMappingDoc>({
+        type: "autoGroupMappings",
+        providerId: provider._id,
+    });
+    let existingMappings = existingMappingsResult.docs || [];
 
     console.log("");
-    console.log("Select a field to edit. Changes are staged until you confirm.");
-    console.log("Press Q to finish and proceed.");
+    console.log("Edit fields by selecting their number. Press Q when done.");
 
     while (true) {
         console.log("");
-        console.log(`  1) Domain              [${domain}]`);
-        console.log(`  2) Audience            [${audience}]`);
-        console.log(`  3) Client ID           [${clientId}]`);
-        console.log(`  4) Display label       [${label}]`);
-        console.log(`  5) Member-of groups    [${JSON.stringify(memberOf)}]`);
-        console.log(`  6) Claim namespace     [${claimNamespace}]`);
+        console.log(`  1) Domain              : ${domain}`);
+        console.log(`  2) Audience            : ${audience}`);
+        console.log(`  3) Client ID           : ${clientId}`);
+        console.log(`  4) Button label        : ${label || "(none)"}`);
+        console.log(`  5) Group membership    : ${memberOf.join(", ")}`);
         console.log(
-            `  7) User field mappings [externalUserId=${ufmExternalUserId || "sub"}, email=${
-                ufmEmail || "email"
-            }, name=${ufmName || "name"}]`,
+            `  6) Claim mappings      : userId=${ufmExternalUserId}, email=${ufmEmail}, name=${ufmName}`,
         );
-        console.log(`  8) Group mappings      (${groupMappings.length} mapping(s))`);
-        console.log("  Q) Done — proceed to update");
+        console.log(`  7) Auto group mappings : ${existingMappings.length} mapping(s)`);
+        console.log("  Q) Done - save changes");
         console.log("");
 
-        const fieldChoice = await prompt("Select [1-8 or Q]: ");
+        const fieldChoice = await prompt("Select [1-7 or Q]: ");
 
         switch (fieldChoice) {
             case "1": {
-                const v = await prompt(`Domain [${domain}]: `);
+                const v = await prompt(`  New domain [${domain}]: `);
                 if (v) domain = v;
                 break;
             }
             case "2": {
-                const v = await prompt(`Audience [${audience}]: `);
+                const v = await prompt(`  New audience [${audience}]: `);
                 if (v) audience = v;
                 break;
             }
             case "3": {
-                const v = await prompt(`Client ID [${clientId}]: `);
+                const v = await prompt(`  New client ID [${clientId}]: `);
                 if (v) clientId = v;
                 break;
             }
             case "4": {
-                const v = await prompt(
-                    `Display label [${label}] (enter a single space to clear): `,
-                );
+                const v = await prompt(`  New button label [${label}] (space to clear): `);
                 if (v === " ") label = "";
                 else if (v) label = v;
                 break;
             }
             case "5": {
-                console.log(`  Current: ${JSON.stringify(memberOf)}`);
+                console.log(`  Current: ${memberOf.join(", ")}`);
                 console.log(`  Auto-included: ${AUTO_MEMBER_OF.join(", ")}`);
-                console.log("  Enter additional group IDs one per line. Leave blank to finish.");
-                console.log("  (Entering nothing keeps the current value.)");
-                console.log("");
+                console.log("  Enter additional group IDs. Press Enter to finish.");
                 const newExtra: string[] = [];
                 let entered = false;
                 while (true) {
-                    const g = await prompt("  Group ID (or blank to finish): ");
+                    const g = await prompt("    Group ID: ");
                     if (!g) break;
                     newExtra.push(g);
                     entered = true;
                 }
-                if (entered) {
-                    memberOf = uniqueStrings(AUTO_MEMBER_OF, newExtra);
-                }
+                if (entered) memberOf = uniqueStrings(AUTO_MEMBER_OF, newExtra);
                 break;
             }
             case "6": {
-                const v = await prompt(
-                    `Claim namespace [${claimNamespace}] (enter a single space to clear): `,
-                );
-                const oldNs = claimNamespace;
-                if (v === " ") claimNamespace = "";
-                else if (v) claimNamespace = v;
-
-                if (claimNamespace !== oldNs) {
-                    const derivedExternalUserId = claimNamespace
-                        ? `${claimNamespace}.userId`
-                        : "sub";
-                    const derivedEmail = claimNamespace ? `${claimNamespace}.email` : "email";
-                    const derivedName = claimNamespace ? `${claimNamespace}.username` : "name";
-                    const rederive = await prompt(
-                        `  Update user field mappings to [${derivedExternalUserId}, ${derivedEmail}, ${derivedName}]? (y/n): `,
-                    );
-                    if (rederive.toLowerCase() === "y") {
-                        ufmExternalUserId = derivedExternalUserId;
-                        ufmEmail = derivedEmail;
-                        ufmName = derivedName;
-                    }
-                }
+                console.log("  Press Enter to keep current value.");
+                let v = await prompt(`  External user ID claim [${ufmExternalUserId}]: `);
+                if (v) ufmExternalUserId = v;
+                v = await prompt(`  Email claim [${ufmEmail}]: `);
+                if (v) ufmEmail = v;
+                v = await prompt(`  Name claim [${ufmName}]: `);
+                if (v) ufmName = v;
                 break;
             }
             case "7": {
-                console.log(
-                    `  Current: externalUserId=${ufmExternalUserId || "sub"}, email=${
-                        ufmEmail || "email"
-                    }, name=${ufmName || "name"}`,
-                );
-                console.log(
-                    "  Press Enter to keep current. Enter a single space to clear a field.",
-                );
-                let v = await prompt(`  externalUserId claim [${ufmExternalUserId}]: `);
-                if (v === " ") ufmExternalUserId = "";
-                else if (v) ufmExternalUserId = v;
-                v = await prompt(`  email claim [${ufmEmail}]: `);
-                if (v === " ") ufmEmail = "";
-                else if (v) ufmEmail = v;
-                v = await prompt(`  name claim [${ufmName}]: `);
-                if (v === " ") ufmName = "";
-                else if (v) ufmName = v;
-                break;
-            }
-            case "8": {
-                console.log("  Current group mappings:");
-                prettyPrint(groupMappings);
+                console.log("  Current auto group mappings:");
+                if (existingMappings.length === 0) {
+                    console.log("    (none)");
+                } else {
+                    existingMappings.forEach((m, i) => {
+                        const condDesc = m.conditions
+                            .map((c) => {
+                                if (c.type === "authenticated") return "authenticated";
+                                if (c.type === "claimEquals") return `${c.claimPath}="${c.value}"`;
+                                if (c.type === "claimIn")
+                                    return `${c.claimPath} IN [${(c.values ?? []).join(",")}]`;
+                                return "?";
+                            })
+                            .join(" OR ");
+                        console.log(`    ${i + 1}) [${m.groupIds.join(", ")}] when: ${condDesc}`);
+                    });
+                }
                 console.log("");
-                const replace = await prompt("  Replace all group mappings? (y/n): ");
+                const replace = await prompt("  Replace all mappings? (y/n): ");
                 if (replace.toLowerCase() === "y") {
-                    console.log("  Enter new group mappings. Leave group ID blank to finish.");
-                    console.log("");
-                    groupMappings = await collectGroupMappings();
+                    console.log("  Enter new mappings:");
+                    const newRules = await collectGroupMappings();
+                    // Mark old docs for deletion
+                    existingMappings = newRules.map((rule) => ({
+                        _id: randomUUID(),
+                        type: "autoGroupMappings" as const,
+                        providerId: provider._id,
+                        groupIds: rule.groupIds,
+                        conditions: rule.conditions,
+                        memberOf,
+                        updatedTimeUtc: Date.now(),
+                    }));
                 }
                 break;
             }
@@ -808,104 +803,105 @@ async function modifyAuthProvider() {
         if (fieldChoice.toLowerCase() === "q") break;
     }
 
-    // Validate required fields
-    if (!domain) {
-        console.log("Domain is required. Aborting.");
-        return;
-    }
-    if (!audience) {
-        console.log("Audience is required. Aborting.");
-        return;
-    }
-    if (!clientId) {
-        console.log("Client ID is required. Aborting.");
+    // Validate
+    if (!domain || !audience || !clientId) {
+        console.log("Domain, audience, and client ID are all required. Aborting.");
         return;
     }
 
-    // Ensure auto-included groups are present
     memberOf = uniqueStrings(AUTO_MEMBER_OF, memberOf);
-
     const now = Date.now();
 
-    // Build updated provider doc — preserves imageData, imageBucketId, etc.
-    const providerDoc: AuthProviderDoc = {
-        ...currentProvider,
+    // Build updated provider doc (preserves icon/image fields)
+    const updatedProvider: AuthProviderDoc = {
+        ...provider,
         domain,
         audience,
         clientId,
-        configId,
         memberOf,
-        updatedTimeUtc: now,
-    };
-    if (label) providerDoc.label = label;
-    else delete providerDoc.label;
-
-    // Build updated singleton: start from what's in the DB (or a fresh shell),
-    // then overwrite just this provider's entry at configId.
-    const updatedEntry: AuthProviderProviderConfig = {
         userFieldMappings: {
             externalUserId: ufmExternalUserId,
             email: ufmEmail,
             name: ufmName,
         },
+        updatedTimeUtc: now,
     };
-    if (claimNamespace) updatedEntry.claimNamespace = claimNamespace;
-    if (groupMappings.length > 0) updatedEntry.groupMappings = groupMappings;
-
-    const configDoc: AuthProviderConfigDoc = singleton
-        ? { ...singleton, memberOf: ["group-super-admins"], updatedTimeUtc: now }
-        : {
-              _id: "authProviderConfig",
-              type: "authProviderConfig",
-              memberOf: ["group-super-admins"],
-              providers: {},
-              updatedTimeUtc: now,
-          };
-    configDoc.providers = { ...(configDoc.providers ?? {}), [configId]: updatedEntry };
+    if (label) updatedProvider.label = label;
+    else delete updatedProvider.label;
 
     console.log("");
-    console.log("Updated AuthProvider payload:");
-    prettyPrint(providerDoc);
-    console.log("");
-    console.log(
-        `AuthProviderConfig singleton to be written (updated entry at providers['${configId}']):`,
-    );
-    prettyPrint(configDoc);
-    console.log("");
+    console.log("-".repeat(60));
+    console.log("  Review: Updated Auth Provider");
+    console.log("-".repeat(60));
+    prettyPrint(updatedProvider);
 
-    const confirm = await prompt("Proceed with update in CouchDB? (y/n): ");
+    console.log("");
+    const confirm = await prompt("Save changes to CouchDB? (y/n): ");
     if (confirm.toLowerCase() !== "y") {
-        console.log("Aborted.");
+        console.log("Aborted. No changes were made.");
         return;
     }
 
-    const providerRes = await putDoc(providerDoc._id, providerDoc);
-    console.log("\nAuthProvider response from CouchDB:");
-    prettyPrint(providerRes);
+    const providerRes = await putDoc(updatedProvider._id, updatedProvider);
+    if (providerRes.ok) {
+        console.log(`  Auth provider updated.`);
+    } else {
+        console.log(`  Failed: ${providerRes.error} - ${providerRes.reason}`);
+    }
 
-    const configRes = await putDoc(configDoc._id, configDoc);
-    console.log("\nAuthProviderConfig singleton response from CouchDB:");
-    prettyPrint(configRes);
+    // Delete old mappings and write new ones if they were replaced
+    const oldMappingsResult = await find<AutoGroupMappingDoc>({
+        type: "autoGroupMappings",
+        providerId: provider._id,
+    });
+    const oldMappings = oldMappingsResult.docs || [];
+
+    if (oldMappings.length > 0) {
+        const deleteDocs = oldMappings.map((m) => ({ ...m, _deleted: true }));
+        await bulkDocs(deleteDocs);
+        console.log(`  Removed ${oldMappings.length} old mapping(s).`);
+    }
+
+    if (existingMappings.length > 0) {
+        // Remove _rev from new mappings (they are new documents)
+        const newMappings = existingMappings.map((m) => {
+            const { _rev, ...rest } = m;
+            return rest;
+        });
+        const mappingResults = await bulkDocs(newMappings);
+        const mappingErrors = mappingResults.filter((r) => r.error);
+        if (mappingErrors.length === 0) {
+            console.log(`  ${newMappings.length} mapping(s) saved.`);
+        } else {
+            console.log(`  ${mappingErrors.length} mapping(s) failed:`);
+            mappingErrors.forEach((e) => console.log(`    ${JSON.stringify(e)}`));
+        }
+    }
+
+    console.log("\n  Done!");
 }
 
 // ── Configure Default Groups ────────────────────────────────────────────────────
 
 async function configureDefaultGroups() {
     console.log("");
-    console.log("=====================================");
-    console.log("   Configure Default Groups");
-    console.log("=====================================");
+    console.log("=".repeat(60));
+    console.log("  Configure Default Groups");
+    console.log("=".repeat(60));
     console.log("");
-    console.log("Default groups are automatically assigned to ALL users (including guests).");
-    console.log("They are stored in a DefaultPermissions document in CouchDB.");
+    console.log("Default groups are the baseline permissions assigned to EVERY");
+    console.log("user -- including unauthenticated guests who haven't logged in.");
+    console.log("");
+    console.log("For example, if you want all visitors to see public content,");
+    console.log("include the group that has 'view' access to public posts.");
     console.log("");
     console.log(`Auto-included: ${AUTO_DEFAULT_GROUPS.join(", ")}`);
-    console.log("Enter additional default group IDs, one per line. Leave blank to finish.");
+    console.log("Enter additional group IDs below. Press Enter to finish.");
     console.log("");
 
     const extraGroups: string[] = [];
     while (true) {
-        const groupId = await prompt("  Group ID (or blank to finish): ");
+        const groupId = await prompt("  Group ID: ");
         if (!groupId) break;
         extraGroups.push(groupId);
     }
@@ -913,8 +909,7 @@ async function configureDefaultGroups() {
     const defaultGroups = uniqueStrings(AUTO_DEFAULT_GROUPS, extraGroups);
 
     console.log("");
-    console.log(`Default groups to set: ${defaultGroups.join(", ")}`);
-    console.log("");
+    console.log(`Groups to set: ${defaultGroups.join(", ")}`);
 
     // Check for existing document
     let existingDoc: DefaultPermissionsDoc | null = null;
@@ -922,20 +917,20 @@ async function configureDefaultGroups() {
         const doc = await getDoc<DefaultPermissionsDoc & { error?: string }>("defaultPermissions");
         if (!doc.error) existingDoc = doc;
     } catch {
-        // Document doesn't exist
+        // Document doesn't exist yet
     }
 
-    const now = Date.now();
-
     if (existingDoc?._rev) {
-        console.log(`Existing DefaultPermissions document found (rev: ${existingDoc._rev}).`);
-        const overwrite = await prompt("Overwrite defaultGroups? (y/n): ");
+        console.log("");
+        console.log(`An existing DefaultPermissions document was found.`);
+        console.log(`Current groups: ${(existingDoc.defaultGroups || []).join(", ")}`);
+        const overwrite = await prompt("Overwrite with the new list? (y/n): ");
         if (overwrite.toLowerCase() !== "y") {
-            console.log("Skipping DefaultPermissions update.");
+            console.log("No changes made.");
             return;
         }
     } else {
-        console.log("No existing DefaultPermissions document found. Creating a new one.");
+        console.log("No existing document found -- creating a new one.");
     }
 
     const dpDoc: DefaultPermissionsDoc = {
@@ -943,27 +938,48 @@ async function configureDefaultGroups() {
         type: "defaultPermissions",
         memberOf: ["group-super-admins"],
         defaultGroups,
-        updatedTimeUtc: now,
+        updatedTimeUtc: Date.now(),
         ...(existingDoc?._rev ? { _rev: existingDoc._rev } : {}),
     };
 
     const response = await putDoc("defaultPermissions", dpDoc);
-    console.log("\nDefaultPermissions response from CouchDB:");
-    prettyPrint(response);
+    if (response.ok) {
+        console.log("\n  Default permissions saved.");
+    } else {
+        console.log(`\n  Failed: ${response.error} - ${response.reason}`);
+    }
 }
 
-// ── Main ────────────────────────────────────────────────────────────────────────
+// ── Main Menu ───────────────────────────────────────────────────────────────────
 
 async function main() {
-    console.log("=====================================");
-    console.log("   Luminary Auth Setup");
-    console.log("=====================================");
+    console.log("");
+    console.log("=".repeat(60));
+    console.log("  Luminary Auth Setup");
+    console.log("=".repeat(60));
+    console.log("");
+    console.log("This tool sets up authentication for Luminary by creating");
+    console.log("the required documents in CouchDB.");
     console.log("");
     console.log("  1) Add Auth Provider");
+    console.log("     Create a new OIDC provider (e.g. Auth0, Okta) so users");
+    console.log("     can log in. Also creates auto group mappings and fixes");
+    console.log("     ACL permissions.");
+    console.log("");
     console.log("  2) Modify Auth Provider");
+    console.log("     Change the domain, client ID, claim mappings, or group");
+    console.log("     mapping rules for an existing provider.");
+    console.log("");
     console.log("  3) Configure Default Groups");
-    console.log("  4) Fix Group ACLs (add auth provider permissions)");
-    console.log("  5) Full Setup (Add Provider + Default Groups + Fix ACLs)");
+    console.log("     Set the groups assigned to ALL users (including guests).");
+    console.log("     This controls what unauthenticated users can access.");
+    console.log("");
+    console.log("  4) Fix Group ACLs");
+    console.log("     Ensure the seed groups (super-admins, public-users) have");
+    console.log("     the right permissions for auth-related document types.");
+    console.log("");
+    console.log("  5) Full Setup");
+    console.log("     Run steps 1 + 3 + 4 in sequence. Best for first-time setup.");
     console.log("");
 
     const menuChoice = await prompt("Select an option [1-5]: ");
@@ -988,7 +1004,7 @@ async function main() {
             break;
         }
         default:
-            console.log("Invalid option. Exiting.");
+            console.log("Invalid option.");
             break;
     }
 

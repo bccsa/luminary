@@ -44,7 +44,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
     ],
-    [DocType.AuthProviderConfig]: [
+    [DocType.AutoGroupMappings]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,

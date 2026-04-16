@@ -136,6 +136,7 @@ export async function setupAuth(app: App<Element>, router: Router) {
             setCustomHeader("Authorization", `Bearer ${token}`);
             getSocket().setAuth(token, activeProviderId.value);
             getSocket().reconnect();
+            startTokenRefresh(oauth);
         }
     } catch {
         // The app has a valid unauthenticated state (public content), so swallow.
@@ -242,6 +243,37 @@ export async function getLastSelectedProvider(): Promise<AuthProviderDto | null>
     } catch (e) {
         Sentry?.captureException(e);
         return null;
+    }
+}
+
+// ── Proactive token refresh ─────────────────────────────────────────────────
+// Auth0 access tokens expire (typically 1 hour). We refresh every 5 minutes
+// so the socket and HTTP headers always carry a valid token.
+
+const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+let tokenRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startTokenRefresh(oauth: {
+    getAccessTokenSilently: () => Promise<string>;
+}): void {
+    stopTokenRefresh();
+    tokenRefreshTimer = setInterval(async () => {
+        try {
+            const token = await oauth.getAccessTokenSilently();
+            if (token) {
+                setCustomHeader("Authorization", `Bearer ${token}`);
+                getSocket().setAuth(token, activeProviderId.value);
+            }
+        } catch {
+            // Token refresh failed — the apiAuthFailed socket event will handle redirect
+        }
+    }, TOKEN_REFRESH_INTERVAL_MS);
+}
+
+export function stopTokenRefresh(): void {
+    if (tokenRefreshTimer) {
+        clearInterval(tokenRefreshTimer);
+        tokenRefreshTimer = null;
     }
 }
 

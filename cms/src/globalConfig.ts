@@ -34,7 +34,7 @@ window.addEventListener("resize", () => {
 });
 export const isMobileScreen = computed(() => windowWidth.value < 1024);
 export const isSmallScreen = computed(() => windowWidth.value < 1500);
-export const sidebarSectionExpanded = ref({ posts: false, tags: false });
+export const sidebarSectionExpanded = ref({ posts: false, tags: false, groups: false });
 
 /**
  * The preferred CMS language ID as Vue ref.

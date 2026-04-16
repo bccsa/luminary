@@ -5,13 +5,6 @@ import { IsString, IsNotEmpty, IsOptional, IsObject, IsNumber } from "class-vali
 import { Expose } from "class-transformer";
 
 /**
- * Public-facing OIDC auth provider configuration synced to both the app and CMS.
- * Holds the non-sensitive information needed to render a login button and initiate
- * an OIDC flow.
- *
- * Server-side JWT processing rules live in the `AuthProviderConfigDto` singleton,
- * addressed via `configId` — a UUID that keys this provider's entry inside the
- * singleton's `providers` map.
  */
 export class AuthProviderDto extends _contentBaseDto {
     public constructor(init?: Partial<AuthProviderDto>) {
@@ -44,14 +37,14 @@ export class AuthProviderDto extends _contentBaseDto {
     @Expose()
     public clientId!: string;
 
-    /**
-     * UUID that keys this provider's entry inside the AuthProviderConfigDto
-     * singleton's `providers` map.
-     */
-    @IsString()
-    @IsNotEmpty()
+    @IsOptional()
+    @IsObject()
     @Expose()
-    public configId!: string;
+    public userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
 
     /** Display label shown in the login UI */
     @IsString()

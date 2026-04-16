@@ -23,7 +23,7 @@ export enum DocType {
     Storage = "storage",
     Crypto = "crypto",
     AuthProvider = "authProvider",
-    AuthProviderConfig = "authProviderConfig",
+    AutoGroupMappings = "autoGroupMappings",
     DefaultPermissions = "defaultPermissions",
 }
 
@@ -35,11 +35,6 @@ export enum AclPermission {
      * Access to view documents
      */
     View = "view",
-
-    /**
-     * Access to create new documents
-     */
-    Create = "create",
 
     /**
      * Access to edit documents

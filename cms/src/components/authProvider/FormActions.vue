@@ -1,16 +1,20 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import LButton from "../button/LButton.vue";
 import LBadge from "../common/LBadge.vue";
 import { isConnected } from "luminary-shared";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 
-defineProps<{
+const props = defineProps<{
     isEditing: boolean;
     isLoading: boolean;
+    canEdit: boolean;
     canDelete: boolean;
     isFormValid: boolean;
     isDirty: boolean;
 }>();
+
+const isDisabled = computed(() => props.isLoading || !props.canEdit);
 
 const emit = defineEmits<{
     save: [];
@@ -29,6 +33,9 @@ const handleRevert = () => emit("revert");
 
 <template>
     <div class="border-t pt-3">
+        <LBadge v-if="!canEdit" variant="warning" withIcon class="mb-2">
+            You do not have permission to edit this provider
+        </LBadge>
         <LBadge v-if="!isConnected" variant="warning" withIcon class="mb-2">
             Saving disabled: Unable to save while offline
         </LBadge>
@@ -43,7 +50,7 @@ const handleRevert = () => emit("revert");
                     variant="secondary"
                     context="danger"
                     size="sm"
-                    :disabled="isLoading"
+                    :disabled="isDisabled"
                 >
                     Delete
                 </LButton>
@@ -52,7 +59,7 @@ const handleRevert = () => emit("revert");
                     @click="handleDuplicate"
                     variant="secondary"
                     size="sm"
-                    :disabled="isLoading"
+                    :disabled="isDisabled"
                 >
                     Duplicate
                 </LButton>
@@ -63,7 +70,7 @@ const handleRevert = () => emit("revert");
                     :icon="ArrowUturnLeftIcon"
                     smallIcon
                     @click="handleRevert"
-                    :disabled="isLoading"
+                    :disabled="isDisabled"
                 >
                     Revert
                 </LButton>
@@ -73,7 +80,6 @@ const handleRevert = () => emit("revert");
                     @click="handleClose"
                     variant="secondary"
                     size="sm"
-                    :disabled="isLoading"
                 >
                     Cancel
                 </LButton>
@@ -81,7 +87,7 @@ const handleRevert = () => emit("revert");
                     variant="primary"
                     size="sm"
                     @click="handleSave"
-                    :disabled="isLoading || !isFormValid || !isDirty || !isConnected"
+                    :disabled="isDisabled || !isFormValid || !isDirty || !isConnected"
                     :loading="isLoading"
                 >
                     Save

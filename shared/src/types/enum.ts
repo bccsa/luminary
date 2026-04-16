@@ -10,7 +10,7 @@ export enum DocType {
     Storage = "storage",
     Crypto = "crypto",
     AuthProvider = "authProvider",
-    AuthProviderConfig = "authProviderConfig",
+    AutoGroupMappings = "autoGroupMappings",
     DefaultPermissions = "defaultPermissions",
 }
 

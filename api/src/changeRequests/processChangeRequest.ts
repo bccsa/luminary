@@ -19,8 +19,8 @@ import processDefaultPermissionsDto from "./documentProcessing/processDefaultPer
 import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
 import processAuthProviderDto from "./documentProcessing/processAuthProviderDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
-import processAuthProviderConfigDto from "./documentProcessing/processAuthProviderConfigDto";
-import { AuthProviderConfigDto } from "../dto/AuthProviderConfigDto";
+import processAutoGroupMappingsDto from "./documentProcessing/processAutoGroupMappingsDto";
+import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -65,8 +65,8 @@ export async function processChangeRequest(
             processDefaultPermissionsDto(doc as DefaultPermissionsDto),
         [DocType.AuthProvider]: () =>
             processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
-        [DocType.AuthProviderConfig]: () =>
-            processAuthProviderConfigDto(doc as AuthProviderConfigDto),
+        [DocType.AutoGroupMappings]: () =>
+            processAutoGroupMappingsDto(doc as AutoGroupMappingsDto),
     };
 
     if (docProcessMap[doc.type]) {
