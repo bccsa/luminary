@@ -23,12 +23,12 @@ describe("validateAcl", () => {
         expect(result[0].permission).toContain(AclPermission.Edit);
     });
 
-    it("should clear permissions when only non-View permissions result in empty after filtering", () => {
+    it("should remove entries with empty permissions", () => {
         const acl = [createEntry(DocType.Post, "g1", [])];
         const result = validateAcl(acl);
 
         // Empty permissions means no View, so entry is removed by compactAclEntries
-        expect(result[0].permission).toHaveLength(0);
+        expect(result).toHaveLength(0);
     });
 
     it("should remove Edit from Group type when Assign is missing", () => {
@@ -68,8 +68,8 @@ describe("validateAcl", () => {
         const acl = [createEntry("invalid" as DocType, "g1", [AclPermission.View])];
         const result = validateAcl(acl);
 
-        // Invalid doc type filtered by isPermissionAvailable
-        expect(result[0].permission).toHaveLength(0);
+        // Invalid doc type filtered out by compactAclEntries
+        expect(result).toHaveLength(0);
     });
 
     it("should deep-clone input and not mutate the original", () => {

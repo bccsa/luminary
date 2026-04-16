@@ -143,7 +143,7 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("Submitted group document validation failed");
     });
 
-    it("fails validation for a nested field of enums", async () => {
+    it("strips invalid permissions from ACL entries before validation", async () => {
         const changeRequest = {
             doc: {
                 _id: "test-group",
@@ -158,7 +158,7 @@ describe("validateChangeRequest", () => {
                     {
                         type: "language",
                         groupId: "group-private-content",
-                        permission: ["view", "invalid"], // This field is modified to include an invalid value
+                        permission: ["view", "invalid"], // Invalid permission is stripped by validateAcl
                     },
                 ],
             },
@@ -166,8 +166,8 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        expect(result.validated).toBe(false);
-        expect(result.error).toContain("Submitted group document validation failed");
+        // validateAcl strips "invalid", keeps "view" — validation passes
+        expect(result.validated).toBe(true);
     });
 
     it("removes invalid fields from the document", async () => {
@@ -251,7 +251,7 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBeUndefined();
     });
 
-    it("fails validation when ACL entries contain invalid permissions", async () => {
+    it("strips ACL entries that have only invalid permissions", async () => {
         const changeRequest = {
             doc: {
                 _id: "test-group",
@@ -266,7 +266,7 @@ describe("validateChangeRequest", () => {
                     {
                         type: "language",
                         groupId: "group-private-content",
-                        permission: ["invalid-permission"], // Invalid permission, should trigger validation error
+                        permission: ["invalid-permission"], // Stripped by validateAcl, entry removed (empty permissions)
                     },
                 ],
             },
@@ -274,10 +274,10 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        expect(result.validated).toBe(false);
-        expect(result.error).toContain(
-            "acl[1].permission has failed the following constraints: isEnum",
-        );
+        // validateAcl strips "invalid-permission", leaving empty permissions — entry removed.
+        // The remaining valid entry passes validation.
+        expect(result.validated).toBe(true);
+        expect(result.validatedData.acl).toHaveLength(1);
     });
 
     it("validates a post with valid audio upload data for multiple languages", async () => {
