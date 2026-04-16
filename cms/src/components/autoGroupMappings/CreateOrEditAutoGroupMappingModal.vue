@@ -185,7 +185,7 @@ function duplicate() {
         ..._.cloneDeep(editable.value),
         _id: db.uuid(),
     };
-    takeSnapshot(); // new doc, reset snapshot so isDirty reflects edits from here
+    // Don't reset snapshot — the new _id makes it dirty so the save button is enabled
 }
 
 // ── Conditions ──────────────────────────────────────────────────────────────
