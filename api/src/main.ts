@@ -47,6 +47,7 @@ export async function bootstrap() {
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),
+        //allowedHeaders might have to be made configurable. The shared client library supports injection of custom headers (use for x-auth-provider-id and the Authorization header), and could potentially be used for other custom headers as well.
         allowedHeaders: ["X-Query", "Authorization", "Content-Type", "x-auth-provider-id"],
     });
 
