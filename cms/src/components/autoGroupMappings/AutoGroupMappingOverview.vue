@@ -109,11 +109,13 @@ const filteredMappings = computed(() => {
     if (q) {
         result = result.filter((m) => {
             const pName = providerName(m.providerId).toLowerCase();
+            const mName = (m.name ?? "").toLowerCase();
+            const mSummary = (m.summary ?? "").toLowerCase();
             const groupNames = (m.groupIds ?? [])
                 .map((gid) => groups.value.find((g) => g._id === gid)?.name ?? "")
                 .join(" ")
                 .toLowerCase();
-            return pName.includes(q) || groupNames.includes(q);
+            return pName.includes(q) || mName.includes(q) || mSummary.includes(q) || groupNames.includes(q);
         });
     }
     return result;

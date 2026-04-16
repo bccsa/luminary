@@ -40,6 +40,16 @@ export class AutoGroupMappingsDto extends _contentBaseDto {
         Object.assign(this, init);
     }
 
+    @IsOptional()
+    @IsString()
+    @Expose()
+    public name?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    public summary?: string;
+
     @IsString()
     @IsNotEmpty()
     @Expose()

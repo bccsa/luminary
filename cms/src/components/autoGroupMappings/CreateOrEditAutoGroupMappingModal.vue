@@ -272,6 +272,24 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
 
         <FormErrors :errors="[]" :validations="validations" />
 
+        <!-- Name and summary -->
+        <div v-if="!props.isDefaultPermissions" class="mb-4 space-y-2">
+            <LInput
+                name="mapping-name"
+                v-model="editable.name"
+                label="Name"
+                placeholder="e.g. Admin access"
+                :disabled="props.disabled"
+            />
+            <LInput
+                name="mapping-summary"
+                v-model="editable.summary"
+                label="Summary"
+                placeholder="e.g. Assigns admin groups when role claim matches"
+                :disabled="props.disabled"
+            />
+        </div>
+
         <!-- Default permissions message -->
         <div
             v-if="props.isDefaultPermissions"

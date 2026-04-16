@@ -279,6 +279,8 @@ export type AuthProviderDto = BaseDocumentDto & {
 
 export type AutoGroupMappingsDto = ContentBaseDto & {
     type: DocType.AutoGroupMappings;
+    name?: string;
+    summary?: string;
     providerId: string;
     groupIds: string[];
     conditions: AuthProviderCondition[];

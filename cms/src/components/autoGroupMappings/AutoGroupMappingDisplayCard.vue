@@ -6,7 +6,7 @@ import { KeyIcon } from "@heroicons/vue/24/outline";
 import type { AutoGroupMappingsDto, AuthProviderCondition, GroupDto } from "luminary-shared";
 import { computed } from "vue";
 
-type MappingLike = AutoGroupMappingsDto | { _id: string; groupIds: string[]; conditions: AuthProviderCondition[] };
+type MappingLike = AutoGroupMappingsDto | { _id: string; name?: string; summary?: string; groupIds: string[]; conditions: AuthProviderCondition[] };
 
 const props = defineProps<{
     mapping: MappingLike;
@@ -24,6 +24,16 @@ const assignedGroups = computed(() =>
         .map((id) => props.groups.find((g) => g._id === id))
         .filter(Boolean),
 );
+
+const displayTitle = computed(() => {
+    const name = 'name' in props.mapping ? props.mapping.name : undefined;
+    return name?.trim() || conditionSummary.value;
+});
+
+const displaySummary = computed(() => {
+    const summary = 'summary' in props.mapping ? props.mapping.summary : undefined;
+    return summary?.trim() || "";
+});
 
 const conditionSummary = computed(() => {
     if (props.isDefaultPermissions) return "All authenticated and unauthenticated users";
@@ -43,12 +53,16 @@ const conditionSummary = computed(() => {
 
 <template>
     <DisplayCard
-        :title="conditionSummary"
+        :title="displayTitle"
         :updated-time-utc="0"
         :show-date="false"
         @click="$emit('click')"
         class="mb-1"
     >
+        <template v-if="displaySummary" #content>
+            <p class="truncate text-xs text-zinc-400">{{ displaySummary }}</p>
+        </template>
+
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <LBadge v-if="providerName" :icon="KeyIcon" withIcon variant="default">
