@@ -198,7 +198,7 @@ onMounted(() => {
             <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
                 No active permissions, use the selector to add
             </div>
-            <div class="mb-3">
+            <div class="mb-3 grid grid-cols-[max-content_1fr_max-content] items-center">
                 <EditAclEntry
                     v-for="aclEntry in activeAclEntries"
                     :key="aclEntry.type"

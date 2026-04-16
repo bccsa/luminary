@@ -48,14 +48,14 @@ const activePermissions = computed(() => {
 </script>
 
 <template>
-    <div v-if="aclEntry" class="flex w-full items-center border-b border-zinc-200 last:border-none">
+    <div v-if="aclEntry" class="contents">
         <div
-            class="w-[68px] flex-shrink-0 font-medium"
+            class="flex h-full items-center border-b border-zinc-200 pr-2 font-medium"
             :class="isMobileScreen ? 'text-[13px]' : 'text-sm'"
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="min-w-0 flex-1 border-x border-zinc-200 px-1 py-1.5">
+        <div class="min-w-0 border-x border-b border-zinc-200 px-1 py-1.5">
             <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
                 <div
                     v-for="aclPermission in activePermissions"
@@ -67,7 +67,7 @@ const activePermissions = computed(() => {
                 </div>
             </div>
         </div>
-        <div class="flex items-center pl-1">
+        <div class="flex h-full items-center border-b border-zinc-200 pl-1">
             <LDropdown
                 class="relative"
                 padding="none"
