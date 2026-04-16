@@ -202,11 +202,7 @@ const revertChanges = () => {
         @update:open="(val: boolean | undefined) => !val && emit('close')"
         :title="!isNew ? 'Edit redirect' : 'Create new redirect'"
         @close="emit('close')"
-        :primaryAction="
-            () => {
-                save();
-            }
-        "
+        :primaryAction="() => save()"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="!canSave"
         :secondaryAction="() => emit('close')"

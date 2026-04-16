@@ -246,11 +246,7 @@ const duplicateGroup = async () => {
         title=""
         :open="openModal"
         @update:open="(val) => !val && emit('close')"
-        :primaryAction="
-            () => {
-                save(group._id);
-            }
-        "
+        :primaryAction="() => save(group._id)"
         :primaryButtonText="!isNewGroup ? 'Save' : 'Create'"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
         @close="emit('close')"

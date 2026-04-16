@@ -124,6 +124,14 @@ onMounted(() => {
                     {{ assignedGroup.name }}
                 </div>
                 <div class="flex">
+                    <div v-if="typesWithActivePermissions.length > 0">
+                        <DuplicateGroupAclButton
+                            :groups="availableGroups"
+                            @select="duplicateGroup"
+                            data-test="duplicateAcl"
+                            v-if="!disabled"
+                        />
+                    </div>
                     <LButton
                         variant="tertiary"
                         size="sm"
@@ -134,15 +142,6 @@ onMounted(() => {
                         mainDynamicCss="text-zinc-400 hover:text-red-500"
                         v-if="!disabled"
                     />
-
-                    <div v-if="typesWithActivePermissions.length > 0">
-                        <DuplicateGroupAclButton
-                            :groups="availableGroups"
-                            @select="duplicateGroup"
-                            data-test="duplicateAcl"
-                            v-if="!disabled"
-                        />
-                    </div>
                 </div>
             </div>
             <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">

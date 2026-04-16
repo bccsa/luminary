@@ -207,11 +207,7 @@ const saveDisabled = computed(() => {
         @update:open="(val: boolean | undefined) => !val && emit('close')"
         :title="!isNew ? `Edit User` : 'Create New User'"
         @close.stop="emit('close')"
-        :primaryAction="
-            () => {
-                save();
-            }
-        "
+        :primaryAction="() => save()"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="saveDisabled"
         :secondaryAction="() => emit('close')"
