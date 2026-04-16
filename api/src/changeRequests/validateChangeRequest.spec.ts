@@ -274,10 +274,10 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        // validateAcl strips "invalid-permission", leaving empty permissions — entry removed.
-        // The remaining valid entry passes validation.
+        // validateAcl strips "invalid-permission"; validateAclEntry then sees a
+        // non-empty array and auto-adds View, so the entry survives with ["view"].
         expect(result.validated).toBe(true);
-        expect(result.validatedData.acl).toHaveLength(1);
+        expect(result.validatedData.acl).toHaveLength(2);
     });
 
     it("validates a post with valid audio upload data for multiple languages", async () => {

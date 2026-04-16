@@ -76,8 +76,8 @@ async function Startup() {
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
-    socket.on("connect_error", async (err: Error) => {
-        if ((err as any)?.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+    socket.on("connect_error", async (err: Error & { data?: { type?: string } }) => {
+        if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
         Sentry?.captureMessage("API authentication failed");
         stopTokenRefresh();
         const lastProvider = await getLastSelectedProvider();

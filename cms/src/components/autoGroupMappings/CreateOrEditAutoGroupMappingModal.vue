@@ -56,7 +56,7 @@ const editable = ref<AutoGroupMappingsDto>({
 const snapshot = ref<string>("");
 
 function takeSnapshot() {
-    const { updatedTimeUtc: _ts, ...rest } = editable.value as any; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const { updatedTimeUtc: _ts, ...rest } = editable.value; // eslint-disable-line @typescript-eslint/no-unused-vars
     snapshot.value = JSON.stringify(rest);
 }
 
@@ -64,10 +64,12 @@ watch(
     () => props.mapping,
     (existing) => {
         if (existing) {
-            const clone = _.cloneDeep(existing) as any;
-            clone.providerId = clone.providerId ?? "";
-            clone.groupIds = clone.groupIds ?? [];
-            clone.conditions = clone.conditions ?? [];
+            const clone: AutoGroupMappingsDto = {
+                ..._.cloneDeep(existing),
+                providerId: existing.providerId ?? "",
+                groupIds: existing.groupIds ?? [],
+                conditions: existing.conditions ?? [],
+            };
             editable.value = clone;
         } else {
             editable.value = {
@@ -86,7 +88,7 @@ watch(
 );
 
 const isDirty = computed(() => {
-    const { updatedTimeUtc, ...rest } = editable.value as any;
+    const { updatedTimeUtc: _ts, ...rest } = editable.value; // eslint-disable-line @typescript-eslint/no-unused-vars
     return JSON.stringify(rest) !== snapshot.value;
 });
 
@@ -168,11 +170,12 @@ function discardAndClose() {
 
 function revert() {
     if (props.mapping) {
-        const clone = _.cloneDeep(props.mapping) as any;
-        clone.providerId = clone.providerId ?? "";
-        clone.groupIds = clone.groupIds ?? [];
-        clone.conditions = clone.conditions ?? [];
-        editable.value = clone;
+        editable.value = {
+            ..._.cloneDeep(props.mapping),
+            providerId: props.mapping.providerId ?? "",
+            groupIds: props.mapping.groupIds ?? [],
+            conditions: props.mapping.conditions ?? [],
+        };
     }
     hasAttemptedSave.value = false;
 }

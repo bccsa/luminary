@@ -3,11 +3,13 @@ import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
 import { KeyIcon } from "@heroicons/vue/24/outline";
-import type { AutoGroupMappingsDto, GroupDto } from "luminary-shared";
+import type { AutoGroupMappingsDto, AuthProviderCondition, GroupDto } from "luminary-shared";
 import { computed } from "vue";
 
+type MappingLike = AutoGroupMappingsDto | { _id: string; groupIds: string[]; conditions: AuthProviderCondition[] };
+
 const props = defineProps<{
-    mapping: AutoGroupMappingsDto;
+    mapping: MappingLike;
     groups: GroupDto[];
     providerName?: string;
     isDefaultPermissions?: boolean;

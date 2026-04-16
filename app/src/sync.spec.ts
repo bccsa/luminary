@@ -58,7 +58,7 @@ describe("sync.ts", () => {
             [DocType.Storage]: [],
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
-            [DocType.AuthProviderConfig]: [],
+            [DocType.AutoGroupMappings]: [],
             [DocType.DefaultPermissions]: [],
         });
     });
@@ -129,7 +129,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -155,7 +155,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -181,7 +181,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -212,7 +212,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -239,7 +239,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -302,7 +302,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -337,7 +337,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -372,7 +372,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -419,7 +419,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 
@@ -454,7 +454,7 @@ describe("sync.ts", () => {
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
-                [DocType.AuthProviderConfig]: [],
+                [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultPermissions]: [],
             });
 

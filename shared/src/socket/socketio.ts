@@ -50,12 +50,12 @@ class SocketIO {
             isConnected.value = false;
         });
 
-        this.socket.on("connect_error", (err) => {
+        this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
             isConnected.value = false;
             // When the server rejects credentials in its middleware, it passes
             // next(new Error("auth_failed")). Stop auto-reconnection so the
             // client doesn't loop with the same stale token.
-            if ((err as any)?.data?.type === "auth_failed" || err.message === "auth_failed") {
+            if (err.data?.type === "auth_failed" || err.message === "auth_failed") {
                 this.socket.io.opts.reconnection = false;
             }
         });

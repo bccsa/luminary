@@ -17,7 +17,7 @@ export default async function processAuthProviderDto(
         if (doc.imageData && prevDoc?.imageData) {
             const imageResult = await processImage(
                 { fileCollections: [] },
-                prevDoc.imageData as any,
+                prevDoc.imageData,
                 db,
                 prevDoc.imageBucketId,
             );
@@ -38,8 +38,8 @@ export default async function processAuthProviderDto(
 
         try {
             const result = await processImage(
-                doc.imageData as any,
-                prevDoc?.imageData as any,
+                doc.imageData,
+                prevDoc?.imageData,
                 db,
                 doc.imageBucketId,
                 prevDoc?.imageBucketId,

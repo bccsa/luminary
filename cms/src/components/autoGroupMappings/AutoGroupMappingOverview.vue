@@ -453,13 +453,11 @@ onBeforeUnmount(() => {
         <div class="mt-2">
             <AutoGroupMappingDisplayCard
                 v-if="defaultPermissions"
-                :mapping="
-                    {
-                        _id: defaultPermissions._id,
-                        groupIds: defaultPermissions.defaultGroups ?? [],
-                        conditions: [],
-                    } as any
-                "
+                :mapping="{
+                    _id: defaultPermissions._id,
+                    groupIds: defaultPermissions.defaultGroups ?? [],
+                    conditions: [],
+                }"
                 :groups="groups"
                 provider-name="All Users"
                 :is-default-permissions="true"

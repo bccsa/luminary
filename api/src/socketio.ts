@@ -114,8 +114,8 @@ export class Socketio implements OnGatewayInit {
                 });
                 // Reject the connection properly via next(err).
                 // The client receives this as a connect_error with err.message.
-                const err = new Error("auth_failed");
-                (err as any).data = { type: "auth_failed" };
+                const err: Error & { data?: Record<string, string> } = new Error("auth_failed");
+                err.data = { type: "auth_failed" };
                 next(err);
                 return;
             }

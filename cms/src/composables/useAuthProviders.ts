@@ -261,7 +261,7 @@ export function useAuthProviders() {
 
         const clonedProvider = _.cloneDeep(toRaw(provider)) as AuthProviderDto;
         clonedProvider._id = newId;
-        delete (clonedProvider as any)._rev;
+        delete clonedProvider._rev;
         clonedProvider.label = (clonedProvider.label ?? "") + " (Copy)";
         if (clonedProvider.imageData?.fileCollections) {
             clonedProvider.imageData.fileCollections = [];

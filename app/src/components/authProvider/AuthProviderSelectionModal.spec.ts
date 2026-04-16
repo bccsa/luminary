@@ -36,7 +36,6 @@ const mockProviderA: AuthProviderDto = {
     domain: "acme.auth0.com",
     clientId: "client-a",
     audience: "https://api.acme.com",
-    configId: "config-entry-a",
 };
 
 const mockProviderB: AuthProviderDto = {
@@ -50,7 +49,6 @@ const mockProviderB: AuthProviderDto = {
     audience: "https://api.beta.com",
     backgroundColor: "#1a1a2e",
     textColor: "#ffffff",
-    configId: "config-entry-b",
 };
 
 describe("AuthProviderSelectionModal.vue", () => {

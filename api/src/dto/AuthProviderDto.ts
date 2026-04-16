@@ -1,8 +1,9 @@
 import { DocType } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
-import { IsString, IsNotEmpty, IsOptional, IsObject, IsNumber } from "class-validator";
-import { Expose } from "class-transformer";
+import { IsString, IsNotEmpty, IsOptional, IsObject, IsNumber, ValidateNested } from "class-validator";
+import { Expose, Type } from "class-transformer";
+import { ImageDto } from "./ImageDto";
 
 /**
  */
@@ -83,8 +84,9 @@ export class AuthProviderDto extends _contentBaseDto {
     public imageBucketId!: string;
 
     /** Icon image data (processed via ImageEditor) */
-    @IsObject()
     @IsOptional()
+    @ValidateNested()
+    @Type(() => ImageDto)
     @Expose()
-    public imageData!: Record<string, unknown>;
+    public imageData!: ImageDto;
 }
