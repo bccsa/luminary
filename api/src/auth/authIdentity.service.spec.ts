@@ -236,6 +236,131 @@ describe("AuthIdentityService", () => {
 
             expect(mockQuery).toHaveBeenCalledTimes(1);
         });
+
+        it("should collect groups from many provider-less mappings with different groupIds", async () => {
+            (service as any).dbService = {
+                executeFindQuery: jest.fn().mockResolvedValue({
+                    docs: [
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-editors"], providerId: "" },
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-public", "group-viewers"] },
+                    ],
+                }),
+            };
+            const groups = await service.getDefaultGroups();
+            expect(groups.sort()).toEqual(["group-editors", "group-public", "group-viewers"]);
+        });
+    });
+
+    // ── evaluateGroupAssignments + getDefaultGroups integration ──────────────────
+
+    describe("default + provider-specific group merging", () => {
+        it("should combine groups from multiple provider-specific mappings", () => {
+            const mappings: any = [
+                {
+                    _id: "m1",
+                    groupIds: ["group-editors"],
+                    conditions: [{ type: "authenticated" }],
+                },
+                {
+                    _id: "m2",
+                    groupIds: ["group-reviewers"],
+                    conditions: [{ type: "authenticated" }],
+                },
+                {
+                    _id: "m3",
+                    groupIds: ["group-admins"],
+                    conditions: [{ type: "claimEquals", claimPath: "role", value: "admin" }],
+                },
+            ];
+
+            // Admin user gets all three mappings
+            const adminGroups = service.evaluateGroupAssignments({ role: "admin" }, mappings);
+            expect(adminGroups.sort()).toEqual(["group-admins", "group-editors", "group-reviewers"]);
+
+            // Regular user gets only the authenticated mappings
+            const regularGroups = service.evaluateGroupAssignments({ role: "viewer" }, mappings);
+            expect(regularGroups.sort()).toEqual(["group-editors", "group-reviewers"]);
+        });
+
+        it("should de-duplicate when multiple mappings assign the same group", () => {
+            const mappings: any = [
+                {
+                    _id: "m1",
+                    groupIds: ["group-shared", "group-a"],
+                    conditions: [{ type: "authenticated" }],
+                },
+                {
+                    _id: "m2",
+                    groupIds: ["group-shared", "group-b"],
+                    conditions: [{ type: "authenticated" }],
+                },
+            ];
+
+            const groups = service.evaluateGroupAssignments({}, mappings);
+            expect(groups.sort()).toEqual(["group-a", "group-b", "group-shared"]);
+        });
+
+        it("should not assign groups when conditions are not met", () => {
+            const mappings: any = [
+                {
+                    _id: "m1",
+                    groupIds: ["group-admins"],
+                    conditions: [{ type: "claimEquals", claimPath: "role", value: "admin" }],
+                },
+                {
+                    _id: "m2",
+                    groupIds: ["group-managers"],
+                    conditions: [{ type: "claimIn", claimPath: "department", values: ["exec"] }],
+                },
+            ];
+
+            const groups = service.evaluateGroupAssignments({ role: "viewer", department: "sales" }, mappings);
+            expect(groups).toEqual([]);
+        });
+
+        it("should handle a mix of global defaults and provider-specific mappings", async () => {
+            // Simulate: 3 global mappings + 2 provider-specific mappings
+            (service as any).dbService = {
+                executeFindQuery: jest.fn().mockResolvedValue({
+                    docs: [
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-free-tier"], providerId: "" },
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-public", "group-basic"], providerId: "" },
+                    ],
+                }),
+            };
+
+            const defaultGroups = await service.getDefaultGroups();
+            expect(defaultGroups.sort()).toEqual(["group-basic", "group-free-tier", "group-public"]);
+
+            // Provider-specific mappings evaluated separately
+            const providerMappings: any = [
+                {
+                    _id: "pm1",
+                    groupIds: ["group-premium"],
+                    conditions: [{ type: "claimEquals", claimPath: "tier", value: "premium" }],
+                },
+                {
+                    _id: "pm2",
+                    groupIds: ["group-verified"],
+                    conditions: [{ type: "authenticated" }],
+                },
+            ];
+
+            const dynamicGroups = service.evaluateGroupAssignments({ tier: "premium" }, providerMappings);
+            expect(dynamicGroups.sort()).toEqual(["group-premium", "group-verified"]);
+
+            // Final merge (as resolveIdentity does)
+            const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups]));
+            expect(mergedGroups.sort()).toEqual([
+                "group-basic",
+                "group-free-tier",
+                "group-premium",
+                "group-public",
+                "group-verified",
+            ]);
+        });
     });
 });
 
