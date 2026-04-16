@@ -119,11 +119,11 @@ describe("AuthIdentityService", () => {
             ).not.toContain("group-managers");
         });
 
-        it("should support OR logic for a single group with multiple conditions", () => {
+        it("should support AND logic for a single group with multiple conditions", () => {
             const mappings: any = [
                 {
                     _id: "m1",
-                    groupIds: ["group-or"],
+                    groupIds: ["group-and"],
                     conditions: [
                         { type: "claimEquals", claimPath: "department", value: "executive" },
                         { type: "claimEquals", claimPath: "title", value: "ceo" },
@@ -132,19 +132,19 @@ describe("AuthIdentityService", () => {
             ];
             expect(
                 service.evaluateGroupAssignments(
+                    { department: "executive", title: "ceo" },
+                    mappings,
+                ),
+            ).toContain("group-and");
+            expect(
+                service.evaluateGroupAssignments(
                     { department: "executive", title: "cfo" },
                     mappings,
                 ),
-            ).toContain("group-or");
+            ).not.toContain("group-and");
             expect(
                 service.evaluateGroupAssignments({ department: "sales", title: "ceo" }, mappings),
-            ).toContain("group-or");
-            expect(
-                service.evaluateGroupAssignments(
-                    { department: "sales", title: "representative" },
-                    mappings,
-                ),
-            ).not.toContain("group-or");
+            ).not.toContain("group-and");
         });
 
         it("should assign every group in groupIds when the mapping matches", () => {

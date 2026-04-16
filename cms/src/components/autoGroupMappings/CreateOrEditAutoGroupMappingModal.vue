@@ -311,9 +311,9 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             v-if="!props.isDefaultPermissions"
             class="rounded-md border border-zinc-200 bg-white p-2"
         >
-            <label class="text-sm font-medium text-gray-800">Conditions (OR)</label>
+            <label class="text-sm font-medium text-gray-800">Conditions (AND)</label>
             <p class="mt-0.5 text-[11px] text-gray-400">
-                Assign the selected groups when any condition is true. If no conditions are set,
+                Assign the selected groups when all conditions are true. If no conditions are set,
                 groups are assigned to all authenticated users.
             </p>
 

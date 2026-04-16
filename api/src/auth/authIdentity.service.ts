@@ -142,7 +142,7 @@ export class AuthIdentityService implements OnModuleInit {
                 continue;
             }
 
-            const isAssigned = mapping.conditions.some((condition) =>
+            const isAssigned = mapping.conditions.every((condition) =>
                 this.evaluateCondition(jwtPayload, condition),
             );
 
@@ -288,6 +288,15 @@ export class AuthIdentityService implements OnModuleInit {
                 issuer: `https://${provider.domain}/`,
                 algorithms: ["RS256"],
             });
+
+            // Verify the token was issued for this provider's client application.
+            // The `azp` (authorized party) claim identifies which OIDC client the
+            // token was issued to. Without this check, a token issued for client A
+            // could be used with provider B if they share the same domain/audience.
+            const tokenClientId = payload.azp ?? payload.client_id;
+            if (tokenClientId && tokenClientId !== provider.clientId) {
+                throw new UnauthorizedException("Token client ID mismatch");
+            }
 
             const dynamicGroups = this.evaluateGroupAssignments(payload, providerMappings);
 
