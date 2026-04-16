@@ -192,10 +192,9 @@ const handleRevert = () => {
     >
         <div
             ref="scrollContainer"
-            class="mb-1 min-h-0 flex-1 overflow-auto md:flex md:gap-4 md:overflow-hidden"
+            class="mb-1 min-h-0 flex-1 overflow-auto"
         >
-            <!-- Left column -->
-            <div v-if="provider" class="space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
+            <div v-if="provider" class="space-y-2">
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
@@ -229,13 +228,7 @@ const handleRevert = () => {
                 />
 
                 <Appearance v-model:provider="provider" :disabled="isDisabled" />
-            </div>
 
-            <!-- Right column -->
-            <div
-                v-if="provider"
-                class="mt-2 space-y-2 md:mt-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-gray-200 md:pl-4"
-            >
                 <UserFieldMappings v-model:provider="provider" :disabled="isDisabled" />
             </div>
         </div>
