@@ -7,7 +7,7 @@ export const waitUntilAuth0IsLoaded = async (callback?: Function) => {
         if (callback) await callback();
     };
 
-    // Nothing to wait for if the Auth0 plugin was never installed at boot.
+    // Nothing to wait for if the Auth0 plugin was never installed at load.
     if (!isAuthPluginInstalled.value) return fn();
 
     const { isLoading } = useAuth0();
