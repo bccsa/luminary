@@ -79,8 +79,12 @@ watch(
     [provider, hasAttemptedSubmit],
     ([p, attempted]) => {
         if (!p || !attempted) return;
-        validate("Label is required", "label", providerValidations.value, p, (x) =>
-            !!(x.label ?? "").trim(),
+        validate(
+            "Label is required",
+            "label",
+            providerValidations.value,
+            p,
+            (x) => !!(x.label ?? "").trim(),
         );
         validate(
             "Domain must be a hostname like tenant.auth0.com (no https:// or path)",
@@ -187,13 +191,11 @@ const handleRevert = () => {
         v-model:isVisible="isVisible"
         large-modal
         stick-to-edges
+        no-divider
         :heading="isEditing ? 'Edit Auth Provider' : 'Add Auth Provider'"
         :before-close="beforeClose"
     >
-        <div
-            ref="scrollContainer"
-            class="mb-1 min-h-0 flex-1 overflow-auto"
-        >
+        <div ref="scrollContainer" class="mb-1 min-h-0 flex-1 overflow-auto">
             <div v-if="provider" class="space-y-2">
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 

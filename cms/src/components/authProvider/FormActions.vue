@@ -32,7 +32,7 @@ const handleRevert = () => emit("revert");
 </script>
 
 <template>
-    <div class="border-t pt-3">
+    <div class="pt-3">
         <LBadge v-if="!canEdit" variant="warning" withIcon class="mb-2">
             You do not have permission to edit this provider
         </LBadge>
