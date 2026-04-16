@@ -102,9 +102,6 @@ const handleClose = () => {
                 <p class="text-sm text-zinc-500 dark:text-slate-400">
                     {{ t("auth.no_methods_available") }}
                 </p>
-                <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                    {{ t("auth.contact_support") }}
-                </p>
             </div>
         </div>
     </LModal>

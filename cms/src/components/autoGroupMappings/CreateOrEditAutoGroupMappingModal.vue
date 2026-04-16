@@ -236,8 +236,6 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         editable.value.conditions[idx] = { type };
     }
 }
-
-
 </script>
 
 <template>
@@ -295,8 +293,8 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
 
         <!-- Global mapping message -->
         <LBadge v-if="isGlobal" variant="warning" withIcon class="mb-4">
-            Unauthenticated and authenticated users will be assigned these groups regardless of
-            provider.
+            These groups will be assigned to all users, including unauthenticated visitors. Select a
+            provider above to restrict this mapping to authenticated users only.
         </LBadge>
 
         <!-- Group selector -->
@@ -313,10 +311,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         </div>
 
         <!-- Conditions -->
-        <div
-            v-if="!isGlobal"
-            class="rounded-md border border-zinc-200 bg-white p-2"
-        >
+        <div v-if="!isGlobal" class="rounded-md border border-zinc-200 bg-white p-2">
             <label class="text-sm font-medium text-gray-800">Conditions (AND)</label>
             <p class="mt-0.5 text-[11px] text-gray-400">
                 Assign the selected groups when all conditions are true. If no conditions are set,
@@ -368,10 +363,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                 class="flex-1"
                                 :disabled="props.disabled"
                                 @update:model-value="
-                                    setConditionType(
-                                        cIdx,
-                                        $event as AuthProviderCondition['type'],
-                                    )
+                                    setConditionType(cIdx, $event as AuthProviderCondition['type'])
                                 "
                             />
                             <button

@@ -32,6 +32,7 @@ const badgeIcon = computed(() => (isGlobal.value ? GlobeAltIcon : KeyIcon));
 const badgeLabel = computed(() =>
     isGlobal.value ? "All Users" : (props.providerName || ""),
 );
+const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
 </script>
 
 <template>
@@ -44,7 +45,7 @@ const badgeLabel = computed(() =>
     >
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon variant="default">
+                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />
@@ -64,7 +65,7 @@ const badgeLabel = computed(() =>
 
         <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
-                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon variant="default">
+                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />

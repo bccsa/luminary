@@ -69,7 +69,6 @@ describe("AuthProviderSelectionModal.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("auth.no_methods_available");
-            expect(wrapper.html()).toContain("auth.contact_support");
         });
     });
 

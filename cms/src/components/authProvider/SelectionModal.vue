@@ -92,7 +92,6 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400" />
                 </div>
                 <p class="text-sm text-zinc-500">No sign-in methods available.</p>
-                <p class="mt-1 text-xs text-zinc-400">Please contact support for assistance.</p>
             </div>
         </div>
     </LModal>

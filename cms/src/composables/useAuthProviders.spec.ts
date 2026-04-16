@@ -163,7 +163,6 @@ describe("useAuthProviders", () => {
                 teardown();
             }
         });
-
     });
 
     // ── Permission flags ─────────────────────────────────────────────────────
@@ -206,7 +205,6 @@ describe("useAuthProviders", () => {
                 teardown();
             }
         });
-
     });
 
     // ── openCreateModal ───────────────────────────────────────────────────────
@@ -573,7 +571,6 @@ describe("useAuthProviders", () => {
                 teardown();
             }
         });
-
     });
 
     // ── deleteProvider ────────────────────────────────────────────────────────
@@ -664,5 +661,4 @@ describe("useAuthProviders", () => {
             }
         });
     });
-
 });

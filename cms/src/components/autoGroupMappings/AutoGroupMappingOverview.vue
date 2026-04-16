@@ -65,8 +65,11 @@ const selectedProviderFilter = ref<string>("");
 const selectedGroupFilter = ref<string[]>([]);
 const showMobileFilters = ref(false);
 
+const GLOBAL_FILTER = "__global__";
+
 const providerFilterOptions = computed(() => [
     { value: "", label: "All providers" },
+    { value: GLOBAL_FILTER, label: "Global (All Users)" },
     ...providers.value.map((p) => ({
         value: p._id,
         label: p.label || p.domain || p._id,
@@ -83,7 +86,9 @@ const groupFilterOptions = computed(() =>
 
 const filteredMappings = computed(() => {
     let result = mappings.value;
-    if (selectedProviderFilter.value) {
+    if (selectedProviderFilter.value === GLOBAL_FILTER) {
+        result = result.filter((m) => !m.providerId);
+    } else if (selectedProviderFilter.value) {
         result = result.filter((m) => m.providerId === selectedProviderFilter.value);
     }
     if (selectedGroupFilter.value.length > 0) {
@@ -270,7 +275,10 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Selected group filter tags -->
-                <div v-if="selectedGroupFilter.length > 0" class="ml-8 flex w-full flex-col gap-1">
+                <div
+                    v-if="selectedGroupFilter.length > 0"
+                    class="mb-2 ml-8 flex w-full flex-col gap-1"
+                >
                     <div class="w-full">
                         <ul class="flex w-full flex-wrap gap-2">
                             <LTag
@@ -384,7 +392,7 @@ onBeforeUnmount(() => {
             </template>
         </p>
 
-        <div>
+        <div class="mt-1">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"
