@@ -1,9 +1,25 @@
+const customHeaders: Record<string, string> = {};
+
+/**
+ * Set a global HTTP header that will be sent with every request made through HttpReq.
+ * Headers set this way are in-memory only and do not persist across page reloads —
+ * clients are responsible for re-applying them on boot.
+ */
+export function setCustomHeader(name: string, value: string) {
+    customHeaders[name] = value;
+}
+
+/**
+ * Remove a previously set global HTTP header.
+ */
+export function removeCustomHeader(name: string) {
+    delete customHeaders[name];
+}
+
 export class HttpReq<T> {
     private apiUrl: string;
-    private token?: string;
 
-    constructor(apiUrl: string, token?: string) {
-        this.token = token;
+    constructor(apiUrl: string) {
         this.apiUrl = apiUrl;
     }
 
@@ -13,8 +29,8 @@ export class HttpReq<T> {
         );
         const headers: any = {
             "X-Query": JSON.stringify(query),
+            ...customHeaders,
         };
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
 
         try {
             const schema = "https://";
@@ -34,8 +50,7 @@ export class HttpReq<T> {
     }
 
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
-        const headers: any = {};
-        this.token && (headers.Authorization = `Bearer ${this.token}`);
+        const headers: any = { ...customHeaders };
 
         try {
             const schema = "https://";
@@ -63,12 +78,13 @@ export class HttpReq<T> {
             const regex = /^https?:\/\//;
             const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
             const isFormData = query instanceof FormData;
+            const headers: any = {
+                ...(!isFormData && { "Content-Type": "application/json" }),
+                ...customHeaders,
+            };
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
-                headers: {
-                    Authorization: this.token ? `Bearer ${this.token}` : "",
-                    ...(!isFormData && { "Content-Type": "application/json" }),
-                },
+                headers,
                 body: isFormData ? query : JSON.stringify(query),
             });
             if (!res.ok) {

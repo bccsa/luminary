@@ -4,7 +4,7 @@ import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { processJwt } from "../jwt/processJwt";
+import { JwtUserDetails } from "../auth/authIdentity.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
@@ -46,7 +46,7 @@ export class QueryService {
             });
     }
 
-    async query(query: MongoQueryDto, authToken: string): Promise<DbQueryResult> {
+    async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
         const now = Date.now();
 
         // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.
@@ -62,7 +62,10 @@ export class QueryService {
         removeMemberOf(query.selector);
 
         if (!type || typeof type !== "string")
-            throw new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST);
+            throw new HttpException(
+                "'type' field (string) is required in selector",
+                HttpStatus.BAD_REQUEST,
+            );
 
         if (type === DocType.Content && !parentType)
             throw new HttpException(
@@ -92,9 +95,6 @@ export class QueryService {
             default:
                 permissionCheckTypes.push(type as DocType);
         }
-
-        // Get user accessible groups
-        const userDetails = await processJwt(authToken, this.db, this.logger);
 
         // TODO: Get view permissions based CMS access if CMS view permissions are set (future)
         const userViewGroups = PermissionSystem.accessMapToGroups(
@@ -217,9 +217,7 @@ function removeMemberOf(selector: MongoSelectorDto): void {
     }
 
     // Remove any conditions that are now empty after memberOf deletion
-    selector.$and = selector.$and.filter(
-        (condition) => Object.keys(condition).length > 0,
-    );
+    selector.$and = selector.$and.filter((condition) => Object.keys(condition).length > 0);
 }
 
 /**
@@ -235,7 +233,11 @@ function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string)
             const value = condition[fieldName] as T;
 
             // Only accept simple equality values (string, number, boolean)
-            if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+            if (
+                typeof value !== "string" &&
+                typeof value !== "number" &&
+                typeof value !== "boolean"
+            ) {
                 throw new HttpException(
                     `'${fieldName}' field must be a simple equality value`,
                     HttpStatus.BAD_REQUEST,

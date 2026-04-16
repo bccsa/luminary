@@ -1,26 +1,24 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
+import { AuthIdentityService, JwtUserDetails } from "./authIdentity.service";
+
+declare module "fastify" {
+    interface FastifyRequest {
+        user?: JwtUserDetails;
+    }
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService) {}
+    constructor(private authIdentityService: AuthIdentityService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest<FastifyRequest>();
         const token = this.extractTokenFromHeader(request);
-        if (!token) {
-            throw new UnauthorizedException();
-        }
-        try {
-            const payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_SECRET,
-            });
+        const providerId = request.headers["x-auth-provider-id"] as string;
 
-            (request as any)["user"] = payload;
-        } catch {
-            throw new UnauthorizedException();
-        }
+        const result = await this.authIdentityService.resolveOrDefault(token, providerId);
+        request.user = result.userDetails;
         return true;
     }
 

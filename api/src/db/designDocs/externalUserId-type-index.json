@@ -1,0 +1,23 @@
+{
+    "_id": "_design/externalUserId-type-index",
+    "language": "query",
+    "views": {
+        "externalUserId-type-index": {
+            "map": {
+                "fields": {
+                    "type": "asc",
+                    "externalUserId": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": "user"
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["type", "externalUserId"]
+                }
+            }
+        }
+    }
+}

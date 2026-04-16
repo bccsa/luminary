@@ -6,10 +6,10 @@ import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth, { isAuthBypassed } from "./auth";
+import auth, { isAuthBypassed, stopTokenRefresh } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
-import { initLanguageSync, initSync } from "./sync";
+import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
@@ -30,15 +30,21 @@ if (import.meta.env.PROD) {
 }
 
 async function Startup() {
-    const oauth = await auth.setupAuth(app, router);
-    const token = isAuthBypassed ? "mock-token-for-e2e-testing" : await auth.getToken(oauth);
-
     await init({
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
-        token,
         syncList: [
+            {
+                type: DocType.AuthProvider,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.AutoGroupMappings,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
             {
                 type: DocType.Tag,
                 syncPriority: 2,
@@ -82,14 +88,28 @@ async function Startup() {
 
     const socket = getSocket();
 
-    // Redirect to login if the API authentication fails (skip in auth bypass mode)
+    // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
+    // may connect the socket with an expired token — if the listener isn't ready
+    // by then, the event is lost and the client loops forever.
     if (!isAuthBypassed) {
-        socket.on("apiAuthFailed", async () => {
-            console.error("API authentication failed, redirecting to login");
-            Sentry.captureMessage("API authentication failed, redirecting to login");
-            await auth.loginRedirect(oauth);
+        socket.on("connect_error", async (err: Error & { data?: { type?: string } }) => {
+            if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+            Sentry.captureMessage("API authentication failed");
+            stopTokenRefresh();
+            const lastProvider = await auth.getLastSelectedProvider();
+            auth.clearAuth0Cache();
+            socket.setAuth("", null);
+            if (lastProvider) {
+                await auth.loginWithProvider(lastProvider, { prompt: "login" });
+            } else {
+                auth.openProviderModal();
+            }
         });
     }
+
+    await auth.setupAuth(app);
+    await auth.resolveProviderId();
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
@@ -114,7 +134,7 @@ async function Startup() {
         }
     });
 
-    initLanguageSync();
+    initAuthLangSync();
     await initLanguage();
     initSync();
 

@@ -41,7 +41,13 @@ type Props = {
     parentWidth: number;
     parentId: Uuid;
     isModal?: boolean;
+    isIcon?: boolean;
     bucketPublicUrl?: string;
+    /**
+     * Descriptive alt text for the image. Leave empty for purely decorative images
+     * so screen readers will skip them (WCAG-compliant).
+     */
+    alt?: string;
 };
 
 const aspectRatiosCSS = {
@@ -69,6 +75,7 @@ const sizes = {
     thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
     smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
+    icon: "",
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -76,6 +83,15 @@ const props = withDefaults(defineProps<Props>(), {
     size: "post",
     rounded: true,
     isModal: false,
+    isIcon: false,
+    alt: "Content image",
+});
+
+const resolvedAlt = computed(() => {
+    if (props.alt !== "Content image") return props.alt;
+    if (props.isIcon) return "Icon Image";
+    if (props.isModal) return "Enlarged image preview";
+    return props.alt;
 });
 
 const baseUrl = computed(() => props.bucketPublicUrl);
@@ -145,6 +161,29 @@ const closestAspectRatio = computed(() => {
     }, aspectRatios[0]);
 });
 
+// Direct src for icon mode: pick the smallest available image file (no srcset needed)
+const iconSrc = computed(() => {
+    if (!props.isIcon) return undefined;
+
+    // Prefer local upload blob if available (unsaved image)
+    if (props.image?.uploadData?.length) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+
+    if (!props.image?.fileCollections?.length || !baseUrl.value) return undefined;
+
+    // Find the smallest image file across all collections
+    const allFiles = props.image.fileCollections.flatMap((fc) => fc.imageFiles);
+    if (!allFiles.length) return undefined;
+
+    const smallest = allFiles.reduce((a, b) => (a.width < b.width ? a : b));
+    return `${baseUrl.value}/${smallest.filename}`;
+});
+
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     if (props.aspectRatio == "original") return "";
@@ -159,12 +198,13 @@ const srcset1 = computed(() => {
 
     if (!filteredFileCollections.value.length || !baseUrl.value) return "";
 
-    // In modal mode, use all available images without aspect ratio filtering
-    const collectionsToUse = props.isModal
-        ? filteredFileCollections.value
-        : filteredFileCollections.value.filter(
-              (collection) => collection.aspectRatio == closestAspectRatio.value,
-          );
+    // In icon/modal mode, use all available images without aspect ratio filtering
+    const collectionsToUse =
+        props.isIcon || props.isModal
+            ? filteredFileCollections.value
+            : filteredFileCollections.value.filter(
+                  (collection) => collection.aspectRatio == closestAspectRatio.value,
+              );
 
     return collectionsToUse
         .map((collection) => {
@@ -285,7 +325,7 @@ watch(
         v-if="isModal && modalSrc && !modalImageError"
         :src="modalSrc"
         :srcset="modalSrcset || undefined"
-        :alt="''"
+        :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
         data-test="image-element1"
@@ -294,11 +334,23 @@ watch(
     <img
         v-else-if="isModal && fallbackImageUrl"
         :src="fallbackImageUrl"
-        :alt="''"
+        :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
         data-test="image-element1"
     />
+    <!-- Icon mode: simple contained rendering, no fallback landscape -->
+    <img
+        v-else-if="isIcon && iconSrc"
+        :src="iconSrc"
+        class="h-full w-full object-contain"
+        :alt="resolvedAlt"
+        data-test="image-element1"
+        loading="lazy"
+        draggable="false"
+    />
+    <!-- Icon mode: no image available, render nothing -->
+    <span v-else-if="isIcon" />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
         v-else-if="srcset1 && showImageElement1"
@@ -308,7 +360,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element1"
         loading="lazy"
         @error="imageElement1Error = true"
@@ -324,7 +376,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"
@@ -338,7 +390,7 @@ watch(
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        :alt="resolvedAlt"
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"

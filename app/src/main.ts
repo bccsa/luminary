@@ -3,14 +3,22 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import auth from "./auth";
+import {
+    setupAuth,
+    resolveProviderId,
+    openProviderModal,
+    clearAuth0Cache,
+    getLastSelectedProvider,
+    loginWithProvider,
+    stopTokenRefresh,
+} from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-import { initSync, initLanguageSync } from "./sync";
+import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 
 export const app = createApp(App);
@@ -36,16 +44,18 @@ async function Startup() {
     // cold-start compilation latency for IndexedDB queries.
     warmMangoCaches();
 
-    const oauth = await auth.setupAuth(app, router);
-    const token = await auth.getToken(oauth);
-
     await init({
         cms: false,
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
-        token,
         appLanguageIdsAsRef,
         syncList: [
+            {
+                type: DocType.AuthProvider,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
@@ -61,14 +71,30 @@ async function Startup() {
         Sentry?.captureException(err);
     });
 
-    // Redirect to login if the API authentication fails
-    getSocket().on("apiAuthFailed", async () => {
-        console.error("API authentication failed, redirecting to login");
-        Sentry?.captureMessage("API authentication failed, redirecting to login");
-        await auth.loginRedirect(oauth);
+    const socket = getSocket();
+
+    // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
+    // may connect the socket with an expired token — if the listener isn't ready
+    // by then, the event is lost and the client loops forever.
+    socket.on("connect_error", async (err: Error & { data?: { type?: string } }) => {
+        if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+        Sentry?.captureMessage("API authentication failed");
+        stopTokenRefresh();
+        const lastProvider = await getLastSelectedProvider();
+        clearAuth0Cache();
+        socket.setAuth("", null);
+        if (lastProvider) {
+            await loginWithProvider(lastProvider, { prompt: "login" });
+        } else {
+            openProviderModal();
+        }
     });
 
-    initLanguageSync();
+    await setupAuth(app, router);
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+    await resolveProviderId();
+
+    initAuthLangSync();
     await initLanguage();
     initSync();
 

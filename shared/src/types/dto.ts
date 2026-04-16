@@ -71,6 +71,10 @@ export type UserDto = ContentBaseDto & {
     email: string;
     name: string;
     lastLogin?: number;
+    /** @deprecated */
+    userId?: string;
+    providerId?: string;
+    externalUserId?: string;
 };
 
 export type ContentDto = ContentBaseDto & {
@@ -240,4 +244,38 @@ export type ApiQueryResult<T> = {
     group?: string;
     type?: DocType;
     contentOnly?: boolean;
+};
+
+export type AuthProviderCondition = {
+    type: "authenticated" | "claimEquals" | "claimIn";
+    claimPath?: string;
+    value?: string | string[];
+    values?: string[];
+};
+
+export type AuthProviderDto = BaseDocumentDto & {
+    type: DocType.AuthProvider;
+    domain: string;
+    audience: string;
+    clientId: string;
+    userFieldMappings?: {
+        externalUserId?: string;
+        email?: string;
+        name?: string;
+    };
+    label?: string;
+    icon?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    iconOpacity?: number;
+    imageBucketId?: Uuid;
+    imageData?: ImageDto;
+};
+
+export type AutoGroupMappingsDto = ContentBaseDto & {
+    type: DocType.AutoGroupMappings;
+    description?: string;
+    providerId?: string;
+    groupIds: string[];
+    conditions: AuthProviderCondition[];
 };

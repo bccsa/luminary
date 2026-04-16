@@ -16,6 +16,8 @@ type Props = {
     disabled: boolean;
     /** The bucket ID where existing images are currently stored (before any migration) */
     existingImagesBucketId?: string;
+    /** When true, skip auto-selecting a bucket if only one is available */
+    noAutoSelectBucket?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -123,7 +125,11 @@ watchEffect(() => {
     }
 
     // Auto-select if only one bucket available and none is selected
-    if (bucketSelection.autoSelectImageBucket.value && !parent.value?.imageBucketId) {
+    if (
+        !props.noAutoSelectBucket &&
+        bucketSelection.autoSelectImageBucket.value &&
+        !parent.value?.imageBucketId
+    ) {
         parent.value!.imageBucketId = bucketSelection.autoSelectImageBucket.value;
         emit("bucketSelected", bucketSelection.autoSelectImageBucket.value);
     }

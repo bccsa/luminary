@@ -8,6 +8,7 @@ import { upgradeDbSchema } from "./db/db.upgrade";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
+import { AllExceptionsFilter } from "./filters/allExceptions.filter";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
@@ -46,10 +47,12 @@ export async function bootstrap() {
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),
-        allowedHeaders: ["X-Query", "Authorization", "Content-Type"],
+        //allowedHeaders might have to be made configurable. The shared client library supports injection of custom headers (use for x-auth-provider-id and the Authorization header), and could potentially be used for other custom headers as well.
+        allowedHeaders: ["X-Query", "Authorization", "Content-Type", "x-auth-provider-id"],
     });
 
     app.useGlobalPipes(new ValidationPipe());
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     await app.listen(process.env.PORT, "0.0.0.0");
 }

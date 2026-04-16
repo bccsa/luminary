@@ -90,7 +90,7 @@ class RestApi {
         }
 
         // this._sync = new Sync();
-        this.http = new HttpReq(config.apiUrl || "", config.token);
+        this.http = new HttpReq(config.apiUrl || "");
 
         const localChanges = useDexieLiveQuery(
             () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,

@@ -4,11 +4,19 @@ import { QueryController } from "./query.controller";
 import { QueryService } from "./query.service";
 import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { AuthGuard } from "../auth/auth.guard";
+import { FastifyRequest } from "fastify";
 
 describe("QueryController", () => {
     let controller: QueryController;
     let queryService: { query: jest.Mock };
     let configService: { get: jest.Mock };
+
+    const mockUser = { groups: ["group-public-users"], userId: "mock-user" };
+
+    function mockRequest(user: any = mockUser): FastifyRequest {
+        return { user } as any;
+    }
 
     beforeEach(async () => {
         queryService = { query: jest.fn() };
@@ -19,30 +27,36 @@ describe("QueryController", () => {
             providers: [
                 { provide: QueryService, useValue: queryService },
                 { provide: ConfigService, useValue: configService },
-                { provide: WINSTON_MODULE_PROVIDER, useValue: { warn: jest.fn(), error: jest.fn() } },
+                {
+                    provide: WINSTON_MODULE_PROVIDER,
+                    useValue: { warn: jest.fn(), error: jest.fn() },
+                },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<QueryController>(QueryController);
     });
 
-    it("should pass query to QueryService with stripped Bearer token", async () => {
+    it("should pass query to QueryService with user from request", async () => {
         configService.get.mockReturnValue(true); // bypass validation
         queryService.query.mockResolvedValue({ docs: [] });
 
         const body = { selector: { type: "post" } };
-        await controller.processPostReq(body, "Bearer my-token");
+        await controller.processPostReq(body, mockRequest());
 
-        expect(queryService.query).toHaveBeenCalledWith(body, "my-token");
+        expect(queryService.query).toHaveBeenCalledWith(body, mockUser);
     });
 
-    it("should pass empty string when no auth header", async () => {
+    it("should pass user details from request to query service", async () => {
         configService.get.mockReturnValue(true);
         queryService.query.mockResolvedValue({ docs: [] });
 
-        await controller.processPostReq({}, undefined);
+        await controller.processPostReq({}, mockRequest());
 
-        expect(queryService.query).toHaveBeenCalledWith({}, "");
+        expect(queryService.query).toHaveBeenCalledWith({}, mockUser);
     });
 
     it("should validate query when bypassValidation is false", async () => {
@@ -55,7 +69,7 @@ describe("QueryController", () => {
         // This will run validateMongoQuery which may pass or fail depending on the template
         // We just verify the flow doesn't crash with bypass = false
         try {
-            await controller.processPostReq(body, "Bearer token");
+            await controller.processPostReq(body, mockRequest());
         } catch (e) {
             // If validation fails, it should be a BadRequestException
             expect(e).toBeInstanceOf(BadRequestException);
@@ -68,7 +82,7 @@ describe("QueryController", () => {
         // Provide invalid body that should fail validation
         const body = { identifier: "nonexistent-template-xyz", selector: {} };
 
-        await expect(controller.processPostReq(body, "Bearer token")).rejects.toThrow(
+        await expect(controller.processPostReq(body, mockRequest())).rejects.toThrow(
             BadRequestException,
         );
     });
@@ -78,7 +92,7 @@ describe("QueryController", () => {
         queryService.query.mockResolvedValue({ docs: [] });
 
         const body = { identifier: "sync", selector: { type: "post" } };
-        await controller.processPostReq(body, "Bearer token");
+        await controller.processPostReq(body, mockRequest());
 
         expect(body.identifier).toBeUndefined();
     });

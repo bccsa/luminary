@@ -10,26 +10,30 @@ import { useI18n } from "vue-i18n";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
+import { isAuthPluginInstalled } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const { t } = useI18n();
-const { isAuthenticated, logout } = useAuth0();
+// Only call useAuth0() if the plugin was actually installed at boot; otherwise
+// fall back to unauthenticated + no-op logout.
+const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
+const isAuthenticated = auth0?.isAuthenticated ?? computed(() => false);
+const logout = auth0?.logout ?? (() => {});
 const router = useRouter();
 
 const show = defineModel<boolean>("show");
 
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
-const privacyPolicy = useDexieLiveQuery(
-    () =>
-        mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
-                    ...mangoIsPublished(appLanguageIdsAsRef.value),
-                ],
-            },
-            $limit: 1,
-        }).then((docs) => docs[0] as ContentDto | undefined),
+const privacyPolicy = useDexieLiveQuery(() =>
+    mangoToDexie<ContentDto>(db.docs, {
+        selector: {
+            $and: [
+                { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
+                ...mangoIsPublished(appLanguageIdsAsRef.value),
+            ],
+        },
+        $limit: 1,
+    }).then((docs) => docs[0] as ContentDto | undefined),
 );
 
 // Logic for showing the "Necessary only" button

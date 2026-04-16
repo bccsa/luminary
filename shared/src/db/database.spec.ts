@@ -26,6 +26,7 @@ import {
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
+import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config } from "../config";
@@ -666,6 +667,11 @@ describe("Database", async () => {
     });
 
     describe("revoked documents", () => {
+        afterEach(() => {
+            isConnected.value = false;
+            accessMap.value = {};
+        });
+
         it("removes documents with memberOf field when access to a group is revoked", async () => {
             const docs = [
                 {
@@ -722,6 +728,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -796,6 +803,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -845,6 +853,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
@@ -877,6 +886,7 @@ describe("Database", async () => {
                     },
                 },
             };
+            isConnected.value = true;
 
             await waitForExpect(async () => {
                 const queryCache = await db.queryCache.toArray();
@@ -886,12 +896,9 @@ describe("Database", async () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initConfig({
-            cms: false,
-            docsIndex: "parentId, language, expiryDate, [type+docType]",
-            apiUrl: "http://localhost:12345",
-        });
-        await initDatabase();
+        // Temporarily disable CMS mode — expiryDate is already in the base schema so
+        // re-initializing the DB is not needed and would trigger deleteRevoked() side effects.
+        config.cms = false;
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -923,6 +930,8 @@ describe("Database", async () => {
 
         const remainingDocs = await db.docs.toArray();
         expect(remainingDocs).toHaveLength(2);
+
+        config.cms = true;
     });
 
     it("upgrade indexdb version by changing the docs index", async () => {
@@ -1024,6 +1033,16 @@ describe("Database", async () => {
         it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership is in the access map", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
+            accessMap.value = {
+                "group-public-content": {
+                    [DocType.Post]: { [AclPermission.View]: true },
+                    [DocType.Tag]: { [AclPermission.View]: true },
+                },
+                "group-languages": {
+                    [DocType.Language]: { [AclPermission.View]: true },
+                },
+            };
+
             const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
             expect(addedDoc).toBeDefined();
 
@@ -1040,6 +1059,8 @@ describe("Database", async () => {
 
             const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
             expect(deletedDoc).toBeDefined();
+
+            accessMap.value = {};
         });
 
         it("can delete related content documents when a parent document is deleted locally through marking a document with deleteReq: 1", async () => {

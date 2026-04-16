@@ -28,7 +28,13 @@ describe("ChangeRequestController", () => {
             ],
         })
             .overrideGuard(AuthGuard)
-            .useValue({ canActivate: () => true })
+            .useValue({
+                canActivate: (context: any) => {
+                    const req = context.switchToHttp().getRequest();
+                    req.user = { groups: ["group-public-users"], userId: "mock-user" };
+                    return true;
+                },
+            })
             .compile();
 
         app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -136,7 +142,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -187,7 +193,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -238,7 +244,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -289,7 +295,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -363,7 +369,7 @@ describe("ChangeRequestController", () => {
                         }),
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -625,7 +631,7 @@ describe("ChangeRequestController", () => {
                 expect.objectContaining({
                     doc: expect.objectContaining({ _id: "post-concat" }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -648,7 +654,7 @@ describe("ChangeRequestController", () => {
                 expect.objectContaining({
                     apiVersion: "2.0.0",
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
 
@@ -679,7 +685,7 @@ describe("ChangeRequestController", () => {
                         text: "No binary data here",
                     }),
                 }),
-                "fake-token",
+                expect.objectContaining({ userId: "mock-user" }),
             );
         });
     });

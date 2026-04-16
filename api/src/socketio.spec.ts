@@ -3,7 +3,6 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { DbService } from "./db/db.service";
-import { clearJwtMap } from "./jwt/processJwt";
 
 describe("Socketio", () => {
     const oldEnv = process.env;
@@ -45,10 +44,6 @@ describe("Socketio", () => {
     afterAll(async () => {
         await app.close();
         process.env = oldEnv;
-    });
-
-    afterEach(() => {
-        clearJwtMap();
     });
 
     it("can be instantiated", () => {

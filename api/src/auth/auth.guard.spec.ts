@@ -1,22 +1,28 @@
-import { UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "./auth.guard";
+import { AuthIdentityService } from "./authIdentity.service";
+import type { IdentityResult } from "./authIdentity.service";
 
 describe("AuthGuard", () => {
     let guard: AuthGuard;
-    let jwtService: JwtService;
+    let authIdentityService: Partial<AuthIdentityService>;
+
+    const defaultUserDetails = {
+        groups: ["group-public-users"],
+        accessMap: new Map(),
+    };
 
     beforeEach(() => {
-        jwtService = {
-            verifyAsync: jest.fn(),
-        } as any;
-        guard = new AuthGuard(jwtService);
+        authIdentityService = {
+            resolveOrDefault: jest.fn(),
+        };
+        guard = new AuthGuard(authIdentityService as AuthIdentityService);
     });
 
-    function createMockContext(authHeader?: string) {
+    function createMockContext(authHeader?: string, providerId?: string) {
         const request: any = {
             headers: {
                 authorization: authHeader,
+                "x-auth-provider-id": providerId,
             },
         };
         return {
@@ -27,39 +33,72 @@ describe("AuthGuard", () => {
         } as any;
     }
 
-    it("should return true and set user for a valid Bearer token", async () => {
-        const payload = { userId: "123", role: "admin" };
-        (jwtService.verifyAsync as jest.Mock).mockResolvedValue(payload);
+    it("should return true and set user for a valid Bearer token with provider", async () => {
+        const userDetails = { groups: ["group-admins"], userId: "user-1" };
+        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
+            status: "authenticated",
+            userDetails,
+        } as IdentityResult);
 
-        const context = createMockContext("Bearer valid-token");
+        const context = createMockContext("Bearer valid-token", "provider-1");
         const result = await guard.canActivate(context);
 
         expect(result).toBe(true);
-        expect(context._request.user).toEqual(payload);
-        expect(jwtService.verifyAsync).toHaveBeenCalledWith("valid-token", {
-            secret: process.env.JWT_SECRET,
-        });
+        expect(context._request.user).toEqual(userDetails);
+        expect(authIdentityService.resolveOrDefault).toHaveBeenCalledWith(
+            "valid-token",
+            "provider-1",
+        );
     });
 
-    it("should throw UnauthorizedException when no Authorization header", async () => {
+    it("should fall back to default groups when no Authorization header", async () => {
+        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
+            status: "anonymous",
+            userDetails: defaultUserDetails,
+        } as IdentityResult);
+
         const context = createMockContext(undefined);
-        await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+        const result = await guard.canActivate(context);
+
+        expect(result).toBe(true);
+        expect(context._request.user).toEqual(defaultUserDetails);
     });
 
-    it("should throw UnauthorizedException for non-Bearer token", async () => {
-        const context = createMockContext("Basic abc123");
-        await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    it("should fall back to default groups for non-Bearer token", async () => {
+        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
+            status: "anonymous",
+            userDetails: defaultUserDetails,
+        } as IdentityResult);
+
+        const context = createMockContext("Basic abc123", "provider-1");
+        const result = await guard.canActivate(context);
+
+        expect(result).toBe(true);
+        expect(context._request.user).toEqual(defaultUserDetails);
     });
 
-    it("should throw UnauthorizedException when JWT verification fails", async () => {
-        (jwtService.verifyAsync as jest.Mock).mockRejectedValue(new Error("Token expired"));
-        const context = createMockContext("Bearer expired-token");
-        await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    it("should propagate UnauthorizedException when identity resolution fails", async () => {
+        const { UnauthorizedException } = await import("@nestjs/common");
+        (authIdentityService.resolveOrDefault as jest.Mock).mockRejectedValue(
+            new UnauthorizedException("Token expired"),
+        );
+
+        const context = createMockContext("Bearer expired-token", "provider-1");
+
+        await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
-    it("should throw UnauthorizedException for empty Bearer token", async () => {
-        const context = createMockContext("Bearer ");
-        // "Bearer ".split(" ") => ["Bearer", ""] => token is empty string which is falsy
-        await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    it("should fall back to default groups when no provider ID is given", async () => {
+        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
+            status: "anonymous",
+            userDetails: defaultUserDetails,
+        } as IdentityResult);
+
+        const context = createMockContext("Bearer some-token");
+        const result = await guard.canActivate(context);
+
+        expect(result).toBe(true);
+        expect(context._request.user).toEqual(defaultUserDetails);
+        expect(authIdentityService.resolveOrDefault).toHaveBeenCalledWith("some-token", undefined);
     });
 });

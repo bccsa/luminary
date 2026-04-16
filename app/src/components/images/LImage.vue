@@ -7,17 +7,22 @@ import { useBucketInfo } from "@/composables/useBucketInfo";
 
 type Props = {
     image?: ImageDto;
-    contentParentId: Uuid;
+    contentParentId?: Uuid;
     parentImageBucketId?: Uuid;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
     isModal?: boolean;
+    /** Direct image URL for simple rendering (e.g. icons). Bypasses responsive image logic. */
+    src?: string;
+    /** Opacity applied to the image (0–1). Only used with the `src` prop. */
+    opacity?: number;
 };
 const props = withDefaults(defineProps<Props>(), {
     size: "post",
     rounded: true,
     isModal: false,
+    opacity: 1,
 });
 
 // Get bucket information for constructing image URLs
@@ -39,6 +44,7 @@ const sizes = {
     thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
     smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
+    icon: "",
 };
 
 const rounding = {
@@ -46,6 +52,7 @@ const rounding = {
     small: "rounded-md",
     thumbnail: "rounded-lg",
     post: "md:rounded-lg",
+    icon: "rounded-none",
 };
 
 const parentRef = ref<HTMLElement | undefined>(undefined);
@@ -63,7 +70,36 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="isModal ? '' : sizes[size]">
+    <!-- Simple src mode: direct URL rendering (e.g. for icons) -->
+    <img
+        v-if="src"
+        :src="src"
+        alt=""
+        class="h-full w-full object-contain"
+        :style="opacity !== 1 ? { opacity } : undefined"
+    />
+    <!-- Icon mode: simple contained rendering, no aspect ratio or cover cropping -->
+    <div
+        v-else-if="size === 'icon'"
+        ref="parentRef"
+        class="h-full w-full"
+    >
+        <LImageProvider
+            :parent-id="contentParentId!"
+            :parent-width="parentWidth"
+            :image="props.image"
+            :rounded="false"
+            :size="props.size"
+            :is-icon="true"
+            :bucketPublicUrl="bucketBaseUrl"
+            :key="props.image ? JSON.stringify(props.image) : 'empty'"
+        />
+    </div>
+    <div
+        v-else
+        ref="parentRef"
+        :class="isModal ? '' : sizes[size]"
+    >
         <div
             v-if="!isModal"
             :class="[
@@ -73,7 +109,7 @@ onMounted(() => {
             ]"
         >
             <LImageProvider
-                :parent-id="contentParentId"
+                :parent-id="contentParentId!"
                 :parent-width="parentWidth"
                 :image="props.image"
                 :aspect-ratio="props.aspectRatio"
@@ -91,7 +127,7 @@ onMounted(() => {
         <!-- Modal mode: no container constraints -->
         <LImageProvider
             v-else
-            :parent-id="contentParentId"
+            :parent-id="contentParentId!"
             :parent-width="parentWidth"
             :image="props.image"
             :rounded="props.rounded"

@@ -38,8 +38,7 @@ class SocketIO {
      * @param {SharedConfig} config - Configuration object
      */
     constructor(config: SharedConfig) {
-        const token = config.token;
-        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
+        this.socket = io(config.apiUrl, { autoConnect: false });
 
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds
@@ -51,8 +50,14 @@ class SocketIO {
             isConnected.value = false;
         });
 
-        this.socket.on("connect_error", () => {
+        this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
             isConnected.value = false;
+            // When the server rejects credentials in its middleware, it passes
+            // next(new Error("auth_failed")). Stop auto-reconnection so the
+            // client doesn't loop with the same stale token.
+            if (err.data?.type === "auth_failed" || err.message === "auth_failed") {
+                this.socket.io.opts.reconnection = false;
+            }
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
@@ -122,7 +127,29 @@ class SocketIO {
     /**
      * Disconnect and reconnect to the socket server
      */
+    /**
+     * Update the authentication data sent in the socket.io handshake.
+     * @param token - JWT access token
+     * @param providerId - Active auth provider id (or null/undefined for guest)
+     */
+    public setAuth(token: string, providerId?: string | null) {
+        this.socket.auth = { token, providerId };
+    }
+
+    /**
+     * Connect to the socket server (no-op if already connected)
+     */
+    public connect() {
+        this.socket.io.opts.reconnection = true;
+        this.socket.connect();
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server.
+     * Re-enables auto-reconnection so network drops are handled normally.
+     */
     public reconnect() {
+        this.socket.io.opts.reconnection = true;
         this.socket.disconnect();
         isConnected.value = false;
         this.socket.connect();

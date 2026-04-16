@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type NavigationGuard } from "vue-router";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { appName } from "@/globalConfig";
@@ -7,6 +7,24 @@ import NotFoundPage from "@/pages/NotFoundPage.vue";
 import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
+import { isAuthBypassed, isAuthPluginInstalled, openProviderModal } from "@/auth";
+
+/**
+ * Wraps Auth0's `authGuard` so the router doesn't crash when no provider was
+ * resolved at boot. In that state the Auth0 Vue plugin was never installed, so
+ * `authGuard` — which calls `useAuth0()` internally — would throw. We open the
+ * provider selection modal and let the navigation proceed so App.vue can
+ * mount; App.vue keeps the routed content hidden behind `v-if="isAuthenticated"`
+ * until the user picks a provider and logs in.
+ */
+const conditionalAuthGuard: NavigationGuard = async (to) => {
+    if (isAuthBypassed) return true;
+    if (!isAuthPluginInstalled.value) {
+        openProviderModal();
+        return true;
+    }
+    return authGuard(to);
+};
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -27,7 +45,7 @@ export const router = createRouter({
     routes: [
         {
             path: "/",
-            beforeEnter: authGuard,
+            beforeEnter: conditionalAuthGuard,
             redirect:
                 typeof import.meta.env.VITE_INITIAL_PAGE === "string" &&
                 import.meta.env.VITE_INITIAL_PAGE.trim() !== ""
@@ -106,6 +124,21 @@ export const router = createRouter({
                     name: "redirects",
                     component: () => import("../components/redirects/RedirectOverview.vue"),
                 },
+                {
+                    path: "auto-group-mappings",
+                    name: "auto-group-mappings",
+                    component: () =>
+                        import(
+                            "../components/autoGroupMappings/AutoGroupMappingOverview.vue"
+                        ),
+                    meta: {
+                        title: "Auto Group Mappings",
+                        canAccess: {
+                            docType: DocType.AutoGroupMappings,
+                            permission: AclPermission.View,
+                        },
+                    },
+                },
 
                 {
                     path: "users",
@@ -143,6 +176,18 @@ export const router = createRouter({
                             permission: AclPermission.View,
                         },
                         onlineOnly: true,
+                    },
+                },
+                {
+                    path: "auth-providers",
+                    name: "auth-providers",
+                    component: () => import("../components/authProvider/AuthProviderOverview.vue"),
+                    meta: {
+                        title: "Auth Providers",
+                        canAccess: {
+                            docType: DocType.AuthProvider,
+                            permission: AclPermission.View,
+                        },
                     },
                 },
                 { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },

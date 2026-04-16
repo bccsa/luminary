@@ -55,9 +55,13 @@ watch(
 );
 
 /**
- * Initialize language document sync watcher.
+ * Initialize auth-provider and language document sync watcher.
+ *
+ * AutoGroupMappings are intentionally NOT synced here:
+ * they are edited directly against the API via ApiLiveQuery, so there is no
+ * need to mirror them into Dexie for offline editing.
  */
-export function initLanguageSync() {
+export function initAuthLangSync() {
     watch(
         () => syncIterators.value.language,
         async () => {
@@ -69,6 +73,20 @@ export function initLanguageSync() {
             setCancelSync(false);
 
             const access = getAccessibleGroups(AclPermission.View);
+
+            // Sync auth providers
+            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
+                sync({
+                    type: DocType.AuthProvider,
+                    memberOf: access[DocType.AuthProvider],
+                    limit: 100,
+                    cms: true,
+                    includeDeleteCmds: true,
+                }).catch((err) => {
+                    console.error("Error during auth provider sync:", err);
+                    Sentry?.captureException(err);
+                });
+            }
 
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
@@ -191,6 +209,7 @@ export function initSync() {
                 });
             }
         },
+        { immediate: true },
     );
 }
 

@@ -5,7 +5,6 @@ import { StorageStatusController } from "./storageStatus.controller";
 import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
-import * as jwtModule from "../jwt/processJwt";
 import * as permissionsService from "../permissions/permissions.service";
 import { DocType } from "../enums";
 import { v4 as uuidv4 } from "uuid";
@@ -14,7 +13,6 @@ describe("StorageController", () => {
     let app: INestApplication;
     const mockCheckBucketConnectivity = jest.fn();
     const mockGetDoc = jest.fn();
-    const mockProcessJwt = jest.fn();
     const mockVerifyAccess = jest.fn();
     const mockS3ServiceCreate = jest.fn();
 
@@ -31,7 +29,13 @@ describe("StorageController", () => {
             ],
         })
             .overrideGuard(AuthGuard)
-            .useValue({ canActivate: () => true })
+            .useValue({
+                canActivate: (context: any) => {
+                    const req = context.switchToHttp().getRequest();
+                    req.user = { groups: ["group-public-users"], userId: "user-123" };
+                    return true;
+                },
+            })
             .compile();
 
         app = testingModule.createNestApplication();
@@ -47,17 +51,12 @@ describe("StorageController", () => {
     beforeEach(() => {
         // Reset mocks and re-establish spies so each test sets its own mock implementations
         jest.resetAllMocks();
-        jest.spyOn(jwtModule, "processJwt").mockImplementation(mockProcessJwt);
         jest.spyOn(permissionsService.PermissionSystem, "verifyAccess").mockImplementation(
             mockVerifyAccess,
         );
         jest.spyOn(S3Service, "create").mockImplementation(mockS3ServiceCreate);
 
         // Default mocks
-        mockProcessJwt.mockResolvedValue({
-            groups: ["group-public-users"],
-            userId: "user-123",
-        });
         mockVerifyAccess.mockReturnValue(true);
 
         // Default S3Service mock - returns a service instance with checkBucketConnectivity
@@ -367,14 +366,5 @@ describe("StorageController", () => {
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
 
-        it("should require authentication", async () => {
-            const response = await request(app.getHttpServer())
-                .get("/storage/storagestatus")
-                .query({ bucketId: "bucket-123", apiVersion: "0.0.0" });
-            // No Authorization header - should fail with 401
-
-            expect(response.status).toBe(401);
-            expect(response.body.message).toBe("Authorization token required");
-        });
     });
 });

@@ -22,6 +22,7 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
+import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
@@ -594,8 +595,9 @@ class Database extends Dexie {
      * @param options {UpsertOptions} - The options to upsert a document
      */
     async upsert<T extends BaseDocumentDto>(options: UpsertOptions<T>) {
-        // Unwrap the (possibly) reactive object
-        const raw = toRaw(options.doc);
+        // Unwrap the (possibly) reactive object — toRaw is shallow, so cloneDeep is required
+        // to strip nested reactive Proxies before IndexedDB's structured clone algorithm runs.
+        const raw = cloneDeep(toRaw(options.doc));
 
         if (!options.localChangesOnly) {
             if (options.doc.deleteReq) {
@@ -899,13 +901,9 @@ export async function initDatabase() {
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
-    watch(
-        accessMap,
-        () => {
-            db.deleteRevoked();
-        },
-        { immediate: true },
-    );
+    watchValue(accessMap, () => {
+        db.deleteRevoked();
+    }, { immediate: true });
 
     watch(
         syncMap,

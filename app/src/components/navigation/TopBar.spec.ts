@@ -7,6 +7,7 @@ import { setActivePinia } from "pinia";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { isAuthPluginInstalled } from "@/auth";
 
 vi.mock("@auth0/auth0-vue");
 const routePushMock = vi.fn();
@@ -47,10 +48,12 @@ describe("TopBar", () => {
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        isAuthPluginInstalled.value = true;
     });
 
     afterEach(() => {
         vi.clearAllMocks();
+        isAuthPluginInstalled.value = false;
     });
 
     it("shows menu when logged out", async () => {

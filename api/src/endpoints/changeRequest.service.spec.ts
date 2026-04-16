@@ -3,34 +3,29 @@ import { createTestingModule } from "../test/testingModule";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
+import { PermissionSystem } from "../permissions/permissions.service";
+import { JwtUserDetails } from "../auth/authIdentity.service";
 
 describe("ChangeRequest service", () => {
-    const oldEnv = process.env;
     let service: DbService;
     let changeRequestService: ChangeRequestService;
+    let mockUserDetails: JwtUserDetails;
 
     beforeAll(async () => {
-        process.env = { ...oldEnv }; // Make a copy of the old environment variables
-
-        process.env.JWT_MAPPINGS = `{
-            "groups": {
-                "group-super-admins": "() => true"
-            },
-            "userId": "() => 'user-super-admin'",
-            "email": "() => 'test@123.com'",
-            "name": "() => 'Test User'"
-        }`;
-
         service = (await createTestingModule("changereq-service")).dbService;
         changeRequestService = new ChangeRequestService(undefined, service);
-    });
 
-    afterAll(async () => {
-        process.env = oldEnv; // Restore the original environment variables
+        mockUserDetails = {
+            userId: "user-super-admin",
+            groups: ["group-super-admins"],
+            email: "test@123.com",
+            name: "Test User",
+            accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
+        };
     });
 
     it("can query the api endpoint", async () => {
-        const res = await changeRequestService.changeRequest(changeRequest_post(), "");
+        const res = await changeRequestService.changeRequest(changeRequest_post(), mockUserDetails);
 
         expect(res.ack).toBe(AckStatus.Accepted);
     });
@@ -49,7 +44,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
@@ -60,7 +55,7 @@ describe("ChangeRequest service", () => {
         };
 
         // @ts-expect-error - we are testing invalid input
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
         expect(res.ack).toBe("rejected");
         expect(res.message).toContain("Change request validation failed");
     });
@@ -76,7 +71,7 @@ describe("ChangeRequest service", () => {
             },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
 
         expect(res.message).toContain("Invalid document type");
         expect(res.ack).toBe("rejected");
@@ -85,6 +80,24 @@ describe("ChangeRequest service", () => {
         expect(docs[0]._id).toBe("lang-eng");
         expect(docs[0].type).toBe("language");
         expect(docs[0].name).toBe("English");
+    });
+
+    it("can create an authProvider document via change request", async () => {
+        const changeRequest = {
+            doc: {
+                _id: "provider-test-1",
+                type: "authProvider",
+                memberOf: ["group-super-admins"],
+                domain: "test.auth0.com",
+                clientId: "client-id-1",
+                audience: "https://api.test.com",
+                configId: "config-entry-test-1",
+                label: "Test Provider",
+            },
+        };
+
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
+        expect(res.ack).toBe(AckStatus.Accepted);
     });
 
     it("returns the post/tag document with associated content documents when a delete request is rejected", async () => {
@@ -96,7 +109,7 @@ describe("ChangeRequest service", () => {
             doc: { ...postDoc, deleteReq: 1 },
         };
 
-        const res = await changeRequestService.changeRequest(changeRequest, "");
+        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
 
         expect(res.message).toBe("No 'Delete' access to document");
         expect(res.ack).toBe("rejected");

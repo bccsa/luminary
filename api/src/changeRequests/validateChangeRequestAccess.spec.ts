@@ -26,7 +26,6 @@ describe("validateChangeRequestAccess", () => {
     });
 
     const testChangeReq_group = plainToClass(ChangeReqDto, {
-
         doc: {
             _id: "group-languages",
             type: "group",

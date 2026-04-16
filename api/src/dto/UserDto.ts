@@ -16,9 +16,7 @@ export class UserDto extends _contentBaseDto {
     @Expose()
     name: string;
 
-    /**
-     * External user ID for mapping to external systems
-     */
+    /** @deprecated */
     @IsOptional()
     @IsString()
     @Expose()
@@ -28,4 +26,14 @@ export class UserDto extends _contentBaseDto {
     @IsNumber()
     @Expose()
     lastLogin?: number;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    providerId?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    externalUserId?: string;
 }

@@ -11,6 +11,7 @@ import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isConnected } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { useNotificationStore } from "@/stores/notification";
+import { isAuthPluginInstalled } from "@/auth";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -47,10 +48,12 @@ describe("ProfileMenu", () => {
         }));
 
         setActivePinia(createTestingPinia());
+        isAuthPluginInstalled.value = true;
     });
 
     afterEach(() => {
         vi.clearAllMocks();
+        isAuthPluginInstalled.value = false;
     });
 
     it("shows the user's name", async () => {

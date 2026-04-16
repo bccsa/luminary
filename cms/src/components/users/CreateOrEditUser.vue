@@ -173,7 +173,7 @@ const saveDisabled = computed(() => {
 <template>
     <LDialog
         :open="isVisible"
-        @update:open="(val) => !val && emit('close')"
+        @update:open="(val: boolean | undefined) => !val && emit('close')"
         :title="!isNew ? `Edit User` : 'Create New User'"
         @close.stop="emit('close')"
         :primaryAction="
@@ -217,6 +217,9 @@ const saveDisabled = computed(() => {
                 :disabled="!canEditOrCreate"
                 data-test="userEmail"
             />
+
+            <!-- TODO: Re-introduce provider restriction per user — allow assigning a specific
+                 auth provider to a user and rejecting login attempts through other providers. -->
 
             <LCombobox
                 v-model:selected-options="editable.memberOf as string[]"

@@ -11,19 +11,26 @@ type Props = {
     largeModal?: boolean;
     stickToEdges?: boolean;
     showClosingButton?: boolean;
+    beforeClose?: () => boolean;
 };
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
+    largeModal: false,
     noDivider: false,
     showClosingButton: true,
 });
 
 const isVisible = defineModel<boolean>("isVisible");
 
+const tryClose = () => {
+    if (props.beforeClose && props.beforeClose() === false) return;
+    isVisible.value = false;
+};
+
 const modalRef = ref<HTMLElement>();
 
 watch(modalRef, (el) => {
     if (el) {
-        el.focus();
+        el.focus({ preventScroll: true });
     }
 });
 
@@ -38,13 +45,13 @@ const isMobileScreen = breakpoints.smaller("sm");
                 'fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
                 stickToEdges && isMobileScreen ? '' : 'p-2',
             ]"
-            @mousedown.self="isVisible = false"
+            @mousedown.self="tryClose()"
             data-test="modal-backdrop"
         >
             <!-- Modal content at higher z-index -->
             <div
                 tabindex="0"
-                @keydown.esc="isVisible = false"
+                @keydown.esc="tryClose()"
                 @click.stop
                 ref="modalRef"
                 data-test="modal-content"
@@ -72,7 +79,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                         </div>
                         <div v-if="showClosingButton" class="ml-2">
                             <LButton
-                                @click="isVisible = false"
+                                @click="tryClose()"
                                 :icon="XMarkIcon"
                                 variant="secondary"
                                 mainDynamicCss="px-0.5 py-0.5 rounded-xl"

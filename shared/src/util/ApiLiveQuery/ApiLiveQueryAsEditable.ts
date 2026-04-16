@@ -3,6 +3,7 @@ import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../rest/RestApi"
 import { AckStatus, BaseDocumentDto, Uuid } from "../../types";
 import { createEditable, CreateEditableOptions } from "../createEditable";
 import { ApiLiveQuery, ApiLiveQueryOptions } from "./ApiLiveQuery";
+import { LFormData } from "../LFormData";
 
 export type ApiLiveQueryAsEditablOptions<T> = ApiLiveQueryOptions<T> & CreateEditableOptions<T>;
 
@@ -57,11 +58,21 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
         // Apply the filter function if it exists
         if (this._filterFn) item = this._filterFn(item);
 
-        // Send the change request to the API
-        const res = await getRest().changeRequest({
-            id: 10, // TODO: The ID field is not used in the API, but it is still required by the API. This can be removed in the future.
-            doc: item,
-        } as ChangeRequestQuery);
+        // Use LFormData when the document contains binary upload data (e.g. image uploads),
+        // since ArrayBuffer cannot be JSON serialized.
+        const hasUploadData = (item as any).imageData?.uploadData?.length > 0;
+
+        let res;
+        if (hasUploadData) {
+            const formData = new LFormData();
+            formData.append("changeRequest", { id: 10, doc: item });
+            res = await getRest().changeRequest(formData);
+        } else {
+            res = await getRest().changeRequest({
+                id: 10,
+                doc: item,
+            } as ChangeRequestQuery);
+        }
 
         if (res && res.ack == AckStatus.Accepted) {
             // Update the shadow copy

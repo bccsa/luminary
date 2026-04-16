@@ -46,6 +46,7 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 
 vi.mock("@/auth", () => ({
     isAuthBypassed: false,
+    isAuthPluginInstalled: { value: true },
 }));
 
 describe("SideBar", () => {

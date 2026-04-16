@@ -22,6 +22,8 @@ export enum DocType {
     DeleteCmd = "deleteCmd",
     Storage = "storage",
     Crypto = "crypto",
+    AuthProvider = "authProvider",
+    AutoGroupMappings = "autoGroupMappings",
 }
 
 /**
@@ -32,11 +34,6 @@ export enum AclPermission {
      * Access to view documents
      */
     View = "view",
-
-    /**
-     * Access to create new documents
-     */
-    Create = "create",
 
     /**
      * Access to edit documents

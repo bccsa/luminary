@@ -41,9 +41,13 @@ type Props = {
     showIcon?: boolean;
     badgeVariant?: keyof typeof variants;
     smallInput?: boolean;
+    inlineTags?: boolean;
+    noBorder?: boolean;
+    placeholder?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    noBorder: false,
     disabled: false,
     showSelectedInDropdown: true,
     showSelectedLabels: true,
@@ -65,10 +69,11 @@ const triggerRef = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
+const selectedSet = computed(() => new Set(selectedOptions.value));
 const optionsList = computed(() =>
     props.options.map((o) => ({
         ...o,
-        selected: selectedOptions.value?.includes(o.value),
+        selected: selectedSet.value.has(o.value),
         highlighted: false,
     })),
 );
@@ -195,6 +200,15 @@ const selectOption = (option: any) => {
 };
 
 defineExpose({ open, inputElement });
+const onInlineBackspace = () => {
+    if (query.value === "" && selectedOptions.value.length > 0) {
+        const last = selectedOptions.value[selectedOptions.value.length - 1];
+        const option = selectedLabels.value.find((o) => o.value === last);
+        if (!option || option.isRemovable !== false) {
+            selectedOptions.value.splice(selectedOptions.value.length - 1, 1);
+        }
+    }
+};
 </script>
 
 <template>
@@ -241,10 +255,101 @@ defineExpose({ open, inputElement });
             :heading="label"
             :showClosingButton="false"
         >
+            <!-- Inline tags trigger -->
             <div
+                v-if="inlineTags"
                 ref="triggerRef"
-                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
-                :class="[smallInput && isMobileScreen ? 'pl-1 pr-3' : 'pl-3 pr-8']"
+                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                :class="{ 'border-[1px] border-zinc-300': !noBorder }"
+                v-bind="attrsWithoutStyles"
+                @click="open()"
+            >
+                <LTag
+                    v-for="option in selectedLabels"
+                    :key="option.id"
+                    @remove="
+                        () => {
+                            if (option.isRemovable !== false) {
+                                selectedOptions.splice(selectedOptions.indexOf(option.value), 1);
+                            }
+                        }
+                    "
+                    :disabled="disabled || option.isRemovable === false"
+                >
+                    {{ option.label }}
+                </LTag>
+                <input
+                    v-model="query"
+                    ref="inputElement"
+                    class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0 sm:min-w-[80px]"
+                    :placeholder="selectedOptions.length > 0 && !query ? '' : (placeholder ?? 'Type to select...')"
+                    name="option-search"
+                    autocomplete="off"
+                    @keydown.backspace="onInlineBackspace"
+                    @keydown.enter="
+                        () => {
+                            if (showDropdown) {
+                                if (highlightedIndex > -1) {
+                                    selectedOptions.push(filtered[highlightedIndex].value);
+                                    query = '';
+                                    showDropdown = false;
+                                    return;
+                                }
+                                if (filtered.length > 0) {
+                                    selectedOptions.push(filtered[0].value);
+                                    query = '';
+                                    showDropdown = false;
+                                }
+                            }
+                        }
+                    "
+                    @keydown.escape="
+                        () => {
+                            query = '';
+                            showDropdown = false;
+                        }
+                    "
+                    @keydown.down="
+                        () => {
+                            if (!showDropdown) showDropdown = true;
+                            if (highlightedIndex < filtered.length - 1) highlightedIndex++;
+                            dropdown?.children[highlightedIndex].scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth',
+                            });
+                        }
+                    "
+                    @keydown.up="
+                        () => {
+                            if (highlightedIndex > 0) highlightedIndex--;
+                            dropdown?.children[highlightedIndex].scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth',
+                            });
+                        }
+                    "
+                />
+                <button
+                    class="fs-0 absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
+                    @click.stop="toggle"
+                    name="options-open-btn"
+                    type="button"
+                    tabindex="-1"
+                >
+                    <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
+                </button>
+            </div>
+
+            <!-- Standard trigger -->
+            <div
+                v-else
+                ref="triggerRef"
+                class="relative flex justify-between gap-2 rounded-md bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
+                :class="{
+                    'border-[1px] border-zinc-300': !noBorder,
+                    'pl-1 pr-3': smallInput && isMobileScreen,
+                    'pl-3 pr-8': !smallInput || !isMobileScreen,
+                }"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
                 @click="open()"
@@ -366,7 +471,7 @@ defineExpose({ open, inputElement });
 
             <div
                 data-test="selected-labels"
-                v-if="showSelectedLabels"
+                v-if="showSelectedLabels && !inlineTags"
                 class="flex flex-wrap gap-1 pt-1"
             >
                 <LTag

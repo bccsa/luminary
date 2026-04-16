@@ -34,7 +34,7 @@ vi.mock("./globalConfig", async () => {
 });
 
 // Import after mocks are set up
-const { initLanguageSync, initSync, triggerSync, syncIterators } = await import("./sync");
+const { initAuthLangSync, initSync, triggerSync, syncIterators } = await import("./sync");
 
 const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = await import(
     "luminary-shared"
@@ -62,6 +62,8 @@ describe("sync.ts", () => {
             [DocType.DeleteCmd]: [],
             [DocType.Storage]: [],
             [DocType.Crypto]: [],
+            [DocType.AuthProvider]: [],
+            [DocType.AutoGroupMappings]: [],
         });
     });
 
@@ -69,15 +71,15 @@ describe("sync.ts", () => {
         vi.clearAllMocks();
     });
 
-    describe("initLanguageSync", () => {
+    describe("initAuthLangSync", () => {
         it("should initialize language sync watcher", () => {
-            initLanguageSync();
+            initAuthLangSync();
             // Watcher runs immediately, so iterator will be 1
             expect(syncIterators.value.language).toBe(1);
         });
 
         it("should increment language iterator when accessMap changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialValue = syncIterators.value.language;
 
             accessMap.value = {
@@ -93,7 +95,7 @@ describe("sync.ts", () => {
         });
 
         it("should increment language iterator when isConnected changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialValue = syncIterators.value.language;
 
             isConnected.value = true;
@@ -116,9 +118,11 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = false;
             await nextTick();
 
@@ -139,9 +143,11 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -162,9 +168,11 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -191,9 +199,11 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -215,9 +225,11 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
-            initLanguageSync();
+            initAuthLangSync();
             isConnected.value = true;
             await nextTick();
 
@@ -274,6 +286,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
             cmsLanguages.value = [
@@ -339,6 +353,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
             initSync();
@@ -368,6 +384,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
             initSync();
@@ -400,6 +418,8 @@ describe("sync.ts", () => {
                 [DocType.DeleteCmd]: [],
                 [DocType.Storage]: [],
                 [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
             });
 
             cmsLanguages.value = [
@@ -455,7 +475,7 @@ describe("sync.ts", () => {
         });
 
         it("should handle both iterators incrementing from state changes", async () => {
-            initLanguageSync();
+            initAuthLangSync();
             const initialLanguage = syncIterators.value.language;
             const initialContent = syncIterators.value.content;
 

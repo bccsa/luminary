@@ -15,6 +15,8 @@ import processLanguageDto from "./documentProcessing/processLanguageDto";
 import processGroupDto from "./documentProcessing/processGroupDto";
 import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
+import processAuthProviderDto from "./documentProcessing/processAuthProviderDto";
+import { AuthProviderDto } from "../dto/AuthProviderDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -55,6 +57,9 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
+        [DocType.AuthProvider]: () =>
+            processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
+        [DocType.AutoGroupMappings]: () => {}, // No extra processing required, but needed to be part of the process map for access validation,
     };
 
     if (docProcessMap[doc.type]) {

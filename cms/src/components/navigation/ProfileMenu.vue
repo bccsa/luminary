@@ -14,16 +14,18 @@ import LanguageModal from "../modals/LanguageModal.vue";
 import type { LanguageDto } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
 import { PlayIcon } from "@heroicons/vue/16/solid";
-import { isAuthBypassed } from "@/auth";
+import { isAuthBypassed, isAuthPluginInstalled } from "@/auth";
 
-// In auth bypass mode, use mock user data
-const auth0 = isAuthBypassed ? null : useAuth0();
+// Only call useAuth0() if the plugin was actually installed at boot. Otherwise
+// fall back to mock user data and a no-op logout.
+const auth0 =
+    isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
 const user = computed(() =>
     isAuthBypassed ? { name: "E2E Test User", email: "e2e@test.local" } : auth0?.user.value,
 );
-const logout = isAuthBypassed
-    ? () => console.warn("Logout called in auth bypass mode")
-    : auth0!.logout;
+const logout = auth0
+    ? auth0.logout
+    : () => console.warn("Logout called without an active auth session");
 const router = useRouter();
 
 const showLanguageModal = ref(false);

@@ -6,7 +6,12 @@ import { DocType, DeleteReason } from "../enums";
 
 import { s3TestConfig } from "../test/s3TestConfig";
 
-const { baseUrl: s3BaseUrl, accessKey: s3AccessKey, secretKey: s3SecretKey, publicUrl: s3PublicUrl } = s3TestConfig;
+const {
+    baseUrl: s3BaseUrl,
+    accessKey: s3AccessKey,
+    secretKey: s3SecretKey,
+    publicUrl: s3PublicUrl,
+} = s3TestConfig;
 
 describe("S3Service", () => {
     let service: S3Service;

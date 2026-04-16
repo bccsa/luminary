@@ -18,3 +18,11 @@ describe("string utils", () => {
         expect(getTheFirstLetter("")).toBe("");
     });
 });
+
+describe("getTheFirstLetter", () => {
+    test("returns the first character of a string", () => {
+        expect(getTheFirstLetter("Hello")).toBe("H");
+        expect(getTheFirstLetter("world")).toBe("w");
+        expect(getTheFirstLetter("123abc")).toBe("1");
+    });
+});

@@ -51,9 +51,9 @@ watch(
 );
 
 /**
- * Initialize language document sync watcher.
+ * Initialize the auth-provider and language document sync watcher.
  */
-export function initLanguageSync() {
+export function initAuthLangSync() {
     watch(
         () => syncIterators.value.language,
         async () => {
@@ -66,6 +66,18 @@ export function initLanguageSync() {
 
             const access = getAccessibleGroups(AclPermission.View);
 
+            // Sync auth providers
+            if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
+                sync({
+                    type: DocType.AuthProvider,
+                    memberOf: access[DocType.AuthProvider],
+                    limit: 100,
+                    cms: false,
+                }).catch((err) => {
+                    Sentry?.captureException(err);
+                });
+            }
+
             // Sync languages
             if (access[DocType.Language] && access[DocType.Language].length) {
                 sync({
@@ -74,7 +86,6 @@ export function initLanguageSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during language sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -108,7 +119,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -123,7 +133,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during tag content sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -136,7 +145,6 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during redirect sync:", err);
                     Sentry?.captureException(err);
                 });
             }
@@ -149,10 +157,10 @@ export function initSync() {
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
-                    console.error("Error during storage sync:", err);
                     Sentry?.captureException(err);
                 });
             }
+
         },
         { immediate: true },
     );

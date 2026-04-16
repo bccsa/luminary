@@ -9,7 +9,6 @@ import { DocType, PublishStatus } from "../enums";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoSelectorDto } from "../dto/MongoSelectorDto";
 import * as permissions from "../permissions/permissions.service";
-import * as jwt from "../jwt/processJwt";
 
 describe("QueryService", () => {
     let service: QueryService;
@@ -27,7 +26,6 @@ describe("QueryService", () => {
         } as any;
         logger = { info: jest.fn(), error: jest.fn() } as unknown as Logger;
 
-        jest.spyOn(jwt, "processJwt").mockResolvedValue(mockUser);
         jest.spyOn(permissions.PermissionSystem, "accessMapToGroups").mockReturnValue({} as any);
 
         const moduleRef = await Test.createTestingModule({
@@ -64,8 +62,11 @@ describe("QueryService", () => {
             // invalid: object type (only simple equality value allowed)
             (s as any).type = { $eq: DocType.Post } as any;
         });
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
+        await expect(service.query(query, mockUser)).rejects.toEqual(
+            new HttpException(
+                "'type' field must be a simple equality value",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 
@@ -84,7 +85,7 @@ describe("QueryService", () => {
             ],
         });
 
-        const res = await service.query(query, "token");
+        const res = await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         expect(calledWith.selector.$and).toBeDefined();
@@ -103,7 +104,7 @@ describe("QueryService", () => {
             (s as any).type = DocType.Post;
         });
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         expect(calledWith.selector.$and).toBeDefined();
@@ -121,8 +122,11 @@ describe("QueryService", () => {
             // no type provided
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("'type' field (string) is required in selector", HttpStatus.BAD_REQUEST),
+        await expect(service.query(query, mockUser)).rejects.toEqual(
+            new HttpException(
+                "'type' field (string) is required in selector",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 
@@ -137,7 +141,7 @@ describe("QueryService", () => {
         (query as any).$limit = 5;
         (query as any).$sort = [{ createdAt: "desc" }];
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         expect(dbService.executeFindQuery).toHaveBeenCalledWith(
             expect.objectContaining({ $limit: 5, $sort: [{ createdAt: "desc" }] }),
@@ -150,7 +154,7 @@ describe("QueryService", () => {
             // missing parentType
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
+        await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException(
                 "'parentType' field is required for Content type",
                 HttpStatus.BAD_REQUEST,
@@ -177,7 +181,7 @@ describe("QueryService", () => {
         (selector as any).parentType = DocType.Post;
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         expect(calledWith.selector.$and).toBeDefined();
@@ -206,7 +210,7 @@ describe("QueryService", () => {
             (s as any).parentType = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
+        await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });
@@ -217,8 +221,11 @@ describe("QueryService", () => {
             (s as any).type = { $in: [DocType.Post, DocType.Content] } as any;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
-            new HttpException("'type' field must be a simple equality value", HttpStatus.BAD_REQUEST),
+        await expect(service.query(query, mockUser)).rejects.toEqual(
+            new HttpException(
+                "'type' field must be a simple equality value",
+                HttpStatus.BAD_REQUEST,
+            ),
         );
     });
 
@@ -234,7 +241,7 @@ describe("QueryService", () => {
         (selector as any).status = "published";
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
@@ -264,7 +271,7 @@ describe("QueryService", () => {
         (selector as any).memberOf = { $in: ["p1", "x"] } as any; // only p1 intersects with Post groups
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
@@ -289,7 +296,7 @@ describe("QueryService", () => {
         ];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
@@ -311,7 +318,7 @@ describe("QueryService", () => {
             (s as any).type = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
+        await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });
@@ -326,7 +333,7 @@ describe("QueryService", () => {
         (selector as any).$or = [{ status: "published" }, { language: "en" }];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         expect(calledWith.selector.$and).toBeDefined();
@@ -353,7 +360,7 @@ describe("QueryService", () => {
         (query as any).selector = selector;
         (query as any).cms = false;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
@@ -388,7 +395,7 @@ describe("QueryService", () => {
         });
 
         // Should throw error because docType is required for permission checks
-        await expect(service.query(query, "token")).rejects.toThrow();
+        await expect(service.query(query, mockUser)).rejects.toThrow();
     });
 
     it("checks permissions against docType for DeleteCmd", async () => {
@@ -403,7 +410,7 @@ describe("QueryService", () => {
         (selector as any).docType = DocType.Post;
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         // Verify that accessMapToGroups was called with the docType (Post), not DeleteCmd
         expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
@@ -433,7 +440,7 @@ describe("QueryService", () => {
             (s as any).docType = DocType.Post;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
+        await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });
@@ -451,7 +458,7 @@ describe("QueryService", () => {
         (selector as any).docType = DocType.Content;
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         // Verify that accessMapToGroups was called with both Post and Tag types
         expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
@@ -487,7 +494,7 @@ describe("QueryService", () => {
         (selector as any).docType = DocType.Content;
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         // Verify the query was executed with deduplicated memberOf filter in $and
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
@@ -539,7 +546,7 @@ describe("QueryService", () => {
         ];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);
@@ -558,7 +565,7 @@ describe("QueryService", () => {
         ];
         (query as any).selector = selector;
 
-        await expect(service.query(query, "token")).rejects.toThrow("Invalid memberOf field");
+        await expect(service.query(query, mockUser)).rejects.toThrow("Invalid memberOf field");
     });
 
     it("skips publishing filters for Content type when cms flag is true", async () => {
@@ -577,7 +584,7 @@ describe("QueryService", () => {
         (query as any).selector = selector;
         (query as any).cms = true;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
@@ -597,7 +604,7 @@ describe("QueryService", () => {
         (selector as any).$and = [{ type: DocType.Post }, { memberOf: "my-group" }];
         (query as any).selector = selector;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const memberOfCondition = calledWith.selector.$and.find((c: any) => c.memberOf);
@@ -616,7 +623,7 @@ describe("QueryService", () => {
             (s as any).docType = DocType.Content;
         });
 
-        await expect(service.query(query, "token")).rejects.toEqual(
+        await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });

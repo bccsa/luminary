@@ -247,9 +247,7 @@ export class DbService extends EventEmitter {
 
         while (!this.connected) {
             if (waited >= maxWaitMs) {
-                throw new Error(
-                    "Database connection timeout: unable to connect within 10 seconds",
-                );
+                throw new Error("Database connection timeout: unable to connect within 10 seconds");
             }
             await new Promise((r) => setTimeout(r, pollIntervalMs));
             waited += pollIntervalMs;
