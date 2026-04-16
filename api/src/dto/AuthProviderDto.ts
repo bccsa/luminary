@@ -1,7 +1,14 @@
 import { DocType } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
-import { IsString, IsNotEmpty, IsOptional, IsObject, IsNumber, ValidateNested } from "class-validator";
+import {
+    IsString,
+    IsNotEmpty,
+    IsOptional,
+    IsObject,
+    IsNumber,
+    ValidateNested,
+} from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageDto } from "./ImageDto";
 
@@ -20,7 +27,7 @@ export class AuthProviderDto extends _contentBaseDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    public domain!: string;
+    public domain: string;
 
     /**
      * API audience / resource identifier (e.g. https://api.example.com)
@@ -28,7 +35,7 @@ export class AuthProviderDto extends _contentBaseDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    public audience!: string;
+    public audience: string;
 
     /**
      * OIDC client ID
@@ -36,7 +43,7 @@ export class AuthProviderDto extends _contentBaseDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    public clientId!: string;
+    public clientId: string;
 
     @IsOptional()
     @IsObject()
@@ -51,42 +58,42 @@ export class AuthProviderDto extends _contentBaseDto {
     @IsString()
     @IsOptional()
     @Expose()
-    public label!: string;
+    public label: string;
 
     /** Icon URL for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public icon!: string;
+    public icon: string;
 
     /** Background color for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public backgroundColor!: string;
+    public backgroundColor: string;
 
     /** Text color for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public textColor!: string;
+    public textColor: string;
 
     /** Opacity of the icon (0–1) */
     @IsNumber()
     @IsOptional()
     @Expose()
-    public iconOpacity!: number;
+    public iconOpacity: number;
 
     /** Storage bucket ID for the provider icon image */
     @IsString()
     @IsOptional()
     @Expose()
-    public imageBucketId!: string;
+    public imageBucketId: string;
 
     /** Icon image data (processed via ImageEditor) */
     @IsOptional()
     @ValidateNested()
     @Type(() => ImageDto)
     @Expose()
-    public imageData!: ImageDto;
+    public imageData: ImageDto;
 }

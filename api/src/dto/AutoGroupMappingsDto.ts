@@ -15,7 +15,7 @@ export class AuthProviderCondition {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    type!: "authenticated" | "claimEquals" | "claimIn";
+    type: "authenticated" | "claimEquals" | "claimIn";
 
     @IsOptional()
     @IsString()
@@ -43,17 +43,17 @@ export class AutoGroupMappingsDto extends _contentBaseDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    public providerId!: string;
+    public providerId: string;
 
     @IsArray()
     @ArrayNotEmpty()
     @IsString({ each: true })
     @Expose()
-    public groupIds!: string[];
+    public groupIds: string[];
 
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => AuthProviderCondition)
     @Expose()
-    public conditions!: AuthProviderCondition[];
+    public conditions: AuthProviderCondition[];
 }
