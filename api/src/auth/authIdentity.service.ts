@@ -40,22 +40,24 @@ export class AuthIdentityService implements OnModuleInit {
         this.dbService.on("update", (doc: any) => {
             if (doc.type === DocType.AuthProvider) {
                 this.providerCache.set(doc._id, doc as AuthProviderDto);
-                // Clear associated JWKS client so it's rebuilt with new domain settings
                 this.jwksClients.delete(doc.domain);
             } else if (doc.type === DocType.AutoGroupMappings) {
                 const mapping = doc as AutoGroupMappingsDto;
-                this.autoGroupMappingsCache.delete(mapping.providerId);
-            } else if (doc.type === DocType.DefaultPermissions) {
-                this.defaultGroupsCache = doc.defaultGroups ?? [];
+                if (mapping.providerId) {
+                    this.autoGroupMappingsCache.delete(mapping.providerId);
+                } else {
+                    // Provider-less mappings act as default groups — invalidate that cache
+                    this.defaultGroupsCache = null;
+                }
             } else if (doc.type === DocType.DeleteCmd) {
-                // Evict deleted providers and their JWKS clients from cache
                 const deletedProvider = this.providerCache.get(doc.docId);
                 if (deletedProvider) {
                     this.jwksClients.delete(deletedProvider.domain);
                     this.providerCache.delete(doc.docId);
                 }
-                // Also evict any auto-group-mapping cache for the deleted doc
                 this.autoGroupMappingsCache.delete(doc.docId);
+                // A deleted mapping might have been a default — invalidate to be safe
+                this.defaultGroupsCache = null;
             }
         });
     }
@@ -74,8 +76,9 @@ export class AuthIdentityService implements OnModuleInit {
     }
 
     /**
-     * Phase 1: Returns the defaultGroups from the DefaultPermissions document.
-     * These groups are automatically assigned to every user, including guests.
+     * Phase 1: Returns the default groups derived from AutoGroupMappings that
+     * have no providerId. These are automatically assigned to every user,
+     * including unauthenticated guests.
      * Result is cached and kept fresh via the DB change feed.
      */
     async getDefaultGroups(): Promise<string[]> {
@@ -83,12 +86,20 @@ export class AuthIdentityService implements OnModuleInit {
             return this.defaultGroupsCache;
         }
 
-        const configRes = await this.dbService.executeFindQuery({
-            selector: { type: DocType.DefaultPermissions },
-            limit: 1,
+        // Provider-less mappings act as global defaults
+        const res = await this.dbService.executeFindQuery({
+            selector: {
+                type: DocType.AutoGroupMappings,
+                $or: [{ providerId: { $exists: false } }, { providerId: "" }],
+            },
         });
 
-        this.defaultGroupsCache = configRes.docs?.[0]?.defaultGroups ?? [];
+        const docs = (res.docs as AutoGroupMappingsDto[]) ?? [];
+        const groups = new Set<string>();
+        for (const doc of docs) {
+            for (const gid of doc.groupIds ?? []) groups.add(gid);
+        }
+        this.defaultGroupsCache = Array.from(groups);
         return this.defaultGroupsCache;
     }
 
@@ -233,7 +244,7 @@ export class AuthIdentityService implements OnModuleInit {
     /**
      * Resolves a user identity using the 3-phase federated identity pipeline.
      *
-     * Phase 1 – Global defaults: Fetches defaultGroups from DefaultPermissions.
+     * Phase 1 – Global defaults: Fetches default groups from provider-less AutoGroupMappings.
      * Phase 2 – Provider context: Verifies the JWT via JWKS and evaluates groupMappings.
      * Phase 3 – Identity linking: Looks up the master User document by externalUserId,
      *            falling back to email. Sets externalUserId on the user on first login.

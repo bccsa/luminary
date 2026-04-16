@@ -16,8 +16,6 @@ import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
-import { DefaultPermissionsDto } from "../dto/DefaultPermissionsDto";
-
 /**
  * DocType to DTO map
  */
@@ -32,7 +30,6 @@ const DocTypeMap = {
     storage: StorageDto,
     authProvider: AuthProviderDto,
     autoGroupMappings: AutoGroupMappingsDto,
-    defaultPermissions: DefaultPermissionsDto,
 };
 
 /**

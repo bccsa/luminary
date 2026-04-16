@@ -58,19 +58,6 @@ interface AutoGroupMappingDoc {
     updatedTimeUtc: number;
 }
 
-/**
- * Singleton document that defines which groups are assigned to ALL users,
- * including unauthenticated guests. This is the baseline permission floor.
- */
-interface DefaultPermissionsDoc {
-    _id: "defaultPermissions";
-    _rev?: string;
-    type: "defaultPermissions";
-    memberOf: string[];
-    defaultGroups: string[];
-    updatedTimeUtc: number;
-}
-
 interface AclEntry {
     type: string;
     groupId: string;
@@ -562,11 +549,6 @@ const REQUIRED_ACLS: { groupId: string; entries: AclEntry[] }[] = [
                 groupId: "group-super-admins",
                 permission: ["view", "edit", "delete", "assign"],
             },
-            {
-                type: "defaultPermissions",
-                groupId: "group-super-admins",
-                permission: ["view", "edit", "delete", "assign"],
-            },
         ],
     },
 ];
@@ -595,7 +577,7 @@ async function ensureGroupAcls() {
         // Clean up stale/invalid ACL entries (e.g. removed doc types, undefined types)
         const validTypes = [
             "post", "tag", "group", "user", "language", "redirect",
-            "storage", "authProvider", "autoGroupMappings", "defaultPermissions",
+            "storage", "authProvider", "autoGroupMappings",
         ];
         const beforeCount = groupDoc.acl.length;
         groupDoc.acl = groupDoc.acl.filter((a) => a.type && validTypes.includes(a.type));
@@ -892,8 +874,8 @@ async function configureDefaultGroups() {
     console.log("Default groups are the baseline permissions assigned to EVERY");
     console.log("user -- including unauthenticated guests who haven't logged in.");
     console.log("");
-    console.log("For example, if you want all visitors to see public content,");
-    console.log("include the group that has 'view' access to public posts.");
+    console.log("These are stored as an AutoGroupMappings document without a");
+    console.log("provider, meaning they apply globally to all users.");
     console.log("");
     console.log(`Auto-included: ${AUTO_DEFAULT_GROUPS.join(", ")}`);
     console.log("Enter additional group IDs below. Press Enter to finish.");
@@ -911,40 +893,40 @@ async function configureDefaultGroups() {
     console.log("");
     console.log(`Groups to set: ${defaultGroups.join(", ")}`);
 
-    // Check for existing document
-    let existingDoc: DefaultPermissionsDoc | null = null;
-    try {
-        const doc = await getDoc<DefaultPermissionsDoc & { error?: string }>("defaultPermissions");
-        if (!doc.error) existingDoc = doc;
-    } catch {
-        // Document doesn't exist yet
-    }
+    // Check for existing provider-less mapping
+    const existingResult = await find<AutoGroupMappingDoc & { error?: string }>({
+        type: "autoGroupMappings",
+        $or: [{ providerId: { $exists: false } }, { providerId: "" }],
+    });
+    const existingDoc = existingResult.docs?.[0] ?? null;
 
     if (existingDoc?._rev) {
         console.log("");
-        console.log(`An existing DefaultPermissions document was found.`);
-        console.log(`Current groups: ${(existingDoc.defaultGroups || []).join(", ")}`);
+        console.log(`An existing global mapping was found.`);
+        console.log(`Current groups: ${(existingDoc.groupIds || []).join(", ")}`);
         const overwrite = await prompt("Overwrite with the new list? (y/n): ");
         if (overwrite.toLowerCase() !== "y") {
             console.log("No changes made.");
             return;
         }
     } else {
-        console.log("No existing document found -- creating a new one.");
+        console.log("No existing global mapping found -- creating a new one.");
     }
 
-    const dpDoc: DefaultPermissionsDoc = {
-        _id: "defaultPermissions",
-        type: "defaultPermissions",
+    const doc: AutoGroupMappingDoc = {
+        _id: existingDoc?._id ?? randomUUID(),
+        type: "autoGroupMappings",
+        providerId: "",
+        groupIds: defaultGroups,
+        conditions: [],
         memberOf: ["group-super-admins"],
-        defaultGroups,
         updatedTimeUtc: Date.now(),
         ...(existingDoc?._rev ? { _rev: existingDoc._rev } : {}),
     };
 
-    const response = await putDoc("defaultPermissions", dpDoc);
+    const response = await putDoc(doc._id, doc);
     if (response.ok) {
-        console.log("\n  Default permissions saved.");
+        console.log("\n  Default groups saved as global auto group mapping.");
     } else {
         console.log(`\n  Failed: ${response.error} - ${response.reason}`);
     }

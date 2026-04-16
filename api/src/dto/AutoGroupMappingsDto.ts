@@ -43,17 +43,12 @@ export class AutoGroupMappingsDto extends _contentBaseDto {
     @IsOptional()
     @IsString()
     @Expose()
-    public name?: string;
+    public description?: string;
 
     @IsOptional()
     @IsString()
     @Expose()
-    public summary?: string;
-
-    @IsString()
-    @IsNotEmpty()
-    @Expose()
-    public providerId: string;
+    public providerId?: string;
 
     @IsArray()
     @ArrayNotEmpty()

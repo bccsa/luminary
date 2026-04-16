@@ -27,7 +27,6 @@ const props = defineProps<{
     providers: AuthProviderDto[];
     groups: GroupDto[];
     disabled?: boolean;
-    isDefaultPermissions?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -37,6 +36,7 @@ const emit = defineEmits<{
 }>();
 
 const isNew = computed(() => !props.mapping);
+const isGlobal = computed(() => !editable.value.providerId);
 const showDeleteModal = ref(false);
 const showDiscardModal = ref(false);
 
@@ -94,12 +94,13 @@ const isDirty = computed(() => {
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
-const providerOptions = computed(() =>
-    props.providers.map((p) => ({
+const providerOptions = computed(() => [
+    { value: "", label: "None (Global — all users)" },
+    ...props.providers.map((p) => ({
         value: p._id,
         label: p.label || p.domain || p._id,
     })),
-);
+]);
 
 const groupOptions = computed(() =>
     props.groups.map((g) => ({
@@ -116,7 +117,7 @@ watch(
     [editable, hasAttemptedSave],
     ([e, attempted]) => {
         if (!attempted) return;
-        if (!props.isDefaultPermissions) {
+        if (!isGlobal.value) {
             validate(
                 "An auth provider must be selected",
                 "providerId",
@@ -137,9 +138,7 @@ watch(
 );
 
 const canSave = computed(() => {
-    if ((editable.value.groupIds ?? []).length === 0) return false;
-    if (props.isDefaultPermissions) return true;
-    return !!editable.value.providerId;
+    return (editable.value.groupIds ?? []).length > 0;
 });
 
 // ── Actions ─────────────────────────────────────────────────────────────────
@@ -246,7 +245,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         :open="isVisible"
         @update:open="(val: boolean | undefined) => !val && handleClose()"
         :title="
-            props.isDefaultPermissions
+            isGlobal
                 ? 'Default Group Access'
                 : !isNew
                   ? 'Edit Auto Group Mapping'
@@ -272,44 +271,33 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
 
         <FormErrors :errors="[]" :validations="validations" />
 
-        <!-- Name and summary -->
-        <div v-if="!props.isDefaultPermissions" class="mb-4 space-y-2">
+        <!-- Description -->
+        <div class="mb-4">
             <LInput
-                name="mapping-name"
-                v-model="editable.name"
-                label="Name"
-                placeholder="e.g. Admin access"
-                :disabled="props.disabled"
-            />
-            <LInput
-                name="mapping-summary"
-                v-model="editable.summary"
-                label="Summary"
+                name="mapping-description"
+                v-model="editable.description"
+                label="Description"
                 placeholder="e.g. Assigns admin groups when role claim matches"
                 :disabled="props.disabled"
             />
         </div>
 
-        <!-- Default permissions message -->
-        <div
-            v-if="props.isDefaultPermissions"
-            class="mb-4 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700"
-        >
-            Unauthenticated and authenticated users will be assigned these groups regardless of
-            provider.
-        </div>
-
         <!-- Provider selector -->
-        <div v-if="!props.isDefaultPermissions" class="mb-4">
+        <div class="mb-4">
             <LSelect
-                :model-value="editable.providerId"
+                :model-value="editable.providerId ?? ''"
                 @update:model-value="editable.providerId = $event as string"
                 label="Auth Provider"
                 :options="providerOptions"
-                placeholder="Select a provider..."
                 :disabled="props.disabled"
             />
         </div>
+
+        <!-- Global mapping message -->
+        <LBadge v-if="isGlobal" variant="warning" withIcon class="mb-4">
+            Unauthenticated and authenticated users will be assigned these groups regardless of
+            provider.
+        </LBadge>
 
         <!-- Group selector -->
         <div class="mb-4">
@@ -326,7 +314,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
 
         <!-- Conditions -->
         <div
-            v-if="!props.isDefaultPermissions"
+            v-if="!isGlobal"
             class="rounded-md border border-zinc-200 bg-white p-2"
         >
             <label class="text-sm font-medium text-gray-800">Conditions (AND)</label>
@@ -466,7 +454,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             </LButton>
         </div>
 
-        <template v-if="!props.isDefaultPermissions" #footer-extra>
+        <template v-if="!isGlobal" #footer-extra>
             <div class="flex gap-1">
                 <LButton
                     v-if="!isNew"

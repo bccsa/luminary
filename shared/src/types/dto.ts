@@ -246,11 +246,6 @@ export type ApiQueryResult<T> = {
     contentOnly?: boolean;
 };
 
-export type DefaultPermissionsDto = ContentBaseDto & {
-    type: DocType.DefaultPermissions;
-    defaultGroups: Uuid[];
-};
-
 export type AuthProviderCondition = {
     type: "authenticated" | "claimEquals" | "claimIn";
     claimPath?: string;
@@ -279,9 +274,8 @@ export type AuthProviderDto = BaseDocumentDto & {
 
 export type AutoGroupMappingsDto = ContentBaseDto & {
     type: DocType.AutoGroupMappings;
-    name?: string;
-    summary?: string;
-    providerId: string;
+    description?: string;
+    providerId?: string;
     groupIds: string[];
     conditions: AuthProviderCondition[];
 };

@@ -100,27 +100,6 @@ describe("ChangeRequest service", () => {
         expect(res.ack).toBe(AckStatus.Accepted);
     });
 
-    it("enforces singleton _id for a defaultPermissions change request", async () => {
-        const changeRequest = {
-            doc: {
-                _id: "should-be-overwritten",
-                type: "defaultPermissions",
-                memberOf: ["group-super-admins"],
-                defaultGroups: ["group-public-users"],
-            },
-        };
-
-        const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
-        expect(res.ack).toBe(AckStatus.Accepted);
-
-        // processDefaultPermissionsDto must have forced the singleton ID
-        const saved = (await service.getDoc("defaultPermissions")).docs;
-        expect(saved).toHaveLength(1);
-        expect(saved[0]._id).toBe("defaultPermissions");
-        expect((saved[0] as any).memberOf).toEqual(["group-super-admins"]);
-        expect((saved[0] as any).defaultGroups).toEqual(["group-public-users"]);
-    });
-
     it("returns the post/tag document with associated content documents when a delete request is rejected", async () => {
         // Update post-blog1 so that group-super-admins do not have access to it
         const postDoc = { ...(await service.getDoc("post-blog1")).docs[0] };

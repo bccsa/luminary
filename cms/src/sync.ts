@@ -57,7 +57,7 @@ watch(
 /**
  * Initialize auth-provider and language document sync watcher.
  *
- * DefaultPermissions and AutoGroupMappings are intentionally NOT synced here:
+ * AutoGroupMappings are intentionally NOT synced here:
  * they are edited directly against the API via ApiLiveQuery, so there is no
  * need to mirror them into Dexie for offline editing.
  */

@@ -190,17 +190,32 @@ describe("AuthIdentityService", () => {
     // ── getDefaultGroups ─────────────────────────────────────────────────────────
 
     describe("getDefaultGroups", () => {
-        it("should return defaultGroups from DefaultPermissions document", async () => {
+        it("should return groups from provider-less AutoGroupMappings documents", async () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({
-                    docs: [{ type: DocType.DefaultPermissions, defaultGroups: ["group-public"] }],
+                    docs: [
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
+                    ],
                 }),
             };
             const groups = await service.getDefaultGroups();
             expect(groups).toEqual(["group-public"]);
         });
 
-        it("should return [] when no DefaultPermissions document exists", async () => {
+        it("should merge groups from multiple provider-less mappings", async () => {
+            (service as any).dbService = {
+                executeFindQuery: jest.fn().mockResolvedValue({
+                    docs: [
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-a"], providerId: "" },
+                        { type: DocType.AutoGroupMappings, groupIds: ["group-a", "group-b"] },
+                    ],
+                }),
+            };
+            const groups = await service.getDefaultGroups();
+            expect(groups.sort()).toEqual(["group-a", "group-b"]);
+        });
+
+        it("should return [] when no provider-less mappings exist", async () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({ docs: [] }),
             };
@@ -208,9 +223,11 @@ describe("AuthIdentityService", () => {
             expect(groups).toEqual([]);
         });
 
-        it("should cache the result and not re-query within TTL", async () => {
+        it("should cache the result and not re-query", async () => {
             const mockQuery = jest.fn().mockResolvedValue({
-                docs: [{ type: DocType.DefaultPermissions, defaultGroups: ["group-public"] }],
+                docs: [
+                    { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
+                ],
             });
             (service as any).dbService = { executeFindQuery: mockQuery };
 
@@ -267,8 +284,8 @@ describe("AuthGuard (Integrated)", () => {
         mockJwtService.verifyAsync = jest.fn().mockResolvedValue({ sub: "auth0|123" }); // no email
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [] }) // DefaultPermissions (inside resolveIdentity)
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // externalUserId lookup – no match; email fallback skipped
 
@@ -307,8 +324,8 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions (inside resolveIdentity)
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [] }); // email lookup – no match
@@ -357,8 +374,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // DefaultPermissions
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: [], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }) // email lookup – found
@@ -396,8 +413,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [existingUser] }) // userId lookup – found
             .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
 
@@ -432,8 +449,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup – found
             .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
@@ -470,8 +487,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: ["group-public"] }] }) // DefaultPermissions
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup
             .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
@@ -527,8 +544,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ defaultGroups: [] }] }) // DefaultPermissions
-            .mockResolvedValueOnce({ docs: [] }) // providerConfig
+            .mockResolvedValueOnce({ docs: [{ groupIds: [], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
             .mockResolvedValueOnce({ docs: [userDoc1] }) // email lookup – first doc

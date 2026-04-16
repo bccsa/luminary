@@ -50,12 +50,6 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
     ],
-    [DocType.DefaultPermissions]: [
-        AclPermission.View,
-        AclPermission.Edit,
-        AclPermission.Delete,
-        AclPermission.Assign,
-    ],
 };
 
 /**

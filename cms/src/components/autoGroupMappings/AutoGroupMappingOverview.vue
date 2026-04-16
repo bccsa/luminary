@@ -5,7 +5,6 @@ import {
     hasAnyPermission,
     ApiLiveQueryAsEditable,
     type AutoGroupMappingsDto,
-    type DefaultPermissionsDto,
     type AuthProviderDto,
     type ApiSearchQuery,
     type GroupDto,
@@ -25,7 +24,7 @@ import {
     AdjustmentsVerticalIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/vue/24/outline";
-import { computed, ref, nextTick, toRaw, onBeforeUnmount } from "vue";
+import { computed, ref, nextTick, onBeforeUnmount } from "vue";
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -53,19 +52,6 @@ const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
     { filterFn: (item) => ({ ...item }) },
 );
 const providers = providerQuery.editable;
-
-// Query default permissions singleton
-const defaultPermissionsQuery = new ApiLiveQueryAsEditable<DefaultPermissionsDto>(
-    ref<ApiSearchQuery>({ types: [DocType.DefaultPermissions] }),
-    { filterFn: (item) => ({ ...item }) },
-);
-const defaultPermissionsDocs = defaultPermissionsQuery.editable;
-const defaultPermissions = computed<DefaultPermissionsDto | undefined>(
-    () => defaultPermissionsDocs.value[0],
-);
-const canEditDefaultPermissions = computed(() =>
-    hasAnyPermission(DocType.DefaultPermissions, AclPermission.Edit),
-);
 
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
@@ -109,13 +95,12 @@ const filteredMappings = computed(() => {
     if (q) {
         result = result.filter((m) => {
             const pName = providerName(m.providerId).toLowerCase();
-            const mName = (m.name ?? "").toLowerCase();
-            const mSummary = (m.summary ?? "").toLowerCase();
+            const desc = (m.description ?? "").toLowerCase();
             const groupNames = (m.groupIds ?? [])
                 .map((gid) => groups.value.find((g) => g._id === gid)?.name ?? "")
                 .join(" ")
                 .toLowerCase();
-            return pName.includes(q) || mName.includes(q) || mSummary.includes(q) || groupNames.includes(q);
+            return pName.includes(q) || desc.includes(q) || groupNames.includes(q);
         });
     }
     return result;
@@ -137,73 +122,23 @@ function resetFilters() {
 
 const isModalVisible = ref(false);
 const editingMapping = ref<AutoGroupMappingsDto | undefined>(undefined);
-const isEditingDefaultPermissions = ref(false);
 
 function openCreate() {
-    isEditingDefaultPermissions.value = false;
     editingMapping.value = undefined;
     isModalVisible.value = true;
 }
 
 function openEdit(mapping: AutoGroupMappingsDto) {
-    isEditingDefaultPermissions.value = false;
     editingMapping.value = mapping;
-    isModalVisible.value = true;
-}
-
-function openEditDefaultPermissions() {
-    const dp = defaultPermissions.value;
-    if (!dp) return;
-    isEditingDefaultPermissions.value = true;
-    // Create a pseudo AutoGroupMappingsDto from the DefaultPermissions doc
-    editingMapping.value = {
-        _id: dp._id,
-        type: DocType.AutoGroupMappings,
-        updatedTimeUtc: dp.updatedTimeUtc,
-        memberOf: dp.memberOf ?? [],
-        providerId: "",
-        groupIds: [...(dp.defaultGroups ?? [])],
-        conditions: [],
-    } as AutoGroupMappingsDto;
     isModalVisible.value = true;
 }
 
 function closeModal() {
     isModalVisible.value = false;
     editingMapping.value = undefined;
-    isEditingDefaultPermissions.value = false;
 }
 
 async function saveMapping(doc: AutoGroupMappingsDto) {
-    // Handle default permissions save — use duplicate() to bypass the isEdited guard
-    if (isEditingDefaultPermissions.value) {
-        const target = defaultPermissionsDocs.value[0];
-        if (!target) return;
-        const updated = {
-            ...toRaw(target),
-            defaultGroups: [...(doc.groupIds ?? [])],
-            updatedTimeUtc: Date.now(),
-        };
-        const res = await defaultPermissionsQuery.duplicate(updated as DefaultPermissionsDto);
-        if (res?.ack === AckStatus.Rejected) {
-            notification.addNotification({
-                title: "Failed to save default groups",
-                description: res.message || "The server rejected the update.",
-                state: "error",
-            });
-            return;
-        }
-        // Update editingMapping so the modal re-syncs with the saved state
-        editingMapping.value = { ...doc };
-
-        notification.addNotification({
-            title: "Default groups saved",
-            description: "The default groups have been successfully updated.",
-            state: "success",
-        });
-        return;
-    }
-
     const existing = mappings.value.find((m) => m._id === doc._id);
 
     if (existing) {
@@ -274,7 +209,6 @@ async function deleteMapping(mappingId: string) {
 onBeforeUnmount(() => {
     mappingQuery.stopLiveQuery();
     providerQuery.stopLiveQuery();
-    defaultPermissionsQuery.stopLiveQuery();
 });
 </script>
 
@@ -442,22 +376,6 @@ onBeforeUnmount(() => {
             </span>
         </div>
 
-        <!-- Default Permissions card (always first) -->
-        <div class="mt-2">
-            <AutoGroupMappingDisplayCard
-                v-if="defaultPermissions"
-                :mapping="{
-                    _id: defaultPermissions._id,
-                    groupIds: defaultPermissions.defaultGroups ?? [],
-                    conditions: [],
-                }"
-                :groups="groups"
-                provider-name="All Users"
-                :is-default-permissions="true"
-                @click="canEditDefaultPermissions && openEditDefaultPermissions()"
-            />
-        </div>
-
         <!-- Mapping list -->
         <p v-if="!filteredMappings.length" class="mt-1 text-sm italic text-gray-400">
             No auto group mappings configured.
@@ -483,8 +401,7 @@ onBeforeUnmount(() => {
             :mapping="editingMapping"
             :providers="providers"
             :groups="groups"
-            :disabled="isEditingDefaultPermissions ? !canEditDefaultPermissions : !canEdit"
-            :is-default-permissions="isEditingDefaultPermissions"
+            :disabled="!canEdit"
             @close="closeModal"
             @save="saveMapping"
             @delete="deleteMapping"

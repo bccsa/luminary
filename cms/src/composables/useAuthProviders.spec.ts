@@ -13,7 +13,6 @@ import {
     initConfig,
     isConnected,
     type AuthProviderDto,
-    type DefaultPermissionsDto,
 } from "luminary-shared";
 import { mockGroupDtoSuperAdmins } from "@/tests/mockdata";
 import { useAuthProviders } from "./useAuthProviders";
@@ -26,8 +25,6 @@ import { CMS_DOCS_INDEX } from "@/docsIndex";
 const authProviderAdminAccessMap = {
     "group-super-admins": {
         authProvider: { view: true, edit: true, delete: true, assign: true },
-        authProviderConfig: { view: true, edit: true, delete: true },
-        defaultPermissions: { view: true, edit: true },
         group: { view: true, edit: true, assign: true },
     },
 };
@@ -46,14 +43,6 @@ const mockProvider: AuthProviderDto = {
     audience: "https://api.test.com",
 };
 
-const mockDefaultPermissions: DefaultPermissionsDto = {
-    _id: "default-permissions-1",
-    type: DocType.DefaultPermissions,
-    updatedTimeUtc: 1704114000000,
-    memberOf: [],
-    defaultGroups: ["group-super-admins"],
-};
-
 // ============================
 // Mock API server
 // ============================
@@ -64,7 +53,6 @@ const randomPort = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 const port = randomPort();
 
 let providerSearchDocs: AuthProviderDto[] = [];
-let defaultPermissionsSearchDocs: DefaultPermissionsDto[] = [];
 let lastChangeRequest: any = null;
 
 expressApp.get("/search", (req, res) => {
@@ -72,8 +60,6 @@ expressApp.get("/search", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     if (query.types?.includes(DocType.AuthProvider)) {
         res.end(JSON.stringify({ docs: providerSearchDocs }));
-    } else if (query.types?.includes(DocType.DefaultPermissions)) {
-        res.end(JSON.stringify({ docs: defaultPermissionsSearchDocs }));
     } else {
         res.end(JSON.stringify({ docs: [] }));
     }
@@ -129,8 +115,6 @@ describe("useAuthProviders", () => {
         await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
         isConnected.value = true;
         providerSearchDocs = [mockProvider];
-        // configSearchDocs removed — authProviderConfig singleton no longer exists
-        defaultPermissionsSearchDocs = [];
         lastChangeRequest = null;
     });
 
@@ -180,18 +164,6 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("loads defaultPermissions from the API", async () => {
-            defaultPermissionsSearchDocs = [mockDefaultPermissions];
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value?._id).toBe("default-permissions-1");
-                    expect(c.defaultPermissions.value?.defaultGroups).toContain("group-super-admins");
-                });
-            } finally {
-                teardown();
-            }
-        });
     });
 
     // ── Permission flags ─────────────────────────────────────────────────────
@@ -210,15 +182,6 @@ describe("useAuthProviders", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 expect(c.canDelete.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("canEditDefaultPermissions is true when user has defaultPermissions Edit permission", () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                expect(c.canEditDefaultPermissions.value).toBe(true);
             } finally {
                 teardown();
             }
@@ -244,15 +207,6 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("canEditDefaultPermissions is false when user has no permissions", () => {
-            accessMap.value = {};
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                expect(c.canEditDefaultPermissions.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
     });
 
     // ── openCreateModal ───────────────────────────────────────────────────────
@@ -711,118 +665,4 @@ describe("useAuthProviders", () => {
         });
     });
 
-    // ── default groups ────────────────────────────────────────────────────────
-
-    describe("default groups", () => {
-        beforeEach(() => {
-            defaultPermissionsSearchDocs = [mockDefaultPermissions];
-        });
-
-        it("openDefaultGroupsDialog opens the dialog with the current defaultGroups", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                expect(c.showDefaultGroupsDialog.value).toBe(true);
-                expect(c.editableDefaultGroups.value).toContain("group-super-admins");
-            } finally {
-                teardown();
-            }
-        });
-
-        it("isDefaultGroupsDirty is false when editableDefaultGroups matches defaultGroups", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                await nextTick();
-                expect(c.isDefaultGroupsDirty.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("isDefaultGroupsDirty is true after modifying editableDefaultGroups", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                c.editableDefaultGroups.value = [];
-                await nextTick();
-                expect(c.isDefaultGroupsDirty.value).toBe(true);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("saveDefaultGroups persists changes via a change request and closes the dialog", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                c.editableDefaultGroups.value = [];
-                await c.saveDefaultGroups();
-                expect(c.showDefaultGroupsDialog.value).toBe(false);
-                expect(lastChangeRequest?.doc?._id).toBe("default-permissions-1");
-                expect(lastChangeRequest?.doc?.defaultGroups).toEqual([]);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("saveDefaultGroups sets isSavingDefaultGroups back to false after completion", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                await c.saveDefaultGroups();
-                expect(c.isSavingDefaultGroups.value).toBe(false);
-            } finally {
-                teardown();
-            }
-        });
-
-        it("saveDefaultGroups is a no-op when defaultPermissions has not loaded", async () => {
-            // Have the API return no DefaultPermissions doc so the query stays empty
-            defaultPermissionsSearchDocs = [];
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                c.showDefaultGroupsDialog.value = true;
-                await c.saveDefaultGroups();
-                // Dialog should remain open (early return)
-                expect(c.showDefaultGroupsDialog.value).toBe(true);
-                expect(lastChangeRequest).toBeNull();
-            } finally {
-                teardown();
-            }
-        });
-
-        it("defaultGroupSelectedLabels includes a label entry for each group in editableDefaultGroups", async () => {
-            const [c, teardown] = withSetup(() => useAuthProviders());
-            try {
-                await waitForExpect(() => {
-                    expect(c.defaultPermissions.value).toBeDefined();
-                });
-                c.openDefaultGroupsDialog();
-                await waitForExpect(() => {
-                    const labels = c.defaultGroupSelectedLabels.value;
-                    const entry = labels.find((l) => l.id === "group-super-admins");
-                    expect(entry).toBeDefined();
-                    expect(entry?.label).toBe("Super Admins");
-                });
-            } finally {
-                teardown();
-            }
-        });
-    });
 });

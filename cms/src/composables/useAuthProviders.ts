@@ -3,7 +3,6 @@ import {
     db,
     DocType,
     type AuthProviderDto,
-    type DefaultPermissionsDto,
     useDexieLiveQuery,
     type GroupDto,
     AclPermission,
@@ -41,20 +40,8 @@ export function useAuthProviders() {
     const isLoadingProviders = providerQuery.isLoading;
     const providerIsModified = providerQuery.isModified;
 
-    const defaultPermissionsQuery = new ApiLiveQueryAsEditable<DefaultPermissionsDto>(
-        ref<ApiSearchQuery>({ types: [DocType.DefaultPermissions] }),
-        { filterFn: (item) => ({ ...item }) },
-    );
-    const defaultPermissionsDocs = defaultPermissionsQuery.editable;
-    const defaultPermissions = computed<DefaultPermissionsDto | undefined>(
-        () => defaultPermissionsDocs.value[0],
-    );
-
     const canDelete = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Delete));
     const canEdit = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Edit));
-    const canEditDefaultPermissions = computed(() =>
-        hasAnyPermission(DocType.DefaultPermissions, AclPermission.Edit),
-    );
 
     // ── Provider modal state ────────────────────────────────────────────────
 
@@ -277,97 +264,8 @@ export function useAuthProviders() {
         });
     }
 
-    // ── Default Groups state ────────────────────────────────────────────────
-
-    const editableDefaultGroups = ref<string[]>([]);
-    watch(
-        defaultPermissions,
-        (cfg) => {
-            if (cfg) editableDefaultGroups.value = [...(cfg.defaultGroups ?? [])];
-        },
-        { immediate: true },
-    );
-
-    const isDefaultGroupsDirty = computed(
-        () =>
-            !_.isEqual(
-                [...editableDefaultGroups.value].sort(),
-                [...(defaultPermissions.value?.defaultGroups ?? [])].sort(),
-            ),
-    );
-
-    const defaultGroupOptions = computed(() =>
-        groups.value
-            .filter(
-                (g) =>
-                    verifyAccess([g._id], DocType.Group, AclPermission.Edit) &&
-                    verifyAccess([g._id], DocType.Group, AclPermission.Assign),
-            )
-            .map((g) => ({ id: g._id, label: g.name, value: g._id })),
-    );
-
-    const defaultGroupSelectedLabels = computed(() =>
-        editableDefaultGroups.value.map((groupId) => {
-            const group = groups.value.find((g) => g._id === groupId);
-            const canAssign =
-                !!group &&
-                verifyAccess([group._id], DocType.Group, AclPermission.Assign) &&
-                verifyAccess([group._id], DocType.Group, AclPermission.Edit);
-            return {
-                id: groupId,
-                label: group?.name ?? groupId,
-                value: groupId,
-                isVisible: !!group,
-                isRemovable: canAssign,
-            };
-        }),
-    );
-
-    const showDefaultGroupsDialog = ref(false);
-    const isSavingDefaultGroups = ref(false);
-
-    function openDefaultGroupsDialog() {
-        editableDefaultGroups.value = [...(defaultPermissions.value?.defaultGroups ?? [])];
-        showDefaultGroupsDialog.value = true;
-    }
-
-    async function saveDefaultGroups() {
-        const target = defaultPermissionsDocs.value[0];
-        if (!target) return;
-        isSavingDefaultGroups.value = true;
-        try {
-            target.defaultGroups = [...editableDefaultGroups.value];
-            target.updatedTimeUtc = Date.now();
-            await nextTick();
-            const res = await defaultPermissionsQuery.save(target._id);
-            if (res?.ack === AckStatus.Rejected) {
-                notification.addNotification({
-                    title: "Failed to save default groups",
-                    description: res.message || "The server rejected the update.",
-                    state: "error",
-                });
-                return;
-            }
-            showDefaultGroupsDialog.value = false;
-            notification.addNotification({
-                title: "Default groups saved",
-                description: "The default groups have been successfully updated.",
-                state: "success",
-            });
-        } catch (err) {
-            notification.addNotification({
-                title: "Failed to save default groups",
-                description: err instanceof Error ? err.message : "An unknown error occurred",
-                state: "error",
-            });
-        } finally {
-            isSavingDefaultGroups.value = false;
-        }
-    }
-
     onBeforeUnmount(() => {
         providerQuery.stopLiveQuery();
-        defaultPermissionsQuery.stopLiveQuery();
     });
 
     return {
@@ -375,11 +273,9 @@ export function useAuthProviders() {
         availableGroups,
         providers,
         isLoadingProviders,
-        defaultPermissions,
 
         canDelete,
         canEdit,
-        canEditDefaultPermissions,
 
         showModal,
         showDeleteModal,
@@ -402,15 +298,5 @@ export function useAuthProviders() {
         duplicateProvider,
         closeModal,
         revertProvider,
-
-        editableDefaultGroups,
-        isDefaultGroupsDirty,
-        defaultGroupOptions,
-        defaultGroupSelectedLabels,
-        showDefaultGroupsDialog,
-        isSavingDefaultGroups,
-
-        openDefaultGroupsDialog,
-        saveDefaultGroups,
     };
 }

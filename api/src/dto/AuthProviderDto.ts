@@ -58,37 +58,37 @@ export class AuthProviderDto extends _contentBaseDto {
     @IsString()
     @IsOptional()
     @Expose()
-    public label: string;
+    public label?: string;
 
     /** Icon URL for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public icon: string;
+    public icon?: string;
 
     /** Background color for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public backgroundColor: string;
+    public backgroundColor?: string;
 
     /** Text color for the login button */
     @IsString()
     @IsOptional()
     @Expose()
-    public textColor: string;
+    public textColor?: string;
 
     /** Opacity of the icon (0–1) */
     @IsNumber()
     @IsOptional()
     @Expose()
-    public iconOpacity: number;
+    public iconOpacity?: number;
 
     /** Storage bucket ID for the provider icon image */
     @IsString()
     @IsOptional()
     @Expose()
-    public imageBucketId: string;
+    public imageBucketId?: string;
 
     /** Icon image data (processed via ImageEditor) */
     @IsOptional()

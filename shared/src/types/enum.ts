@@ -11,7 +11,6 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
-    DefaultPermissions = "defaultPermissions",
 }
 
 export enum PublishStatus {
