@@ -114,7 +114,9 @@ vi.mock("@/globalConfig", async (importOriginal) => {
 });
 
 vi.mock("./extractAndBuildAudioMaster", () => ({
-    extractAndBuildAudioMaster: vi.fn().mockResolvedValue("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\naudio.m3u8"),
+    extractAndBuildAudioMaster: vi
+        .fn()
+        .mockResolvedValue("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\naudio.m3u8"),
 }));
 
 function triggerPlayerEvent(event: string, ...args: any[]) {
