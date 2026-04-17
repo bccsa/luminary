@@ -138,17 +138,26 @@ describe("VideoPlayer", () => {
         vi.clearAllMocks();
     });
 
-    it.skip("renders the poster image for regular video", async () => {
+    it("renders the poster image for regular video", async () => {
+        const content = {
+            ...mockEnglishContentDto,
+            // VideoPlayer reads `content.video`; mock data only defines parentMedia.hlsUrl
+            video: mockEnglishContentDto.parentMedia!.hlsUrl!,
+        };
+
         const wrapper = mount(VideoPlayer, {
             props: {
                 language: "lang-eng",
-                content: mockEnglishContentDto,
+                content,
             },
         });
 
         await waitForExpect(() => {
             expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({ src: mockEnglishContentDto.video }),
+                expect.objectContaining({
+                    type: "application/x-mpegURL",
+                    src: content.video,
+                }),
             );
         });
 
@@ -165,7 +174,7 @@ describe("VideoPlayer", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(
-                mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
+                content.parentImageData?.fileCollections[0].imageFiles[0].filename,
             );
         });
     });
