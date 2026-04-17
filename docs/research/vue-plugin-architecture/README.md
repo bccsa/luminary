@@ -4,7 +4,7 @@ This document describes how Luminary wires **platform-specific behavior** (brows
 
 **Companion files**
 
-- Diagram (SVG): [`vue-plugin-architecture.drawio.svg`](./vue-plugin-architecture.drawio.svg)
+- Diagram (SVG copy of the same layout): [`vue-plugin-architecture.drawio.svg`](./vue-plugin-architecture.drawio.svg)
 - Starter scaffolding: [`starter-code.md`](./starter-code.md)
 
 ---
