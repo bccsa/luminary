@@ -23,26 +23,23 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * Copies the bound audio element's playback fields into the in-memory mirror state and notifies listeners.
      */
     private readonly syncStateFromElement = () => {
-        if (!this.audioElement) {
-            return;
-        }
-
+        if (!this.audioElement)return;
+        
         this.state.isPlaying = !this.audioElement.paused;
         this.state.currentTimeSeconds = this.audioElement.currentTime || 0;
-        this.state.durationSeconds = Number.isFinite(this.audioElement.duration)
-            ? this.audioElement.duration
-            : 0;
+        this.state.durationSeconds = Number.isFinite(this.audioElement.duration) ? this.audioElement.duration : 0;
         this.state.playbackRate = this.audioElement.playbackRate || 1;
         this.state.status = this.state.isPlaying ? "playing" : "paused";
-        this.emit();
+        this.emit()
     };
 
     /**
      * Marks status as loading while the element is buffering.
      */
     private readonly handleWaiting = () => {
+        if (!this.audioElement)return;
         this.state.status = "loading";
-        this.emit();
+        this.emit()
     };
 
     /**
@@ -65,21 +62,9 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * @param audioElement - Element to own; replaces any previous binding.
      */
     attachAudioElement(audioElement: HTMLAudioElement): void {
-        if (this.audioElement === audioElement) {
-            return;
-        }
+    if (this.audioElement === audioElement)return;
 
-        this.detachAudioElement();
-        this.audioElement = audioElement;
-
-        audioElement.addEventListener("play", this.syncStateFromElement);
-        audioElement.addEventListener("pause", this.syncStateFromElement);
-        audioElement.addEventListener("timeupdate", this.syncStateFromElement);
-        audioElement.addEventListener("loadedmetadata", this.syncStateFromElement);
-        audioElement.addEventListener("ratechange", this.syncStateFromElement);
-        audioElement.addEventListener("playing", this.syncStateFromElement);
-        audioElement.addEventListener("ended", this.syncStateFromElement);
-        audioElement.addEventListener("waiting", this.handleWaiting);
+        this.detachAudioElement();      
 
         this.syncStateFromElement();
     }
@@ -90,12 +75,8 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * @param audioElement - Optional; skip detach when it is not the active element.
      */
     detachAudioElement(audioElement?: HTMLAudioElement): void {
-        if (!this.audioElement) {
-            return;
-        }
-        if (audioElement && audioElement !== this.audioElement) {
-            return;
-        }
+        if (!this.audioElement)return;
+        if (audioElement && audioElement !== this.audioElement)return;
 
         this.audioElement.removeEventListener("play", this.syncStateFromElement);
         this.audioElement.removeEventListener("pause", this.syncStateFromElement);
@@ -112,9 +93,7 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * Starts or resumes playback on the bound element (no-op if none attached).
      */
     async play(): Promise<void> {
-        if (!this.audioElement) {
-            return;
-        }
+        if (!this.audioElement)return;
         await this.audioElement.play();
     }
 
@@ -122,7 +101,7 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * Pauses the bound element when present.
      */
     pause(): void {
-        this.audioElement?.pause();
+        this.audioElement?.pause()
     }
 
     /**
@@ -131,9 +110,7 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * @param seconds - Target time in seconds.
      */
     seekTo(seconds: number): void {
-        if (!this.audioElement) {
-            return;
-        }
+        if (!this.audioElement)return;
         this.audioElement.currentTime = Math.max(0, seconds);
         this.syncStateFromElement();
     }
@@ -144,9 +121,7 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * @param seconds - Delta in seconds (may be negative).
      */
     seekBy(seconds: number): void {
-        if (!this.audioElement) {
-            return;
-        }
+        if (!this.audioElement)return;
         this.seekTo(this.audioElement.currentTime + seconds);
     }
 
@@ -156,9 +131,7 @@ export class WebMediaPlayerService implements MediaPlayerService {
      * @param rate - Playback rate multiplier.
      */
     setPlaybackRate(rate: number): void {
-        if (!this.audioElement) {
-            return;
-        }
+        if (!this.audioElement)return;
         this.audioElement.playbackRate = rate;
         this.syncStateFromElement();
     }
