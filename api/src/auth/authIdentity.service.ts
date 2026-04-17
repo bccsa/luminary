@@ -136,7 +136,7 @@ export class AuthIdentityService implements OnModuleInit {
                 // Auth0 rules/actions that set custom claims on the ID token but not
                 // the access token. We can't detect this perfectly from here, but the
                 // jwks-rsa "SigningKeyNotFoundError" (or equivalent message) is the
-                // strongest signal — the token was signed by a kID not present at the
+                // strongest signal — the token was signed by a kid not present at the
                 // configured domain's JWKS endpoint, which typically means the token
                 // came from a different tenant than `provider.domain`.
                 const hint =
@@ -322,14 +322,14 @@ export class AuthIdentityService implements OnModuleInit {
             }
 
             const decodedToken = this.jwtService.decode(token, { complete: true }) as {
-                header?: { kID?: string };
+                header?: { kid?: string };
             } | null;
-            if (!decodedToken?.header?.kID) {
-                this.logger.warn("Invalid token format or missing kID");
+            if (!decodedToken?.header?.kid) {
+                this.logger.warn("Invalid token format or missing kid");
                 throw new UnauthorizedException();
             }
 
-            const key = await jwksClient.getSigningKey(decodedToken.header.kID);
+            const key = await jwksClient.getSigningKey(decodedToken.header.kid);
             const publicKey = key.getPublicKey();
 
             const payload = await this.jwtService.verifyAsync(token, {
