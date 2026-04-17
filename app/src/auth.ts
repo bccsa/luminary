@@ -194,6 +194,18 @@ export async function loginWithProvider(
 ): Promise<void> {
     const webOrigin = window.location.origin;
 
+    // Evict any in-flight Auth0 transactions from previously aborted login
+    // attempts (e.g. the user hit Back while on the Auth0 page). Leaving them
+    // around causes handleRedirectCallback to pick up a stale code_verifier /
+    // state on the next callback and fail silently — requiring an extra login
+    // click before the user is authenticated.
+    // Only clears sessionStorage a0.spajs.* transaction keys; the localStorage
+    // @@auth0spajs@@::* keys holding completed sessions are untouched.
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith("a0.spajs.")) sessionStorage.removeItem(key);
+    }
+
     sessionStorage.setItem("pending_provider", provider.clientId);
 
     const client = await createAuth0Client({
