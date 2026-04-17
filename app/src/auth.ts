@@ -57,6 +57,32 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
 }
 
 /**
+ * Fallback provider config persisted by loginWithProvider, so that setupAuth
+ * can complete the callback even when Dexie hasn't re-synced the provider
+ * (fresh session-after-logout, or after a transient deleteStaleProviderFromDexie).
+ * Holds just enough fields to rebuild the Auth0 client in setupAuth.
+ */
+type PendingProviderConfig = Pick<
+    AuthProviderDto,
+    "_id" | "domain" | "audience" | "clientId"
+>;
+
+const PENDING_PROVIDER_CONFIG_KEY = "pending_provider_config";
+
+function readPendingProviderConfig(clientId: string): PendingProviderConfig | null {
+    try {
+        const raw = sessionStorage.getItem(PENDING_PROVIDER_CONFIG_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PendingProviderConfig;
+        if (parsed?.clientId !== clientId) return null;
+        if (!parsed.domain || !parsed.audience || !parsed._id) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Remove a potentially stale AuthProvider doc from the local Dexie cache.
  * Called when the server has told us this provider is either gone or out of
  * date; Dexie's live sync will then repopulate with the current server state.
@@ -70,7 +96,7 @@ export async function deleteStaleProviderFromDexie(providerId: string | null): P
     }
 }
 
-function buildAuth0Options(provider: AuthProviderDto) {
+function buildAuth0Options(provider: Pick<AuthProviderDto, "domain" | "clientId" | "audience">) {
     return {
         domain: provider.domain,
         clientId: provider.clientId,
@@ -100,7 +126,19 @@ export async function setupAuth(app: App<Element>, router: Router) {
     // Clean up immediately so it doesn't linger in session storage
     sessionStorage.removeItem("pending_provider");
 
-    const provider = footprint ? await getProviderByClientId(footprint.client_id) : null;
+    // Prefer Dexie (the authoritative source), but fall back to the config
+    // persisted by loginWithProvider when Dexie hasn't synced the provider
+    // doc yet. Without this fallback setupAuth silently bails when returning
+    // from Auth0 if the provider was temporarily evicted from Dexie (e.g. by
+    // deleteStaleProviderFromDexie earlier in the session), leaving
+    // handleRedirectCallback unprocessed and the user unauthenticated.
+    let provider: AuthProviderDto | PendingProviderConfig | null = null;
+    if (footprint) {
+        provider = await getProviderByClientId(footprint.client_id);
+        if (!provider) provider = readPendingProviderConfig(footprint.client_id);
+    }
+    // One-shot use; clear regardless of whether Dexie or the fallback won.
+    sessionStorage.removeItem(PENDING_PROVIDER_CONFIG_KEY);
     if (!provider) return undefined;
 
     const oauth = createAuth0(buildAuth0Options(provider), {
@@ -207,6 +245,17 @@ export async function loginWithProvider(
     }
 
     sessionStorage.setItem("pending_provider", provider.clientId);
+
+    // Persist just enough provider state for setupAuth to resume on return,
+    // even if the provider doc isn't in Dexie at that moment. See
+    // readPendingProviderConfig / setupAuth for the matching read path.
+    const pendingConfig: PendingProviderConfig = {
+        _id: provider._id,
+        domain: provider.domain,
+        audience: provider.audience,
+        clientId: provider.clientId,
+    };
+    sessionStorage.setItem(PENDING_PROVIDER_CONFIG_KEY, JSON.stringify(pendingConfig));
 
     const client = await createAuth0Client({
         domain: provider.domain,
