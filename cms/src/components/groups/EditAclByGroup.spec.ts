@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } 
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
+import { ref } from "vue";
 import {
     mockGroupDtoPublicContent,
     mockGroupDtoPublicEditors,
@@ -14,11 +15,21 @@ import { accessMap, AclPermission, db, DocType, type GroupDto } from "luminary-s
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
 import EditAclByGroup from "./EditAclByGroup.vue";
+import EditAclEntry from "./EditAclEntry.vue";
 import _ from "lodash";
 
-//HeadlessUI in one of the components is causing issues in the tests due to its use of focus() and other DOM APIs.
-//Skipping the whole suite for now until a better solution is found.
-describe.skip("EditAclByGroup.vue", () => {
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("vue-router")>();
+    return {
+        ...actual,
+        useRouter: () => ({
+            push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
+        }),
+    };
+});
+
+describe("EditAclByGroup.vue", () => {
     const createWrapper = async (
         group: GroupDto,
         assignedGroup: GroupDto,
@@ -59,35 +70,6 @@ describe.skip("EditAclByGroup.vue", () => {
             visibility: "visible",
         });
 
-        // Set up global error handler for any remaining issues
-        const originalConsoleError = console.error;
-        console.error = (...args) => {
-            if (
-                args.some(
-                    (arg) =>
-                        typeof arg === "string" &&
-                        (arg.includes("focus is not a function") || arg.includes("HeadlessUI")),
-                )
-            ) {
-                return; // Suppress HeadlessUI related errors
-            }
-            originalConsoleError(...args);
-        };
-
-        // Handle unhandled rejections
-        const originalOnUnhandledRejection = window.onunhandledrejection;
-        window.onunhandledrejection = (event) => {
-            if (
-                event.reason &&
-                (String(event.reason).includes("focus is not a function") ||
-                    String(event.reason).includes("HeadlessUI"))
-            ) {
-                event.preventDefault();
-                event.stopPropagation();
-                return;
-            }
-            if (originalOnUnhandledRejection) originalOnUnhandledRejection.call(window, event);
-        };
     });
 
     beforeEach(() => {
@@ -120,15 +102,7 @@ describe.skip("EditAclByGroup.vue", () => {
 
         const wrapper = await createWrapper(group, assignedGroup, originalGroup, availableGroups);
 
-        // Wait for content to load
-        let permissionCell;
-        await waitForExpect(async () => {
-            permissionCell = wrapper.find('[data-test="permissionCell"]');
-            expect(permissionCell.exists()).toBe(true);
-        });
-
         // Group=Public Editors, DocType=Group, Permission=View
-        // Check if the view permission is set
         expect(
             group.acl.find(
                 (acl) =>
@@ -138,9 +112,21 @@ describe.skip("EditAclByGroup.vue", () => {
             ),
         ).toBeDefined();
 
-        await wrapper.findAll('[data-test="permissionCell"]')[0].trigger("click");
+        await wrapper.find('[data-test="display-card"]').trigger("click");
+        await wrapper.vm.$nextTick();
 
-        // Check if the view permission is removed
+        await waitForExpect(() => {
+            expect(wrapper.findAllComponents(EditAclEntry).length).toBeGreaterThan(0);
+        });
+
+        const entries = wrapper.findAllComponents(EditAclEntry);
+        // First row matches the first sorted active type (Group for this mock)
+        const firstEntry = entries[0];
+        await firstEntry.find("button.text-zinc-700").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await firstEntry.find("button.flex.items-center.gap-1").trigger("click");
+
         expect(
             group.acl.find(
                 (acl) =>
