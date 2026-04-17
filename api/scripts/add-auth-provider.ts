@@ -496,9 +496,14 @@ async function backfillUsers(providerId: string) {
 
         // Migrate legacy userId field to the current externalUserId field
         if (!updated.externalUserId && updated.userId) {
-            updated.externalUserId = updated.userId;
+            updated.externalUserId = String(updated.userId);
             migratedUserIdCount++;
         }
+
+        // Ensure externalUserId and userId are always strings —
+        // JWT claims like personId may be numbers, but lookups expect strings.
+        if (updated.externalUserId != null) updated.externalUserId = String(updated.externalUserId);
+        if (updated.userId != null) updated.userId = String(updated.userId);
 
         return updated;
     });

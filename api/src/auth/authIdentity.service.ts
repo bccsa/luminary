@@ -312,16 +312,22 @@ export class AuthIdentityService implements OnModuleInit {
             const dynamicGroups = this.evaluateGroupAssignments(payload, providerMappings);
 
             // ── Phase 3: Master user account linking ────────────────────────────────
-            const externalUserId: string | undefined =
+            const rawExternalUserId =
                 this.extractClaimValue(
                     payload,
                     provider.userFieldMappings?.externalUserId || "sub",
                 ) ?? this.extractClaimValue(payload, "sub");
-            const email: string | undefined =
+            // Coerce to string — JWT claims like personId may be numbers,
+            // but stored user docs always use string IDs.
+            const externalUserId: string | undefined =
+                rawExternalUserId != null ? String(rawExternalUserId) : undefined;
+            const rawEmail =
                 this.extractClaimValue(
                     payload,
                     provider.userFieldMappings?.email || "email",
                 ) ?? this.extractClaimValue(payload, "email");
+            const email: string | undefined =
+                rawEmail != null ? String(rawEmail) : undefined;
 
             let primaryUser: UserDto | null = null;
 
