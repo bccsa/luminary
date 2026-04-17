@@ -37,6 +37,7 @@ import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
+import LSelect from "@/components/forms/LSelect.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -455,30 +456,30 @@ describe("ContentOverview.vue", () => {
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
-        const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+        const filterSelects = wrapper.findAllComponents(LSelect);
 
         await waitForExpect(async () => {
             const contentTable = wrapper.findComponent(ContentTable);
 
-            await filterInputSelects[0].setValue("translated");
+            await filterSelects[0]!.vm.$emit("update:modelValue", "translated");
             expect(contentTable.props("queryOptions").translationStatus).toBe("translated");
 
-            await filterInputSelects[0].setValue("untranslated");
+            await filterSelects[0]!.vm.$emit("update:modelValue", "untranslated");
             expect(contentTable.props("queryOptions").translationStatus).toBe("untranslated");
 
-            await filterInputSelects[0].setValue("all");
+            await filterSelects[0]!.vm.$emit("update:modelValue", "all");
             expect(contentTable.props("queryOptions").translationStatus).toBe("all");
 
-            await filterInputSelects[1].setValue("published");
+            await filterSelects[1]!.vm.$emit("update:modelValue", "published");
             expect(contentTable.props("queryOptions").publishStatus).toBe("published");
 
-            await filterInputSelects[1].setValue("scheduled");
+            await filterSelects[1]!.vm.$emit("update:modelValue", "scheduled");
             expect(contentTable.props("queryOptions").publishStatus).toBe("scheduled");
 
-            await filterInputSelects[1].setValue("expired");
+            await filterSelects[1]!.vm.$emit("update:modelValue", "expired");
             expect(contentTable.props("queryOptions").publishStatus).toBe("expired");
 
-            await filterInputSelects[1].setValue("draft");
+            await filterSelects[1]!.vm.$emit("update:modelValue", "draft");
             expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
         });
     });
