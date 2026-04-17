@@ -10,6 +10,73 @@ import { StorageDto } from "../../dto/StorageDto";
 import { DocType } from "../../enums";
 import configuration from "../../configuration";
 
+async function deleteImageFilesFromBucket(
+    files: ImageFileDto[],
+    bucketId: string | undefined,
+    db: DbService,
+): Promise<string[]> {
+    const warnings: string[] = [];
+
+    if (files.length === 0) {
+        return warnings;
+    }
+
+    if (!db || !bucketId) {
+        warnings.push(
+            `Warning: ${files.length} image file(s) cannot be automatically deleted without ${
+                !db ? "database access" : "parent bucket ID"
+            }. ` + `Please manually clean up files on the storage provider`,
+        );
+        return warnings;
+    }
+
+    try {
+        const result = await db.getDoc(bucketId);
+        if (!result.docs || result.docs.length === 0) {
+            warnings.push(
+                `Bucket ${bucketId} not found. Cannot delete ${
+                    files.length
+                } files. Manual cleanup required for: ${files.map((f) => f.filename).join(", ")}`,
+            );
+        } else {
+            const bucketS3Service = await S3Service.create(bucketId, db);
+
+            for (const file of files) {
+                try {
+                    await bucketS3Service
+                        .getClient()
+                        .removeObject(bucketS3Service.getBucketName(), file.filename);
+                } catch (error) {
+                    warnings.push(
+                        `Failed to delete ${file.filename} from bucket ${bucketS3Service.getBucketName()}: ${
+                            error.message
+                        }`,
+                    );
+                }
+            }
+        }
+    } catch (error) {
+        warnings.push(
+            `Failed to connect to bucket ${bucketId}: ${error.message}. Cannot delete ${files.length} files.`,
+        );
+    }
+
+    return warnings;
+}
+
+/**
+ * Deletes all image files referenced by the DTO from the given storage bucket.
+ * Use for full removal (e.g. document delete) without a previous-document diff; also used internally when files are removed from a collection.
+ */
+export async function deleteImage(
+    image: ImageDto,
+    bucketId: string | undefined,
+    db: DbService,
+): Promise<string[]> {
+    const files = image.fileCollections.flatMap((collection) => collection.imageFiles);
+    return deleteImageFilesFromBucket(files, bucketId, db);
+}
+
 const imageSizes = [180, 360, 640, 1280, 2560];
 
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
@@ -160,52 +227,12 @@ export async function processImage(
                 );
             });
 
-            if (removedFiles.length > 0 && db && parentBucketId) {
-                // Delete files from the parent's bucketId
-                try {
-                    const result = await db.getDoc(parentBucketId);
-                    if (!result.docs || result.docs.length === 0) {
-                        warnings.push(
-                            `Bucket ${parentBucketId} not found. Cannot delete ${
-                                removedFiles.length
-                            } files. Manual cleanup required for: ${removedFiles
-                                .map((f) => f.filename)
-                                .join(", ")}`,
-                        );
-                    } else {
-                        const bucketS3Service = await S3Service.create(parentBucketId, db);
-
-                        // Delete files from the bucket
-                        for (const file of removedFiles) {
-                            try {
-                                await bucketS3Service
-                                    .getClient()
-                                    .removeObject(bucketS3Service.getBucketName(), file.filename);
-                            } catch (error) {
-                                warnings.push(
-                                    `Failed to delete ${
-                                        file.filename
-                                    } from bucket ${bucketS3Service.getBucketName()}: ${
-                                        error.message
-                                    }`,
-                                );
-                            }
-                        }
-                    }
-                } catch (error) {
-                    warnings.push(
-                        `Failed to connect to bucket ${parentBucketId}: ${error.message}. Cannot delete ${removedFiles.length} files.`,
-                    );
-                }
-            } else if (removedFiles.length > 0 && (!db || !parentBucketId)) {
-                warnings.push(
-                    `Warning: ${
-                        removedFiles.length
-                    } old image files cannot be automatically deleted without ${
-                        !db ? "database access" : "parent bucket ID"
-                    }. ` + `Please manually clean up files on the storage provider`,
-                );
-            }
+            const removalWarnings = await deleteImageFilesFromBucket(
+                removedFiles,
+                parentBucketId,
+                db,
+            );
+            warnings.push(...removalWarnings);
 
             // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
             // but this usually will happen if an offline client saved changes to an image which had file objects removed by another client.
