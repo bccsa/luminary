@@ -648,6 +648,164 @@ describe("AuthGuard (Integrated)", () => {
         expect(groups).toContain("group-private");
     });
 
+    it("should coerce a numeric JWT sub to a string for user lookup", async () => {
+        // Some OIDC providers emit `sub` as a number. Mango selectors are type-
+        // strict, so the lookup selector must be a string to match the stored
+        // externalUserId (also a string after normalisation).
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: 12345, email: "test@company.org" });
+
+        const existingUser = {
+            _id: "user-num",
+            _rev: "1-num",
+            email: "test@company.org",
+            name: "Numeric Sub User",
+            memberOf: ["group-members"],
+            externalUserId: "12345",
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [] }) // getDefaultGroups
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
+
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    headers: {
+                        authorization: "Bearer valid-token",
+                        "x-auth-provider-id": "provider-id",
+                    },
+                }),
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+
+        const calls = mockDbService.executeFindQuery.mock.calls;
+        const userIdCall = calls.find(
+            (c: any[]) => c[0]?.selector?.userId !== undefined,
+        );
+        const externalIdCall = calls.find(
+            (c: any[]) => c[0]?.selector?.externalUserId !== undefined,
+        );
+
+        expect(typeof userIdCall[0].selector.userId).toBe("string");
+        expect(userIdCall[0].selector.userId).toBe("12345");
+        expect(typeof externalIdCall[0].selector.externalUserId).toBe("string");
+        expect(externalIdCall[0].selector.externalUserId).toBe("12345");
+
+        // Verify externalUserId was persisted as string on the user doc
+        expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: "user-num", externalUserId: "12345" }),
+        );
+    });
+
+    it("should assign default + dynamic + static groups when user is resolved via numeric sub", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: 98765, email: "num@company.org", role: "admin" });
+
+        const existingUser = {
+            _id: "user-num-groups",
+            _rev: "1-abc",
+            email: "num@company.org",
+            name: "Numeric User",
+            memberOf: ["group-members"],
+            externalUserId: "98765",
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            }) // getDefaultGroups
+            .mockResolvedValueOnce({
+                docs: [
+                    {
+                        _id: "m1",
+                        groupIds: ["group-admins"],
+                        conditions: [
+                            { type: "claimEquals", claimPath: "role", value: "admin" },
+                        ],
+                    },
+                ],
+            }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup – found
+            .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
+
+        let capturedUser: any;
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(v) {
+                            capturedUser = v;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
+                    });
+                    return req;
+                },
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+        const groups: string[] = capturedUser?.groups ?? [];
+        expect(groups).toEqual(expect.arrayContaining(["group-public", "group-admins", "group-members"]));
+        expect(capturedUser.userId).toBe("user-num-groups");
+    });
+
+    it("should resolve user via legacy numeric userId field when JWT sub is numeric", async () => {
+        // Legacy doc has userId stored — JWT sub arrives as number — lookup
+        // must succeed against the string form that matches stored data.
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: 4242, email: "legacy@company.org" });
+
+        const legacyUser = {
+            _id: "user-legacy-num",
+            _rev: "1-leg",
+            email: "legacy@company.org",
+            name: "Legacy Num User",
+            memberOf: ["group-legacy"],
+            userId: "4242",
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [] }) // getDefaultGroups
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [legacyUser] }) // userId lookup – found
+            .mockResolvedValueOnce({ docs: [legacyUser] }); // email merge query
+
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    headers: {
+                        authorization: "Bearer valid-token",
+                        "x-auth-provider-id": "provider-id",
+                    },
+                }),
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+        // externalUserId was set on the user doc as the string form
+        expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: "user-legacy-num", externalUserId: "4242" }),
+        );
+    });
+
     it("should merge memberOf from multiple user docs with the same email", async () => {
         mockJwtService.verifyAsync = jest
             .fn()
