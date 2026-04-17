@@ -78,32 +78,6 @@ export async function validateChangeRequest(
         }
     }
 
-    // Enforce that a (providerId, externalUserId) pair uniquely identifies a
-    // user. Duplicates produce non-deterministic login matching at
-    // AuthIdentityService.resolveIdentity and can silently route logins to the
-    // wrong account.
-    if (changeRequest.doc.type === DocType.User) {
-        const currentUser = changeRequest.doc as UserDto;
-        if (currentUser.providerId && currentUser.externalUserId) {
-            const existing = await dbService.executeFindQuery({
-                selector: {
-                    type: DocType.User,
-                    providerId: currentUser.providerId,
-                    externalUserId: currentUser.externalUserId,
-                },
-                limit: 2,
-            });
-            const docs = (existing.docs as UserDto[]) ?? [];
-            const conflict = docs.find((d) => d._id !== currentUser._id);
-            if (conflict) {
-                return {
-                    validated: false,
-                    error: `Submitted "user" document validation failed:\nAnother user is already linked to this provider with the same external user ID`,
-                };
-            }
-        }
-    }
-
     // Validate and compact ACL's in Group Documents before DTO validation
     // so that stale DocType values are stripped before @IsEnum checks run.
     if (changeRequest.doc.type === DocType.Group) {

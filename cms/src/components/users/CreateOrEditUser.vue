@@ -75,14 +75,14 @@ const groups = useDexieLiveQuery(
 
 const authProviders = useDexieLiveQuery(
     () =>
-        db.docs
-            .where({ type: DocType.AuthProvider })
-            .toArray() as unknown as Promise<AuthProviderDto[]>,
+        db.docs.where({ type: DocType.AuthProvider }).toArray() as unknown as Promise<
+            AuthProviderDto[]
+        >,
     { initialValue: [] as AuthProviderDto[] },
 );
 
 const providerOptions = computed(() => [
-    { label: "Any provider (match by email)", value: "" },
+    { label: "Choose a provider this user belongs to", value: "" },
     ...authProviders.value.map((p) => ({
         label: p.label ? `${p.label} — ${p.domain}` : p.domain,
         value: p._id,
