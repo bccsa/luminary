@@ -420,16 +420,28 @@ export class AuthIdentityService implements OnModuleInit {
                 primaryUser = { ...primaryUser, providerId };
             }
 
-            // Merge groups from all user docs with the same email (handles multiple docs per user)
-            let allMemberOf = primaryUser.memberOf ?? [];
+            // Scope static groups to docs tied to the provider the user is
+            // authenticating through. Docs with no providerId ("any provider"
+            // — the CMS default) still apply as a baseline so legacy unlinked
+            // users keep working. Docs explicitly tied to a different provider
+            // are excluded, so a user who has a provider-A doc doesn't also
+            // get provider-B permissions just because they share an email.
+            const appliesToCurrentProvider = (d: UserDto) =>
+                !d.providerId || d.providerId === providerId;
+
+            let allMemberOf: Uuid[] = [];
             if (primaryUser.email) {
                 const allByEmail = await this.dbService.executeFindQuery({
                     selector: { type: DocType.User, email: primaryUser.email },
                 });
                 const emailUserDocs = (allByEmail.docs as UserDto[]) ?? [];
-                if (emailUserDocs.length > 1) {
-                    allMemberOf = emailUserDocs.flatMap((d) => d.memberOf ?? []);
-                }
+                allMemberOf = emailUserDocs
+                    .filter(appliesToCurrentProvider)
+                    .flatMap((d) => d.memberOf ?? []);
+            } else if (appliesToCurrentProvider(primaryUser)) {
+                // No email to join on; fall back to primaryUser's own memberOf,
+                // but only if it applies to this provider.
+                allMemberOf = primaryUser.memberOf ?? [];
             }
 
             // Persist identity link and lastLogin

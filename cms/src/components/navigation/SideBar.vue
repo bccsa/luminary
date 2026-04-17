@@ -5,12 +5,10 @@ import {
     TagIcon,
     HomeIcon,
     ChevronRightIcon,
-    RectangleStackIcon,
     GlobeEuropeAfricaIcon,
     ArrowUturnRightIcon,
-    UsersIcon,
     CloudIcon,
-    KeyIcon,
+    ShieldCheckIcon,
 } from "@heroicons/vue/20/solid";
 
 import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
@@ -53,22 +51,6 @@ const navigation = computed(() => [
         })),
     },
     {
-        name: "Groups",
-        icon: RectangleStackIcon,
-        open: sidebarSectionExpanded.value.groups,
-        visible:
-            hasAnyPermission(DocType.Group, AclPermission.View) ||
-            hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View),
-        children: [
-            ...(hasAnyPermission(DocType.Group, AclPermission.View)
-                ? [{ name: "Groups", to: { name: "groups" } }]
-                : []),
-            ...(hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View)
-                ? [{ name: "Auto Group Mappings", to: { name: "auto-group-mappings" } }]
-                : []),
-        ],
-    },
-    {
         name: "Redirects",
         to: { name: "redirects" },
         icon: ArrowUturnRightIcon,
@@ -87,16 +69,28 @@ const navigation = computed(() => [
         visible: hasAnyPermission(DocType.Storage, AclPermission.View),
     },
     {
-        name: "Users",
-        to: { name: "users" },
-        icon: UsersIcon,
-        visible: hasAnyPermission(DocType.User, AclPermission.View),
-    },
-    {
-        name: "Auth Providers",
-        to: { name: "auth-providers" },
-        icon: KeyIcon,
-        visible: hasAnyPermission(DocType.AuthProvider, AclPermission.Edit),
+        name: "Access",
+        icon: ShieldCheckIcon,
+        open: sidebarSectionExpanded.value.access,
+        visible:
+            hasAnyPermission(DocType.User, AclPermission.View) ||
+            hasAnyPermission(DocType.Group, AclPermission.View) ||
+            hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View) ||
+            hasAnyPermission(DocType.AuthProvider, AclPermission.Edit),
+        children: [
+            ...(hasAnyPermission(DocType.User, AclPermission.View)
+                ? [{ name: "Users", to: { name: "users" } }]
+                : []),
+            ...(hasAnyPermission(DocType.Group, AclPermission.View)
+                ? [{ name: "Groups", to: { name: "groups" } }]
+                : []),
+            ...(hasAnyPermission(DocType.AuthProvider, AclPermission.Edit)
+                ? [{ name: "Auth Providers", to: { name: "auth-providers" } }]
+                : []),
+            ...(hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View)
+                ? [{ name: "Auto Group Mappings", to: { name: "auto-group-mappings" } }]
+                : []),
+        ],
     },
 ]);
 
@@ -105,8 +99,8 @@ const toggleOpen = (item: NavigationEntry) => {
         sidebarSectionExpanded.value.posts = !sidebarSectionExpanded.value.posts;
     } else if (item.name === "Tags") {
         sidebarSectionExpanded.value.tags = !sidebarSectionExpanded.value.tags;
-    } else if (item.name === "Groups") {
-        sidebarSectionExpanded.value.groups = !sidebarSectionExpanded.value.groups;
+    } else if (item.name === "Access") {
+        sidebarSectionExpanded.value.access = !sidebarSectionExpanded.value.access;
     }
 };
 </script>

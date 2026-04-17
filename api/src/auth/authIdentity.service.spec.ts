@@ -806,7 +806,7 @@ describe("AuthGuard (Integrated)", () => {
         );
     });
 
-    it("should merge memberOf from multiple user docs with the same email", async () => {
+    it("should merge memberOf from multiple user docs with the same email tied to the current provider", async () => {
         mockJwtService.verifyAsync = jest
             .fn()
             .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
@@ -816,6 +816,7 @@ describe("AuthGuard (Integrated)", () => {
             _rev: "1-aaa",
             email: "test@bccsa.org",
             name: "Test User",
+            providerId: "provider-id",
             memberOf: ["group-editors"],
         };
         const userDoc2 = {
@@ -823,6 +824,7 @@ describe("AuthGuard (Integrated)", () => {
             _rev: "1-bbb",
             email: "test@bccsa.org",
             name: "Test User",
+            providerId: "provider-id",
             memberOf: ["group-admins", "group-editors"], // group-editors duplicated
         };
 
@@ -863,6 +865,124 @@ describe("AuthGuard (Integrated)", () => {
         expect(groups).toContain("group-admins");
         // group-editors appears in both docs – must appear only once
         expect(groups.filter((g) => g === "group-editors")).toHaveLength(1);
+    });
+
+    it("should exclude memberOf from user docs tied to a different provider", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
+        const docCurrentProvider = {
+            _id: "user-current",
+            _rev: "1-aaa",
+            email: "test@bccsa.org",
+            name: "Test User",
+            providerId: "provider-id",
+            memberOf: ["group-admins"],
+        };
+        const docOtherProvider = {
+            _id: "user-other",
+            _rev: "1-bbb",
+            email: "test@bccsa.org",
+            name: "Test User",
+            providerId: "other-provider",
+            memberOf: ["group-readonly"],
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ groupIds: [], type: "autoGroupMappings" }] }) // getDefaultGroups
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
+            .mockResolvedValueOnce({ docs: [docCurrentProvider] }) // email lookup – primary
+            .mockResolvedValueOnce({ docs: [docCurrentProvider, docOtherProvider] }); // email merge query
+
+        let capturedUser: any;
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
+                    });
+                    return req;
+                },
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+        const groups: string[] = capturedUser?.groups ?? [];
+        expect(groups).toContain("group-admins");
+        expect(groups).not.toContain("group-readonly");
+    });
+
+    it("should include memberOf from provider-less docs regardless of the current provider", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
+        const docCurrentProvider = {
+            _id: "user-current",
+            _rev: "1-aaa",
+            email: "test@bccsa.org",
+            name: "Test User",
+            providerId: "provider-id",
+            memberOf: ["group-admins"],
+        };
+        const docProviderLess = {
+            _id: "user-legacy",
+            _rev: "1-bbb",
+            email: "test@bccsa.org",
+            name: "Test User",
+            // no providerId — "any provider" baseline
+            memberOf: ["group-baseline"],
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ groupIds: [], type: "autoGroupMappings" }] }) // getDefaultGroups
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
+            .mockResolvedValueOnce({ docs: [docCurrentProvider] }) // email lookup – primary
+            .mockResolvedValueOnce({ docs: [docCurrentProvider, docProviderLess] }); // email merge query
+
+        let capturedUser: any;
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
+                    });
+                    return req;
+                },
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+        const groups: string[] = capturedUser?.groups ?? [];
+        expect(groups).toContain("group-admins");
+        expect(groups).toContain("group-baseline");
     });
 
     // ── resolveOrDefault error-reason discrimination ─────────────────────────
