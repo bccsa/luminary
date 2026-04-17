@@ -35,8 +35,8 @@ const toolbarClasses = {
     header: "flex items-center gap-2",
     icon: "h-6 w-6 text-zinc-600",
     title: "text-sm font-medium text-zinc-700",
-    toolbar: "flex flex-wrap gap-4",
-    toolbarGroup: "flex pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
+    toolbar: "flex flex-nowrap overflow-x-auto scrollbar-hide gap-4",
+    toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
     button: "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300 first:!rounded-l-md last:!rounded-r-md",
     buttonActive: "!bg-zinc-300",
     editor: "flex flex-1 flex-col",
@@ -120,8 +120,8 @@ defineExpose({
                     )
                 "
             >
-                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
-                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
+                <BulletlistIcon v-if="item === 'bulletList'" class="h-6 w-6" />
+                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-6 w-6" />
                 <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
                 <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
                 <span v-else>{{ label }}</span>
