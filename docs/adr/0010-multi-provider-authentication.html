@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Luminary – Multi-Provider Authentication</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/white.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/monokai.css">
+
+    <style>
+        :root {
+            --primary: #0b2545;
+            --accent:  #d65f5f;
+            --muted:   #6b7280;
+            --soft:    #f4f4f5;
+        }
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+        .reveal h1, .reveal h2, .reveal h3 { color: var(--primary); text-transform: none; letter-spacing: -0.01em; }
+        .reveal h1 { font-size: 2em; }
+        .reveal h2 { font-size: 1.4em; margin-bottom: 0.4em; }
+        .reveal h3 { font-size: 1.05em; margin-top: 0.4em; }
+        .reveal ul, .reveal ol { font-size: 0.65em; line-height: 1.35; }
+        .reveal li + li { margin-top: 0.25em; }
+        .reveal p { font-size: 0.7em; line-height: 1.4; }
+        .reveal code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            background: var(--soft);
+            color: var(--primary);
+            padding: 0 4px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+        .reveal pre { font-size: 0.48em; box-shadow: none; border: 1px solid #e5e7eb; border-radius: 6px; margin: 0.3em auto; }
+        .reveal pre code { background: #272822; color: #f8f8f2; padding: 10px; border-radius: 6px; line-height: 1.35; }
+        .reveal blockquote { border-left: 3px solid var(--accent); padding: 0.3em 0.8em; font-style: normal; color: var(--muted); font-size: 0.65em; }
+        .reveal table { font-size: 0.6em; border-collapse: collapse; margin: 0.3em auto; }
+        .reveal table th { background: var(--soft); color: var(--primary); font-weight: 600; }
+        .reveal table th, .reveal table td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; }
+        .reveal .phase {
+            display: inline-block;
+            background: var(--primary); color: white;
+            padding: 2px 10px; border-radius: 999px;
+            font-size: 0.55em; font-weight: 600; letter-spacing: 0.04em;
+            vertical-align: middle; margin-right: 0.5em;
+        }
+        .reveal .subtle { color: var(--muted); font-size: 0.7em; }
+        .reveal .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; text-align: left; }
+        .reveal .callout {
+            background: #fff7ed; border-left: 3px solid #ea580c;
+            padding: 0.5em 0.9em; font-size: 0.6em; text-align: left;
+            border-radius: 4px; margin-top: 0.6em; line-height: 1.4;
+        }
+        /* Data-model diagram — inline CSS cards instead of ASCII art. */
+        .reveal .datamodel {
+            display: grid;
+            grid-template-columns: 1fr auto 1.2fr;
+            gap: 0.8em 1em;
+            align-items: center;
+            max-width: 1000px;
+            margin: 1em auto 0;
+            font-size: 0.62em;
+            text-align: left;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .reveal .datamodel .card {
+            background: #272822; color: #f8f8f2;
+            border-radius: 6px; padding: 0.8em 1em;
+            border: 1px solid #3c3c3c;
+            line-height: 1.5;
+        }
+        .reveal .datamodel .card-title {
+            color: #fbbf24; font-weight: 700;
+            margin-bottom: 0.3em; font-size: 0.95em;
+        }
+        .reveal .datamodel .arrow {
+            color: var(--primary); font-size: 1.4em; text-align: center;
+        }
+        .reveal .datamodel .note {
+            color: var(--muted); font-size: 0.95em;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            grid-column: 3 / 4;
+            padding-left: 0.5em;
+        }
+        .reveal .datamodel .user-card {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0 1em;
+            align-items: center;
+            margin-top: 0.5em;
+        }
+        .reveal .datamodel .user-card .note { padding-left: 0; }
+        .reveal .good { color: #16a34a; font-weight: 600; }
+        .reveal .bad  { color: #dc2626; font-weight: 600; }
+        .reveal section.title-slide { text-align: center; }
+        .reveal section.title-slide h1 { font-size: 2.4em; margin-bottom: 0.3em; }
+        .reveal section.title-slide p { color: var(--muted); font-size: 1em; }
+        .reveal .adr-badge {
+            display: inline-block;
+            background: var(--primary); color: white;
+            padding: 4px 14px; border-radius: 999px;
+            font-size: 0.5em; font-weight: 700; letter-spacing: 0.1em;
+            margin-bottom: 1em;
+        }
+        .reveal .adr-filename {
+            display: inline-block;
+            margin-top: 2em;
+            padding: 4px 10px;
+            background: var(--soft);
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: var(--muted);
+            font-size: 0.55em;
+        }
+        .footer {
+            position: absolute; bottom: 10px; left: 10px;
+            font-size: 0.5em; color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+<!-- ─────────────────────────── TITLE ─────────────────────────── -->
+<section class="title-slide">
+    <span class="adr-badge">ADR 0010</span>
+    <h1>Multi-Provider Authentication</h1>
+    <p>Luminary &middot; architecture and walkthrough</p>
+    <p class="subtle" style="margin-top:2em;">How login, identity linking, and group access now work across many OIDC providers.</p>
+    <span class="adr-filename">docs/adr/0010-multi-provider-authentication.html</span>
+</section>
+
+<!-- ─────────────────────────── CONTEXT ─────────────────────────── -->
+<section>
+    <h2>Why multi-provider?</h2>
+    <div class="two-col">
+        <div>
+            <h3>Before</h3>
+            <ul>
+                <li>A single Auth0 tenant wired in via <code>.env</code> (<code>JWT_SECRET</code>, <code>JWT_MAPPINGS</code>).</li>
+                <li>One config baked into every deployment.</li>
+                <li>To add a provider: redeploy; to change claims: redeploy.</li>
+                <li>No CMS visibility; admins had to edit env files.</li>
+            </ul>
+        </div>
+        <div>
+            <h3>Now</h3>
+            <ul>
+                <li>Each provider is a CouchDB document of type <code>authProvider</code>.</li>
+                <li>CMS admins create, edit, and scope providers without touching infra.</li>
+                <li>Multiple providers coexist — users pick one at login.</li>
+                <li>Claim paths, audience, clientId, label, icon — all data-driven.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ─────────────────────────── CORE DOCS ─────────────────────────── -->
+<section>
+    <h2>Three document types do the work</h2>
+    <table>
+        <thead>
+            <tr><th>Doc type</th><th>Purpose</th><th>Owner</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>authProvider</code></td>
+                <td>OIDC config: domain, audience, clientId, claim paths, label/icon.</td>
+                <td>Admins (CMS)</td>
+            </tr>
+            <tr>
+                <td><code>autoGroupMappings</code></td>
+                <td>Rules that assign groups on login based on JWT claims.</td>
+                <td>Admins (CMS)</td>
+            </tr>
+            <tr>
+                <td><code>user</code></td>
+                <td>Master record for a human; stores <code>providerId</code> + <code>externalUserId</code>.</td>
+                <td>Auto-linked on first login + admin-editable</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="subtle" style="margin-top:1em;">All three types go through the normal Luminary sync / CouchDB / ACL pipeline — no special treatment.</p>
+</section>
+
+<!-- ─────────────────────────── DATA MODEL DIAGRAM ─────────────────────────── -->
+<section>
+    <h2>How they relate</h2>
+    <div class="datamodel">
+        <div class="card">
+            <div class="card-title">authProvider</div>
+            _id: P1<br>
+            domain<br>
+            audience<br>
+            clientId<br>
+            userFieldMappings
+        </div>
+        <div class="arrow">→</div>
+        <div class="card">
+            <div class="card-title">autoGroupMappings</div>
+            providerId: P1<br>
+            conditions: [claim = X]<br>
+            groupIds: [admins]
+        </div>
+
+        <div></div>
+        <div class="arrow">→</div>
+        <div class="card">
+            <div class="card-title">autoGroupMappings</div>
+            providerId: <em>(unset)</em><br>
+            groupIds: [public]
+        </div>
+        <div class="note">← global defaults (guests too)</div>
+
+        <div class="user-card">
+            <div class="card">
+                <div class="card-title">user</div>
+                providerId: P1<br>
+                externalUserId<br>
+                memberOf: […]
+            </div>
+            <div class="note">← pinned after first login</div>
+        </div>
+    </div>
+</section>
+
+<!-- ─────────────────────────── CLIENT LOGIN FLOW ─────────────────────────── -->
+<section>
+    <h2>Client-side login flow</h2>
+    <ol>
+        <li>User hits the provider-selection modal → picks provider P.</li>
+        <li>Client reads P from Dexie, builds Auth0 options (domain, clientId, audience) dynamically, redirects.</li>
+        <li>Auth0 redirects back with <code>code</code>+<code>state</code>; SDK exchanges for an access token.</li>
+        <li>Client opens the socket with <code>{ token, providerId: P._id }</code>.</li>
+        <li>Server runs the 3-phase identity pipeline and returns an <code>accessMap</code>.</li>
+    </ol>
+    <div class="callout">
+        Auth0 localStorage keys (<code>@@auth0spajs@@::&lt;clientId&gt;::*</code>) plus the provider doc in Dexie form the client's "who am I currently logged in as" state. Clearing both is how logout + provider-switch reset the session.
+    </div>
+</section>
+
+<!-- ─────────────────────────── PHASE 1 ─────────────────────────── -->
+<section>
+    <h2><span class="phase">Phase 1</span> Global default groups</h2>
+    <ul>
+        <li>Fetches all <code>autoGroupMappings</code> docs with no <code>providerId</code>.</li>
+        <li>Their <code>groupIds</code> are assigned to <strong>every</strong> session — authenticated users and guests alike.</li>
+        <li>Typical use: <code>group-public-users</code> → read-only view on published content.</li>
+        <li>Cached in-process; invalidated on any change to the relevant docs.</li>
+    </ul>
+    <p class="subtle">Anonymous users stop at this phase — no provider, no token, just defaults.</p>
+</section>
+
+<!-- ─────────────────────────── PHASE 2 ─────────────────────────── -->
+<section>
+    <h2><span class="phase">Phase 2</span> Provider &amp; token verification</h2>
+    <ol>
+        <li>Look up the <code>authProvider</code> doc by the submitted <code>providerId</code>.</li>
+        <li>Fetch the tenant's JWKS from <code>https://&lt;domain&gt;/.well-known/jwks.json</code>.</li>
+        <li><code>jwt.verify</code> with: audience, issuer (<code>https://&lt;domain&gt;/</code>), <code>RS256</code>, signature.</li>
+        <li>Check <code>azp</code> (or <code>client_id</code>) matches <code>provider.clientId</code>. <span class="subtle">— blocks token-reuse across providers with the same domain.</span></li>
+        <li>Evaluate per-provider <code>autoGroupMappings</code> against the JWT payload → <em>dynamic groups</em>.</li>
+    </ol>
+    <div class="callout">
+        JWKS clients and provider docs are cached per-<code>domain</code> / per-<code>providerId</code>. CouchDB change events invalidate both caches automatically on edit/delete.
+    </div>
+</section>
+
+<!-- ─────────────────────────── PHASE 3 ─────────────────────────── -->
+<section>
+    <h2><span class="phase">Phase 3</span> Identity linking</h2>
+    <p class="subtle">Find the master user doc, then compute static groups.</p>
+    <table>
+        <thead><tr><th>Order</th><th>Lookup</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td><code>{ type: "user", userId: externalUserId }</code></td><td>Deprecated legacy field — still honoured for old tenants.</td></tr>
+            <tr><td>2</td><td><code>{ type: "user", externalUserId }</code></td><td>The primary link, auto-backfilled on first login.</td></tr>
+            <tr><td>3</td><td><code>{ type: "user", email }</code></td><td>First-login fallback; also the bridge when a user has different <code>sub</code>s across providers.</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:0.8em;">If none match → user gets <code>defaults + dynamic</code>, no static groups.</p>
+</section>
+
+<!-- ─────────────────────────── BACKFILL ─────────────────────────── -->
+<section>
+    <h2>The backfill guard</h2>
+    <pre><code class="language-ts">if (externalUserId &amp;&amp; !primaryUser.externalUserId) {
+    primaryUser = { ...primaryUser, externalUserId, providerId };
+} else if (!primaryUser.providerId &amp;&amp; providerId) {
+    primaryUser = { ...primaryUser, providerId };
+}</code></pre>
+    <ul>
+        <li><strong>First-time login</strong> via any provider → backfill sets <code>externalUserId</code> + <code>providerId</code>.</li>
+        <li><strong>Already linked</strong> to provider A, logging in via B? → <span class="bad">no overwrite.</span></li>
+        <li>Reason: prevents account takeover — a JWT from an untrusted IdP can't silently re-link an account via shared email.</li>
+        <li>Admin must re-assign the provider explicitly from the CMS.</li>
+    </ul>
+</section>
+
+<!-- ─────────────────────────── PER-PROVIDER SCOPING ─────────────────────────── -->
+<section>
+    <h2>Per-provider group scoping</h2>
+    <p class="subtle">Users can have multiple user docs (one per provider) — each contributes groups only when matched.</p>
+    <pre><code class="language-ts">const appliesToCurrentProvider = (d) =&gt;
+    !d.providerId || d.providerId === providerId;
+
+allMemberOf = emailUserDocs
+    .filter(appliesToCurrentProvider)
+    .flatMap((d) =&gt; d.memberOf ?? []);</code></pre>
+    <table>
+        <thead><tr><th>User docs</th><th>Login via P1 → static groups</th></tr></thead>
+        <tbody>
+            <tr><td>docA <code>providerId=P1</code>, docB <code>providerId=P2</code></td><td>just docA's groups</td></tr>
+            <tr><td>docA <code>providerId=P1</code>, docB <code>providerId=P1</code></td><td>union of both</td></tr>
+            <tr><td>docA <code>providerId=P1</code>, docB <em>unset</em></td><td>both (unset = any-provider baseline)</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ─────────────────────────── CACHES ─────────────────────────── -->
+<section>
+    <h2>Cache invalidation — server</h2>
+    <p class="subtle">All caches self-invalidate on the CouchDB change feed:</p>
+    <table>
+        <thead><tr><th>Cache</th><th>Invalidated when</th></tr></thead>
+        <tbody>
+            <tr><td><code>providerCache</code> (by <code>_id</code>)</td><td>provider doc update or delete</td></tr>
+            <tr><td><code>jwksClients</code> (by <code>domain</code>)</td><td>provider <code>domain</code> change or delete</td></tr>
+            <tr><td><code>autoGroupMappingsCache</code> (by <code>providerId</code>)</td><td>mapping update or delete</td></tr>
+            <tr><td><code>defaultGroupsCache</code></td><td>any provider-less mapping change</td></tr>
+        </tbody>
+    </table>
+    <p class="subtle">No TTLs; freshness is event-driven.</p>
+</section>
+
+<!-- ─────────────────────────── CLIENT CACHES ─────────────────────────── -->
+<section>
+    <h2>Cache invalidation — client</h2>
+    <ul>
+        <li><strong>Logout</strong>: <code>clearAuth0Cache()</code> wipes <code>@@auth0spajs@@::*</code> and <code>a0.spajs.*</code> synchronously <em>before</em> the Auth0 redirect, so an interrupted logout can't leave stale provider state behind.</li>
+        <li><strong>Server says "provider not found"</strong>: client deletes the stale <code>authProvider</code> doc from Dexie, clears Auth0 cache, opens the provider selection modal. <span class="subtle">No infinite retry loop.</span></li>
+        <li><strong>Server says "token invalid"</strong>: client deletes its Dexie provider doc, lets the sync pipeline repopulate with the fresh config, then retries the login.</li>
+    </ul>
+</section>
+
+<!-- ─────────────────────────── ERROR REASONS ─────────────────────────── -->
+<section>
+    <h2>Discriminated auth-failure reasons</h2>
+    <p class="subtle">Socket <code>connect_error</code> payload now carries <code>{ type: "auth_failed", reason }</code>:</p>
+    <table>
+        <thead><tr><th>Reason</th><th>Trigger</th><th>Client reaction</th></tr></thead>
+        <tbody>
+            <tr><td><code>provider_not_found</code></td><td>configured <code>providerId</code> no longer exists</td><td>evict Dexie doc + open modal</td></tr>
+            <tr><td><code>token_invalid</code></td><td>signature / audience / issuer / <code>azp</code> mismatch</td><td>evict Dexie doc + retry (Dexie re-syncs)</td></tr>
+            <tr><td><em>unset</em></td><td>anything else (e.g. token expired)</td><td>retry with last provider</td></tr>
+        </tbody>
+    </table>
+    <div class="callout">
+        The generic message stays <code>"Invalid authentication token"</code> — reason codes are internal only, so no error-oracle for attackers.
+    </div>
+</section>
+
+<!-- ─────────────────────────── DIAGNOSTIC HINT ─────────────────────────── -->
+<section>
+    <h2>Operator-facing diagnostic hint</h2>
+    <p class="subtle">When <code>SigningKeyNotFoundError</code> fires, the warn log includes:</p>
+    <blockquote>
+        Likely causes: (a) the access token was issued by a different Auth0 tenant than <code>provider.domain</code>, or (b) the token is an access token that doesn't carry the configured custom claims because your post-login action only called <code>api.idToken.setCustomClaim</code> (add <code>api.accessToken.setCustomClaim</code> too).
+    </blockquote>
+    <p>This is the single most common Auth0 misconfig — the rule puts claims on the ID token only, and the API (which verifies access tokens) silently gets default groups.</p>
+</section>
+
+<!-- ─────────────────────────── CMS — AUTH PROVIDER ─────────────────────────── -->
+<section>
+    <h2>CMS — Auth Provider form</h2>
+    <ul>
+        <li>Label, domain, clientId, audience — all validated inline (hostname shape, URL shape, 8+ char clientId).</li>
+        <li><code>memberOf</code> ("Managed by") required — server DTO enforces <code>@ArrayNotEmpty</code>. Red inline hint when empty.</li>
+        <li>Custom claim paths (<code>externalUserId</code>, <code>email</code>, <code>name</code>) — optional, for namespaced Auth0 claims.</li>
+        <li>Icon + label styling for the login screen.</li>
+    </ul>
+    <p class="subtle">Access control: only members of <em>Managed by</em> groups can view/edit this provider in the CMS.</p>
+</section>
+
+<!-- ─────────────────────────── CMS — MAPPINGS ─────────────────────────── -->
+<section>
+    <h2>CMS — Auto Group Mappings form</h2>
+    <ul>
+        <li><strong>Managed by</strong> — ACL on the mapping doc itself.</li>
+        <li><strong>Groups to grant on login</strong> — what the user actually receives when they match.</li>
+        <li>Conditions (AND): <code>authenticated</code>, <code>claim equals</code>, <code>claim in [list]</code>.</li>
+        <li>No provider = global default; with provider = scoped to that login flow.</li>
+    </ul>
+    <div class="callout">
+        Both selectors disable save when empty, with inline red helper text explaining <em>why</em> — no silent no-ops.
+    </div>
+</section>
+
+<!-- ─────────────────────────── CMS — USER ─────────────────────────── -->
+<section>
+    <h2>CMS — User form</h2>
+    <ul>
+        <li>Admin picks the provider the user is pinned to (or "Any provider — match by email").</li>
+        <li><code>externalUserId</code> is <strong>not</strong> admin-editable — the server backfills it from the token on first login.</li>
+        <li>Server-side uniqueness check on the <code>(providerId, externalUserId)</code> pair prevents duplicate identities at the API boundary.</li>
+        <li>Sidebar navigation collapsed into a single <em>Access</em> menu (Users, Groups, Auto Group Mappings, Auth Providers).</li>
+    </ul>
+</section>
+
+<!-- ─────────────────────────── SETUP SCRIPT ─────────────────────────── -->
+<section>
+    <h2><code>add-auth-provider.ts</code> — the setup script</h2>
+    <ul>
+        <li>Interactive: 1) Add provider, 2) Modify provider, 3) Configure defaults, 4) Fix group ACLs, 5) Create super-admin, 6) Full setup.</li>
+        <li><strong>Namespace prompt</strong>: optional URL prefix; auto-prefills claim-path defaults for Auth0 tenants with custom namespaced claims.</li>
+        <li><strong>Access-token warning</strong>: surfaced whenever a namespaced claim path is configured.</li>
+        <li><strong>Scoped backfill</strong>: default is "only users without a <code>providerId</code>"; overwriting all users requires typing <em>overwrite</em>.</li>
+        <li><strong>Uniqueness guards</strong>: super-admin creation blocks duplicate <code>(providerId, externalUserId)</code> and warns on duplicate emails.</li>
+    </ul>
+    <p class="subtle">Script writes directly to CouchDB (bypasses API validation), so these guards are replicated locally.</p>
+</section>
+
+<!-- ─────────────────────────── GOTCHAS ─────────────────────────── -->
+<section>
+    <h2>Gotchas worth knowing</h2>
+    <ul>
+        <li><strong>Access tokens vs ID tokens.</strong> Auth0 rules/actions must set custom claims on <code>api.accessToken</code> — the API never sees the ID token.</li>
+        <li><strong>Numeric <code>sub</code>.</strong> Mango selectors are type-strict; the service coerces <code>externalUserId</code> to a string before lookup to dodge the silent mismatch.</li>
+        <li><strong>Namespaced claim paths.</strong> Include the full URL (<code>https://app.bcc.africa/metadata.personId</code>), not just the path.</li>
+        <li><strong>Multiple user docs per email.</strong> Groups are unioned within a provider; scoping filters out cross-provider bleed.</li>
+        <li><strong>Legacy users (<code>userId</code> field).</strong> Still matched by Action 1; script's backfill migrates them to <code>externalUserId</code>.</li>
+    </ul>
+</section>
+
+<!-- ─────────────────────────── TESTS ─────────────────────────── -->
+<section>
+    <h2>Testing</h2>
+    <table>
+        <thead><tr><th>Suite</th><th>Covers</th></tr></thead>
+        <tbody>
+            <tr><td><code>authIdentity.service.spec</code></td><td>claim extraction, group evaluation, 3-phase pipeline, numeric <code>sub</code>, per-provider scoping, failure-reason tagging.</td></tr>
+            <tr><td><code>validateChangeRequest.spec</code></td><td>User uniqueness on <code>(providerId, externalUserId)</code>.</td></tr>
+            <tr><td><code>AutoGroupMappingsDto.spec</code></td><td><code>memberOf</code> / <code>groupIds</code> non-empty.</td></tr>
+            <tr><td><code>EditUser.spec</code> + form specs</td><td>CMS provider picker, validation hints, save gating.</td></tr>
+        </tbody>
+    </table>
+    <p class="subtle">Deliberately no tests for the setup script — it's an interactive tty tool; guards are the same logic as the API's uniqueness check, just replicated because direct-CouchDB writes bypass the API pipeline.</p>
+</section>
+
+<!-- ─────────────────────────── WHAT'S NEXT ─────────────────────────── -->
+<section>
+    <h2>Known tech debt / follow-ups</h2>
+    <ul>
+        <li>Orphan <code>@@auth0spajs@@::&lt;oldClientId&gt;::*</code> localStorage keys after a provider is deleted — harmless, worth a janitor eventually.</li>
+        <li>Dead <code>JWT_SECRET</code> / <code>JWT_MAPPINGS</code> env vars from the old single-provider flow — safe to remove.</li>
+        <li>Auto-clearing old Auth0 tokens when an admin swaps a provider's <code>clientId</code>.</li>
+        <li>Better CMS surfacing of the "this user doc is for a different provider" case (currently the per-provider filter just silently drops its groups).</li>
+    </ul>
+</section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: "c/t",
+            transition: "slide",
+            // Give content more vertical room so dense slides don't overflow.
+            width: 1280,
+            height: 860,
+            margin: 0.05,
+            minScale: 0.2,
+            maxScale: 1.8,
+            plugins: [RevealHighlight, RevealNotes]
+        });
+    </script>
+</body>
+</html>

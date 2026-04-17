@@ -10,68 +10,74 @@ let pendingLoginAction: (() => void) | null = null;
 // Reactive state to track if there's a pending login action
 export const hasPendingLogin = ref(false);
 
+// Direct read — used by the shared gate/complete helpers. Composable-scoped
+// consumers get the reactive `computed` wrapper inside the function.
+const isPolicyAccepted = () =>
+    userPreferencesAsRef.value.privacyPolicy?.status === "accepted";
+
+// Gate any login-starting action behind the privacy-policy modal. If the
+// policy is already accepted we run `action` immediately; otherwise we stash
+// it as a pending action and show the modal — completePendingLogin runs it
+// after acceptance, cancelPendingLogin drops it.
+function gateBehindPrivacyPolicy(action: () => void) {
+    if (isPolicyAccepted()) {
+        action();
+        return;
+    }
+    pendingLoginAction = action;
+    hasPendingLogin.value = true;
+    showPrivacyPolicyModal.value = true;
+}
+
+function completePendingLogin() {
+    if (pendingLoginAction && isPolicyAccepted()) {
+        const action = pendingLoginAction;
+        pendingLoginAction = null;
+        hasPendingLogin.value = false;
+        showPrivacyPolicyModal.value = false;
+        action();
+    }
+}
+
+function cancelPendingLogin() {
+    if (pendingLoginAction) {
+        pendingLoginAction = null;
+        hasPendingLogin.value = false;
+        showPrivacyPolicyModal.value = false;
+    }
+}
+
 /**
  * Enhanced authentication composable that enforces privacy policy acceptance before login.
  */
 export function useAuthWithPrivacyPolicy() {
     // Only call useAuth0() if the plugin was actually installed at boot.
     // Otherwise treat it as "not logged in" and fall back to the provider
-    // selection modal.
+    // selection modal — but *still* gate that fallback behind the privacy
+    // policy, because for first-time multi-provider users this is the primary
+    // login path (the Auth0 plugin only mounts after a provider has been picked).
     const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
+
+    // Reactive wrapper for template binding.
+    const isPrivacyPolicyAccepted = computed(() => isPolicyAccepted());
 
     if (!auth0) {
         return {
             isAuthenticated: computed(() => false),
             user: computed(() => null),
             logout: () => {},
-            loginWithRedirect: () => openProviderModal(),
-            isPrivacyPolicyAccepted: computed(() => false),
+            loginWithRedirect: () => gateBehindPrivacyPolicy(() => openProviderModal()),
+            isPrivacyPolicyAccepted,
             showPrivacyPolicyModal,
             hasPendingLogin,
-            completePendingLogin: () => {},
-            cancelPendingLogin: () => {},
+            completePendingLogin,
+            cancelPendingLogin,
         };
     }
 
     const { isAuthenticated, user, loginWithRedirect: originalLoginWithRedirect, logout } = auth0;
 
-    // Check if privacy policy is accepted
-    const isPrivacyPolicyAccepted = computed(() => {
-        return userPreferencesAsRef.value.privacyPolicy?.status === "accepted";
-    });
-
-    // Enhanced login function that checks privacy policy first
-    const loginWithRedirect = () => {
-        if (isPrivacyPolicyAccepted.value) {
-            // Privacy policy is already accepted, proceed with login
-            originalLoginWithRedirect();
-        } else {
-            // Privacy policy not accepted, show modal first
-            pendingLoginAction = () => originalLoginWithRedirect();
-            hasPendingLogin.value = true;
-            showPrivacyPolicyModal.value = true;
-        }
-    };
-
-    // Function to complete pending login after privacy policy acceptance
-    const completePendingLogin = () => {
-        if (pendingLoginAction && isPrivacyPolicyAccepted.value) {
-            const action = pendingLoginAction;
-            pendingLoginAction = null;
-            hasPendingLogin.value = false;
-            showPrivacyPolicyModal.value = false;
-            action();
-        }
-    };
-
-    // Handle modal close without accepting
-    const cancelPendingLogin = () => {
-        if (pendingLoginAction) {
-            pendingLoginAction = null;
-            hasPendingLogin.value = false;
-            showPrivacyPolicyModal.value = false;
-        }
-    };
+    const loginWithRedirect = () => gateBehindPrivacyPolicy(() => originalLoginWithRedirect());
 
     return {
         isAuthenticated,
