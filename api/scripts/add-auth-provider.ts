@@ -494,9 +494,10 @@ async function backfillUsers(providerId: string) {
     const bulk = allUsers.map((u) => {
         const updated = { ...u, providerId };
 
-        // Migrate legacy userId field to the current externalUserId field
+        // Migrate legacy userId field to the current externalUserId field.
+        // Coerce to string — staging/prod has some userIds stored as numbers.
         if (!updated.externalUserId && updated.userId) {
-            updated.externalUserId = updated.userId;
+            updated.externalUserId = String(updated.userId);
             migratedUserIdCount++;
         }
 

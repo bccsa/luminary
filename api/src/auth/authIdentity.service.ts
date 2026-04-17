@@ -312,11 +312,13 @@ export class AuthIdentityService implements OnModuleInit {
             const dynamicGroups = this.evaluateGroupAssignments(payload, providerMappings);
 
             // ── Phase 3: Master user account linking ────────────────────────────────
-            const externalUserId: string | undefined =
-                this.extractClaimValue(
-                    payload,
-                    provider.userFieldMappings?.externalUserId || "sub",
-                ) ?? this.extractClaimValue(payload, "sub");
+            // Normalise to string — some OIDC providers emit numeric `sub` claims
+            // and Mango selectors are type-strict, so a number/string mismatch
+            // between token and stored user doc breaks the lookup.
+            const externalUserId: string | undefined = this.extractClaimValue(
+                payload,
+                provider.userFieldMappings?.externalUserId || "sub",
+            )?.toString();
             const email: string | undefined =
                 this.extractClaimValue(
                     payload,
