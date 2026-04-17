@@ -654,7 +654,7 @@ describe("AuthGuard (Integrated)", () => {
         // externalUserId (also a string after normalisation).
         mockJwtService.verifyAsync = jest
             .fn()
-            .mockResolvedValue({ sub: 12345, email: "test@bccsa.org" });
+            .mockResolvedValue({ sub: 12345, email: "test@company.org" });
 
         const existingUser = {
             _id: "user-num",
