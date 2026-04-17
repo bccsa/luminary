@@ -97,17 +97,23 @@ The swap happens at the **Vue plugin** (`app.use` options), not by scattering pl
 
 ## Repository layout
 
+Capabilities are **colocated**: each folder under `platform/` owns its contract, injection token, web adapter, and `install*.ts` for that feature. **Shared** runtime detection lives in `platform/core/`. **One** Vue plugin (`platform-services.plugin.ts`) still composes all installers—Option A unchanged.
+
 ```text
 luminary/app/src/
   platform/
-    contracts/          # TypeScript interfaces (e.g. media-player.ts)
-    tokens.ts           # InjectionKey symbols
-    runtime.ts          # getRuntimeInfo() without importing @capacitor/core
-    adapters/
-      web/              # Browser implementations
-    installers/         # installXServices() that app.provide(...) tokens
+    core/
+      runtime.ts              # getRuntimeInfo() without importing @capacitor/core
+    media-player/             # example: one folder per capability
+      contract.ts             # TypeScript types + service interface
+      token.ts                # InjectionKey for this capability
+      web/
+        media-player.web.ts   # Browser implementation
+      install.ts              # installMediaServices(app, runtime, options)
+      index.ts                # optional barrel (re-exports for consumers)
+    # future: downloads/, etc. — same shape (contract, token, web/, install.ts, index.ts)
   plugins/
-    platform-services.plugin.ts   # app.use() entry; calls installers
+    platform-services.plugin.ts   # app.use() entry; calls each feature’s install*
 
 luminary-deployment/
   luminary-plugins/     # Capacitor integrations, auth, updater, optional adapter factories
@@ -119,12 +125,12 @@ There is **no** `adapters/capacitor/` inside **luminary** by design: native coup
 
 | You want to… | Put it here | Notes |
 | --- | --- | --- |
-| Define the public API for a platform capability | `app/src/platform/contracts/<feature>.ts` | Keep it small and stable; consumers only import the contract type (or inject token). |
-| Create the injection token | `app/src/platform/tokens.ts` | `InjectionKey<T>` symbols live here. |
-| Detect runtime (web vs native shell) | `app/src/platform/runtime.ts` | No `@capacitor/core` import; relies on `globalThis.Capacitor` if present. |
-| Implement the **web** version | `app/src/platform/adapters/web/*.ts` | Browser-only code. |
-| Register services with Vue `provide` | `app/src/platform/installers/*.installer.ts` | Example: `media-services.installer.ts` calls `app.provide(MediaPlayerKey, service)` using web defaults unless overridden via plugin options. |
-| Wire installers into `app.use(...)` | `app/src/plugins/platform-services.plugin.ts` | Single “entry plugin” that runs installers. |
+| Define the public API for a platform capability | `app/src/platform/<feature>/contract.ts` | Keep it small and stable. Consumers import types or `@/platform/<feature>` barrel. |
+| Create the injection token | `app/src/platform/<feature>/token.ts` | One `InjectionKey` per capability (or export from the feature `index.ts`). |
+| Detect runtime (web vs native shell) | `app/src/platform/core/runtime.ts` | No `@capacitor/core` import; relies on `globalThis.Capacitor` if present. |
+| Implement the **web** version | `app/src/platform/<feature>/web/*.ts` | Browser-only code. |
+| Register services with Vue `provide` | `app/src/platform/<feature>/install.ts` | e.g. `installMediaServices` calls `app.provide(MediaPlayerKey, service)`; web default unless overridden via plugin options. |
+| Wire installers into `app.use(...)` | `app/src/plugins/platform-services.plugin.ts` | Imports each `install*` and runs them after `getRuntimeInfo()`. |
 | Implement the **native/Capacitor** version | `luminary-deployment/luminary-plugins/**` | Deployment may import `@capacitor/*` and pass factories via plugin options. |
 
 ---
@@ -132,7 +138,7 @@ There is **no** `adapters/capacitor/` inside **luminary** by design: native coup
 ## Selected pattern: Option A (single runtime plugin)
 
 - **One** exported plugin: `platformServicesPlugin`.
-- **Several internal installers** under `app/src/platform/installers/`: `installMediaServices`, later `installDownloadServices`, etc.
+- **Several internal installers** as `install*.ts` inside each **`app/src/platform/<feature>/`** folder (e.g. `media-player/install.ts`), invoked from the plugin in sequence.
 - **`luminary-plugins`** remains the place for Capacitor-only or Capacitor-conditioned JS.
 
 Other patterns (feature-scoped plugins, service registries) are documented as alternatives in research notes if you need to scale further.
@@ -145,16 +151,16 @@ Use this checklist so new capabilities stay consistent with the media player pre
 
 ### 1. Define the contract
 
-- Add **`app/src/platform/contracts/<feature>.ts`** with a focused interface (behavior + optional capability flags, no UI types).
+- Add **`app/src/platform/<feature>/contract.ts`** with a focused interface (behavior + optional capability flags, no UI types).
 - Prefer explicit methods and small types; add **`dispose`** / lifecycle only if needed.
 
 ### 2. Add an injection token
 
-- Export **`export const MyFeatureKey: InjectionKey<MyFeatureService> = Symbol("MyFeatureService")`** in **`app/src/platform/tokens.ts`**.
+- Export **`export const MyFeatureKey: InjectionKey<MyFeatureService> = Symbol("MyFeatureService")`** in **`app/src/platform/<feature>/token.ts`** (and re-export from **`index.ts`** if you use a barrel).
 
 ### 3. Implement the web adapter
 
-- Add **`app/src/platform/adapters/web/<feature>.web.ts`** (or under a small folder if multiple files).
+- Add **`app/src/platform/<feature>/web/<feature>.web.ts`** (or multiple files under `web/` if needed).
 - Implement the contract with browser APIs only.
 
 ### 4. Wire the default factory
@@ -163,7 +169,7 @@ Define the factory signature you want to allow deployment to override (e.g. `cre
 
 ### 5. Register in the runtime plugin
 
-- Add **`installMyFeatureServices(app, runtime, options?)`** under **`app/src/platform/installers/`**.
+- Add **`installMyFeatureServices(app, runtime, options?)`** in **`app/src/platform/<feature>/install.ts`**.
 - Call it from **`platformServicesPlugin.install`** after **`getRuntimeInfo()`**.
 - Inside the installer: **`app.provide(MyFeatureKey, createMyFeatureService(...))`**.
 

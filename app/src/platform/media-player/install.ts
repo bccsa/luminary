@@ -1,8 +1,8 @@
 import type { App, Component } from "vue";
-import type { RuntimeInfo } from "@/platform/runtime";
-import { MediaPlayerKey } from "@/platform/tokens";
-import type { MediaPlayerService } from "@/platform/contracts/media-player";
-import { WebMediaPlayerService } from "@/platform/adapters/web/media-player.web";
+import type { RuntimeInfo } from "@/platform/core/runtime";
+import { MediaPlayerKey } from "./token";
+import type { MediaPlayerService } from "./contract";
+import { WebMediaPlayerService } from "./web/media-player.web";
 
 export interface MediaServicesInstallerOptions {
     audioPlayerComponent?: Component;

@@ -2,7 +2,7 @@
 
 This starter shows a minimal but production-oriented skeleton for platform adapters in Vue 3 + Capacitor.
 
-Architecture choice applied here: **Option A (single runtime plugin)**, with feature installers inside one plugin and a shared core for cross-feature storage logic.
+Architecture choice applied here: **Option A (single runtime plugin)**, with **one folder per capability** under `platform/<feature>/` (contract, token, `web/`, `install.ts`) and a shared **`platform/core/`** for runtime detection. Hypothetical **downloads** below uses the same folder shape.
 
 Repository boundary applied here:
 
@@ -11,7 +11,7 @@ Repository boundary applied here:
 
 ## 1) Contracts
 
-Create `app/src/platform/contracts/media-player.ts`:
+Create `app/src/platform/media-player/contract.ts` (illustrative API — differs from the production `MediaPlayerService` in the app):
 
 ```ts
 export type MediaKind = "audio" | "video";
@@ -40,7 +40,7 @@ export interface MediaPlayerService {
 }
 ```
 
-Create `app/src/platform/contracts/downloads.ts`:
+Create `app/src/platform/downloads/contract.ts`:
 
 ```ts
 export interface DownloadRequest {
@@ -73,24 +73,31 @@ export interface DownloadService {
 
 ## 2) Tokens
 
-Create `app/src/platform/tokens.ts`:
+Create `app/src/platform/media-player/token.ts`:
 
 ```ts
 import type { InjectionKey } from "vue";
-import type { MediaPlayerService } from "./contracts/media-player";
-import type { DownloadService } from "./contracts/downloads";
+import type { MediaPlayerService } from "./contract";
 
 export const MediaPlayerKey: InjectionKey<MediaPlayerService> = Symbol("MediaPlayerService");
+```
+
+Create `app/src/platform/downloads/token.ts`:
+
+```ts
+import type { InjectionKey } from "vue";
+import type { DownloadService } from "./contract";
+
 export const DownloadServiceKey: InjectionKey<DownloadService> = Symbol("DownloadService");
 ```
 
 ## 3) Runtime detection helper
 
-Create `app/src/platform/runtime.ts`:
+Create `app/src/platform/core/runtime.ts`.
+
+The real luminary app **does not** import `@capacitor/core`; it uses `globalThis.Capacitor` when the shell injects it (see `app/src/platform/core/runtime.ts` in the repo). For a greenfield snippet you might write:
 
 ```ts
-import { Capacitor } from "@capacitor/core";
-
 export type RuntimePlatform = "web" | "ios" | "android";
 
 export interface RuntimeInfo {
@@ -99,16 +106,18 @@ export interface RuntimeInfo {
 }
 
 export function getRuntimeInfo(): RuntimeInfo {
+  const c = (globalThis as { Capacitor?: { isNativePlatform(): boolean; getPlatform(): string } }).Capacitor;
+  if (!c) return { isNative: false, platform: "web" };
   return {
-    isNative: Capacitor.isNativePlatform(),
-    platform: Capacitor.getPlatform(),
+    isNative: c.isNativePlatform(),
+    platform: c.getPlatform() as RuntimePlatform,
   };
 }
 ```
 
 ## 3.1) Shared core (used by multiple feature installers)
 
-Create `app/src/platform/shared/storage-core.ts`:
+Create `app/src/platform/shared/storage-core.ts` (shared cross-feature helpers stay outside `core/`):
 
 ```ts
 export interface StoredDownloadMeta {
@@ -143,10 +152,10 @@ export class InMemoryStorageCore implements StorageCore {
 
 ## 4) Web adapters (simple baseline)
 
-Create `app/src/platform/adapters/web/media-player.web.ts`:
+Create `app/src/platform/media-player/web/media-player.web.ts`:
 
 ```ts
-import type { MediaPlayerService, MediaSource, PlayerState } from "../../contracts/media-player";
+import type { MediaPlayerService, MediaSource, PlayerState } from "../contract";
 
 export class WebMediaPlayerService implements MediaPlayerService {
   readonly supportsBackgroundPlayback = false;
@@ -198,6 +207,8 @@ The Capacitor implementation should live in the deployment plugins repo (or be p
 Below is still a valid example of what the Capacitor download adapter looks like — place it under:
 
 - `luminary-deployment/luminary-plugins/downloads.cap.ts` (or similar)
+
+Adjust the type import paths to your monorepo (they should resolve to luminary’s **`app/src/platform/downloads/contract.ts`** and **`app/src/platform/shared/storage-core.ts`** when using the folder layout above).
 
 ```ts
 import { Capacitor } from "@capacitor/core";
@@ -275,10 +286,10 @@ Create `app/src/plugins/platform-services.plugin.ts` (in `luminary`):
 
 ```ts
 import type { App } from "vue";
-import { DownloadServiceKey, MediaPlayerKey } from "../platform/tokens";
-import { getRuntimeInfo } from "../platform/runtime";
-import { WebMediaPlayerService } from "../platform/adapters/web/media-player.web";
-import type { DownloadService } from "../platform/contracts/downloads";
+import { getRuntimeInfo } from "../platform/core/runtime";
+import { MediaPlayerKey, WebMediaPlayerService } from "../platform/media-player";
+import { DownloadServiceKey } from "../platform/downloads/token";
+import type { DownloadService } from "../platform/downloads/contract";
 import { InMemoryStorageCore } from "../platform/shared/storage-core";
 // Example: runtime integration installers imported from deployment plugins (or a published package)
 // import { installCapacitorDownloads } from "luminary-plugins/capacitorDownloads";
@@ -332,7 +343,7 @@ Use contracts in feature code, with no platform branching:
 
 ```ts
 import { inject } from "vue";
-import { MediaPlayerKey } from "@/platform/tokens";
+import { MediaPlayerKey } from "@/platform/media-player";
 
 const player = inject(MediaPlayerKey);
 if (!player) throw new Error("MediaPlayerService not provided");
