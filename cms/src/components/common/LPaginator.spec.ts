@@ -130,9 +130,10 @@ describe("LPaginator", () => {
     it("shows page size select on desktop", () => {
         const { wrapper } = mountPaginator();
 
-        // On desktop (isSmallScreen = false), page size select should be visible
-        const selects = wrapper.findAll("select");
-        expect(selects.length).toBeGreaterThan(0);
+        // On desktop (isSmallScreen = false), page size select should be visible.
+        // LSelect is a combobox-style control, not a native <select>.
+        const triggers = wrapper.findAll('[data-test="l-select-trigger"]');
+        expect(triggers.length).toBeGreaterThan(0);
     });
 
     it("clicks a page number in extended variant to set index", async () => {
