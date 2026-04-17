@@ -776,7 +776,7 @@ describe("AuthGuard (Integrated)", () => {
         const legacyUser = {
             _id: "user-legacy-num",
             _rev: "1-leg",
-            email: "legacy@bccsa.org",
+            email: "legacy@company.org",
             name: "Legacy Num User",
             memberOf: ["group-legacy"],
             userId: "4242",
