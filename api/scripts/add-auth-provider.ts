@@ -495,7 +495,7 @@ async function backfillUsers(providerId: string) {
         const updated = { ...u, providerId };
 
         // Migrate legacy userId field to the current externalUserId field.
-        // Coerce to string — staging/prod has some userIds stored as numbers.
+        // Coerce to string to adhere to query find lookup
         if (!updated.externalUserId && updated.userId) {
             updated.externalUserId = String(updated.userId);
             migratedUserIdCount++;
