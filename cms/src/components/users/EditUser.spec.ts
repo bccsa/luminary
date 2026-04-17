@@ -269,7 +269,8 @@ describe("CreateOrEditUser.vue", () => {
         await nextTick();
 
         expect(saveSpy).toHaveBeenCalled();
-        const saved = saveSpy.mock.calls[0][0].doc as typeof mockUserDto & {
+        const savedArg = saveSpy.mock.calls[0][0] as { doc: unknown };
+        const saved = savedArg.doc as typeof mockUserDto & {
             providerId?: string;
             externalUserId?: string;
         };
