@@ -21,13 +21,18 @@ onClickOutside(sidebarRef, () => {
 </script>
 
 <template>
-    <div v-if="open" class="fixed inset-0 z-50 lg:hidden">
+    <div data-test="mobile-sidebar" v-if="open" class="fixed inset-0 z-50 lg:hidden">
         <div class="fixed inset-0 bg-zinc-900/50" />
 
         <div class="fixed inset-0 flex">
             <div ref="sidebarRef" v-if="open" class="relative mr-16 flex w-full max-w-xs flex-1">
                 <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
-                    <button type="button" class="-m-2.5 p-2.5" @click="emit('update:open', false)">
+                    <button
+                        type="button"
+                        data-test="close-sidebar"
+                        class="-m-2.5 p-2.5"
+                        @click="emit('update:open', false)"
+                    >
                         <span class="sr-only">Close sidebar</span>
                         <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
                     </button>
