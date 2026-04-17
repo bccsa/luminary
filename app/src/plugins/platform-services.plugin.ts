@@ -1,9 +1,9 @@
 import type { App } from "vue";
-import { getRuntimeInfo } from "@/platform/runtime";
+import { getRuntimeInfo } from "@/platform/core/runtime";
 import {
     installMediaServices,
     type MediaServicesInstallerOptions,
-} from "@/platform/installers/media-services.installer";
+} from "@/platform/media-player";
 
 /**
  * Registers platform-provided services (media player, etc.) via `app.provide`.

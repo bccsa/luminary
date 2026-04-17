@@ -6,7 +6,7 @@ export type MediaPlayerState = {
     currentTimeSeconds: number;
     durationSeconds: number;
     playbackRate: number;
-}
+};
 
 export type NowPlayingInfo = {
     title: string;
@@ -28,4 +28,4 @@ export type MediaPlayerService = {
     getState(): MediaPlayerState;
     onStateChange(cb: (state: MediaPlayerState) => void): () => void;
     setNowPlaying?(info: NowPlayingInfo): void;
-}
+};

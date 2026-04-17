@@ -1,6 +1,6 @@
 import type { Component } from "vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
-import type { MediaPlayerService, MediaPlayerState } from "@/platform/contracts/media-player";
+import type { MediaPlayerService, MediaPlayerState } from "../contract";
 
 /**
  * Browser {@link MediaPlayerService}: drives playback via an {@link HTMLAudioElement}
