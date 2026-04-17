@@ -71,6 +71,18 @@ export function readAuth0NativeStorage(): { client_id: string } | null {
         if (parts.length >= 2 && parts[1]) return { client_id: parts[1] };
     }
 
+    // 3) SessionStorage: Auth0 SDK's own in-flight transaction key
+    // (a0.spajs.txs.<clientId>). Set by createAuth0Client().loginWithRedirect()
+    // and survives across page loads until handleRedirectCallback consumes it.
+    // Useful when our own pending_provider flag was already cleared by an
+    // earlier setupAuth run but the Auth0 redirect flow is still unresolved.
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (!key?.startsWith("a0.spajs.txs.")) continue;
+        const clientId = key.slice("a0.spajs.txs.".length);
+        if (clientId) return { client_id: clientId };
+    }
+
     return null;
 }
 
@@ -172,13 +184,14 @@ export async function setupAuth(app: App<Element>) {
     // from Auth0 if the provider was temporarily evicted from Dexie (e.g. by
     // deleteStaleProviderFromDexie earlier in the session), leaving
     // handleRedirectCallback unprocessed and the user unauthenticated.
+    // pending_provider_config is deliberately NOT cleared here — it's the
+    // safety net for setupAuth runs that happen AFTER the one that consumed
+    // pending_provider. It gets overwritten on the next loginWithProvider.
     let provider: AuthProviderDto | PendingProviderConfig | null = null;
     if (footprint) {
         provider = await getProviderByClientId(footprint.client_id);
         if (!provider) provider = readPendingProviderConfig(footprint.client_id);
     }
-    // One-shot use; clear regardless of whether Dexie or the fallback won.
-    sessionStorage.removeItem(PENDING_PROVIDER_CONFIG_KEY);
     if (!provider) return undefined;
 
     const oauth = createAuth0(buildAuth0Options(provider), {
