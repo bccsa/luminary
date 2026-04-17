@@ -107,6 +107,13 @@ watch(
             p,
             (x) => isValidAudience(x.audience ?? ""),
         );
+        validate(
+            "Select at least one group to manage this provider",
+            "memberOf",
+            providerValidations.value,
+            p,
+            (x) => (x.memberOf ?? []).length > 0,
+        );
     },
     { deep: true },
 );
@@ -118,8 +125,21 @@ const isFormValid = computed(() => {
     return (
         isValidDomain(p.domain ?? "") &&
         isValidClientId(p.clientId ?? "") &&
-        isValidAudience(p.audience ?? "")
+        isValidAudience(p.audience ?? "") &&
+        (p.memberOf ?? []).length > 0
     );
+});
+
+// Inline validation hint surfaced immediately (once the user has interacted
+// with the form) so it's obvious why the Save button is disabled.
+const memberOfError = computed(() => {
+    const p = provider.value;
+    if (!p) return null;
+    const show = isDirty.value || hasAttemptedSubmit.value;
+    if (!show) return null;
+    return (p.memberOf ?? []).length === 0
+        ? "At least one group is required — without it, nobody will be able to modify and view this provider."
+        : null;
 });
 
 // ── Dirty tracking ──────────────────────────────────────────────────────────
@@ -211,6 +231,12 @@ const handleRevert = () => {
                         :disabled="isDisabled"
                         data-test="groupSelector"
                     />
+                    <p
+                        v-if="memberOfError"
+                        class="mt-1 text-[11px] font-medium text-red-600"
+                    >
+                        {{ memberOfError }}
+                    </p>
                 </div>
 
                 <AuthConfig

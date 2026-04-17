@@ -8,10 +8,27 @@ defineProps<{
 
 const provider = defineModel<AuthProviderDto | undefined>("provider");
 
-function ensureUserFieldMappings() {
+// Lazily materialise the userFieldMappings object only when the user actually
+// writes a value. Writing on mount (e.g. to have a place to assign into) would
+// make the editable doc diverge from the shadow even though the user hasn't
+// touched anything, tripping the isEdited dirty flag on modal open.
+function setMapping(key: "externalUserId" | "email" | "name", value: string) {
     if (!provider.value) return;
-    if (!provider.value.userFieldMappings) {
-        provider.value.userFieldMappings = {};
+    const trimmed = value || undefined;
+    const existing = provider.value.userFieldMappings;
+
+    if (!existing) {
+        if (!trimmed) return; // nothing to store and nothing to mutate
+        provider.value.userFieldMappings = { [key]: trimmed };
+        return;
+    }
+
+    existing[key] = trimmed;
+
+    // If all three sub-fields are now unset, drop the object entirely so the
+    // doc's JSON shape matches a freshly-seeded provider (keeps saves idempotent).
+    if (!existing.externalUserId && !existing.email && !existing.name) {
+        provider.value.userFieldMappings = undefined;
     }
 }
 </script>
@@ -35,12 +52,7 @@ function ensureUserFieldMappings() {
                     type="text"
                     placeholder="sub"
                     :disabled="disabled || !provider"
-                    @update:model-value="
-                        (v) => {
-                            ensureUserFieldMappings();
-                            provider!.userFieldMappings!.externalUserId = v || undefined;
-                        }
-                    "
+                    @update:model-value="(v) => setMapping('externalUserId', v)"
                 />
             </div>
             <div>
@@ -54,12 +66,7 @@ function ensureUserFieldMappings() {
                     type="text"
                     placeholder="email"
                     :disabled="disabled || !provider"
-                    @update:model-value="
-                        (v) => {
-                            ensureUserFieldMappings();
-                            provider!.userFieldMappings!.email = v || undefined;
-                        }
-                    "
+                    @update:model-value="(v) => setMapping('email', v)"
                 />
             </div>
             <div>
@@ -73,12 +80,7 @@ function ensureUserFieldMappings() {
                     type="text"
                     placeholder="name"
                     :disabled="disabled || !provider"
-                    @update:model-value="
-                        (v) => {
-                            ensureUserFieldMappings();
-                            provider!.userFieldMappings!.name = v || undefined;
-                        }
-                    "
+                    @update:model-value="(v) => setMapping('name', v)"
                 />
             </div>
         </div>

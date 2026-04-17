@@ -13,6 +13,18 @@ import {
     mockUserDto,
     superAdminAccessMap,
 } from "@/tests/mockdata";
+import type { AuthProviderDto } from "luminary-shared";
+
+const mockAuthProvider: AuthProviderDto = {
+    _id: "auth-provider-1",
+    type: DocType.AuthProvider,
+    domain: "example.auth0.com",
+    audience: "https://example.auth0.com",
+    clientId: "client-abc",
+    label: "Example",
+    memberOf: ["group-super-admins"],
+    updatedTimeUtc: 1704114000000,
+};
 import express from "express";
 import { nextTick, ref } from "vue";
 
@@ -88,7 +100,11 @@ describe("CreateOrEditUser.vue", () => {
     });
 
     beforeEach(async () => {
-        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockGroupDtoPublicEditors]);
+        await db.docs.bulkPut([
+            mockGroupDtoSuperAdmins,
+            mockGroupDtoPublicEditors,
+            mockAuthProvider,
+        ]);
         await nextTick();
         setActivePinia(createTestingPinia());
         isConnected.value = true; // Simulate a connected state
@@ -203,6 +219,62 @@ describe("CreateOrEditUser.vue", () => {
         await removeBtn!.trigger("click");
 
         expect(saveButton.attributes("disabled")).toBeDefined(); // Ensure that the save button is disabled
+    });
+
+    it("shows the auth provider picker with available providers", async () => {
+        const wrapper = mount(CreateOrEditUser, {
+            props: {
+                id: mockUserDto._id,
+                isVisible: true,
+            },
+        });
+
+        // Wait for the editable user to be populated from the API mock.
+        await waitForExpect(() => {
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
+        });
+
+        await waitForExpect(() => {
+            const providerSelect = wrapper.find('[data-test="userProvider"]');
+            expect(providerSelect.exists()).toBe(true);
+            expect(providerSelect.element.innerHTML).toContain("Choose a provider");
+            expect(providerSelect.element.innerHTML).toContain("Example");
+        });
+    });
+
+    it("persists providerId when the user is saved", async () => {
+        const wrapper = mount(CreateOrEditUser, {
+            props: {
+                id: mockUserDto._id,
+                isVisible: true,
+            },
+        });
+
+        await waitForExpect(() => {
+            const userName = wrapper.find('[data-test="userName"]');
+            expect(userName.attributes("value")).toBe(mockUserDto.name);
+        });
+
+        const providerSelect = wrapper.find(
+            '[data-test="userProvider"]',
+        ) as DOMWrapper<HTMLSelectElement>;
+        await providerSelect.setValue(mockAuthProvider._id);
+
+        const saveSpy = vi.spyOn(getRest(), "changeRequest");
+        const saveButton = wrapper
+            .findComponent(LDialog)
+            .find('[data-test="modal-primary-button"]');
+        await saveButton.trigger("click");
+        await nextTick();
+
+        expect(saveSpy).toHaveBeenCalled();
+        const savedArg = saveSpy.mock.calls[0][0] as { doc: unknown };
+        const saved = savedArg.doc as typeof mockUserDto & {
+            providerId?: string;
+            externalUserId?: string;
+        };
+        expect(saved.providerId).toBe(mockAuthProvider._id);
     });
 
     it("can delete a user", async () => {

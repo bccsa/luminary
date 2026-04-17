@@ -23,6 +23,18 @@ export type IdentityResult =
     | { status: "authenticated"; userDetails: JwtUserDetails }
     | { status: "anonymous"; userDetails: JwtUserDetails };
 
+/**
+ * Reason codes attached to auth failures so the client can react appropriately.
+ * `provider_not_found` means the configured provider doc no longer exists —
+ * the client should stop retrying with the cached provider and re-select.
+ * `token_invalid` covers signature / audience / issuer / azp failures — these
+ * may indicate provider-config drift, so the client should evict its cached
+ * provider doc and let Dexie resync before retrying.
+ */
+export type AuthFailureReason = "provider_not_found" | "token_invalid";
+
+export const AUTH_FAILURE_MESSAGE = "Invalid authentication token";
+
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
@@ -117,11 +129,41 @@ export class AuthIdentityService implements OnModuleInit {
                 // Log the real reason for debugging but never expose it to the client —
                 // detailed error messages (e.g. "jwt audience invalid. expected: ...") act
                 // as an error oracle that helps attackers probe the system.
+                const originalMessage = error instanceof Error ? error.message : String(error);
+                const errorName = error instanceof Error ? error.name : undefined;
+
+                // Add an operator-facing hint for the most common misconfiguration:
+                // Auth0 rules/actions that set custom claims on the ID token but not
+                // the access token. We can't detect this perfectly from here, but the
+                // jwks-rsa "SigningKeyNotFoundError" (or equivalent message) is the
+                // strongest signal — the token was signed by a kid not present at the
+                // configured domain's JWKS endpoint, which typically means the token
+                // came from a different tenant than `provider.domain`.
+                const hint =
+                    errorName === "SigningKeyNotFoundError" ||
+                    originalMessage.includes("Unable to find a signing key")
+                        ? "Likely causes: (a) the access token was issued by a different Auth0 " +
+                          "tenant than provider.domain, or (b) the token is an access token that " +
+                          "doesn't carry the configured custom claims because your post-login " +
+                          "action only called api.idToken.setCustomClaim (add api.accessToken.setCustomClaim too)."
+                        : undefined;
+
                 this.logger.warn("Token validation failed", {
-                    reason: error instanceof Error ? error.message : error,
+                    reason: originalMessage,
                     providerId,
+                    ...(hint ? { hint } : {}),
                 });
-                throw new UnauthorizedException("Invalid authentication token");
+                // Attach a coarse reason code so the transport layer (e.g. socket.io)
+                // can tell the client whether to evict its cached provider doc.
+                const reason: AuthFailureReason =
+                    originalMessage === "Provider not found"
+                        ? "provider_not_found"
+                        : "token_invalid";
+                const authError = new UnauthorizedException(AUTH_FAILURE_MESSAGE) as Error & {
+                    reason?: AuthFailureReason;
+                };
+                authError.reason = reason;
+                throw authError;
             }
         }
         const defaultGroups = await this.getDefaultGroups();
@@ -138,10 +180,7 @@ export class AuthIdentityService implements OnModuleInit {
      * Evaluates JWT payload against configured group mappings to determine
      * which dynamic groups the user should be assigned to.
      */
-    public evaluateGroupAssignments(
-        jwtPayload: any,
-        mappings: AutoGroupMappingsDto[],
-    ): string[] {
+    public evaluateGroupAssignments(jwtPayload: any, mappings: AutoGroupMappingsDto[]): string[] {
         if (!jwtPayload || !mappings || !Array.isArray(mappings)) {
             return [];
         }
@@ -319,11 +358,10 @@ export class AuthIdentityService implements OnModuleInit {
                 payload,
                 provider.userFieldMappings?.externalUserId || "sub",
             )?.toString();
-            const email: string | undefined =
-                this.extractClaimValue(
-                    payload,
-                    provider.userFieldMappings?.email || "email",
-                ) ?? this.extractClaimValue(payload, "email");
+            const email: string | undefined = this.extractClaimValue(
+                payload,
+                provider.userFieldMappings?.email || "email",
+            );
 
             let primaryUser: UserDto | null = null;
 
@@ -356,9 +394,7 @@ export class AuthIdentityService implements OnModuleInit {
 
             if (!primaryUser) {
                 this.logger.log(
-                    `No user doc for externalUserId: ${externalUserId ?? "(none)"}, email: ${
-                        email ?? "(none)"
-                    } — returning default + dynamic groups only`,
+                    `No matching user doc for login attempt on providerId=${providerId} — returning default + dynamic groups only`,
                 );
                 const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups]));
                 const accessMap = PermissionSystem.getAccessMap(mergedGroups);
@@ -370,22 +406,40 @@ export class AuthIdentityService implements OnModuleInit {
                 };
             }
 
-            // Link identity: set externalUserId on the user if not already present.
-            const needsIdentityLink = !primaryUser.externalUserId && externalUserId;
-            if (needsIdentityLink) {
-                primaryUser = { ...primaryUser, externalUserId };
+            // Link identity on first login only: backfill externalUserId and
+            // providerId when they are not yet set. We deliberately do NOT
+            // overwrite when they already point at a different provider —
+            // doing so would let any JWT that happens to carry the same email
+            // (from any configured provider) silently re-link the account,
+            // enabling account takeover via an untrusted IdP. To reassign a
+            // user to a different provider, an admin must do it explicitly
+            // from the CMS user edit form.
+            if (externalUserId && !primaryUser.externalUserId) {
+                primaryUser = { ...primaryUser, externalUserId, providerId };
+            } else if (!primaryUser.providerId && providerId) {
+                primaryUser = { ...primaryUser, providerId };
             }
 
-            // Merge groups from all user docs with the same email (handles multiple docs per user)
-            let allMemberOf = primaryUser.memberOf ?? [];
+            // Scope static groups to docs tied to the provider the user is
+            // authenticating through. Docs explicitly tied to a different provider
+            // are excluded, so a user who has a provider-A doc doesn't also
+            // get provider-B permissions just because they share an email.
+            const appliesToCurrentProvider = (d: UserDto) =>
+                !d.providerId || d.providerId === providerId;
+
+            let allMemberOf: Uuid[] = [];
             if (primaryUser.email) {
                 const allByEmail = await this.dbService.executeFindQuery({
                     selector: { type: DocType.User, email: primaryUser.email },
                 });
                 const emailUserDocs = (allByEmail.docs as UserDto[]) ?? [];
-                if (emailUserDocs.length > 1) {
-                    allMemberOf = emailUserDocs.flatMap((d) => d.memberOf ?? []);
-                }
+                allMemberOf = emailUserDocs
+                    .filter(appliesToCurrentProvider)
+                    .flatMap((d) => d.memberOf ?? []);
+            } else if (appliesToCurrentProvider(primaryUser)) {
+                // No email to join on; fall back to primaryUser's own memberOf,
+                // but only if it applies to this provider.
+                allMemberOf = primaryUser.memberOf ?? [];
             }
 
             // Persist identity link and lastLogin

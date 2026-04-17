@@ -75,6 +75,19 @@ interface GroupDoc {
     [key: string]: unknown;
 }
 
+interface UserDoc {
+    _id: string;
+    _rev?: string;
+    type: "user";
+    email: string;
+    name: string;
+    memberOf: string[];
+    providerId?: string;
+    externalUserId?: string;
+    lastLogin?: number;
+    updatedTimeUtc: number;
+}
+
 interface CouchDbResponse {
     ok?: boolean;
     id?: string;
@@ -336,13 +349,56 @@ async function addAuthProvider(): Promise<string | null> {
     console.log("");
     console.log("Tell us which JWT claims contain the user's identity fields.");
     console.log("These are used to match incoming tokens to user accounts.");
-    console.log("Press Enter to accept the defaults shown in brackets.");
+    console.log("");
+    console.log("Many Auth0 tenants add custom user info (email, personId, etc.)");
+    console.log("under a URL-like namespace from a post-login action, e.g.");
+    console.log("  api.accessToken.setCustomClaim(\"https://example.com/metadata/email\", ...)");
+    console.log("If your tenant does this, enter the namespace below (no trailing slash).");
+    console.log("The claim-path defaults in the next prompts will be pre-filled with it.");
+    console.log("Leave blank to use the bare OIDC claim names (sub / email / name).");
+    console.log("");
+
+    const namespaceRaw = (await prompt("  Custom claim namespace [optional]: ")).trim();
+    const namespace = namespaceRaw.replace(/\/+$/, "");
+    const defaultPath = (leaf: string) => (namespace ? `${namespace}.${leaf}` : leaf);
+
+    console.log("");
+    console.log("Press Enter on each prompt to accept the default in brackets.");
     console.log("");
 
     const ufmExternalUserId =
-        (await prompt("  External user ID claim [default: sub]: ")) || "sub";
-    const ufmEmail = (await prompt("  Email claim            [default: email]: ")) || "email";
-    const ufmName = (await prompt("  Display name claim     [default: name]: ")) || "name";
+        (await prompt(`  External user ID claim [default: ${defaultPath("sub")}]: `)) ||
+        defaultPath("sub");
+    const ufmEmail =
+        (await prompt(`  Email claim            [default: ${defaultPath("email")}]: `)) ||
+        defaultPath("email");
+    const ufmName =
+        (await prompt(`  Display name claim     [default: ${defaultPath("name")}]: `)) ||
+        defaultPath("name");
+
+    // Flag namespaced (URL-like or dotted) claim paths — for these, the Auth0
+    // post-login action MUST add the claim to the access token (not just the
+    // ID token), or the API will verify the token but find no matching claim
+    // and surface a cryptic SigningKeyNotFoundError / no-user-found.
+    const looksNamespaced = (p: string) => p.includes("/") || p.includes("://");
+    if (
+        looksNamespaced(ufmExternalUserId) ||
+        looksNamespaced(ufmEmail) ||
+        looksNamespaced(ufmName)
+    ) {
+        console.log("");
+        console.log("⚠️  IMPORTANT — access-token vs. ID-token claims");
+        console.log("");
+        console.log("You configured namespaced claim paths. These must be added to the");
+        console.log("ACCESS token your SPA sends to the API — not only the ID token.");
+        console.log("In your Auth0 post-login action, call BOTH:");
+        console.log("  api.idToken.setCustomClaim(\"<namespace>/email\", event.user.email);");
+        console.log("  api.accessToken.setCustomClaim(\"<namespace>/email\", event.user.email);");
+        console.log("Actions that only call api.idToken.setCustomClaim(...) will silently");
+        console.log("fail on the API — the server sees an access token without those claims,");
+        console.log("can't match the user, and falls back to default groups only.");
+        console.log("");
+    }
 
     // ── Auto group mappings ────────────────────────────────────────────────
 
@@ -453,11 +509,29 @@ async function addAuthProvider(): Promise<string | null> {
     console.log("");
     console.log("If you have existing user documents in the database, you can");
     console.log("set their providerId field to link them to this new provider.");
-    console.log("This is useful when migrating from a single-provider setup.");
     console.log("");
-    const backfillConfirm = await prompt("Backfill existing users with this provider? (y/n): ");
-    if (backfillConfirm.toLowerCase() === "y") {
-        await backfillUsers(providerId);
+    console.log("Scope options:");
+    console.log("  1) Only users without a providerId (safe — recommended)");
+    console.log("     Never touches users already linked to another provider.");
+    console.log("  2) ALL users (overwrites existing providerId on every user)");
+    console.log("     Only safe when migrating from a single-provider setup.");
+    console.log("  3) Skip backfill");
+    console.log("");
+    const backfillChoice = await prompt("Select [1-3, default 3]: ");
+    if (backfillChoice === "1") {
+        await backfillUsers(providerId, { mode: "unassigned" });
+    } else if (backfillChoice === "2") {
+        console.log("");
+        console.log("⚠️  This will OVERWRITE providerId on every user doc, including those");
+        console.log("   already linked to a different provider.");
+        const confirmAll = await prompt("Type 'overwrite' to proceed, anything else to cancel: ");
+        if (confirmAll === "overwrite") {
+            await backfillUsers(providerId, { mode: "all" });
+        } else {
+            console.log("Backfill cancelled.");
+        }
+    } else {
+        console.log("Skipping backfill.");
     }
 
     console.log("");
@@ -467,7 +541,10 @@ async function addAuthProvider(): Promise<string | null> {
 
 // ── Backfill users ──────────────────────────────────────────────────────────────
 
-async function backfillUsers(providerId: string) {
+async function backfillUsers(
+    providerId: string,
+    options: { mode: "unassigned" | "all" } = { mode: "unassigned" },
+) {
     console.log("  Fetching all user documents...");
 
     const allUsers: any[] = [];
@@ -490,8 +567,22 @@ async function backfillUsers(providerId: string) {
     console.log(`  Found ${allUsers.length} user(s).`);
     if (allUsers.length === 0) return;
 
+    // Respect existing providerId assignments unless the caller explicitly
+    // opted into "all". Prevents a second-provider backfill from silently
+    // overwriting users already linked to the first provider.
+    const targets =
+        options.mode === "all"
+            ? allUsers
+            : allUsers.filter((u) => !u.providerId);
+    const skipped = allUsers.length - targets.length;
+
+    if (targets.length === 0) {
+        console.log(`  No users match the selected scope (${skipped} already have a providerId).`);
+        return;
+    }
+
     let migratedUserIdCount = 0;
-    const bulk = allUsers.map((u) => {
+    const bulk = targets.map((u) => {
         const updated = { ...u, providerId };
 
         // Migrate legacy userId field to the current externalUserId field.
@@ -504,7 +595,7 @@ async function backfillUsers(providerId: string) {
         return updated;
     });
 
-    console.log(`  Updating ${allUsers.length} user(s)...`);
+    console.log(`  Updating ${targets.length} user(s); skipping ${skipped} already-linked user(s).`);
     if (migratedUserIdCount > 0) {
         console.log(`  Also migrating legacy userId -> externalUserId for ${migratedUserIdCount} user(s).`);
     }
@@ -513,7 +604,7 @@ async function backfillUsers(providerId: string) {
     const errors = results.filter((r) => r.error);
 
     if (errors.length === 0) {
-        console.log(`  Successfully updated ${allUsers.length} user(s).`);
+        console.log(`  Successfully updated ${targets.length} user(s).`);
     } else {
         console.log(`  Completed with ${errors.length} error(s):`);
         errors.forEach((e) => console.log(`    ${JSON.stringify(e)}`));
@@ -933,6 +1024,166 @@ async function configureDefaultGroups() {
     }
 }
 
+// ── Create Super Admin User ─────────────────────────────────────────────────────
+
+async function createSuperAdminUser(defaultProviderId?: string): Promise<void> {
+    console.log("");
+    console.log("=".repeat(60));
+    console.log("  Create Super Admin User");
+    console.log("=".repeat(60));
+    console.log("");
+    console.log("This creates a user document with membership in 'group-super-admins',");
+    console.log("giving them full permissions across all document types.");
+    console.log("");
+    console.log("On login, users are matched first by externalUserId, then by email.");
+    console.log("Providing only an email means any login with that email gets super");
+    console.log("admin access. Providing an externalUserId pins it to a specific");
+    console.log("identity at a specific provider.");
+    console.log("");
+
+    const email = await prompt("Email address: ");
+    if (!email) {
+        console.log("Email is required. Aborting.");
+        return;
+    }
+
+    const name = await prompt("Display name: ");
+    if (!name) {
+        console.log("Name is required. Aborting.");
+        return;
+    }
+
+    let providerId: string | undefined;
+    let externalUserId: string | undefined;
+
+    console.log("");
+    console.log("-- Link to Auth Provider (optional) --");
+    console.log("");
+
+    if (defaultProviderId) {
+        console.log(`A newly-created auth provider (${defaultProviderId}) is available.`);
+        const useIt = await prompt("Link this super admin to that provider? (y/n): ");
+        if (useIt.toLowerCase() === "y") {
+            providerId = defaultProviderId;
+            const ext = await prompt(
+                "  External user ID (e.g. JWT 'sub' value) [Enter to skip]: ",
+            );
+            if (ext) externalUserId = ext;
+        }
+    } else {
+        const linkConfirm = await prompt("Link to an existing auth provider? (y/n): ");
+        if (linkConfirm.toLowerCase() === "y") {
+            const result = await find<AuthProviderDoc>({ type: "authProvider" });
+            const providers = result.docs || [];
+
+            if (providers.length === 0) {
+                console.log("  No auth providers found. Skipping link.");
+            } else {
+                console.log("");
+                providers.forEach((p, i) => {
+                    const tag = p.label ? `${p.label} - ` : "";
+                    console.log(`  ${i + 1}) ${tag}${p.domain}`);
+                });
+                console.log("");
+                const choiceStr = await prompt(
+                    `  Select [1-${providers.length}] or Enter to skip: `,
+                );
+                const choice = parseInt(choiceStr, 10);
+                if (!isNaN(choice) && choice >= 1 && choice <= providers.length) {
+                    providerId = providers[choice - 1]._id;
+                    const ext = await prompt(
+                        "  External user ID (e.g. JWT 'sub' value) [Enter to skip]: ",
+                    );
+                    if (ext) externalUserId = ext;
+                }
+            }
+        }
+    }
+
+    const userDoc: UserDoc = {
+        _id: `user-${randomUUID()}`,
+        type: "user",
+        email,
+        name,
+        memberOf: ["group-super-admins"],
+        updatedTimeUtc: Date.now(),
+    };
+    if (providerId) userDoc.providerId = providerId;
+    if (externalUserId) userDoc.externalUserId = externalUserId;
+
+    // This script writes directly to CouchDB and so bypasses the API's
+    // validateChangeRequest pipeline (including the (providerId, externalUserId)
+    // uniqueness check). Replicate the key guards here so the script can't
+    // silently create a duplicate that would later break login routing.
+    if (providerId && externalUserId) {
+        const conflictResult = await find<UserDoc>(
+            { type: "user", providerId, externalUserId },
+            2,
+        );
+        const conflicts = conflictResult.docs ?? [];
+        if (conflicts.length > 0) {
+            console.log("");
+            console.log(
+                `!! A user is already linked to provider ${providerId} with externalUserId "${externalUserId}":`,
+            );
+            conflicts.forEach((c) => {
+                console.log(`   - _id=${c._id}, email=${c.email}, name=${c.name}`);
+            });
+            console.log("   Creating a duplicate will make login matching non-deterministic.");
+            const override = await prompt(
+                "Create anyway (not recommended)? (y/n): ",
+            );
+            if (override.toLowerCase() !== "y") {
+                console.log("Aborted. No changes were made.");
+                return;
+            }
+        }
+    }
+
+    const byEmailResult = await find<UserDoc>({ type: "user", email }, 5);
+    const existingByEmail = byEmailResult.docs ?? [];
+    if (existingByEmail.length > 0) {
+        console.log("");
+        console.log(
+            `!! ${existingByEmail.length} existing user doc(s) already use the email "${email}":`,
+        );
+        existingByEmail.forEach((u) => {
+            console.log(
+                `   - _id=${u._id}, providerId=${u.providerId ?? "(none)"}, externalUserId=${u.externalUserId ?? "(none)"}`,
+            );
+        });
+        console.log(
+            "   On login, memberOf from all docs with this email will be merged; creating",
+        );
+        console.log("   another doc for the same email is rarely what you want.");
+        const cont = await prompt("Continue anyway? (y/n): ");
+        if (cont.toLowerCase() !== "y") {
+            console.log("Aborted. No changes were made.");
+            return;
+        }
+    }
+
+    console.log("");
+    console.log("-".repeat(60));
+    console.log("  Review: Super Admin User");
+    console.log("-".repeat(60));
+    prettyPrint(userDoc);
+
+    console.log("");
+    const confirm = await prompt("Write this user document to CouchDB? (y/n): ");
+    if (confirm.toLowerCase() !== "y") {
+        console.log("Aborted. No changes were made.");
+        return;
+    }
+
+    const res = await putDoc(userDoc._id, userDoc);
+    if (res.ok) {
+        console.log(`\n  Super admin user created: ${userDoc._id}`);
+    } else {
+        console.log(`\n  Failed to create user: ${res.error} - ${res.reason}`);
+    }
+}
+
 // ── Main Menu ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -961,11 +1212,15 @@ async function main() {
     console.log("     Ensure the seed groups (super-admins, public-users) have");
     console.log("     the right permissions for auth-related document types.");
     console.log("");
-    console.log("  5) Full Setup");
+    console.log("  5) Create Super Admin User");
+    console.log("     Add a user document with membership in 'group-super-admins'.");
+    console.log("     Matched on login by externalUserId or email.");
+    console.log("");
+    console.log("  6) Full Setup");
     console.log("     Run steps 1 + 3 + 4 in sequence. Best for first-time setup.");
     console.log("");
 
-    const menuChoice = await prompt("Select an option [1-5]: ");
+    const menuChoice = await prompt("Select an option [1-6]: ");
 
     switch (menuChoice) {
         case "1":
@@ -980,10 +1235,13 @@ async function main() {
         case "4":
             await ensureGroupAcls();
             break;
-        case "5": {
-            const result = await addAuthProvider();
+        case "5":
+            await createSuperAdminUser();
+            break;
+        case "6": {
+            const providerId = await addAuthProvider();
             await configureDefaultGroups();
-            if (!result) await ensureGroupAcls();
+            if (!providerId) await ensureGroupAcls();
             break;
         }
         default:

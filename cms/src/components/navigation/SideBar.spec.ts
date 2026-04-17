@@ -24,7 +24,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
         appName: "Luminary",
         logo: "/logo.svg",
         isDevMode: false,
-        sidebarSectionExpanded: ref({ posts: false, tags: false }),
+        sidebarSectionExpanded: ref({ posts: false, tags: false, access: false }),
         isSmallScreen: ref(false),
         isMobileScreen: ref(false),
     };

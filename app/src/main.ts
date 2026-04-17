@@ -76,19 +76,35 @@ async function Startup() {
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
-    socket.on("connect_error", async (err: Error & { data?: { type?: string } }) => {
-        if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-        Sentry?.captureMessage("API authentication failed");
-        stopTokenRefresh();
-        const lastProvider = await getLastSelectedProvider();
-        clearAuth0Cache();
-        socket.setAuth("", null);
-        if (lastProvider) {
-            await loginWithProvider(lastProvider, { prompt: "login" });
-        } else {
-            openProviderModal();
-        }
-    });
+    socket.on(
+        "connect_error",
+        async (err: Error & { data?: { type?: string; reason?: string } }) => {
+            if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+            Sentry?.captureMessage("API authentication failed");
+            stopTokenRefresh();
+
+            const reason = err.data?.reason;
+
+            // Provider was deleted / never existed: don't re-attempt login with
+            // the cached provider (it'll loop). Force the user through provider
+            // selection instead.
+            if (reason === "provider_not_found") {
+                clearAuth0Cache();
+                socket.setAuth("", null);
+                openProviderModal();
+                return;
+            }
+
+            const lastProvider = await getLastSelectedProvider();
+            clearAuth0Cache();
+            socket.setAuth("", null);
+            if (lastProvider) {
+                await loginWithProvider(lastProvider, { prompt: "login" });
+            } else {
+                openProviderModal();
+            }
+        },
+    );
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())

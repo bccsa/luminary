@@ -114,8 +114,11 @@ export class Socketio implements OnGatewayInit {
                 });
                 // Reject the connection properly via next(err).
                 // The client receives this as a connect_error with err.message.
+                // Pass through the coarse failure reason (set in AuthIdentityService.resolveOrDefault)
+                // so the client can decide whether to evict its cached provider doc.
+                const reason = (error as { reason?: string } | null | undefined)?.reason;
                 const err: Error & { data?: Record<string, string> } = new Error("auth_failed");
-                err.data = { type: "auth_failed" };
+                err.data = { type: "auth_failed", ...(reason ? { reason } : {}) };
                 next(err);
                 return;
             }

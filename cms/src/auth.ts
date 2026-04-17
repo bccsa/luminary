@@ -52,23 +52,31 @@ function createMockAuth() {
 
 /**
  * Extract client_id from Auth0's native storage footprint (read-only).
- * Checks our explicit sessionStorage flag first (redirect callback), then localStorage (@@auth0spajs@@::*) for returning users.
+ * Checks localStorage (@@auth0spajs@@::*) for returning users, then the Auth0
+ * SDK's in-flight transaction key in sessionStorage for the redirect callback.
  */
 export function readAuth0NativeStorage(): { client_id: string } | null {
     if (typeof sessionStorage === "undefined" || typeof localStorage === "undefined") return null;
 
-    // 1) SessionStorage: Check our explicit flag for the redirect callback
-    const pendingClientId = sessionStorage.getItem("pending_provider");
-    if (pendingClientId) {
-        return { client_id: pendingClientId };
-    }
-
-    // 2) LocalStorage: cache keys @@auth0spajs@@::<client_id>::... (for returning users)
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key?.startsWith("@@auth0spajs@@::")) continue;
         const parts = key.split("::");
         if (parts.length >= 2 && parts[1]) return { client_id: parts[1] };
+    }
+
+    // Fall back to the Auth0 SDK's in-flight transaction marker for users
+    // mid-redirect: loginWithRedirect writes a0.spajs.txs.<clientId> into
+    // sessionStorage holding the PKCE code_verifier + state, and it stays
+    // there across the round-trip to Auth0 until handleRedirectCallback
+    // consumes it. So when we boot on the callback URL — before
+    // @@auth0spajs@@::* exists for a first-time login — this key tells us
+    // which provider's redirect we're returning from.
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (!key?.startsWith("a0.spajs.txs.")) continue;
+        const clientId = key.slice("a0.spajs.txs.".length);
+        if (clientId) return { client_id: clientId };
     }
 
     return null;
@@ -84,7 +92,7 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
     return (doc as AuthProviderDto) ?? null;
 }
 
-function buildAuth0Options(provider: AuthProviderDto) {
+function buildAuth0Options(provider: Pick<AuthProviderDto, "domain" | "clientId" | "audience">) {
     return {
         domain: provider.domain,
         clientId: provider.clientId,
@@ -123,9 +131,6 @@ export async function setupAuth(app: App<Element>) {
 
     const footprint = readAuth0NativeStorage();
 
-    // Clean up immediately so it doesn't linger in session storage
-    sessionStorage.removeItem("pending_provider");
-
     const provider = footprint ? await getProviderByClientId(footprint.client_id) : null;
     if (!provider) return undefined;
 
@@ -159,9 +164,7 @@ export async function setupAuth(app: App<Element>) {
     const effectiveProvider = handled
         ? await (async () => {
               const postFootprint = readAuth0NativeStorage();
-              return postFootprint
-                  ? await getProviderByClientId(postFootprint.client_id)
-                  : null;
+              return postFootprint ? await getProviderByClientId(postFootprint.client_id) : null;
           })()
         : provider;
 
@@ -188,7 +191,7 @@ export async function setupAuth(app: App<Element>) {
     }
 
     if (handled) {
-        const path = (url.pathname + (url.hash || "")) || "/";
+        const path = url.pathname + (url.hash || "") || "/";
         history.replaceState(history.state, "", path);
     }
 
@@ -223,7 +226,21 @@ export async function loginWithProvider(
     provider: AuthProviderDto,
     opts?: { prompt?: Auth0Prompt },
 ): Promise<void> {
-    sessionStorage.setItem("pending_provider", provider.clientId);
+    // Evict any in-flight Auth0 PKCE transactions from previously aborted
+    // login attempts (e.g. the user hit Back while on the Auth0 page). The
+    // Auth0 SDK persists each loginWithRedirect's { code_verifier, state }
+    // pair under a0.spajs.txs.<clientId> in sessionStorage so it can complete
+    // the code-for-token exchange on return, but it does not clean up pairs
+    // from aborted flows. If a stale pair is still present when the next
+    // callback fires, handleRedirectCallback picks it up first and the PKCE
+    // verifier won't match the fresh authorization code — the call fails
+    // silently and the user has to click login a second time.
+    // Only clears sessionStorage a0.spajs.* transaction keys; the localStorage
+    // @@auth0spajs@@::* keys holding completed sessions are untouched.
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith("a0.spajs.")) sessionStorage.removeItem(key);
+    }
 
     const client = await createAuth0Client(buildAuth0Options(provider));
     await client.loginWithRedirect({
@@ -314,9 +331,7 @@ export async function resolveProviderId(): Promise<void> {
 const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let tokenRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
-export function startTokenRefresh(oauth: {
-    getAccessTokenSilently: () => Promise<string>;
-}): void {
+export function startTokenRefresh(oauth: { getAccessTokenSilently: () => Promise<string> }): void {
     stopTokenRefresh();
     tokenRefreshTimer = setInterval(async () => {
         try {
