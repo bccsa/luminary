@@ -40,14 +40,6 @@ export class AutoGroupMappingsDto extends _contentBaseDto {
         Object.assign(this, init);
     }
 
-    // Override parent's loose @IsArray to enforce non-empty string[]. A mapping
-    // without memberOf would be invisible to every group and effectively orphaned.
-    @IsArray()
-    @ArrayNotEmpty()
-    @IsString({ each: true })
-    @Expose()
-    public memberOf: Uuid[];
-
     @IsOptional()
     @IsString()
     @Expose()
