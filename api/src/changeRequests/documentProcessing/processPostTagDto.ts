@@ -3,7 +3,7 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
-import { deleteImage, processImage } from "./processImageDto";
+import { processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 
 /**
@@ -30,13 +30,16 @@ export default async function processPostTagDto(
         }
 
         // Remove images from S3
-        if (doc.imageData && prevDoc?.imageData) {
-            const imageWarnings = await deleteImage(
-                prevDoc.imageData,
-                prevDoc.imageBucketId,
+        if (doc.imageData) {
+            const imageResult = await processImage(
+                { fileCollections: [] },
+                prevDoc?.imageData,
                 db,
+                prevDoc?.imageBucketId, // Delete from the bucket where files currently exist
             );
-            warnings.push(...imageWarnings);
+            if (imageResult && imageResult.warnings && imageResult.warnings.length > 0) {
+                warnings.push(...imageResult.warnings);
+            }
         }
 
         // Remove medias from S3
