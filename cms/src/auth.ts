@@ -52,18 +52,12 @@ function createMockAuth() {
 
 /**
  * Extract client_id from Auth0's native storage footprint (read-only).
- * Checks our explicit sessionStorage flag first (redirect callback), then localStorage (@@auth0spajs@@::*) for returning users.
+ * Checks localStorage (@@auth0spajs@@::*) for returning users, then the Auth0
+ * SDK's in-flight transaction key in sessionStorage for the redirect callback.
  */
 export function readAuth0NativeStorage(): { client_id: string } | null {
     if (typeof sessionStorage === "undefined" || typeof localStorage === "undefined") return null;
 
-    // 1) SessionStorage: Check our explicit flag for the redirect callback
-    const pendingClientId = sessionStorage.getItem("pending_provider");
-    if (pendingClientId) {
-        return { client_id: pendingClientId };
-    }
-
-    // 2) LocalStorage: cache keys @@auth0spajs@@::<client_id>::... (for returning users)
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key?.startsWith("@@auth0spajs@@::")) continue;
@@ -71,11 +65,8 @@ export function readAuth0NativeStorage(): { client_id: string } | null {
         if (parts.length >= 2 && parts[1]) return { client_id: parts[1] };
     }
 
-    // 3) SessionStorage: Auth0 SDK's own in-flight transaction key
-    // (a0.spajs.txs.<clientId>). Set by createAuth0Client().loginWithRedirect()
+    // a0.spajs.txs.<clientId> is set by createAuth0Client().loginWithRedirect()
     // and survives across page loads until handleRedirectCallback consumes it.
-    // Useful when our own pending_provider flag was already cleared by an
-    // earlier setupAuth run but the Auth0 redirect flow is still unresolved.
     for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (!key?.startsWith("a0.spajs.txs.")) continue;
@@ -94,32 +85,6 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
         .filter((d) => (d as AuthProviderDto).clientId === clientId)
         .first();
     return (doc as AuthProviderDto) ?? null;
-}
-
-/**
- * Fallback provider config persisted by loginWithProvider, so that setupAuth
- * can complete the callback even when Dexie hasn't re-synced the provider
- * (fresh session-after-logout, or after a transient deleteStaleProviderFromDexie).
- * Holds just enough fields to rebuild the Auth0 client in setupAuth.
- */
-type PendingProviderConfig = Pick<
-    AuthProviderDto,
-    "_id" | "domain" | "audience" | "clientId"
->;
-
-const PENDING_PROVIDER_CONFIG_KEY = "pending_provider_config";
-
-function readPendingProviderConfig(clientId: string): PendingProviderConfig | null {
-    try {
-        const raw = sessionStorage.getItem(PENDING_PROVIDER_CONFIG_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as PendingProviderConfig;
-        if (parsed?.clientId !== clientId) return null;
-        if (!parsed.domain || !parsed.audience || !parsed._id) return null;
-        return parsed;
-    } catch {
-        return null;
-    }
 }
 
 /**
@@ -175,23 +140,9 @@ export async function setupAuth(app: App<Element>) {
 
     const footprint = readAuth0NativeStorage();
 
-    // Clean up immediately so it doesn't linger in session storage
-    sessionStorage.removeItem("pending_provider");
-
-    // Prefer Dexie (the authoritative source), but fall back to the config
-    // persisted by loginWithProvider when Dexie hasn't synced the provider
-    // doc yet. Without this fallback setupAuth silently bails when returning
-    // from Auth0 if the provider was temporarily evicted from Dexie (e.g. by
-    // deleteStaleProviderFromDexie earlier in the session), leaving
-    // handleRedirectCallback unprocessed and the user unauthenticated.
-    // pending_provider_config is deliberately NOT cleared here — it's the
-    // safety net for setupAuth runs that happen AFTER the one that consumed
-    // pending_provider. It gets overwritten on the next loginWithProvider.
-    let provider: AuthProviderDto | PendingProviderConfig | null = null;
-    if (footprint) {
-        provider = await getProviderByClientId(footprint.client_id);
-        if (!provider) provider = readPendingProviderConfig(footprint.client_id);
-    }
+    const provider = footprint
+        ? await getProviderByClientId(footprint.client_id)
+        : null;
     if (!provider) return undefined;
 
     const oauth = createAuth0(buildAuth0Options(provider), {
@@ -288,30 +239,21 @@ export async function loginWithProvider(
     provider: AuthProviderDto,
     opts?: { prompt?: Auth0Prompt },
 ): Promise<void> {
-    // Evict any in-flight Auth0 transactions from previously aborted login
-    // attempts (e.g. the user hit Back while on the Auth0 page). Leaving them
-    // around causes handleRedirectCallback to pick up a stale code_verifier /
-    // state on the next callback and fail silently — requiring an extra login
-    // click before the user is authenticated.
+    // Evict any in-flight Auth0 PKCE transactions from previously aborted
+    // login attempts (e.g. the user hit Back while on the Auth0 page). The
+    // Auth0 SDK persists each loginWithRedirect's { code_verifier, state }
+    // pair under a0.spajs.txs.<clientId> in sessionStorage so it can complete
+    // the code-for-token exchange on return, but it does not clean up pairs
+    // from aborted flows. If a stale pair is still present when the next
+    // callback fires, handleRedirectCallback picks it up first and the PKCE
+    // verifier won't match the fresh authorization code — the call fails
+    // silently and the user has to click login a second time.
     // Only clears sessionStorage a0.spajs.* transaction keys; the localStorage
     // @@auth0spajs@@::* keys holding completed sessions are untouched.
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
         const key = sessionStorage.key(i);
         if (key?.startsWith("a0.spajs.")) sessionStorage.removeItem(key);
     }
-
-    sessionStorage.setItem("pending_provider", provider.clientId);
-
-    // Persist just enough provider state for setupAuth to resume on return,
-    // even if the provider doc isn't in Dexie at that moment. See
-    // readPendingProviderConfig / setupAuth for the matching read path.
-    const pendingConfig: PendingProviderConfig = {
-        _id: provider._id,
-        domain: provider.domain,
-        audience: provider.audience,
-        clientId: provider.clientId,
-    };
-    sessionStorage.setItem(PENDING_PROVIDER_CONFIG_KEY, JSON.stringify(pendingConfig));
 
     const client = await createAuth0Client(buildAuth0Options(provider));
     await client.loginWithRedirect({
