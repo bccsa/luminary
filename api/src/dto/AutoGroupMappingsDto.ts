@@ -1,4 +1,4 @@
-import { DocType, Uuid } from "../enums";
+import { DocType } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
 import {

@@ -102,23 +102,13 @@ async function Startup() {
                 const reason = err.data?.reason;
 
                 // Provider was deleted / never existed: don't re-attempt login
-                // with the cached provider (it'll loop). Evict the stale Dexie
-                // doc and force the user through provider selection.
+                // with the cached provider (it'll loop). Force the user through
+                // provider selection instead.
                 if (reason === "provider_not_found") {
-                    await auth.deleteStaleProviderFromDexie(auth.activeProviderId.value);
                     auth.clearAuth0Cache();
                     socket.setAuth("", null);
                     auth.openProviderModal();
                     return;
-                }
-
-                // Token failed signature / audience / issuer / azp verification —
-                // often caused by an admin editing the provider's domain/clientId/
-                // audience while this client has a stale Dexie doc. Evict the doc
-                // so Dexie's live sync repopulates with the server's current config
-                // before we retry.
-                if (reason === "token_invalid") {
-                    await auth.deleteStaleProviderFromDexie(auth.activeProviderId.value);
                 }
 
                 const lastProvider = await auth.getLastSelectedProvider();

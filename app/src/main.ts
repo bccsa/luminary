@@ -8,11 +8,9 @@ import {
     resolveProviderId,
     openProviderModal,
     clearAuth0Cache,
-    deleteStaleProviderFromDexie,
     getLastSelectedProvider,
     loginWithProvider,
     stopTokenRefresh,
-    activeProviderId,
 } from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
@@ -88,23 +86,13 @@ async function Startup() {
             const reason = err.data?.reason;
 
             // Provider was deleted / never existed: don't re-attempt login with
-            // the cached provider (it'll loop). Evict the stale Dexie doc and
-            // force the user through provider selection.
+            // the cached provider (it'll loop). Force the user through provider
+            // selection instead.
             if (reason === "provider_not_found") {
-                await deleteStaleProviderFromDexie(activeProviderId.value);
                 clearAuth0Cache();
                 socket.setAuth("", null);
                 openProviderModal();
                 return;
-            }
-
-            // Token failed signature / audience / issuer / azp verification —
-            // often caused by an admin editing the provider's domain/clientId/
-            // audience while this client has a stale Dexie doc. Evict the doc
-            // so Dexie's live sync repopulates with the server's current config
-            // before we retry.
-            if (reason === "token_invalid") {
-                await deleteStaleProviderFromDexie(activeProviderId.value);
             }
 
             const lastProvider = await getLastSelectedProvider();

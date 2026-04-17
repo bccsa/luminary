@@ -65,8 +65,13 @@ export function readAuth0NativeStorage(): { client_id: string } | null {
         if (parts.length >= 2 && parts[1]) return { client_id: parts[1] };
     }
 
-    // a0.spajs.txs.<clientId> is set by createAuth0Client().loginWithRedirect()
-    // and survives across page loads until handleRedirectCallback consumes it.
+    // Fall back to the Auth0 SDK's in-flight transaction marker for users
+    // mid-redirect: loginWithRedirect writes a0.spajs.txs.<clientId> into
+    // sessionStorage holding the PKCE code_verifier + state, and it stays
+    // there across the round-trip to Auth0 until handleRedirectCallback
+    // consumes it. So when we boot on the callback URL — before
+    // @@auth0spajs@@::* exists for a first-time login — this key tells us
+    // which provider's redirect we're returning from.
     for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (!key?.startsWith("a0.spajs.txs.")) continue;
@@ -85,20 +90,6 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
         .filter((d) => (d as AuthProviderDto).clientId === clientId)
         .first();
     return (doc as AuthProviderDto) ?? null;
-}
-
-/**
- * Remove a potentially stale AuthProvider doc from the local Dexie cache.
- * Called when the server has told us this provider is either gone or out of
- * date; Dexie's live sync will then repopulate with the current server state.
- */
-export async function deleteStaleProviderFromDexie(providerId: string | null): Promise<void> {
-    if (!providerId) return;
-    try {
-        await db.docs.delete(providerId);
-    } catch (e) {
-        Sentry?.captureException(e);
-    }
 }
 
 function buildAuth0Options(provider: Pick<AuthProviderDto, "domain" | "clientId" | "audience">) {
@@ -140,9 +131,7 @@ export async function setupAuth(app: App<Element>) {
 
     const footprint = readAuth0NativeStorage();
 
-    const provider = footprint
-        ? await getProviderByClientId(footprint.client_id)
-        : null;
+    const provider = footprint ? await getProviderByClientId(footprint.client_id) : null;
     if (!provider) return undefined;
 
     const oauth = createAuth0(buildAuth0Options(provider), {
@@ -175,9 +164,7 @@ export async function setupAuth(app: App<Element>) {
     const effectiveProvider = handled
         ? await (async () => {
               const postFootprint = readAuth0NativeStorage();
-              return postFootprint
-                  ? await getProviderByClientId(postFootprint.client_id)
-                  : null;
+              return postFootprint ? await getProviderByClientId(postFootprint.client_id) : null;
           })()
         : provider;
 
@@ -204,7 +191,7 @@ export async function setupAuth(app: App<Element>) {
     }
 
     if (handled) {
-        const path = (url.pathname + (url.hash || "")) || "/";
+        const path = url.pathname + (url.hash || "") || "/";
         history.replaceState(history.state, "", path);
     }
 
@@ -344,9 +331,7 @@ export async function resolveProviderId(): Promise<void> {
 const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let tokenRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
-export function startTokenRefresh(oauth: {
-    getAccessTokenSilently: () => Promise<string>;
-}): void {
+export function startTokenRefresh(oauth: { getAccessTokenSilently: () => Promise<string> }): void {
     stopTokenRefresh();
     tokenRefreshTimer = setInterval(async () => {
         try {
@@ -381,7 +366,6 @@ export default {
     resolveProviderId,
     openProviderModal,
     clearAuth0Cache,
-    deleteStaleProviderFromDexie,
     readAuth0NativeStorage,
     activeProviderId,
     showProviderSelectionModal,

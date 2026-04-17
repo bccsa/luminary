@@ -238,7 +238,7 @@ describe("CreateOrEditUser.vue", () => {
         await waitForExpect(() => {
             const providerSelect = wrapper.find('[data-test="userProvider"]');
             expect(providerSelect.exists()).toBe(true);
-            expect(providerSelect.element.innerHTML).toContain("Any provider");
+            expect(providerSelect.element.innerHTML).toContain("Choose a provider");
             expect(providerSelect.element.innerHTML).toContain("Example");
         });
     });
