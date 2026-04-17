@@ -24,6 +24,7 @@ vi.mock("@auth0/auth0-vue");
 vi.mock("@/auth", () => ({
     isAuthBypassed: false,
     isAuthPluginInstalled: { value: true },
+    clearAuth0Cache: vi.fn(),
 }));
 
 describe("ProfileMenu", () => {

@@ -76,7 +76,7 @@ watch(
                 _id: db.uuid(),
                 type: DocType.AutoGroupMappings,
                 updatedTimeUtc: Date.now(),
-                memberOf: props.groups.length > 0 ? [props.groups[0]._id] : [],
+                memberOf: [],
                 providerId: "",
                 groupIds: [],
                 conditions: [],
@@ -127,19 +127,43 @@ watch(
             );
         }
         validate(
-            "At least one group must be selected",
+            "Select at least one group to grant on login",
             "groupIds",
             validations.value,
             e,
             (v) => (v.groupIds ?? []).length > 0,
+        );
+        validate(
+            "Select at least one group to manage this mapping",
+            "memberOf",
+            validations.value,
+            e,
+            (v) => (v.memberOf ?? []).length > 0,
         );
     },
     { deep: true },
 );
 
 const canSave = computed(() => {
-    return (editable.value.groupIds ?? []).length > 0;
+    return (
+        (editable.value.groupIds ?? []).length > 0 &&
+        (editable.value.memberOf ?? []).length > 0
+    );
 });
+
+// Inline validation hints surfaced immediately (once the user has interacted
+// with the form) so it's obvious why the Save button is disabled.
+const memberOfError = computed(() =>
+    (isDirty.value || hasAttemptedSave.value) && (editable.value.memberOf ?? []).length === 0
+        ? "At least one group is required — without it, nobody will be able to modify and view this mapping."
+        : null,
+);
+
+const groupIdsError = computed(() =>
+    (isDirty.value || hasAttemptedSave.value) && (editable.value.groupIds ?? []).length === 0
+        ? "At least one group is required — without it, this mapping grants nothing on login and has no effect."
+        : null,
+);
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 
@@ -252,7 +276,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         @close="handleClose"
         :primaryAction="handleSave"
         primaryButtonText="Save"
-        :primaryButtonDisabled="props.disabled || !isDirty || !isConnected"
+        :primaryButtonDisabled="props.disabled || !isDirty || !isConnected || !canSave"
         :secondaryAction="handleClose"
         secondaryButtonText="Cancel"
         stickToEdges
@@ -297,17 +321,46 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             provider above to restrict this mapping to authenticated users only.
         </LBadge>
 
-        <!-- Group selector -->
+        <!-- memberOf (who can view/edit this mapping doc in the CMS) -->
         <div class="mb-4">
             <LCombobox
-                v-model:selected-options="editable.groupIds"
-                label="Groups to assign"
+                v-model:selected-options="editable.memberOf as string[]"
+                label="Managed by"
                 :options="groupOptions"
                 :show-selected-in-dropdown="false"
                 :showSelectedLabels="true"
-                placeholder="Select groups to assign..."
+                inlineTags
+                placeholder="Select groups that can manage this mapping..."
                 :disabled="props.disabled"
             />
+            <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
+                {{ memberOfError }}
+            </p>
+            <p v-else class="mt-1 text-[11px] text-gray-400">
+                Only members of these groups can view or edit this mapping document in the CMS.
+                Has no effect on which users are assigned groups on login.
+            </p>
+        </div>
+
+        <!-- Groups granted on login (the outcome of this mapping) -->
+        <div class="mb-4">
+            <LCombobox
+                v-model:selected-options="editable.groupIds"
+                label="Groups to grant on login"
+                :options="groupOptions"
+                :show-selected-in-dropdown="false"
+                :showSelectedLabels="true"
+                inlineTags
+                placeholder="Select groups to grant..."
+                :disabled="props.disabled"
+            />
+            <p v-if="groupIdsError" class="mt-1 text-[11px] font-medium text-red-600">
+                {{ groupIdsError }}
+            </p>
+            <p v-else class="mt-1 text-[11px] text-gray-400">
+                When a user matches this mapping, these groups are added to their session on
+                login — giving them the permissions those groups hold.
+            </p>
         </div>
 
         <!-- Conditions -->

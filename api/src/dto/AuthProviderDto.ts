@@ -1,4 +1,4 @@
-import { DocType } from "../enums";
+import { DocType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
 import {
@@ -7,6 +7,8 @@ import {
     IsOptional,
     IsObject,
     IsNumber,
+    IsArray,
+    ArrayNotEmpty,
     ValidateNested,
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
@@ -20,6 +22,16 @@ export class AuthProviderDto extends _contentBaseDto {
         this.type = DocType.AuthProvider;
         Object.assign(this, init);
     }
+
+    // Override parent's loose @IsArray to enforce non-empty string[]. A provider
+    // with no memberOf is effectively hidden from every group in the CMS — and
+    // also breaks the public-users login flow which needs to read the provider
+    // doc to trigger the Auth0 redirect.
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
+    @Expose()
+    public memberOf: Uuid[];
 
     /**
      * OIDC issuer domain (e.g. auth.example.com)

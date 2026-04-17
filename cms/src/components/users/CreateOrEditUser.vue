@@ -11,6 +11,7 @@ import {
     hasAnyPermission,
     verifyAccess,
     type ApiSearchQuery,
+    type AuthProviderDto,
     type UserDto,
     type Uuid,
     getRest,
@@ -27,6 +28,7 @@ import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import LCombobox from "../forms/LCombobox.vue";
+import LSelect from "../forms/LSelect.vue";
 
 type Props = {
     id: Uuid;
@@ -70,6 +72,34 @@ const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
 );
+
+const authProviders = useDexieLiveQuery(
+    () =>
+        db.docs
+            .where({ type: DocType.AuthProvider })
+            .toArray() as unknown as Promise<AuthProviderDto[]>,
+    { initialValue: [] as AuthProviderDto[] },
+);
+
+const providerOptions = computed(() => [
+    { label: "Any provider (match by email)", value: "" },
+    ...authProviders.value.map((p) => ({
+        label: p.label ? `${p.label} — ${p.domain}` : p.domain,
+        value: p._id,
+    })),
+]);
+
+// Bound separately from editable.providerId so the LSelect always has a
+// string value; writes to editable clear the field when "Any provider" is
+// picked (empty string → undefined).
+const selectedProviderId = computed({
+    get: () => editable.value?.providerId ?? "",
+    set: (value: string | number | null | undefined) => {
+        if (!editable.value) return;
+        const next = typeof value === "string" && value.length > 0 ? value : undefined;
+        editable.value.providerId = next;
+    },
+});
 
 // Check if the user is dirty (has unsaved changes)
 const isDirty = ref(false);
@@ -218,8 +248,14 @@ const saveDisabled = computed(() => {
                 data-test="userEmail"
             />
 
-            <!-- TODO: Re-introduce provider restriction per user — allow assigning a specific
-                 auth provider to a user and rejecting login attempts through other providers. -->
+            <LSelect
+                label="Auth Provider"
+                :options="providerOptions"
+                v-model="selectedProviderId"
+                class="mb-4 w-full"
+                :disabled="!canEditOrCreate"
+                data-test="userProvider"
+            />
 
             <LCombobox
                 v-model:selected-options="editable.memberOf as string[]"

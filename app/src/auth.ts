@@ -56,6 +56,20 @@ async function getProviderByClientId(clientId: string): Promise<AuthProviderDto 
     return (doc as AuthProviderDto) ?? null;
 }
 
+/**
+ * Remove a potentially stale AuthProvider doc from the local Dexie cache.
+ * Called when the server has told us this provider is either gone or out of
+ * date; Dexie's live sync will then repopulate with the current server state.
+ */
+export async function deleteStaleProviderFromDexie(providerId: string | null): Promise<void> {
+    if (!providerId) return;
+    try {
+        await db.docs.delete(providerId);
+    } catch (e) {
+        Sentry?.captureException(e);
+    }
+}
+
 function buildAuth0Options(provider: AuthProviderDto) {
     return {
         domain: provider.domain,
@@ -321,6 +335,7 @@ export default {
     resolveProviderId,
     openProviderModal,
     clearAuth0Cache,
+    deleteStaleProviderFromDexie,
     readAuth0NativeStorage,
     activeProviderId,
     showProviderSelectionModal,

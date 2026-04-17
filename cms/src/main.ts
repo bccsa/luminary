@@ -92,19 +92,45 @@ async function Startup() {
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
     if (!isAuthBypassed) {
-        socket.on("connect_error", async (err: Error & { data?: { type?: string } }) => {
-            if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-            Sentry.captureMessage("API authentication failed");
-            stopTokenRefresh();
-            const lastProvider = await auth.getLastSelectedProvider();
-            auth.clearAuth0Cache();
-            socket.setAuth("", null);
-            if (lastProvider) {
-                await auth.loginWithProvider(lastProvider, { prompt: "login" });
-            } else {
-                auth.openProviderModal();
-            }
-        });
+        socket.on(
+            "connect_error",
+            async (err: Error & { data?: { type?: string; reason?: string } }) => {
+                if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+                Sentry.captureMessage("API authentication failed");
+                stopTokenRefresh();
+
+                const reason = err.data?.reason;
+
+                // Provider was deleted / never existed: don't re-attempt login
+                // with the cached provider (it'll loop). Evict the stale Dexie
+                // doc and force the user through provider selection.
+                if (reason === "provider_not_found") {
+                    await auth.deleteStaleProviderFromDexie(auth.activeProviderId.value);
+                    auth.clearAuth0Cache();
+                    socket.setAuth("", null);
+                    auth.openProviderModal();
+                    return;
+                }
+
+                // Token failed signature / audience / issuer / azp verification —
+                // often caused by an admin editing the provider's domain/clientId/
+                // audience while this client has a stale Dexie doc. Evict the doc
+                // so Dexie's live sync repopulates with the server's current config
+                // before we retry.
+                if (reason === "token_invalid") {
+                    await auth.deleteStaleProviderFromDexie(auth.activeProviderId.value);
+                }
+
+                const lastProvider = await auth.getLastSelectedProvider();
+                auth.clearAuth0Cache();
+                socket.setAuth("", null);
+                if (lastProvider) {
+                    await auth.loginWithProvider(lastProvider, { prompt: "login" });
+                } else {
+                    auth.openProviderModal();
+                }
+            },
+        );
     }
 
     await auth.setupAuth(app);

@@ -864,4 +864,57 @@ describe("AuthGuard (Integrated)", () => {
         // group-editors appears in both docs – must appear only once
         expect(groups.filter((g) => g === "group-editors")).toHaveLength(1);
     });
+
+    // ── resolveOrDefault error-reason discrimination ─────────────────────────
+
+    describe("resolveOrDefault auth failure reasons", () => {
+        it("tags 'Provider not found' errors with reason=provider_not_found", async () => {
+            // Empty docs from getDoc triggers "Provider not found" inside resolveIdentity.
+            mockDbService.getDoc = jest.fn().mockResolvedValue({ docs: [] });
+            mockDbService.executeFindQuery = jest.fn().mockResolvedValue({ docs: [] });
+
+            let captured: any;
+            try {
+                await authIdentityService.resolveOrDefault("any-token", "missing-provider-id");
+            } catch (e) {
+                captured = e;
+            }
+
+            expect(captured).toBeDefined();
+            expect(captured.reason).toBe("provider_not_found");
+            // Message must stay generic to avoid leaking internals.
+            expect(captured.message).toBe("Invalid authentication token");
+        });
+
+        it("tags all other verification failures with reason=token_invalid", async () => {
+            // Provider exists, but JwtService.decode throws → resolveIdentity
+            // rethrows something other than "Provider not found".
+            mockDbService.getDoc = jest.fn().mockResolvedValue({
+                docs: [
+                    {
+                        _id: "provider-id",
+                        type: DocType.AuthProvider,
+                        domain: "example.auth0.com",
+                        audience: "https://example.auth0.com",
+                        clientId: "abc",
+                    },
+                ],
+            });
+            mockDbService.executeFindQuery = jest.fn().mockResolvedValue({ docs: [] });
+            mockJwtService.decode = jest.fn().mockImplementation(() => {
+                throw new Error("malformed token");
+            });
+
+            let captured: any;
+            try {
+                await authIdentityService.resolveOrDefault("garbage-token", "provider-id");
+            } catch (e) {
+                captured = e;
+            }
+
+            expect(captured).toBeDefined();
+            expect(captured.reason).toBe("token_invalid");
+            expect(captured.message).toBe("Invalid authentication token");
+        });
+    });
 });

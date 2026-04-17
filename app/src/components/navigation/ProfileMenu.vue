@@ -27,6 +27,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
+import { clearAuth0Cache } from "@/auth";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -59,6 +60,9 @@ const confirmLogout = async () => {
         return;
     }
     localStorage.removeItem("usedAuth0Connection");
+    // Wipe local Auth0 footprint synchronously so that an interrupted
+    // logout redirect doesn't leave stale provider state behind.
+    clearAuth0Cache();
     await logout({ logoutParams: { returnTo: window.location.origin } });
 };
 

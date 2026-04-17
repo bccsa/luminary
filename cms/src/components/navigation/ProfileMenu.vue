@@ -14,7 +14,7 @@ import LanguageModal from "../modals/LanguageModal.vue";
 import type { LanguageDto } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
 import { PlayIcon } from "@heroicons/vue/16/solid";
-import { isAuthBypassed, isAuthPluginInstalled } from "@/auth";
+import { clearAuth0Cache, isAuthBypassed, isAuthPluginInstalled } from "@/auth";
 
 // Only call useAuth0() if the plugin was actually installed at boot. Otherwise
 // fall back to mock user data and a no-op logout.
@@ -42,10 +42,14 @@ const userNavigation = [
         name: "Sign out",
 
         icon: ArrowLeftEndOnRectangleIcon,
-        action: () =>
+        action: () => {
+            // Wipe local Auth0 footprint synchronously so that an interrupted
+            // logout redirect doesn't leave stale provider state behind.
+            clearAuth0Cache();
             logout({
                 logoutParams: { returnTo: window.location.origin },
-            }),
+            });
+        },
     },
 ];
 

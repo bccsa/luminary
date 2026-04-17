@@ -1,4 +1,4 @@
-import { DocType } from "../enums";
+import { DocType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
 import {
@@ -39,6 +39,14 @@ export class AutoGroupMappingsDto extends _contentBaseDto {
         this.type = DocType.AutoGroupMappings;
         Object.assign(this, init);
     }
+
+    // Override parent's loose @IsArray to enforce non-empty string[]. A mapping
+    // without memberOf would be invisible to every group and effectively orphaned.
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
+    @Expose()
+    public memberOf: Uuid[];
 
     @IsOptional()
     @IsString()
