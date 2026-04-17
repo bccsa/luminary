@@ -659,7 +659,7 @@ describe("AuthGuard (Integrated)", () => {
         const existingUser = {
             _id: "user-num",
             _rev: "1-num",
-            email: "test@bccsa.org",
+            email: "test@company.org",
             name: "Numeric Sub User",
             memberOf: ["group-members"],
             externalUserId: "12345",
@@ -707,12 +707,12 @@ describe("AuthGuard (Integrated)", () => {
     it("should assign default + dynamic + static groups when user is resolved via numeric sub", async () => {
         mockJwtService.verifyAsync = jest
             .fn()
-            .mockResolvedValue({ sub: 98765, email: "num@bccsa.org", role: "admin" });
+            .mockResolvedValue({ sub: 98765, email: "num@company.org", role: "admin" });
 
         const existingUser = {
             _id: "user-num-groups",
             _rev: "1-abc",
-            email: "num@bccsa.org",
+            email: "num@company.org",
             name: "Numeric User",
             memberOf: ["group-members"],
             externalUserId: "98765",
@@ -771,7 +771,7 @@ describe("AuthGuard (Integrated)", () => {
         // must succeed against the string form that matches stored data.
         mockJwtService.verifyAsync = jest
             .fn()
-            .mockResolvedValue({ sub: 4242, email: "legacy@bccsa.org" });
+            .mockResolvedValue({ sub: 4242, email: "legacy@company.org" });
 
         const legacyUser = {
             _id: "user-legacy-num",
