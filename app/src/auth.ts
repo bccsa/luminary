@@ -104,7 +104,13 @@ let installedOauth: ReturnType<typeof createAuth0> | null = null;
  */
 export async function setupAuth(app: App<Element>, router: Router): Promise<void> {
     const provider = await resolveActiveProvider();
-    if (!provider) return;
+    if (!provider) {
+        // Auth0 cache keys from a deleted provider (or a session that predates
+        // the provider doc landing in Dexie) will linger in localStorage
+        // forever without this — no other path cleans them up for a cold start.
+        clearAuth0Cache();
+        return;
+    }
 
     const oauth = createAuth0(buildAuth0Options(provider), { skipRedirectCallback: true });
     app.use(oauth);
