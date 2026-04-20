@@ -7,19 +7,12 @@ const emit = defineEmits(["close"]);
 
 <template>
     <LTeleport v-if="isVisible">
-        <div class="relative z-[100]">
-            <div
-                class="fixed inset-0 bg-zinc-800 bg-opacity-50 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
-                @mousedown.self="emit('close')"
-                data-test="modal-backdrop"
-            ></div>
-            <div
-                class="fixed inset-0 flex items-center justify-center rounded-lg p-2"
-                @mousedown.self="emit('close')"
-                data-test="modal-container"
-            >
-                <slot />
-            </div>
+        <div
+            class="fixed inset-0 z-[100] flex items-center justify-center rounded-lg bg-zinc-800 bg-opacity-50 p-2 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+            @mousedown.self="emit('close')"
+            data-test="modal-container"
+        >
+            <slot />
         </div>
     </LTeleport>
 </template>
