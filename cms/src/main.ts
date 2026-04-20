@@ -6,7 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth, { isAuthBypassed, stopTokenRefresh } from "./auth";
+import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initAuthLangSync, initSync } from "./sync";
@@ -96,8 +96,6 @@ async function Startup() {
             "connect_error",
             async (err: Error & { data?: { type?: string; reason?: string } }) => {
                 if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-                Sentry.captureMessage("API authentication failed");
-                stopTokenRefresh();
 
                 const reason = err.data?.reason;
 
@@ -111,7 +109,14 @@ async function Startup() {
                     return;
                 }
 
-                const lastProvider = await auth.getLastSelectedProvider();
+                // Normal case: the access token expired. Ask the Auth0 SDK for
+                // a fresh one via the refresh token — no redirect needed.
+                if (await auth.refreshTokenSilently()) return;
+
+                // The refresh token itself is gone or rejected — need a
+                // visible re-login.
+                Sentry.captureMessage("API authentication failed; silent refresh failed");
+                const lastProvider = await auth.resolveActiveProvider();
                 auth.clearAuth0Cache();
                 socket.setAuth("", null);
                 if (lastProvider) {
@@ -124,7 +129,6 @@ async function Startup() {
     }
 
     await auth.setupAuth(app);
-    await auth.resolveProviderId();
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Show notification if a change request was rejected or accepted but has warnings
