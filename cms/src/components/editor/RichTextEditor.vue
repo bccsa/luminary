@@ -120,8 +120,8 @@ defineExpose({
                     )
                 "
             >
-                <BulletlistIcon v-if="item === 'bulletList'" class="h-6 w-6" />
-                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-6 w-6" />
+                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
+                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
                 <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
                 <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
                 <span v-else>{{ label }}</span>
