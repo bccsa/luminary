@@ -10,6 +10,15 @@ export default {
             fontFamily: {
                 sans: ["Inter var", ...defaultTheme.fontFamily.sans],
             },
+            keyframes: {
+                "loading-bar": {
+                    "0%": { width: "0%" },
+                    "100%": { width: "100%" },
+                },
+            },
+            animation: {
+                "loading-bar": "loading-bar 2s linear infinite",
+            },
         },
     },
     // @ts-expect-error
