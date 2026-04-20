@@ -13,11 +13,11 @@ import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "@/components/forms/FormLabel.vue";
-import { onClickOutside, useElementBounding, useWindowSize } from "@vueuse/core";
 import LBadge, { type variants } from "../common/LBadge.vue";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 import LDialog from "../common/LDialog.vue";
 import { isSmallScreen } from "@/globalConfig";
+import LDropdown from "../common/LDropdown.vue";
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
@@ -62,11 +62,9 @@ const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
 
-// Reference to the combobox input element, parent wrapper, and trigger wrapper
+// Reference to the combobox input element and parent wrapper
 const inputElement = ref<HTMLInputElement>();
 const comboboxParent = ref<HTMLElement>();
-const triggerRef = ref<HTMLElement>();
-const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
 const selectedSet = computed(() => new Set(selectedOptions.value));
@@ -79,6 +77,7 @@ const optionsList = computed(() =>
 );
 
 const query = ref("");
+
 const filtered = computed(() =>
     optionsList.value.filter((o) => {
         if (!props.showSelectedInDropdown && o.selected) return false;
@@ -86,21 +85,12 @@ const filtered = computed(() =>
     }),
 );
 
-const { top, left, bottom, width } = useElementBounding(triggerRef);
-const { height: windowHeight } = useWindowSize();
-
-onClickOutside(
-    comboboxParent,
-    () => {
-        showDropdown.value = false;
-    },
-    { ignore: [dropdown] },
-);
-
 const highlightedIndex = ref(-1);
 
-watch(showDropdown, () => {
-    if (!showDropdown.value) {
+watch(showDropdown, (val) => {
+    if (val) {
+        nextTick(() => inputElement.value?.focus());
+    } else {
         highlightedIndex.value = -1;
     }
 });
@@ -116,13 +106,6 @@ const selectedLabels = computed(() => {
     return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
-const toggle = () => {
-    showDropdown.value = !showDropdown.value;
-    nextTick(() => {
-        inputElement.value?.focus();
-    });
-};
-
 const open = () => {
     if (!showDropdown.value) {
         showDropdown.value = true;
@@ -130,6 +113,16 @@ const open = () => {
     nextTick(() => {
         inputElement.value?.focus();
     });
+};
+
+const selectOption = (option: any) => {
+    if (!option.selected) {
+        selectedOptions.value.push(option.value);
+        emit("select", option);
+    }
+    query.value = "";
+    showDropdown.value = false;
+    highlightedIndex.value = -1;
 };
 
 watch(showEditModal, (newVal) => {
@@ -157,49 +150,8 @@ onUnmounted(() => {
     window.removeEventListener("keydown", handleGlobalEscape);
 });
 
-const positionData = computed(() => {
-    if (!showDropdown.value) return undefined;
-
-    const spaceBelow = windowHeight.value - bottom.value;
-    const spaceAbove = top.value;
-
-    const flip = spaceBelow < 200 && spaceAbove > 200 && spaceAbove > spaceBelow;
-
-    return { flip };
-});
-
-const dropdownStyle = computed(() => {
-    if (!positionData.value) return {};
-    const { flip } = positionData.value;
-
-    let styleTop = flip ? top.value : bottom.value;
-    let styleLeft = left.value;
-
-    return {
-        top: `${styleTop}px`,
-        left: `${styleLeft}px`,
-        width: `${width.value}px`,
-        position: "fixed" as const,
-        zIndex: 9999,
-    };
-});
-
-const placementClass = computed(() => {
-    if (!positionData.value) return "";
-    return positionData.value.flip ? "-translate-y-full mt-[-2px]" : "mt-1";
-});
-
-const selectOption = (option: any) => {
-    if (!option.selected) {
-        selectedOptions.value.push(option.value);
-        emit("select", option);
-    }
-    query.value = "";
-    showDropdown.value = false;
-    highlightedIndex.value = -1;
-};
-
 defineExpose({ open, inputElement });
+
 const onInlineBackspace = () => {
     if (query.value === "" && selectedOptions.value.length > 0) {
         const last = selectedOptions.value[selectedOptions.value.length - 1];
@@ -217,6 +169,7 @@ const onInlineBackspace = () => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
+        @click="() => inputElement?.focus()"
     >
         <div
             v-if="label || $slots.actions || (props.labelIcon && props.showIcon)"
@@ -249,205 +202,194 @@ const onInlineBackspace = () => {
         <component
             :is="$slots.actions ? LDialog : 'div'"
             :primaryAction="() => (showEditModal = false)"
+            class="relative"
             primaryButtonText="Close"
             title="Edit Selection"
             v-model:open="showEditModal"
             :heading="label"
             :showClosingButton="false"
         >
-            <!-- Inline tags trigger -->
-            <div
-                v-if="inlineTags"
-                ref="triggerRef"
-                class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
-                :class="{ 'border-[1px] border-zinc-300': !noBorder }"
-                v-bind="attrsWithoutStyles"
-                @click="open()"
+            <LDropdown
+                v-model:show="showDropdown"
+                placement="bottom-start"
+                width="full"
+                padding="none"
+                class="w-full"
             >
-                <LTag
-                    v-for="option in selectedLabels"
-                    :key="option.id"
-                    @remove="
-                        () => {
-                            if (option.isRemovable !== false) {
-                                selectedOptions.splice(selectedOptions.indexOf(option.value), 1);
-                            }
-                        }
-                    "
-                    :disabled="disabled || option.isRemovable === false"
-                >
-                    {{ option.label }}
-                </LTag>
-                <input
-                    v-model="query"
-                    ref="inputElement"
-                    class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0 sm:min-w-[80px]"
-                    :placeholder="selectedOptions.length > 0 && !query ? '' : (placeholder ?? 'Type to select...')"
-                    name="option-search"
-                    autocomplete="off"
-                    @keydown.backspace="onInlineBackspace"
-                    @keydown.enter="
-                        () => {
-                            if (showDropdown) {
-                                if (highlightedIndex > -1) {
-                                    selectedOptions.push(filtered[highlightedIndex].value);
-                                    query = '';
-                                    showDropdown = false;
-                                    return;
-                                }
-                                if (filtered.length > 0) {
-                                    selectedOptions.push(filtered[0].value);
-                                    query = '';
-                                    showDropdown = false;
-                                }
-                            }
-                        }
-                    "
-                    @keydown.escape="
-                        () => {
-                            query = '';
-                            showDropdown = false;
-                        }
-                    "
-                    @keydown.down="
-                        () => {
-                            if (!showDropdown) showDropdown = true;
-                            if (highlightedIndex < filtered.length - 1) highlightedIndex++;
-                            dropdown?.children[highlightedIndex].scrollIntoView({
-                                block: 'nearest',
-                                behavior: 'smooth',
-                            });
-                        }
-                    "
-                    @keydown.up="
-                        () => {
-                            if (highlightedIndex > 0) highlightedIndex--;
-                            dropdown?.children[highlightedIndex].scrollIntoView({
-                                block: 'nearest',
-                                behavior: 'smooth',
-                            });
-                        }
-                    "
-                />
-                <button
-                    class="fs-0 absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
-                    @click.stop="toggle"
-                    name="options-open-btn"
-                    type="button"
-                    tabindex="-1"
-                >
-                    <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
-                </button>
-            </div>
-
-            <!-- Standard trigger -->
-            <div
-                v-else
-                ref="triggerRef"
-                class="relative flex justify-between gap-2 rounded-md bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0"
-                :class="{
-                    'border-[1px] border-zinc-300': !noBorder,
-                    'pl-1 pr-3': smallInput && isMobileScreen,
-                    'pl-3 pr-8': !smallInput || !isMobileScreen,
-                }"
-                tabindex="0"
-                v-bind="attrsWithoutStyles"
-                @click="open()"
-            >
-                <div class="flex items-center justify-center gap-2">
-                    <div v-if="icon" class="flex items-center">
-                        <component
-                            :is="icon"
-                            :class="{
-                                'text-zinc-400': !disabled,
-                                'text-zinc-300': disabled,
-                            }"
-                            class="h-5 w-5"
-                        />
-                    </div>
-                    <input
-                        v-model="query"
-                        ref="inputElement"
-                        class="z-0 flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                        :class="[
-                            smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
-                            { 'w-96': $slots.actions && !isSmallScreen },
-                        ]"
-                        placeholder="Type to select..."
-                        name="option-search"
-                        autocomplete="off"
-                        @keydown.enter="
-                            () => {
-                                if (showDropdown) {
-                                    // Add the highlighted option to the selected options on enter
-                                    if (highlightedIndex > -1) {
-                                        selectOption(filtered[highlightedIndex]);
-                                        return;
-                                    }
-                                    // If no option is highlighted, add the first option to the selected options
-                                    if (filtered.length > 0) {
-                                        selectOption(filtered[0]);
-                                    }
-                                }
-                            }
-                        "
-                        @keydown.escape="
-                            () => {
-                                query = '';
-                                showDropdown = false;
-                            }
-                        "
-                        @keydown.down="
-                            () => {
-                                if (!showDropdown) showDropdown = true;
-                                if (highlightedIndex < filtered.length - 1) highlightedIndex++;
-                                dropdown?.children[highlightedIndex].scrollIntoView({
-                                    block: 'nearest',
-                                    behavior: 'smooth',
-                                });
-                            }
-                        "
-                        @keydown.up="
-                            () => {
-                                if (highlightedIndex > 0) highlightedIndex--;
-                                dropdown?.children[highlightedIndex].scrollIntoView({
-                                    block: 'nearest',
-                                    behavior: 'smooth',
-                                });
-                            }
-                        "
-                    />
-                    <button
-                        class="fs-0 absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
-                        @click.stop="toggle"
-                        name="options-open-btn"
-                        type="button"
-                        tabindex="-1"
+                <template #trigger>
+                    <!-- Inline tags trigger -->
+                    <div
+                        v-if="inlineTags"
+                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                        :class="{ 'border-[1px] border-zinc-300': !noBorder }"
+                        v-bind="attrsWithoutStyles"
                     >
-                        <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
-                    </button>
-                </div>
-            </div>
+                        <LTag
+                            v-for="option in selectedLabels"
+                            :key="option.id"
+                            @remove="
+                                () => {
+                                    if (option.isRemovable !== false) {
+                                        selectedOptions.splice(
+                                            selectedOptions.indexOf(option.value),
+                                            1,
+                                        );
+                                    }
+                                }
+                            "
+                            :disabled="disabled || option.isRemovable === false"
+                        >
+                            {{ option.label }}
+                        </LTag>
+                        <input
+                            v-model="query"
+                            ref="inputElement"
+                            class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0 sm:min-w-[80px]"
+                            :placeholder="
+                                selectedOptions.length > 0 && !query
+                                    ? ''
+                                    : (placeholder ?? 'Type to select...')
+                            "
+                            name="option-search"
+                            autocomplete="off"
+                            @keydown.backspace="onInlineBackspace"
+                            @keydown.enter="
+                                () => {
+                                    if (showDropdown) {
+                                        if (highlightedIndex > -1) {
+                                            selectOption(filtered[highlightedIndex]);
+                                            return;
+                                        }
+                                        if (filtered.length > 0) {
+                                            selectOption(filtered[0]);
+                                        }
+                                    }
+                                }
+                            "
+                            @keydown.escape.prevent.stop="
+                                () => {
+                                    query = '';
+                                    showDropdown = false;
+                                }
+                            "
+                            @keydown.down="
+                                () => {
+                                    if (!showDropdown) showDropdown = true;
+                                    if (highlightedIndex < filtered.length - 1) highlightedIndex++;
+                                }
+                            "
+                            @keydown.up="
+                                () => {
+                                    if (highlightedIndex > 0) highlightedIndex--;
+                                }
+                            "
+                        />
+                        <button
+                            class="fs-0 absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
+                            name="options-open-btn"
+                            type="button"
+                            tabindex="-1"
+                        >
+                            <ChevronUpDownIcon
+                                class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                            />
+                        </button>
+                    </div>
 
-            <Teleport to="body">
+                    <!-- Standard trigger -->
+                    <div
+                        v-else
+                        class="relative flex w-full justify-between gap-2 rounded-md bg-white focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                        :class="{
+                            'border-[1px] border-zinc-300': !noBorder,
+                            'pl-1 pr-3': smallInput && isMobileScreen,
+                            'pl-3 pr-3': !smallInput || !isMobileScreen,
+                        }"
+                        tabindex="0"
+                        v-bind="attrsWithoutStyles"
+                    >
+                        <div class="flex items-center justify-center gap-2">
+                            <div v-if="icon" class="flex items-center">
+                                <component
+                                    :is="icon"
+                                    :class="{
+                                        'text-zinc-400': !disabled,
+                                        'text-zinc-300': disabled,
+                                    }"
+                                    class="h-5 w-5"
+                                />
+                            </div>
+                            <input
+                                v-model="query"
+                                ref="inputElement"
+                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                                :class="[
+                                    smallInput && isMobileScreen
+                                        ? 'h-[30px] text-sm'
+                                        : 'h-[38px]',
+                                    { 'w-96': $slots.actions && !isSmallScreen },
+                                ]"
+                                :placeholder="placeholder ?? 'Type to select...'"
+                                name="option-search"
+                                autocomplete="off"
+                                @keydown.enter="
+                                    () => {
+                                        if (showDropdown) {
+                                            if (highlightedIndex > -1) {
+                                                selectOption(filtered[highlightedIndex]);
+                                                return;
+                                            }
+                                            if (filtered.length > 0) {
+                                                selectOption(filtered[0]);
+                                            }
+                                        }
+                                    }
+                                "
+                                @keydown.escape.prevent.stop="
+                                    () => {
+                                        query = '';
+                                        showDropdown = false;
+                                    }
+                                "
+                                @keydown.down="
+                                    () => {
+                                        if (!showDropdown) showDropdown = true;
+                                        if (highlightedIndex < filtered.length - 1)
+                                            highlightedIndex++;
+                                    }
+                                "
+                                @keydown.up="
+                                    () => {
+                                        if (highlightedIndex > 0) highlightedIndex--;
+                                    }
+                                "
+                            />
+                            <button
+                                class="absolute right-2 flex items-center"
+                                name="options-open-btn"
+                            >
+                                <ChevronUpDownIcon
+                                    class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
                 <div
-                    ref="dropdown"
-                    v-if="showDropdown"
-                    :style="dropdownStyle"
-                    class="overflow-y-auto rounded-md bg-white shadow-md focus:outline-none"
-                    :class="[placementClass, 'max-h-48']"
+                    class="max-h-48 w-full"
+                    :class="{ 'w-96': $slots.actions && !isSmallScreen }"
                     data-test="options"
                     @wheel.stop
                     @touchmove.stop
-                    @pointerdown.stop.prevent
-                    @mousedown.stop.prevent
                 >
                     <li
                         name="list-item"
                         v-for="option in filtered"
                         :key="option.id"
                         :disabled="option.selected"
-                        class="w-full list-none text-start text-sm hover:bg-zinc-100"
+                        role="menuitem"
+                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
@@ -467,12 +409,11 @@ const onInlineBackspace = () => {
                         </span>
                     </li>
                 </div>
-            </Teleport>
-
+            </LDropdown>
             <div
                 data-test="selected-labels"
                 v-if="showSelectedLabels && !inlineTags"
-                class="flex flex-wrap gap-1 pt-1"
+                class="flex w-full flex-wrap gap-1 pt-1"
             >
                 <LTag
                     v-for="option in selectedLabels"
@@ -491,9 +432,7 @@ const onInlineBackspace = () => {
                 </LTag>
             </div>
             <div
-                v-if="
-                    showSelectedLabels && selectedLabels.length === 0 && (label || $slots.actions)
-                "
+                v-if="showSelectedLabels && selectedLabels.length === 0"
                 class="pt-4 text-center text-xs italic text-zinc-500"
             >
                 No options selected yet.
