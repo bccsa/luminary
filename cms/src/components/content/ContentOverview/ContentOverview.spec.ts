@@ -36,6 +36,7 @@ import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
@@ -507,6 +508,56 @@ describe("ContentOverview.vue", () => {
             expect(linkProps.params?.docType).toBe("post");
             expect(linkProps.params?.tagOrPostType).toBe("blog");
             expect(linkProps.params?.id).toBe("new");
+        });
+    });
+
+    it("should display tags sorted by publish date in descending order", async () => {
+        const tagContentDocs: ContentDto[] = [
+            {
+                ...mockData.mockCategoryContentDto,
+                _id: "content-tag-oldest",
+                parentId: "tag-oldest",
+                title: "Oldest Tag",
+                publishDate: 1000000000000,
+            },
+            {
+                ...mockData.mockCategoryContentDto,
+                _id: "content-tag-middle",
+                parentId: "tag-middle",
+                title: "Middle Tag",
+                publishDate: 1500000000000,
+            },
+            {
+                ...mockData.mockCategoryContentDto,
+                _id: "content-tag-newest",
+                parentId: "tag-newest",
+                title: "Newest Tag",
+                publishDate: 2000000000000,
+            },
+        ];
+
+        await db.docs.bulkPut(tagContentDocs);
+
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            const comboboxes = wrapper.findAllComponents(LCombobox);
+            // First LCombobox is the tag filter
+            const tagCombobox = comboboxes[0];
+            const options = tagCombobox.props("options");
+
+            expect(options.length).toBe(3);
+            expect(options[0].label).toBe("Newest Tag");
+            expect(options[1].label).toBe("Middle Tag");
+            expect(options[2].label).toBe("Oldest Tag");
         });
     });
 });

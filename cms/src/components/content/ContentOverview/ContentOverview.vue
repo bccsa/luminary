@@ -90,14 +90,16 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(props.tagOrPostT
 
 const tagContentDocs = useDexieLiveQueryWithDeps(
     cmsLanguageIdAsRef,
-    (_cmsLanguageIdAsRef: Uuid) =>
-        db.docs
+    async (_cmsLanguageIdAsRef: Uuid) => {
+        const docs = (await db.docs
             .where({
                 type: DocType.Content,
                 parentType: DocType.Tag,
                 language: _cmsLanguageIdAsRef,
             })
-            .sortBy("title") as unknown as Promise<ContentDto[]>,
+            .sortBy("publishDate")) as unknown as ContentDto[];
+        return docs.reverse();
+    },
     { initialValue: [] as ContentDto[] },
 );
 
