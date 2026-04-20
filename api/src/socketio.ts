@@ -102,6 +102,20 @@ export class Socketio implements OnGatewayInit {
             const token = socket.handshake.auth?.token as string | undefined;
             const providerId = socket.handshake.auth?.providerId as string | undefined;
 
+            // A token without a providerId is always inconsistent client state —
+            // the provider doc was deleted, Dexie cache got partially cleared, or
+            // a session predates the multi-provider header. Silently falling
+            // through to guest would strand the user authenticated-in-Auth0-but-
+            // anonymous-to-us with no UI feedback, so force the client through
+            // the re-selection flow via the provider_not_found reason code.
+            if (token && !providerId) {
+                this.logger.warn("Socket handshake: token without providerId");
+                const err: Error & { data?: Record<string, string> } = new Error("auth_failed");
+                err.data = { type: "auth_failed", reason: "provider_not_found" };
+                next(err);
+                return;
+            }
+
             try {
                 const authIdentity = await this.authIdentityService.resolveOrDefault(
                     token,
