@@ -1,0 +1,26 @@
+{
+    "name": "luminary-playwright-tests",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "playwright test",
+        "test:ui": "playwright test --ui",
+        "test:headed": "playwright test --headed",
+        "test:debug": "playwright test --debug",
+        "test:app": "playwright test --project=app",
+        "test:cms": "playwright test --project=cms",
+        "test:app:ui": "playwright test --project=app --ui",
+        "test:cms:ui": "playwright test --project=cms --ui",
+        "test:app:headed": "playwright test --project=app --headed",
+        "test:cms:headed": "playwright test --project=cms --headed",
+        "report": "playwright show-report",
+        "codegen:app": "playwright codegen $APP_BASE_URL",
+        "codegen:cms": "playwright codegen $CMS_BASE_URL"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.56.0",
+        "@types/node": "^20.11.0",
+        "dotenv": "^16.4.5",
+        "typescript": "~5.3.0"
+    }
+}
