@@ -18,6 +18,7 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
@@ -537,5 +538,25 @@ describe("SingleContent", () => {
                 }),
             );
         }, 3000);
+    });
+
+    it("displays LoadingBar when content is loading", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            const hasLoadingBar = wrapper.findComponent(LoadingBar).exists();
+            const hasContent = wrapper.find("article").exists();
+
+            expect(hasLoadingBar || hasContent).toBe(true);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
+            expect(wrapper.find("article").exists()).toBe(true);
+        });
     });
 });

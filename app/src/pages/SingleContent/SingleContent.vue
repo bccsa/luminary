@@ -52,7 +52,7 @@ import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -642,7 +642,7 @@ const playAudio = () => {
             :class="{ 'mb-6': !tags.length }"
         >
             <div class="flex flex-grow justify-center">
-                <LoadingSpinner v-if="isLoading" />
+                <LoadingBar v-if="isLoading" />
                 <article
                     class="w-full lg:w-3/4 lg:max-w-3xl"
                     v-else-if="!isLoading && content"
