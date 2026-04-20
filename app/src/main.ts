@@ -5,12 +5,11 @@ import App from "./App.vue";
 import router from "./router";
 import {
     setupAuth,
-    resolveProviderId,
     openProviderModal,
     clearAuth0Cache,
-    getLastSelectedProvider,
+    resolveActiveProvider,
     loginWithProvider,
-    stopTokenRefresh,
+    refreshTokenSilently,
 } from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
@@ -80,8 +79,6 @@ async function Startup() {
         "connect_error",
         async (err: Error & { data?: { type?: string; reason?: string } }) => {
             if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-            Sentry?.captureMessage("API authentication failed");
-            stopTokenRefresh();
 
             const reason = err.data?.reason;
 
@@ -95,7 +92,14 @@ async function Startup() {
                 return;
             }
 
-            const lastProvider = await getLastSelectedProvider();
+            // Normal case: the access token expired. Ask the Auth0 SDK for a
+            // fresh one via the refresh token — no redirect needed.
+            if (await refreshTokenSilently()) return;
+
+            // The refresh token itself is gone or rejected — need a visible
+            // re-login.
+            Sentry?.captureMessage("API authentication failed; silent refresh failed");
+            const lastProvider = await resolveActiveProvider();
             clearAuth0Cache();
             socket.setAuth("", null);
             if (lastProvider) {
@@ -108,7 +112,6 @@ async function Startup() {
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
-    await resolveProviderId();
 
     initAuthLangSync();
     await initLanguage();
