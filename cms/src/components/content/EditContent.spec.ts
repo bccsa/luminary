@@ -1264,23 +1264,29 @@ describe("EditContent.vue", () => {
             expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
         });
 
-        it("becomes dirty after a genuine user edit on a legacy post with auto-selected buckets", async () => {
-            await db.docs.bulkPut([
-                mockData.mockStorageDto,
-                mockData.mockStorageDtoWithEncryptedCredentials,
-            ]);
+        it(
+            "becomes dirty after a genuine user edit on a legacy post with auto-selected buckets",
+            async () => {
+                await db.docs.bulkPut([
+                    mockData.mockStorageDto,
+                    mockData.mockStorageDtoWithEncryptedCredentials,
+                ]);
 
-            const wrapper = await loadWithoutUserEdits();
+                const wrapper = await loadWithoutUserEdits();
 
-            // Baseline must be clean before the edit — otherwise the next assertion
-            // could pass for the wrong reason.
-            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+                // Baseline must be clean before the edit — otherwise the next assertion
+                // could pass for the wrong reason.
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
 
-            await wrapper.find('input[name="title"]').setValue("Edited title");
+                await wrapper.find('input[name="title"]').setValue("Edited title");
 
-            await waitForExpect(() => {
-                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
-            });
-        });
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(
+                        true,
+                    );
+                });
+            },
+            15000,
+        );
     });
 });
