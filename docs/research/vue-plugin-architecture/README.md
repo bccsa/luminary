@@ -4,6 +4,7 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 
 **Related**
 
+- **Presentation-style explainer** (build vs runtime, checklist, Q&A): [`plugin-system-explained.md`](./plugin-system-explained.md)
 - App handbook (setup, extension plugins, env): [`app/README.md`](../../../app/README.md)
 - Concrete file walkthrough using the repo’s first plugin: [`starter-code.md`](./starter-code.md)
 - Diagram sources (open in [diagrams.net](https://app.diagrams.net/) / draw.io; export SVG if needed):
