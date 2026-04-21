@@ -1,5 +1,7 @@
 # Vue Platform Plugin Starter Code
 
+> **Note:** The Luminary app now uses **`virtual:media-player`**, **`BUILD_TARGET`**, and **`app/src/plugins/media-player/`** (see the [current architecture README](./README.md)). The **`platform/`** layout below is **illustrative** only and does not match the repository as of that migration.
+
 This starter shows a minimal but production-oriented skeleton for platform adapters in Vue 3 + Capacitor.
 
 Architecture choice applied here: **Option A (single runtime plugin)**, with **one folder per capability** under `platform/<feature>/` (contract, token, `web/`, `install.ts`) and a shared **`platform/core/`** for runtime detection. Hypothetical **downloads** below uses the same folder shape.

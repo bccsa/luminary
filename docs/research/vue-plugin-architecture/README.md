@@ -1,253 +1,129 @@
-# Vue platform plugin architecture (Web + Capacitor)
+# Luminary app — media player plugin architecture
 
-This document describes how Luminary wires **platform-specific behavior** (browser vs Capacitor shell) using **Vue plugins**, **contracts**, and **`provide` / `inject`**, so feature code stays the same on every target.
+This document describes how the **web app** (`luminar/app`) wires the global **media player** behind a **TypeScript contract**, **`provide` / `inject`**, and a **build-time–selected implementation** (no runtime platform branching in feature code).
 
-**Companion files**
+**Related**
 
-- Diagram (SVG copy of the same layout): [`vue-plugin-architecture.drawio.svg`](./vue-plugin-architecture.drawio.svg)
-- Starter scaffolding: [`starter-code.md`](./starter-code.md)
-
----
-
-## What problem this solves
-
-We want **one app codebase** where:
-
-- **Web** uses safe, default implementations (DOM, fetch, etc.).
-- **Capacitor** can use richer behavior (background audio, native plugins, in-app browser auth) **without** `if (isCapacitor)` scattered through pages and components.
-
-The pattern: define a **small interface** once, register **one implementation per build**, and have features **inject** that API.
+- App handbook (setup, extension plugins, env): [`app/README.md`](../../../app/README.md)
+- Illustrative starter sketches (older `platform/` shape): [`starter-code.md`](./starter-code.md)
 
 ---
 
-## How it works (end-to-end flow)
+## Goals
 
-At startup, control flows in one direction: bootstrap → plugin → installer → `provide` → feature code. Native vs web only changes **which service instance** gets registered, not how features consume it.
+- **One contract** (`MediaPlayerService`) for all UI and composables.
+- **One implementation per build** — Vite resolves `virtual:media-player` to a single folder (`web`, `capacitor`, …) so unused targets are not bundled.
+- **No `if (Capacitor)` in pages** — differences belong in the chosen adapter or in capability flags on the service (e.g. `supportsBackgroundPlayback`).
 
-### Flow (generic)
+**Out of scope here:** **Authentication** lives in `app/src/auth.ts` (Auth0). It is normal application code, not swapped via `BUILD_TARGET`. A separate **Capacitor shell** project may wrap the built web app; that does not require a `capacitor` folder in this repo unless you intentionally add a second build target here.
 
-Every platform capability follows the same pipeline: one installer per concern, one injection token per contract, optional factory in plugin options for native/deployment.
+---
 
-```text
-  main.ts
-      │
-      │  app.use(platformServicesPlugin [, options])
-      ▼
-  platformServicesPlugin.install
-      │
-      │  getRuntimeInfo() — optional context for installers
-      ▼
-  install…Services(app, runtime, options)
-      │
-      │  Resolve implementation:
-      │    • options.create…Service?.(…)  ← override from deployment / native entry
-      │    • else default web adapter      ← luminary default for that capability
-      ▼
-  app.provide(FeatureToken, service)
-      │
-      ▼
-  Feature code — inject(FeatureToken) — same contract everywhere
+## End-to-end picture
+
+### Build time
+
+Vite plugin `app/vite-plugins/buildTargetVirtuals.ts` reads **`BUILD_TARGET`** from the environment (e.g. `app/.env`) and resolves the virtual id **`virtual:media-player`** to exactly one file:
+
+`app/src/plugins/media-player/{BUILD_TARGET}/index.ts`
+
+Default if unset: **`web`**.
+
+### Runtime
+
+```mermaid
+flowchart TB
+    subgraph boot["Startup"]
+        M["main.ts"]
+        R["plugin-registry.ts"]
+        V["virtual:media-player → resolved file"]
+        I["installMediaPlayer(app)"]
+        P["app.provide(MediaPlayerKey, service)"]
+        M --> R
+        R --> V
+        V --> I
+        I --> P
+    end
+    subgraph ui["Feature UI"]
+        C["Components / composables"]
+        INJ["inject(MediaPlayerKey)"]
+        C --> INJ
+    end
+    P --> INJ
 ```
 
-### Example: media player
+**Steps**
 
-Today’s wiring uses the media contract, token, and installer names from the codebase.
+1. **`main.ts`** calls `app.use(appPluginsPlugin)` from `@/core/plugin-registry`.
+2. **`plugin-registry.ts`** imports from **`virtual:media-player`** (never from `plugins/media-player/web/...` directly).
+3. The resolved module’s **`installMediaPlayer(app)`** creates the service and runs **`app.provide(MediaPlayerKey, service)`**.
+4. **`AudioPlayer.vue`**, **`App.vue`**, etc. **`inject(MediaPlayerKey)`** and call only **`MediaPlayerService`** methods.
 
-```text
-  main.ts
-      │
-      │  app.use(platformServicesPlugin [, options])
-      ▼
-  platformServicesPlugin.install
-      │
-      │  getRuntimeInfo()
-      ▼
-  installMediaServices(app, runtime, options)
-      │
-      │  service =
-      │    options.createMediaPlayerService?.(audioPlayerComponent)
-      │    ?? new WebMediaPlayerService(audioPlayerComponent)
-      ▼
-  app.provide(MediaPlayerKey, service)
-      │
-      ▼
-  Feature code — inject(MediaPlayerKey) — MediaPlayerService
-```
-
-**Step-by-step (runtime)**
-
-1. **`main.ts`** calls `app.use(platformServicesPlugin)` (and optional options).
-2. **`platformServicesPlugin`** runs **`getRuntimeInfo()`** (e.g. `globalThis.Capacitor` in the shell) and forwards context to feature installers.
-3. Each **installer** constructs a service that implements the right **contract**: default web implementation, or a factory passed on **`options`** for native bundles.
-4. The installer **`app.provide(…Token, instance)`** for that capability.
-5. Components and composables **`inject(…Token)`** and call the contract only—no direct Capacitor imports in feature code.
-6. Where behavior differs, use **capability flags** on the service (e.g. `supportsBackgroundPlayback`) instead of `if (isNative)` in the UI.
-7. **Capacitor-heavy code** stays in **`luminary-deployment/luminary-plugins`** (or similar); **luminary** stays free of **`@capacitor/core`** as a dependency.
-
-**Build-time wiring (Capacitor bundle)**
-
-The swap happens at the **Vue plugin** (`app.use` options), not by scattering platform checks in components:
-
-- **Web:** `app.use(platformServicesPlugin)` — installers use built-in web defaults.
-- **Native / deployment:** `app.use(platformServicesPlugin, { create…Service: … })` — factories come from deployment code that may import Capacitor.
-
-**Media player today:** pass **`createMediaPlayerService`** when you need a non-web implementation; otherwise **`installMediaServices`** uses **`WebMediaPlayerService`**.
+**Injection key import:** components import **`MediaPlayerKey`** from **`@/plugins/media-player/token`** (not from `plugin-registry`). The token module is shared by every build target and does not load the virtual implementation, which avoids a circular dependency: the web bundle wires `AudioPlayer.vue` into the service, while `AudioPlayer.vue` still needs the key for `inject`.
 
 ---
 
-## Repository layout
-
-Capabilities are **colocated**: each folder under `platform/` owns its contract, injection token, web adapter, and `install*.ts` for that feature. **Shared** runtime detection lives in `platform/core/`. **One** Vue plugin (`platform-services.plugin.ts`) still composes all installers—Option A unchanged.
+## Repository layout (current)
 
 ```text
-luminary/app/src/
-  platform/
+app/
+  vite-plugins/
+    buildTargetVirtuals.ts     # BUILD_TARGET → path for virtual:media-player
+  src/
     core/
-      runtime.ts              # getRuntimeInfo() without importing @capacitor/core
-    media-player/             # example: one folder per capability
-      contract.ts             # TypeScript types + service interface
-      token.ts                # InjectionKey for this capability
-      web/
-        media-player.web.ts   # Browser implementation
-      install.ts              # installMediaServices(app, runtime, options)
-      index.ts                # optional barrel (re-exports for consumers)
-    # future: downloads/, etc. — same shape (contract, token, web/, install.ts, index.ts)
-  plugins/
-    platform-services.plugin.ts   # app.use() entry; calls each feature’s install*
-
-luminary-deployment/
-  luminary-plugins/     # Capacitor integrations, auth, updater, optional adapter factories
+      plugin-registry.ts       # installPlugins, appPluginsPlugin, re-exports MediaPlayerKey
+    plugins/
+      media-player/
+        contract.ts            # MediaPlayerService + related types
+        token.ts               # MediaPlayerKey (InjectionKey)
+        web/
+          media-player.web.ts  # WebMediaPlayerService
+          index.ts             # installMediaPlayer, exports for virtual module
+        capacitor/
+          index.ts             # optional; another BUILD_TARGET (may re-export web)
+    auth.ts                    # Auth0 — not part of this virtual module
 ```
 
-There is **no** `adapters/capacitor/` inside **luminary** by design: native coupling stays in **deployment**.
+---
 
-### “Where do I put things?” (quick map)
+## Configuration
 
-| You want to… | Put it here | Notes |
+| Variable | Where | Role |
 | --- | --- | --- |
-| Define the public API for a platform capability | `app/src/platform/<feature>/contract.ts` | Keep it small and stable. Consumers import types or `@/platform/<feature>` barrel. |
-| Create the injection token | `app/src/platform/<feature>/token.ts` | One `InjectionKey` per capability (or export from the feature `index.ts`). |
-| Detect runtime (web vs native shell) | `app/src/platform/core/runtime.ts` | No `@capacitor/core` import; relies on `globalThis.Capacitor` if present. |
-| Implement the **web** version | `app/src/platform/<feature>/web/*.ts` | Browser-only code. |
-| Register services with Vue `provide` | `app/src/platform/<feature>/install.ts` | e.g. `installMediaServices` calls `app.provide(MediaPlayerKey, service)`; web default unless overridden via plugin options. |
-| Wire installers into `app.use(...)` | `app/src/plugins/platform-services.plugin.ts` | Imports each `install*` and runs them after `getRuntimeInfo()`. |
-| Implement the **native/Capacitor** version | `luminary-deployment/luminary-plugins/**` | Deployment may import `@capacitor/*` and pass factories via plugin options. |
+| **`BUILD_TARGET`** | `app/.env`, CI env, or shell when invoking Vite | Selects `plugins/media-player/{BUILD_TARGET}/index.ts`. Not a `VITE_*` variable — it is **not** exposed to `import.meta.env` in the browser. |
+
+Example `app/.env`:
+
+```bash
+BUILD_TARGET=web
+```
 
 ---
 
-## Selected pattern: Option A (single runtime plugin)
+## Adding or changing an implementation
 
-- **One** exported plugin: `platformServicesPlugin`.
-- **Several internal installers** as `install*.ts` inside each **`app/src/platform/<feature>/`** folder (e.g. `media-player/install.ts`), invoked from the plugin in sequence.
-- **`luminary-plugins`** remains the place for Capacitor-only or Capacitor-conditioned JS.
+1. **Contract** — extend `app/src/plugins/media-player/contract.ts` only if the public API should change; keep it stable for UI code.
+2. **Token** — `MediaPlayerKey` stays in `token.ts` so the same key is used for every build target.
+3. **New target folder** — e.g. `plugins/media-player/native/index.ts` exporting the same **`installMediaPlayer`** + types as `web`, then set **`BUILD_TARGET=native`** when building.
+4. **Vite** — extend `buildTargetVirtuals.ts` if you add new virtual module ids or path rules.
 
-Other patterns (feature-scoped plugins, service registries) are documented as alternatives in research notes if you need to scale further.
-
----
-
-## How to add a new platform service (“plugin”)
-
-Use this checklist so new capabilities stay consistent with the media player precedent.
-
-### 1. Define the contract
-
-- Add **`app/src/platform/<feature>/contract.ts`** with a focused interface (behavior + optional capability flags, no UI types).
-- Prefer explicit methods and small types; add **`dispose`** / lifecycle only if needed.
-
-### 2. Add an injection token
-
-- Export **`export const MyFeatureKey: InjectionKey<MyFeatureService> = Symbol("MyFeatureService")`** in **`app/src/platform/<feature>/token.ts`** (and re-export from **`index.ts`** if you use a barrel).
-
-### 3. Implement the web adapter
-
-- Add **`app/src/platform/<feature>/web/<feature>.web.ts`** (or multiple files under `web/` if needed).
-- Implement the contract with browser APIs only.
-
-### 4. Wire the default factory
-
-Define the factory signature you want to allow deployment to override (e.g. `createMyFeatureService(...)`) and include it in the installer/plugin options type.
-
-### 5. Register in the runtime plugin
-
-- Add **`installMyFeatureServices(app, runtime, options?)`** in **`app/src/platform/<feature>/install.ts`**.
-- Call it from **`platformServicesPlugin.install`** after **`getRuntimeInfo()`**.
-- Inside the installer: **`app.provide(MyFeatureKey, createMyFeatureService(...))`**.
-
-### 6. (Optional) Capacitor / deployment implementation
-
-- Add a class under **`luminary-deployment/luminary-plugins/`** that implements the same contract (you may import **`@capacitor/core`** there).
-- Export a factory with the **same signature** as the luminary default (e.g. `createMyFeatureService`).
-- Pass that factory through **`app.use(platformServicesPlugin, { createMyFeatureService })`** (via plugin options). Pick one strategy per feature and document it in the installer comment.
-
-### 7. Consume from features
-
-- **`const svc = inject(MyFeatureKey)`**; throw or guard if missing (like `MediaPlayerKey`).
-- **Do not** import Capacitor or branch on user-agent in pages/components.
-
-### 8. Tests
-
-- **Unit tests**: `provide` a mock implementation with **`global.provide`** / **`mount(..., { global: { provide: { [MyFeatureKey]: mock } } })`**.
-- When ready: **contract tests** run the same scenarios against web and native adapters.
+Do **not** import implementation files from `components/`; always go through **`inject(MediaPlayerKey)`** or types from **`plugin-registry`** / contract.
 
 ---
 
-## Runtime detection (luminary)
+## Extension plugins (separate mechanism)
 
-**Luminary does not depend on `@capacitor/core`.**  
-`getRuntimeInfo()` uses **`globalThis.Capacitor`** when the native shell injects it; pure browser builds see **web**.
-
-For **optional** branches inside **deployment** plugins only, Capacitor’s documented helpers (`isNativePlatform()`, `getPlatform()`, `isPluginAvailable()`) are appropriate.
+Optional class-based modules loaded by **`VITE_PLUGINS`** + **`VITE_PLUGIN_PATH`** are unrelated to `virtual:media-player`. See **Extension plugins** in [`app/README.md`](../../../app/README.md).
 
 ---
 
-## Contract design rules (short)
+## Testing
 
-- Small, use-case-driven interfaces.
-- Capability flags where behavior differs (`supportsBackgroundPlayback`, etc.).
-- Domain events / state—not widget props.
-- Normalize errors at the adapter boundary when you cross that line in production.
-
----
-
-## Feature matrix (summary)
-
-| Capability | Web | Capacitor |
-| --- | --- | --- |
-| Same `inject` contracts | Yes | Yes |
-| Media playback (same UI, different service) | Yes | Yes |
-| Background / lock-screen media | Limited | Yes (OS + MediaSession + native config) |
-| Heavy native APIs (filesystem, file transfer) | Limited | Yes (behind deployment adapters) |
-
----
-
-## Mapping `luminary-plugins` (examples)
-
-| File | Role |
-| --- | --- |
-| `auth.ts`, `authBrowser.ts` | Auth flows when running inside Capacitor WebView |
-| `capacitorNative.ts` | Status bar, safe area, fullscreen helpers |
-| `capgoUpdater.ts` | OTA update policy |
-| `capacitorDeepLinks.ts` | Deep link routing |
-| `capacitorMediaPlayer*.ts` (if present) | Native-oriented media factory / service |
-
----
-
-## Research notes (optional depth)
-
-- **Option B**: one plugin per feature—use if installers become too large.
-- **Option C**: service registry—use only if you need dynamic third-party extensions.
-- Downloads / storage: keep APIs behind contracts; Capacitor File Transfer + Filesystem belongs in deployment adapters (see Capacitor docs linked below).
+Tests **`provide`** a mock **`MediaPlayerService`** under **`MediaPlayerKey`** (same as before). No change to the contract-testing idea: mock the interface, not a concrete class path.
 
 ---
 
 ## References
 
-- [Vue – Plugins](https://vuejs.org/guide/reusability/plugins.html)
-- [Vue – Provide / inject](https://vuejs.org/guide/components/provide-inject)
-- [Capacitor – Utilities](https://capacitorjs.com/docs/basics/utilities)
-
----
-
-## Next documentation step
-
-Consider an ADR under `docs/adr/` referencing this research doc and the chosen Option A + repository split.
+- [Vue — Plugins](https://vuejs.org/guide/reusability/plugins.html)
+- [Vue — Provide / inject](https://vuejs.org/guide/components/provide-inject)
