@@ -16,7 +16,7 @@ import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
-import { MediaPlayerKey } from "@/core/plugin-registry";
+import { MediaPlayerKey } from "@/plugins/media-player/token";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
