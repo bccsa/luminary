@@ -268,6 +268,7 @@ export type AuthProviderDto = BaseDocumentDto & {
     backgroundColor?: string;
     textColor?: string;
     iconOpacity?: number;
+    sortIndex?: number;
     imageBucketId?: Uuid;
     imageData?: ImageDto;
 };

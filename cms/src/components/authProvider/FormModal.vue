@@ -1,9 +1,15 @@
+feat(auth-provider): add sortIndex to order providers in selection modals Adds an optional sortIndex
+field to AuthProviderDto so auth providers can be displayed in a deterministic, user-controlled
+order. The app and CMS selection modals apply the sort inside their live query (ascending; providers
+without a value fall to the end), and the CMS FormModal exposes a number input for editing it. New
+providers default to sortIndex 1.
 <script setup lang="ts">
 import { type AuthProviderDto, type GroupDto } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
+import LInput from "../forms/LInput.vue";
 import FormErrors from "./FormErrors.vue";
 import AuthConfig from "./AuthConfig.vue";
 import LabelAndType from "./LabelAndType.vue";
@@ -222,6 +228,34 @@ const handleRevert = () => {
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
+                    <label
+                        for="provider-sort-index"
+                        class="mb-1 block text-xs font-medium text-gray-700"
+                    >
+                        Sort Index
+                    </label>
+                    <LInput
+                        id="provider-sort-index"
+                        name="providerSortIndex"
+                        type="number"
+                        min="1"
+                        :model-value="provider.sortIndex != null ? String(provider.sortIndex) : ''"
+                        placeholder="1"
+                        :disabled="isDisabled"
+                        @update:model-value="
+                            (v) => {
+                                if (!provider) return;
+                                const trimmed = (v ?? '').trim();
+                                provider.sortIndex = trimmed === '' ? undefined : Number(trimmed);
+                            }
+                        "
+                    />
+                    <p class="mt-1 text-[11px] text-zinc-500">
+                        Lower values appear first in the provider selection list.
+                    </p>
+                </div>
+
+                <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <LCombobox
                         v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"
@@ -231,10 +265,7 @@ const handleRevert = () => {
                         :disabled="isDisabled"
                         data-test="groupSelector"
                     />
-                    <p
-                        v-if="memberOfError"
-                        class="mt-1 text-[11px] font-medium text-red-600"
-                    >
+                    <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
                         {{ memberOfError }}
                     </p>
                 </div>
