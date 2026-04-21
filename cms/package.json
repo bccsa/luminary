@@ -31,7 +31,6 @@
         "lodash.isequal": "^4.5.0",
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
-        "mammoth": "^1.12.0",
         "pinia": "^2.1.7",
         "rte-vue": "^1.1.13",
         "socket.io-client": "^4.7.4",
