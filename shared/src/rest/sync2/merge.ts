@@ -30,7 +30,7 @@ export function mergeVertical(options: SyncBaseOptions) {
             current.blockEnd =
                 next.blockStart === 0 && next.blockEnd === 0
                     ? current.blockEnd
-                    : next.blockEnd;
+                    : Math.min(current.blockEnd, next.blockEnd);
             current.eof = next.eof;
 
             // Remove next chunk from syncList
@@ -53,8 +53,7 @@ export function mergeVertical(options: SyncBaseOptions) {
     // eof is true only when ALL remaining chunks have reached eof.
     // This prevents prematurely stopping sync when a catch-up fetch (for new data)
     // reaches eof but older incomplete chunks still exist from an interrupted sync.
-    const eof =
-        filteredList.length > 0 ? filteredList.every((chunk) => chunk.eof === true) : false;
+    const eof = filteredList.length > 0 ? filteredList.every((chunk) => chunk.eof === true) : false;
 
     return { eof, blockStart, blockEnd };
 }

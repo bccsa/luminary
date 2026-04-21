@@ -894,4 +894,37 @@ describe("mergeVertical", () => {
         expect(result.blockStart).toBe(7000);
         expect(result.blockEnd).toBe(5000);
     });
+
+    it("should preserve blockEnd=0 when a boundary-overlap chunk is pushed on top of a fully-synced chunk", () => {
+        // Regression: syncBatch's syncTolerance overlap on an incremental sync can return a
+        // duplicate doc at the existing entry's blockStart. That pushes a new chunk with
+        // blockStart=T, blockEnd=T-syncTolerance. When mergeVertical adopts next.blockEnd
+        // unconditionally, it clobbers the existing blockEnd=0 — leaving a 1s-range entry
+        // that the initSync validation then discards, triggering a full resync on reload.
+        const T = 1_000_000;
+        const syncTolerance = 1000;
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: T,
+                blockEnd: 0,
+                eof: true,
+            },
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: T,
+                blockEnd: T - syncTolerance,
+                eof: true,
+            },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].blockStart).toBe(T);
+        expect(syncList.value[0].blockEnd).toBe(0);
+        expect(syncList.value[0].eof).toBe(true);
+    });
 });
