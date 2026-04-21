@@ -2,6 +2,14 @@
 
 This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser.
 
+## Architecture (media player)
+
+The global audio player uses a **contract** (`MediaPlayerService`), a single **injection key** (`MediaPlayerKey` from `src/plugins/media-player/token.ts`), and a **build-time** Vite resolution of `virtual:media-player` to `src/plugins/media-player/{BUILD_TARGET}/`. UI **`inject`s** the service using that key; it does not import implementation files. (`MediaPlayerKey` comes from `token.ts` so feature code does not depend on the virtual module graph.)
+
+For diagrams, folder layout, and how to add another target, see **[docs/research/vue-plugin-architecture/README.md](../docs/research/vue-plugin-architecture/README.md)**.
+
+Authentication is implemented in **`src/auth.ts`** (Auth0); it is not part of that virtual-module pipeline.
+
 ## Project structure
 
 > **Note:** We are currently migrating to a new component organization structure where each feature folder will contain a `__tests__` subdirectory alongside its related components. For example:
@@ -57,17 +65,15 @@ app/
 └── vitest.setup.ts               # Vitest test setup
 ```
 
-### Media player (build target)
+### Media player — `BUILD_TARGET`
 
-The global audio player is wired through `src/core/plugin-registry.ts`, which imports the implementation via the virtual module `virtual:media-player`. Vite resolves that to **one** folder under `src/plugins/media-player/{BUILD_TARGET}/` (for example `web` or `capacitor`), so only that implementation is bundled.
-
-Set the target in `.env` (see `.env.example`):
+Set in **`app/.env`** (see `.env.example`):
 
 ```bash
 BUILD_TARGET=web
 ```
 
-Feature code uses `inject(MediaPlayerKey)` and never imports a concrete implementation path.
+Vite resolves `virtual:media-player` to `src/plugins/media-player/{BUILD_TARGET}/index.ts`. Details: [architecture doc](../docs/research/vue-plugin-architecture/README.md).
 
 ### Extension plugins (optional classes)
 
