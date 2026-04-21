@@ -134,6 +134,7 @@ export function useAuthProviders() {
             domain: "",
             clientId: "",
             audience: "",
+            sortIndex: 1,
         };
         providers.value.push(newProvider);
 

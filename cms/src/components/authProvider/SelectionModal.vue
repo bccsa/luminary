@@ -16,7 +16,12 @@ const isVisible = defineModel<boolean>("isVisible");
 const storage = storageSelection();
 
 const allProviders = useDexieLiveQuery(
-    () => mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
+    async () => {
+        const list = await mangoToDexie<AuthProviderDto>(db.docs, {
+            selector: { type: DocType.AuthProvider },
+        });
+        return list.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
+    },
     { initialValue: [] as AuthProviderDto[] },
 );
 
