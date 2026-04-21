@@ -268,18 +268,6 @@ const canDelete = computed(() => {
     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
-const diffKeys = (a: any, b: any) => {
-    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
-    const diffs: Record<string, { editable: any; existing: any }> = {};
-    for (const k of keys) {
-        if (k === "updatedBy") continue;
-        if (!_.isEqual((a || {})[k], (b || {})[k])) {
-            diffs[k] = { editable: (a || {})[k], existing: (b || {})[k] };
-        }
-    }
-    return diffs;
-};
-
 const isDirty = computed(() => {
     const parentDirty = !_.isEqual(
         { ...editableParent.value, updatedBy: "" },
@@ -289,67 +277,8 @@ const isDirty = computed(() => {
         { ...editableContent.value, updatedBy: "" },
         { ...existingContent.value, updatedBy: "" },
     );
-    const dirty = parentDirty || contentDirty;
-    if (dirty) {
-        if (parentDirty) {
-            console.log(
-                "[EditContent] isDirty=true (parent)",
-                diffKeys(editableParent.value, existingParent.value),
-            );
-        }
-        if (contentDirty) {
-            const editArr = editableContent.value || [];
-            const existArr = existingContent.value || [];
-            const ids = new Set([
-                ...editArr.map((c) => c._id),
-                ...existArr.map((c) => c._id),
-            ]);
-            for (const id of ids) {
-                const e = editArr.find((c) => c._id === id);
-                const x = existArr.find((c) => c._id === id);
-                if (!_.isEqual(e, x)) {
-                    const diff =
-                        e && x ? diffKeys(e, x) : { editable: e, existing: x };
-                    console.log(
-                        "[EditContent] isDirty=true (content) doc " + id,
-                        JSON.parse(JSON.stringify(diff)),
-                    );
-                }
-            }
-        }
-    }
-    return dirty;
+    return parentDirty || contentDirty;
 });
-
-watch(
-    editableParent,
-    (val) => {
-        console.log("[EditContent] editableParent changed", _.cloneDeep(val));
-    },
-    { deep: true },
-);
-watch(
-    existingParent,
-    (val) => {
-        console.log("[EditContent] existingParent changed", _.cloneDeep(val));
-    },
-    { deep: true },
-);
-watch(
-    editableContent,
-    (val) => {
-        console.log("[EditContent] editableContent changed", _.cloneDeep(val));
-        console.trace("[EditContent] editableContent change stack");
-    },
-    { deep: true },
-);
-watch(
-    existingContent,
-    (val) => {
-        console.log("[EditContent] existingContent changed", _.cloneDeep(val));
-    },
-    { deep: true },
-);
 
 const isValid = ref(true);
 
