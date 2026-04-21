@@ -45,6 +45,7 @@ const handleMobileSidebarToggle = () => {
     <div class="flex h-full flex-col overflow-hidden">
         <div class="flex-shrink-0">
             <div
+                data-topbar
                 class="flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"
                 :class="[
                     { 'border-b border-zinc-200': !$slots.internalPageHeader },
@@ -143,6 +144,7 @@ const handleMobileSidebarToggle = () => {
                 <slot name="internalPageHeader" />
             </div>
             <div
+                data-scroll-container
                 class="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
                 :class="[
                     isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',

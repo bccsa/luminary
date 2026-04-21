@@ -554,6 +554,10 @@ const isLocalChange = useDexieLiveQuery(
     { initialValue: false },
 );
 const isLanguageSelectorCollapsed = ref(false);
+const languageSelectorHeight = ref(0);
+const mainContentStickyStyle = computed(() =>
+    isLanguageSelectorCollapsed.value ? { top: languageSelectorHeight.value + "px" } : undefined,
+);
 </script>
 
 <template>
@@ -689,6 +693,7 @@ const isLanguageSelectorCollapsed = ref(false);
                                 @update:selectorCollapsed="
                                     (val) => (isLanguageSelectorCollapsed = val)
                                 "
+                                @update:selectorHeight="(val) => (languageSelectorHeight = val)"
                             />
                         </div>
                         <EditContentVideo
@@ -706,10 +711,9 @@ const isLanguageSelectorCollapsed = ref(false);
             </div>
             <!-- main content instance -->
             <div
-                class="min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto"
-                :class="
-                    isLanguageSelectorCollapsed ? 'sticky top-14 z-[5]' : 'mt-2 overflow-y-auto'
-                "
+                class="mt-2 min-h-0 w-full scrollbar-hide lg:mt-0 lg:static lg:flex-1 lg:overflow-y-auto"
+                :class="isLanguageSelectorCollapsed ? 'sticky z-[5]' : 'overflow-y-auto'"
+                :style="mainContentStickyStyle"
             >
                 <EmptyState
                     v-if="!selectedContent"
@@ -755,6 +759,7 @@ const isLanguageSelectorCollapsed = ref(false);
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
                         :isLanguageSelectorCollapsed="isLanguageSelectorCollapsed"
+                        :languageSelectorHeight="languageSelectorHeight"
                     />
                 </div>
             </div>

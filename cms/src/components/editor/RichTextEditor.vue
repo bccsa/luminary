@@ -39,9 +39,9 @@ const toolbarClasses = {
     toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
     button: "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300 first:!rounded-l-md last:!rounded-r-md",
     buttonActive: "!bg-zinc-300",
-    editor: "flex flex-1 flex-col",
+    editor: "flex flex-1 flex-col min-h-0",
     editorContent:
-        "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)] overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 bg-white",
+        "prose overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 min-h-0 bg-white",
     placeholder: "text-zinc-400",
 } as const;
 
