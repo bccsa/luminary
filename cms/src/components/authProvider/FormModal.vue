@@ -1,3 +1,8 @@
+feat(auth-provider): add sortIndex to order providers in selection modals Adds an optional sortIndex
+field to AuthProviderDto so auth providers can be displayed in a deterministic, user-controlled
+order. The app and CMS selection modals apply the sort inside their live query (ascending; providers
+without a value fall to the end), and the CMS FormModal exposes a number input for editing it. New
+providers default to sortIndex 1.
 <script setup lang="ts">
 import { type AuthProviderDto, type GroupDto } from "luminary-shared";
 import { computed, ref, watch } from "vue";
@@ -241,13 +246,12 @@ const handleRevert = () => {
                             (v) => {
                                 if (!provider) return;
                                 const trimmed = (v ?? '').trim();
-                                provider.sortIndex =
-                                    trimmed === '' ? undefined : Number(trimmed);
+                                provider.sortIndex = trimmed === '' ? undefined : Number(trimmed);
                             }
                         "
                     />
                     <p class="mt-1 text-[11px] text-zinc-500">
-                        Lower values appear first in the provider selection list (starting at 1).
+                        Lower values appear first in the provider selection list.
                     </p>
                 </div>
 
@@ -261,10 +265,7 @@ const handleRevert = () => {
                         :disabled="isDisabled"
                         data-test="groupSelector"
                     />
-                    <p
-                        v-if="memberOfError"
-                        class="mt-1 text-[11px] font-medium text-red-600"
-                    >
+                    <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
                         {{ memberOfError }}
                     </p>
                 </div>
