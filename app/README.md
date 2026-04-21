@@ -1,8 +1,8 @@
 # Luminary App
 
-This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser
+This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser.
 
-## Project Structure
+## Project structure
 
 > **Note:** We are currently migrating to a new component organization structure where each feature folder will contain a `__tests__` subdirectory alongside its related components. For example:
 >
@@ -20,21 +20,23 @@ app/
 ├── public/                       # Static assets
 ├── scripts/                      # Build and deployment scripts
 │   └── setup-nginxvars.sh
+├── vite-plugins/                 # Vite-only helpers (e.g. build-time module resolution)
 ├── src/
 │   ├── analytics/                # Analytics tracking and integration
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components
 │   ├── composables/              # Vue composables (reusable composition logic)
+│   ├── core/                     # App composition (e.g. plugin registry)
 │   ├── guards/                   # Route guards
 │   ├── pages/                    # Page-level components
-│   ├── plugins/                  # Plugin system for extending functionality
+│   ├── plugins/                  # Build-target media player (see below) + optional extension plugins
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
 │   ├── tests/                    # Test utilities and helpers
 │   ├── types/                    # TypeScript type definitions
 │   ├── util/                     # Utility functions
 │   ├── analytics.ts              # Analytics entry point
-│   ├── auth.ts                   # Authentication logic
+│   ├── auth.ts                   # Authentication (Auth0) — app code, not a build plugin
 │   ├── globalConfig.ts           # Global configuration
 │   ├── i18n.ts                   # Internationalization setup
 │   ├── main.ts                   # Application entry point
@@ -55,11 +57,51 @@ app/
 └── vitest.setup.ts               # Vitest test setup
 ```
 
+### Media player (build target)
+
+The global audio player is wired through `src/core/plugin-registry.ts`, which imports the implementation via the virtual module `virtual:media-player`. Vite resolves that to **one** folder under `src/plugins/media-player/{BUILD_TARGET}/` (for example `web` or `capacitor`), so only that implementation is bundled.
+
+Set the target in `.env` (see `.env.example`):
+
+```bash
+BUILD_TARGET=web
+```
+
+Feature code uses `inject(MediaPlayerKey)` and never imports a concrete implementation path.
+
+### Extension plugins (optional classes)
+
+Separate from the media player: you can load extra TypeScript modules from outside the repo and instantiate them at startup.
+
+- Create a folder for those files somewhere **outside** this repo.
+- Set `VITE_PLUGIN_PATH` in `.env` so Vite copies those files into `src/plugins/` before dev/build/test.
+- Set `VITE_PLUGINS` to a JSON array of **file base names** (no `.ts`) to load via `src/util/pluginLoader.ts`.
+
+```bash
+VITE_PLUGIN_PATH="../../plugins"
+VITE_PLUGINS='["examplePlugin","examplePlugin2"]'
+```
+
+Each module must export a **class whose name matches the file name** (e.g. `examplePlugin.ts` exports `class examplePlugin`). The files are copied every time you run `vite` dev/build or Vitest.
+
+```ts
+export class examplePlugin {
+    constructor() {
+        this.someFunction();
+    }
+
+    someFunction() {
+        return "res";
+    }
+}
+```
+
 ## Internationalisation
 
 UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
 
 See [docs/translations.md](../docs/translations.md) for details on:
+
 - How to add or update translation strings
 - Strings that contain named interpolation placeholders (`{variable}`)
 - Strings that are shown only under specific UI conditions
@@ -75,49 +117,10 @@ When running `npm run dev` the local reloading server of the app will start at h
 
 The following query string parameters are supported:
 
-- autoplay=true - Auto plays video when opening a post / tag with video content
-- autofullscreen=true - Automatically switches to full screen video player mode on play
+- autoplay=true — Auto plays video when opening a post / tag with video content
+- autofullscreen=true — Automatically switches to full screen video player mode on play
 
 _Note: When navigating directly to a video post / tag URL, autoplay and autofullscreen will only work if playing without user interaction is enabled in the browser settings._
-
-## Plugins
-
-Plugins can be used to extend the functionality of Luminary.
-
-### How to add plugins
-
-- To add a plugin you need to create a plugins folder, somewhere out of the project structure
-- Set the VITE_PLUGIN_PATH env variable in your .env, then vite will go fetch your files at that location and copy it into the [plugins folder](./src/plugins/)
-
-```
-VITE_PLUGIN_PATH="../../plugins"
-```
-
-- To let luminary run the plugin you need to add a env variable VITE_PLUGINS to your env file and add an array of the plugins you want to add
-
-```
-VITE_PLUGINS=["examplePlugin", "examplePlugin2"]
-```
-
-- Every plugin class should have a constructor function
-
-**The files is being copied every time before vite build, dev, and test is run**
-
-### Plugin format
-
-```ts
-export class examplePlugin {
-    constructor() {
-        this.someFunction();
-    }
-
-    someFunction() {
-        return "res";
-    }
-}
-```
-
-**Important that the filename and the class name is the same, and that the file is a ts file**
 
 ## Build for production
 
@@ -128,8 +131,7 @@ docker build -t luminary-app .
 docker run --rm -it -p 8080:80 luminary-app
 ```
 
-`gzip` functionality is enabled by default, disable it as shown:
-**It is available as a docker .env parameter**
+`gzip` functionality is enabled by default; disable it as shown (available as a Docker `.env` parameter):
 
 ```sh
 docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app

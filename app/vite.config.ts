@@ -8,6 +8,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
 // @ts-expect-error - JavaScript module without type declarations
 import movePreloadScriptsToBody from "./src/assets/vite-plugins/movePreloadScriptsToBody.js";
+import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
@@ -15,6 +16,7 @@ const env = loadEnv("", process.cwd());
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        buildTargetVirtuals(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
         viteStaticCopy({
@@ -25,20 +27,17 @@ export default defineConfig({
                 },
             ],
         }),
-        // Load plugins
         {
             name: "Load Plugins For Build",
             async buildStart() {
-                // load .env file
                 process.env = { ...process.env, ...loadEnv("", process.cwd()) };
                 const pluginPath = process.env.VITE_PLUGIN_PATH;
 
                 if (!pluginPath) return;
-                // copy plugins into plugins folder
                 try {
                     await exec(`cp -R ${pluginPath}/* ./src/plugins`);
-                } catch (err: any) {
-                    console.log(err.message);
+                } catch (err: unknown) {
+                    console.log(err instanceof Error ? err.message : err);
                 }
             },
         },
@@ -48,7 +47,6 @@ export default defineConfig({
             workbox: {
                 globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
                 runtimeCaching: [
-                    // Cache images called outside of <img> tags (e.g. CSS background images, logos, etc.) - matches common image extensions
                     {
                         urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
                         handler: "CacheFirst",
@@ -59,7 +57,6 @@ export default defineConfig({
                             },
                         },
                     },
-                    // Cache images called within <img> tags (e.g. content images with relative URLs)
                     {
                         urlPattern: ({ request }) => request.destination === "image",
                         handler: "CacheFirst",
