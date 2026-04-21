@@ -16,15 +16,20 @@ import { useI18n } from "vue-i18n";
 const { t } = useI18n();
 const isVisible = defineModel<boolean>("isVisible");
 const allProviders = useDexieLiveQuery(
-    () => mangoToDexie<AuthProviderDto>(db.docs, { selector: { type: DocType.AuthProvider } }),
+    async () => {
+        const list = await mangoToDexie<AuthProviderDto>(db.docs, {
+            selector: { type: DocType.AuthProvider },
+        });
+        return list.sort(
+            (a, b) =>
+                (a.sortIndex ?? Number.POSITIVE_INFINITY) -
+                (b.sortIndex ?? Number.POSITIVE_INFINITY),
+        );
+    },
     { initialValue: [] as AuthProviderDto[] },
 );
 
-const providers = computed(() =>
-    [...(allProviders.value ?? [])].sort(
-        (a, b) => (a.sortIndex ?? Number.POSITIVE_INFINITY) - (b.sortIndex ?? Number.POSITIVE_INFINITY),
-    ),
-);
+const providers = computed(() => allProviders.value ?? []);
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;
