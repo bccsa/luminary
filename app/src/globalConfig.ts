@@ -396,6 +396,7 @@ export const theme = computed<"system" | "dark" | "light">({
  */
 export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
 
+// Live-syncs with OS `prefers-color-scheme` while theme === "system". The matchMedia check inside the watcher alone only runs on in-app theme changes — without this listener, a user flipping OS dark mode mid-session wouldn't update the app.
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 const applySystemTheme = () => {
