@@ -20,7 +20,11 @@ const allProviders = useDexieLiveQuery(
     { initialValue: [] as AuthProviderDto[] },
 );
 
-const providers = computed(() => allProviders.value ?? []);
+const providers = computed(() =>
+    [...(allProviders.value ?? [])].sort(
+        (a, b) => (a.sortIndex ?? Number.POSITIVE_INFINITY) - (b.sortIndex ?? Number.POSITIVE_INFINITY),
+    ),
+);
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;

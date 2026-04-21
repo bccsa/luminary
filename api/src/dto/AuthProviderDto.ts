@@ -84,6 +84,12 @@ export class AuthProviderDto extends _contentBaseDto {
     @Expose()
     public iconOpacity?: number;
 
+    /** Sort index used to order providers in selection UIs (ascending from 0) */
+    @IsNumber()
+    @IsOptional()
+    @Expose()
+    public sortIndex?: number;
+
     /** Storage bucket ID for the provider icon image */
     @IsString()
     @IsOptional()

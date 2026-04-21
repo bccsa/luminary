@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
+import LInput from "../forms/LInput.vue";
 import FormErrors from "./FormErrors.vue";
 import AuthConfig from "./AuthConfig.vue";
 import LabelAndType from "./LabelAndType.vue";
@@ -220,6 +221,35 @@ const handleRevert = () => {
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
+
+                <div class="rounded-md border border-zinc-200 bg-white p-2">
+                    <label
+                        for="provider-sort-index"
+                        class="mb-1 block text-xs font-medium text-gray-700"
+                    >
+                        Sort Index
+                    </label>
+                    <LInput
+                        id="provider-sort-index"
+                        name="providerSortIndex"
+                        type="number"
+                        min="1"
+                        :model-value="provider.sortIndex != null ? String(provider.sortIndex) : ''"
+                        placeholder="1"
+                        :disabled="isDisabled"
+                        @update:model-value="
+                            (v) => {
+                                if (!provider) return;
+                                const trimmed = (v ?? '').trim();
+                                provider.sortIndex =
+                                    trimmed === '' ? undefined : Number(trimmed);
+                            }
+                        "
+                    />
+                    <p class="mt-1 text-[11px] text-zinc-500">
+                        Lower values appear first in the provider selection list (starting at 1).
+                    </p>
+                </div>
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <LCombobox
