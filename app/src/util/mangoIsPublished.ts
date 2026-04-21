@@ -56,7 +56,7 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
  * Builds Mango selector conditions for "Published OR Scheduled coming-soon" content.
  *
  * Matches documents that are either:
- * - Fully published (publishDate in the past or absent), OR
+ * - Fully published (publishDate in the past), OR
  * - Scheduled (publishDate in the future) AND the parent has `parentShowComingSoon === true`
  *
  * Expired content is always excluded.
@@ -74,14 +74,9 @@ export function mangoIsPublishedOrScheduled(languageIds: Uuid[]): MangoSelector[
         // Expiry date check: either doesn't exist, is null, or is in the future
         { $or: [{ expiryDate: { $exists: false } }, { expiryDate: null }, { expiryDate: { $gte: now } }] },
 
-        // Either already published (publishDate in the past/absent) OR scheduled with the flag set
+        // Either already published (publishDate in the past) OR scheduled with the flag set
         {
-            $or: [
-                { publishDate: { $exists: false } },
-                { publishDate: null },
-                { publishDate: { $lte: now } },
-                 { parentShowComingSoon: true },
-            ],
+            $or: [{ publishDate: { $lte: now } }, { parentShowComingSoon: true }],
         },
 
         // Language priority: select the best available translation
