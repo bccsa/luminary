@@ -52,7 +52,7 @@ watch(isComboboxOpen, (val) => {
                 iconClass="h-5 w-5"
             />
         </div>
-        <div v-if="isComboboxOpen" @focusout="isComboboxOpen = false">
+        <div v-if="isComboboxOpen">
             <LCombobox
                 smallInput
                 ref="comboboxRef"
