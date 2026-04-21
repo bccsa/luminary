@@ -24,9 +24,10 @@ export class _contentParentDto extends _contentBaseDto {
     @Expose()
     publishDateVisible: boolean;
 
+    @IsOptional()
     @IsBoolean()
     @Expose()
-    showComingSoon: boolean;
+    showComingSoon?: boolean;
 
     @IsOptional()
     @IsString()
