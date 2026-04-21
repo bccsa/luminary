@@ -12,6 +12,7 @@ import {
     refreshTokenSilently,
 } from "@/auth";
 import { useNotificationStore } from "./stores/notification";
+import { appPluginsPlugin } from "@/core/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
@@ -22,7 +23,6 @@ import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
-import { platformServicesPlugin } from "./plugins/platform-services.plugin";
 
 export const app = createApp(App);
 
@@ -149,7 +149,7 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
-    app.use(platformServicesPlugin);
+    app.use(appPluginsPlugin);
     app.mount("#app");
 
     initAuthLangSync();
