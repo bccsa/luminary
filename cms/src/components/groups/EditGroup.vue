@@ -245,7 +245,7 @@ const duplicateGroup = async () => {
     <LDialog
         title=""
         :open="openModal"
-        @update:open="(val) => !val && emit('close')"
+        @update:open="(val: boolean | undefined) => !val && emit('close')"
         :primaryAction="() => save(group._id)"
         :primaryButtonText="!isNewGroup ? 'Save' : 'Create'"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
