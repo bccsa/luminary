@@ -80,7 +80,7 @@ export function mangoIsPublishedOrScheduled(languageIds: Uuid[]): MangoSelector[
                 { publishDate: { $exists: false } },
                 { publishDate: null },
                 { publishDate: { $lte: now } },
-                { $and: [{ publishDate: { $gt: now } }, { parentShowComingSoon: true }] },
+                 { parentShowComingSoon: true },
             ],
         },
 
