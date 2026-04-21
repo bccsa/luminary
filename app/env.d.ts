@@ -11,7 +11,7 @@ interface ImportMetaEnv {
 
     readonly VITE_SENTRY_DSN: string;
 
-    /** Selects `plugins/<name>/{BUILD_TARGET}/` for each virtual plugin module. */
+    /** Selects `plugins/media-player/{BUILD_TARGET}/` for `virtual:media-player`. */
     readonly BUILD_TARGET?: string;
 }
 

@@ -1,81 +1,48 @@
-# Vue Platform Plugin Starter Code
+# Starter code (example: media player)
 
-> **Note:** The Luminary app now uses **`virtual:media-player`**, **`BUILD_TARGET`**, and **`app/src/plugins/media-player/`** (see the [current architecture README](./README.md)). The **`platform/`** layout below is **illustrative** only and does not match the repository as of that migration.
+The **[architecture README](./README.md)** explains the pattern in general. This file uses the **global media player** — the first plugin in the repo wired this way — as a **concrete walkthrough**: **`virtual:media-player`**, **`BUILD_TARGET`**, **`app/src/plugins/media-player/`**, **`app/src/core/plugin-registry.ts`**, and **`app/vite-plugins/buildTargetVirtuals.ts`**.
 
-This starter shows a minimal but production-oriented skeleton for platform adapters in Vue 3 + Capacitor.
+Snippets are **shortened**; copy the real `contract.ts` from the repo when in doubt.
 
-Architecture choice applied here: **Option A (single runtime plugin)**, with **one folder per capability** under `platform/<feature>/` (contract, token, `web/`, `install.ts`) and a shared **`platform/core/`** for runtime detection. Hypothetical **downloads** below uses the same folder shape.
+---
 
-Repository boundary applied here:
+## 1) Vite: resolve the virtual module
 
-- `luminary` defines **contracts + tokens + the runtime plugin shell** and includes **web-safe adapters**.
-- `luminary-deployment/luminary-plugins` provides **Capacitor runtime integrations** (native plugin calls and/or Capacitor-conditioned web JS).
-
-## 1) Contracts
-
-Create `app/src/platform/media-player/contract.ts` (illustrative API — differs from the production `MediaPlayerService` in the app):
+`app/vite-plugins/buildTargetVirtuals.ts` (simplified):
 
 ```ts
-export type MediaKind = "audio" | "video";
+import { fileURLToPath } from "node:url";
+import { loadEnv } from "vite";
+import type { Plugin } from "vite";
 
-export interface MediaSource {
-  id: string;
-  url: string;
-  kind: MediaKind;
-}
+export function buildTargetVirtuals(): Plugin {
+    const root = fileURLToPath(new URL("../src", import.meta.url));
+    let buildTarget = "web";
 
-export interface PlayerState {
-  status: "idle" | "loading" | "playing" | "paused" | "error";
-  positionSeconds: number;
-  durationSeconds: number;
-  error?: string;
-}
-
-export interface MediaPlayerService {
-  readonly supportsBackgroundPlayback: boolean;
-  load(source: MediaSource): Promise<void>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  seek(seconds: number): Promise<void>;
-  onStateChange(cb: (state: PlayerState) => void): () => void;
-  dispose(): Promise<void>;
+    return {
+        name: "build-target-virtuals",
+        config(_userConfig, env) {
+            const loaded = loadEnv(env.mode, process.cwd(), "");
+            buildTarget = loaded.BUILD_TARGET || "web";
+        },
+        resolveId(id) {
+            if (id === "virtual:media-player") {
+                return `${root}/plugins/media-player/${buildTarget}/index.ts`;
+            }
+        },
+    };
 }
 ```
 
-Create `app/src/platform/downloads/contract.ts`:
+Register `buildTargetVirtuals()` in `vite.config.ts` (see repo).
 
-```ts
-export interface DownloadRequest {
-  id: string;
-  url: string;
-  fileName: string;
-}
+---
 
-export interface DownloadProgress {
-  id: string;
-  bytes: number;
-  totalBytes?: number;
-}
+## 2) Contract and token
 
-export interface DownloadedItem {
-  id: string;
-  path: string;
-  bytes: number;
-  createdAt: string;
-}
+**`app/src/plugins/media-player/contract.ts`** — define `MediaPlayerService` (see production file for the full API).
 
-export interface DownloadService {
-  readonly supportsBackgroundDownloads: boolean;
-  enqueue(request: DownloadRequest): Promise<void>;
-  remove(id: string): Promise<void>;
-  list(): Promise<DownloadedItem[]>;
-  onProgress(cb: (progress: DownloadProgress) => void): () => void;
-}
-```
-
-## 2) Tokens
-
-Create `app/src/platform/media-player/token.ts`:
+**`app/src/plugins/media-player/token.ts`**:
 
 ```ts
 import type { InjectionKey } from "vue";
@@ -84,279 +51,128 @@ import type { MediaPlayerService } from "./contract";
 export const MediaPlayerKey: InjectionKey<MediaPlayerService> = Symbol("MediaPlayerService");
 ```
 
-Create `app/src/platform/downloads/token.ts`:
+UI and tests import **`MediaPlayerKey` from here**, not from `plugin-registry`, so the module graph does not cycle through `virtual:media-player` when the web adapter references `AudioPlayer.vue`.
+
+---
+
+## 3) Web adapter (no default import of `AudioPlayer` in the class)
+
+**`app/src/plugins/media-player/web/media-player.web.ts`** — implement `MediaPlayerService`. Pass the shell component **into the constructor** (see production class). Do **not** import `AudioPlayer.vue` inside this file; that keeps wiring in `index.ts`.
 
 ```ts
-import type { InjectionKey } from "vue";
-import type { DownloadService } from "./contract";
-
-export const DownloadServiceKey: InjectionKey<DownloadService> = Symbol("DownloadService");
-```
-
-## 3) Runtime detection helper
-
-Create `app/src/platform/core/runtime.ts`.
-
-The real luminary app **does not** import `@capacitor/core`; it uses `globalThis.Capacitor` when the shell injects it (see `app/src/platform/core/runtime.ts` in the repo). For a greenfield snippet you might write:
-
-```ts
-export type RuntimePlatform = "web" | "ios" | "android";
-
-export interface RuntimeInfo {
-  isNative: boolean;
-  platform: RuntimePlatform;
-}
-
-export function getRuntimeInfo(): RuntimeInfo {
-  const c = (globalThis as { Capacitor?: { isNativePlatform(): boolean; getPlatform(): string } }).Capacitor;
-  if (!c) return { isNative: false, platform: "web" };
-  return {
-    isNative: c.isNativePlatform(),
-    platform: c.getPlatform() as RuntimePlatform,
-  };
-}
-```
-
-## 3.1) Shared core (used by multiple feature installers)
-
-Create `app/src/platform/shared/storage-core.ts` (shared cross-feature helpers stay outside `core/`):
-
-```ts
-export interface StoredDownloadMeta {
-  id: string;
-  path: string;
-  bytes: number;
-  createdAt: string;
-}
-
-export interface StorageCore {
-  saveDownloadMeta(item: StoredDownloadMeta): Promise<void>;
-  removeDownloadMeta(id: string): Promise<void>;
-  listDownloadMeta(): Promise<StoredDownloadMeta[]>;
-}
-
-export class InMemoryStorageCore implements StorageCore {
-  private items = new Map<string, StoredDownloadMeta>();
-
-  async saveDownloadMeta(item: StoredDownloadMeta): Promise<void> {
-    this.items.set(item.id, item);
-  }
-
-  async removeDownloadMeta(id: string): Promise<void> {
-    this.items.delete(id);
-  }
-
-  async listDownloadMeta(): Promise<StoredDownloadMeta[]> {
-    return [...this.items.values()];
-  }
-}
-```
-
-## 4) Web adapters (simple baseline)
-
-Create `app/src/platform/media-player/web/media-player.web.ts`:
-
-```ts
-import type { MediaPlayerService, MediaSource, PlayerState } from "../contract";
+import type { Component } from "vue";
+import type { MediaPlayerService, MediaPlayerState } from "../contract";
 
 export class WebMediaPlayerService implements MediaPlayerService {
-  readonly supportsBackgroundPlayback = false;
-  private listeners = new Set<(state: PlayerState) => void>();
-  private state: PlayerState = { status: "idle", positionSeconds: 0, durationSeconds: 0 };
+    readonly supportsBackgroundPlayback = false;
+    // … state, audio element wiring — see repo
 
-  async load(_source: MediaSource): Promise<void> {
-    this.state = { ...this.state, status: "paused", positionSeconds: 0 };
-    this.emit();
-  }
+    constructor(private readonly playerComponent: Component) {}
 
-  async play(): Promise<void> {
-    this.state = { ...this.state, status: "playing" };
-    this.emit();
-  }
+    getGlobalAudioPlayerComponent(): Component {
+        return this.playerComponent;
+    }
 
-  async pause(): Promise<void> {
-    this.state = { ...this.state, status: "paused" };
-    this.emit();
-  }
-
-  async seek(seconds: number): Promise<void> {
-    this.state = { ...this.state, positionSeconds: seconds };
-    this.emit();
-  }
-
-  onStateChange(cb: (state: PlayerState) => void): () => void {
-    this.listeners.add(cb);
-    cb(this.state);
-    return () => this.listeners.delete(cb);
-  }
-
-  async dispose(): Promise<void> {
-    this.listeners.clear();
-  }
-
-  private emit(): void {
-    this.listeners.forEach((cb) => cb(this.state));
-  }
+    // attachAudioElement, play, pause, …
 }
 ```
 
-## 5) Capacitor runtime adapters (deployment plugins)
+---
 
-In `luminary`, prefer not to add a local `adapters/capacitor/*` folder if you already have `luminary-deployment/luminary-plugins`.
+## 4) Web entry: install + default shell
 
-The Capacitor implementation should live in the deployment plugins repo (or be published from there as a package), and then be composed into `platformServicesPlugin` during installation.
-
-Below is still a valid example of what the Capacitor download adapter looks like — place it under:
-
-- `luminary-deployment/luminary-plugins/downloads.cap.ts` (or similar)
-
-Adjust the type import paths to your monorepo (they should resolve to luminary’s **`app/src/platform/downloads/contract.ts`** and **`app/src/platform/shared/storage-core.ts`** when using the folder layout above).
+**`app/src/plugins/media-player/web/index.ts`**:
 
 ```ts
-import { Capacitor } from "@capacitor/core";
-import { Directory, Filesystem } from "@capacitor/filesystem";
-import { FileTransfer } from "@capacitor/file-transfer";
-import type { DownloadService, DownloadProgress, DownloadRequest, DownloadedItem } from "../../contracts/downloads";
-import type { StorageCore } from "../../shared/storage-core";
+import type { App, Component } from "vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
+import { MediaPlayerKey } from "../token";
+import type { MediaPlayerService } from "../contract";
+import { WebMediaPlayerService } from "./media-player.web";
 
-export class CapacitorDownloadService implements DownloadService {
-  readonly supportsBackgroundDownloads = true;
-  private listeners = new Set<(p: DownloadProgress) => void>();
-  constructor(private readonly storageCore: StorageCore) {
-    if (!Capacitor.isPluginAvailable("FileTransfer")) {
-      throw new Error("FileTransfer plugin not available on this platform");
-    }
-  }
-
-  async enqueue(request: DownloadRequest): Promise<void> {
-    const fileInfo = await Filesystem.getUri({
-      directory: Directory.Data,
-      path: `downloads/${request.fileName}`,
-    });
-
-    const progressListener = await FileTransfer.addListener("progress", (progress) => {
-      this.emit({
-        id: request.id,
-        bytes: progress.bytes,
-        totalBytes: progress.lengthComputable ? progress.contentLength : undefined,
-      });
-    });
-
-    try {
-      await FileTransfer.downloadFile({
-        url: request.url,
-        path: fileInfo.uri,
-        progress: true,
-      });
-
-      await this.storageCore.saveDownloadMeta({
-        id: request.id,
-        path: fileInfo.uri,
-        bytes: 0,
-        createdAt: new Date().toISOString(),
-      });
-    } finally {
-      await progressListener.remove();
-    }
-  }
-
-  async remove(id: string): Promise<void> {
-    const item = (await this.storageCore.listDownloadMeta()).find((x) => x.id === id);
-    if (!item) return;
-    await Filesystem.deleteFile({ path: item.path });
-    await this.storageCore.removeDownloadMeta(id);
-  }
-
-  async list(): Promise<DownloadedItem[]> {
-    return await this.storageCore.listDownloadMeta();
-  }
-
-  onProgress(cb: (progress: DownloadProgress) => void): () => void {
-    this.listeners.add(cb);
-    return () => this.listeners.delete(cb);
-  }
-
-  private emit(progress: DownloadProgress): void {
-    this.listeners.forEach((cb) => cb(progress));
-  }
+export interface MediaPlayerInstallOptions {
+    audioPlayerComponent?: Component;
 }
+
+export function createMediaPlayerService(options: MediaPlayerInstallOptions = {}): MediaPlayerService {
+    return new WebMediaPlayerService(options.audioPlayerComponent ?? AudioPlayer);
+}
+
+export function installMediaPlayer(app: App, options: MediaPlayerInstallOptions = {}): void {
+    app.provide(MediaPlayerKey, createMediaPlayerService(options));
+}
+
+export { MediaPlayerKey } from "../token";
+export type { MediaPlayerService, MediaPlayerState, NowPlayingInfo } from "../contract";
 ```
 
-## 6) Installer plugin (Option A composition root)
+---
 
-Create `app/src/plugins/platform-services.plugin.ts` (in `luminary`):
+## 5) App registry
+
+**`app/src/core/plugin-registry.ts`**:
 
 ```ts
 import type { App } from "vue";
-import { getRuntimeInfo } from "../platform/core/runtime";
-import { MediaPlayerKey, WebMediaPlayerService } from "../platform/media-player";
-import { DownloadServiceKey } from "../platform/downloads/token";
-import type { DownloadService } from "../platform/downloads/contract";
-import { InMemoryStorageCore } from "../platform/shared/storage-core";
-// Example: runtime integration installers imported from deployment plugins (or a published package)
-// import { installCapacitorDownloads } from "luminary-plugins/capacitorDownloads";
+import { installMediaPlayer, MediaPlayerKey } from "virtual:media-player";
 
-class WebDownloadService implements DownloadService {
-  readonly supportsBackgroundDownloads = false;
-  async enqueue(): Promise<void> {}
-  async remove(): Promise<void> {}
-  async list() {
-    return [];
-  }
-  onProgress() {
-    return () => {};
-  }
+export function installPlugins(app: App): void {
+    installMediaPlayer(app);
 }
 
-export const platformServicesPlugin = {
-  install(app: App): void {
-    const runtime = getRuntimeInfo();
-    const sharedCore = new InMemoryStorageCore();
+export const plugins = {
+    mediaPlayer: { install: installMediaPlayer, MediaPlayerKey },
+} as const;
 
-    // Option A: one plugin, internal feature installers.
-    installMediaServices(app, runtime);
-    installDownloadServices(app, runtime, sharedCore);
+export { installMediaPlayer, MediaPlayerKey };
+export type { MediaPlayerService } from "@/plugins/media-player/contract";
 
-    // Optional: compose Capacitor runtime integrations here (deployment plugins).
-    // if (runtime.isNative) installCapacitorDownloads(app, runtime, sharedCore);
-  },
+export const appPluginsPlugin = {
+    install(app: App) {
+        installPlugins(app);
+    },
 };
-
-function installMediaServices(app: App, _runtime: ReturnType<typeof getRuntimeInfo>): void {
-  const mediaPlayer = new WebMediaPlayerService();
-  app.provide(MediaPlayerKey, mediaPlayer);
-}
-
-function installDownloadServices(
-  app: App,
-  runtime: ReturnType<typeof getRuntimeInfo>,
-  sharedCore: InMemoryStorageCore,
-): void {
-  // In luminary (web app), default to web adapter.
-  // In Capacitor builds, a deployment plugin should override/provide the native download service.
-  const downloadService = new WebDownloadService();
-  app.provide(DownloadServiceKey, downloadService);
-}
 ```
 
-## 7) Consumer usage pattern
+---
 
-Use contracts in feature code, with no platform branching:
+## 6) Bootstrap
+
+**`main.ts`** (extract):
 
 ```ts
-import { inject } from "vue";
-import { MediaPlayerKey } from "@/platform/media-player";
+import { appPluginsPlugin } from "@/core/plugin-registry";
 
-const player = inject(MediaPlayerKey);
-if (!player) throw new Error("MediaPlayerService not provided");
-
-await player.load({ id: "ep-1", kind: "audio", url: "https://..." });
-await player.play();
+// … after router, i18n, etc.
+app.use(appPluginsPlugin);
 ```
 
-## Notes before production
+---
 
-- Add persistent metadata storage for downloads (SQLite/Dexie/etc).
-- Normalize adapter errors into a shared app error type.
-- Add contract tests that run the same behavior checks for web/native adapters.
-- Introduce separate native webview player and native OS-level player if needed.
+## 7) Feature consumer
+
+```vue
+<script setup lang="ts">
+import { inject } from "vue";
+import { MediaPlayerKey } from "@/plugins/media-player/token";
+
+const mediaPlayerService = inject(MediaPlayerKey);
+if (!mediaPlayerService) throw new Error("MediaPlayerService not provided");
+</script>
+```
+
+---
+
+## 8) Adding another plugin (same pattern)
+
+The media player is **one** `virtual:…` plugin. A second concern (e.g. **`downloads`**, **`notifications`**) repeats the same five steps — see **[Adding another build-swapped plugin](./README.md#adding-another-build-swapped-plugin)** in the architecture README for the full checklist and diagram.
+
+Short version:
+
+1. **`app/src/plugins/<name>/`** — `contract.ts`, `token.ts`, `web/index.ts` with `install…` + `provide`.
+2. **`buildTargetVirtuals.ts`** — `resolveId("virtual:<name>")` → `plugins/<name>/${buildTarget}/index.ts`.
+3. **`env.d.ts`** — `declare module "virtual:<name>" { … }`.
+4. **`plugin-registry.ts`** — `import { install… } from "virtual:<name>"` and call it in `installPlugins`.
+5. Components — `inject` using `@/plugins/<name>/token`.
+
+Heavy native-only code can live in another package or repo and still be the body of a **`BUILD_TARGET`** implementation folder if you keep the **contract** stable in `luminary/app`.
