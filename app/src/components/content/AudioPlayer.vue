@@ -856,8 +856,8 @@ watch(
             selectedLanguageId.value = newContent.language;
         }
 
-        // Notify the platform media player service of the new track so the OS
-        // lock screen / Now Playing widget can display correct metadata.
+        // Notify MediaPlayerService of the new track so the OS lock screen / Now Playing
+        // widget can show correct metadata (when supported).
         if (newContent && newId !== oldId) {
             callSetNowPlaying();
         }

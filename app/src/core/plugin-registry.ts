@@ -2,7 +2,8 @@ import type { App } from "vue";
 import { installMediaPlayer, MediaPlayerKey } from "virtual:media-player";
 
 /**
- * Build-time–selected media player only. Auth stays in `@/auth` for now.
+ * Calls each `install*` from resolved `virtual:…` modules so services are `provide`d on the app.
+ * Register additional build-swapped plugins here; auth and other setup stay outside this file.
  */
 export function installPlugins(app: App): void {
     installMediaPlayer(app);
