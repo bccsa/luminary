@@ -9,6 +9,8 @@ import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
+import NotificationManager from "../notifications/NotificationManager.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 type Props = {
     title?: string;
@@ -102,7 +104,10 @@ defineExpose({
         :toolbar-groups="toolbarGrouping"
         :class-names="toolbarClasses"
         :on-request-link="openLinkModal"
-        :on-file-error="(error: Error) => console.error('File upload failed:', error)"
+        :on-file-error="
+            (error: Error) =>
+                useNotificationStore().addNotification({ type: 'error', message: error.message })
+        "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
             <div :class="toolbarClasses.toolbar">
