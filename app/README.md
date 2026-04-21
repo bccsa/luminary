@@ -2,13 +2,11 @@
 
 This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser.
 
-## Architecture (media player)
+## Architecture (build-time plugins)
 
-The global audio player uses a **contract** (`MediaPlayerService`), a single **injection key** (`MediaPlayerKey` from `src/plugins/media-player/token.ts`), and a **build-time** Vite resolution of `virtual:media-player` to `src/plugins/media-player/{BUILD_TARGET}/`. UI **`inject`s** the service using that key; it does not import implementation files. (`MediaPlayerKey` comes from `token.ts` so feature code does not depend on the virtual module graph.)
+Cross-cutting services can follow a **contract + injection key + build-time virtual module** pattern: Vite resolves `virtual:…` to one implementation folder under `src/plugins/<name>/`, and **`src/core/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** files, not direct imports of adapter code.
 
-For diagrams, folder layout, and how to add another target, see **[docs/research/vue-plugin-architecture/README.md](../docs/research/vue-plugin-architecture/README.md)**.
-
-Authentication is implemented in **`src/auth.ts`** (Auth0); it is not part of that virtual-module pipeline.
+**Example in this repo:** the global **audio player** (`virtual:media-player`, `src/plugins/media-player/`). Full pattern and diagrams: **[docs/research/vue-plugin-architecture/README.md](../docs/research/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin (same mechanism): **[Adding another build-swapped plugin](../docs/research/vue-plugin-architecture/README.md#adding-another-build-swapped-plugin)**.
 
 ## Project structure
 
@@ -37,14 +35,13 @@ app/
 │   ├── core/                     # App composition (e.g. plugin registry)
 │   ├── guards/                   # Route guards
 │   ├── pages/                    # Page-level components
-│   ├── plugins/                  # Build-target media player (see below) + optional extension plugins
+│   ├── plugins/                  # build-swapped plugins (e.g. media-player) + optional extension classes
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
 │   ├── tests/                    # Test utilities and helpers
 │   ├── types/                    # TypeScript type definitions
 │   ├── util/                     # Utility functions
 │   ├── analytics.ts              # Analytics entry point
-│   ├── auth.ts                   # Authentication (Auth0) — app code, not a build plugin
 │   ├── globalConfig.ts           # Global configuration
 │   ├── i18n.ts                   # Internationalization setup
 │   ├── main.ts                   # Application entry point
@@ -65,19 +62,19 @@ app/
 └── vitest.setup.ts               # Vitest test setup
 ```
 
-### Media player — `BUILD_TARGET`
+### `BUILD_TARGET` (virtual plugins)
 
-Set in **`app/.env`** (see `.env.example`):
+Defaults to **`web`**. Set in **`app/.env`** when needed (see `.env.example`):
 
 ```bash
 BUILD_TARGET=web
 ```
 
-Vite resolves `virtual:media-player` to `src/plugins/media-player/{BUILD_TARGET}/index.ts`. Details: [architecture doc](../docs/research/vue-plugin-architecture/README.md).
+Selects which subdirectory under each plugin (e.g. `plugins/media-player/{BUILD_TARGET}/`) Vite resolves for `virtual:…` modules. See [architecture doc](../docs/research/vue-plugin-architecture/README.md).
 
 ### Extension plugins (optional classes)
 
-Separate from the media player: you can load extra TypeScript modules from outside the repo and instantiate them at startup.
+Separate from **`virtual:…`** plugins: you can load extra TypeScript modules from outside the repo and instantiate them at startup.
 
 - Create a folder for those files somewhere **outside** this repo.
 - Set `VITE_PLUGIN_PATH` in `.env` so Vite copies those files into `src/plugins/` before dev/build/test.

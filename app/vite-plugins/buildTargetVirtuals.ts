@@ -3,8 +3,8 @@ import { loadEnv } from "vite";
 import type { Plugin } from "vite";
 
 /**
- * Resolves `virtual:media-player` to exactly one implementation
- * (`/plugins/media-player/{BUILD_TARGET}/index.ts`) so Rollup only bundles the active target.
+ * Resolves `virtual:media-player` to `src/plugins/media-player/{BUILD_TARGET}/index.ts`
+ * (default BUILD_TARGET: web).
  */
 export function buildTargetVirtuals(): Plugin {
     const root = fileURLToPath(new URL("../src", import.meta.url));
