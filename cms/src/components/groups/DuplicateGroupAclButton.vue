@@ -33,7 +33,7 @@ const selectGroup = (group: GroupDto) => {
         <template #trigger>
             <LButton
                 :icon="DocumentDuplicateIcon"
-                class="gap-x-0"
+                class="gap-x-0 !px-0"
                 variant="tertiary"
                 size="sm"
                 title="Duplicate"

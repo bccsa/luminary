@@ -871,20 +871,23 @@ describe("DbService", () => {
             expect(res.docs[0].docId).toBe(data._id);
         });
 
-        it("fails when trying to create a delete instruction for a group document", async () => {
+        it("can create a delete instruction for a group document", async () => {
             const doc = {
                 _id: "group-public-content",
                 testData: "test123",
                 type: DocType.Group,
             };
 
-            const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc, prevDoc: doc })
-                .catch((e) => e);
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
 
-            expect(err.message).toBe(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.Deleted);
+            expect(res.docs[0].docId).toBe(doc._id);
         });
 
         it("can generate a delete instruction for a 'statusChange' reason", async () => {

@@ -191,6 +191,7 @@ const save = async () => {
             state: res && res.ack == AckStatus.Accepted ? "success" : "error",
         });
     }
+    emit("close");
 };
 
 const saveDisabled = computed(() => {
@@ -206,11 +207,7 @@ const saveDisabled = computed(() => {
         @update:open="(val: boolean | undefined) => !val && emit('close')"
         :title="!isNew ? `Edit User` : 'Create New User'"
         @close.stop="emit('close')"
-        :primaryAction="
-            () => {
-                save(), emit('close');
-            }
-        "
+        :primaryAction="() => save()"
         :primaryButtonText="!isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="saveDisabled"
         :secondaryAction="() => emit('close')"

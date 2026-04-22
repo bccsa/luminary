@@ -528,6 +528,27 @@ describe("EditGroup", () => {
             const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
             expect(addButton.exists()).toBe(false);
         });
+
+        it("removes an assigned group and its ACL entries when triggered by the child component", async () => {
+            const wrapper = createWrapper();
+            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
+
+            const aclComponent = wrapper.findComponent({ name: "EditAclByGroup" });
+            const assignedGroupId = aclComponent.props("assignedGroup")._id;
+
+            const updatedAcl = testGroup.acl.filter((a) => a.groupId !== assignedGroupId);
+            const updatedGroup = { ...testGroup, acl: updatedAcl };
+
+            await aclComponent.vm.$emit("update:group", updatedGroup);
+            await wrapper.setProps({ group: updatedGroup });
+
+            expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
+                initialCount - 1,
+            );
+            expect(wrapper.vm.group.acl.some((a: any) => a.groupId === assignedGroupId)).toBe(
+                false,
+            );
+        });
     });
 
     describe("Visual State Updates", () => {

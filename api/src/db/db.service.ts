@@ -305,10 +305,6 @@ export class DbService extends EventEmitter {
             );
         }
 
-        if (doc.type === DocType.Group && doc.type === DocType.User) {
-            throw new Error(`Delete command is not implemented for ${doc.type} documents`);
-        }
-
         const res = await this.getDoc(doc._id);
 
         let existing: _baseDto; // if no existing document, this will be undefined
@@ -327,7 +323,6 @@ export class DbService extends EventEmitter {
 
         // Generate delete command if the document is set to be deleted, and delete the document
         if (doc.deleteReq) {
-            // Delete command is not valid for group or user documents, as they are not synced to clients
             await this.insertDeleteCmd({
                 reason: DeleteReason.Deleted,
                 doc: doc as _baseDto,
@@ -501,12 +496,6 @@ export class DbService extends EventEmitter {
                 ok: true,
                 message: "No delete command needed as the document does not exist in the database",
             } as DbUpsertResult;
-        }
-
-        if (options.doc.type === DocType.Group) {
-            throw new Error(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
         }
 
         const cmd = {
