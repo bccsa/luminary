@@ -186,19 +186,19 @@ onMounted(() => {
     </DisplayCard>
 
     <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
-        <div class="min-h-72">
-            <div
-                v-if="typesWithActivePermissions.length > 0"
-                class="mb-3 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 ring-1 ring-zinc-200"
-            >
+        <div class="flex min-h-72 flex-col">
+            <div v-if="typesWithActivePermissions.length > 0" class="mb-2 text-xs text-zinc-500">
                 <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
                 has this access to
                 <span class="font-semibold text-zinc-700">{{ group?.name }}</span>
             </div>
-            <div v-if="typesWithActivePermissions.length === 0" class="text-xs">
+            <div
+                v-if="typesWithActivePermissions.length === 0"
+                class="flex grow items-center justify-center text-center text-sm"
+            >
                 No active permissions, use the selector to add
             </div>
-            <div class="mb-3">
+            <div class="mb-3 grid grid-cols-[max-content_1fr_max-content] items-center">
                 <EditAclEntry
                     v-for="aclEntry in activeAclEntries"
                     :key="aclEntry.type"
