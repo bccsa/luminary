@@ -11,13 +11,13 @@ export default {
                 sans: ["Inter var", ...defaultTheme.fontFamily.sans],
             },
             keyframes: {
-                "loading-bar": {
-                    "0%": { width: "0%" },
-                    "100%": { width: "100%" },
+                "running-slug": {
+                    "0%": { left: "-40%" },
+                    "100%": { left: "100%" },
                 },
             },
             animation: {
-                "loading-bar": "loading-bar 2s linear infinite",
+                "running-slug": "running-slug 1.2s linear infinite",
             },
         },
     },
