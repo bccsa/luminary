@@ -106,8 +106,6 @@ describe("EditGroup", () => {
             global: {
                 plugins: [createTestingPinia({ createSpy: vi.fn })],
                 stubs: {
-                    EditAclByGroup: true,
-                    AddGroupAclButton: true,
                     ConfirmBeforeLeavingModal: true,
                     LButton: {
                         template:
@@ -548,6 +546,28 @@ describe("EditGroup", () => {
             expect(wrapper.vm.group.acl.some((a: any) => a.groupId === assignedGroupId)).toBe(
                 false,
             );
+        it("adds and displays a new group when selected via AddGroupAclButton", async () => {
+            const wrapper = createWrapper();
+            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
+
+            const addButton = wrapper
+                .findComponent({ name: "AddGroupAclButton" })
+                .find('[data-test="addGroupButton"]');
+            expect(addButton.exists()).toBe(true);
+            await addButton.trigger("click");
+
+            const selectGroupButtons = wrapper.findAll('[data-test="group-selector"]');
+            expect(selectGroupButtons.length).toBeGreaterThan(0);
+
+            const selectGroupButton = selectGroupButtons[0];
+            expect(selectGroupButton.exists()).toBe(true);
+            await selectGroupButton.trigger("click");
+
+            await waitForExpect(() => {
+                expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
+                    initialCount + 1,
+                );
+            });
         });
     });
 
