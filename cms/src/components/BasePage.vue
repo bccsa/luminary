@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
-import { type Component } from "vue";
+import { type Component, computed } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import { isSmallScreen } from "@/globalConfig";
@@ -20,7 +20,7 @@ type Props = {
     onOpenMobileSidebar?: () => void;
 };
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     loading: false,
     shouldShowPageTitle: true,
     centered: false,
@@ -29,10 +29,16 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
-const isEditContentPage = router.currentRoute.value.name === "edit";
-const isEditLanguagePage = router.currentRoute.value.name === "language";
+const isEditContentPage = computed(() => router.currentRoute.value.name === "edit");
+const isEditLanguagePage = computed(() => router.currentRoute.value.name === "language");
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("lg");
+
+const handleMobileSidebarToggle = () => {
+    if (isEditContentPage.value) router.push({ name: "overview" });
+    else if (isEditLanguagePage.value) router.push({ name: "languages" });
+    else props.onOpenMobileSidebar?.();
+};
 </script>
 
 <template>
@@ -50,13 +56,7 @@ const isMobileScreen = breakpoints.smaller("lg");
                     type="button"
                     data-test="chevron-icon"
                     class="text-zinc-500 max-sm:ml-5"
-                    @click="
-                        () => {
-                            if (isEditContentPage) router.push({ name: 'overview' });
-                            else if (isEditLanguagePage) router.push({ name: 'languages' });
-                            else onOpenMobileSidebar?.();
-                        }
-                    "
+                    @click="handleMobileSidebarToggle"
                 >
                     <span class="sr-only">Open sidebar</span>
                     <Bars3Icon
