@@ -16,8 +16,6 @@ type Props = {
     disabled: boolean;
     /** The bucket ID where existing images are currently stored (before any migration) */
     existingImagesBucketId?: string;
-    /** When true, skip auto-selecting a bucket if only one is available */
-    noAutoSelectBucket?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -30,6 +28,15 @@ const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
+
+// The bucket the editor should treat as "current". Falls back to the auto-selected
+// bucket when the parent has none persisted yet — so a single-bucket setup behaves
+// as if it's selected without mutating the parent (which would create a fake dirty
+// state on legacy docs). The parent is only written to when the user actually
+// uploads or picks a bucket.
+const effectiveImageBucketId = computed(
+    () => parent.value?.imageBucketId ?? bucketSelection.autoSelectImageBucket.value ?? undefined,
+);
 
 // Get separate URLs for existing vs new content
 // This ensures existing images continue to display from their original bucket
@@ -46,19 +53,18 @@ const newUploadsBucketUrl = computed(() => {
     return bucketBaseUrl.value;
 });
 const bucketBaseUrl = computed(() => {
-    // If parent or imageBucketId is not set, pass null to getBucketById (it accepts string | null)
-    const bucketId = parent.value?.imageBucketId ?? null;
+    const bucketId = effectiveImageBucketId.value ?? null;
     const bucket = bucketSelection.getBucketById(bucketId);
     return bucket ? bucket.publicUrl : undefined;
 });
 
 // Get accepted file types based on selected bucket
 const acceptedmimeTypes = computed(() => {
-    if (!parent.value?.imageBucketId) {
+    if (!effectiveImageBucketId.value) {
         return "image/*"; // default to all images
     }
 
-    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    const bucket = bucketSelection.getBucketById(effectiveImageBucketId.value);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*"; // accept all images if no restrictions
     }
@@ -69,11 +75,11 @@ const acceptedmimeTypes = computed(() => {
 
 // Get file type description for user
 const fileTypeDescription = computed(() => {
-    if (!parent.value?.imageBucketId) {
+    if (!effectiveImageBucketId.value) {
         return "";
     }
 
-    const bucket = bucketSelection.getBucketById(parent.value.imageBucketId);
+    const bucket = bucketSelection.getBucketById(effectiveImageBucketId.value);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "All image types";
     }
@@ -124,16 +130,6 @@ watchEffect(() => {
         }
     }
 
-    // Auto-select if only one bucket available and none is selected
-    if (
-        !props.noAutoSelectBucket &&
-        bucketSelection.autoSelectImageBucket.value &&
-        !parent.value?.imageBucketId
-    ) {
-        parent.value!.imageBucketId = bucketSelection.autoSelectImageBucket.value;
-        emit("bucketSelected", bucketSelection.autoSelectImageBucket.value);
-    }
-
     // Proactively show error messages for bucket configuration issues
     // This ensures users see the error immediately, not just when they try to upload
     if (!bucketSelection.hasImageBuckets.value) {
@@ -141,11 +137,11 @@ watchEffect(() => {
         failureMessage.value =
             "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
         showFailureMessage.value = true;
-    } else if (!parent.value?.imageBucketId && bucketSelection.imageBuckets.value.length > 1) {
+    } else if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1) {
         // Multiple buckets available but none selected
         failureMessage.value = "Please select a storage bucket before uploading images.";
         showFailureMessage.value = true;
-    } else if (parent.value?.imageBucketId) {
+    } else if (effectiveImageBucketId.value) {
         // Bucket is selected, clear any bucket-related errors
         // Only clear if the current error is about bucket selection/configuration
         const bucketRelatedErrors = [
@@ -165,11 +161,17 @@ const handleFiles = (files: FileList | null) => {
 
     const fileArray = Array.from(files);
 
-    // Check if a bucket is selected
-    if (!parent.value?.imageBucketId) {
+    // Resolve the bucket the user is uploading to. Persist it on the parent now —
+    // the upload itself is a real user edit, so the resulting dirty state is
+    // legitimate. Until this point the parent was untouched.
+    if (!effectiveImageBucketId.value) {
         failureMessage.value = "Please select a storage bucket before uploading images.";
         showFailureMessage.value = true;
         return;
+    }
+    if (parent.value && !parent.value.imageBucketId) {
+        parent.value.imageBucketId = effectiveImageBucketId.value;
+        emit("bucketSelected", effectiveImageBucketId.value);
     }
 
     // Check if the currently selected bucket still exists in the database
@@ -178,7 +180,7 @@ const handleFiles = (files: FileList | null) => {
     );
 
     if (!currentBucketExists) {
-        parent.value.imageBucketId = undefined;
+        if (parent.value) parent.value.imageBucketId = undefined;
         failureMessage.value =
             "The selected storage bucket no longer exists. Please select another bucket.";
         showFailureMessage.value = true;

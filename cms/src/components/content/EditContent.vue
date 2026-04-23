@@ -268,17 +268,17 @@ const canDelete = computed(() => {
     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
-const isDirty = computed(
-    () =>
-        !_.isEqual(
-            { ...editableParent.value, updatedBy: "" },
-            { ...existingParent.value, updatedBy: "" },
-        ) ||
-        !_.isEqual(
-            { ...editableContent.value, updatedBy: "" },
-            { ...existingContent.value, updatedBy: "" },
-        ),
-);
+const isDirty = computed(() => {
+    const parentDirty = !_.isEqual(
+        { ...editableParent.value, updatedBy: "" },
+        { ...existingParent.value, updatedBy: "" },
+    );
+    const contentDirty = !_.isEqual(
+        { ...editableContent.value, updatedBy: "" },
+        { ...existingContent.value, updatedBy: "" },
+    );
+    return parentDirty || contentDirty;
+});
 
 const isValid = ref(true);
 

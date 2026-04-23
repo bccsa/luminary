@@ -36,13 +36,22 @@ const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
 
+// The bucket the editor should treat as "current". Falls back to the auto-selected
+// bucket when the parent has none persisted yet — so a single-bucket setup behaves
+// as if it's selected without mutating the parent (which would create a fake dirty
+// state on legacy docs). The parent is only written to when the user actually
+// uploads or picks a bucket.
+const effectiveMediaBucketId = computed(
+    () => parent.value?.mediaBucketId ?? bucketSelection.autoSelectMediaBucket.value ?? undefined,
+);
+
 // Get accepted file types based on selected bucket
 const acceptedMimeTypes = computed(() => {
-    if (!parent.value?.mediaBucketId) {
+    if (!effectiveMediaBucketId.value) {
         return "audio/*"; // default to common audio formats
     }
 
-    const bucket = bucketSelection.getBucketById(parent.value.mediaBucketId);
+    const bucket = bucketSelection.getBucketById(effectiveMediaBucketId.value);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "audio/*"; // default if no restrictions
     }
@@ -53,11 +62,11 @@ const acceptedMimeTypes = computed(() => {
 
 // Get file type description for user
 const fileTypeDescription = computed(() => {
-    if (!parent.value?.mediaBucketId) {
+    if (!effectiveMediaBucketId.value) {
         return "";
     }
 
-    const bucket = bucketSelection.getBucketById(parent.value.mediaBucketId);
+    const bucket = bucketSelection.getBucketById(effectiveMediaBucketId.value);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "All audio types";
     }
@@ -173,12 +182,6 @@ watchEffect(() => {
         }
     }
 
-    // Auto-select if only one bucket available and none is selected
-    if (bucketSelection.autoSelectMediaBucket.value && !parent.value?.mediaBucketId) {
-        parent.value!.mediaBucketId = bucketSelection.autoSelectMediaBucket.value;
-        emit("bucketSelected", bucketSelection.autoSelectMediaBucket.value);
-    }
-
     // Proactively show error messages for bucket configuration issues
     // This ensures users see the error immediately, not just when they try to upload
     if (!bucketSelection.hasMediaBuckets.value) {
@@ -186,11 +189,11 @@ watchEffect(() => {
         failureMessage.value =
             "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading media.";
         showFailureMessage.value = true;
-    } else if (!parent.value?.mediaBucketId && bucketSelection.mediaBuckets.value.length > 1) {
+    } else if (!effectiveMediaBucketId.value && bucketSelection.mediaBuckets.value.length > 1) {
         // Multiple buckets available but none selected
         failureMessage.value = "Please select a storage bucket before uploading media.";
         showFailureMessage.value = true;
-    } else if (parent.value?.mediaBucketId) {
+    } else if (effectiveMediaBucketId.value) {
         // Bucket is selected, clear any bucket-related errors
         // Only clear if the current error is about bucket selection/configuration
         const bucketRelatedErrors = [
@@ -254,11 +257,17 @@ const handleFiles = (files: FileList | null) => {
     // Only process the first file
     const file = files[0];
 
-    // Check if a bucket is selected
-    if (!parent.value?.mediaBucketId) {
+    // Resolve the bucket the user is uploading to. Persist it on the parent now —
+    // the upload itself is a real user edit, so the resulting dirty state is
+    // legitimate. Until this point the parent was untouched.
+    if (!effectiveMediaBucketId.value) {
         failureMessage.value = "Please select a storage bucket before uploading media.";
         showFailureMessage.value = true;
         return;
+    }
+    if (parent.value && !parent.value.mediaBucketId) {
+        parent.value.mediaBucketId = effectiveMediaBucketId.value;
+        emit("bucketSelected", effectiveMediaBucketId.value);
     }
 
     // Check if the currently selected bucket still exists in the database
@@ -267,7 +276,7 @@ const handleFiles = (files: FileList | null) => {
     );
 
     if (!currentBucketExists) {
-        parent.value.mediaBucketId = undefined;
+        if (parent.value) parent.value.mediaBucketId = undefined;
         failureMessage.value =
             "The selected storage bucket no longer exists. Please select another bucket.";
         showFailureMessage.value = true;

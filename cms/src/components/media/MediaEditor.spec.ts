@@ -276,12 +276,30 @@ describe("MediaEditor.vue", () => {
         expect(languageDialog?.props("open")).toBe(false);
     });
 
-    it("auto-selects bucket when only one is available", () => {
+    it("auto-selects the single available bucket without mutating parent on mount", async () => {
         parent.mediaBucketId = undefined;
 
-        mount(MediaEditor, {
+        const wrapper = mount(MediaEditor, {
             props: { parent, disabled: false },
         });
+
+        // Opening the editor must not write to the parent — that was the
+        // phantom-dirty bug. The auto-selection is resolved internally via
+        // effectiveMediaBucketId so the upload picker and validation behave
+        // as if the single bucket is selected.
+        expect(parent.mediaBucketId).toBeUndefined();
+        expect(wrapper.text()).not.toContain("Please select a storage bucket");
+
+        // A genuine upload action persists the auto-selected bucket onto the
+        // parent, so the file lands in the right place.
+        const mockFile = new File(["audio"], "test.mp3", { type: "audio/mp3" });
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
+        (wrapper.vm as any).handleFiles(fileList);
+        await wrapper.vm.$nextTick();
 
         expect(parent.mediaBucketId).toBe("bucket-media");
     });
