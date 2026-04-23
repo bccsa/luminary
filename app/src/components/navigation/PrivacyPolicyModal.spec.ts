@@ -145,9 +145,7 @@ describe("PrivacyPolicyModal.vue", () => {
         expect(wrapper.html()).not.toContain("Privacy Policy");
     });
 
-    it.skip("shows the privacy policy as outdated when the policy is updated", async () => {
-        // Skipped: useDexieLiveQuery with mangoIsPublished + parentId filter doesn't resolve
-        // in the test environment. The compound selector needs real Dexie index support.
+    it("shows the privacy policy as outdated when the policy is updated", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
             logout: vi.fn(),
@@ -177,7 +175,7 @@ describe("PrivacyPolicyModal.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(
-                "We have updated our privacy policy. Please accept it for a fully featured app experience.",
+                "We have updated our privacy policy. Please accept it for a fully featured app experience",
             );
         });
 
