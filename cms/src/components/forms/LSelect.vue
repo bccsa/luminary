@@ -45,9 +45,9 @@ const model = defineModel<string | number | undefined>();
 
 const states = {
     default:
-        "border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500",
+        "border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0",
     error:
-        "border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500",
+        "border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0",
 };
 
 const sizeHeights = {
@@ -225,33 +225,38 @@ function onListKeydown(e: KeyboardEvent) {
         showDropdown.value = false;
     }
 }
+
+function listOptionClass(option: Option, index: number): string {
+    if (option.disabled) {
+        return "cursor-not-allowed text-zinc-400";
+    }
+    const selected = model.value === option.value;
+    const highlighted = highlightedIndex.value === index;
+    if (highlighted) {
+        return selected
+            ? "bg-zinc-100 font-medium text-zinc-900"
+            : "bg-zinc-100 text-black";
+    }
+    if (selected) {
+        return "bg-zinc-50 font-medium text-zinc-900 hover:bg-zinc-100";
+    }
+    return "bg-white text-black hover:bg-zinc-100";
+}
 </script>
 
 <template>
     <div
         ref="selectRoot"
+        class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
     >
-        <FormLabel
-            v-if="label"
-            :for="id"
-            class="mb-2 block text-sm font-medium leading-6 text-zinc-900"
-        >
-            {{ label }}
-        </FormLabel>
-        <div class="relative">
-            <div v-if="icon" class="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3">
-                <component
-                    :is="icon"
-                    :class="{
-                        'text-zinc-400': state == 'default' && !disabled,
-                        'text-zinc-300': state == 'default' && disabled,
-                        'text-red-400': state == 'error',
-                    }"
-                    class="h-5 w-5"
-                />
+        <div v-if="label" class="mb-2 flex justify-between">
+            <div class="flex items-center gap-1">
+                <FormLabel :for="id" :required="required">{{ label }}</FormLabel>
             </div>
+        </div>
+        <div class="relative">
             <div
                 :id="id"
                 ref="triggerRef"
@@ -262,41 +267,47 @@ function onListKeydown(e: KeyboardEvent) {
                 :aria-haspopup="true"
                 :aria-required="required"
                 tabindex="0"
-                class="relative flex cursor-default items-center justify-between gap-2 rounded-md border-[1px] focus:outline-none"
+                class="relative flex cursor-default justify-between gap-2 rounded-md border-[1px] focus:outline-none"
                 :class="[
                     states[state],
                     sizeHeights[size],
-                    icon ? 'pl-10 pr-8' : 'pl-3 pr-8',
+                    'pl-3 pr-8',
                     {
                         'cursor-not-allowed bg-zinc-100 text-zinc-500': disabled,
                         'text-zinc-900': !isPlaceholderShown && !disabled,
                         'text-zinc-400': isPlaceholderShown && !disabled,
-                        'hover:bg-zinc-50': !disabled && state === 'default',
                     },
                 ]"
                 v-bind="attrsWithoutStyles"
                 @click="toggle"
                 @keydown="onTriggerKeydown"
             >
-                <span
-                    class="min-w-0 flex-1 truncate text-left"
-                    :class="isPlaceholderShown ? 'font-normal' : 'font-semibold'"
-                >
-                    {{ displayText }}
-                </span>
-                <button
-                    class="absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
-                    type="button"
-                    tabindex="-1"
-                    :disabled="disabled"
-                    aria-hidden="true"
-                    @click.stop="toggle"
-                >
-                    <ChevronUpDownIcon
-                        class="h-5 w-5 text-zinc-400"
-                        :class="{ 'hover:cursor-pointer': !disabled }"
-                    />
-                </button>
+                <div class="flex min-w-0 flex-1 items-center justify-center gap-2">
+                    <div v-if="icon" class="flex shrink-0 items-center">
+                        <component
+                            :is="icon"
+                            :class="{
+                                'text-zinc-400': state == 'default' && !disabled,
+                                'text-zinc-300': state == 'default' && disabled,
+                                'text-red-400': state == 'error',
+                            }"
+                            class="h-5 w-5"
+                        />
+                    </div>
+                    <span class="z-0 min-w-0 flex-1 truncate text-left">
+                        {{ displayText }}
+                    </span>
+                    <button
+                        class="fs-0 absolute inset-y-0 right-0 z-10 flex cursor-default items-center px-2 focus:outline-none"
+                        type="button"
+                        tabindex="-1"
+                        :disabled="disabled"
+                        aria-hidden="true"
+                        @click.stop="toggle"
+                    >
+                        <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
+                    </button>
+                </div>
             </div>
         </div>
         <Teleport to="body">
@@ -323,18 +334,9 @@ function onListKeydown(e: KeyboardEvent) {
                     :aria-selected="model === option.value"
                     :aria-disabled="option.disabled === true"
                     name="list-item"
-                    class="w-full list-none text-start text-sm"
                     :class="[
-                        'relative cursor-default select-none py-2 pl-3 pr-9',
-                        {
-                            'bg-white text-zinc-900 hover:bg-zinc-100':
-                                !option.disabled && model !== option.value,
-                            'bg-zinc-50 font-medium text-zinc-900':
-                                !option.disabled && model === option.value,
-                            'bg-zinc-100':
-                                highlightedIndex === index && !option.disabled,
-                            'cursor-not-allowed text-zinc-400': option.disabled,
-                        },
+                        'relative w-full cursor-default select-none list-none py-2 pl-3 pr-9 text-start text-sm',
+                        listOptionClass(option, index),
                     ]"
                     @click="selectOption(option)"
                 >
