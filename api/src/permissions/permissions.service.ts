@@ -153,6 +153,22 @@ export class PermissionSystem extends EventEmitter {
             }
         });
 
+        // Drop the groupMap on disconnect — the change feed resumes without
+        // replaying events missed during downtime, so we must rehydrate from
+        // scratch on reconnect rather than risk serving stale permissions.
+        dbService.on("disconnect", () => {
+            initialized = false;
+            updateQueue = [];
+            PermissionSystem.clearGroupMap();
+        });
+        dbService.on("reconnect", async () => {
+            const dbGroups = await dbService.getGroups();
+            PermissionSystem.upsertGroups(dbGroups.docs);
+            PermissionSystem.upsertGroups(updateQueue);
+            updateQueue = [];
+            initialized = true;
+        });
+
         // Add existing groups to permission system
         const dbGroups = await dbService.getGroups();
         this.upsertGroups(dbGroups.docs);
@@ -161,6 +177,17 @@ export class PermissionSystem extends EventEmitter {
         this.upsertGroups(updateQueue);
         updateQueue = [];
         initialized = true;
+    }
+
+    /**
+     * Remove every entry from the global groupMap.
+     * Note: groupMap is used via property-access (`groupMap[id]`) rather than
+     * the Map API, so we delete enumerable properties here.
+     */
+    private static clearGroupMap() {
+        for (const key of Object.keys(groupMap)) {
+            delete (groupMap as any)[key];
+        }
     }
 
     /**

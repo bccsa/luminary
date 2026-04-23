@@ -475,6 +475,42 @@ describe("DbService", () => {
         });
     });
 
+    describe("disconnect events", () => {
+        afterEach(() => {
+            (service as any).connected = true;
+            (service as any).hasConnected = true;
+        });
+
+        it("emits 'reconnect' when waitForDb resolves after an initial connect", async () => {
+            let reconnectCount = 0;
+            const handler = () => reconnectCount++;
+            service.on("reconnect", handler);
+
+            // Simulate the reconnect path: hasConnected=true means an initial
+            // connect already happened, so the next successful waitForDb should
+            // fire 'reconnect'.
+            (service as any).hasConnected = true;
+            (service as any).connected = false;
+            await (service as any).waitForDb();
+
+            expect(reconnectCount).toBe(1);
+            service.off("reconnect", handler);
+        });
+
+        it("does not emit 'reconnect' on the initial connect", async () => {
+            let reconnectCount = 0;
+            const handler = () => reconnectCount++;
+            service.on("reconnect", handler);
+
+            (service as any).hasConnected = false;
+            (service as any).connected = false;
+            await (service as any).waitForDb();
+
+            expect(reconnectCount).toBe(0);
+            service.off("reconnect", handler);
+        });
+    });
+
     describe("ensureConnected", () => {
         beforeEach(() => {
             jest.useFakeTimers();

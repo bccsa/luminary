@@ -81,6 +81,8 @@ export type DbUpsertResult = {
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
+ * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
  * @example
  * // Listen for document updates
@@ -99,6 +101,7 @@ export class DbService extends EventEmitter {
     private db: any;
     protected syncTolerance: number;
     private connected = false;
+    private hasConnected = false;
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
@@ -148,8 +151,11 @@ export class DbService extends EventEmitter {
         while (true) {
             try {
                 await this.db.info();
+                const isReconnect = this.hasConnected;
                 this.connected = true;
+                this.hasConnected = true;
                 this.logger.info("Connected to database");
+                if (isReconnect) this.emit("reconnect");
                 return;
             } catch (err) {
                 this.connected = false;
@@ -194,13 +200,16 @@ export class DbService extends EventEmitter {
             })
             .on("error", (err) => {
                 this.logger.warn("Database changes feed error, will restart:", err.message || err);
+                const wasConnected = this.connected;
                 this.connected = false;
+                if (wasConnected) this.emit("disconnect");
                 this.reconnect();
             })
             .on("close", () => {
                 if (this.connected) {
                     this.logger.warn("Database changes feed closed unexpectedly, will restart");
                     this.connected = false;
+                    this.emit("disconnect");
                     this.reconnect();
                 }
             });
