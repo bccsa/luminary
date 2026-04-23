@@ -129,6 +129,7 @@ describe("FTS Indexer and Search", () => {
             const doc = makeContentDoc({ _id: "doc-stats", title: "quantum" });
 
             await ingestDocWithFts(doc, entries, tokenCount);
+            await recomputeCorpusStats();
 
             const stats = await getCorpusStats();
             expect(stats.docCount).toBe(1);
