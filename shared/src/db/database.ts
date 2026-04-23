@@ -294,9 +294,11 @@ class Database extends Dexie {
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
         const result = await this.docs.bulkPut(nonDeleteDocs);
 
-        // Update corpus stats if this batch contained ContentDtos
+        // Update corpus stats if this batch contained ContentDtos.
+        // Debounced so a burst of sync batches triggers a single full-corpus scan 10 s
+        // after sync quiets, rather than one O(n) scan per batch (O(n²) across sync).
         if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {
-            await recomputeCorpusStats();
+            scheduleCorpusStatsRecompute();
         }
 
         return result;
