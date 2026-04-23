@@ -1,4 +1,4 @@
-export const loadFallbackImageUrls = async () => {
+export const loadFallbackImageUrls = () => {
     const images = import.meta.glob<string>("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}", {
         eager: true,
         import: "default",
