@@ -36,29 +36,11 @@ const showHeaderCloseButton = computed(() => isMobileScreen.value || !isInputFoc
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
 
-/** Legacy keys: previously stored in localStorage or sessionStorage; remove on mount. */
-const LEGACY_QUERY_STORAGE_KEYS = [
-    "luminary-search-current-query",
-    "luminary-search-last-executed-query",
-] as const;
-
 function getRecentSearchesLocalStorage(): Storage | null {
     try {
         return typeof window !== "undefined" ? window.localStorage : null;
     } catch {
         return null;
-    }
-}
-
-function clearLegacySearchStorage() {
-    try {
-        if (typeof window === "undefined") return;
-        for (const key of LEGACY_QUERY_STORAGE_KEYS) {
-            localStorage.removeItem(key);
-            sessionStorage.removeItem(key);
-        }
-    } catch {
-        /* ignore */
     }
 }
 
@@ -572,7 +554,6 @@ const goToResult = (result: EnrichedResult) => {
 let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
-    clearLegacySearchStorage();
     handleGlobalKeydown = (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
             event.preventDefault();
