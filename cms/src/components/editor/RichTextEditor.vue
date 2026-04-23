@@ -3,12 +3,13 @@ import { RTextEditor, type ToolbarItem } from "rte-vue";
 import { ref, toRefs } from "vue";
 import type { Component } from "vue";
 import { type Editor } from "@tiptap/vue-3";
-import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
+import { LinkSlashIcon, LinkIcon, ArrowUpTrayIcon } from "@heroicons/vue/20/solid";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 type Props = {
     title?: string;
@@ -23,11 +24,16 @@ const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
 const showModal = ref(false);
 const url = ref("");
 
+function getEditor(): Editor | undefined {
+    return rteRef.value?.editor;
+}
+
 const toolbarGrouping: ToolbarItem[][] = [
     ["bold", "italic", "strike"],
     ["heading2", "heading3", "heading4", "heading5"],
     ["bulletList", "orderedList"],
     ["link", "unlink"],
+    ["upload"],
 ];
 
 const toolbarClasses = {
@@ -80,14 +86,7 @@ function handleToolbarClick(item: ToolbarItem, runCommand: (item: ToolbarItem) =
 
 defineExpose({
     get editor(): Editor | undefined {
-        const editorRef =
-            (rteRef.value as { editor?: unknown } | undefined)?.editor ??
-            (rteRef.value as { $?: { setupState?: { editor?: unknown } } } | undefined)?.$
-                ?.setupState?.editor;
-        if (editorRef && typeof editorRef === "object" && "value" in editorRef) {
-            return (editorRef as { value?: unknown }).value as Editor | undefined;
-        }
-        return editorRef as Editor | undefined;
+        return getEditor();
     },
 });
 </script>
@@ -99,33 +98,50 @@ defineExpose({
         v-model="text"
         content-format="html"
         :disabled="props.disabled"
+        :uploader="true"
         :toolbar-groups="toolbarGrouping"
         :class-names="toolbarClasses"
         :on-request-link="openLinkModal"
+        :heading-offset="1"
+        :on-file-error="
+            (error: Error) =>
+                useNotificationStore().addNotification({
+                    state: 'error',
+                    title: 'File Upload Failed',
+                    description: error.message,
+                })
+        "
     >
-        <template #toolbar-button="{ item, label, active, disabled: isDisabled, runCommand }">
-            <button
-                type="button"
-                :disabled="isDisabled"
-                :title="label"
-                :class="[
-                    toolbarClasses.button,
-                    active ? toolbarClasses.buttonActive : '',
-                    isDisabled ? 'cursor-not-allowed opacity-50' : '',
-                ]"
-                @click="
-                    handleToolbarClick(
-                        item as ToolbarItem,
-                        runCommand as (item: ToolbarItem) => void,
-                    )
-                "
-            >
-                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
-                <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
-                <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
-                <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
-                <span v-else>{{ label }}</span>
-            </button>
+        <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
+            <div :class="toolbarClasses.toolbar">
+                <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
+                    <button
+                        v-for="item in group"
+                        :key="item"
+                        type="button"
+                        :disabled="isDisabled(item)"
+                        :title="getLabel(item)"
+                        :class="[
+                            toolbarClasses.button,
+                            isActive(item) ? toolbarClasses.buttonActive : '',
+                            isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
+                        ]"
+                        @click="
+                            handleToolbarClick(
+                                item as ToolbarItem,
+                                runCommand as (item: ToolbarItem) => void,
+                            )
+                        "
+                    >
+                        <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
+                        <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
+                        <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
+                        <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
+                        <ArrowUpTrayIcon v-else-if="item === 'upload'" class="h-5 w-5" />
+                        <span v-else>{{ getLabel(item) }}</span>
+                    </button>
+                </div>
+            </div>
         </template>
     </RTextEditor>
     <LModal

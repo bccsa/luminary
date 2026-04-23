@@ -47,6 +47,7 @@ describe("RichTextEditor", () => {
                     }
                     return "";
                 },
+                files: [],
             },
         });
 
@@ -270,5 +271,101 @@ describe("RichTextEditor", () => {
         // Editor should have standard TipTap methods
         expect(editor?.commands).toBeDefined();
         expect(editor?.getAttributes).toBeDefined();
+    });
+
+    describe("file uploader integration", () => {
+        it("renders an upload button in the toolbar", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            const uploadButton = wrapper.find('button[title="Upload"]');
+            expect(uploadButton.exists()).toBe(true);
+        });
+
+        it("renders a hidden file input for upload", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            const fileInput = wrapper.find('input[type="file"]');
+            expect(fileInput.exists()).toBe(true);
+            expect(fileInput.attributes("accept")).toBe(".docx,.odt,.odf,.txt");
+        });
+
+        it("renders upload button with the ArrowUpTrayIcon", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            const uploadButton = wrapper.find('button[title="Upload"]');
+            expect(uploadButton.exists()).toBe(true);
+            // The button should contain an SVG icon (ArrowUpTrayIcon), not a text label
+            expect(uploadButton.find("svg").exists()).toBe(true);
+            expect(uploadButton.find("span").exists()).toBe(false);
+        });
+
+        it("shows drop overlay when dragging a file over the editor", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".rte-editor").exists()).toBe(true);
+            });
+
+            const editorDiv = wrapper.find(".rte-editor");
+
+            await editorDiv.trigger("dragover", {
+                dataTransfer: { files: [new File([""], "test.docx")], items: [] },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".rte-drop-overlay").exists()).toBe(true);
+            });
+        });
+
+        it("does not have custom drag/drop handlers on the wrapper (delegated to rte-vue)", () => {
+            // Verify the component no longer wraps the editor in a custom drag-drop div
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            // The root element should be the RTextEditor, not a wrapper div with drag handlers
+            const html = wrapper.html();
+            expect(html).not.toContain("Drop file to insert content");
+        });
     });
 });
