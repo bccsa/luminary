@@ -3,6 +3,7 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import CreateOrEditUser from "./CreateOrEditUser.vue";
 import LDialog from "../common/LDialog.vue";
+import LSelect from "../forms/LSelect.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -236,10 +237,11 @@ describe("CreateOrEditUser.vue", () => {
         });
 
         await waitForExpect(() => {
-            const providerSelect = wrapper.find('[data-test="userProvider"]');
+            const providerSelect = wrapper.findComponent(LSelect);
             expect(providerSelect.exists()).toBe(true);
-            expect(providerSelect.element.innerHTML).toContain("Choose a provider");
-            expect(providerSelect.element.innerHTML).toContain("Example");
+            const options = providerSelect.props("options") as { label: string }[];
+            expect(options.some((o) => o.label.includes("Choose a provider"))).toBe(true);
+            expect(options.some((o) => o.label === "Example")).toBe(true);
         });
     });
 
@@ -256,10 +258,8 @@ describe("CreateOrEditUser.vue", () => {
             expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const providerSelect = wrapper.find(
-            '[data-test="userProvider"]',
-        ) as DOMWrapper<HTMLSelectElement>;
-        await providerSelect.setValue(mockAuthProvider._id);
+        const providerSelect = wrapper.findComponent(LSelect);
+        await providerSelect.vm.$emit("update:modelValue", mockAuthProvider._id);
 
         const saveSpy = vi.spyOn(getRest(), "changeRequest");
         const saveButton = wrapper
