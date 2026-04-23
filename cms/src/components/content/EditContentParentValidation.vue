@@ -8,7 +8,7 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { computed, ref, watch, watchEffect, onMounted, onUnmounted } from "vue";
+import { computed, nextTick, ref, watch, watchEffect, onMounted, onUnmounted } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import LanguageSelector from "./LanguageSelector.vue";
 import {
@@ -46,6 +46,10 @@ const overallIsValid = ref(true);
 const showLanguageSelector = ref(false);
 const isLanguageSelectorCollapsed = ref(false);
 const languageSelector = ref<HTMLElement>();
+// When the user manually expands the card while it's still inside the sticky
+// collision zone, pause auto-collapse so their click actually takes effect.
+// Reset once they scroll far enough away from the topbar.
+let userExpandOverride = false;
 
 // Check if card is close to topbar
 const checkTopbarCollision = () => {
@@ -54,34 +58,53 @@ const checkTopbarCollision = () => {
     // Only run on small screens or when testing
     if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
-    const topbar = document.querySelector('[class*="sticky top-0 z-40"]') as HTMLElement;
+    const topbar = document.querySelector("[data-topbar]") as HTMLElement;
     if (!topbar) return;
 
     const topbarBottom = topbar.getBoundingClientRect().bottom;
     const cardTop = languageSelector.value.getBoundingClientRect().top;
     const distance = cardTop - topbarBottom;
 
-    // Collapse if card is within 25px of topbar (give more buffer)
-    const shouldCollapse = distance <= 25;
-    isLanguageSelectorCollapsed.value = shouldCollapse;
+    if (userExpandOverride) {
+        // Only re-arm auto-collapse once the user has scrolled clear of the sticky zone.
+        if (distance > 60) userExpandOverride = false;
+        return;
+    }
+
+    // Hysteresis: collapse when close to topbar, uncollapse when sufficiently away
+    // This prevents jitter from layout reflow triggering rapid collapse/uncollapse
+    if (!isLanguageSelectorCollapsed.value && distance <= 25) {
+        isLanguageSelectorCollapsed.value = true;
+    } else if (isLanguageSelectorCollapsed.value && distance > 60) {
+        isLanguageSelectorCollapsed.value = false;
+    }
 };
 
 onMounted(() => {
     // Run on small screens or when testing
     if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
-    // Add window scroll listener for topbar collision check
-    window.addEventListener("scroll", checkTopbarCollision, { passive: true });
-
-    // Also listen to any scroll events that might affect positioning
+    // Listen during capture phase so it fires even when scroll propagation is stopped
     document.addEventListener("scroll", checkTopbarCollision, { passive: true, capture: true });
 
+    // Track selector size changes (e.g., unsaved-changes warnings appearing/disappearing)
+    if (languageSelector.value && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => emitSelectorHeight());
+        resizeObserver.observe(languageSelector.value);
+    }
+
     // Initial check
-    setTimeout(() => checkTopbarCollision(), 100);
+    setTimeout(() => {
+        checkTopbarCollision();
+        emitSelectorHeight();
+    }, 100);
 });
 
 onUnmounted(() => {
-    window.removeEventListener("scroll", checkTopbarCollision);
+    document.removeEventListener("scroll", checkTopbarCollision, {
+        capture: true,
+    } as EventListenerOptions);
+    resizeObserver?.disconnect();
 });
 
 const router = useRouter();
@@ -111,7 +134,55 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
 const emit = defineEmits<{
     (e: "updateIsValid", value: boolean): void;
     (e: "createTranslation", language: LanguageDto): void;
+    (e: "update:selectorCollapsed", value: boolean): void;
+    (e: "update:selectorHeight", value: number): void;
 }>();
+
+let resizeObserver: ResizeObserver | undefined;
+
+const emitSelectorHeight = () => {
+    const height = languageSelector.value?.getBoundingClientRect().height ?? 0;
+    emit("update:selectorHeight", height);
+};
+
+watch(
+    isLanguageSelectorCollapsed,
+    async (val, prevVal) => {
+        emit("update:selectorCollapsed", val);
+
+        // User just expanded the card manually. If it's still in the sticky
+        // collision zone, suppress auto-collapse until they scroll away.
+        if (prevVal === true && val === false) {
+            const topbar = document.querySelector("[data-topbar]") as HTMLElement | null;
+            if (topbar && languageSelector.value) {
+                const distance =
+                    languageSelector.value.getBoundingClientRect().top -
+                    topbar.getBoundingClientRect().bottom;
+                if (distance <= 60) userExpandOverride = true;
+            }
+        } else if (val) {
+            userExpandOverride = false;
+        }
+
+        await nextTick();
+        emitSelectorHeight();
+    },
+    // Sync so the override is set before any scroll event that may fire from
+    // layout shift or touch-scroll momentum after the chevron tap.
+    { flush: "sync" },
+);
+
+// Preempt auto-collapse on any tap that originates inside the card header/chevron,
+// so a touch tap that fires alongside a momentum-scroll event can't lose the race.
+const onSelectorPointerDown = (event: PointerEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    // Only arm the override when the tap is on the collapse chevron — taps that
+    // land elsewhere (e.g. starting a touch-scroll) shouldn't suppress auto-collapse.
+    if (target.closest('[data-test="collapse-button"]')) {
+        userExpandOverride = true;
+    }
+};
 
 watchEffect(() => {
     emit("updateIsValid", overallIsValid.value);
@@ -158,13 +229,18 @@ watch(
 </script>
 
 <template>
-    <div ref="languageSelector">
+    <div ref="languageSelector" @pointerdown="onSelectorPointerDown">
         <LCard
-            class="bg-white"
+            :class="[
+                'bg-white',
+                // In the sticky/collapsed state, drop the 2px y-borders and the
+                // card shadow so adjacent cards don't stack visible dividers.
+                isLanguageSelectorCollapsed && '!shadow-none',
+            ]"
             shadow="small"
             title="Translations"
             :icon="LanguageIcon"
-            collapsible
+            :collapsible="props.languages.length > 1"
             v-model:collapsed="isLanguageSelectorCollapsed"
         >
             <template #actions>
@@ -199,7 +275,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-2" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
+                <div class="flex flex-col gap-1" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -213,7 +289,7 @@ watch(
                 </div>
             </template>
 
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col">
                 <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
                     class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
