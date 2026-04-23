@@ -10,6 +10,15 @@ export default {
             fontFamily: {
                 sans: ["Inter var", ...defaultTheme.fontFamily.sans],
             },
+            keyframes: {
+                "running-slug": {
+                    "0%": { left: "-40%" },
+                    "100%": { left: "100%" },
+                },
+            },
+            animation: {
+                "running-slug": "running-slug 1.2s linear infinite",
+            },
         },
     },
     // @ts-expect-error
