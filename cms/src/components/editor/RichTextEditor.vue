@@ -104,9 +104,14 @@ defineExpose({
         :toolbar-groups="toolbarGrouping"
         :class-names="toolbarClasses"
         :on-request-link="openLinkModal"
+        :heading-offset="1"
         :on-file-error="
             (error: Error) =>
-                useNotificationStore().addNotification({ type: 'error', message: error.message })
+                useNotificationStore().addNotification({
+                    state: 'error',
+                    title: 'File Upload Failed',
+                    description: error.message,
+                })
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
