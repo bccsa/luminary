@@ -15,7 +15,7 @@ import {
     TagType,
     Uuid,
 } from "../types";
-import { recomputeCorpusStats, scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { ref, type Ref, toRaw, watch } from "vue";
@@ -296,7 +296,7 @@ class Database extends Dexie {
 
         // Update corpus stats if this batch contained ContentDtos
         if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {
-            await recomputeCorpusStats();
+            scheduleCorpusStatsRecompute();
         }
 
         return result;
@@ -892,7 +892,7 @@ export async function initDatabase() {
     // Compute FTS corpus stats on startup.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
     setTimeout(() => {
-        recomputeCorpusStats();
+        scheduleCorpusStatsRecompute();
     }, 0);
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
@@ -901,9 +901,13 @@ export async function initDatabase() {
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
-    watchValue(accessMap, () => {
-        db.deleteRevoked();
-    }, { immediate: true });
+    watchValue(
+        accessMap,
+        () => {
+            db.deleteRevoked();
+        },
+        { immediate: true },
+    );
 
     watch(
         syncMap,
