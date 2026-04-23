@@ -277,18 +277,27 @@ describe("ImageEditor", () => {
         expect(wrapper.text()).toContain("file size is larger than the maximum");
     });
 
-    it("auto-selects bucket when only one is available", async () => {
+    it("does not mutate parent on mount when a single bucket is available, but persists on upload", async () => {
         const parent: ContentParentDto = {
             ...mockPostDto,
             imageBucketId: undefined,
             imageData: { fileCollections: [] },
         };
 
-        mount(ImageEditor, {
+        const wrapper = mount(ImageEditor, {
             props: { parent, disabled: false },
         });
 
-        // The watchEffect should auto-select the single available bucket
+        // Mount must not mutate the parent — otherwise legacy docs open as phantom-dirty.
+        expect(parent.imageBucketId).toBeUndefined();
+
+        // An actual upload is a real user edit and should persist the effective bucket.
+        const mockFile = new File(["x"], "img.jpg", { type: "image/jpeg" });
+        Object.defineProperty(mockFile, "size", { value: 1024 });
+        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        (wrapper.vm as any).handleFiles(fileList);
+        await wrapper.vm.$nextTick();
+
         expect(parent.imageBucketId).toBe("bucket-images");
     });
 });

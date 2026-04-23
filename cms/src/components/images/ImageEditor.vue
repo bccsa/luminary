@@ -16,8 +16,6 @@ type Props = {
     disabled: boolean;
     /** The bucket ID where existing images are currently stored (before any migration) */
     existingImagesBucketId?: string;
-    /** When true, skip auto-selecting a bucket if only one is available */
-    noAutoSelectBucket?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -55,8 +53,7 @@ const newUploadsBucketUrl = computed(() => {
     return bucketBaseUrl.value;
 });
 const bucketBaseUrl = computed(() => {
-    // If parent or imageBucketId is not set, pass null to getBucketById (it accepts string | null)
-    const bucketId = parent.value?.imageBucketId ?? null;
+    const bucketId = effectiveImageBucketId.value ?? null;
     const bucket = bucketSelection.getBucketById(bucketId);
     return bucket ? bucket.publicUrl : undefined;
 });
@@ -131,16 +128,6 @@ watchEffect(() => {
                 parent.value.imageBucketId = undefined;
             }
         }
-    }
-
-    // Auto-select if only one bucket available and none is selected
-    if (
-        !props.noAutoSelectBucket &&
-        bucketSelection.autoSelectImageBucket.value &&
-        !parent.value?.imageBucketId
-    ) {
-        parent.value!.imageBucketId = bucketSelection.autoSelectImageBucket.value;
-        emit("bucketSelected", bucketSelection.autoSelectImageBucket.value);
     }
 
     // Proactively show error messages for bucket configuration issues
