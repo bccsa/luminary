@@ -4,7 +4,7 @@ import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/2
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef, isMac, isMdScreen } from "@/globalConfig";
+import { appLanguageIdsAsRef, isMac, isMobileScreen } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, db, stripHtml } from "luminary-shared";
@@ -24,18 +24,19 @@ const isInputFocused = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
-// Lock the mode when the overlay opens to avoid flicker if `window.innerWidth`
-// changes while typing (e.g. mobile on-screen keyboard).
-const isManualSearchMode = ref(isMdScreen.value);
+// Same breakpoint as MobileMenu (`lg` / isMobileScreen). Keep in sync with viewport width so
+// manual search + Go never stick after resize to desktop; keyboards rarely change innerWidth.
+const isManualSearchMode = computed(() => isMobileScreen.value);
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
+/** Wide screens only: hide the header X while the input is focused. Below lg (mobile menu), focus/blur is unreliable, so always show close. */
+const showHeaderCloseButton = computed(() => isMobileScreen.value || !isInputFocused.value);
+
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
-const CURRENT_SEARCH_QUERY_KEY = "luminary-search-current-query";
-const LAST_EXECUTED_SEARCH_QUERY_KEY = "luminary-search-last-executed-query";
 
-function getStorage(): Storage | null {
+function getRecentSearchesLocalStorage(): Storage | null {
     try {
         return typeof window !== "undefined" ? window.localStorage : null;
     } catch {
@@ -43,27 +44,9 @@ function getStorage(): Storage | null {
     }
 }
 
-function loadFromStorage(key: string): string {
-    return getStorage()?.getItem(key) ?? "";
-}
-
-function saveToStorage(key: string, value: string | null): void {
-    try {
-        if (value === null) getStorage()?.removeItem(key);
-        else getStorage()?.setItem(key, value);
-    } catch {
-        /* ignore */
-    }
-}
-
-function persistLastExecutedQuery(q: string) {
-    const trimmed = q.trim();
-    if (trimmed.length >= 3) saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, trimmed);
-}
-
 function loadRecentSearches(): string[] {
     try {
-        const raw = getStorage()?.getItem(RECENT_SEARCHES_KEY);
+        const raw = getRecentSearchesLocalStorage()?.getItem(RECENT_SEARCHES_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : [];
@@ -72,9 +55,7 @@ function loadRecentSearches(): string[] {
     }
 }
 
-const searchQuery = ref(
-    loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) || loadFromStorage(CURRENT_SEARCH_QUERY_KEY),
-);
+const searchQuery = ref("");
 const recentSearches = ref<string[]>(loadRecentSearches());
 
 function pushRecentSearch(q: string) {
@@ -86,12 +67,15 @@ function pushRecentSearch(q: string) {
         RECENT_SEARCHES_MAX,
     );
     recentSearches.value = next;
-    saveToStorage(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    try {
+        getRecentSearchesLocalStorage()?.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
 }
 
 function pickRecentSearch(term: string) {
     searchQuery.value = term;
-    persistLastExecutedQuery(term);
     runSearch();
     // Clicking a recent-search chip moves focus to the button.
     // Bring focus back to the input and select the query so arrow keys work within the modal.
@@ -274,6 +258,8 @@ function createHighlight(doc: ContentDto, query: string): string | undefined {
 type EnrichedResult = ContentDto & {
     highlight: string | undefined;
     titleHighlight: string;
+    /** HTML with <mark> for query terms; only set when `author` is present */
+    authorHighlight: string | undefined;
     languageName: string;
 };
 
@@ -331,6 +317,9 @@ const results = computed<EnrichedResult[]>(() => {
             ...doc,
             titleHighlight: applyTermHighlights(stripHtml(doc.title ?? ""), query),
             highlight: createHighlight(doc, query),
+            authorHighlight: doc.author
+                ? applyTermHighlights(stripHtml(doc.author), query)
+                : undefined,
             languageName: languageNames.value.get(doc.language) ?? "",
         }));
 });
@@ -377,13 +366,7 @@ watch(
         const trimmed = newQuery.trim();
         // Editing the query should cancel any selected result so Enter applies the search.
         if (newQuery !== oldQuery) selectedIndex.value = -1;
-        if (trimmed) {
-            saveToStorage(CURRENT_SEARCH_QUERY_KEY, trimmed);
-        } else {
-            saveToStorage(CURRENT_SEARCH_QUERY_KEY, null);
-            // Clearing the input should also clear the last executed query,
-            // so reopening doesn't restore a previous search.
-            saveToStorage(LAST_EXECUTED_SEARCH_QUERY_KEY, null);
+        if (!trimmed) {
             ftsResults.value = [];
             resolvedDocs.value = new Map();
             lastSearchedQuery.value = "";
@@ -392,24 +375,11 @@ watch(
     },
 );
 
-watch(lastSearchedQuery, (q) => {
-    if (q) persistLastExecutedQuery(q);
-});
-
 watch(isSearchOpen, (open) => {
     isOpen.value = open;
     if (!open) {
         selectedIndex.value = -1;
         return;
-    }
-
-    isManualSearchMode.value = isMdScreen.value;
-
-    const persistedQuery =
-        loadFromStorage(LAST_EXECUTED_SEARCH_QUERY_KEY) ||
-        loadFromStorage(CURRENT_SEARCH_QUERY_KEY);
-    if (persistedQuery !== searchQuery.value.trim()) {
-        searchQuery.value = persistedQuery;
     }
 
     // Mobile manual mode: reset so the user explicitly re-runs the search.
@@ -452,15 +422,9 @@ watch(isSearchOpen, (open) => {
         }
 
         const q = searchQuery.value.trim();
-        if (q.length >= 3) {
-            if (isManualSearchMode.value) {
-                // Manual mode only: keep the UI/results, but don't re-run the same query on reopen.
-                if (lastSearchedQuery.value !== q) runSearch();
-            } else {
-                // Live mode: avoid re-searching on reopen if we already have results.
-                if ((ftsResults.value as any)?.length === 0) runSearch();
-            }
-        }
+        // Only fetch when the current query has not already been searched (covers live + manual,
+        // including "no results" where ftsResults is empty but lastSearchedQuery matches).
+        if (q.length >= 3 && lastSearchedQuery.value !== q) runSearch();
     });
 }, { immediate: true });
 
@@ -536,7 +500,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         // Enter should apply the current query if it hasn't been searched yet.
         if (q.length >= 3 && isNewQuery) {
             pushRecentSearch(q);
-            persistLastExecutedQuery(q);
             runSearch();
             if (isManualSearchMode.value) inputRef.value?.blur();
             return;
@@ -548,7 +511,6 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             if (!isManualSearchMode.value) return;
             if (q.length < 3) return;
             pushRecentSearch(q);
-            persistLastExecutedQuery(q);
             runSearch();
             inputRef.value?.blur();
         }
@@ -578,7 +540,6 @@ function onGoClick() {
     const q = searchQuery.value.trim();
     if (q.length < 3) return;
     pushRecentSearch(q);
-    persistLastExecutedQuery(q);
     runSearch();
     if (isManualSearchMode.value) inputRef.value?.blur();
 }
@@ -627,7 +588,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
         >
             <div
                 v-show="isOpen"
-                class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+                class="fixed inset-x-0 top-0 bottom-0 z-50 flex max-lg:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
                 @click.self="closeSearch"
             >
                 <div
@@ -678,7 +639,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                 <ArrowUturnLeftIcon class="h-5 w-5" />
                             </button>
                             <button
-                                v-if="!isInputFocused"
+                                v-if="showHeaderCloseButton"
                                 class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                 :aria-label="t('search.close')"
                                 @click="closeSearch"
@@ -756,12 +717,12 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                         <div
                             v-else-if="showResults"
                             id="search-results-container"
-                            class="py-2 pb-24 md:py-3 md:pb-3"
+                            class="pb-24 pt-0 md:pb-3"
                         >
                             <ul
                                 role="listbox"
                                 :aria-label="t('search.ariaLabel')"
-                                class="divide-y divide-zinc-200 dark:divide-slate-700"
+                                class="list-none divide-y divide-zinc-200 dark:divide-slate-700"
                             >
                                 <li
                                     v-for="(result, index) in results"
@@ -769,14 +730,22 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                     :id="`search-result-${index}`"
                                     role="option"
                                     :aria-selected="index === selectedIndex"
-                                    class="group cursor-pointer px-3 py-2.5 transition-colors first:pt-0 last:pb-2 hover:bg-zinc-50 dark:hover:bg-slate-800/70 md:px-4 md:py-3 md:last:pb-3"
+                                    class="group relative cursor-pointer list-none px-3 md:px-4"
                                     :class="{
-                                        'bg-zinc-50 dark:bg-slate-800/70': index === selectedIndex,
+                                        'hover:bg-zinc-50 dark:hover:bg-slate-800/70':
+                                            index !== selectedIndex,
                                     }"
                                     @click="goToResult(result)"
                                     @mouseenter="selectedIndex = index"
                                 >
-                                    <div class="flex min-w-0 gap-2 self-center md:gap-3">
+                                    <div
+                                        v-if="index === selectedIndex"
+                                        class="pointer-events-none absolute inset-0 z-0 bg-zinc-50 dark:bg-slate-800/70"
+                                        aria-hidden="true"
+                                    />
+                                    <div
+                                        class="relative z-10 flex w-full min-w-0 items-stretch gap-2 py-2.5 md:gap-3 md:py-3"
+                                    >
                                         <div class="flex flex-shrink-0 items-center justify-center">
                                             <LImage
                                                 :image="result.parentImageData"
@@ -825,8 +794,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                                                 <span
                                                     v-if="result.author"
                                                     class="truncate"
-                                                    >{{ result.author }}</span
                                                 >
+                                                    <span
+                                                        v-if="result.authorHighlight"
+                                                        v-html="result.authorHighlight"
+                                                    />
+                                                    <template v-else>{{ result.author }}</template>
+                                                </span>
                                                 <span
                                                     v-if="
                                                         result.author &&

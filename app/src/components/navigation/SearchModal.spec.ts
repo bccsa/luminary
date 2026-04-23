@@ -101,8 +101,12 @@ function setupFts(
     return { resultsRef, isSearchingRef, hasMoreRef, lastSearchedQueryRef };
 }
 
+/** Only one SearchModal should stay mounted: they all subscribe to the shared overlay ref. */
+let lastSearchModalWrapper: ReturnType<typeof mount> | null = null;
+
 function mountComponent() {
-    return mount(SearchModal, {
+    lastSearchModalWrapper?.unmount();
+    lastSearchModalWrapper = mount(SearchModal, {
         global: {
             stubs: {
                 Transition: { template: "<slot />" },
@@ -110,6 +114,7 @@ function mountComponent() {
             },
         },
     });
+    return lastSearchModalWrapper;
 }
 
 async function openOverlay() {
@@ -134,10 +139,15 @@ describe("SearchButton", () => {
         loadMoreMock.mockReset();
         routePushMock.mockReset();
         window.localStorage.clear();
+        window.sessionStorage.clear();
+        // Widen viewport so isMobileScreen matches desktop (lg); other tests set 600px and resize is global.
+        window.innerWidth = 1024;
+        window.dispatchEvent(new Event("resize"));
     });
 
     afterEach(() => {
-        // Reset the shared overlay singleton so tests don't bleed into each other
+        lastSearchModalWrapper?.unmount();
+        lastSearchModalWrapper = null;
         const { closeSearch } = useSearchOverlay();
         closeSearch();
         vi.clearAllMocks();
@@ -194,8 +204,8 @@ describe("SearchButton", () => {
         });
 
         it("selects the full previous query when opened via Cmd+K", async () => {
-            // Persist a previous query before mounting
-            window.localStorage.setItem("luminary-search-last-executed-query", "willowdale");
+            // Session-scoped persist (same tab session only)
+            window.sessionStorage.setItem("luminary-search-last-executed-query", "willowdale");
 
             // Run rAF callbacks synchronously so setSelectionRange executes before assertions.
             // vi.runAllTimers() does not flush requestAnimationFrame because @sinonjs/fake-timers
@@ -206,6 +216,12 @@ describe("SearchButton", () => {
             });
 
             const wrapper = mountComponent();
+            await openOverlay();
+            await wrapper.find("input").setValue("willowdale");
+            await nextTick();
+            const { closeSearch } = useSearchOverlay();
+            closeSearch();
+            await flushPromises();
 
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
             await nextTick();
@@ -434,7 +450,7 @@ describe("SearchButton", () => {
             expect(wrapper.findAll("[role='option']")).toHaveLength(0);
         });
 
-        it("automatically reruns search on reopen when there is a persisted non-empty query", async () => {
+        it("does not rerun search on reopen when the last query was already executed", async () => {
             const { resultsRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
@@ -451,14 +467,12 @@ describe("SearchButton", () => {
             closeSearch();
             await flushPromises();
 
-            // Capture current call count, then reopen and assert it increases
             const beforeCalls = runSearchMock.mock.calls.length;
 
-            // Reopen overlay; non-empty query should trigger an automatic search
             openSearch();
             await flushPromises();
 
-            expect(runSearchMock.mock.calls.length).toBeGreaterThan(beforeCalls);
+            expect(runSearchMock.mock.calls.length).toBe(beforeCalls);
         });
 
         it("selects the persisted query when reopened after navigating to a result", async () => {
@@ -600,6 +614,22 @@ describe("SearchButton", () => {
             await flushPromises();
 
             expect(wrapper.find("input").isVisible()).toBe(false);
+        });
+
+        it("keeps the close button visible when the input is focused on mobile width", async () => {
+            window.innerWidth = 600;
+            window.dispatchEvent(new Event("resize"));
+
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").trigger("focus");
+            await nextTick();
+
+            const closeBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Close search");
+            expect(closeBtn).toBeDefined();
         });
     });
 

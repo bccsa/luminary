@@ -8,6 +8,7 @@ import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid"
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
+import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
@@ -136,5 +137,6 @@ onErrorCaptured((err) => {
     </div>
     <!-- Privacy Policy Modal for authentication flow -->
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
+    <SearchModal />
     <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
 </template>
