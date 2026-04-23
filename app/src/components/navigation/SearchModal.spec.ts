@@ -595,11 +595,9 @@ describe("SearchButton", () => {
             await wrapper.find("input").trigger("focus");
             await nextTick();
 
-            // The button container should have h-9 class for consistent height
-            const buttonContainer = wrapper
-                .find("input")
-                .element.parentElement!.querySelector(".flex.h-9.flex-shrink-0");
-            expect(buttonContainer).not.toBeNull();
+            // The button column sits beside the input wrapper; keep a stable h-9 even when empty
+            const buttonContainer = wrapper.find(".flex.h-9.flex-shrink-0");
+            expect(buttonContainer.exists()).toBe(true);
         });
 
         it("can still close via ESC when the close button is hidden", async () => {
