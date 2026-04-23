@@ -35,6 +35,19 @@ export class QueryService {
             }
         });
 
+        // Drop the language cache on disconnect; any changes made while the feed
+        // was down would otherwise be missed by the resumed change stream.
+        this.db.on("disconnect", () => {
+            this.languages = [];
+        });
+        this.db.on("reconnect", () => {
+            this.loadLanguages();
+        });
+
+        this.loadLanguages();
+    }
+
+    private loadLanguages() {
         this.db
             .executeFindQuery({
                 selector: { type: DocType.Language },
@@ -42,7 +55,7 @@ export class QueryService {
                 use_index: "sync-language-index",
             })
             .then((res) => {
-                this.languages.push(...(res.docs as LanguageDto[]));
+                this.languages = res.docs as LanguageDto[];
             });
     }
 

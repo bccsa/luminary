@@ -627,4 +627,50 @@ describe("QueryService", () => {
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });
+
+    describe("language cache clearing on DB disconnect", () => {
+        it("clears the languages cache on disconnect and refetches on reconnect", async () => {
+            const { EventEmitter } = await import("node:events");
+            const emitter = new EventEmitter();
+
+            const executeFindQuery = jest
+                .fn()
+                .mockResolvedValueOnce({
+                    docs: [{ _id: "lang-eng", type: DocType.Language, languageCode: "eng" }],
+                })
+                .mockResolvedValueOnce({
+                    docs: [
+                        { _id: "lang-eng", type: DocType.Language, languageCode: "eng" },
+                        { _id: "lang-fra", type: DocType.Language, languageCode: "fra" },
+                    ],
+                });
+
+            const dbMock: any = Object.assign(emitter, { executeFindQuery });
+
+            const moduleRef = await Test.createTestingModule({
+                providers: [
+                    QueryService,
+                    { provide: DbService, useValue: dbMock },
+                    { provide: WINSTON_MODULE_PROVIDER, useValue: logger },
+                ],
+            }).compile();
+
+            const qs: any = moduleRef.get(QueryService);
+
+            // Let the constructor's initial load resolve.
+            await new Promise((r) => setImmediate(r));
+            expect(qs.languages).toHaveLength(1);
+            expect(qs.languages[0]._id).toBe("lang-eng");
+
+            // Disconnect should drop the cache.
+            emitter.emit("disconnect");
+            expect(qs.languages).toEqual([]);
+
+            // Reconnect should rehydrate from DB.
+            emitter.emit("reconnect");
+            await new Promise((r) => setImmediate(r));
+            expect(qs.languages).toHaveLength(2);
+            expect(qs.languages.map((l: any) => l._id).sort()).toEqual(["lang-eng", "lang-fra"]);
+        });
+    });
 });

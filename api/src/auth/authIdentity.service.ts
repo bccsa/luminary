@@ -72,6 +72,15 @@ export class AuthIdentityService implements OnModuleInit {
                 this.defaultGroupsCache = null;
             }
         });
+
+        // Drop all DTO-derived caches on DB disconnect so we don't serve stale
+        // provider/mapping state if docs change while the change feed is down.
+        this.dbService.on("disconnect", () => {
+            this.providerCache.clear();
+            this.autoGroupMappingsCache.clear();
+            this.defaultGroupsCache = null;
+            this.jwksClients.clear();
+        });
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {

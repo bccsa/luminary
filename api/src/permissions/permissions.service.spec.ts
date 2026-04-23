@@ -899,5 +899,19 @@ describe("PermissionService", () => {
                 expect(res[DocType.Language].includes("test-group")).toBe(true);
             });
         });
+
+        it("clears the groupMap on DB disconnect and rehydrates on reconnect", async () => {
+            // Sanity: seeded groups are present before disconnect.
+            expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
+
+            testingModule.dbService.emit("disconnect");
+            // clearGroupMap runs synchronously on the 'disconnect' emit.
+            expect(PermissionSystem.hasGroup("group-public-users")).toBe(false);
+
+            testingModule.dbService.emit("reconnect");
+            await waitForExpect(() => {
+                expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
+            });
+        });
     });
 });

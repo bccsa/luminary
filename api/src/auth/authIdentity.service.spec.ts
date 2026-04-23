@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { DbService } from "../db/db.service";
 import { DocType } from "../enums";
+import { EventEmitter } from "node:events";
 
 jest.mock("uuid", () => ({ v4: jest.fn().mockReturnValue("new-user-uuid") }));
 
@@ -360,6 +361,103 @@ describe("AuthIdentityService", () => {
                 "group-public",
                 "group-verified",
             ]);
+        });
+    });
+
+    // ── disconnect cache clearing ────────────────────────────────────────────────
+    describe("cache clearing on DB disconnect", () => {
+        let mockDb: EventEmitter & { executeFindQuery?: jest.Mock };
+        let disconnectService: AuthIdentityService;
+
+        beforeEach(async () => {
+            mockDb = Object.assign(new EventEmitter(), {
+                executeFindQuery: jest.fn().mockResolvedValue({ docs: [] }),
+            });
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    AuthIdentityService,
+                    { provide: JwtService, useValue: {} },
+                    { provide: DbService, useValue: mockDb },
+                ],
+            }).compile();
+
+            disconnectService = module.get<AuthIdentityService>(AuthIdentityService);
+            // onModuleInit is what wires the listeners; call it explicitly since
+            // .compile() doesn't run Nest lifecycle hooks.
+            disconnectService.onModuleInit();
+        });
+
+        it("populates and clears providerCache/jwksClients on disconnect", () => {
+            const svc: any = disconnectService;
+
+            // Simulate a provider update flowing through the change feed.
+            mockDb.emit("update", {
+                _id: "provider-1",
+                type: DocType.AuthProvider,
+                domain: "example.auth0.com",
+            });
+            // Seed a jwksClient so we can verify it's cleared too.
+            svc.jwksClients.set("example.auth0.com", {} as any);
+
+            expect(svc.providerCache.size).toBe(1);
+            expect(svc.jwksClients.size).toBe(1);
+
+            mockDb.emit("disconnect");
+
+            expect(svc.providerCache.size).toBe(0);
+            expect(svc.jwksClients.size).toBe(0);
+        });
+
+        it("clears autoGroupMappingsCache and defaultGroupsCache on disconnect", async () => {
+            const svc: any = disconnectService;
+
+            // Populate autoGroupMappingsCache via the public getter.
+            svc.dbService = {
+                ...mockDb,
+                executeFindQuery: jest.fn().mockResolvedValue({
+                    docs: [{ type: DocType.AutoGroupMappings, groupIds: ["g1"], providerId: "p1" }],
+                }),
+            };
+            await disconnectService.getAutoGroupMappings("p1");
+            expect(svc.autoGroupMappingsCache.size).toBe(1);
+
+            // Populate defaultGroupsCache.
+            svc.dbService.executeFindQuery = jest.fn().mockResolvedValue({
+                docs: [{ type: DocType.AutoGroupMappings, groupIds: ["g-default"] }],
+            });
+            await disconnectService.getDefaultGroups();
+            expect(svc.defaultGroupsCache).toEqual(["g-default"]);
+
+            mockDb.emit("disconnect");
+
+            expect(svc.autoGroupMappingsCache.size).toBe(0);
+            expect(svc.defaultGroupsCache).toBeNull();
+        });
+
+        it("lazily repopulates caches after disconnect on next access", async () => {
+            const svc: any = disconnectService;
+
+            const firstQuery = jest.fn().mockResolvedValue({
+                docs: [{ type: DocType.AutoGroupMappings, groupIds: ["g-initial"] }],
+            });
+            svc.dbService = { ...mockDb, executeFindQuery: firstQuery };
+
+            await disconnectService.getDefaultGroups();
+            expect(firstQuery).toHaveBeenCalledTimes(1);
+
+            mockDb.emit("disconnect");
+            expect(svc.defaultGroupsCache).toBeNull();
+
+            // After disconnect, next access should re-query and repopulate.
+            const secondQuery = jest.fn().mockResolvedValue({
+                docs: [{ type: DocType.AutoGroupMappings, groupIds: ["g-fresh"] }],
+            });
+            svc.dbService = { ...mockDb, executeFindQuery: secondQuery };
+            const refreshed = await disconnectService.getDefaultGroups();
+
+            expect(refreshed).toEqual(["g-fresh"]);
+            expect(secondQuery).toHaveBeenCalledTimes(1);
         });
     });
 });

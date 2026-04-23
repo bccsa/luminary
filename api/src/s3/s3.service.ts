@@ -70,6 +70,13 @@ export class S3Service {
             return; // Already initialized
         }
 
+        // Wipe the whole singleton cache on DB disconnect — credentials may
+        // rotate while the change feed is down, and we'd otherwise keep
+        // handing out Minio clients bound to stale keys.
+        db.on("disconnect", () => {
+            S3Service.clearCache();
+        });
+
         S3Service.dbChangeListener = async (doc: any) => {
             // Handle credential updates
             if (doc && doc.type == DocType.Crypto && doc._id && doc.data && doc.data) {
