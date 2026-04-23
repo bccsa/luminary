@@ -149,7 +149,7 @@ watch(openPageSizeSelect, (newValue) => {
                 />
                 <span v-if="variant === 'simple'" class="text-sm text-zinc-600">
                     Page <strong>{{ index + 1 }}</strong> of
-                    <strong>{{ paginatorPages.length + 1 }}</strong>
+                    <strong>{{ pageCount }}</strong>
                 </span>
                 <LButton
                     v-else-if="variant === 'extended'"
