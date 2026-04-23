@@ -9,7 +9,6 @@ import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
-import NotificationManager from "../notifications/NotificationManager.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 type Props = {
@@ -93,7 +92,6 @@ defineExpose({
 </script>
 
 <template>
-    <!-- TODO: add error notificaiton to user when file uploading fails. -->
     <RTextEditor
         ref="rteRef"
         v-bind="$attrs"
