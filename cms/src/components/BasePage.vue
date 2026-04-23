@@ -144,7 +144,6 @@ const handleMobileSidebarToggle = () => {
                 <slot name="internalPageHeader" />
             </div>
             <div
-                data-scroll-container
                 class="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
                 :class="[
                     isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',

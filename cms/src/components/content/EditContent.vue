@@ -558,6 +558,12 @@ const languageSelectorHeight = ref(0);
 const mainContentStickyStyle = computed(() =>
     isLanguageSelectorCollapsed.value ? { top: languageSelectorHeight.value + "px" } : undefined,
 );
+const onSelectorCollapsedUpdate = (val: boolean) => {
+    isLanguageSelectorCollapsed.value = val;
+};
+const onSelectorHeightUpdate = (val: number) => {
+    languageSelectorHeight.value = val;
+};
 </script>
 
 <template>
@@ -690,10 +696,8 @@ const mainContentStickyStyle = computed(() =>
                                 :existingParent="existingParent"
                                 @updateIsValid="(val) => (isValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
-                                @update:selectorCollapsed="
-                                    (val) => (isLanguageSelectorCollapsed = val)
-                                "
-                                @update:selectorHeight="(val) => (languageSelectorHeight = val)"
+                                @update:selectorCollapsed="onSelectorCollapsedUpdate"
+                                @update:selectorHeight="onSelectorHeightUpdate"
                             />
                         </div>
                         <EditContentVideo
