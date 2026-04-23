@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService } from "../db/db.service";
-import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
+import { AclPermission, DocType, PublishStatus, USER_DATA_DOC_TYPES, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -9,6 +9,7 @@ import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
+import { UserDbService } from "../userdata/userDb.service";
 
 @Injectable()
 export class QueryService {
@@ -19,6 +20,7 @@ export class QueryService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private userDb: UserDbService,
     ) {
         // Get list of languages from the database for content doc filtering by user accessible language.
         // This list is kept updated in memory to reduce database load
@@ -66,6 +68,13 @@ export class QueryService {
                 "'type' field (string) is required in selector",
                 HttpStatus.BAD_REQUEST,
             );
+
+        // Route user-data types to the partitioned userdata DB. These
+        // docs are scoped by partition key (userId), not by group ACLs,
+        // so the accessMap / memberOf pipeline below does not apply.
+        if (USER_DATA_DOC_TYPES.includes(type as DocType)) {
+            return this.queryUserData(query, userDetails);
+        }
 
         if (type === DocType.Content && !parentType)
             throw new HttpException(
@@ -173,6 +182,58 @@ export class QueryService {
         });
 
         return this.db.executeFindQuery(query);
+    }
+
+    /**
+     * Handle a Mango query targeting a user-data doc type. The selector
+     * passes through to CouchDB inside the caller's partition — we only
+     * enforce that an authenticated, provisioned userId is present and
+     * that any client-supplied `_id` stays within that partition. All
+     * group/memberOf concepts are stripped: user-data has no group ACL.
+     *
+     * The response is computed with the same `blockStart`/`blockEnd`
+     * shape as content queries so the client's sync2 batching logic
+     * works without branching.
+     */
+    private async queryUserData(
+        query: MongoQueryDto,
+        userDetails: JwtUserDetails,
+    ): Promise<DbQueryResult> {
+        if (!userDetails.userId) {
+            throw new HttpException(
+                "Authenticated user required for user-data queries",
+                HttpStatus.UNAUTHORIZED,
+            );
+        }
+        const userId = userDetails.userId;
+
+        // Flatten the $and conditions into a plain selector. User-data
+        // queries don't need the permission-filter layering that content
+        // queries do — partition scoping in CouchDB is the authoritative
+        // filter, and we don't inject anything else.
+        const flatSelector: Record<string, any> = {};
+        for (const cond of query.selector.$and ?? []) {
+            for (const [k, v] of Object.entries(cond)) {
+                // `parentType` / `docType` are content-only metadata —
+                // silently drop them instead of rejecting, since sync2
+                // may include them as a by-product of its query builder.
+                if (k === "parentType" || k === "docType") continue;
+                flatSelector[k] = v;
+            }
+        }
+
+        if (flatSelector._id && typeof flatSelector._id === "string") {
+            if (!flatSelector._id.startsWith(`${userId}:`)) {
+                throw new HttpException(
+                    "_id does not belong to the authenticated user's partition",
+                    HttpStatus.FORBIDDEN,
+                );
+            }
+        }
+
+        const docs = await this.userDb.findInPartition(userId, flatSelector, query.limit);
+        const { blockStart, blockEnd } = this.db.calcBlockStartEnd(docs);
+        return { docs, blockStart, blockEnd };
     }
 }
 

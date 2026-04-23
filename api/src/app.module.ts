@@ -16,6 +16,7 @@ import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
+import { UserDbService } from "./userdata/userDb.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -65,6 +66,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryService,
         ChangeRequestService,
         AuthIdentityService,
+        UserDbService,
     ],
 })
 export class AppModule {}

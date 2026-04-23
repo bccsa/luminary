@@ -11,7 +11,14 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
+    UserContent = "userContent",
+    UserSettings = "userSettings",
 }
+
+export const USER_DATA_DOC_TYPES: readonly DocType[] = [
+    DocType.UserContent,
+    DocType.UserSettings,
+];
 
 export enum PublishStatus {
     Draft = "draft",

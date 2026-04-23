@@ -13,7 +13,11 @@ describe("ChangeRequest service", () => {
 
     beforeAll(async () => {
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service);
+        const mockUserDb = {
+            upsertInPartition: jest.fn(),
+            softDeleteInPartition: jest.fn(),
+        } as any;
+        changeRequestService = new ChangeRequestService(undefined, service, mockUserDb);
 
         mockUserDetails = {
             userId: "user-super-admin",

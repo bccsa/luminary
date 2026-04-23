@@ -5,6 +5,7 @@ import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
+import { currentUserId } from "../userdata/session";
 
 /**
  * Client configuration type definition
@@ -13,6 +14,7 @@ type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
     accessMap: AccessMap;
+    userId?: string;
 };
 
 /**
@@ -91,6 +93,10 @@ class SocketIO {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            // userId is only present for authenticated, provisioned users.
+            // Leaving it null for anonymous connections is the correct
+            // signal for userDataApi to refuse writes.
+            currentUserId.value = c.userId ?? null;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
     }

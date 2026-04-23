@@ -7,7 +7,7 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, DocType } from "./enums";
+import { AclPermission, DocType, USER_DATA_DOC_TYPES } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -19,6 +19,7 @@ import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { AuthIdentityService } from "./auth/authIdentity.service";
+import { UserDbService } from "./userdata/userDb.service";
 
 /**
  * Data request from client type definition
@@ -33,6 +34,7 @@ type ClientDataReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    userId?: string;
 };
 
 /**
@@ -94,6 +96,7 @@ export class Socketio implements OnGatewayInit {
         private db: DbService,
         private s3: S3Service,
         private authIdentityService: AuthIdentityService,
+        private userDb: UserDbService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -184,6 +187,23 @@ export class Socketio implements OnGatewayInit {
                     version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
                 });
         });
+
+        // User-data broadcast: partition-scoped to a single user. Only
+        // that user's own sockets are ever in the target room, so the
+        // broadcast fan-out is 1-3 devices regardless of cluster size.
+        this.userDb.on("update", (update: any) => {
+            if (!update?.type || !update?.userId) {
+                this.logger.warn(
+                    `Invalid user-data update (missing type or userId): ${update?._id}`,
+                );
+                return;
+            }
+            const room = `${update.type}-user-${update.userId}`;
+            server.to(room).emit("data", {
+                docs: [update],
+                version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
+            });
+        });
     }
 
     /**
@@ -196,11 +216,15 @@ export class Socketio implements OnGatewayInit {
         @MessageBody() reqData: ClientDataReq,
         @ConnectedSocket() socket: ClientSocket,
     ) {
-        // Send client configuration data and access map
+        // Send client configuration data and access map. The userId is
+        // included so the client can build partition-prefixed `_id`s for
+        // user-data writes without having to resolve its own identity
+        // from the JWT — the server already did that during auth.
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
+            userId: socket.data.userDetails.userId,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
@@ -228,6 +252,18 @@ export class Socketio implements OnGatewayInit {
         const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
         for (const group of userAccessibleGroups) {
             socket.join(`${DocType.DeleteCmd}-${group}`);
+        }
+
+        // Join user-data rooms. Only authenticated, provisioned users
+        // (those with a userId resolved by AuthIdentityService) get to
+        // subscribe — anonymous sockets get nothing on these doc types.
+        const userId = socket.data.userDetails?.userId;
+        if (userId) {
+            for (const docType of docTypes) {
+                if (USER_DATA_DOC_TYPES.includes(docType)) {
+                    socket.join(`${docType}-user-${userId}`);
+                }
+            }
         }
     }
 }

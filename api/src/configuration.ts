@@ -6,6 +6,14 @@ export type AuthConfig = {
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
+    /**
+     * Name of the partitioned CouchDB database holding per-user private data
+     * (UserContent, UserSettings). Required only when the user-data feature
+     * is enabled — UserDbService fails fast at construction if unset.
+     * No default: deployments must name this explicitly to avoid a hardcoded
+     * "userdata" ever reaching production under an unintended name.
+     */
+    userDataDatabase?: string;
     maxSockets: number;
 };
 
@@ -73,6 +81,7 @@ export default () =>
         database: {
             connectionString: process.env.DB_CONNECTION_STRING,
             database: process.env.DB_DATABASE,
+            userDataDatabase: process.env.USER_DATA_DB,
             maxSockets: parseInt(process.env.DB_MAX_SOCKETS, 10) || 512,
         } as DatabaseConfig,
         sync: {

@@ -72,6 +72,14 @@ describe("configuration", () => {
         expect(config.s3Audio.endpoint).toBe("localhost");
     });
 
+    it("should read userDataDatabase from USER_DATA_DB without a default", () => {
+        delete process.env.USER_DATA_DB;
+        expect(configuration().database.userDataDatabase).toBeUndefined();
+
+        process.env.USER_DATA_DB = "luminary-userdata-prod";
+        expect(configuration().database.userDataDatabase).toBe("luminary-userdata-prod");
+    });
+
     it("should set bypassTemplateValidation from env var", () => {
         process.env.BYPASS_TEMPLATE_VALIDATION = "true";
         expect(configuration().validation.bypassTemplateValidation).toBe(true);

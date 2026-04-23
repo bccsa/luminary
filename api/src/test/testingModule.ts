@@ -11,6 +11,7 @@ import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
 import { AuthIdentityService } from "../auth/authIdentity.service";
+import { UserDbService } from "../userdata/userDb.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -61,6 +62,26 @@ export async function createTestingModule(testName: string) {
                             groups: [],
                             accessMap: new Map() as AccessMap,
                         },
+                    }),
+                },
+            },
+            {
+                // Socketio depends on UserDbService for the user-data update
+                // subscription in afterInit. Provide an EventEmitter-shaped
+                // mock so `.on("update", …)` registration doesn't blow up;
+                // individual test suites can replace this if they need to
+                // assert on specific UserDbService methods.
+                provide: UserDbService,
+                useValue: {
+                    on: jest.fn(),
+                    emit: jest.fn(),
+                    findInPartition: jest.fn<any>().mockResolvedValue([]),
+                    getDocInPartition: jest.fn<any>().mockResolvedValue(null),
+                    upsertInPartition: jest.fn(),
+                    softDeleteInPartition: jest.fn(),
+                    getChangesInPartition: jest.fn<any>().mockResolvedValue({
+                        docs: [],
+                        lastSeq: "0",
                     }),
                 },
             },

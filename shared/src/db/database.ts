@@ -135,9 +135,14 @@ class Database extends Dexie {
         this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
-            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],*fts",
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+contentId],userId,*fts",
             docsIndex,
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
+        // `[type+contentId]` supports the user-data access pattern
+        // "give me my UserContent doc for content X" in a single index lookup.
+        // `userId` is kept as a secondary index so offline admin tooling could
+        // enumerate by user — regular callers never need it since the sync
+        // engine only ever surfaces docs belonging to the signed-in user.
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",

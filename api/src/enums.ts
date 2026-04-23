@@ -24,7 +24,20 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
+    UserContent = "userContent",
+    UserSettings = "userSettings",
 }
+
+/**
+ * Doc types that live in the partitioned userdata database and are scoped
+ * to a single user by partition key. The existence of a type in this list
+ * is what flips the SearchService and SocketGateway onto the user-data
+ * routing path.
+ */
+export const USER_DATA_DOC_TYPES: readonly DocType[] = [
+    DocType.UserContent,
+    DocType.UserSettings,
+];
 
 /**
  * Acl permissions
