@@ -30,12 +30,6 @@ export async function syncBatch(options: SyncOptions) {
         return { ...mergeResult, firstSync };
     }
 
-    // During update syncs (APP mode, has existing entries), include expired content docs so offline
-    // clients receive the updated doc when an expiry date is changed on a published document.
-    // Full/initial syncs and backwards-fill passes exclude expired docs as normal.
-    const isUpdateSync =
-        options.type === DocType.Content && !options.cms && options.initialSync && !firstSync;
-
     const mangoQuery: any = {
         selector: {
             type: options.type,
@@ -52,7 +46,7 @@ export async function syncBatch(options: SyncOptions) {
         identifier: "sync", // Identifier for the API query validation template
     };
 
-    if (isUpdateSync) {
+    if (options.type === DocType.Content && !options.cms && !firstSync) {
         mangoQuery.includeExpired = true;
     }
 
