@@ -20,8 +20,8 @@ import {
     type ApiLiveQueryAsEditable,
     AclPermission,
 } from "luminary-shared";
-import AddGroupAclButton from "./AddGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
+import exp from "constants";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -298,7 +298,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -359,7 +358,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -437,7 +435,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -469,12 +466,14 @@ describe("EditGroup", () => {
             const wrapper = createWrapper();
             const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
 
-            // Find a group to add (one that is not the current group and not already assigned)
-            const groupToAdd = allGroups.find(
-                (g) => g._id !== testGroup._id && !testGroup.acl.some((a) => a.groupId === g._id),
-            );
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
+            expect(addButton.exists()).toBe(true);
 
-            await wrapper.findComponent(AddGroupAclButton).vm.$emit("select", groupToAdd);
+            await wrapper.find('[data-test="addGroupButton"]').trigger("click");
+            await wrapper.vm.$nextTick();
+
+            expect(wrapper.findAll('[data-test="group-selector"]').length).toBeGreaterThan(0);
+            await wrapper.findAll('[data-test="group-selector"]')[0].trigger("click");
 
             await waitForExpect(() => {
                 expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
@@ -511,19 +510,19 @@ describe("EditGroup", () => {
             expect(aclComponents.length).toBeGreaterThan(0);
         });
 
-        it("shows AddGroupAclButton when not disabled", () => {
+        it("shows add group button when not disabled", () => {
             const wrapper = createWrapper();
 
-            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
             expect(addButton.exists()).toBe(true);
         });
 
-        it("does not show AddGroupAclButton when disabled", () => {
+        it("does not show add group button when disabled", () => {
             vi.mocked(verifyAccess).mockReturnValue(false);
 
             const wrapper = createWrapper();
 
-            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
             expect(addButton.exists()).toBe(false);
         });
 
@@ -546,13 +545,12 @@ describe("EditGroup", () => {
             expect(wrapper.vm.group.acl.some((a: any) => a.groupId === assignedGroupId)).toBe(
                 false,
             );
-        it("adds and displays a new group when selected via AddGroupAclButton", async () => {
+        });
+        it("adds and displays a new group when selected via addGroupButton", async () => {
             const wrapper = createWrapper();
             const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
 
-            const addButton = wrapper
-                .findComponent({ name: "AddGroupAclButton" })
-                .find('[data-test="addGroupButton"]');
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
             expect(addButton.exists()).toBe(true);
             await addButton.trigger("click");
 

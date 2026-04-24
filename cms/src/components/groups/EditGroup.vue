@@ -331,7 +331,7 @@ const duplicateGroup = async () => {
                         Unsaved changes
                     </LBadge>
                 </div>
-                <div v-if="!isComboboxOpen" class="ml-3">
+                <div v-if="!isComboboxOpen && !disabled" class="ml-3">
                     <LButton
                         class="relative"
                         variant="secondary"
