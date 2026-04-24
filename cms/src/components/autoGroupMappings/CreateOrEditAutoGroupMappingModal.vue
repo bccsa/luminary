@@ -64,13 +64,16 @@ watch(
     () => props.mapping,
     (existing) => {
         if (existing) {
-            const clone: AutoGroupMappingsDto = {
-                ..._.cloneDeep(existing),
-                providerId: existing.providerId ?? "",
-                groupIds: existing.groupIds ?? [],
-                conditions: existing.conditions ?? [],
+            // Deep-clone up front and read defaults off the clone so editable
+            // never shares array refs with props.mapping (otherwise edits would
+            // mutate the parent mapping and survive a discard).
+            const cloned = _.cloneDeep(existing) as AutoGroupMappingsDto;
+            editable.value = {
+                ...cloned,
+                providerId: cloned.providerId ?? "",
+                groupIds: cloned.groupIds ?? [],
+                conditions: cloned.conditions ?? [],
             };
-            editable.value = clone;
         } else {
             editable.value = {
                 _id: db.uuid(),
@@ -193,11 +196,12 @@ function discardAndClose() {
 
 function revert() {
     if (props.mapping) {
+        const cloned = _.cloneDeep(props.mapping) as AutoGroupMappingsDto;
         editable.value = {
-            ..._.cloneDeep(props.mapping),
-            providerId: props.mapping.providerId ?? "",
-            groupIds: props.mapping.groupIds ?? [],
-            conditions: props.mapping.conditions ?? [],
+            ...cloned,
+            providerId: cloned.providerId ?? "",
+            groupIds: cloned.groupIds ?? [],
+            conditions: cloned.conditions ?? [],
         };
     }
     hasAttemptedSave.value = false;

@@ -183,7 +183,7 @@ const paddingClass = computed(() =>
             :aria-expanded="show ? 'true' : 'false'"
             :aria-controls="show ? panelId : undefined"
             data-dropdown-trigger
-            @click.capture.stop="onTriggerClick"
+            @click.stop="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
             @keydown.space.prevent.stop="toggle()"
         >
