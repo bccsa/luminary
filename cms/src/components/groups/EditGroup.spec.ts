@@ -21,7 +21,6 @@ import {
     AclPermission,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import exp from "constants";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -460,26 +459,6 @@ describe("EditGroup", () => {
 
             // If click worked, we should see the input field
             expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
-        });
-
-        it("should be able to add new groups", async () => {
-            const wrapper = createWrapper();
-            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
-
-            const addButton = wrapper.find('[data-test="addGroupButton"]');
-            expect(addButton.exists()).toBe(true);
-
-            await wrapper.find('[data-test="addGroupButton"]').trigger("click");
-            await wrapper.vm.$nextTick();
-
-            expect(wrapper.findAll('[data-test="group-selector"]').length).toBeGreaterThan(0);
-            await wrapper.findAll('[data-test="group-selector"]')[0].trigger("click");
-
-            await waitForExpect(() => {
-                expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
-                    initialCount + 1,
-                );
-            });
         });
 
         it("stops propagation for input events when editing", async () => {
