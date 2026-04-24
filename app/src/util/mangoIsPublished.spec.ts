@@ -231,13 +231,7 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(true);
         });
 
-        it("rejects scheduled content when parentShowComingSoon is false", () => {
-            const pred = buildPredicate(["lang-eng"], true);
-            const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: false });
-            expect(pred(doc)).toBe(false);
-        });
-
-        it("rejects scheduled content when parentShowComingSoon is absent", () => {
+        it("rejects future publishDate when parentShowComingSoon is not true (omitted)", () => {
             const pred = buildPredicate(["lang-eng"], true);
             const doc = makeDoc({ publishDate: Date.now() + 60_000 });
             expect(pred(doc)).toBe(false);

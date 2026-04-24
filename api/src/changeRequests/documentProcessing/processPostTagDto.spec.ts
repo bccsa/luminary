@@ -85,7 +85,6 @@ describe("processPostTagDto", () => {
                 image: "test-blog-image.jpg",
                 tags: [],
                 publishDateVisible: true,
-    showComingSoon: false,
                 postType: "blog",
             } as PostDto,
         };
@@ -109,7 +108,6 @@ describe("processPostTagDto", () => {
                 image: "test-page-image.jpg",
                 tags: [],
                 publishDateVisible: false,
-    showComingSoon: false,
                 postType: "page",
             } as PostDto,
         };
@@ -545,7 +543,6 @@ describe("processPostTagDto", () => {
                 publishDateVisible: true,
                 tagType: "category",
                 pinned: false,
-                showComingSoon: false,
             } as any,
         };
 
@@ -566,7 +563,7 @@ describe("processPostTagDto", () => {
         if (contentDoc.docs.length > 0) {
             expect(contentDoc.docs[0].parentTagType).toBe("category");
             expect(contentDoc.docs[0].parentPinned).toBeFalsy();
-            expect(contentDoc.docs[0].showComingSoon).toBeFalsy();
+            expect(contentDoc.docs[0].parentShowComingSoon).toBeFalsy();
         }
     });
 
