@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { db, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
@@ -14,6 +16,8 @@ const { addNotification } = useNotificationStore();
 
 const deviceInfo = getDeviceInfo();
 
+const isClearing = ref(false);
+
 const deleteLocalData = async () => {
     if (!isConnected.value) {
         return addNotification({
@@ -24,15 +28,20 @@ const deleteLocalData = async () => {
         });
     }
 
-    await db.purge();
-    triggerSync();
+    isClearing.value = true;
+    try {
+        await db.purge();
+        triggerSync();
 
-    return addNotification({
-        title: t("notification.clearCache_success.title"),
-        description: t("notification.clearCache_success.description"),
-        state: "success",
-        type: "toast",
-    });
+        addNotification({
+            title: t("notification.clearCache_success.title"),
+            description: t("notification.clearCache_success.description"),
+            state: "success",
+            type: "toast",
+        });
+    } finally {
+        isClearing.value = false;
+    }
 };
 </script>
 
@@ -45,8 +54,17 @@ const deleteLocalData = async () => {
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
                     {{ t("settings.local_cache.description") }}
                 </div>
-                <LButton @click="deleteLocalData" data-test="deleteLocalDatabase">
-                    {{ t("settings.local_cache.button") }}
+                <LButton
+                    @click="deleteLocalData"
+                    :disabled="isClearing"
+                    :icon="isClearing ? LoadingSpinner : undefined"
+                    data-test="deleteLocalDatabase"
+                >
+                    {{
+                        isClearing
+                            ? t("settings.local_cache.button_clearing")
+                            : t("settings.local_cache.button")
+                    }}
                 </LButton>
             </LCard>
             <LCard :title="t('settings.device_info.title')">
