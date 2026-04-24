@@ -405,7 +405,7 @@ describe("QueryService", () => {
         (query as any).cms = false;
         (query as any).includeExpired = true;
 
-        await service.query(query, "token");
+        await service.query(query, mockUser);
 
         const calledWith = dbService.executeFindQuery.mock.calls[0][0];
         const sel = calledWith.selector;
