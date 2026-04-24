@@ -134,15 +134,11 @@ async function Startup() {
         );
     }
 
-<<<<<<< HEAD
     await auth.setupAuth(app);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // Show notification on server error (5xx)
-=======
     // Show notification on server error (5xx), debounced to avoid flooding
     let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
->>>>>>> 8a3b61c9 (Refactor and improve exception handling for api and clients, also add unit tests to ensure long term stability)
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
