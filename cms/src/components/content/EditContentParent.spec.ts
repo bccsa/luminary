@@ -41,7 +41,6 @@ describe("EditContentParent.vue", () => {
         const parent = ref<PostDto | TagDto>({
             ...mockData.mockPostDto,
             publishDateVisible: false,
-            showComingSoon: false,
         });
         const wrapper = mount(EditContentParent, {
             props: {

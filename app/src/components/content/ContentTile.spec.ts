@@ -142,7 +142,7 @@ describe("ContentTile", () => {
         expect(wrapper.find("a").exists()).toBe(false);
     });
 
-    it("does not show a Coming soon overlay when parentShowComingSoon is false", () => {
+    it("does not show a Coming soon overlay when parentShowComingSoon is omitted", () => {
         const scheduledContent = {
             ...mockEnglishContentDto,
             publishDate: Date.now() + 60_000,

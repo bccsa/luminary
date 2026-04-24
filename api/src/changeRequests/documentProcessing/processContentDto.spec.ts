@@ -106,7 +106,6 @@ describe("processContentDto", () => {
             tagType: "topic",
             pinned: 1,
             publishDateVisible: true,
-    showComingSoon: false,
             taggedDocs: ["test-tagged-doc"],
         } as TagDto);
 
@@ -139,7 +138,6 @@ describe("processContentDto", () => {
                 image: "test1234.jpg",
                 tags: ["tag1", "tag2"],
                 publishDateVisible: true,
-                showComingSoon: false,
                 postType: "blog",
             } as PostDto,
         };
@@ -265,7 +263,6 @@ describe("processContentDto", () => {
             memberOf: ["group-public-content"],
             tags: [],
             publishDateVisible: true,
-    showComingSoon: false,
             postType: "blog",
         } as PostDto);
 
