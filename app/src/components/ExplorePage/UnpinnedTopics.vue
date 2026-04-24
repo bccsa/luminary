@@ -12,7 +12,7 @@ import {
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -27,7 +27,7 @@ const topics = useDexieLiveQueryWithDeps(
                     { status: "published" },
                     { parentTagType: TagType.Topic },
                     { parentTaggedDocs: { $exists: true, $ne: [] } },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
         });
@@ -48,7 +48,7 @@ const categories = useDexieLiveQueryWithDeps(
                     { status: "published" },
                     { parentTagType: TagType.Category },
                     { parentPinned: { $ne: 1 } },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
         });

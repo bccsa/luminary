@@ -12,7 +12,7 @@ import {
 import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -39,7 +39,7 @@ const contentDocs = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { parentId: { $in: ids } },
-                    ...mangoIsPublishedOrScheduled(languageIds),
+                    ...mangoIsPublished(languageIds, { includeScheduled: true }),
                 ],
             },
             $sort: [{ publishDate: "asc" }],

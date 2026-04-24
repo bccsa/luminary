@@ -4,7 +4,7 @@ import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import { db, useDexieLiveQueryWithDeps, mangoToDexie, type ContentDto, type Uuid } from "luminary-shared";
 import { computed, nextTick, onMounted } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
-import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
 import { markPageReady } from "@/util/renderState";
@@ -29,7 +29,7 @@ const content = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { parentId: { $in: bookmarkIds } },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
         });

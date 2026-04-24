@@ -1,16 +1,26 @@
 import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
 
+export type MangoIsPublishedOptions = {
+    /**
+     * When true, also matches scheduled content: `publishDate` in the future is allowed
+     * if `parentShowComingSoon === true` (for list/carousel "Coming soon" tiles).
+     * Default false: publishDate must be missing, null, or <= now.
+     */
+    includeScheduled?: boolean;
+};
+
 /**
  * Builds Mango selector conditions for the "isPublished" check.
  * This can be used to inject the publication status, date, and language priority logic into a Mango query.
  *
  * The conditions check:
  * 1. status === "published"
- * 2. publishDate: missing, null, or <= now (if present and in the future, doc is not published)
+ * 2. publishDate: by default missing, null, or <= now; with `includeScheduled`, also future dates when `parentShowComingSoon`
  * 3. expiryDate is either missing, null, or >= now (not expired)
  * 4. language matches the first available language from the user's preferences
  *
  * @param languageIds - Array of language IDs in priority order (most preferred first)
+ * @param options - Optional `includeScheduled` for upcoming/coming-soon display in feeds
  * @returns Array of Mango selector conditions to be used in an $and clause
  *
  * @example
@@ -23,21 +33,29 @@ import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
  * };
  * ```
  */
-export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
+export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
     const now = Date.now();
+    const includeScheduled = options?.includeScheduled === true;
+
+    const publishDateSelector: MangoSelector = includeScheduled
+        ? {
+              // Either already published OR scheduled with the parent "coming soon" flag
+              $or: [{ publishDate: { $lte: now } }, { parentShowComingSoon: true }],
+          }
+        : {
+              // Publish date: missing/null = considered published; otherwise must be <= now
+              $or: [
+                  { publishDate: { $exists: false } },
+                  { publishDate: null },
+                  { publishDate: { $lte: now } },
+              ],
+          };
 
     return [
         // Draft documents are synced to app clients (for future preview functionality),
         // so we must filter to only show published content in regular views.
         { status: PublishStatus.Published },
-        // Publish date: missing/null = considered published; otherwise must be <= now
-        {
-            $or: [
-                { publishDate: { $exists: false } },
-                { publishDate: null },
-                { publishDate: { $lte: now } },
-            ],
-        },
+        publishDateSelector,
         // Expiry date check: either doesn't exist, is null, or is in the future
         {
             $or: [
@@ -45,38 +63,6 @@ export function mangoIsPublished(languageIds: Uuid[]): MangoSelector[] {
                 { expiryDate: null },
                 { expiryDate: { $gte: now } },
             ],
-        },
-
-        // Language priority: select the best available translation
-        buildLanguagePrioritySelector(languageIds),
-    ];
-}
-
-/**
- * Builds Mango selector conditions for "Published OR Scheduled coming-soon" content.
- *
- * Matches documents that are either:
- * - Fully published (publishDate in the past), OR
- * - Scheduled (publishDate in the future) AND the parent has `parentShowComingSoon === true`
- *
- * Expired content is always excluded.
- * Draft documents are always excluded (only `status === "published"` is matched).
- *
- * This is intended for list/carousel views that show upcoming "Coming soon" tiles.
- */
-export function mangoIsPublishedOrScheduled(languageIds: Uuid[]): MangoSelector[] {
-    const now = Date.now();
-
-    return [
-        // Draft documents are excluded.
-        { status: PublishStatus.Published },
-
-        // Expiry date check: either doesn't exist, is null, or is in the future
-        { $or: [{ expiryDate: { $exists: false } }, { expiryDate: null }, { expiryDate: { $gte: now } }] },
-
-        // Either already published (publishDate in the past) OR scheduled with the flag set
-        {
-            $or: [{ publishDate: { $lte: now } }, { parentShowComingSoon: true }],
         },
 
         // Language priority: select the best available translation
