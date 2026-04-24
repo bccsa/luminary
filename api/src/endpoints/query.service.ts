@@ -124,10 +124,15 @@ export class QueryService {
 
             // If the CMS flag is not set, add additional filters for published content
             if (!query.cms) {
-                query.selector.$and.push(
-                    {
+                // For update syncs (includeExpired=true), omit the expiry filter so offline clients
+                // receive the updated doc when an expiry date is changed on a published document.
+                // For full/initial syncs, expired docs are excluded as normal.
+                if (!query.includeExpired) {
+                    query.selector.$and.push({
                         $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gt: now } }],
-                    },
+                    });
+                }
+                query.selector.$and.push(
                     { status: PublishStatus.Published },
                     { language: { $in: accessibleLanguages } },
                 );
@@ -157,6 +162,7 @@ export class QueryService {
         }
 
         delete query.cms;
+        delete query.includeExpired;
 
         // User has no access to any of the requested types/groups
         if (viewGroups.length === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);

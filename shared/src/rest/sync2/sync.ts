@@ -221,4 +221,10 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             });
         }
     }
+
+    // After an update sync for content documents in APP mode, immediately delete any docs that
+    // arrived with an updated (past) expiry date, so they are removed without waiting for app restart.
+    if (options.type === DocType.Content && !options.cms && syncResult && !syncResult.firstSync) {
+        await db.deleteExpired();
+    }
 }

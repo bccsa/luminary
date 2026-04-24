@@ -58,9 +58,10 @@ export default (query: any): boolean => {
 
     // Optional top-level fields
     if (query.cms !== undefined && typeof query.cms !== "boolean") return false;
+    if (query.includeExpired !== undefined && typeof query.includeExpired !== "boolean") return false;
 
     // Check for extra top-level keys
-    const allowedTopLevelKeys = ["selector", "limit", "sort", "use_index", "cms"];
+    const allowedTopLevelKeys = ["selector", "limit", "sort", "use_index", "cms", "includeExpired"];
     const actualTopLevelKeys = Object.keys(query);
     for (const key of actualTopLevelKeys) {
         if (!allowedTopLevelKeys.includes(key)) return false;

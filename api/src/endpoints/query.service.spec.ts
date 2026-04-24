@@ -388,6 +388,44 @@ describe("QueryService", () => {
         expect(sel.$and).toContainEqual({ language: { $in: ["lang-eng"] } });
     });
 
+    it("omits expiry filter for Content type when includeExpired is true (update sync)", async () => {
+        const access = {
+            [DocType.Post]: ["p1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+        const query = new MongoQueryDto();
+        const selector = new MongoSelectorDto();
+        (selector as any).type = DocType.Content;
+        (selector as any).parentType = DocType.Post;
+        (query as any).selector = selector;
+        (query as any).cms = false;
+        (query as any).includeExpired = true;
+
+        await service.query(query, "token");
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        const sel = calledWith.selector;
+
+        // Should have: type, parentType, status, language, memberOf (no expiry filter)
+        expect(sel.$and.length).toBe(5);
+
+        // Expiry date filter must NOT be present
+        const hasExpiryFilter = sel.$and.some(
+            (c: any) =>
+                c.$or &&
+                c.$or.some((o: any) => o.expiryDate !== undefined),
+        );
+        expect(hasExpiryFilter).toBe(false);
+
+        // Status and language filters must still be present
+        expect(sel.$and).toContainEqual({ status: PublishStatus.Published });
+        expect(sel.$and).toContainEqual({ language: { $in: ["lang-eng"] } });
+    });
+
     it("requires docType for DeleteCmd documents", async () => {
         const query = makeQuery((s) => {
             (s as any).type = DocType.DeleteCmd;
