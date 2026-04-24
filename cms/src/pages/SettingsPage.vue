@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { triggerSync } from "@/sync";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import { db, isConnected } from "luminary-shared";
 
 const { addNotification } = useNotificationStore();
+
+const isClearing = ref(false);
 
 const deleteLocalData = async () => {
     if (!isConnected.value) {
@@ -18,14 +22,19 @@ const deleteLocalData = async () => {
         });
     }
 
-    await db.purge();
-    triggerSync();
+    isClearing.value = true;
+    try {
+        await db.purge();
+        triggerSync();
 
-    return addNotification({
-        title: "Local cache cleared",
-        description: "New data is loading from the server, it might take a minute.",
-        state: "success",
-    });
+        addNotification({
+            title: "Local cache cleared",
+            description: "New data is loading from the server, it might take a minute.",
+            state: "success",
+        });
+    } finally {
+        isClearing.value = false;
+    }
 };
 </script>
 
@@ -37,8 +46,13 @@ const deleteLocalData = async () => {
                 deleting all local data. Depending on the amount of available data, it can take some
                 time before all data is available again.
             </div>
-            <LButton @click="deleteLocalData" data-test="deleteLocalDatabase">
-                Delete local cache
+            <LButton
+                @click="deleteLocalData"
+                :disabled="isClearing"
+                :icon="isClearing ? LoadingSpinner : undefined"
+                data-test="deleteLocalDatabase"
+            >
+                {{ isClearing ? "Clearing local cache..." : "Delete local cache" }}
             </LButton>
         </LCard>
     </BasePage>
