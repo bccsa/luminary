@@ -13,7 +13,7 @@ import {
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -25,7 +25,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
                     { video: { $exists: true, $ne: "" } },
                     { parentPostType: { $ne: PostType.Page } },
                     { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
             $sort: [{ publishDate: "desc" }],
@@ -62,7 +62,7 @@ const categories = useDexieLiveQueryWithDeps(
                     { parentType: DocType.Tag },
                     { parentTagType: TagType.Category },
                     { parentPinned: { $ne: 1 } },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
         });

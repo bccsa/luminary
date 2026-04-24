@@ -12,7 +12,7 @@ import {
     mangoToDexie,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublishedOrScheduled } from "@/util/mangoIsPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -27,7 +27,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                     { parentPostType: { $ne: PostType.Page } },
                     { parentTagType: { $ne: TagType.Category } },
                     { parentPublishDateVisible: true },
-                    ...mangoIsPublishedOrScheduled(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
                 ],
             },
             $sort: [{ publishDate: "desc" }],
