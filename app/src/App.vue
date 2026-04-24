@@ -2,7 +2,8 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef, mediaQueue } from "./globalConfig";
+import { appName, isAppLoading, userPreferencesAsRef, mediaQueue } from "./globalConfig";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -112,11 +113,31 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
-    <div class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden">
+    <div
+        v-if="isAppLoading"
+        class="absolute flex h-full w-full items-center justify-center"
+    >
+        <div class="flex flex-col items-center gap-4">
+            <img
+                class="w-72"
+                src="@/assets/logo.svg"
+                :alt="appName"
+            />
+            <LoadingBar />
+        </div>
+    </div>
+
+    <div
+        v-else
+        class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden"
+    >
         <div class="flex-1 overflow-y-scroll scrollbar-hide">
             <RouterView v-slot="{ Component }">
                 <KeepAlive include="HomePage,ExplorePage,VideoPage">
-                    <component :is="Component" :key="routeKey" />
+                    <component
+                        :is="Component"
+                        :key="routeKey"
+                    />
                 </KeepAlive>
             </RouterView>
         </div>
@@ -134,9 +155,13 @@ onErrorCaptured((err) => {
         <MobileMenu
             class="z-50 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
+
+        <!-- Privacy Policy Modal for authentication flow -->
+        <PrivacyPolicyModal
+            v-model:show="showPrivacyPolicyModal"
+            @close="handleModalClose"
+        />
     </div>
-    <!-- Privacy Policy Modal for authentication flow -->
-    <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
     <SearchModal />
     <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
 </template>

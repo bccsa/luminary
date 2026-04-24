@@ -15,9 +15,14 @@ export default {
                     "0%": { left: "-40%" },
                     "100%": { left: "100%" },
                 },
+                "loading-bar": {
+                    "0%": { width: "0%" },
+                    "100%": { width: "100%" },
+                },
             },
             animation: {
                 "running-slug": "running-slug 1.2s linear infinite",
+                "loading-bar": "loading-bar 5s ease-in infinite",
             },
         },
     },
