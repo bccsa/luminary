@@ -1,17 +1,27 @@
 import { AllExceptionsFilter } from "./allExceptions.filter";
-import { ArgumentsHost, HttpException, HttpStatus } from "@nestjs/common";
+import { ArgumentsHost, HttpException, HttpStatus, Logger } from "@nestjs/common";
 
 describe("AllExceptionsFilter", () => {
     let filter: AllExceptionsFilter;
-    let mockResponse: { status: jest.Mock; send: jest.Mock };
+    let mockResponse: {
+        status: jest.Mock;
+        send: jest.Mock;
+        header: jest.Mock;
+        sent: boolean;
+        raw: { writableEnded: boolean };
+    };
     let mockRequest: { method: string; url: string };
     let mockHost: ArgumentsHost;
+    let loggerErrorSpy: jest.SpyInstance;
 
     beforeEach(() => {
         filter = new AllExceptionsFilter();
         mockResponse = {
             status: jest.fn().mockReturnThis(),
-            send: jest.fn(),
+            send: jest.fn().mockReturnThis(),
+            header: jest.fn().mockReturnThis(),
+            sent: false,
+            raw: { writableEnded: false },
         };
         mockRequest = { method: "GET", url: "/test" };
         mockHost = {
@@ -21,7 +31,7 @@ describe("AllExceptionsFilter", () => {
             }),
         } as unknown as ArgumentsHost;
 
-        jest.spyOn(console, "error").mockImplementation(() => {});
+        loggerErrorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -50,12 +60,15 @@ describe("AllExceptionsFilter", () => {
         });
     });
 
-    it("logs the original exception for 5xx errors", () => {
+    it("logs the original exception for 5xx errors with request context", () => {
         const exception = new Error("something broke");
 
         filter.catch(exception, mockHost);
 
-        expect(console.error).toHaveBeenCalledWith("[GET /test]", exception);
+        expect(loggerErrorSpy).toHaveBeenCalledWith(
+            "[GET /test]",
+            expect.stringContaining("something broke"),
+        );
     });
 
     it("returns the original message for 4xx HttpExceptions with a string response", () => {
@@ -85,12 +98,12 @@ describe("AllExceptionsFilter", () => {
         });
     });
 
-    it("does not log 4xx errors to console.error", () => {
+    it("does not log 4xx errors", () => {
         const exception = new HttpException("Bad Request", HttpStatus.BAD_REQUEST);
 
         filter.catch(exception, mockHost);
 
-        expect(console.error).not.toHaveBeenCalled();
+        expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
 
     it("handles non-Error, non-HttpException values as 500", () => {
@@ -101,5 +114,41 @@ describe("AllExceptionsFilter", () => {
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
             message: "Something went wrong on the server. Please try again in a minute.",
         });
+    });
+
+    it("sets Content-Type application/json on the response", () => {
+        filter.catch(new Error("boom"), mockHost);
+
+        expect(mockResponse.header).toHaveBeenCalledWith("Content-Type", "application/json");
+    });
+
+    it("silently swallows ERR_STREAM_PREMATURE_CLOSE without logging or responding", () => {
+        const exception = Object.assign(new Error("premature close"), {
+            code: "ERR_STREAM_PREMATURE_CLOSE",
+        });
+
+        filter.catch(exception, mockHost);
+
+        expect(mockResponse.status).not.toHaveBeenCalled();
+        expect(mockResponse.send).not.toHaveBeenCalled();
+        expect(loggerErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not write to a response that has already been sent", () => {
+        mockResponse.sent = true;
+
+        filter.catch(new Error("late error"), mockHost);
+
+        expect(mockResponse.status).not.toHaveBeenCalled();
+        expect(mockResponse.send).not.toHaveBeenCalled();
+    });
+
+    it("does not write to a response whose raw socket has ended", () => {
+        mockResponse.raw.writableEnded = true;
+
+        filter.catch(new Error("socket gone"), mockHost);
+
+        expect(mockResponse.status).not.toHaveBeenCalled();
+        expect(mockResponse.send).not.toHaveBeenCalled();
     });
 });
