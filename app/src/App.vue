@@ -162,6 +162,9 @@ onErrorCaptured((err) => {
             @close="handleModalClose"
         />
     </div>
-    <SearchModal />
-    <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
+    <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
+    <template v-if="!isAppLoading">
+        <SearchModal />
+        <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
+    </template>
 </template>
