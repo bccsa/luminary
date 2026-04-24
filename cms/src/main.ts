@@ -134,19 +134,31 @@ async function Startup() {
         );
     }
 
+<<<<<<< HEAD
     await auth.setupAuth(app);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Show notification on server error (5xx)
+=======
+    // Show notification on server error (5xx), debounced to avoid flooding
+    let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+>>>>>>> 8a3b61c9 (Refactor and improve exception handling for api and clients, also add unit tests to ensure long term stability)
     watch(serverError, (error) => {
         if (error) {
+            serverError.value = null;
+            if (serverErrorTimeout) return;
+            Sentry.captureMessage(`Server error: ${error}`, "error");
             useNotificationStore().addNotification({
                 title: "Server error",
                 description: error,
                 state: "error",
                 timer: 10000,
             });
-            serverError.value = null;
+
+            // Debounce server error notifications to avoid flooding the user with alerts if multiple errors occur in a short time
+            serverErrorTimeout = setTimeout(() => {
+                serverErrorTimeout = null;
+            }, 5000);
         }
     });
 

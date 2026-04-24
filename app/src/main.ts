@@ -114,9 +114,13 @@ async function Startup() {
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // Show notification on server error (5xx)
+    // Show notification on server error (5xx), debounced to avoid flooding
+    let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
     watch(serverError, (error) => {
         if (error) {
+            serverError.value = null;
+            if (serverErrorTimeout) return;
+            Sentry?.captureMessage(`Server error: ${error}`, "error");
             useNotificationStore().addNotification({
                 title: "Server error",
                 description: error,
@@ -124,7 +128,10 @@ async function Startup() {
                 type: "toast",
                 timeout: 10000,
             });
-            serverError.value = null;
+            // Debounce server error notifications to avoid flooding if multiple requests fail in quick succession
+            serverErrorTimeout = setTimeout(() => {
+                serverErrorTimeout = null;
+            }, 5000);
         }
     });
 
