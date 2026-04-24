@@ -41,8 +41,9 @@ async function handleResponse(res: Response) {
         return undefined;
     }
 
-    // Client error (4xx) - log but don't show server error notification
-    throw new Error(`HTTP error! Status: ${res.status}`);
+    // Client error (4xx) - warn and return undefined
+    console.warn(`HTTP error: ${res.status} ${res.statusText}`);
+    return undefined;
 }
 
 export class HttpReq<T> {

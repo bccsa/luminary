@@ -12,36 +12,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const response = ctx.getResponse<FastifyReply>();
         const request = ctx.getRequest<FastifyRequest>();
 
-        let status: number;
-        let message: string;
-
-        if (exception instanceof HttpException) {
-            status = exception.getStatus();
+        // For known HTTP exceptions with a client error status, return the original message
+        if (exception instanceof HttpException && exception.getStatus() < 500) {
+            const status = exception.getStatus();
             const exceptionResponse = exception.getResponse();
-            message =
+            const message =
                 typeof exceptionResponse === "string"
                     ? exceptionResponse
                     : (exceptionResponse as any).message || exception.message;
-        } else {
-            status = HttpStatus.INTERNAL_SERVER_ERROR;
-            message = "Something went wrong on the server. Please try again in a minute.";
-        }
-
-        // For server errors (5xx), always return a user-friendly message
-        if (status >= 500) {
-            console.error(`[${request.method} ${request.url}]`, exception);
 
             response.status(status).send({
                 statusCode: status,
-                message: "Something went wrong on the server. Please try again in a minute.",
+                message,
             });
             return;
         }
 
-        // For client errors (4xx), return the original message
+        // For all other errors (5xx or unknown), return a user-friendly message
+        const status =
+            exception instanceof HttpException
+                ? exception.getStatus()
+                : HttpStatus.INTERNAL_SERVER_ERROR;
+
+        console.error(`[${request.method} ${request.url}]`, exception);
+
         response.status(status).send({
             statusCode: status,
-            message,
+            message: "Something went wrong on the server. Please try again in a minute.",
         });
     }
 }
