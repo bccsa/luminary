@@ -113,17 +113,17 @@ async function Startup() {
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // Mount the app so the splash screen is visible during the remaining slow startup work
+    // Install all plugins before mounting — components rendered during the
+    // splash screen (e.g. SearchModal) call useI18n() at setup time.
+    const i18n = initI18n();
     app.use(createPinia());
     app.use(router);
+    app.use(i18n);
     app.mount("#app");
 
     initAuthLangSync();
     await initLanguage();
     initSync();
-
-    const i18n = await initI18n();
-    app.use(i18n);
     await loadPlugins();
 
     isAppLoading.value = false;
