@@ -12,17 +12,13 @@ export default {
             },
             keyframes: {
                 "running-slug": {
-                    "0%": { left: "-40%" },
-                    "100%": { left: "100%" },
-                },
-                "loading-bar": {
-                    "0%": { width: "0%" },
-                    "100%": { width: "100%" },
+                    "0%": { left: "0%", right: "100%" },
+                    "50%": { left: "0%", right: "0%" },
+                    "100%": { left: "100%", right: "0%" },
                 },
             },
             animation: {
-                "running-slug": "running-slug 1.2s linear infinite",
-                "loading-bar": "loading-bar 5s ease-in infinite",
+                "running-slug": "running-slug 2s ease-in-out infinite",
             },
         },
     },
