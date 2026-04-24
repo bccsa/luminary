@@ -8,7 +8,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { isAuthPluginInstalled } from "@/auth";
+import { isAuthPluginInstalled, openProviderModal } from "@/auth";
 
 // Mock Auth0
 vi.mock("@auth0/auth0-vue", () => ({
@@ -30,6 +30,16 @@ vi.mock("@/globalConfig", () => ({
         },
     },
 }));
+
+// Mock @/auth so we can assert openProviderModal is called/skipped while still
+// sharing the isAuthPluginInstalled ref between the composable and the tests.
+vi.mock("@/auth", async () => {
+    const { ref: mockRef } = await import("vue");
+    return {
+        isAuthPluginInstalled: mockRef(false),
+        openProviderModal: vi.fn(),
+    };
+});
 
 describe("useAuthWithPrivacyPolicy", () => {
     let auth0Mock: ReturnType<typeof useAuth0>;
@@ -164,10 +174,71 @@ describe("useAuthWithPrivacyPolicy", () => {
         expect(result.completePendingLogin).toBeInstanceOf(Function);
         expect(result.cancelPendingLogin).toBeInstanceOf(Function);
 
-        // Verify functions are no-ops (don't throw)
+        // Verify logout/cancel are no-ops (don't throw)
         result.logout();
-        result.loginWithRedirect();
-        result.completePendingLogin();
         result.cancelPendingLogin();
+    });
+
+    describe("fallback path (Auth0 plugin not installed)", () => {
+        beforeEach(() => {
+            isAuthPluginInstalled.value = false;
+            (openProviderModal as Mock).mockClear();
+        });
+
+        it("gates openProviderModal behind the privacy policy when not accepted", () => {
+            userPreferencesMock.value.privacyPolicy.status = "not_accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+
+            const { loginWithRedirect } = useAuthWithPrivacyPolicy();
+            loginWithRedirect();
+
+            expect(openProviderModal).not.toHaveBeenCalled();
+            expect(showPrivacyPolicyModal.value).toBe(true);
+            expect(hasPendingLogin.value).toBe(true);
+        });
+
+        it("calls openProviderModal immediately when privacy policy is accepted", () => {
+            userPreferencesMock.value.privacyPolicy.status = "accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+
+            const { loginWithRedirect } = useAuthWithPrivacyPolicy();
+            loginWithRedirect();
+
+            expect(openProviderModal).toHaveBeenCalledTimes(1);
+            expect(showPrivacyPolicyModal.value).toBe(false);
+            expect(hasPendingLogin.value).toBe(false);
+        });
+
+        it("runs pending openProviderModal after the policy is accepted", async () => {
+            userPreferencesMock.value.privacyPolicy.status = "not_accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+
+            const { loginWithRedirect, completePendingLogin } = useAuthWithPrivacyPolicy();
+            loginWithRedirect();
+            expect(openProviderModal).not.toHaveBeenCalled();
+
+            userPreferencesMock.value.privacyPolicy.status = "accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+            completePendingLogin();
+
+            await waitForExpect(() => {
+                expect(openProviderModal).toHaveBeenCalledTimes(1);
+                expect(showPrivacyPolicyModal.value).toBe(false);
+                expect(hasPendingLogin.value).toBe(false);
+            });
+        });
+
+        it("does not call openProviderModal when a pending login is cancelled", () => {
+            userPreferencesMock.value.privacyPolicy.status = "not_accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+
+            const { loginWithRedirect, cancelPendingLogin } = useAuthWithPrivacyPolicy();
+            loginWithRedirect();
+            cancelPendingLogin();
+
+            expect(openProviderModal).not.toHaveBeenCalled();
+            expect(showPrivacyPolicyModal.value).toBe(false);
+            expect(hasPendingLogin.value).toBe(false);
+        });
     });
 });
