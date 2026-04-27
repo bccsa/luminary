@@ -62,16 +62,6 @@ app/
 └── vitest.setup.ts               # Vitest test setup
 ```
 
-### `BUILD_TARGET` (virtual plugins)
-
-Defaults to **`web`**. Set in **`app/.env`** when needed (see `.env.example`):
-
-```bash
-BUILD_TARGET=web
-```
-
-Selects which subdirectory under each plugin (e.g. `plugins/media-player/{BUILD_TARGET}/`) Vite resolves for `virtual:…` modules. See [architecture doc](../docs/research/vue-plugin-architecture/README.md).
-
 ## Internationalisation
 
 UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
