@@ -6,8 +6,9 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 
 - **Presentation-style explainer** (build vs runtime, checklist, Q&A): [`plugin-system-explained.md`](./plugin-system-explained.md)
 - App handbook (setup, extension plugins, env): [`app/README.md`](../../../app/README.md)
-- Concrete file walkthrough using the repo’s first plugin: [`starter-code.md`](./starter-code.md)
+- Concrete file walkthrough using the repo's first plugin: [`starter-code.md`](./starter-code.md)
 - Diagram sources (open in [diagrams.net](https://app.diagrams.net/) / draw.io; export SVG if needed):
+  - **[`plugin-system-folders.drawio`](./plugin-system-folders.drawio)** — **folder tree** (`build-time-plugin-contracts/`, `build-time-plugins/`, `vite-plugins/`) with file-level annotations.
   - **[`vue-plugin-architecture.drawio`](./vue-plugin-architecture.drawio)** — components and swimlanes (build, bootstrap, provide/inject, checklist for a second plugin).
   - **[`vue-plugin-architecture-flow.drawio`](./vue-plugin-architecture-flow.drawio)** — **end-to-end flow** top to bottom: resolve → bundle → bootstrap → `provide` → `inject` (and how to repeat for another plugin).
 
@@ -15,9 +16,9 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 
 ## What we are optimizing for
 
-- **Stable surface for UI** — Pages and components depend on an interface and an injection key, not on “web vs native” imports.
-- **Small bundles** — Only the implementation for the active build is resolved; other adapters are not part of the graph.
-- **Clear boundaries** — Contract, token, and installer live together under one folder per plugin; a small **registry** composes what gets registered on the app.
+- **Stable surface for UI** — Pages and components depend on an interface and an injection key, not on concrete implementation paths.
+- **Small bundles** — Only the resolved implementation is bundled; unresolved code is not part of the graph.
+- **Clear boundaries** — Contracts and tokens live in `build-time-plugin-contracts/<name>/`; implementations in `build-time-plugins/<name>/`; a single **registry** (`plugin-registry.ts`) composes what gets registered on the app.
 
 **Not covered by this pattern:** ad-hoc **extension classes** loaded via `VITE_PLUGINS` / `VITE_PLUGIN_PATH` (see **Extension plugins** in [`app/README.md`](../../../app/README.md)).
 
@@ -27,16 +28,16 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 
 | Piece | Role |
 | --- | --- |
-| **Contract** | TypeScript types + service interface (`contract.ts`). |
-| **Token** | `InjectionKey<YourService>` in a file that does **not** import the virtual module (`token.ts`). UI imports the key from here for `inject` to avoid pulling the whole adapter graph into components. |
-| **Implementation** | Class(es) under a target folder (e.g. `web/`) that satisfy the contract. |
-| **Virtual entry** | `index.ts` per target: `install…(app)`, `app.provide(YourKey, instance)`, re-exports. This is what Vite resolves. |
-| **Vite** | A plugin maps `virtual:<name>` → `plugins/<plugin>/{BUILD_TARGET}/index.ts`. |
-| **Registry** | `app/src/core/plugin-registry.ts` imports `virtual:…` modules and exposes `app.use(appPluginsPlugin)` so bootstrap stays one place. |
+| **Contract** | TypeScript types + service interface (`contract.ts`) in `build-time-plugin-contracts/<name>/`. |
+| **Token** | `InjectionKey<YourService>` in `token.ts` (same folder as contract). Does **not** import the virtual module so UI can import the key without pulling in the adapter graph. |
+| **Implementation** | Class(es) in `build-time-plugins/<name>/` (e.g. `<name>-web.ts`) that satisfy the contract. |
+| **Virtual entry** | `build-time-plugins/<name>/index.ts`: `install…(app)`, `app.provide(YourKey, instance)`, re-exports. This is what Vite resolves. |
+| **Vite** | A plugin maps `virtual:<name>` → `build-time-plugins/<plugin>/index.ts` via `resolveId`. |
+| **Registry** | `src/build-time-plugin-contracts/plugin-registry.ts` imports `virtual:…` modules and exposes `app.use(appPluginsPlugin)` so bootstrap stays one place. |
 
 ### What `virtual:…` means
 
-A **virtual module** is an **import id that does not point to a real file by itself** (for example `virtual:media-player`). At build time, a Vite plugin (`app/vite-plugins/buildTargetVirtuals.ts`) implements **`resolveId`**: when the bundler sees that id, the plugin returns an **absolute path** to the actual entry file (here: `plugins/<name>/{BUILD_TARGET}/index.ts`). Application code always imports the **same** virtual id; **which file** gets bundled follows **`BUILD_TARGET`** (and any rules you add in the plugin). See [Vite — Virtual Modules Convention](https://vite.dev/guide/api-plugin.html#virtual-modules-convention).
+A **virtual module** is an **import id that does not point to a real file by itself** (for example `virtual:media-player`). At build time, the Vite plugin `app/vite-plugins/buildTargetVirtuals.ts` implements **`resolveId`**: when the bundler sees that id, it returns an **absolute path** to the actual entry file (`build-time-plugins/<name>/index.ts`). Application code always imports the **same** virtual id regardless of which implementation is wired up. See [Vite — Virtual Modules Convention](https://vite.dev/guide/api-plugin.html#virtual-modules-convention).
 
 ---
 
@@ -44,7 +45,7 @@ A **virtual module** is an **import id that does not point to a real file by its
 
 ### Build time
 
-Environment (e.g. **`BUILD_TARGET`**) selects **which subdirectory** under `plugins/<name>/` becomes the resolved module. Only that file tree is bundled for that plugin.
+Vite resolves each `virtual:<name>` import to the corresponding `build-time-plugins/<name>/index.ts`. Only that file tree is included in the bundle.
 
 ### Runtime
 
@@ -71,10 +72,10 @@ flowchart TB
 
 **Typical steps**
 
-1. **`main.ts`** uses **`app.use(appPluginsPlugin)`** from `@/core/plugin-registry`.
-2. The registry imports **`virtual:…`** (not `plugins/.../web/...` directly).
+1. **`main.ts`** uses **`app.use(appPluginsPlugin)`** from `@/build-time-plugin-contracts/plugin-registry`.
+2. The registry imports **`virtual:…`** (not `build-time-plugins/...` directly).
 3. The resolved module runs **`install…(app)`**, which constructs the service and **`provide`s** it on the app.
-4. Feature code **`inject(YourKey)`** and calls only the contract. Import **`YourKey`** from **`token.ts`**, not from the registry, so components do not depend on the virtual module’s dependency graph (see **Injection key** above).
+4. Feature code **`inject(YourKey)`** and calls only the contract. Import **`YourKey`** from **`token.ts`**, not from the registry, so components do not depend on the virtual module's dependency graph.
 
 ---
 
@@ -83,59 +84,50 @@ flowchart TB
 ```text
 app/
   vite-plugins/
-    buildTargetVirtuals.ts     # maps virtual:… → plugins/<name>/{BUILD_TARGET}/index.ts
+    buildTargetVirtuals.ts             # maps virtual:… → build-time-plugins/<name>/index.ts
   src/
-    core/
-      plugin-registry.ts       # imports virtual modules; appPluginsPlugin
-    plugins/
+    build-time-plugin-contracts/
+      plugin-registry.ts               # imports virtual modules; appPluginsPlugin
       <plugin-name>/
         contract.ts
         token.ts
-        web/                     # or another BUILD_TARGET name
-          … implementation …
-          index.ts               # virtual module entry
+    build-time-plugins/
+      <plugin-name>/
+        index.ts                       # virtual module entry: install + provide
+        <plugin-name>-web.ts           # implementation
 ```
+
+See the [folder diagram (`plugin-system-folders.drawio`)](./plugin-system-folders.drawio) for the full visual tree.
 
 ---
 
-## Configuration
+## Adding another plugin
 
-| Variable | Where | Role |
-| --- | --- | --- |
-| **`BUILD_TARGET`** | `app/.env`, CI, or shell | Picks `plugins/<name>/{BUILD_TARGET}/index.ts` for each plugin that uses this mechanism. Not `VITE_*` — not on **`import.meta.env`** in the browser. |
+Each new capability gets its **own** `virtual:<name>` id and **parallel** entries in both `src/build-time-plugin-contracts/` and `src/build-time-plugins/`. The media player is not special — the same steps apply to plugin #2, #3, and so on. The diagram at [`vue-plugin-architecture.drawio`](./vue-plugin-architecture.drawio) includes a **checklist swimlane** for this.
 
-Example:
-
-```bash
-BUILD_TARGET=web
-```
-
----
-
-## Adding another build-swapped plugin
-
-Each new capability gets its **own** `virtual:<name>` id and **parallel** folder under `app/src/plugins/`. The media player is not special — the same steps apply to plugin #2, #3, and so on. The diagram at [`vue-plugin-architecture.drawio`](./vue-plugin-architecture.drawio) includes a **checklist swimlane** for this.
-
-1. **Scaffold `app/src/plugins/<name>/`**
+1. **Scaffold contracts** — create **`app/src/build-time-plugin-contracts/<name>/`**:
    - **`contract.ts`** — interface + types for the service.
    - **`token.ts`** — `InjectionKey<…>` only (no import from `virtual:…`).
-   - **`web/index.ts`** (and other targets as needed) — `install<Name>(app)` that **`provide`**s the implementation under the key from `token.ts`, plus any re-exports the registry needs.
 
-2. **Teach Vite the new id** — in **`app/vite-plugins/buildTargetVirtuals.ts`**, add another branch in **`resolveId`** (same pattern as `virtual:media-player`):
+2. **Scaffold implementation** — create **`app/src/build-time-plugins/<name>/`**:
+   - **`<name>-web.ts`** — class that satisfies the contract.
+   - **`index.ts`** — `install<Name>(app)` that **`provide`**s the implementation under the key from `token.ts`, plus any re-exports the registry needs.
+
+3. **Teach Vite the new id** — in **`app/vite-plugins/buildTargetVirtuals.ts`**, add another branch in **`resolveId`** (same pattern as `virtual:media-player`):
 
 ```ts
 if (id === "virtual:downloads") {
-    return `${root}/plugins/downloads/${buildTarget}/index.ts`;
+    return `${root}/build-time-plugins/downloads/index.ts`;
 }
 ```
 
-3. **Type the virtual module** — in **`app/env.d.ts`**, add **`declare module "virtual:downloads"`** (or whatever id you chose) exporting **`install…`** and the injection key type, mirroring **`virtual:media-player`**.
+4. **Type the virtual module** — in **`app/env.d.ts`**, add **`declare module "virtual:downloads"`** (or whatever id you chose) exporting **`install…`** and the injection key type, mirroring **`virtual:media-player`**.
 
-4. **Wire bootstrap** — in **`app/src/core/plugin-registry.ts`**, **`import`** from **`virtual:downloads`**, call **`installDownloads(app)`** (or the name you export) inside **`installPlugins`**, and re-export keys/types if other modules should import them from one place.
+5. **Wire bootstrap** — in **`app/src/build-time-plugin-contracts/plugin-registry.ts`**, **`import`** from **`virtual:downloads`**, call **`installDownloads(app)`** inside **`installPlugins`**, and re-export keys/types as needed.
 
-5. **Use it in UI** — **`inject`** using the key imported from **`@/plugins/<name>/token`**, not from the virtual module.
+6. **Use it in UI** — **`inject`** using the key imported from **`@/build-time-plugin-contracts/<name>/token`**, not from the virtual module.
 
-**Order of `install*` calls** usually does not matter unless one plugin’s `install` depends on another’s `provide` being ready; keep dependencies explicit in **`installPlugins`**.
+**Order of `install*` calls** usually does not matter unless one plugin's `install` depends on another's `provide` being ready; keep dependencies explicit in **`installPlugins`**.
 
 ---
 
@@ -147,23 +139,24 @@ Optional class-based modules loaded by **`VITE_PLUGINS`** + **`VITE_PLUGIN_PATH`
 
 ## Testing
 
-**`provide`** a mock implementation of the **contract** under the same **`InjectionKey`**. Mock the interface, not a file under `plugins/.../web/`.
+**`provide`** a mock implementation of the **contract** under the same **`InjectionKey`**. Mock the interface, not any concrete file under `build-time-plugins/`.
 
 ---
 
 ## Example: global media player
 
-The first (and currently only) plugin wired this way in the repo is the **global audio player**.
+The media player is the reference implementation of this pattern in the repo.
 
 | Concept | In this repo |
 | --- | --- |
 | Virtual module | `virtual:media-player` |
-| Contract | `MediaPlayerService` in `app/src/plugins/media-player/contract.ts` |
-| Token | `MediaPlayerKey` in `app/src/plugins/media-player/token.ts` |
-| Web implementation | `WebMediaPlayerService` in `plugins/media-player/web/media-player.web.ts`; entry `plugins/media-player/web/index.ts` |
+| Contract | `MediaPlayerService` in `app/src/build-time-plugin-contracts/media-player/contract.ts` |
+| Token | `MediaPlayerKey` in `app/src/build-time-plugin-contracts/media-player/token.ts` |
+| Registry | `app/src/build-time-plugin-contracts/plugin-registry.ts` |
+| Implementation | `WebMediaPlayerService` in `build-time-plugins/media-player/media-player-web.ts`; entry `build-time-plugins/media-player/index.ts` |
 | Consumers | e.g. `App.vue`, `AudioPlayer.vue` — **`inject(MediaPlayerKey)`**, key imported from **`token.ts`** |
 
-Vite resolves **`virtual:media-player`** to **`app/src/plugins/media-player/{BUILD_TARGET}/index.ts`** (default **`web`**). More detail and snippets: [`starter-code.md`](./starter-code.md).
+Vite resolves **`virtual:media-player`** to **`app/src/build-time-plugins/media-player/index.ts`**. More detail and snippets: [`starter-code.md`](./starter-code.md).
 
 ---
 

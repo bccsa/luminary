@@ -14,7 +14,7 @@ import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
-import { MediaPlayerKey } from "@/plugins/media-player/token";
+import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
 
 const router = useRouter();
 const {

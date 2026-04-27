@@ -11,8 +11,6 @@ interface ImportMetaEnv {
 
     readonly VITE_SENTRY_DSN: string;
 
-    /** Selects `plugins/media-player/{BUILD_TARGET}/` for `virtual:media-player`. */
-    readonly BUILD_TARGET?: string;
 }
 
 interface ImportMeta {
@@ -22,7 +20,7 @@ interface ImportMeta {
 declare module "virtual:media-player" {
     import type { App, Component } from "vue";
     import type { InjectionKey } from "vue";
-    import type { MediaPlayerService } from "@/plugins/media-player/contract";
+    import type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
 
     export const MediaPlayerKey: InjectionKey<MediaPlayerService>;
     export function installMediaPlayer(
