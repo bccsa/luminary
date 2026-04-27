@@ -16,7 +16,7 @@ import { processMedia } from "./processMediaDto";
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
-    prevDoc: PostDto | TagDto,
+    prevDoc: PostDto | TagDto | undefined,
     db: DbService,
 ): Promise<string[]> {
     const warnings: string[] = [];
@@ -66,6 +66,44 @@ export default async function processPostTagDto(
             imageWarnings.push("Bucket is not specified for image processing.");
         }
 
+        // CMS duplicate sets duplicateFrom + copied fileCollections on a new Post/Tag.
+        // prevDoc is undefined on first upsert—validate against the source doc before processImage copies bytes.
+        if (!prevDoc && doc.imageData.duplicateFrom) {
+            const duplicateFromDocId = doc.imageData.duplicateFrom.docId;
+            const sourceDoc = (await db.getDoc(duplicateFromDocId)).docs?.[0] as PostDto | TagDto | undefined;
+
+            const clearDuplicateIntentAndImage = () => {
+                delete doc.imageData!.duplicateFrom;
+                doc.imageData!.fileCollections = [];
+            };
+
+            if (!sourceDoc || sourceDoc.type !== doc.type) {
+                imageWarnings.push("Image duplication source document is invalid.");
+                clearDuplicateIntentAndImage();
+            } else if (!sourceDoc.imageData || !sourceDoc.imageBucketId) {
+                imageWarnings.push("Image duplication source does not contain a valid image.");
+                clearDuplicateIntentAndImage();
+            } else {
+                const sourceFilenames = new Set(
+                    sourceDoc.imageData.fileCollections.flatMap((collection) =>
+                        collection.imageFiles.map((f) => f.filename),
+                    ),
+                );
+                const requestedFilenames = doc.imageData.fileCollections.flatMap((collection) =>
+                    collection.imageFiles.map((f) => f.filename),
+                );
+                const hasUnexpectedFiles = requestedFilenames.some((name) => !sourceFilenames.has(name));
+
+                if (hasUnexpectedFiles) {
+                    imageWarnings.push("Image duplication request contains invalid source files.");
+                    clearDuplicateIntentAndImage();
+                } else {
+                    // Trust bucket from DB so client cannot point at arbitrary storage.
+                    doc.imageData.duplicateFrom.bucketId = sourceDoc.imageBucketId;
+                }
+            }
+        }
+
         // Use the new bucket processing with db service for bucket lookup
         try {
             const result = await processImage(
@@ -95,6 +133,7 @@ export default async function processPostTagDto(
         if (imageWarnings && imageWarnings.length > 0) {
             warnings.push(...imageWarnings);
         }
+        delete doc.imageData.duplicateFrom; // Remove the duplicate 
         delete (doc as any).image; // Remove the legacy image field
     }
 

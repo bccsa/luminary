@@ -152,6 +152,57 @@ describe("S3ImageHandler", () => {
 
         resImages.push(image);
     });
+
+    it("duplicates existing image files without re-encoding when duplicateFrom is provided", async () => {
+        const sourceImage = new ImageDto();
+        sourceImage.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
+                ) as unknown as ArrayBuffer,
+                preset: "default",
+            },
+        ];
+        await processImage(sourceImage, undefined, dbService, testBucketId);
+
+        const duplicatedImage = new ImageDto();
+        duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
+        duplicatedImage.duplicateFrom = {
+            docId: "post-source",
+            bucketId: testBucketId,
+        };
+
+        const sourceFilenames = duplicatedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+
+        await processImage(duplicatedImage, undefined, dbService, testBucketId);
+
+        const duplicatedFilenames = duplicatedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+        expect(duplicatedFilenames.length).toBeGreaterThan(0);
+        duplicatedFilenames.forEach((filename) => {
+            expect(sourceFilenames).not.toContain(filename);
+        });
+
+        const sourceWidths = sourceImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.width),
+        );
+        const duplicatedWidths = duplicatedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.width),
+        );
+        expect(duplicatedWidths).toEqual(sourceWidths);
+        expect(duplicatedImage.duplicateFrom).toBeUndefined();
+
+        const uploadedCopy = await Promise.all(
+            duplicatedFilenames.map((filename) => service.getObject(filename)),
+        );
+        expect(uploadedCopy.some((stream) => stream == undefined)).toBeFalsy();
+
+        resImages.push(sourceImage);
+        resImages.push(duplicatedImage);
+    });
 });
 
 describe("S3ImageHandler - Bucket Migration", () => {
