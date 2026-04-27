@@ -14,7 +14,7 @@ export const plugins = {
 } as const;
 
 export { installMediaPlayer, MediaPlayerKey };
-export type { MediaPlayerService } from "@/plugins/media-player/contract";
+export type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
 
 /** Vue `app.use()` entry that registers injectable services from the active build target. */
 export const appPluginsPlugin = {

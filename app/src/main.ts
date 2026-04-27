@@ -12,7 +12,7 @@ import {
     refreshTokenSilently,
 } from "@/auth";
 import { useNotificationStore } from "./stores/notification";
-import { appPluginsPlugin } from "@/core/plugin-registry";
+import { appPluginsPlugin } from "@/build-time-plugin-contracts/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
