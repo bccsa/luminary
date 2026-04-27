@@ -1029,7 +1029,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player fixed bottom-[76px] left-0 right-0 z-40 flex max-h-[80vh] w-full flex-col justify-items-end overflow-hidden bg-amber-50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
+                class="expanded-player fixed bottom-[76px] left-0 right-0 z-40 flex max-h-[80vh] w-full flex-col justify-items-end overflow-hidden bg-amber-50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:max-h-none lg:w-80 lg:overflow-visible lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
