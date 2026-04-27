@@ -9,6 +9,8 @@ import { DbService } from "../../db/db.service";
 import { StorageDto } from "../../dto/StorageDto";
 import { DocType } from "../../enums";
 import configuration from "../../configuration";
+import { ImageDuplicateFromDto } from "../../dto/ImageDuplicateFromDto";
+import { extname } from "path";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
 
@@ -131,6 +133,25 @@ export async function processImage(
     let migrationFailed = false;
 
     try {
+        if (!prevImage && image.duplicateFrom && image.fileCollections.length > 0) {
+            if (!parentBucketId) {
+                warnings.push("Parent bucket ID is required for duplicated image copy.");
+                return { migrationFailed, warnings };
+            }
+
+            const duplicateResult = await duplicateImageFilesWithoutReencoding(
+                image,
+                image.duplicateFrom,
+                db,
+                parentBucketId,
+            );
+            warnings.push(...duplicateResult.warnings);
+
+            if (!duplicateResult.success) {
+                return { migrationFailed, warnings };
+            }
+        }
+
         // Detect bucket change and migrate images if needed
         if (
             prevImage &&
@@ -257,11 +278,67 @@ export async function processImage(
 
             delete image.uploadData; // Remove upload data after processing
         }
+
+        delete image.duplicateFrom;
     } catch (error) {
         warnings.push(`Image processing failed: ${error.message}`);
     }
 
     return { migrationFailed, warnings };
+}
+
+async function duplicateImageFilesWithoutReencoding(
+    image: ImageDto,
+    duplicateFrom: ImageDuplicateFromDto,
+    db: DbService,
+    targetBucketId: string,
+): Promise<{ success: boolean; warnings: string[] }> {
+    const warnings: string[] = [];
+
+    try {
+        const sourceS3Service = await S3Service.create(duplicateFrom.bucketId, db);
+        const targetS3Service = await S3Service.create(targetBucketId, db);
+        const sourceBucketName = sourceS3Service.getBucketName();
+
+        const copiedCollections: ImageFileCollectionDto[] = [];
+        for (const collection of image.fileCollections) {
+            const copiedCollection = new ImageFileCollectionDto();
+            copiedCollection.aspectRatio = collection.aspectRatio;
+            copiedCollection.imageFiles = [];
+
+            for (const imageFile of collection.imageFiles) {
+                const stream = await sourceS3Service.getObject(imageFile.filename);
+                const chunks: Uint8Array[] = [];
+                await new Promise<void>((resolve, reject) => {
+                    stream.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+                    stream.on("end", () => resolve());
+                    stream.on("error", (err) => reject(err));
+                });
+                const fileBuffer = Buffer.concat(chunks);
+                const stat = await sourceS3Service
+                    .getClient()
+                    .statObject(sourceBucketName, imageFile.filename);
+                const contentType = stat.metaData?.["Content-Type"] || "image/webp";
+
+                const copiedImageFile = new ImageFileDto();
+                copiedImageFile.width = imageFile.width;
+                copiedImageFile.height = imageFile.height;
+                const originalExtension = extname(imageFile.filename) || ".webp";
+                copiedImageFile.filename = `${uuidv4()}${originalExtension}`;
+
+                await targetS3Service.uploadFile(copiedImageFile.filename, fileBuffer, contentType);
+                copiedCollection.imageFiles.push(copiedImageFile);
+            }
+
+            copiedCollections.push(copiedCollection);
+        }
+
+        image.fileCollections = copiedCollections;
+        return { success: true, warnings };
+    } catch (error) {
+        warnings.push(`Failed to duplicate image files without re-encoding: ${error.message}`);
+        return { success: false, warnings };
+    }
 }
 
 async function processImageUpload(
