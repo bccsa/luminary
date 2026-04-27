@@ -66,11 +66,13 @@ export default async function processPostTagDto(
             imageWarnings.push("Bucket is not specified for image processing.");
         }
 
-        // CMS duplicate sets duplicateFrom + copied fileCollections on a new Post/Tag.
         // prevDoc is undefined on first upsert—validate against the source doc before processImage copies bytes.
         if (!prevDoc && doc.imageData.duplicateFrom) {
             const duplicateFromDocId = doc.imageData.duplicateFrom.docId;
-            const sourceDoc = (await db.getDoc(duplicateFromDocId)).docs?.[0] as PostDto | TagDto | undefined;
+            const sourceDoc = (await db.getDoc(duplicateFromDocId)).docs?.[0] as
+                | PostDto
+                | TagDto
+                | undefined;
 
             const clearDuplicateIntentAndImage = () => {
                 delete doc.imageData!.duplicateFrom;
@@ -92,7 +94,9 @@ export default async function processPostTagDto(
                 const requestedFilenames = doc.imageData.fileCollections.flatMap((collection) =>
                     collection.imageFiles.map((f) => f.filename),
                 );
-                const hasUnexpectedFiles = requestedFilenames.some((name) => !sourceFilenames.has(name));
+                const hasUnexpectedFiles = requestedFilenames.some(
+                    (name) => !sourceFilenames.has(name),
+                );
 
                 if (hasUnexpectedFiles) {
                     imageWarnings.push("Image duplication request contains invalid source files.");
@@ -133,7 +137,6 @@ export default async function processPostTagDto(
         if (imageWarnings && imageWarnings.length > 0) {
             warnings.push(...imageWarnings);
         }
-        delete doc.imageData.duplicateFrom; // Remove the duplicate 
         delete (doc as any).image; // Remove the legacy image field
     }
 
