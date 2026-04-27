@@ -141,6 +141,12 @@ export type GroupDto = BaseDocumentDto & {
 export type ImageDto = {
     fileCollections: ImageFileCollectionDto[];
     uploadData?: ImageUploadDto[];
+    duplicateFrom?: ImageDuplicateFromDto;
+};
+
+export type ImageDuplicateFromDto = {
+    docId: Uuid;
+    bucketId: Uuid;
 };
 
 export type ImageFileCollectionDto = {
