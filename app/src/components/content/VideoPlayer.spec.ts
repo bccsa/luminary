@@ -150,14 +150,12 @@ describe("VideoPlayer", () => {
         const wrapper = mount(VideoPlayer, {
             props: {
                 language: "lang-eng",
-                content: mockEnglishContentDto,
+                content: content,
             },
         });
 
         await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({ src: mockEnglishContentDto.video }),
-            );
+            expect(srcMock).toHaveBeenCalledWith(expect.objectContaining({ src: content.video }));
         });
 
         await waitForExpect(() => {
@@ -173,7 +171,7 @@ describe("VideoPlayer", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(
-                mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
+                content.parentImageData?.fileCollections[0].imageFiles[0].filename,
             );
         });
     });
