@@ -470,6 +470,11 @@ const liveUrl = computed(() => {
 });
 
 const showDuplicateModal = ref(false);
+const duplicateImageOnCopy = ref(true);
+watch(showDuplicateModal, (open) => {
+    if (open) duplicateImageOnCopy.value = true;
+});
+
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
@@ -477,7 +482,21 @@ const duplicate = async () => {
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
-    if (clonedParent.imageData?.fileCollections) clonedParent.imageData.fileCollections = [];
+    if (clonedParent.imageData) {
+        delete clonedParent.imageData.uploadData;
+        if (duplicateImageOnCopy.value && clonedParent.imageData.fileCollections?.length > 0) {
+            if (editableParent.value.imageBucketId) {
+                clonedParent.imageData.duplicateFrom = {
+                    docId: editableParent.value._id,
+                    bucketId: editableParent.value.imageBucketId,
+                };
+            } else {
+                clonedParent.imageData.fileCollections = [];
+            }
+        } else if (clonedParent.imageData.fileCollections) {
+            clonedParent.imageData.fileCollections = [];
+        }
+    }
     const clonedContent = editableContent.value.map((c) => {
         const newContent = _.cloneDeep(c);
         newContent._id = db.uuid();
@@ -799,5 +818,13 @@ const onSelectorHeightUpdate = (val: number) => {
         primaryButtonText="Duplicate"
         secondaryButtonText="Cancel"
         context="danger"
-    />
+    >
+        <label
+            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
+            data-test="duplicate-image-toggle"
+        >
+            <input v-model="duplicateImageOnCopy" type="checkbox" class="mt-0.5 h-4 w-4" />
+            <span>Duplicate image</span>
+        </label>
+    </LDialog>
 </template>
