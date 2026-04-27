@@ -1,8 +1,8 @@
 import type { App, Component } from "vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
-import { MediaPlayerKey } from "../token";
-import type { MediaPlayerService } from "../contract";
-import { WebMediaPlayerService } from "./media-player.web";
+import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
+import type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
+import { WebMediaPlayerService } from "./media-player-web";
 
 export interface MediaPlayerInstallOptions {
     audioPlayerComponent?: Component;
@@ -16,5 +16,5 @@ export function installMediaPlayer(app: App, options: MediaPlayerInstallOptions 
     app.provide(MediaPlayerKey, createMediaPlayerService(options));
 }
 
-export { MediaPlayerKey } from "../token";
-export type { MediaPlayerService, MediaPlayerState, NowPlayingInfo } from "../contract";
+export { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
+export type { MediaPlayerService, MediaPlayerState, NowPlayingInfo } from "@/build-time-plugin-contracts/media-player/contract";

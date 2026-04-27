@@ -30,7 +30,7 @@ import {
     setMediaProgress,
 } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
-import { MediaPlayerKey } from "@/plugins/media-player/token";
+import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
 
 const router = useRouter();
 const mediaPlayerService = inject(MediaPlayerKey);

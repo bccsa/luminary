@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import type { MediaPlayerService, MediaPlayerState } from "../contract";
+import type { MediaPlayerService, MediaPlayerState } from "@/build-time-plugin-contracts/media-player/contract";
 
 /**
  * Browser {@link MediaPlayerService}: drives playback via an {@link HTMLAudioElement}
