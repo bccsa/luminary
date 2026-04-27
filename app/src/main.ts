@@ -14,7 +14,6 @@ import {
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsPlugin } from "@/build-time-plugin-contracts/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
-import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
@@ -155,7 +154,6 @@ async function Startup() {
     initAuthLangSync();
     await initLanguage();
     initSync();
-    await loadPlugins();
 
     isAppLoading.value = false;
     initAppTitle(i18n);

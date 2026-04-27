@@ -72,33 +72,6 @@ BUILD_TARGET=web
 
 Selects which subdirectory under each plugin (e.g. `plugins/media-player/{BUILD_TARGET}/`) Vite resolves for `virtual:…` modules. See [architecture doc](../docs/research/vue-plugin-architecture/README.md).
 
-### Extension plugins (optional classes)
-
-Separate from **`virtual:…`** plugins: you can load extra TypeScript modules from outside the repo and instantiate them at startup.
-
-- Create a folder for those files somewhere **outside** this repo.
-- Set `VITE_PLUGIN_PATH` in `.env` so Vite copies those files into `src/plugins/` before dev/build/test.
-- Set `VITE_PLUGINS` to a JSON array of **file base names** (no `.ts`) to load via `src/util/pluginLoader.ts`.
-
-```bash
-VITE_PLUGIN_PATH="../../plugins"
-VITE_PLUGINS='["examplePlugin","examplePlugin2"]'
-```
-
-Each module must export a **class whose name matches the file name** (e.g. `examplePlugin.ts` exports `class examplePlugin`). The files are copied every time you run `vite` dev/build or Vitest.
-
-```ts
-export class examplePlugin {
-    constructor() {
-        this.someFunction();
-    }
-
-    someFunction() {
-        return "res";
-    }
-}
-```
-
 ## Internationalisation
 
 UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.

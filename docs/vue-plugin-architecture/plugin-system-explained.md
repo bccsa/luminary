@@ -23,15 +23,14 @@ This document is a **presentation-ready** description of how **contract + virtua
 
 ---
 
-## 3. Not the same as two other "plugins" in the app
+## 3. Not the same as other "plugins" in the app
 
-You may hear "plugin" in three senses — only **A** is what this architecture doc is about:
+You may hear "plugin" in two senses — only **A** is what this architecture doc is about:
 
 | | Mechanism | Purpose |
 | --- | --- | --- |
 | **A. Build-time services (this doc)** | `virtual:…` + `plugin-registry.ts` | Injectable **services** (e.g. media player) resolved at build time. |
 | **B. Vue `app.use()`** | Standard Vue | Pinia, router, i18n, and our **`appPluginsPlugin`** wrapper. |
-| **C. Extension plugins** | `VITE_PLUGINS` + `src/util/pluginLoader.ts` | Optional **external** TS classes copied in at build; **different** from `virtual:…`. See [`app/README.md`](../../../app/README.md). |
 
 Auth and similar concerns are **outside** the `virtual:…` registry unless you deliberately move them there.
 
