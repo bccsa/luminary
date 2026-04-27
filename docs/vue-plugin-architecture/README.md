@@ -5,7 +5,7 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 **Related**
 
 - **Presentation-style explainer** (build vs runtime, checklist, Q&A): [`plugin-system-explained.md`](./plugin-system-explained.md)
-- App handbook (setup, extension plugins, env): [`app/README.md`](../../../app/README.md)
+- App handbook (setup and env): [`app/README.md`](../../../app/README.md)
 - Concrete file walkthrough using the repo's first plugin: [`starter-code.md`](./starter-code.md)
 - Diagram sources (open in [diagrams.net](https://app.diagrams.net/) / draw.io; export SVG if needed):
   - **[`plugin-system-folders.drawio`](./plugin-system-folders.drawio)** — **folder tree** (`build-time-plugin-contracts/`, `build-time-plugins/`, `vite-plugins/`) with file-level annotations.
@@ -19,10 +19,6 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 - **Stable surface for UI** — Pages and components depend on an interface and an injection key, not on concrete implementation paths.
 - **Small bundles** — Only the resolved implementation is bundled; unresolved code is not part of the graph.
 - **Clear boundaries** — Contracts and tokens live in `build-time-plugin-contracts/<name>/`; implementations in `build-time-plugins/<name>/`; a single **registry** (`plugin-registry.ts`) composes what gets registered on the app.
-
-**Not covered by this pattern:** ad-hoc **extension classes** loaded via `VITE_PLUGINS` / `VITE_PLUGIN_PATH` (see **Extension plugins** in [`app/README.md`](../../../app/README.md)).
-
----
 
 ## Core pieces (generic)
 
@@ -128,12 +124,6 @@ if (id === "virtual:downloads") {
 6. **Use it in UI** — **`inject`** using the key imported from **`@/build-time-plugin-contracts/<name>/token`**, not from the virtual module.
 
 **Order of `install*` calls** usually does not matter unless one plugin's `install` depends on another's `provide` being ready; keep dependencies explicit in **`installPlugins`**.
-
----
-
-## Extension plugins (separate mechanism)
-
-Optional class-based modules loaded by **`VITE_PLUGINS`** + **`VITE_PLUGIN_PATH`** are unrelated to **`virtual:…`**. See [`app/README.md`](../../../app/README.md).
 
 ---
 

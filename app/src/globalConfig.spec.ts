@@ -23,7 +23,6 @@ import {
 import type { ContentDto } from "luminary-shared";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { dynamicLoadPlugin } from "./util/pluginLoader";
 
 describe("globalConfig.ts", () => {
     beforeEach(async () => {
@@ -74,11 +73,6 @@ describe("globalConfig.ts", () => {
         expect(getMediaProgress("mediaId", "contentId")).toBe(100);
         removeMediaProgress("mediaId", "contentId");
         expect(getMediaProgress("mediaId", "contentId")).toBe(0);
-    });
-
-    it("can dynamically load a plugin", async () => {
-        const _c = await dynamicLoadPlugin("examplePlugin");
-        expect(_c.someFunction()).toBe("res");
     });
 
     it("can get the media duration", async () => {

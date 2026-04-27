@@ -13,7 +13,6 @@ import {
 } from "@/auth";
 import { appPluginsPlugin } from "@/build-time-plugin-contracts/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
-import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
