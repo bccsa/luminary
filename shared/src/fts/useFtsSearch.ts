@@ -66,6 +66,8 @@ export function useFtsSearch(
 
         isSearching.value = true;
         try {
+            // [perf] temporary timing — remove once investigation complete
+            const __perfT0 = performance.now();
             const searchResults = await ftsSearch({
                 query,
                 languageId: options.languageId?.value,
@@ -73,6 +75,9 @@ export function useFtsSearch(
                 offset,
                 maxTrigramDocPercent,
             });
+            console.debug(
+                `[perf] ftsSearch total q=${JSON.stringify(query)} offset=${offset} hits=${searchResults.length}: ${(performance.now() - __perfT0).toFixed(1)}ms`,
+            );
 
             // Discard if a newer search was started while this one was running
             if (generation !== searchGeneration) return;
