@@ -30,10 +30,7 @@ const FTS_FIELDS: FtsFieldConfig[] = [
 const WORD_SET_CACHE_MAX = 500;
 const wordSetCache = new Map<string, Record<string, Set<string>>>();
 
-function getWordSets(
-    doc: ContentDto,
-    fields: FtsFieldConfig[],
-): Record<string, Set<string>> {
+function getWordSets(doc: ContentDto, fields: FtsFieldConfig[]): Record<string, Set<string>> {
     const key = `${doc._id}:${doc.updatedTimeUtc}`;
     const cached = wordSetCache.get(key);
     if (cached) {
@@ -97,13 +94,6 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         bm25b = DEFAULT_B,
     } = options;
 
-    // [perf] temporary timing — remove once investigation complete
-    const __perfMarks: Record<string, number> = {};
-    const __perfStart = performance.now();
-    const __perfMark = (label: string) => {
-        __perfMarks[label] = performance.now() - __perfStart;
-    };
-
     const trigrams = generateSearchTrigrams(query);
     if (trigrams.length === 0) return [];
 
@@ -111,7 +101,6 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     const N = corpusStats.docCount;
     if (N === 0) return [];
     const avgdl = corpusStats.totalTokenCount / N;
-    __perfMark("corpusStats");
 
     const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
 
@@ -134,14 +123,12 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         for (const id of ids) matchedDocIds.add(id);
     }
     if (usableTrigrams.length === 0) return [];
-    __perfMark("step1_trigramLookup");
 
     // Step 2: Compute IDF for each usable trigram
     const idfMap = new Map<string, number>();
     for (const { token, df } of usableTrigrams) {
         idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
     }
-    __perfMark("step2_idf");
 
     // Step 4: Load matched docs, filtering by language at query time so wrong-language
     // docs never enter the scoring/word-match loops below.
@@ -151,7 +138,6 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         .and((d) => !languageId || (d as ContentDto).language === languageId)
         .toArray();
     const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
-    __perfMark("step4_loadDocs");
 
     // Step 5: Build per-doc trigram→tf map from fts array, compute BM25
     const usableTokens = new Set(usableTrigrams.map((t) => t.token));
@@ -181,7 +167,6 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
         results.push({ docId, score, wordMatchScore: 0 });
     });
-    __perfMark("step5_bm25");
 
     // Step 6: Boost-weighted full-word match scoring
     const normalizedQuery = normalizeText(query);
@@ -198,45 +183,12 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
             result.score += wordMatchBonus;
         }
     }
-    __perfMark("step6_wordMatch");
 
     // Step 7: Sort by combined score desc, then word match desc
     results.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
         return b.wordMatchScore - a.wordMatchScore;
     });
-    __perfMark("step7_sort");
-
-    // [perf] temporary — emit phase breakdown
-    const __phases: string[] = [];
-    let __prev = 0;
-    for (const k of [
-        "corpusStats",
-        "step1_trigramLookup",
-        "step2_idf",
-        "step4_loadDocs",
-        "step5_bm25",
-        "step6_wordMatch",
-        "step7_sort",
-    ]) {
-        const t = __perfMarks[k];
-        if (t !== undefined) {
-            __phases.push(`${k}=${(t - __prev).toFixed(1)}`);
-            __prev = t;
-        }
-    }
-    // [perf] rough payload size — helps distinguish I/O cost from doc count
-    let __perfLoadedBytes = 0;
-    docMap.forEach((d) => {
-        try {
-            __perfLoadedBytes += JSON.stringify(d).length;
-        } catch {
-            /* ignore */
-        }
-    });
-    console.debug(
-        `[perf] ftsSearch phases trigrams=${trigrams.length} usable=${usableTrigrams.length} candidates=${matchedDocIds.size} loaded=${docMap.size} loadedKB=${(__perfLoadedBytes / 1024).toFixed(0)} wordSetCache=${wordSetCache.size} | ${__phases.join(" ")}`,
-    );
 
     return results.slice(offset, offset + limit);
 }
