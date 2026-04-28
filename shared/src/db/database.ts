@@ -889,11 +889,10 @@ export async function initDatabase() {
         console.error("Database blocked");
     });
 
-    // Compute FTS corpus stats on startup.
-    // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
-    setTimeout(() => {
-        scheduleCorpusStatsRecompute();
-    }, 0);
+    // Schedule a debounced FTS corpus stats recompute on startup. The persisted
+    // stats from the previous session are used until this fires (10 s later), so
+    // first searches aren't blocked by a full-corpus scan contending with IDB.
+    scheduleCorpusStatsRecompute();
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
     setTimeout(() => {
