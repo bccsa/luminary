@@ -16,6 +16,7 @@ import {
     hasAnyPermission,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import { storageValidation } from "@/composables/storageValidation";
@@ -378,9 +379,8 @@ const saveBucket = async () => {
             </div>
         </div>
 
-        <div v-if="isLoading && !buckets.length" class="px-6 py-8 text-center">
-            <div class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
-            <p class="mt-2 text-sm text-gray-500">Loading buckets...</p>
+        <div v-if="isLoading && !buckets.length" class="px-6 py-8">
+            <LoadingBar />
         </div>
 
         <div v-else-if="!buckets.length" class="px-6 py-8 text-center">

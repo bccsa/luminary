@@ -8,7 +8,7 @@ import {
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
 import { ref, watch } from "vue";
-import LoadingSpinner from "../LoadingSpinner.vue";
+import LoadingBar from "../LoadingBar.vue";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
@@ -57,11 +57,10 @@ watch(contentDocs, (newValue) => {
                 <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
             </div>
             <div
-                class="flex h-32 w-full items-center justify-center gap-2"
+                class="flex h-32 w-full items-center justify-center"
                 v-if="loadingContentOverviewContent"
             >
-                <span class="text-sm text-zinc-500">Loading content...</span>
-                <LoadingSpinner class="h-4 w-4 text-zinc-500" />
+                <LoadingBar />
             </div>
         </div>
     </div>

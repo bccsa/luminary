@@ -16,7 +16,7 @@ import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LModal from "../modals/LModal.vue";
 import LTag from "../content/LTag.vue";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
 import { computed, ref, useTemplateRef } from "vue";
@@ -242,9 +242,8 @@ defineExpose({
         </template>
 
         <div class="mt-1">
-            <div v-if="isLoadingProviders && !providers.length" class="px-6 py-8 text-center">
-                <LoadingSpinner class="mx-auto h-8 w-8" />
-                <p class="mt-2 text-sm text-gray-500">Loading providers...</p>
+            <div v-if="isLoadingProviders && !providers.length" class="px-6 py-8">
+                <LoadingBar />
             </div>
 
             <div v-else-if="!filteredProviders.length && !providers.length" class="px-6 py-8 text-center">
