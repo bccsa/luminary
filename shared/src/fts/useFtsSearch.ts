@@ -1,4 +1,12 @@
-import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
+import {
+    ref,
+    watch,
+    type Ref,
+    getCurrentScope,
+    onScopeDispose,
+    isRef,
+    type WatchStopHandle,
+} from "vue";
 import { ftsSearch } from "./ftsSearch";
 import type { FtsSearchResult } from "./types";
 
@@ -66,8 +74,6 @@ export function useFtsSearch(
 
         isSearching.value = true;
         try {
-            // [perf] temporary timing — remove once investigation complete
-            const __perfT0 = performance.now();
             const searchResults = await ftsSearch({
                 query,
                 languageId: options.languageId?.value,
@@ -75,9 +81,6 @@ export function useFtsSearch(
                 offset,
                 maxTrigramDocPercent,
             });
-            console.debug(
-                `[perf] ftsSearch total q=${JSON.stringify(query)} offset=${offset} hits=${searchResults.length}: ${(performance.now() - __perfT0).toFixed(1)}ms`,
-            );
 
             // Discard if a newer search was started while this one was running
             if (generation !== searchGeneration) return;
@@ -123,9 +126,12 @@ export function useFtsSearch(
                 if (debounceTimer) clearTimeout(debounceTimer);
                 currentQuery = newQuery;
                 const d = getDebounce();
-                debounceTimer = setTimeout(() => {
-                    doSearch(newQuery, 0, false);
-                }, typeof d === "number" ? d : 0);
+                debounceTimer = setTimeout(
+                    () => {
+                        doSearch(newQuery, 0, false);
+                    },
+                    typeof d === "number" ? d : 0,
+                );
             },
             { immediate: true },
         );
