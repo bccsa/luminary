@@ -55,7 +55,17 @@ export class QueryService {
                 use_index: "sync-language-index",
             })
             .then((res) => {
-                this.languages = res.docs as LanguageDto[];
+                // Merge by _id rather than reassigning or pushing blindly: the
+                // `languageUpdate` change-stream listener may fire during the async
+                // window of this query (especially on reconnect, where the resumed
+                // feed can deliver events before this promise resolves). Reassigning
+                // would clobber those concurrent updates; pushing could create
+                // duplicates for docs the listener already inserted.
+                for (const doc of res.docs as LanguageDto[]) {
+                    const i = this.languages.findIndex((l) => l._id == doc._id);
+                    if (i >= 0) this.languages[i] = doc;
+                    else this.languages.push(doc);
+                }
             });
     }
 
