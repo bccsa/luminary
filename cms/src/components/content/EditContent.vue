@@ -36,7 +36,7 @@ import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
-import { Square2StackIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
+import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
