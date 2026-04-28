@@ -35,11 +35,8 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import {
-    ArrowTopRightOnSquareIcon,
-    DocumentDuplicateIcon,
-    PlusIcon,
-} from "@heroicons/vue/20/solid";
+import { ArrowTopRightOnSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
+import { Square2StackIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
@@ -715,7 +712,7 @@ const onSelectorHeightUpdate = (val: number) => {
             </div>
             <!-- main content instance -->
             <div
-                class="mt-2 min-h-0 w-full scrollbar-hide lg:mt-0 lg:static lg:flex-1 lg:overflow-y-auto"
+                class="mt-2 min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto"
                 :class="isLanguageSelectorCollapsed ? 'sticky z-[5]' : 'overflow-y-auto'"
                 :style="mainContentStickyStyle"
             >
