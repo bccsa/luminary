@@ -18,7 +18,6 @@ import { validDocTypes } from "./permissions";
 import EditAclByGroup from "./EditAclByGroup.vue";
 import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
-// import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import LDialog from "../common/LDialog.vue";
