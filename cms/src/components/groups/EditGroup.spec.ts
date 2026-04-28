@@ -20,7 +20,6 @@ import {
     type ApiLiveQueryAsEditable,
     AclPermission,
 } from "luminary-shared";
-import AddGroupAclButton from "./AddGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
 
 // Mock clipboard API
@@ -106,8 +105,6 @@ describe("EditGroup", () => {
             global: {
                 plugins: [createTestingPinia({ createSpy: vi.fn })],
                 stubs: {
-                    EditAclByGroup: true,
-                    AddGroupAclButton: true,
                     ConfirmBeforeLeavingModal: true,
                     LButton: {
                         template:
@@ -300,7 +297,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -361,7 +357,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -439,7 +434,6 @@ describe("EditGroup", () => {
                     plugins: [createTestingPinia({ createSpy: vi.fn })],
                     stubs: {
                         EditAclByGroup: true,
-                        AddGroupAclButton: true,
                         ConfirmBeforeLeavingModal: true,
                         LButton: true,
                         LBadge: true,
@@ -465,24 +459,6 @@ describe("EditGroup", () => {
 
             // If click worked, we should see the input field
             expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
-        });
-
-        it("should be able to add new groups", async () => {
-            const wrapper = createWrapper();
-            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
-
-            // Find a group to add (one that is not the current group and not already assigned)
-            const groupToAdd = allGroups.find(
-                (g) => g._id !== testGroup._id && !testGroup.acl.some((a) => a.groupId === g._id),
-            );
-
-            await wrapper.findComponent(AddGroupAclButton).vm.$emit("select", groupToAdd);
-
-            await waitForExpect(() => {
-                expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
-                    initialCount + 1,
-                );
-            });
         });
 
         it("stops propagation for input events when editing", async () => {
@@ -513,19 +489,19 @@ describe("EditGroup", () => {
             expect(aclComponents.length).toBeGreaterThan(0);
         });
 
-        it("shows AddGroupAclButton when not disabled", () => {
+        it("shows add group button when not disabled", () => {
             const wrapper = createWrapper();
 
-            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
             expect(addButton.exists()).toBe(true);
         });
 
-        it("does not show AddGroupAclButton when disabled", () => {
+        it("does not show add group button when disabled", () => {
             vi.mocked(verifyAccess).mockReturnValue(false);
 
             const wrapper = createWrapper();
 
-            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
             expect(addButton.exists()).toBe(false);
         });
 
@@ -548,6 +524,27 @@ describe("EditGroup", () => {
             expect(wrapper.vm.group.acl.some((a: any) => a.groupId === assignedGroupId)).toBe(
                 false,
             );
+        });
+        it("adds and displays a new group when selected via addGroupButton", async () => {
+            const wrapper = createWrapper();
+            const initialCount = wrapper.findAllComponents({ name: "EditAclByGroup" }).length;
+
+            const addButton = wrapper.find('[data-test="addGroupButton"]');
+            expect(addButton.exists()).toBe(true);
+            await addButton.trigger("click");
+
+            const selectGroupButtons = wrapper.findAll('[data-test="group-selector"]');
+            expect(selectGroupButtons.length).toBeGreaterThan(0);
+
+            const selectGroupButton = selectGroupButtons[0];
+            expect(selectGroupButton.exists()).toBe(true);
+            await selectGroupButton.trigger("click");
+
+            await waitForExpect(() => {
+                expect(wrapper.findAllComponents({ name: "EditAclByGroup" })).toHaveLength(
+                    initialCount + 1,
+                );
+            });
         });
     });
 

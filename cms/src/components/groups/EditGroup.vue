@@ -18,11 +18,12 @@ import { validDocTypes } from "./permissions";
 import EditAclByGroup from "./EditAclByGroup.vue";
 import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
-import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
+import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import LCombobox from "../forms/LCombobox.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -178,6 +179,33 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
     });
 };
 
+const queryOptions = ref({
+    groups: [],
+});
+
+const isComboboxOpen = ref(false);
+const comboboxRef = ref<InstanceType<typeof LCombobox> | null>(null);
+
+const handleFocusOut = () => {
+    setTimeout(() => {
+        isComboboxOpen.value = false;
+    }, 200);
+};
+
+const handleSelect = (option: { value: string }) => {
+    const selectedGroup = liveData.value.find((g) => g._id === option.value);
+    if (selectedGroup) {
+        addAssignedGroup(selectedGroup);
+    }
+    isComboboxOpen.value = false;
+    queryOptions.value.groups = [];
+};
+
+watch(isComboboxOpen, (val) => {
+    if (!val) return;
+    nextTick(() => comboboxRef.value?.open());
+});
+
 const emit = defineEmits(["close"]);
 
 const canDeleteGroup = computed(() => {
@@ -234,7 +262,7 @@ const duplicateGroup = async () => {
                 : "Error duplicating group",
         description:
             res && res.ack == AckStatus.Accepted
-                ? `${group.value.name} duplicated as ${duplicatedGroup.name}}`
+                ? `${group.value.name} duplicated as ${duplicatedGroup.name}`
                 : `Failed to duplicate group with error: ${res ? res.message : "Unknown error"}`,
         state: res && res.ack == AckStatus.Accepted ? "success" : "error",
     });
@@ -302,11 +330,15 @@ const duplicateGroup = async () => {
                         Unsaved changes
                     </LBadge>
                 </div>
-                <div class="ml-3">
-                    <AddGroupAclButton
-                        v-if="!disabled"
-                        :groups="availableGroups"
-                        @select="addAssignedGroup"
+                <div v-if="!isComboboxOpen && !disabled" class="ml-3">
+                    <LButton
+                        class="relative"
+                        variant="secondary"
+                        data-test="addGroupButton"
+                        :icon="PlusIcon"
+                        @click="isComboboxOpen = true"
+                        mainDynamicCss="px-0.5 py-0.5 rounded-xl"
+                        iconClass="h-5 w-5"
                     />
                 </div>
             </div>
@@ -326,6 +358,24 @@ const duplicateGroup = async () => {
 
         <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
             <div class="mt-1 space-y-1">
+                <div v-if="isComboboxOpen" @focusout="handleFocusOut">
+                    <LCombobox
+                        smallInput
+                        ref="comboboxRef"
+                        :options="
+                            availableGroups.map((group: GroupDto) => ({
+                                id: group._id,
+                                label: group.name,
+                                value: group._id,
+                            }))
+                        "
+                        v-model:selected-options="queryOptions.groups as string[]"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
+                        :icon="UserGroupIcon"
+                        @select="handleSelect"
+                    />
+                </div>
                 <div
                     v-for="assignedGroup in assignedGroups"
                     :key="assignedGroup._id"
