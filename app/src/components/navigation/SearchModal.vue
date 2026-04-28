@@ -587,7 +587,7 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
     >
         <div
             v-show="isOpen"
-            class="absolute inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+            class="fixed inset-x-0 top-0 bottom-0 z-50 flex max-lg:bottom-[var(--mobile-menu-h,78px)] flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
             @click.self="closeSearch"
         >
             <div
