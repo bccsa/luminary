@@ -900,17 +900,37 @@ describe("PermissionService", () => {
             });
         });
 
-        it("clears the groupMap on DB disconnect and rehydrates on reconnect", async () => {
+        it("retains the groupMap on DB disconnect and reconciles on reconnect", async () => {
             // Sanity: seeded groups are present before disconnect.
             expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
 
+            // Inject a phantom group that does not exist in the DB. This
+            // simulates a group that was deleted while the API was islanded —
+            // the reconnect diff must clean it up.
+            const phantom: GroupDto = new GroupDto();
+            phantom._id = "group-phantom-disconnected";
+            phantom.type = DocType.Group;
+            phantom.updatedTimeUtc = 1;
+            phantom.name = "Phantom";
+            phantom.acl = [];
+            PermissionSystem.upsertGroups([phantom]);
+            expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(true);
+
             testingModule.dbService.emit("disconnect");
-            // clearGroupMap runs synchronously on the 'disconnect' emit.
-            expect(PermissionSystem.hasGroup("group-public-users")).toBe(false);
+
+            // Cached permissions must remain available while islanded so
+            // clients syncing through the API don't see a sudden total loss
+            // of access and purge their local data.
+            expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
+            expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(true);
 
             testingModule.dbService.emit("reconnect");
+
             await waitForExpect(() => {
+                // Real groups are still here.
                 expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
+                // Groups missing from the DB snapshot are removed by the diff.
+                expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(false);
             });
         });
     });
