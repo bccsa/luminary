@@ -153,16 +153,32 @@ export class PermissionSystem extends EventEmitter {
             }
         });
 
-        // Drop the groupMap on disconnect — the change feed resumes without
-        // replaying events missed during downtime, so we must rehydrate from
-        // scratch on reconnect rather than risk serving stale permissions.
+        // Keep the in-memory groupMap on disconnect so the API can keep serving
+        // cached permissions while islanded from the database. If we cleared it,
+        // every request would be denied and clients syncing through this API
+        // would treat that as authoritative and purge their local data.
+        //
+        // We still flip `initialized` to false so that any change-feed events
+        // arriving during the reconnect window are queued rather than racing
+        // with the snapshot reconciliation below.
         dbService.on("disconnect", () => {
             initialized = false;
             updateQueue = [];
-            PermissionSystem.clearGroupMap();
         });
+
+        // On reconnect, reconcile the in-memory state against a fresh snapshot
+        // rather than rebuilding from scratch: upsertGroup already diffs ACLs
+        // for existing groups, so we just need to additionally remove groups
+        // that were deleted from the DB while we were disconnected. This keeps
+        // the cache continuously valid and avoids the brief "no permissions"
+        // window a full rebuild would create.
         dbService.on("reconnect", async () => {
             const dbGroups = await dbService.getGroups();
+
+            const fetchedIds = new Set(dbGroups.docs.map((d: GroupDto) => d._id));
+            const staleIds = Object.keys(groupMap).filter((id) => !fetchedIds.has(id));
+            if (staleIds.length > 0) PermissionSystem.removeGroups(staleIds);
+
             PermissionSystem.upsertGroups(dbGroups.docs);
             PermissionSystem.upsertGroups(updateQueue);
             updateQueue = [];
@@ -177,17 +193,6 @@ export class PermissionSystem extends EventEmitter {
         this.upsertGroups(updateQueue);
         updateQueue = [];
         initialized = true;
-    }
-
-    /**
-     * Remove every entry from the global groupMap.
-     * Note: groupMap is used via property-access (`groupMap[id]`) rather than
-     * the Map API, so we delete enumerable properties here.
-     */
-    private static clearGroupMap() {
-        for (const key of Object.keys(groupMap)) {
-            delete (groupMap as any)[key];
-        }
     }
 
     /**
