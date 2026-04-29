@@ -42,10 +42,12 @@ const states = {
     error: "border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0",
 };
 
+// Heights are border-box (Tailwind default), so include the trigger's 1px borders.
+// Matches LInput / LCombobox which render at 40px for "base".
 const sizeHeights = {
-    sm: "min-h-[32px] py-1.5 text-sm",
-    base: "min-h-[38px] py-2 text-sm",
-    lg: "min-h-[42px] py-2.5 text-base",
+    sm: "min-h-[34px] py-1.5 text-sm",
+    base: "min-h-[40px] py-2 text-sm",
+    lg: "min-h-[44px] py-2.5 text-base",
 };
 
 const id = `l-select-${useId()}`;
