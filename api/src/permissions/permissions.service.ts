@@ -100,9 +100,11 @@ type TargetRouteTypeMap = Map<
 export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 
 /**
- * Global Group Map used for permission lookups
+ * Global Group Map used for permission lookups.
+ * Accessed throughout this file via object-style property access, so it is
+ * typed as a Record rather than a Map.
  */
-const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
+const groupMap: Record<Uuid, PermissionSystem> = {};
 
 /**
  * Represents a permission system that uses a tree structure to organize groups and manage permissions.
