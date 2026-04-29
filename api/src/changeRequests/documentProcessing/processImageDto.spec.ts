@@ -203,6 +203,38 @@ describe("S3ImageHandler", () => {
         resImages.push(sourceImage);
         resImages.push(duplicatedImage);
     });
+
+    it("clears copied image references if duplication fails", async () => {
+        const sourceImage = new ImageDto();
+        sourceImage.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
+                ) as unknown as ArrayBuffer,
+                preset: "default",
+            },
+        ];
+        await processImage(sourceImage, undefined, dbService, testBucketId);
+
+        const duplicatedImage = new ImageDto();
+        duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
+        duplicatedImage.duplicateFrom = {
+            docId: "post-source",
+            bucketId: "storage-missing-bucket",
+        };
+
+        const result = await processImage(duplicatedImage, undefined, dbService, testBucketId);
+
+        expect(
+            result.warnings.some((warning) =>
+                warning.includes("Failed to duplicate image files without re-encoding"),
+            ),
+        ).toBe(true);
+        expect(duplicatedImage.fileCollections).toEqual([]);
+        expect(duplicatedImage.duplicateFrom).toBeUndefined();
+
+        resImages.push(sourceImage);
+    });
 });
 
 describe("S3ImageHandler - Bucket Migration", () => {
