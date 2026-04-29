@@ -60,11 +60,11 @@ describe("LabelAndType.vue", () => {
         expect(input.disabled).toBe(true);
     });
 
-    it("shows the required asterisk in the label", () => {
+    it("does not show required marker for label", () => {
         const wrapper = mount(LabelAndType, {
             props: { provider: mockProvider },
         });
 
-        expect(wrapper.html()).toContain("*");
+        expect(wrapper.html()).not.toContain("Label <span class=\"text-red-500\">*</span>");
     });
 });

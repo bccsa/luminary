@@ -86,13 +86,6 @@ watch(
     ([p, attempted]) => {
         if (!p || !attempted) return;
         validate(
-            "Label is required",
-            "label",
-            providerValidations.value,
-            p,
-            (x) => !!(x.label ?? "").trim(),
-        );
-        validate(
             "Domain must be a hostname like tenant.auth0.com (no https:// or path)",
             "domain",
             providerValidations.value,
@@ -127,7 +120,6 @@ watch(
 const isFormValid = computed(() => {
     const p = provider.value;
     if (!p) return false;
-    if (!(p.label ?? "").trim()) return false;
     return (
         isValidDomain(p.domain ?? "") &&
         isValidClientId(p.clientId ?? "") &&

@@ -67,6 +67,18 @@ const mockProviderKeyLabel: AuthProviderDto = {
     audience: "https://api.key.com",
 };
 
+const mockProviderDisplayNameFallback: AuthProviderDto = {
+    _id: "provider-display-name",
+    type: DocType.AuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    label: "",
+    displayName: "Login with Display Name",
+    domain: "display.auth0.com",
+    clientId: "client-display",
+    audience: "https://api.display.com",
+};
+
 describe("AuthProviderSelectionModal.vue", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -184,6 +196,18 @@ describe("AuthProviderSelectionModal.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Login with BCC");
+        });
+    });
+
+    it("falls back to displayName when label is empty", async () => {
+        await db.docs.put(mockProviderDisplayNameFallback);
+
+        const wrapper = mount(AuthProviderSelectionModal, {
+            props: { isVisible: true },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Login with Display Name");
         });
     });
 });

@@ -98,7 +98,7 @@ const providerOptions = computed(() => [
     { value: "", label: "None (Global — all users)" },
     ...props.providers.map((p) => ({
         value: p._id,
-        label: p.label || p.domain || p._id,
+        label: p.displayName || p.label || p.domain || p._id,
     })),
 ]);
 

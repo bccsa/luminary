@@ -27,7 +27,8 @@ const allProviders = useDexieLiveQuery(
 );
 
 const providers = computed(() => allProviders.value ?? []);
-const resolveProviderLabel = (label: string | undefined) => resolveI18nEmbedded(label, t);
+const resolveProviderLabel = (provider: AuthProviderDto) =>
+    resolveI18nEmbedded(provider.label || provider.displayName || provider.domain || provider._id, t);
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;
@@ -95,7 +96,7 @@ const handleClose = () => {
                             : {}
                     "
                 >
-                    {{ resolveProviderLabel(provider.label) }}
+                    {{ resolveProviderLabel(provider) }}
                 </span>
             </button>
 
