@@ -8,7 +8,12 @@ import AuthProviderSelectionModal from "./AuthProviderSelectionModal.vue";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) => key,
+        t: (key: string) =>
+            (
+                {
+                    "login.bcc.button": "Login with BCC",
+                } as Record<string, string>
+            )[key] ?? key,
     }),
 }));
 
@@ -49,6 +54,17 @@ const mockProviderB: AuthProviderDto = {
     audience: "https://api.beta.com",
     backgroundColor: "#1a1a2e",
     textColor: "#ffffff",
+};
+
+const mockProviderKeyLabel: AuthProviderDto = {
+    _id: "provider-key",
+    type: DocType.AuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    label: "login.bcc.button",
+    domain: "key.auth0.com",
+    clientId: "client-key",
+    audience: "https://api.key.com",
 };
 
 describe("AuthProviderSelectionModal.vue", () => {
@@ -157,5 +173,17 @@ describe("AuthProviderSelectionModal.vue", () => {
         });
 
         expect(wrapper.html()).not.toContain("auth.sign_in");
+    });
+
+    it("renders dotted i18n keys from labels through translation", async () => {
+        await db.docs.put(mockProviderKeyLabel);
+
+        const wrapper = mount(AuthProviderSelectionModal, {
+            props: { isVisible: true },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Login with BCC");
+        });
     });
 });
