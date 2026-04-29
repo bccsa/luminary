@@ -313,6 +313,12 @@ const clearExpiryDate = () => {
                     v-model="content.copyright"
                 />
 
+                <!-- Reading Time -->
+                <FormLabel>Reading Time :</FormLabel>
+                <div class="text-sm text-zinc-700">
+                    {{ content.timeToRead ? `${content.timeToRead} min` : "—" }}
+                </div>
+
                 <!-- Summary -->
                 <FormLabel class="self-start">Summary</FormLabel>
                 <LInput

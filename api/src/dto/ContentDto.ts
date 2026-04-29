@@ -178,4 +178,9 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     copyright?: string;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsNumber()
+    @Expose()
+    timeToRead?: number;
 }
