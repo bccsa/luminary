@@ -17,10 +17,16 @@ import {
     type RedirectDto,
     type Uuid,
     type LanguageDto,
+    verifyAccess,
+    AclPermission,
 } from "luminary-shared";
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
-import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
+import {
+    BookmarkIcon as BookmarkIconOutline,
+    MoonIcon,
+    PencilIcon,
+} from "@heroicons/vue/24/outline";
 
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
@@ -33,6 +39,7 @@ import {
     appLanguageAsRef,
     queryParams,
     addToMediaQueue,
+    cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -90,6 +97,29 @@ const defaultContent: ContentDto = {
 };
 
 const content = ref<ContentDto | undefined>(defaultContent);
+
+const LiveUrl = computed(() => {
+    if (!content.value || !selectedLanguageCode.value) return "";
+
+    const docType = content.value.parentType;
+    const subType = content.value.parentPostType || content.value.parentTagType;
+    const id = content.value.parentId;
+    const lang = selectedLanguageCode.value;
+    const baseUrl = cmsUrl.value;
+
+    return `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`;
+});
+
+const openCmsEditor = () => {
+    if (LiveUrl.value) {
+        window.open(LiveUrl.value, "_blank");
+    }
+};
+
+const canEdit = computed(() => {
+    if (!content.value) return false;
+    return verifyAccess(content.value.memberOf, DocType.Content, AclPermission.Edit);
+});
 
 const idbContent = useDexieLiveQuery(
     () =>
@@ -735,6 +765,19 @@ const playAudio = () => {
                             </div>
                             <div class="items-center">
                                 <div class="flex justify-center">
+                                    <button
+                                        @click="openCmsEditor"
+                                        class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
+                                        :title="t('singlecontent.edit')"
+                                        data-test="editButton"
+                                    >
+                                        <span class="text-md hidden font-medium sm:inline">
+                                            Edit
+                                        </span>
+                                        <PencilIcon class="h-5 w-5" />
+                                    </button>
+                                </div>
+                                <div class="flex justify-center gap-4">
                                     <div
                                         @click="toggleBookmark"
                                         data-test="bookmark"
