@@ -66,6 +66,9 @@ export class QueryService {
                     if (i >= 0) this.languages[i] = doc;
                     else this.languages.push(doc);
                 }
+            })
+            .catch((err) => {
+                this.logger.error("Failed to load languages cache", err);
             });
     }
 
