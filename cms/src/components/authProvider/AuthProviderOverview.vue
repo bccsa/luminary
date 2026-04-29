@@ -99,6 +99,7 @@ const filteredProviders = computed(() => {
     if (q) {
         result = result.filter(
             (p) =>
+                (p.displayName ?? "").toLowerCase().includes(q) ||
                 (p.label ?? "").toLowerCase().includes(q) ||
                 (p.domain ?? "").toLowerCase().includes(q),
         );
@@ -294,7 +295,7 @@ defineExpose({
 
     <LDialog
         v-model:open="showDeleteModal"
-        :title="`Delete Provider ${providerToDelete?.label}?`"
+        :title="`Delete Provider ${providerToDelete?.displayName || providerToDelete?.label}?`"
         :description="`Are you sure you want to delete this auth provider? This action cannot be undone.`"
         :primaryAction="
             () => {

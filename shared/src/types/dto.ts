@@ -255,6 +255,7 @@ export type AuthProviderCondition = {
 
 export type AuthProviderDto = BaseDocumentDto & {
     type: DocType.AuthProvider;
+    displayName?: string;
     domain: string;
     audience: string;
     clientId: string;

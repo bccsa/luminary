@@ -63,7 +63,9 @@ const handleEdit = () => {
             >
                 <div class="mr-1 max-w-full truncate text-wrap text-base font-medium">
                     {{
-                        capitaliseFirstLetter(provider.label) || provider.domain || "Auth provider"
+                        capitaliseFirstLetter(provider.displayName || provider.label) ||
+                        provider.domain ||
+                        "Auth provider"
                     }}
                 </div>
             </div>

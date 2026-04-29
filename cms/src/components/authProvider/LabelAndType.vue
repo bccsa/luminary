@@ -10,16 +10,35 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 </script>
 
 <template>
-    <div>
+    <div class="min-w-0 w-full max-w-full">
+        <div class="mb-2">
+            <label for="provider-display-name" class="mb-1 block text-xs font-medium text-gray-700">
+                Display name
+            </label>
+            <LInput
+                id="provider-display-name"
+                name="providerDisplayName"
+                :model-value="provider.displayName ?? ''"
+                type="text"
+                placeholder="e.g. Login with BCC"
+                :disabled="disabled"
+                @update:model-value="provider.displayName = $event"
+            />
+            <p class="mt-1 text-[11px] text-gray-500">
+                This name is shown in CMS. You can make it language-aware with special tags like
+                [[login.bcc.button]].
+            </p>
+        </div>
+
         <label for="provider-label" class="mb-1 block text-xs font-medium text-gray-700">
-            Label <span class="text-red-500">*</span>
+            App label <span class="text-red-500">*</span>
         </label>
         <LInput
             id="provider-label"
             name="providerLabel"
             :model-value="provider.label ?? ''"
             type="text"
-            placeholder="Brand/Company Name"
+            placeholder="e.g. login.bcc.button"
             :disabled="disabled"
             @update:model-value="provider.label = $event"
         />

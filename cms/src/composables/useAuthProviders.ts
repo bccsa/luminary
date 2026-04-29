@@ -130,6 +130,7 @@ export function useAuthProviders() {
             type: DocType.AuthProvider,
             updatedTimeUtc: Date.now(),
             memberOf: [],
+            displayName: "",
             label: "",
             domain: "",
             clientId: "",
@@ -174,7 +175,8 @@ export function useAuthProviders() {
         }
 
         try {
-            const providerLabel = providerToDelete.value.label;
+            const providerLabel =
+                providerToDelete.value.displayName || providerToDelete.value.label;
             const providerId = providerToDelete.value._id;
 
             const providerInEditable = providers.value.find((p) => p._id === providerId);
@@ -212,7 +214,7 @@ export function useAuthProviders() {
             const provider = currentProvider.value;
             if (!provider || !editingProviderId.value) return;
 
-            const label = provider.label ?? "";
+            const label = provider.displayName || provider.label || provider._id;
             const creating = !isEditing.value;
 
             if (creating || providerQuery.isEdited.value(editingProviderId.value)) {

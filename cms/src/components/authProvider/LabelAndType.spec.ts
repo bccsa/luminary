@@ -9,6 +9,7 @@ const mockProvider: AuthProviderDto = {
     type: DocType.AuthProvider,
     updatedTimeUtc: 1704114000000,
     memberOf: [],
+    displayName: "Login with Acme",
     label: "Acme Corp",
     domain: "acme.auth0.com",
     clientId: "client-1",
@@ -16,6 +17,18 @@ const mockProvider: AuthProviderDto = {
 };
 
 describe("LabelAndType.vue", () => {
+    it("updates provider.displayName when the input changes", async () => {
+        const provider = reactive({ ...mockProvider });
+        const wrapper = mount(LabelAndType, {
+            props: { provider },
+        });
+
+        await wrapper.find("[name='providerDisplayName']").setValue("Login with BCC");
+        await wrapper.vm.$nextTick();
+
+        expect(provider.displayName).toBe("Login with BCC");
+    });
+
     it("renders the current label value in the input", () => {
         const wrapper = mount(LabelAndType, {
             props: { provider: mockProvider },
