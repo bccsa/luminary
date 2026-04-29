@@ -4,7 +4,7 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, PublishStatus, Uuid } from "../../enums";
-import { computeFtsData } from "../../util/ftsIndexing";
+import { computeFtsData, calculateReadingTime } from "../../util/ftsIndexing";
 
 /**
  * Process Content DTO
@@ -66,4 +66,6 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         doc.fts = ftsData.fts;
         doc.ftsTokenCount = ftsData.ftsTokenCount;
     }
+
+    doc.timeToRead = calculateReadingTime(doc.text || "");
 }

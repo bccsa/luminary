@@ -22,11 +22,7 @@ import {
 } from "luminary-shared";
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
-import {
-    BookmarkIcon as BookmarkIconOutline,
-    MoonIcon,
-    PencilIcon,
-} from "@heroicons/vue/24/outline";
+import { BookmarkIcon as BookmarkIconOutline, MoonIcon, EyeIcon } from "@heroicons/vue/24/outline";
 
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
@@ -771,6 +767,13 @@ const playAudio = () => {
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 By {{ content.author }}
+                            </div>
+                            <div
+                                v-if="content.timeToRead"
+                                class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
+                                <EyeIcon class="h-4 w-4" />
+                                {{ content.timeToRead ? `${content.timeToRead} min` : "—" }}
                             </div>
                             <div
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
