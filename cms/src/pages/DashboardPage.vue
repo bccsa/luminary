@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LCard from "@/components/common/LCard.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import { computed } from "vue";
 import {
@@ -100,25 +101,30 @@ const draftCount = computed(
     () => contentDocs.value.filter((d) => d.status === PublishStatus.Draft).length,
 );
 
-const now = Date.now();
-const scheduledContent = computed(() =>
-    contentDocs.value
+const scheduledContent = computed(() => {
+    const now = Date.now();
+    return contentDocs.value
         .filter((d) => d.status === PublishStatus.Published && d.publishDate && d.publishDate > now)
-        .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0)),
-);
+        .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0));
+});
 
-const expiredContent = computed(() =>
-    contentDocs.value
+const expiredContent = computed(() => {
+    const now = Date.now();
+    return contentDocs.value
         .filter((d) => d.expiryDate && d.expiryDate < now)
-        .sort((a, b) => (b.expiryDate ?? 0) - (a.expiryDate ?? 0)),
-);
+        .sort((a, b) => (b.expiryDate ?? 0) - (a.expiryDate ?? 0));
+});
 
 // --- Content by type breakdown ---
 
 const contentByParentType = computed(() => {
-    const postContent = contentDocs.value.filter((d) => d.parentType === DocType.Post);
-    const tagContent = contentDocs.value.filter((d) => d.parentType === DocType.Tag);
-    return { post: postContent.length, tag: tagContent.length };
+    let post = 0;
+    let tag = 0;
+    for (const d of contentDocs.value) {
+        if (d.parentType === DocType.Post) post++;
+        else if (d.parentType === DocType.Tag) tag++;
+    }
+    return { post, tag };
 });
 
 // --- Missing translations ---
@@ -217,29 +223,13 @@ function parentRoute(doc: {
 
 // --- Translation progress ---
 
-const translationProgress = computed(() => {
-    if (!cmsLanguages.value.length) return [];
-
-    return cmsLanguages.value.map((lang) => ({
-        id: lang._id,
-        name: lang.name,
-        languageCode: lang.languageCode,
-        isCurrent: lang._id === cmsLanguageIdAsRef.value,
-    }));
+const contentCountPerLanguage = computed(() => {
+    const counts: Record<string, number> = {};
+    for (const doc of allContentDocs.value) {
+        counts[doc.language] = (counts[doc.language] ?? 0) + 1;
+    }
+    return counts;
 });
-
-const contentCountPerLanguage = useDexieLiveQuery(
-    async () => {
-        const counts: Record<string, number> = {};
-        for (const lang of cmsLanguages.value) {
-            counts[lang._id] = await db.docs
-                .where({ type: DocType.Content, language: lang._id })
-                .count();
-        }
-        return counts;
-    },
-    { initialValue: {} as Record<string, number> },
-);
 
 const maxContentCount = computed(() => {
     const values = Object.values(contentCountPerLanguage.value);
@@ -297,7 +287,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                     v-if="canViewPosts"
                     :to="{
                         name: 'overview',
-                        params: { docType: DocType.Post, tagOrPostType: PostType.Blog },
+                        params: { docType: Doc  Type.Post, tagOrPostType: PostType.Blog },
                     }"
                     class="group rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
                 >
@@ -455,16 +445,17 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                     <div
                                         class="mt-0.5 flex items-center gap-2 pl-6 text-xs text-zinc-400"
                                     >
-                                        <span
-                                            class="inline-block rounded px-1.5 py-0.5 text-xs font-medium"
-                                            :class="
+                                        <LBadge
+                                            :variant="
                                                 doc.status === PublishStatus.Published
-                                                    ? 'bg-emerald-50 text-emerald-700'
-                                                    : 'bg-zinc-100 text-zinc-600'
+                                                    ? 'success'
+                                                    : 'default'
                                             "
+                                            paddingY="py-0.5"
+                                            paddingX="px-1.5    "
                                         >
                                             {{ doc.status }}
-                                        </span>
+                                        </LBadge>
                                         <span v-if="doc.author" class="truncate">
                                             by {{ doc.author }}
                                         </span>
@@ -515,18 +506,20 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                     <!-- Language overview -->
                     <LCard title="Translation coverage" :icon="GlobeEuropeAfricaIcon">
                         <div
-                            v-if="translationProgress.length === 0"
+                            v-if="cmsLanguages.length === 0"
                             class="py-4 text-center text-sm text-zinc-400"
                         >
                             No languages configured.
                         </div>
                         <ul v-else class="space-y-3">
-                            <li v-for="lang in translationProgress" :key="lang.id">
+                            <li v-for="lang in cmsLanguages" :key="lang._id">
                                 <div class="flex items-center justify-between text-sm">
                                     <span
                                         class="font-medium"
                                         :class="
-                                            lang.isCurrent ? 'text-yellow-600' : 'text-zinc-700'
+                                            lang._id === cmsLanguageIdAsRef
+                                                ? 'text-yellow-600'
+                                                : 'text-zinc-700'
                                         "
                                     >
                                         {{ lang.name }}
@@ -535,7 +528,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                         </span>
                                     </span>
                                     <span class="text-xs tabular-nums text-zinc-500">
-                                        {{ contentCountPerLanguage[lang.id] ?? 0 }}
+                                        {{ contentCountPerLanguage[lang._id] ?? 0 }}
                                     </span>
                                 </div>
                                 <div
@@ -543,11 +536,15 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                 >
                                     <div
                                         class="h-full rounded-full transition-all"
-                                        :class="lang.isCurrent ? 'bg-yellow-500' : 'bg-zinc-300'"
+                                        :class="
+                                            lang._id === cmsLanguageIdAsRef
+                                                ? 'bg-yellow-500'
+                                                : 'bg-zinc-300'
+                                        "
                                         :style="{
                                             width:
                                                 maxContentCount > 0
-                                                    ? `${((contentCountPerLanguage[lang.id] ?? 0) / maxContentCount) * 100}%`
+                                                    ? `${((contentCountPerLanguage[lang._id] ?? 0) / maxContentCount) * 100}%`
                                                     : '0%',
                                         }"
                                     />
