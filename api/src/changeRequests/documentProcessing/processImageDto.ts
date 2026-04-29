@@ -148,6 +148,9 @@ export async function processImage(
             warnings.push(...duplicateResult.warnings);
 
             if (!duplicateResult.success) {
+                // Avoid persisting stale source filenames when copy fails.
+                image.fileCollections = [];
+                delete image.duplicateFrom;
                 return { migrationFailed, warnings };
             }
         }
