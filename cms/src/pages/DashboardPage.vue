@@ -2,8 +2,12 @@
 import BasePage from "@/components/BasePage.vue";
 import LCard from "@/components/common/LCard.vue";
 import LBadge from "@/components/common/LBadge.vue";
+import LButton from "@/components/button/LButton.vue";
+import TranslationCoverageModal, {
+    type ParentTranslationStatus,
+} from "@/components/dashboard/TranslationCoverageModal.vue";
 import { RouterLink } from "vue-router";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
     db,
     DocType,
@@ -129,10 +133,9 @@ const contentByParentType = computed(() => {
 
 // --- Missing translations ---
 
-const missingTranslations = computed(() => {
-    if (cmsLanguages.value.length <= 1) return [];
+const allParentTranslations = computed<ParentTranslationStatus[]>(() => {
+    if (cmsLanguages.value.length === 0) return [];
 
-    // Group content by parentId to find which parents are missing translations
     const parentLanguageMap = new Map<string, Set<string>>();
     const parentTitleMap = new Map<string, string>();
     const parentTypeMap = new Map<
@@ -146,7 +149,6 @@ const missingTranslations = computed(() => {
         }
         parentLanguageMap.get(doc.parentId)!.add(doc.language);
 
-        // Keep the title from the current language if available, otherwise any title
         if (doc.language === cmsLanguageIdAsRef.value || !parentTitleMap.has(doc.parentId)) {
             parentTitleMap.set(doc.parentId, doc.title);
             parentTypeMap.set(doc.parentId, {
@@ -157,37 +159,31 @@ const missingTranslations = computed(() => {
         }
     }
 
-    const totalLanguages = cmsLanguages.value.length;
-    const missing: {
-        parentId: string;
-        title: string;
-        translated: number;
-        total: number;
-        parentType?: DocType;
-        parentPostType?: PostType;
-        parentTagType?: TagType;
-    }[] = [];
-
-    for (const [parentId, langs] of parentLanguageMap) {
-        if (langs.size < totalLanguages) {
-            missing.push({
-                parentId,
-                title: parentTitleMap.get(parentId) ?? "Untitled",
-                translated: langs.size,
-                total: totalLanguages,
-                ...parentTypeMap.get(parentId),
-            });
-        }
-    }
-
-    // Sort by fewest translations first
-    return missing.sort((a, b) => a.translated - b.translated).slice(0, 6);
+    const total = cmsLanguages.value.length;
+    return Array.from(parentLanguageMap, ([parentId, langs]) => ({
+        parentId,
+        title: parentTitleMap.get(parentId) ?? "Untitled",
+        translatedLanguages: langs,
+        translated: langs.size,
+        total,
+        ...parentTypeMap.get(parentId),
+    }));
 });
+
+const missingTranslations = computed(() => {
+    if (cmsLanguages.value.length <= 1) return [];
+    return allParentTranslations.value
+        .filter((p) => p.translated < p.total)
+        .sort((a, b) => a.translated - b.translated)
+        .slice(0, 30);
+});
+
+const showTranslationModal = ref(false);
 
 // --- Recent activity ---
 
 const recentContent = computed(() =>
-    [...contentDocs.value].sort((a, b) => b.updatedTimeUtc - a.updatedTimeUtc).slice(0, 10),
+    [...contentDocs.value].sort((a, b) => b.updatedTimeUtc - a.updatedTimeUtc).slice(0, 50),
 );
 
 function formatRelativeTime(timestamp: number): string {
@@ -243,29 +239,29 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
 
 <template>
     <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
-        <div class="space-y-6 p-3 sm:p-5">
+        <div class="flex h-full min-h-0 flex-col gap-3 p-3 sm:p-4">
             <!-- Header with greeting and status -->
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 class="text-xl font-semibold text-zinc-900">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-baseline gap-2">
+                    <h1 class="text-lg font-semibold text-zinc-900">
                         {{ greeting }}, {{ userName }}
                     </h1>
-                    <p class="mt-1 text-sm text-zinc-500">
+                    <p class="text-xs text-zinc-500">
                         Here's what's happening with your content
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                     <!-- Sync indicator -->
                     <div
                         v-if="syncActive"
-                        class="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
+                        class="flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
                     >
                         <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
                         Syncing
                     </div>
                     <!-- Connection status -->
                     <div
-                        class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+                        class="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
                         :class="
                             isConnected
                                 ? 'bg-emerald-50 text-emerald-700'
@@ -282,21 +278,23 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
             </div>
 
             <!-- Stat cards -->
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div class="grid grid-cols-2 gap-2 lg:grid-cols-5">
                 <RouterLink
                     v-if="canViewPosts"
                     :to="{
                         name: 'overview',
-                        params: { docType: Doc  Type.Post, tagOrPostType: PostType.Blog },
+                        params: { docType: DocType.Post, tagOrPostType: PostType.Blog },
                     }"
-                    class="group rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
+                    class="group rounded-lg border border-zinc-200 bg-white px-3 py-2 transition-colors hover:border-zinc-300"
                 >
                     <div class="flex items-center gap-2 text-zinc-500">
                         <DocumentDuplicateIcon class="h-4 w-4" />
                         <span class="text-xs font-medium uppercase tracking-wide">Posts</span>
                     </div>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-900">{{ posts.length }}</p>
-                    <p class="mt-0.5 text-xs text-zinc-400">
+                    <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
+                        {{ posts.length }}
+                    </p>
+                    <p class="text-xs text-zinc-400">
                         {{ contentByParentType.post }} content item{{
                             contentByParentType.post !== 1 ? "s" : ""
                         }}
@@ -309,40 +307,44 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         name: 'overview',
                         params: { docType: DocType.Tag, tagOrPostType: TagType.Category },
                     }"
-                    class="group rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
+                    class="group rounded-lg border border-zinc-200 bg-white px-3 py-2 transition-colors hover:border-zinc-300"
                 >
                     <div class="flex items-center gap-2 text-zinc-500">
                         <TagIcon class="h-4 w-4" />
                         <span class="text-xs font-medium uppercase tracking-wide">Tags</span>
                     </div>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-900">{{ tags.length }}</p>
-                    <p class="mt-0.5 text-xs text-zinc-400">
+                    <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
+                        {{ tags.length }}
+                    </p>
+                    <p class="text-xs text-zinc-400">
                         {{ contentByParentType.tag }} content item{{
                             contentByParentType.tag !== 1 ? "s" : ""
                         }}
                     </p>
                 </RouterLink>
 
-                <div class="rounded-lg border border-zinc-200 bg-white p-4">
+                <div class="rounded-lg border border-zinc-200 bg-white px-3 py-2">
                     <div class="flex items-center gap-2 text-zinc-500">
                         <CheckCircleIcon class="h-4 w-4" />
                         <span class="text-xs font-medium uppercase tracking-wide">Published</span>
                     </div>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-900">{{ publishedCount }}</p>
-                    <p v-if="draftCount > 0" class="mt-0.5 text-xs text-zinc-400">
+                    <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
+                        {{ publishedCount }}
+                    </p>
+                    <p v-if="draftCount > 0" class="text-xs text-zinc-400">
                         {{ draftCount }} draft{{ draftCount !== 1 ? "s" : "" }}
                     </p>
                 </div>
 
-                <div class="rounded-lg border border-zinc-200 bg-white p-4">
+                <div class="rounded-lg border border-zinc-200 bg-white px-3 py-2">
                     <div class="flex items-center gap-2 text-zinc-500">
                         <CalendarDaysIcon class="h-4 w-4" />
                         <span class="text-xs font-medium uppercase tracking-wide">Scheduled</span>
                     </div>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-900">
+                    <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
                         {{ scheduledContent.length }}
                     </p>
-                    <p v-if="expiredContent.length > 0" class="mt-0.5 text-xs text-amber-500">
+                    <p v-if="expiredContent.length > 0" class="text-xs text-amber-500">
                         {{ expiredContent.length }} expired
                     </p>
                 </div>
@@ -350,65 +352,64 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                 <RouterLink
                     v-if="canViewGroups"
                     :to="{ name: 'groups' }"
-                    class="group rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
+                    class="group rounded-lg border border-zinc-200 bg-white px-3 py-2 transition-colors hover:border-zinc-300"
                 >
                     <div class="flex items-center gap-2 text-zinc-500">
                         <RectangleStackIcon class="h-4 w-4" />
                         <span class="text-xs font-medium uppercase tracking-wide">Groups</span>
                     </div>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-900">{{ groups.length }}</p>
-                    <p class="mt-0.5 text-xs text-zinc-400">
+                    <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
+                        {{ groups.length }}
+                    </p>
+                    <p class="text-xs text-zinc-400">
                         {{ cmsLanguages.length }} language{{ cmsLanguages.length !== 1 ? "s" : "" }}
                     </p>
                 </RouterLink>
             </div>
 
             <!-- Status banners -->
-            <div class="flex flex-wrap gap-3">
+            <div
+                v-if="pendingChanges.length > 0 || expiredContent.length > 0"
+                class="flex flex-wrap gap-2"
+            >
                 <div
                     v-if="pendingChanges.length > 0"
-                    class="flex flex-1 items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3"
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5"
                 >
-                    <ArrowPathIcon class="h-5 w-5 shrink-0 text-amber-500" />
-                    <div>
-                        <p class="text-sm font-medium text-amber-800">
-                            {{ pendingChanges.length }} pending change{{
-                                pendingChanges.length !== 1 ? "s" : ""
-                            }}
-                        </p>
-                        <p class="text-xs text-amber-600">
-                            {{
-                                isConnected
-                                    ? "Syncing with server..."
-                                    : "Will sync when back online"
-                            }}
-                        </p>
-                    </div>
+                    <ArrowPathIcon class="h-4 w-4 shrink-0 text-amber-500" />
+                    <p class="text-xs font-medium text-amber-800">
+                        {{ pendingChanges.length }} pending change{{
+                            pendingChanges.length !== 1 ? "s" : ""
+                        }}
+                    </p>
+                    <p class="text-xs text-amber-600">
+                        {{
+                            isConnected ? "Syncing with server..." : "Will sync when back online"
+                        }}
+                    </p>
                 </div>
                 <div
                     v-if="expiredContent.length > 0"
-                    class="flex flex-1 items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3"
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5"
                 >
-                    <ExclamationTriangleIcon class="h-5 w-5 shrink-0 text-orange-500" />
-                    <div>
-                        <p class="text-sm font-medium text-orange-800">
-                            {{ expiredContent.length }} expired item{{
-                                expiredContent.length !== 1 ? "s" : ""
-                            }}
-                        </p>
-                        <p class="text-xs text-orange-600">Content past its expiry date</p>
-                    </div>
+                    <ExclamationTriangleIcon class="h-4 w-4 shrink-0 text-orange-500" />
+                    <p class="text-xs font-medium text-orange-800">
+                        {{ expiredContent.length }} expired item{{
+                            expiredContent.length !== 1 ? "s" : ""
+                        }}
+                    </p>
+                    <p class="text-xs text-orange-600">Content past its expiry date</p>
                 </div>
             </div>
 
             <!-- Main content grid -->
-            <div class="grid gap-6 lg:grid-cols-3">
+            <div class="grid min-h-0 flex-1 gap-3 lg:grid-cols-3">
                 <!-- Recent activity (2/3 width) -->
-                <div class="space-y-6 lg:col-span-2">
-                    <LCard title="Recent activity" :icon="ClockIcon">
+                <div class="flex min-h-0 flex-col gap-3 lg:col-span-2">
+                    <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
                         <div
                             v-if="recentContent.length === 0"
-                            class="py-8 text-center text-sm text-zinc-400"
+                            class="py-6 text-center text-sm text-zinc-400"
                         >
                             No content found for the selected language.
                         </div>
@@ -416,54 +417,52 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                             <li
                                 v-for="doc in recentContent"
                                 :key="doc._id"
-                                class="flex items-center justify-between gap-3 py-2.5"
+                                class="flex items-center gap-2 py-1.5"
                             >
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <component
-                                            :is="
-                                                doc.parentType === DocType.Post
-                                                    ? DocumentTextIcon
-                                                    : TagIcon
-                                            "
-                                            class="h-4 w-4 shrink-0 text-zinc-300"
-                                        />
-                                        <RouterLink
-                                            v-if="parentRoute(doc)"
-                                            :to="parentRoute(doc)!"
-                                            class="truncate text-sm font-medium text-zinc-900 hover:text-yellow-600"
-                                        >
-                                            {{ doc.title || "Untitled" }}
-                                        </RouterLink>
-                                        <span
-                                            v-else
-                                            class="truncate text-sm font-medium text-zinc-900"
-                                        >
-                                            {{ doc.title || "Untitled" }}
-                                        </span>
-                                    </div>
-                                    <div
-                                        class="mt-0.5 flex items-center gap-2 pl-6 text-xs text-zinc-400"
-                                    >
-                                        <LBadge
-                                            :variant="
-                                                doc.status === PublishStatus.Published
-                                                    ? 'success'
-                                                    : 'default'
-                                            "
-                                            paddingY="py-0.5"
-                                            paddingX="px-1.5    "
-                                        >
-                                            {{ doc.status }}
-                                        </LBadge>
-                                        <span v-if="doc.author" class="truncate">
-                                            by {{ doc.author }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <span class="shrink-0 text-xs text-zinc-400">
+                                <component
+                                    :is="
+                                        doc.parentType === DocType.Post
+                                            ? DocumentTextIcon
+                                            : TagIcon
+                                    "
+                                    class="h-4 w-4 shrink-0 text-zinc-300"
+                                />
+                                <RouterLink
+                                    v-if="parentRoute(doc)"
+                                    :to="parentRoute(doc)!"
+                                    class="min-w-0 truncate text-sm font-medium text-zinc-900 hover:text-yellow-600"
+                                >
+                                    {{ doc.title || "Untitled" }}
+                                </RouterLink>
+                                <span
+                                    v-else
+                                    class="min-w-0 truncate text-sm font-medium text-zinc-900"
+                                >
+                                    {{ doc.title || "Untitled" }}
+                                </span>
+                                <span
+                                    v-if="doc.author"
+                                    class="ml-auto hidden truncate text-xs text-zinc-400 sm:inline"
+                                >
+                                    by {{ doc.author }}
+                                </span>
+                                <span
+                                    class="shrink-0 text-xs text-zinc-400"
+                                    :class="{ 'ml-auto': !doc.author }"
+                                >
                                     {{ formatRelativeTime(doc.updatedTimeUtc) }}
                                 </span>
+                                <LBadge
+                                    :variant="
+                                        doc.status === PublishStatus.Published
+                                            ? 'success'
+                                            : 'default'
+                                    "
+                                    paddingY="py-0.5"
+                                    paddingX="px-1.5"
+                                >
+                                    {{ doc.status }}
+                                </LBadge>
                             </li>
                         </ul>
                     </LCard>
@@ -474,12 +473,13 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         title="Upcoming scheduled"
                         :icon="CalendarDaysIcon"
                         collapsible
+                        defaultCollapsed
                     >
                         <ul class="divide-y divide-zinc-100">
                             <li
                                 v-for="doc in scheduledContent.slice(0, 5)"
                                 :key="doc._id"
-                                class="flex items-center justify-between gap-3 py-2.5"
+                                class="flex items-center justify-between gap-3 py-1.5"
                             >
                                 <div class="min-w-0 flex-1">
                                     <RouterLink
@@ -502,7 +502,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                 </div>
 
                 <!-- Right column (1/3 width) -->
-                <div class="space-y-6">
+                <div class="flex min-h-0 flex-col gap-3">
                     <!-- Language overview -->
                     <LCard title="Translation coverage" :icon="GlobeEuropeAfricaIcon">
                         <div
@@ -511,7 +511,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         >
                             No languages configured.
                         </div>
-                        <ul v-else class="space-y-3">
+                        <ul v-else class="space-y-1.5">
                             <li v-for="lang in cmsLanguages" :key="lang._id">
                                 <div class="flex items-center justify-between text-sm">
                                     <span
@@ -532,7 +532,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                     </span>
                                 </div>
                                 <div
-                                    class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100"
+                                    class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100"
                                 >
                                     <div
                                         class="h-full rounded-full transition-all"
@@ -559,12 +559,22 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         title="Needs translation"
                         :icon="PencilSquareIcon"
                         collapsible
+                        fillHeight
                     >
+                        <template #actions>
+                            <LButton
+                                variant="tertiary"
+                                size="sm"
+                                @click="showTranslationModal = true"
+                            >
+                                View all
+                            </LButton>
+                        </template>
                         <ul class="divide-y divide-zinc-100">
                             <li
                                 v-for="item in missingTranslations"
                                 :key="item.parentId"
-                                class="py-2"
+                                class="py-1.5"
                             >
                                 <div class="flex items-center justify-between gap-2">
                                     <RouterLink
@@ -589,5 +599,13 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                 </div>
             </div>
         </div>
+
+        <TranslationCoverageModal
+            v-model:is-visible="showTranslationModal"
+            :parents="allParentTranslations"
+            :languages="cmsLanguages"
+            :current-language-id="cmsLanguageIdAsRef"
+            :parent-route="parentRoute"
+        />
     </BasePage>
 </template>
