@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { computed, watch } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 
@@ -28,10 +28,39 @@ const navigationItems = computed(() => getNavigationItems(t));
 const handleSearchClick = () => {
     openSearch();
 };
+
+// Publish the menu's rendered height as --mobile-menu-h so overlays (e.g. SearchModal)
+// can sit flush above it without hardcoding a magic number.
+const rootRef = ref<HTMLElement | null>(null);
+let resizeObserver: ResizeObserver | null = null;
+
+const publishHeight = (height: number) => {
+    document.documentElement.style.setProperty("--mobile-menu-h", `${height}px`);
+};
+
+onMounted(() => {
+    if (!rootRef.value) return;
+    const measure = () => {
+        if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
+    };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(measure);
+        resizeObserver.observe(rootRef.value);
+    }
+});
+
+onUnmounted(() => {
+    resizeObserver?.disconnect();
+    document.documentElement.style.removeProperty("--mobile-menu-h");
+});
 </script>
 
 <template>
-    <div class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800">
+    <div
+        ref="rootRef"
+        class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800"
+    >
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink
             v-for="item in navigationItems.slice(0, -1)"

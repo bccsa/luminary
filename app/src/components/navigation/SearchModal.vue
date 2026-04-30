@@ -577,367 +577,365 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
 </script>
 
 <template>
-    <div class="relative">
-        <Transition
-            enter-active-class="md:transition-opacity md:duration-200"
-            enter-from-class="md:opacity-0"
-            enter-to-class="md:opacity-100"
-            leave-active-class="md:transition-opacity md:duration-150"
-            leave-from-class="md:opacity-100"
-            leave-to-class="md:opacity-0"
+    <Transition
+        enter-active-class="md:transition-opacity md:duration-200"
+        enter-from-class="md:opacity-0"
+        enter-to-class="md:opacity-100"
+        leave-active-class="md:transition-opacity md:duration-150"
+        leave-from-class="md:opacity-100"
+        leave-to-class="md:opacity-0"
+    >
+        <div
+            v-show="isOpen"
+            class="fixed inset-x-0 top-0 bottom-0 z-50 flex max-lg:bottom-[var(--mobile-menu-h,78px)] flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+            @click.self="closeSearch"
         >
             <div
-                v-show="isOpen"
-                class="fixed inset-x-0 top-0 bottom-0 z-50 flex max-lg:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex-col bg-white dark:bg-slate-900 md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
-                @click.self="closeSearch"
+                class="flex h-full w-full flex-col overflow-hidden md:h-auto md:max-h-[75vh] md:max-w-3xl md:rounded-xl md:bg-white md:shadow-2xl md:dark:bg-slate-900"
+                tabindex="-1"
+                @keydown="handleKeydown"
             >
                 <div
-                    class="flex h-full w-full flex-col overflow-hidden md:h-auto md:max-h-[75vh] md:max-w-3xl md:rounded-xl md:bg-white md:shadow-2xl md:dark:bg-slate-900"
-                    tabindex="-1"
-                    @keydown="handleKeydown"
+                    class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
+                >
+                    <MagnifyingGlassIcon
+                        class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
+                    />
+
+                    <div class="relative z-0 min-w-0 flex-1">
+                        <input
+                            ref="inputRef"
+                            v-model="searchQuery"
+                            type="text"
+                            role="combobox"
+                            aria-haspopup="listbox"
+                            :aria-expanded="showResults"
+                            :aria-activedescendant="
+                                selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
+                            "
+                            :placeholder="t('search.placeholder')"
+                            class="w-full min-w-0 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
+                            autocomplete="off"
+                            @keydown="handleInputKeydown"
+                            @focus="isInputFocused = true"
+                            @blur="isInputFocused = false"
+                        />
+                    </div>
+                    <div
+                        class="relative z-10 flex h-9 flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0"
+                    >
+                        <button
+                            v-if="showGoButton"
+                            type="button"
+                            class="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 md:h-auto md:py-1.5"
+                            @mousedown.prevent
+                            @click="onGoClick"
+                        >
+                            {{ t("search.go") }}
+                        </button>
+                        <button
+                            v-if="searchQuery"
+                            class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                            :aria-label="t('search.clearQuery')"
+                            @mousedown.prevent
+                            @click="clearSearch"
+                        >
+                            <ArrowUturnLeftIcon class="h-5 w-5" />
+                        </button>
+                        <button
+                            v-if="showHeaderCloseButton"
+                            class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                            :aria-label="t('search.close')"
+                            @click="closeSearch"
+                        >
+                            <XMarkIcon class="h-5 w-5 md:h-5 md:w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    ref="searchResultsContainerRef"
+                    class="flex-1 overflow-y-auto scrollbar-hide"
                 >
                     <div
-                        class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
+                        v-if="isSearching && results.length === 0"
+                        class="p-4 md:p-5"
                     >
-                        <MagnifyingGlassIcon
-                            class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6"
-                        />
-
-                        <div class="relative z-0 min-w-0 flex-1">
-                            <input
-                                ref="inputRef"
-                                v-model="searchQuery"
-                                type="text"
-                                role="combobox"
-                                aria-haspopup="listbox"
-                                :aria-expanded="showResults"
-                                :aria-activedescendant="
-                                    selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
-                                "
-                                :placeholder="t('search.placeholder')"
-                                class="w-full min-w-0 bg-transparent text-base text-zinc-900 placeholder-zinc-400 focus:outline-none dark:text-slate-100 md:text-lg"
-                                autocomplete="off"
-                                @keydown="handleInputKeydown"
-                                @focus="isInputFocused = true"
-                                @blur="isInputFocused = false"
-                            />
-                        </div>
-                        <div
-                            class="relative z-10 flex h-9 flex-shrink-0 items-center gap-1.5 pr-1 md:gap-2 md:pr-0"
-                        >
-                            <button
-                                v-if="showGoButton"
-                                type="button"
-                                class="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 md:h-auto md:py-1.5"
-                                @mousedown.prevent
-                                @click="onGoClick"
+                        <div class="space-y-3 md:space-y-4">
+                            <div
+                                v-for="i in 3"
+                                :key="i"
+                                class="flex gap-3 md:gap-4"
                             >
-                                {{ t("search.go") }}
-                            </button>
-                            <button
-                                v-if="searchQuery"
-                                class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                                :aria-label="t('search.clearQuery')"
-                                @mousedown.prevent
-                                @click="clearSearch"
-                            >
-                                <ArrowUturnLeftIcon class="h-5 w-5" />
-                            </button>
-                            <button
-                                v-if="showHeaderCloseButton"
-                                class="flex h-9 w-9 items-center justify-center rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                                :aria-label="t('search.close')"
-                                @click="closeSearch"
-                            >
-                                <XMarkIcon class="h-5 w-5 md:h-5 md:w-5" />
-                            </button>
+                                <div
+                                    class="h-12 w-16 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700 md:h-16 md:w-24"
+                                ></div>
+                                <div class="flex-1 space-y-2">
+                                    <div
+                                        class="h-4 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-5"
+                                    ></div>
+                                    <div
+                                        class="h-3 w-full animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-4"
+                                    ></div>
+                                    <div
+                                        class="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-4"
+                                    ></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div
-                        ref="searchResultsContainerRef"
-                        class="flex-1 overflow-y-auto scrollbar-hide"
+                        v-else-if="showMinCharsHint"
+                        class="p-8 text-center md:p-10"
                     >
-                        <div
-                            v-if="isSearching && results.length === 0"
-                            class="p-4 md:p-5"
-                        >
-                            <div class="space-y-3 md:space-y-4">
-                                <div
-                                    v-for="i in 3"
-                                    :key="i"
-                                    class="flex gap-3 md:gap-4"
-                                >
-                                    <div
-                                        class="h-12 w-16 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700 md:h-16 md:w-24"
-                                    ></div>
-                                    <div class="flex-1 space-y-2">
-                                        <div
-                                            class="h-4 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-5"
-                                        ></div>
-                                        <div
-                                            class="h-3 w-full animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-4"
-                                        ></div>
-                                        <div
-                                            class="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-slate-700 md:h-4"
-                                        ></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                            {{ t("search.minChars") }}
+                        </p>
+                    </div>
 
-                        <div
-                            v-else-if="showMinCharsHint"
-                            class="p-8 text-center md:p-10"
-                        >
-                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ t("search.minChars") }}
-                            </p>
-                        </div>
+                    <div
+                        v-else-if="showPressGoHint"
+                        class="p-8 text-center md:p-10"
+                    >
+                        <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                            {{ t("search.pressGo") }}
+                        </p>
+                    </div>
 
-                        <div
-                            v-else-if="showPressGoHint"
-                            class="p-8 text-center md:p-10"
-                        >
-                            <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ t("search.pressGo") }}
-                            </p>
-                        </div>
+                    <div
+                        v-else-if="showNoResults"
+                        class="p-8 text-center md:p-10"
+                    >
+                        <MagnifyingGlassIcon
+                            class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
+                        />
+                        <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
+                            {{ t("search.noResults") }}
+                        </p>
+                        <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
+                            {{ t("search.tryDifferent") }}
+                        </p>
+                    </div>
 
-                        <div
-                            v-else-if="showNoResults"
-                            class="p-8 text-center md:p-10"
+                    <div
+                        v-else-if="showResults"
+                        id="search-results-container"
+                        class="pb-24 pt-0 md:pb-3"
+                    >
+                        <ul
+                            role="listbox"
+                            :aria-label="t('search.ariaLabel')"
+                            class="list-none divide-y divide-zinc-200 dark:divide-slate-700"
                         >
-                            <MagnifyingGlassIcon
-                                class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
-                            />
-                            <p class="mt-2 text-sm text-zinc-500 dark:text-slate-400 md:text-base">
-                                {{ t("search.noResults") }}
-                            </p>
-                            <p class="mt-1 text-xs text-zinc-400 dark:text-slate-500">
-                                {{ t("search.tryDifferent") }}
-                            </p>
-                        </div>
-
-                        <div
-                            v-else-if="showResults"
-                            id="search-results-container"
-                            class="pb-24 pt-0 md:pb-3"
-                        >
-                            <ul
-                                role="listbox"
-                                :aria-label="t('search.ariaLabel')"
-                                class="list-none divide-y divide-zinc-200 dark:divide-slate-700"
+                            <li
+                                v-for="(result, index) in results"
+                                :key="result._id"
+                                :id="`search-result-${index}`"
+                                role="option"
+                                :aria-selected="index === selectedIndex"
+                                class="group relative cursor-pointer list-none px-3 md:px-4"
+                                :class="{
+                                    'hover:bg-zinc-50 dark:hover:bg-slate-800/70':
+                                        index !== selectedIndex,
+                                }"
+                                @click="goToResult(result)"
+                                @mouseenter="selectedIndex = index"
                             >
-                                <li
-                                    v-for="(result, index) in results"
-                                    :key="result._id"
-                                    :id="`search-result-${index}`"
-                                    role="option"
-                                    :aria-selected="index === selectedIndex"
-                                    class="group relative cursor-pointer list-none px-3 md:px-4"
-                                    :class="{
-                                        'hover:bg-zinc-50 dark:hover:bg-slate-800/70':
-                                            index !== selectedIndex,
-                                    }"
-                                    @click="goToResult(result)"
-                                    @mouseenter="selectedIndex = index"
+                                <div
+                                    v-if="index === selectedIndex"
+                                    class="pointer-events-none absolute inset-0 z-0 bg-zinc-50 dark:bg-slate-800/70"
+                                    aria-hidden="true"
+                                />
+                                <div
+                                    class="relative z-10 flex w-full min-w-0 items-stretch gap-2 py-2.5 md:gap-3 md:py-3"
                                 >
-                                    <div
-                                        v-if="index === selectedIndex"
-                                        class="pointer-events-none absolute inset-0 z-0 bg-zinc-50 dark:bg-slate-800/70"
-                                        aria-hidden="true"
-                                    />
-                                    <div
-                                        class="relative z-10 flex w-full min-w-0 items-stretch gap-2 py-2.5 md:gap-3 md:py-3"
-                                    >
-                                        <div class="flex flex-shrink-0 items-center justify-center">
-                                            <LImage
-                                                :image="result.parentImageData"
-                                                :content-parent-id="result.parentId"
-                                                :parent-image-bucket-id="result.parentImageBucketId"
-                                                size="small"
-                                                aspect-ratio="video"
-                                            />
-                                        </div>
-                                        <div class="min-w-0 flex-1">
-                                            <h3
-                                                class="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-slate-100 md:text-base"
-                                                :class="{
-                                                    'text-amber-600 dark:text-amber-400':
-                                                        index === selectedIndex,
-                                                }"
-                                            >
-                                                <span
-                                                    v-if="result.titleHighlight"
-                                                    v-html="result.titleHighlight"
-                                                />
-                                                <template v-else>{{
-                                                    stripHtml(result.title ?? "")
-                                                }}</template>
-                                            </h3>
-                                            <p
-                                                v-if="result.highlight"
-                                                class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
-                                                v-html="result.highlight"
-                                            ></p>
-                                            <p
-                                                v-else-if="result.summary"
-                                                class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
-                                            >
-                                                {{ stripHtml(result.summary) }}
-                                            </p>
-                                            <!-- hide language when same as user's to avoid "English" on every card -->
-                                            <div
-                                                v-if="
-                                                    result.author ||
-                                                    (result.languageName &&
-                                                        result.language !== languageId)
-                                                "
-                                                class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
-                                            >
-                                                <span
-                                                    v-if="result.author"
-                                                    class="truncate"
-                                                >
-                                                    <span
-                                                        v-if="result.authorHighlight"
-                                                        v-html="result.authorHighlight"
-                                                    />
-                                                    <template v-else>{{ result.author }}</template>
-                                                </span>
-                                                <span
-                                                    v-if="
-                                                        result.author &&
-                                                        result.languageName &&
-                                                        result.language !== languageId
-                                                    "
-                                                    class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
-                                                    aria-hidden="true"
-                                                    >·</span
-                                                >
-                                                <span
-                                                    v-if="
-                                                        result.languageName &&
-                                                        result.language !== languageId
-                                                    "
-                                                    class="flex-shrink-0 uppercase tracking-wide"
-                                                    >{{ result.languageName }}</span
-                                                >
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="flex flex-shrink-0 items-center pt-0.5 text-zinc-400 dark:text-slate-500"
+                                    <div class="flex flex-shrink-0 items-center justify-center">
+                                        <LImage
+                                            :image="result.parentImageData"
+                                            :content-parent-id="result.parentId"
+                                            :parent-image-bucket-id="result.parentImageBucketId"
+                                            size="small"
+                                            aspect-ratio="video"
+                                        />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <h3
+                                            class="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-slate-100 md:text-base"
                                             :class="{
-                                                'text-amber-500 dark:text-amber-400':
+                                                'text-amber-600 dark:text-amber-400':
                                                     index === selectedIndex,
                                             }"
                                         >
-                                            <ArrowRightIcon class="h-4 w-4 md:h-5 md:w-5" />
+                                            <span
+                                                v-if="result.titleHighlight"
+                                                v-html="result.titleHighlight"
+                                            />
+                                            <template v-else>{{
+                                                stripHtml(result.title ?? "")
+                                            }}</template>
+                                        </h3>
+                                        <p
+                                            v-if="result.highlight"
+                                            class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
+                                            v-html="result.highlight"
+                                        ></p>
+                                        <p
+                                            v-else-if="result.summary"
+                                            class="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 dark:text-slate-400 md:mt-1 md:text-sm"
+                                        >
+                                            {{ stripHtml(result.summary) }}
+                                        </p>
+                                        <!-- hide language when same as user's to avoid "English" on every card -->
+                                        <div
+                                            v-if="
+                                                result.author ||
+                                                (result.languageName &&
+                                                    result.language !== languageId)
+                                            "
+                                            class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
+                                        >
+                                            <span
+                                                v-if="result.author"
+                                                class="truncate"
+                                            >
+                                                <span
+                                                    v-if="result.authorHighlight"
+                                                    v-html="result.authorHighlight"
+                                                />
+                                                <template v-else>{{ result.author }}</template>
+                                            </span>
+                                            <span
+                                                v-if="
+                                                    result.author &&
+                                                    result.languageName &&
+                                                    result.language !== languageId
+                                                "
+                                                class="flex-shrink-0 text-zinc-300 dark:text-slate-600"
+                                                aria-hidden="true"
+                                                >·</span
+                                            >
+                                            <span
+                                                v-if="
+                                                    result.languageName &&
+                                                    result.language !== languageId
+                                                "
+                                                class="flex-shrink-0 uppercase tracking-wide"
+                                                >{{ result.languageName }}</span
+                                            >
                                         </div>
                                     </div>
-                                </li>
-                            </ul>
-                            <div
-                                v-if="isSearching && results.length > 0"
-                                class="flex justify-center py-3"
-                            >
-                                <svg
-                                    class="h-5 w-5 animate-spin text-zinc-400 dark:text-slate-500"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    aria-hidden="true"
-                                >
-                                    <circle
-                                        class="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        stroke-width="4"
-                                    />
-                                    <path
-                                        class="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                    />
-                                </svg>
-                            </div>
-                        </div>
-
-                        <div
-                            v-else-if="showEmptyStateHint"
-                            class="p-6 md:p-8"
-                        >
-                            <p
-                                class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base"
-                            >
-                                {{ t("search.hint") }}
-                            </p>
-                            <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
-                                {{ t("search.minCharsShort") }}
-                                <span class="hidden sm:inline">
-                                    · {{ t("search.shortcut", { shortcut: shortcutLabel }) }}
-                                </span>
-                            </p>
-                            <div
-                                v-if="recentSearches.length > 0"
-                                class="mt-4 border-t border-zinc-200 pt-4 dark:border-slate-700"
-                            >
-                                <p
-                                    class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500"
-                                >
-                                    {{ t("search.recent") }}
-                                </p>
-                                <div class="flex flex-wrap gap-2">
-                                    <button
-                                        v-for="term in recentSearches"
-                                        :key="term"
-                                        type="button"
-                                        class="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
-                                        @click="pickRecentSearch(term)"
+                                    <div
+                                        class="flex flex-shrink-0 items-center pt-0.5 text-zinc-400 dark:text-slate-500"
+                                        :class="{
+                                            'text-amber-500 dark:text-amber-400':
+                                                index === selectedIndex,
+                                        }"
                                     >
-                                        {{ term }}
-                                    </button>
+                                        <ArrowRightIcon class="h-4 w-4 md:h-5 md:w-5" />
+                                    </div>
                                 </div>
-                            </div>
+                            </li>
+                        </ul>
+                        <div
+                            v-if="isSearching && results.length > 0"
+                            class="flex justify-center py-3"
+                        >
+                            <svg
+                                class="h-5 w-5 animate-spin text-zinc-400 dark:text-slate-500"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <circle
+                                    class="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    stroke-width="4"
+                                />
+                                <path
+                                    class="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                            </svg>
                         </div>
                     </div>
 
                     <div
-                        class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex md:px-5 md:py-2.5 md:text-sm"
+                        v-else-if="showEmptyStateHint"
+                        class="p-6 md:p-8"
                     >
-                        <div class="flex items-center gap-4">
-                            <span class="flex items-center gap-1">
-                                <kbd
-                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
-                                    >ESC</kbd
-                                >
-                                {{ t("search.toClose") }}
+                        <p
+                            class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base"
+                        >
+                            {{ t("search.hint") }}
+                        </p>
+                        <p class="mt-1 text-center text-xs text-zinc-400 dark:text-slate-500">
+                            {{ t("search.minCharsShort") }}
+                            <span class="hidden sm:inline">
+                                · {{ t("search.shortcut", { shortcut: shortcutLabel }) }}
                             </span>
-                            <span class="flex items-center gap-1">
-                                <kbd
-                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
-                                    >↑</kbd
+                        </p>
+                        <div
+                            v-if="recentSearches.length > 0"
+                            class="mt-4 border-t border-zinc-200 pt-4 dark:border-slate-700"
+                        >
+                            <p
+                                class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-slate-500"
+                            >
+                                {{ t("search.recent") }}
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="term in recentSearches"
+                                    :key="term"
+                                    type="button"
+                                    class="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                                    @click="pickRecentSearch(term)"
                                 >
-                                <kbd
-                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
-                                    >↓</kbd
-                                >
-                                {{ t("search.navigate") }}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <kbd
-                                    class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
-                                    >↵</kbd
-                                >
-                                {{ t("search.select") }}
-                            </span>
+                                    {{ term }}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div
+                    class="hidden items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-slate-700 dark:bg-slate-800 md:flex md:px-5 md:py-2.5 md:text-sm"
+                >
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center gap-1">
+                            <kbd
+                                class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                >ESC</kbd
+                            >
+                            {{ t("search.toClose") }}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <kbd
+                                class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                >↑</kbd
+                            >
+                            <kbd
+                                class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                >↓</kbd
+                            >
+                            {{ t("search.navigate") }}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <kbd
+                                class="rounded bg-zinc-200 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                >↵</kbd
+                            >
+                            {{ t("search.select") }}
+                        </span>
+                    </div>
+                </div>
             </div>
-        </Transition>
-    </div>
+        </div>
+    </Transition>
 </template>
