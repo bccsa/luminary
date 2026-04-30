@@ -23,6 +23,10 @@ import { APP_DOCS_INDEX } from "./docsIndex";
 
 export const app = createApp(App);
 
+// Install Pinia early so any watchers/effects registered during startup that
+// resolve a store (e.g. useNotificationStore) have an active Pinia instance.
+app.use(createPinia());
+
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
@@ -138,7 +142,6 @@ async function Startup() {
     // Install all plugins before mounting — components rendered during the
     // splash screen (e.g. SearchModal) call useI18n() at setup time.
     const i18n = initI18n();
-    app.use(createPinia());
     app.use(router);
     app.use(i18n);
     app.mount("#app");

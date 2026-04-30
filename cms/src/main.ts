@@ -20,6 +20,10 @@ import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
 
+// Install Pinia early so any watchers/effects registered during startup that
+// resolve a store (e.g. useNotificationStore) have an active Pinia instance.
+app.use(createPinia());
+
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
@@ -185,7 +189,6 @@ async function Startup() {
     await initLanguage();
     initSync();
 
-    app.use(createPinia());
     app.use(router);
     app.mount("#app");
 }
