@@ -106,6 +106,13 @@ export class DbService extends EventEmitter {
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
 
+    // Sequence cursor of the last change we delivered to listeners. Resuming the
+    // feed from this value on reconnect is what lets in-memory caches (perms,
+    // languages, etc.) recover changes that occurred during the disconnect
+    // window without re-fetching everything. Initialised to "now" so the very
+    // first connect starts at the head of the feed (existing behaviour).
+    private lastSeq: string | number = "now";
+
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
@@ -173,7 +180,7 @@ export class DbService extends EventEmitter {
      */
     private startChangesFeed() {
         this.db.changesReader
-            .start({ includeDocs: true })
+            .start({ includeDocs: true, since: this.lastSeq })
             .on("change", (update) => {
                 // emit update event for all valid documents
                 if (update.doc && update.doc.type) {
@@ -196,6 +203,13 @@ export class DbService extends EventEmitter {
                         if (doc.deleteReason === DeleteReason.Deleted)
                             this.emit("languageUpdate", doc);
                     }
+                }
+
+                // Advance the resume cursor after listeners run so a crash
+                // mid-handler causes the change to be re-delivered on the next
+                // reconnect rather than silently skipped.
+                if (update.seq !== undefined) {
+                    this.lastSeq = update.seq;
                 }
             })
             .on("error", (err) => {
