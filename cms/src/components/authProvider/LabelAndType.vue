@@ -19,7 +19,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
             name="providerLabel"
             :model-value="provider.label ?? ''"
             type="text"
-            placeholder="e.g. login.bcc.button"
+            placeholder="e.g. login.provider.button"
             :disabled="disabled"
             @update:model-value="provider.label = $event"
         />
@@ -28,12 +28,16 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
             <label for="provider-display-name" class="mb-1 block text-xs font-medium text-gray-700">
                 Display name
             </label>
+            <p class="mb-1 text-[11px] text-gray-500">
+                You can use embedded translation lookups with [[key.path]] or enter a translation key
+                directly (key.subkey).
+            </p>
             <LInput
                 id="provider-display-name"
                 name="providerDisplayName"
                 :model-value="provider.displayName ?? ''"
                 type="text"
-                placeholder="e.g. Login with BCC"
+                placeholder="e.g. Sign in with [[organization.name]] or login.provider.button"
                 :disabled="disabled"
                 @update:model-value="provider.displayName = $event"
             />

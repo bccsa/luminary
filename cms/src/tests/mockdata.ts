@@ -372,7 +372,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "privacy_policy.banner.title": "Privacy Policy",
         "privacy_policy.modal.link_text": "here",
         "privacy_policy.modal.message_link": "Click {link} to read our privacy policy.",
-        "login.bcc.button": "Login in with BCC",
+        "login.provider.button": "Sign in with Example Org",
         "login.guest.button": "Login in as guest",
         "select_theme.title": "Select theme",
         "bookmarks.title": "Bookmarks",
@@ -439,7 +439,7 @@ export const mockLanguageDtoFra: LanguageDto = {
         "privacy_policy.modal.link_text": "ici",
         "privacy_policy.modal.message_link":
             "Cliquez {link} pour lire notre politique de confidentialité.",
-        "login.bcc.button": "Se connecter avec BCC",
+        "login.provider.button": "Se connecter avec Example Org",
         "login.guest.button": "Se connecter en tant qu'invité",
         "select_theme.title": "Sélectionner un thème",
         "bookmarks.title": "Signets",

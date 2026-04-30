@@ -11,7 +11,7 @@ vi.mock("vue-i18n", () => ({
         t: (key: string) =>
             (
                 {
-                    "login.bcc.button": "Login with BCC",
+                    "login.provider.button": "Sign in with Example Org",
                 } as Record<string, string>
             )[key] ?? key,
     }),
@@ -61,7 +61,7 @@ const mockProviderKeyLabel: AuthProviderDto = {
     type: DocType.AuthProvider,
     updatedTimeUtc: 1704114000000,
     memberOf: [],
-    label: "login.bcc.button",
+    label: "login.provider.button",
     domain: "key.auth0.com",
     clientId: "client-key",
     audience: "https://api.key.com",
@@ -195,7 +195,7 @@ describe("AuthProviderSelectionModal.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Login with BCC");
+            expect(wrapper.html()).toContain("Sign in with Example Org");
         });
     });
 

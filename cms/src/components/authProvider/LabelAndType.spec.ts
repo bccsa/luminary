@@ -23,10 +23,10 @@ describe("LabelAndType.vue", () => {
             props: { provider },
         });
 
-        await wrapper.find("[name='providerDisplayName']").setValue("Login with BCC");
+        await wrapper.find("[name='providerDisplayName']").setValue("Sign in with Example Org");
         await wrapper.vm.$nextTick();
 
-        expect(provider.displayName).toBe("Login with BCC");
+        expect(provider.displayName).toBe("Sign in with Example Org");
     });
 
     it("renders the current label value in the input", () => {
