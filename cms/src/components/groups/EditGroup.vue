@@ -19,7 +19,7 @@ import EditAclByGroup from "./EditAclByGroup.vue";
 import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
 import LInput from "../forms/LInput.vue";
-import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
+import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";

@@ -22,7 +22,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 import { Slug } from "@/util/slug";
-import { TrashIcon } from "@heroicons/vue/24/solid";
+import { TrashIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 

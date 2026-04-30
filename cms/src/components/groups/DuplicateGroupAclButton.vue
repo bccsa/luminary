@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GroupDto } from "luminary-shared";
-import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
+import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { toRaw, toRefs, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import LDropdown from "../common/LDropdown.vue";
