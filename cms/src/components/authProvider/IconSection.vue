@@ -36,7 +36,11 @@ watch(
     { immediate: true },
 );
 
-const isBucketSelected = computed(() => !!props.provider?.imageBucketId);
+// Mirrors ImageEditor's effectiveImageBucketId fallback so the Upload button
+// shows in single-bucket setups before the provider has been written to.
+const isBucketSelected = computed(
+    () => props.provider?.imageBucketId ?? storage.autoSelectImageBucket.value,
+);
 
 const acceptedMimeTypes = computed(() => {
     if (!props.provider?.imageBucketId) {
