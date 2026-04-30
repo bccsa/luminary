@@ -9,7 +9,6 @@ import { DbService } from "../../db/db.service";
 import { StorageDto } from "../../dto/StorageDto";
 import { DocType } from "../../enums";
 import configuration from "../../configuration";
-import { ImageDuplicateFromDto } from "../../dto/ImageDuplicateFromDto";
 import { extname } from "path";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
@@ -133,7 +132,7 @@ export async function processImage(
     let migrationFailed = false;
 
     try {
-        if (!prevImage && image.duplicateFrom && image.fileCollections.length > 0) {
+        if (!prevImage && image.duplicate && image.fileCollections.length > 0) {
             if (!parentBucketId) {
                 warnings.push("Parent bucket ID is required for duplicated image copy.");
                 return { migrationFailed, warnings };
@@ -141,8 +140,8 @@ export async function processImage(
 
             const duplicateResult = await duplicateImageFilesWithoutReencoding(
                 image,
-                image.duplicateFrom,
                 db,
+                parentBucketId,
                 parentBucketId,
             );
             warnings.push(...duplicateResult.warnings);
@@ -150,7 +149,7 @@ export async function processImage(
             if (!duplicateResult.success) {
                 // Avoid persisting stale source filenames when copy fails.
                 image.fileCollections = [];
-                delete image.duplicateFrom;
+                delete image.duplicate;
                 return { migrationFailed, warnings };
             }
         }
@@ -282,7 +281,7 @@ export async function processImage(
             delete image.uploadData; // Remove upload data after processing
         }
 
-        delete image.duplicateFrom;
+        delete image.duplicate;
     } catch (error) {
         warnings.push(`Image processing failed: ${error.message}`);
     }
@@ -292,14 +291,14 @@ export async function processImage(
 
 async function duplicateImageFilesWithoutReencoding(
     image: ImageDto,
-    duplicateFrom: ImageDuplicateFromDto,
     db: DbService,
+    sourceBucketId: string,
     targetBucketId: string,
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
 
     try {
-        const sourceS3Service = await S3Service.create(duplicateFrom.bucketId, db);
+        const sourceS3Service = await S3Service.create(sourceBucketId, db);
         const targetS3Service = await S3Service.create(targetBucketId, db);
         const sourceBucketName = sourceS3Service.getBucketName();
 

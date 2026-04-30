@@ -483,18 +483,19 @@ const duplicate = async () => {
     delete (clonedParent as any)._rev;
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
     if (clonedParent.imageData) {
+        const imageData = clonedParent.imageData as typeof clonedParent.imageData & {
+            duplicate?: boolean;
+        };
         delete clonedParent.imageData.uploadData;
-        if (duplicateImageOnCopy.value && clonedParent.imageData.fileCollections?.length > 0) {
+        delete imageData.duplicate;
+        if (duplicateImageOnCopy.value && imageData.fileCollections?.length > 0) {
             if (editableParent.value.imageBucketId) {
-                clonedParent.imageData.duplicateFrom = {
-                    docId: editableParent.value._id,
-                    bucketId: editableParent.value.imageBucketId,
-                };
+                imageData.duplicate = true;
             } else {
-                clonedParent.imageData.fileCollections = [];
+                imageData.fileCollections = [];
             }
-        } else if (clonedParent.imageData.fileCollections) {
-            clonedParent.imageData.fileCollections = [];
+        } else if (imageData.fileCollections) {
+            imageData.fileCollections = [];
         }
     }
     const clonedContent = editableContent.value.map((c) => {

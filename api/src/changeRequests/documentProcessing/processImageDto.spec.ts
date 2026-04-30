@@ -153,7 +153,7 @@ describe("S3ImageHandler", () => {
         resImages.push(image);
     });
 
-    it("duplicates existing image files without re-encoding when duplicateFrom is provided", async () => {
+    it("duplicates existing image files without re-encoding when duplicate is true", async () => {
         const sourceImage = new ImageDto();
         sourceImage.uploadData = [
             {
@@ -167,10 +167,7 @@ describe("S3ImageHandler", () => {
 
         const duplicatedImage = new ImageDto();
         duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
-        duplicatedImage.duplicateFrom = {
-            docId: "post-source",
-            bucketId: testBucketId,
-        };
+        duplicatedImage.duplicate = true;
 
         const sourceFilenames = duplicatedImage.fileCollections.flatMap((collection) =>
             collection.imageFiles.map((imageFile) => imageFile.filename),
@@ -193,7 +190,7 @@ describe("S3ImageHandler", () => {
             collection.imageFiles.map((imageFile) => imageFile.width),
         );
         expect(duplicatedWidths).toEqual(sourceWidths);
-        expect(duplicatedImage.duplicateFrom).toBeUndefined();
+        expect(duplicatedImage.duplicate).toBeUndefined();
 
         const uploadedCopy = await Promise.all(
             duplicatedFilenames.map((filename) => service.getObject(filename)),
@@ -218,12 +215,9 @@ describe("S3ImageHandler", () => {
 
         const duplicatedImage = new ImageDto();
         duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
-        duplicatedImage.duplicateFrom = {
-            docId: "post-source",
-            bucketId: "storage-missing-bucket",
-        };
+        duplicatedImage.duplicate = true;
 
-        const result = await processImage(duplicatedImage, undefined, dbService, testBucketId);
+        const result = await processImage(duplicatedImage, undefined, dbService, "storage-missing-bucket");
 
         expect(
             result.warnings.some((warning) =>
@@ -231,7 +225,7 @@ describe("S3ImageHandler", () => {
             ),
         ).toBe(true);
         expect(duplicatedImage.fileCollections).toEqual([]);
-        expect(duplicatedImage.duplicateFrom).toBeUndefined();
+        expect(duplicatedImage.duplicate).toBeUndefined();
 
         resImages.push(sourceImage);
     });

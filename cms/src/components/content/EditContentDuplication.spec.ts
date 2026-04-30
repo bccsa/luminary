@@ -522,12 +522,9 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Image fileCollections should be preserved by default and duplicate metadata should be set
+        // Image fileCollections should be preserved by default and duplicate intent should be set
         expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
-        expect(vm.editableParent.imageData.duplicateFrom).toEqual({
-            docId: mockData.mockPostDto._id,
-            bucketId: "storage-image-bucket",
-        });
+        expect(vm.editableParent.imageData.duplicate).toBe(true);
     }, 15000);
 
     it("clears image fileCollections when duplicate image is unchecked", async () => {
@@ -569,7 +566,7 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
         expect(vm.editableParent.imageData.fileCollections).toEqual([]);
-        expect(vm.editableParent.imageData.duplicateFrom).toBeUndefined();
+        expect(vm.editableParent.imageData.duplicate).toBeUndefined();
     });
 
     it("does not modify the original document in the database after duplication", async () => {
