@@ -50,9 +50,10 @@ watch(
     { immediate: true },
 );
 
-// Check if bucket is selected (or auto-selected when only one exists)
+// Mirrors ImageEditor's effectiveImageBucketId fallback so the Upload button
+// shows in single-bucket setups before the parent has been written to.
 const isBucketSelected = computed(() => {
-    return !!parent.value?.imageBucketId;
+    return !!(parent.value?.imageBucketId ?? storage.autoSelectImageBucket.value);
 });
 
 // Get the selected bucket's mimeTypes for the accept attribute
