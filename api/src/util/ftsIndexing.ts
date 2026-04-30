@@ -31,6 +31,9 @@ type FtsFieldConfig = {
     isHtml: boolean;
 };
 
+// Reading time calculation constant
+const WORDS_PER_MINUTE = 200;
+
 const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "title", boost: 3.0, isHtml: false },
     { name: "summary", boost: 1.5, isHtml: false },
@@ -153,6 +156,17 @@ export function stripHtml(html: string): string {
     return result.join("");
 }
 
+/**
+ * Calculate the estimated reading time for a given text (in minutes).
+ * Uses a standard reading speed of 200 words per minute.
+ */
+export function calculateReadingTime(text: string): number {
+    const strippedText = stripHtml(text).trim();
+    if (!strippedText) return 0;
+    const wordCount = strippedText.split(/\s+/).length;
+    return Math.ceil(wordCount / WORDS_PER_MINUTE);
+}
+
 // ── Text normalization ──────────────────────────────────────────────────────
 
 /**
@@ -230,9 +244,7 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
 
     if (aggregatedTf.size === 0) return undefined;
 
-    const fts: string[] = Array.from(aggregatedTf.entries()).map(
-        ([token, tf]) => token + ":" + tf,
-    );
+    const fts: string[] = Array.from(aggregatedTf.entries()).map(([token, tf]) => token + ":" + tf);
 
     return { fts, ftsTokenCount: totalTokenCount };
 }
