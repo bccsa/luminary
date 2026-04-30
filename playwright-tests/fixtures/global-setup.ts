@@ -6,6 +6,11 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authDir = path.resolve(__dirname, "../.auth");
 
+/** Escape user-provided text before injecting into a RegExp. */
+function escapeRegex(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Capture sessionStorage from the current page. Playwright's storageState only
  * persists cookies + localStorage (+ IndexedDB when requested), so tokens
@@ -38,21 +43,28 @@ async function saveGuestState(baseURL: string, storageStatePath: string) {
     await browser.close();
 }
 
+type LoginParams = {
+    baseURL: string;
+    email: string;
+    password: string;
+    storageStatePath: string;
+    sessionStoragePath: string;
+    /** Used in error messages so a failure points at the right user. */
+    label: string;
+};
+
 /**
  * Drive the real auth provider login UI for an app that redirects
  * unauthenticated users to a hosted login page (the CMS).
  */
-async function loginAndSaveState(
-    baseURL: string,
-    storageStatePath: string,
-    sessionStoragePath: string,
-) {
-    const email = process.env.E2E_USER_EMAIL;
-    const password = process.env.E2E_USER_PASSWORD;
+async function loginAndSaveState(params: LoginParams) {
+    const { baseURL, email, password, storageStatePath, sessionStoragePath, label } = params;
 
-    if (!email || !password) {
+    const providerLabel = process.env.E2E_AUTH_PROVIDER_LABEL;
+    if (!providerLabel) {
         throw new Error(
-            "E2E_USER_EMAIL and E2E_USER_PASSWORD must be set (via .env file or environment) before running tests.",
+            "E2E_AUTH_PROVIDER_LABEL must be set (via .env file or environment) before running tests. " +
+                "It is the visible name of the auth provider button on the CMS sign-in screen.",
         );
     }
 
@@ -64,12 +76,12 @@ async function loginAndSaveState(
 
     await page.goto(baseURL, { waitUntil: "domcontentloaded" });
 
-    // Click the "BCC Africa Guest" provider button on the CMS sign-in screen.
-    const guestProviderButton = page
-        .getByRole("button", { name: /BCC Africa Guest/i })
+    // Click the configured auth provider button on the CMS sign-in screen.
+    const providerButton = page
+        .getByRole("button", { name: new RegExp(escapeRegex(providerLabel), "i") })
         .first();
-    await guestProviderButton.waitFor({ state: "visible", timeout: 15_000 });
-    await guestProviderButton.click();
+    await providerButton.waitFor({ state: "visible", timeout: 15_000 });
+    await providerButton.click();
 
     // Wait for redirect off CMS origin onto the hosted auth provider login page.
     await page.waitForURL((url) => url.origin !== appOrigin, { timeout: 30_000 });
@@ -108,7 +120,7 @@ async function loginAndSaveState(
         await signInHeading.waitFor({ state: "hidden", timeout: 30_000 });
     } catch {
         throw new Error(
-            "Auth login flow completed but the CMS sign-in screen is still visible. " +
+            `Auth login flow completed for ${label} but the CMS sign-in screen is still visible. ` +
                 "The auth provider may have rejected credentials or the redirect callback failed.",
         );
     }
@@ -135,13 +147,42 @@ export default async function globalSetup(_config: FullConfig) {
         );
     }
 
+    const user1Email = process.env.E2E_USER_EMAIL;
+    const user1Password = process.env.E2E_USER_PASSWORD;
+
+    if (!user1Email || !user1Password) {
+        throw new Error(
+            "E2E_USER_EMAIL and E2E_USER_PASSWORD must be set (via .env file or environment) before running tests.",
+        );
+    }
+
     // App permits guest browsing — no login required for smoke tests.
     await saveGuestState(appBaseURL, path.join(authDir, "app.json"));
 
     // CMS requires authentication and redirects to the hosted auth provider.
-    await loginAndSaveState(
-        cmsBaseURL,
-        path.join(authDir, "cms.json"),
-        path.join(authDir, "cms-session.json"),
-    );
+    await loginAndSaveState({
+        baseURL: cmsBaseURL,
+        email: user1Email,
+        password: user1Password,
+        storageStatePath: path.join(authDir, "cms.json"),
+        sessionStoragePath: path.join(authDir, "cms-session.json"),
+        label: "user 1",
+    });
+
+    // User 2 is optional: only log in if both creds are present. Specs that
+    // require the second user assert on its presence themselves and skip if
+    // unset, so global setup just produces the artifacts when it can.
+    const user2Email = process.env.E2E_USER_2_EMAIL;
+    const user2Password = process.env.E2E_USER_2_PASSWORD;
+
+    if (user2Email && user2Password) {
+        await loginAndSaveState({
+            baseURL: cmsBaseURL,
+            email: user2Email,
+            password: user2Password,
+            storageStatePath: path.join(authDir, "cms-user2.json"),
+            sessionStoragePath: path.join(authDir, "cms-user2-session.json"),
+            label: "user 2",
+        });
+    }
 }
