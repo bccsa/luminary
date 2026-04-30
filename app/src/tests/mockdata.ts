@@ -342,6 +342,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "settings.local_cache.description":
             "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
         "settings.local_cache.button": "Delete local cache",
+        "settings.local_cache.button_clearing": "Clearing local cache...",
         "home.title": "Home",
         "explore.title": "Explore",
         "home.newest": "Newest",
@@ -442,6 +443,7 @@ export const mockLanguageDtoFra: LanguageDto = {
         "settings.local_cache.description":
             "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
         "settings.local_cache.button": "Supprimer le cache local",
+        "settings.local_cache.button_clearing": "Suppression du cache local...",
         "home.title": "Accueil",
         "explore.title": "Explorer",
         "notification.content_not_available.description":
@@ -482,6 +484,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
         "settings.local_cache.description":
             "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
         "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
+        "settings.local_cache.button_clearing": "Inafuta Kumbukumbu ya Mitaa...",
         "home.title": "Nyumbani",
         "explore.title": "Chunguza",
     },

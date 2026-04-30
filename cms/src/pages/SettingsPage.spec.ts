@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected, accessMap, init, DocType } from "luminary-shared";
@@ -158,5 +158,42 @@ describe("purgeLocalDatabase", () => {
                 expect.objectContaining({ state: "success" }),
             );
         });
+    });
+
+    it("disables the button and shows the clearing label/icon while purge is pending", async () => {
+        let resolvePurge: (() => void) | undefined;
+        const purgeSpy = vi.spyOn(db, "purge").mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolvePurge = resolve;
+                }),
+        );
+
+        const wrapper = mount(SettingsPage);
+        isConnected.value = true;
+        await wrapper.vm.$nextTick();
+
+        const button = wrapper.find("button[data-test='deleteLocalDatabase']");
+
+        expect(button.text()).toContain("Delete local cache");
+        expect(button.attributes("disabled")).toBeUndefined();
+        expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
+
+        await button.trigger("click");
+        await wrapper.vm.$nextTick();
+
+        expect(purgeSpy).toHaveBeenCalled();
+        expect(button.text()).toContain("Clearing local cache...");
+        expect(button.attributes("disabled")).toBeDefined();
+        expect(wrapper.find("svg.animate-spin").exists()).toBe(true);
+
+        resolvePurge!();
+        await flushPromises();
+
+        expect(button.text()).toContain("Delete local cache");
+        expect(button.attributes("disabled")).toBeUndefined();
+        expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
+
+        purgeSpy.mockRestore();
     });
 });
