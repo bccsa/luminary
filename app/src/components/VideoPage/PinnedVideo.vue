@@ -24,7 +24,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { parentPinned: 1 }, // 1 = true
                     { parentTagType: TagType.Category },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });
@@ -54,7 +54,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                             $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
                         },
                     },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });

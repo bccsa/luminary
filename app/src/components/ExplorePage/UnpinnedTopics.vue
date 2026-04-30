@@ -27,7 +27,7 @@ const topics = useDexieLiveQueryWithDeps(
                     { status: "published" },
                     { parentTagType: TagType.Topic },
                     { parentTaggedDocs: { $exists: true, $ne: [] } },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });
@@ -48,7 +48,7 @@ const categories = useDexieLiveQueryWithDeps(
                     { status: "published" },
                     { parentTagType: TagType.Category },
                     { parentPinned: { $ne: 1 } },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });

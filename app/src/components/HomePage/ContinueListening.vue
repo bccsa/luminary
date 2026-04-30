@@ -21,7 +21,7 @@ const listenedContent = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { parentPostType: { $ne: PostType.Page } },
                     { parentTagType: { $ne: TagType.Category } },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });

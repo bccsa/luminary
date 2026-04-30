@@ -23,7 +23,7 @@ const categories = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { parentPinned: 1 }, // 1 = true
                     { parentTagType: TagType.Category },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });
@@ -50,7 +50,7 @@ const topics = useDexieLiveQueryWithDeps(
                     { parentType: DocType.Tag },
                     { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
                     { parentTags: { $elemMatch: { $in: pinnedCategoryIds } } },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });

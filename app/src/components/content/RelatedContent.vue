@@ -39,7 +39,7 @@ const contentDocs = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { parentId: { $in: ids } },
-                    ...mangoIsPublished(languageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(languageIds),
                 ],
             },
             $sort: [{ publishDate: "asc" }],
