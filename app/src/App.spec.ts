@@ -90,7 +90,7 @@ describe("App", () => {
         it("displays the splash screen while the app is loading", () => {
             isAppLoading.value = true;
 
-            const wrapper = mount(App, { shallow: true });
+            const wrapper = mountApp();
 
             expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
         });
@@ -98,7 +98,7 @@ describe("App", () => {
         it("displays the app content once loading is complete", () => {
             isAppLoading.value = false;
 
-            const wrapper = mount(App, { shallow: true });
+            const wrapper = mountApp();
 
             expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
             expect(wrapper.find("router-view-stub").exists()).toBe(true);
