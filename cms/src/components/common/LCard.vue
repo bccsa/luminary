@@ -9,6 +9,7 @@ type Props = {
     shadow?: "none" | "small";
     collapsible?: boolean;
     defaultCollapsed?: boolean;
+    fillHeight?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
     padding: "normal",
     collapsible: false,
     defaultCollapsed: false,
+    fillHeight: false,
     blurEffect: false,
 });
 
@@ -47,11 +49,13 @@ function collapse() {
 
 <template>
     <div
-        class="overflow-visible border-y-2 border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        class="border-y-2 border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
         :class="{
             'shadow-none': props.shadow === 'none',
             'shadow-sm': props.shadow === 'small',
             'bg-zinc-50': collapsed,
+            'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden': fillHeight,
+            'overflow-visible': !fillHeight,
         }"
     >
         <div
@@ -85,12 +89,19 @@ function collapse() {
 
         <slot name="persistent" :collapsed="collapsed" />
 
-        <div v-show="!collapsed" data-test="collapsible-container">
+        <div
+            v-show="!collapsed"
+            data-test="collapsible-container"
+            :class="{ 'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col': fillHeight }"
+        >
             <div
-                :class="{
-                    'px-2 py-1.5 sm:px-1': padding == 'normal',
-                    'pt-2': padding == 'none' && title,
-                }"
+                :class="[
+                    {
+                        'px-2 py-1.5 sm:px-1': padding == 'normal',
+                        'pt-2': padding == 'none' && title,
+                    },
+                    fillHeight ? 'lg:min-h-0 lg:flex-1 lg:overflow-y-auto' : '',
+                ]"
             >
                 <slot />
             </div>
