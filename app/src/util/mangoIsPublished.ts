@@ -4,7 +4,7 @@ export type MangoIsPublishedOptions = {
     /**
      * When true, also matches scheduled content: `publishDate` in the future is allowed
      * if `parentShowComingSoon === true` (for list/carousel "Coming soon" tiles).
-     * Default false: publishDate must be missing, null, or <= now.
+     * Default true: set to false to require publishDate to be missing, null, or <= now.
      */
     includeScheduled?: boolean;
 };
@@ -35,12 +35,17 @@ export type MangoIsPublishedOptions = {
  */
 export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
     const now = Date.now();
-    const includeScheduled = options?.includeScheduled === true;
+    const includeScheduled = options?.includeScheduled !== false;
 
     const publishDateSelector: MangoSelector = includeScheduled
         ? {
-              // Either already published OR scheduled with the parent "coming soon" flag
-              $or: [{ publishDate: { $lte: now } }, { parentShowComingSoon: true }],
+              // Include already-published docs and allow scheduled docs for "coming soon".
+              $or: [
+                  { publishDate: { $exists: false } },
+                  { publishDate: null },
+                  { publishDate: { $lte: now } },
+                  { parentShowComingSoon: true },
+              ],
           }
         : {
               // Publish date: missing/null = considered published; otherwise must be <= now

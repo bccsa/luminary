@@ -9,7 +9,7 @@ const copyright = useDexieLiveQuery(() =>
         selector: {
             $and: [
                 { parentId: import.meta.env.VITE_COPYRIGHT_ID },
-                ...mangoIsPublished(appLanguageIdsAsRef.value),
+                ...mangoIsPublished(appLanguageIdsAsRef.value, { includeScheduled: false }),
             ],
         },
         $limit: 1,

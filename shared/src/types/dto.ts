@@ -115,7 +115,7 @@ export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
-    showComingSoon: boolean;
+    showComingSoon?: boolean;
     imageBucketId?: Uuid;
     media?: MediaDto;
     mediaBucketId?: Uuid;

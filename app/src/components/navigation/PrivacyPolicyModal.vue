@@ -32,7 +32,7 @@ const privacyPolicy = useDexieLiveQuery(() =>
         selector: {
             $and: [
                 { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
-                ...mangoIsPublished(appLanguageIdsAsRef.value),
+                ...mangoIsPublished(appLanguageIdsAsRef.value, { includeScheduled: false }),
             ],
         },
         $limit: 1,

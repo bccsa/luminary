@@ -1,4 +1,4 @@
-<script setup lang="ts">
+dd .<script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { watch } from "vue";
 import {
@@ -27,7 +27,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                     { parentPostType: { $ne: PostType.Page } },
                     { parentTagType: { $ne: TagType.Category } },
                     { parentPublishDateVisible: true },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: true }),
+                    ...mangoIsPublished(appLanguageIds),
                 ],
             },
             $sort: [{ publishDate: "desc" }],
