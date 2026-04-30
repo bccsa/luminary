@@ -13,7 +13,7 @@ import {
 } from "@/auth";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage, Sentry } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
@@ -113,17 +113,20 @@ async function Startup() {
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    initAuthLangSync();
-    await initLanguage();
-    initSync();
-
-    const i18n = await initI18n();
-    await loadPlugins();
-
+    // Install all plugins before mounting — components rendered during the
+    // splash screen (e.g. SearchModal) call useI18n() at setup time.
+    const i18n = initI18n();
     app.use(createPinia());
     app.use(router);
     app.use(i18n);
     app.mount("#app");
+
+    initAuthLangSync();
+    await initLanguage();
+    initSync();
+    await loadPlugins();
+
+    isAppLoading.value = false;
     initAppTitle(i18n);
     initAnalytics();
 }

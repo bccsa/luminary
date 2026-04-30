@@ -645,7 +645,10 @@ const playAudio = () => {
                 class="flex flex-grow justify-center"
                 :class="{ 'items-center': isLoading }"
             >
-                <LoadingBar v-if="isLoading" />
+                <LoadingBar
+                    v-if="isLoading"
+                    label="Loading..."
+                />
                 <article
                     class="w-full lg:w-3/4 lg:max-w-3xl"
                     v-else-if="!isLoading && content"

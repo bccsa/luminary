@@ -10,7 +10,8 @@ import { createTestingPinia } from "@pinia/testing";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { mockEnglishContentDto } from "./tests/mockdata";
-import { theme } from "./globalConfig";
+import { isAppLoading, theme } from "./globalConfig";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
@@ -41,6 +42,33 @@ describe("App", () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+        isAppLoading.value = true;
+    });
+
+    describe("Splash screen", () => {
+        beforeEach(() => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isLoading: ref(false),
+                isAuthenticated: ref(false),
+            });
+        });
+
+        it("displays the splash screen while the app is loading", () => {
+            isAppLoading.value = true;
+
+            const wrapper = mount(App, { shallow: true });
+
+            expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
+        });
+
+        it("displays the app content once loading is complete", () => {
+            isAppLoading.value = false;
+
+            const wrapper = mount(App, { shallow: true });
+
+            expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
+            expect(wrapper.find("router-view-stub").exists()).toBe(true);
+        });
     });
 
     describe("Notifications", () => {

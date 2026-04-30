@@ -4,51 +4,39 @@ import { appLanguageAsRef, appName, cmsDefaultLanguage } from "./globalConfig";
 import router from "./router";
 
 /**
- * Initialize i18n with the app language, using the default language as fallback
+ * Create the i18n instance and wire up a watcher that keeps messages and the
+ * active locale in sync with the app/CMS language refs. Returns synchronously
+ * so the plugin can be installed before `app.mount()` — components that call
+ * `useI18n()` during setup (e.g. SearchModal) would otherwise throw.
  */
-export const initI18n = () => {
-    return new Promise<I18n>((resolve) => {
-        // Initialize i18n with empty messages
-        const i18n = createI18n({ legacy: false });
+export const initI18n = (): I18n => {
+    const i18n = createI18n({ legacy: false });
 
-        // Wait for the app language to be set before resolving
-        watch(
-            i18n.global.locale,
-            () => {
-                resolve(i18n);
-            },
-            { once: true },
-        );
+    watch(
+        [appLanguageAsRef, cmsDefaultLanguage],
+        ([newLanguage, defaultLang]) => {
+            if (!newLanguage || !defaultLang) return;
 
-        // Create a list of localized strings with fallback to the default language if not existing in the preferred language
-        watch(
-            [appLanguageAsRef, cmsDefaultLanguage],
-            ([newLanguage, defaultLang]) => {
-                if (!newLanguage || !defaultLang) return;
-                // copy translations in the preferred language
-                const messages: Record<string, string> = {};
-                Object.keys(newLanguage.translations || {}).forEach((k: string) => {
-                    messages[k] = newLanguage.translations[k];
+            const messages: Record<string, string> = {};
+            Object.keys(newLanguage.translations || {}).forEach((k: string) => {
+                messages[k] = newLanguage.translations[k];
+            });
+
+            if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
+                Object.keys(defaultLang.translations).forEach((k: string) => {
+                    if (!messages[k]) {
+                        messages[k] = defaultLang.translations[k];
+                    }
                 });
+            }
 
-                // Fill in missing translations with default language strings
-                if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
-                    Object.keys(defaultLang.translations).forEach((k: string) => {
-                        if (!messages[k]) {
-                            messages[k] = defaultLang.translations[k];
-                        }
-                    });
-                }
+            i18n.global.setLocaleMessage(newLanguage.languageCode, messages);
+            i18n.global.locale.value = newLanguage.languageCode;
+        },
+        { immediate: true, deep: true },
+    );
 
-                // Add new translations to i18n
-                i18n.global.setLocaleMessage(newLanguage.languageCode, messages);
-
-                // Change the active locale
-                i18n.global.locale.value = newLanguage.languageCode;
-            },
-            { immediate: true, deep: true },
-        );
-    });
+    return i18n;
 };
 
 /**

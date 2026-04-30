@@ -40,10 +40,10 @@ describe("i18n", () => {
     });
 
     describe("initI18n", () => {
-        it("resolves with an i18n instance when app language is set", async () => {
+        it("sets the locale when app language becomes available", async () => {
             const { initI18n } = await import("./i18n");
 
-            const promise = initI18n();
+            const i18n = initI18n();
 
             mockAppLanguageAsRef.value = {
                 _id: "lang-en",
@@ -56,7 +56,7 @@ describe("i18n", () => {
                 translations: { hello: "Hello", welcome: "Welcome" },
             };
 
-            const i18n = await promise;
+            await nextTick();
 
             expect(i18n).toBeDefined();
             expect((i18n.global.locale as any).value).toBe("en");
@@ -82,7 +82,7 @@ describe("i18n", () => {
 
             const { initI18n } = await import("./i18n");
 
-            const promise = initI18n();
+            const i18n = initI18n();
 
             mockAppLanguageAsRef.value = {
                 _id: "lang-fr",
@@ -95,7 +95,7 @@ describe("i18n", () => {
                 translations: { hello: "Hello", welcome: "Welcome" },
             };
 
-            const i18n = await promise;
+            await nextTick();
 
             expect((i18n.global.locale as any).value).toBe("fr");
             // The French locale should have "welcome" from the default English language
@@ -130,7 +130,7 @@ describe("i18n", () => {
                 meta: { title: "Home" },
             };
 
-            const promise = initI18n();
+            const i18n = initI18n();
 
             mockAppLanguageAsRef.value = {
                 _id: "lang-en",
@@ -143,7 +143,7 @@ describe("i18n", () => {
                 translations: { Home: "Home" },
             };
 
-            const i18n = await promise;
+            await nextTick();
             initAppTitle(i18n);
 
             await nextTick();
@@ -178,7 +178,7 @@ describe("i18n", () => {
 
             document.title = "Original Title";
 
-            const promise = initI18n();
+            const i18n = initI18n();
 
             mockAppLanguageAsRef.value = {
                 _id: "lang-en",
@@ -191,7 +191,7 @@ describe("i18n", () => {
                 translations: {},
             };
 
-            const i18n = await promise;
+            await nextTick();
             initAppTitle(i18n);
 
             await nextTick();
@@ -225,7 +225,7 @@ describe("i18n", () => {
                 meta: { title: "" },
             } as any;
 
-            const promise = initI18n();
+            const i18n = initI18n();
 
             mockAppLanguageAsRef.value = {
                 _id: "lang-en",
@@ -238,7 +238,7 @@ describe("i18n", () => {
                 translations: {},
             };
 
-            const i18n = await promise;
+            await nextTick();
             initAppTitle(i18n);
 
             await nextTick();

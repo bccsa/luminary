@@ -396,25 +396,45 @@ export const theme = computed<"system" | "dark" | "light">({
  */
 export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
 
+// Live-syncs with OS `prefers-color-scheme` while theme === "system". The matchMedia check inside the watcher alone only runs on in-app theme changes — without this listener, a user flipping OS dark mode mid-session wouldn't update the app.
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+const applySystemTheme = () => {
+    if (systemThemeQuery.matches) {
+        document.documentElement.classList.add("dark");
+    } else {
+        document.documentElement.classList.remove("dark");
+    }
+    isDarkTheme.value = document.documentElement.classList.contains("dark");
+};
+
 // Watch the theme and apply to the document's CSS classes
 watch(
     theme,
     (t) => {
+        // Remove any existing system theme listener before re-evaluating
+        systemThemeQuery.removeEventListener("change", applySystemTheme);
+
         if (t === "system") {
-            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                document.documentElement.classList.add("dark");
-            } else {
-                document.documentElement.classList.remove("dark");
-            }
+            applySystemTheme();
+            // Keep dark class in sync when the OS theme changes
+            systemThemeQuery.addEventListener("change", applySystemTheme);
         } else if (t === "dark") {
             document.documentElement.classList.add("dark");
+            isDarkTheme.value = true;
         } else {
             document.documentElement.classList.remove("dark");
+            isDarkTheme.value = false;
         }
-
-        isDarkTheme.value = document.documentElement.classList.contains("dark");
     },
     { immediate: true },
 );
 
 export const fallbackImageUrls = loadFallbackImageUrls();
+
+/**
+ * True while the app's Startup function is still running. Used to display the loading splash screen.
+ */
+export const isAppLoading = ref(
+    !new URLSearchParams(window.location.search).has("nosplash"),
+);
