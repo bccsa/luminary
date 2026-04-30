@@ -2,8 +2,11 @@ import type { App } from "vue";
 import { installMediaPlayer, MediaPlayerKey } from "virtual:media-player";
 
 /**
- * Calls each `install*` from resolved `virtual:…` modules so services are `provide`d on the app.
- * Register additional build-swapped plugins here; auth and other setup stay outside this file.
+ * Calls each `install*` from resolved `virtual:*` modules so build-target services
+ * are `provide`d on the app.
+ *
+ * Only register services that are swapped via Vite virtual modules.
+ * App bootstrap concerns stay in `main.ts`.
  */
 export function installPlugins(app: App): void {
     installMediaPlayer(app);
@@ -17,7 +20,7 @@ export { installMediaPlayer, MediaPlayerKey };
 export type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
 
 /** Vue `app.use()` entry that registers injectable services from the active build target. */
-export const appPluginsPlugin = {
+export const appPluginsManager = {
     install(app: App) {
         installPlugins(app);
     },
