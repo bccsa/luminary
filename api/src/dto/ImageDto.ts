@@ -1,9 +1,8 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsOptional, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsOptional, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageUploadDto } from "./ImageUploadDto";
 import { ImageFileCollectionDto } from "./ImageFileCollectionDto";
-import { ImageDuplicateFromDto } from "./ImageDuplicateFromDto";
 
 /**
  * Database structured Image object
@@ -22,8 +21,7 @@ export class ImageDto {
     uploadData?: ImageUploadDto[];
 
     @IsOptional()
-    @ValidateNested()
-    @Type(() => ImageDuplicateFromDto)
+    @IsBoolean()
     @Expose()
-    duplicateFrom?: ImageDuplicateFromDto;
+    duplicate?: boolean;
 }
