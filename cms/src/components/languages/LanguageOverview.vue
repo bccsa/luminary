@@ -3,7 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import LanguageDisplayCard from "@/components/languages/LanguageDisplayCard.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { AclPermission, db, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
@@ -11,13 +11,24 @@ import router from "@/router";
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
+const isLoading = ref(true);
+const stopLoadingWatcher = watch(languages, () => {
+    isLoading.value = false;
+    stopLoadingWatcher();
+});
+
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });
 };
 </script>
 
 <template>
-    <BasePage title="Language overview" :should-show-page-title="false" :is-full-width="true">
+    <BasePage
+        title="Language overview"
+        :should-show-page-title="false"
+        :is-full-width="true"
+        :loading="isLoading"
+    >
         <template #pageNav>
             <div class="flex gap-4" v-if="canCreateNew">
                 <LButton

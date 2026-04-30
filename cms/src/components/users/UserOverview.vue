@@ -106,10 +106,19 @@ const paginatedUsers = computed(() => {
 });
 
 const totalUsers = computed(() => filteredUsers.value.length);
+
+const isLoading = computed(
+    () => apiLiveQuery.isLoading.value && !(users.value?.length ?? 0),
+);
 </script>
 
 <template>
-    <BasePage title="User overview" :should-show-page-title="false" :is-full-width="true">
+    <BasePage
+        title="User overview"
+        :should-show-page-title="false"
+        :is-full-width="true"
+        :loading="isLoading"
+    >
         <template #pageNav>
             <div class="flex gap-4" v-if="canCreateNew && isConnected">
                 <LButton

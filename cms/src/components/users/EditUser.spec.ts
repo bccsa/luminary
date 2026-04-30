@@ -150,9 +150,10 @@ describe("CreateOrEditUser.vue", () => {
             expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        const saveButton = wrapper
+            .findComponent(LDialog)
+            .find('[data-test="modal-primary-button"]');
         expect(saveButton.exists()).toBe(true);
-        
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
@@ -195,7 +196,9 @@ describe("CreateOrEditUser.vue", () => {
             expect(userName.attributes("value")).toBe(mockUserDto.name);
         });
 
-        const saveButton = wrapper.findComponent(LDialog).find('[data-test="modal-primary-button"]');
+        const saveButton = wrapper
+            .findComponent(LDialog)
+            .find('[data-test="modal-primary-button"]');
         expect(saveButton.exists()).toBe(true);
 
         const userNameInput = wrapper.find(

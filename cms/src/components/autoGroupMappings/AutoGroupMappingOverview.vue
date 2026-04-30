@@ -84,6 +84,11 @@ const groupFilterOptions = computed(() =>
     })),
 );
 
+const isLoading = computed(
+    () =>
+        (mappingQuery.isLoading.value || providerQuery.isLoading.value) && !mappings.value.length,
+);
+
 const filteredMappings = computed(() => {
     let result = mappings.value;
     if (selectedProviderFilter.value === GLOBAL_FILTER) {
@@ -218,7 +223,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <BasePage title="Auto Group Mappings" :should-show-page-title="false">
+    <BasePage title="Auto Group Mappings" :should-show-page-title="false" :loading="isLoading">
         <template #pageNav>
             <div class="flex items-center gap-3" v-if="canEdit">
                 <LButton

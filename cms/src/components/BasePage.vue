@@ -4,6 +4,7 @@ import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { type Component, computed } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
+import LoadingBar from "./LoadingBar.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
@@ -104,8 +105,11 @@ const handleMobileSidebarToggle = () => {
                 </TopBar>
             </div>
         </div>
+        <div v-if="loading" class="flex min-h-0 flex-1 items-center justify-center">
+            <LoadingBar />
+        </div>
         <div
-            v-if="!loading"
+            v-else
             :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
             class="flex min-h-0 flex-1 flex-col overflow-hidden"
         >

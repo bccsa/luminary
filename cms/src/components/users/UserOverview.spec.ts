@@ -116,6 +116,7 @@ describe("UserOverview", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Create user");
+            expect(wrapper.text()).toContain("John Doe");
         });
 
         await wrapper.find('[name="createUserBtn"]').trigger("click");

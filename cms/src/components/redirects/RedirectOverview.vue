@@ -3,7 +3,7 @@ import { AclPermission, DocType, hasAnyPermission, db, type RedirectDto } from "
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { isSmallScreen } from "@/globalConfig";
@@ -11,10 +11,16 @@ import { isSmallScreen } from "@/globalConfig";
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
+
+const isLoading = ref(true);
+const stopLoadingWatcher = watch(redirects, () => {
+    isLoading.value = false;
+    stopLoadingWatcher();
+});
 </script>
 
 <template>
-    <BasePage title="Redirects" :should-show-page-title="false">
+    <BasePage title="Redirects" :should-show-page-title="false" :loading="isLoading">
         <template #pageNav>
             <div class="flex gap-4" v-if="canCreateNew">
                 <LButton

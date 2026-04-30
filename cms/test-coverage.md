@@ -43,7 +43,6 @@ The HTML report is generated at `coverage/index.html`.
 ### Components
 - `src/components/BleedHorizontal.vue`
 - `src/components/LoadingBar.vue`
-- `src/components/LoadingSpinner.vue`
 - `src/components/OnlineIndicator.vue`
 - `src/components/notifications/LNotification.vue`
 - `src/components/notifications/NotificationManager.vue`
