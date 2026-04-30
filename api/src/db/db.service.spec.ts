@@ -481,6 +481,50 @@ describe("DbService", () => {
             (service as any).hasConnected = true;
         });
 
+        it("captures the seq from each change event so the feed can resume", () => {
+            // The change handler must record the seq of every change it
+            // processes; otherwise the resume cursor would lag, and on
+            // reconnect we'd miss everything between the last recorded seq
+            // and the actual last delivered change.
+            //
+            // Use Post type to avoid triggering groupUpdate / languageUpdate
+            // listeners that would expect a complete document.
+            const marker = "seq-marker-test-99999";
+            (service as any).db.changesReader.ee.emit("change", {
+                seq: marker,
+                doc: { _id: "seq-marker-doc", type: DocType.Post },
+            });
+
+            expect((service as any).lastSeq).toBe(marker);
+        });
+
+        it("resumes the change feed from lastSeq when restarted", () => {
+            const changesReader = (service as any).db.changesReader;
+
+            // Pin a known lastSeq so we can verify it round-trips through
+            // startChangesFeed → changesReader.start(...).
+            (service as any).lastSeq = "resume-from-marker-12345";
+
+            // The changesReader rejects double-start while `started` is true.
+            // Reset and stub `start` so we can observe the next call's args
+            // without spawning a real polling loop.
+            const wasStarted = changesReader.started;
+            changesReader.started = false;
+            const startSpy = jest
+                .spyOn(changesReader, "start")
+                .mockReturnValue(changesReader.ee);
+
+            try {
+                (service as any).startChangesFeed();
+                expect(startSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({ since: "resume-from-marker-12345" }),
+                );
+            } finally {
+                startSpy.mockRestore();
+                changesReader.started = wasStarted;
+            }
+        });
+
         it("emits 'reconnect' when waitForDb resolves after an initial connect", async () => {
             let reconnectCount = 0;
             const handler = () => reconnectCount++;

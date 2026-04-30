@@ -900,38 +900,131 @@ describe("PermissionService", () => {
             });
         });
 
-        it("retains the groupMap on DB disconnect and reconciles on reconnect", async () => {
-            // Sanity: seeded groups are present before disconnect.
+        it("retains the groupMap on DB disconnect", async () => {
             expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
-
-            // Inject a phantom group that does not exist in the DB. This
-            // simulates a group that was deleted while the API was islanded —
-            // the reconnect diff must clean it up.
-            const phantom: GroupDto = new GroupDto();
-            phantom._id = "group-phantom-disconnected";
-            phantom.type = DocType.Group;
-            phantom.updatedTimeUtc = 1;
-            phantom.name = "Phantom";
-            phantom.acl = [];
-            PermissionSystem.upsertGroups([phantom]);
-            expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(true);
 
             testingModule.dbService.emit("disconnect");
 
-            // Cached permissions must remain available while islanded so
+            // Cached permissions must remain available while disconnected so
             // clients syncing through the API don't see a sudden total loss
-            // of access and purge their local data.
+            // of access and purge their local data. DbService resumes the
+            // change feed from its seq cursor on reconnect, so missed updates
+            // are replayed through the existing `groupUpdate` listener.
             expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
-            expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(true);
+        });
 
-            testingModule.dbService.emit("reconnect");
+        it("patches an existing group's ACL when the update arrives after a disconnect/reconnect cycle", () => {
+            // This is the regression test for the disconnect→reconnect→missed-
+            // update path: prove that when the resumed change feed delivers a
+            // groupUpdate for a group already in the cache, the new ACL fields
+            // overwrite the cached ones (rather than being merged or ignored).
+            const groupId = "group-acl-patch-after-reconnect";
 
-            await waitForExpect(() => {
-                // Real groups are still here.
-                expect(PermissionSystem.hasGroup("group-public-users")).toBe(true);
-                // Groups missing from the DB snapshot are removed by the diff.
-                expect(PermissionSystem.hasGroup("group-phantom-disconnected")).toBe(false);
-            });
+            const initial: GroupDto = new GroupDto();
+            initial._id = groupId;
+            initial.type = DocType.Group;
+            initial.updatedTimeUtc = 1;
+            initial.name = "Initial";
+            initial.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([initial]);
+
+            // Sanity: View is granted, Edit is not.
+            const before = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.Edit,
+                ["group-public-content"],
+            );
+            expect(before[DocType.Language]?.includes(groupId)).toBeFalsy();
+
+            // Simulate the disconnect window: the cache is intentionally not
+            // cleared, so the group remains queryable.
+            testingModule.dbService.emit("disconnect");
+            expect(PermissionSystem.hasGroup(groupId)).toBe(true);
+
+            // The resumed change feed delivers an update that grants Edit.
+            // We simulate the delivery via direct emit on the dbService event
+            // bus — that's exactly the path the change handler in DbService
+            // would take for a real change replayed via the seq cursor.
+            const updated: GroupDto = new GroupDto();
+            updated._id = groupId;
+            updated.type = DocType.Group;
+            updated.updatedTimeUtc = 2;
+            updated.name = "Updated";
+            updated.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+            testingModule.dbService.emit("groupUpdate", updated);
+
+            // The cache reflects the new Edit permission — the existing
+            // group entry was patched, not duplicated or left stale.
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.Edit,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBe(true);
+        });
+
+        it("removes a revoked ACL permission when the update arrives after a disconnect/reconnect cycle", () => {
+            // The complement of the patch test: the existing-group code path
+            // in upsertGroup must also strip permissions that are no longer
+            // present in the new ACL. Without this, a permission revoked
+            // during disconnect would never be cleared from the cache.
+            const groupId = "group-acl-revoke-after-reconnect";
+
+            const initial: GroupDto = new GroupDto();
+            initial._id = groupId;
+            initial.type = DocType.Group;
+            initial.updatedTimeUtc = 1;
+            initial.name = "Initial";
+            initial.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+            PermissionSystem.upsertGroups([initial]);
+
+            const before = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.Edit,
+                ["group-public-content"],
+            );
+            expect(before[DocType.Language]?.includes(groupId)).toBe(true);
+
+            testingModule.dbService.emit("disconnect");
+
+            const updated: GroupDto = new GroupDto();
+            updated._id = groupId;
+            updated.type = DocType.Group;
+            updated.updatedTimeUtc = 2;
+            updated.name = "Updated";
+            updated.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+            testingModule.dbService.emit("groupUpdate", updated);
+
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.Edit,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBeFalsy();
         });
     });
 });

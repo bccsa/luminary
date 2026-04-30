@@ -104,7 +104,7 @@ export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
  * Accessed throughout this file via object-style property access, so it is
  * typed as a Record rather than a Map.
  */
-const groupMap: Record<Uuid, PermissionSystem> = {};
+const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
 /**
  * Represents a permission system that uses a tree structure to organize groups and manage permissions.
@@ -146,45 +146,18 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         let updateQueue: any[] = [];
 
-        // Read group changes from the database change feed and update the permission system
+        // Read group changes from the database change feed and update the permission system.
+        // DbService resumes the feed from its last seq cursor on reconnect, so updates made
+        // while disconnected flow through here once we're back online — no snapshot refetch
+        // needed. The in-memory groupMap is intentionally kept intact across disconnects:
+        // clearing it would deny every request and cause clients syncing via this API to
+        // purge their local data.
         dbService.on("groupUpdate", async (update: DocType.Group) => {
             updateQueue.push(update);
             if (initialized) {
                 PermissionSystem.upsertGroups(updateQueue);
                 updateQueue = [];
             }
-        });
-
-        // Keep the in-memory groupMap on disconnect so the API can keep serving
-        // cached permissions while islanded from the database. If we cleared it,
-        // every request would be denied and clients syncing through this API
-        // would treat that as authoritative and purge their local data.
-        //
-        // We still flip `initialized` to false so that any change-feed events
-        // arriving during the reconnect window are queued rather than racing
-        // with the snapshot reconciliation below.
-        dbService.on("disconnect", () => {
-            initialized = false;
-            updateQueue = [];
-        });
-
-        // On reconnect, reconcile the in-memory state against a fresh snapshot
-        // rather than rebuilding from scratch: upsertGroup already diffs ACLs
-        // for existing groups, so we just need to additionally remove groups
-        // that were deleted from the DB while we were disconnected. This keeps
-        // the cache continuously valid and avoids the brief "no permissions"
-        // window a full rebuild would create.
-        dbService.on("reconnect", async () => {
-            const dbGroups = await dbService.getGroups();
-
-            const fetchedIds = new Set(dbGroups.docs.map((d: GroupDto) => d._id));
-            const staleIds = Object.keys(groupMap).filter((id) => !fetchedIds.has(id));
-            if (staleIds.length > 0) PermissionSystem.removeGroups(staleIds);
-
-            PermissionSystem.upsertGroups(dbGroups.docs);
-            PermissionSystem.upsertGroups(updateQueue);
-            updateQueue = [];
-            initialized = true;
         });
 
         // Add existing groups to permission system
