@@ -19,7 +19,8 @@ export function removeCustomHeader(name: string) {
 }
 
 /**
- * Handle HTTP responses, setting serverError for 5xx errors with user-friendly messages.
+ * Handle HTTP responses, signalling 5xx errors via the serverError ref so
+ * consumers can show a localized notification.
  */
 async function handleResponse(res: Response) {
     if (res.ok) {
@@ -28,16 +29,15 @@ async function handleResponse(res: Response) {
         });
     }
 
-    // Server error (5xx) - show user-friendly message
     if (res.status >= 500) {
-        let message = "Something went wrong on the server. Please try again in a minute.";
+        let message: string | undefined;
         try {
             const body = await res.json();
             if (body.message) message = body.message;
         } catch {
-            // Use default message if response body can't be parsed
+            // Body may be empty or non-JSON; leave message undefined.
         }
-        serverError.value = message;
+        serverError.value = { status: res.status, message };
         return undefined;
     }
 

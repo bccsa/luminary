@@ -141,16 +141,20 @@ async function Startup() {
     await auth.setupAuth(app);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // Show notification on server error (5xx), debounced to avoid flooding
+    // Show notification on server error (5xx), debounced to avoid flooding.
+    // CMS has no i18n layer; copy is owned here rather than in the shared lib.
     let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
             if (serverErrorTimeout) return;
-            Sentry.captureMessage(`Server error: ${error}`, "error");
+            Sentry.captureMessage(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+                "error",
+            );
             useNotificationStore().addNotification({
                 title: "Server error",
-                description: error,
+                description: "Something went wrong on the server. Please try again in a minute.",
                 state: "error",
                 timer: 10000,
             });

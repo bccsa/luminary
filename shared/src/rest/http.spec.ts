@@ -114,9 +114,7 @@ describe("HttpReq", () => {
             const result = await http.get("endpoint", { selector: {} });
 
             expect(result).toBeUndefined();
-            expect(serverError.value).toBe(
-                "Something went wrong on the server. Please try again in a minute.",
-            );
+            expect(serverError.value).toEqual({ status: 503, message: undefined });
         });
     });
 
@@ -179,7 +177,7 @@ describe("HttpReq", () => {
             const result = await http.getWithQueryParams("search", { q: "test" });
 
             expect(result).toBeUndefined();
-            expect(serverError.value).toBe("Bad Gateway");
+            expect(serverError.value).toEqual({ status: 502, message: "Bad Gateway" });
         });
 
         it("returns undefined for 4xx responses without setting serverError", async () => {
@@ -315,18 +313,19 @@ describe("HttpReq", () => {
             const result = await http.post("endpoint", { selector: {} });
 
             expect(result).toBeUndefined();
-            expect(serverError.value).toBe("Database connection failed");
+            expect(serverError.value).toEqual({
+                status: 500,
+                message: "Database connection failed",
+            });
         });
 
-        it("sets a default serverError for 5xx responses without a parseable body", async () => {
+        it("sets serverError without a message for 5xx responses without a parseable body", async () => {
             mockFetch.mockResolvedValue(mockResponse(500));
 
             const result = await http.post("endpoint", { selector: {} });
 
             expect(result).toBeUndefined();
-            expect(serverError.value).toBe(
-                "Something went wrong on the server. Please try again in a minute.",
-            );
+            expect(serverError.value).toEqual({ status: 500, message: undefined });
         });
 
         it("returns undefined for 4xx responses without setting serverError", async () => {

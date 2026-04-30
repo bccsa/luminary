@@ -118,16 +118,25 @@ async function Startup() {
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
-    // Show notification on server error (5xx), debounced to avoid flooding
+    // Install all plugins before mounting — components rendered during the
+    // splash screen (e.g. SearchModal) call useI18n() at setup time.
+    const i18n = initI18n();
+
+    // Show notification on server error (5xx), debounced to avoid flooding.
+    // Translation is owned by the client, not the shared lib.
     let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
             if (serverErrorTimeout) return;
-            Sentry?.captureMessage(`Server error: ${error}`, "error");
+            Sentry?.captureMessage(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+                "error",
+            );
+            const { t } = i18n.global;
             useNotificationStore().addNotification({
-                title: "Server error",
-                description: error,
+                title: t("notification.server_error.title"),
+                description: t("notification.server_error.description"),
                 state: "error",
                 type: "toast",
                 timeout: 10000,
@@ -139,9 +148,6 @@ async function Startup() {
         }
     });
 
-    // Install all plugins before mounting — components rendered during the
-    // splash screen (e.g. SearchModal) call useI18n() at setup time.
-    const i18n = initI18n();
     app.use(router);
     app.use(i18n);
     app.mount("#app");
