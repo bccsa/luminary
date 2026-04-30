@@ -3,11 +3,8 @@ import BasePage from "@/components/BasePage.vue";
 import LCard from "@/components/common/LCard.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LButton from "@/components/button/LButton.vue";
-import TranslationCoverageModal, {
-    type ParentTranslationStatus,
-} from "@/components/dashboard/TranslationCoverageModal.vue";
 import { RouterLink } from "vue-router";
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref, watch, nextTick } from "vue";
 import {
     db,
     DocType,
@@ -38,8 +35,6 @@ import {
     ArrowPathIcon,
     ExclamationTriangleIcon,
     CheckCircleIcon,
-    SignalIcon,
-    SignalSlashIcon,
     RectangleStackIcon,
     DocumentTextIcon,
     CalendarDaysIcon,
@@ -133,7 +128,7 @@ const contentByParentType = computed(() => {
 
 // --- Missing translations ---
 
-const allParentTranslations = computed<ParentTranslationStatus[]>(() => {
+const allParentTranslations = computed(() => {
     if (cmsLanguages.value.length === 0) return [];
 
     const parentLanguageMap = new Map<string, Set<string>>();
@@ -170,21 +165,87 @@ const allParentTranslations = computed<ParentTranslationStatus[]>(() => {
     }));
 });
 
+// --- Dynamic capacity (fit lists to container without scrolling) ---
+
+const recentListEl = ref<HTMLElement | null>(null);
+const recentActivityCapacity = ref(20);
+
+const missingListEl = ref<HTMLElement | null>(null);
+const missingTranslationsCapacity = ref(20);
+
+let resizeObserver: ResizeObserver | null = null;
+let observedRecent: HTMLElement | null = null;
+let observedMissing: HTMLElement | null = null;
+
+function computeCapacity(ulEl: HTMLElement | null): number {
+    if (!ulEl) return 20;
+    const parent = ulEl.parentElement;
+    if (!parent) return 20;
+    const firstItem = ulEl.querySelector("li") as HTMLElement | null;
+    const itemHeight = firstItem?.offsetHeight ?? 32;
+    if (itemHeight <= 0) return 20;
+    const style = getComputedStyle(parent);
+    const paddingY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const available = parent.clientHeight - paddingY;
+    return Math.max(1, Math.floor(available / itemHeight));
+}
+
+function updateCapacities() {
+    recentActivityCapacity.value = computeCapacity(recentListEl.value);
+    missingTranslationsCapacity.value = computeCapacity(missingListEl.value);
+}
+
+function ensureObserver(): ResizeObserver {
+    if (!resizeObserver) resizeObserver = new ResizeObserver(updateCapacities);
+    return resizeObserver;
+}
+
+watch(recentListEl, (el) => {
+    if (observedRecent) {
+        resizeObserver?.unobserve(observedRecent);
+        observedRecent = null;
+    }
+    if (el?.parentElement) {
+        ensureObserver().observe(el.parentElement);
+        observedRecent = el.parentElement;
+    }
+    nextTick(updateCapacities);
+});
+
+watch(missingListEl, (el) => {
+    if (observedMissing) {
+        resizeObserver?.unobserve(observedMissing);
+        observedMissing = null;
+    }
+    if (el?.parentElement) {
+        ensureObserver().observe(el.parentElement);
+        observedMissing = el.parentElement;
+    }
+    nextTick(updateCapacities);
+});
+
+onUnmounted(() => {
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+});
+
 const missingTranslations = computed(() => {
     if (cmsLanguages.value.length <= 1) return [];
     return allParentTranslations.value
         .filter((p) => p.translated < p.total)
         .sort((a, b) => a.translated - b.translated)
-        .slice(0, 30);
+        .slice(0, Math.min(missingTranslationsCapacity.value, 30));
 });
-
-const showTranslationModal = ref(false);
 
 // --- Recent activity ---
 
 const recentContent = computed(() =>
-    [...contentDocs.value].sort((a, b) => b.updatedTimeUtc - a.updatedTimeUtc).slice(0, 50),
+    [...contentDocs.value]
+        .sort((a, b) => b.updatedTimeUtc - a.updatedTimeUtc)
+        .slice(0, Math.min(recentActivityCapacity.value, 50)),
 );
+
+watch([recentContent, missingTranslations], () => nextTick(updateCapacities));
 
 function formatRelativeTime(timestamp: number): string {
     return DateTime.fromMillis(timestamp).toRelative() ?? "";
@@ -239,16 +300,14 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
 
 <template>
     <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
-        <div class="flex h-full min-h-0 flex-col gap-3 p-3 sm:p-4">
+        <div class="flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:min-h-0">
             <!-- Header with greeting and status -->
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-baseline gap-2">
+                <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
                     <h1 class="text-lg font-semibold text-zinc-900">
                         {{ greeting }}, {{ userName }}
                     </h1>
-                    <p class="text-xs text-zinc-500">
-                        Here's what's happening with your content
-                    </p>
+                    <p class="text-xs text-zinc-500">Here's what's happening today</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <!-- Sync indicator -->
@@ -258,21 +317,6 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                     >
                         <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
                         Syncing
-                    </div>
-                    <!-- Connection status -->
-                    <div
-                        class="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
-                        :class="
-                            isConnected
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-amber-50 text-amber-700'
-                        "
-                    >
-                        <component
-                            :is="isConnected ? SignalIcon : SignalSlashIcon"
-                            class="h-3.5 w-3.5"
-                        />
-                        {{ isConnected ? "Online" : "Offline" }}
                     </div>
                 </div>
             </div>
@@ -367,6 +411,60 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                 </RouterLink>
             </div>
 
+            <!-- Language coverage (mobile only) -->
+            <LCard
+                title="Language coverage"
+                :icon="GlobeEuropeAfricaIcon"
+                class="lg:hidden"
+            >
+                <div
+                    v-if="cmsLanguages.length === 0"
+                    class="py-4 text-center text-sm text-zinc-400"
+                >
+                    No languages configured.
+                </div>
+                <ul v-else class="space-y-1.5">
+                    <li v-for="lang in cmsLanguages" :key="lang._id">
+                        <div class="flex items-center justify-between text-sm">
+                            <span
+                                class="font-medium"
+                                :class="
+                                    lang._id === cmsLanguageIdAsRef
+                                        ? 'text-yellow-600'
+                                        : 'text-zinc-700'
+                                "
+                            >
+                                {{ lang.name }}
+                                <span class="text-xs text-zinc-400">
+                                    ({{ lang.languageCode }})
+                                </span>
+                            </span>
+                            <span class="text-xs tabular-nums text-zinc-500">
+                                {{ contentCountPerLanguage[lang._id] ?? 0 }}
+                            </span>
+                        </div>
+                        <div
+                            class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100"
+                        >
+                            <div
+                                class="h-full rounded-full transition-all"
+                                :class="
+                                    lang._id === cmsLanguageIdAsRef
+                                        ? 'bg-yellow-500'
+                                        : 'bg-zinc-300'
+                                "
+                                :style="{
+                                    width:
+                                        maxContentCount > 0
+                                            ? `${((contentCountPerLanguage[lang._id] ?? 0) / maxContentCount) * 100}%`
+                                            : '0%',
+                                }"
+                            />
+                        </div>
+                    </li>
+                </ul>
+            </LCard>
+
             <!-- Status banners -->
             <div
                 v-if="pendingChanges.length > 0 || expiredContent.length > 0"
@@ -383,9 +481,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         }}
                     </p>
                     <p class="text-xs text-amber-600">
-                        {{
-                            isConnected ? "Syncing with server..." : "Will sync when back online"
-                        }}
+                        {{ isConnected ? "Syncing with server..." : "Will sync when back online" }}
                     </p>
                 </div>
                 <div
@@ -403,9 +499,9 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
             </div>
 
             <!-- Main content grid -->
-            <div class="grid min-h-0 flex-1 gap-3 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-3">
                 <!-- Recent activity (2/3 width) -->
-                <div class="flex min-h-0 flex-col gap-3 lg:col-span-2">
+                <div class="flex flex-col gap-3 lg:col-span-2 lg:min-h-0">
                     <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
                         <div
                             v-if="recentContent.length === 0"
@@ -413,7 +509,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                         >
                             No content found for the selected language.
                         </div>
-                        <ul v-else class="divide-y divide-zinc-100">
+                        <ul v-else ref="recentListEl" class="divide-y divide-zinc-100">
                             <li
                                 v-for="doc in recentContent"
                                 :key="doc._id"
@@ -421,9 +517,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                             >
                                 <component
                                     :is="
-                                        doc.parentType === DocType.Post
-                                            ? DocumentTextIcon
-                                            : TagIcon
+                                        doc.parentType === DocType.Post ? DocumentTextIcon : TagIcon
                                     "
                                     class="h-4 w-4 shrink-0 text-zinc-300"
                                 />
@@ -502,9 +596,13 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                 </div>
 
                 <!-- Right column (1/3 width) -->
-                <div class="flex min-h-0 flex-col gap-3">
+                <div class="flex flex-col gap-3 lg:min-h-0">
                     <!-- Language overview -->
-                    <LCard title="Translation coverage" :icon="GlobeEuropeAfricaIcon">
+                    <LCard
+                        title="Translation coverage"
+                        :icon="GlobeEuropeAfricaIcon"
+                        class="max-lg:hidden"
+                    >
                         <div
                             v-if="cmsLanguages.length === 0"
                             class="py-4 text-center text-sm text-zinc-400"
@@ -554,58 +652,82 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                     </LCard>
 
                     <!-- Missing translations -->
-                    <LCard
-                        v-if="missingTranslations.length > 0"
-                        title="Needs translation"
-                        :icon="PencilSquareIcon"
-                        collapsible
-                        fillHeight
-                    >
-                        <template #actions>
-                            <LButton
-                                variant="tertiary"
-                                size="sm"
-                                @click="showTranslationModal = true"
-                            >
-                                View all
-                            </LButton>
-                        </template>
-                        <ul class="divide-y divide-zinc-100">
-                            <li
-                                v-for="item in missingTranslations"
-                                :key="item.parentId"
-                                class="py-1.5"
-                            >
-                                <div class="flex items-center justify-between gap-2">
-                                    <RouterLink
-                                        v-if="parentRoute(item)"
-                                        :to="parentRoute(item)!"
-                                        class="min-w-0 truncate text-sm text-zinc-900 hover:text-yellow-600"
+                    <LCard v-if="missingTranslations.length > 0" fillHeight>
+                        <div class="flex flex-col gap-2 lg:h-full">
+                            <div class="flex items-center justify-center gap-2">
+                                <PencilSquareIcon class="h-4 w-4 text-zinc-600" />
+                                <h3 class="text-sm font-semibold leading-6 text-zinc-900">
+                                    Needs translation
+                                </h3>
+                            </div>
+                            <div class="flex w-full justify-center">
+                                <div class="inline-flex w-full">
+                                    <LButton
+                                        :is="RouterLink"
+                                        :to="{
+                                            name: 'overview',
+                                            params: {
+                                                docType: DocType.Post,
+                                                tagOrPostType: PostType.Blog,
+                                            },
+                                        }"
+                                        variant="secondary"
+                                        size="sm"
+                                        class="w-full rounded-r-none"
                                     >
-                                        {{ item.title }}
-                                    </RouterLink>
-                                    <span v-else class="min-w-0 truncate text-sm text-zinc-900">
-                                        {{ item.title }}
-                                    </span>
-                                    <span
-                                        class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                        Blogs
+                                    </LButton>
+                                    <LButton
+                                        :is="RouterLink"
+                                        :to="{
+                                            name: 'overview',
+                                            params: {
+                                                docType: DocType.Post,
+                                                tagOrPostType: PostType.Page,
+                                            },
+                                        }"
+                                        variant="secondary"
+                                        size="sm"
+                                        class="-ml-px w-full rounded-l-none"
                                     >
-                                        {{ item.translated }}/{{ item.total }}
-                                    </span>
+                                        Pages
+                                    </LButton>
                                 </div>
-                            </li>
-                        </ul>
+                            </div>
+                            <div class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+                                <ul ref="missingListEl" class="divide-y divide-zinc-100">
+                                    <li
+                                        v-for="item in missingTranslations"
+                                        :key="item.parentId"
+                                        class="py-1.5"
+                                    >
+                                        <div class="flex items-center justify-between gap-2">
+                                            <RouterLink
+                                                v-if="parentRoute(item)"
+                                                :to="parentRoute(item)!"
+                                                class="min-w-0 truncate text-sm text-zinc-900 hover:text-yellow-600"
+                                            >
+                                                {{ item.title }}
+                                            </RouterLink>
+                                            <span
+                                                v-else
+                                                class="min-w-0 truncate text-sm text-zinc-900"
+                                            >
+                                                {{ item.title }}
+                                            </span>
+                                            <span
+                                                class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                            >
+                                                {{ item.translated }}/{{ item.total }}
+                                            </span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </LCard>
                 </div>
             </div>
         </div>
-
-        <TranslationCoverageModal
-            v-model:is-visible="showTranslationModal"
-            :parents="allParentTranslations"
-            :languages="cmsLanguages"
-            :current-language-id="cmsLanguageIdAsRef"
-            :parent-route="parentRoute"
-        />
     </BasePage>
 </template>
