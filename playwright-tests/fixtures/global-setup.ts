@@ -187,14 +187,39 @@ async function loginAndSaveState(params: LoginParams) {
         }
 
         const beforeSubmitUrl = page.url();
-        await Promise.all([
-            page.waitForURL((url) => url.toString() !== beforeSubmitUrl, { timeout: 30_000 }),
-            page
-                .getByRole("button", { name: SUBMIT_BUTTON_REGEX })
-                .first()
-                .click({ timeout: 15_000 })
-                .catch(() => passwordField.press("Enter")),
-        ]);
+        await page
+            .getByRole("button", { name: SUBMIT_BUTTON_REGEX })
+            .first()
+            .click({ timeout: 15_000 })
+            .catch(() => passwordField.press("Enter"));
+
+        // After submit, the page either navigates (success path → wait for the
+        // URL to change) OR stays put and renders an inline credential error
+        // (e.g. "Wrong email or password"). Race the two so a bad password
+        // surfaces in a few seconds instead of timing out at 30s.
+        const credentialError = page
+            .getByText(
+                /(wrong|invalid|incorrect)\b[^.]{0,40}(email|password|credentials|username)/i,
+            )
+            .first();
+        const navigated = page
+            .waitForURL((url) => url.toString() !== beforeSubmitUrl, { timeout: 30_000 })
+            .then(() => "navigated" as const);
+        const errorAppeared = credentialError
+            .waitFor({ state: "visible", timeout: 15_000 })
+            .then(() => "error" as const)
+            .catch(() => null);
+
+        const outcome = await Promise.race([navigated, errorAppeared]);
+        if (outcome === "error") {
+            const errorText = await credentialError.textContent().catch(() => null);
+            await dumpDiagnostics(page, label, "credentials-rejected");
+            throw new Error(
+                `Auth provider rejected credentials for ${label}: "${errorText?.trim() ?? "unknown error"}". ` +
+                    `Verify ${label === "user 1" ? "E2E_USER_EMAIL/E2E_USER_PASSWORD" : "E2E_USER_2_EMAIL/E2E_USER_2_PASSWORD"} ` +
+                    "matches the user's credentials on the configured auth provider.",
+            );
+        }
         await page.waitForLoadState("domcontentloaded");
 
         // Some providers insert a consent / authorize screen after a fresh
