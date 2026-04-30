@@ -125,7 +125,6 @@ async function Startup() {
     initAuthLangSync();
     await initLanguage();
     initSync();
-    await loadPlugins();
 
     isAppLoading.value = false;
     initAppTitle(i18n);
