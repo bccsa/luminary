@@ -40,8 +40,11 @@ jobs:
               env:
                   APP_BASE_URL: ${{ vars.APP_BASE_URL }}
                   CMS_BASE_URL: ${{ vars.CMS_BASE_URL }}
+                  E2E_AUTH_PROVIDER_LABEL: ${{ vars.E2E_AUTH_PROVIDER_LABEL }}
                   E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
                   E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+                  E2E_USER_2_EMAIL: ${{ secrets.E2E_USER_2_EMAIL }}
+                  E2E_USER_2_PASSWORD: ${{ secrets.E2E_USER_2_PASSWORD }}
               run: npx playwright test
 
             - name: Upload Playwright report
