@@ -30,14 +30,14 @@ export async function syncBatch(options: SyncOptions) {
         return { ...mergeResult, firstSync };
     }
 
-    const mangoQuery = {
+    const mangoQuery: any = {
         selector: {
             type: options.type,
             updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
             memberOf: {
                 $elemMatch: { $in: options.memberOf },
             },
-        } as any,
+        },
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
@@ -45,6 +45,10 @@ export async function syncBatch(options: SyncOptions) {
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };
+
+    if (options.type === DocType.Content && !options.cms && !firstSync) {
+        mangoQuery.includeExpired = true;
+    }
 
     // Add parentType and language selectors to content queries
     if (options.type === DocType.Content && options.subType) {

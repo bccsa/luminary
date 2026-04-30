@@ -14,4 +14,8 @@ export class MongoQueryDto {
 
     /** Custom field indicating if it is a CMS query or not */
     cms?: boolean;
+
+    /** Custom field indicating if expired content documents should be included in sync results.
+     * Used during update syncs (APP mode only) so offline clients receive expiry changes on published docs. */
+    includeExpired?: boolean;
 }

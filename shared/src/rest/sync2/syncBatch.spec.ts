@@ -136,6 +136,144 @@ describe("syncBatch", () => {
         expect(body.selector.language).toBeUndefined();
     });
 
+    it("sets includeExpired=true for Content update sync (existing entries, initialSync=true, non-CMS)", async () => {
+        // Simulate existing sync entries so this is an update sync (blockEnd > 0)
+        syncList.value.push({
+            chunkType: "content:post",
+            memberOf: ["g1"],
+            languages: ["en"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: true,
+        });
+
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs: [] };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+            limit: 10,
+            initialSync: true,
+            cms: false,
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].includeExpired).toBe(true);
+    });
+
+    it("does not set includeExpired for Content full initial sync (no existing entries)", async () => {
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs: [] };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+            limit: 10,
+            initialSync: true,
+            cms: false,
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].includeExpired).toBeUndefined();
+    });
+
+    it("does not set includeExpired for Content backwards-fill (initialSync=false)", async () => {
+        syncList.value.push({
+            chunkType: "content:post",
+            memberOf: ["g1"],
+            languages: ["en"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+        });
+
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs: [] };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+            limit: 10,
+            initialSync: false,
+            cms: false,
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].includeExpired).toBeUndefined();
+    });
+
+    it("does not set includeExpired for CMS Content update sync", async () => {
+        syncList.value.push({
+            chunkType: "content:post",
+            memberOf: ["g1"],
+            languages: ["en"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: true,
+        });
+
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs: [] };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+            limit: 10,
+            initialSync: true,
+            cms: true,
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].includeExpired).toBeUndefined();
+    });
+
+    it("does not set includeExpired for non-Content type update sync", async () => {
+        syncList.value.push({
+            chunkType: "post",
+            memberOf: ["g1"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: true,
+        });
+
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs: [] };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].includeExpired).toBeUndefined();
+    });
+
     it("adds cms flag when cms option set", async () => {
         const capturedBodies: any[] = [];
         const http = {

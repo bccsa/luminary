@@ -13,6 +13,7 @@ vi.mock("../../db/database", () => ({
     db: {
         getSyncList: vi.fn(),
         setSyncList: vi.fn(),
+        deleteExpired: vi.fn(),
     },
 }));
 
@@ -1111,6 +1112,118 @@ describe("sync module", () => {
             );
             expect(deleteCmdAfter).toHaveLength(1);
             expect(deleteCmdAfter[0].languages).toEqual(["en", "fr"]);
+        });
+
+        it("should call db.deleteExpired after a Content update sync (non-CMS, firstSync=false)", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: false,
+            });
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(db.deleteExpired).toHaveBeenCalledOnce();
+        });
+
+        it("should not call db.deleteExpired for a Content full initial sync (firstSync=true)", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 0,
+                firstSync: true,
+            });
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(db.deleteExpired).not.toHaveBeenCalled();
+        });
+
+        it("should not call db.deleteExpired for a non-Content update sync", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: false,
+            });
+
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(db.deleteExpired).not.toHaveBeenCalled();
+        });
+
+        it("should not call db.deleteExpired for a CMS Content update sync", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: false,
+            });
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                cms: true,
+                includeDeleteCmds: false,
+            });
+
+            expect(db.deleteExpired).not.toHaveBeenCalled();
+        });
+
+        it("should not call db.deleteExpired when syncResult is undefined (cancelled sync)", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            vi.mocked(syncBatch).mockResolvedValue(undefined);
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(db.deleteExpired).not.toHaveBeenCalled();
         });
     });
 });
