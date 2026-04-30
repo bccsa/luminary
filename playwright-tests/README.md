@@ -36,6 +36,8 @@ cp .env.example .env
 | `CMS_BASE_URL` | yes | Base URL of the deployed CMS |
 | `E2E_USER_EMAIL` | yes | Test user email for CMS login |
 | `E2E_USER_PASSWORD` | yes | Test user password for CMS login |
+| `E2E_USER_2_EMAIL` | optional | Second test user email — required for the multi-user authorization specs in `cms/authentication/group-authz.spec.ts`. Provision with a different group membership than user 1. |
+| `E2E_USER_2_PASSWORD` | optional | Password for the second test user. Specs that need user 2 will skip cleanly when this is unset. |
 
 No URLs are hard-coded anywhere in this package. If `APP_BASE_URL` / `CMS_BASE_URL` are missing, the suite refuses to start.
 
@@ -138,7 +140,7 @@ Tests run on every push to `main` via [.github/workflows/e2e-tests.yml](../.gith
 
 Required GitHub repo configuration:
 
-- **Secrets**: `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`
+- **Secrets**: `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`, and (optional, for group-authz specs) `E2E_USER_2_EMAIL`, `E2E_USER_2_PASSWORD`
 - **Variables**: `APP_BASE_URL`, `CMS_BASE_URL`
 
 On failure the workflow:
