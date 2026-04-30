@@ -9,6 +9,7 @@ import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./filters/allExceptions.filter";
+import { S3Service } from "./s3/s3.service";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
@@ -41,6 +42,9 @@ export async function bootstrap() {
 
     // Initialize permission system
     await PermissionSystem.init(dbService);
+
+    // Wire up S3 singleton cache to DB change feed and disconnect events
+    S3Service.initializeChangeListener(dbService);
 
     // Upgrade database schema if needed
     await upgradeDbSchema(dbService);

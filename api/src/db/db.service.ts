@@ -81,6 +81,8 @@ export type DbUpsertResult = {
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
+ * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
  * @example
  * // Listen for document updates
@@ -99,9 +101,17 @@ export class DbService extends EventEmitter {
     private db: any;
     protected syncTolerance: number;
     private connected = false;
+    private hasConnected = false;
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
+
+    // Sequence cursor of the last change we delivered to listeners. Resuming the
+    // feed from this value on reconnect is what lets in-memory caches (perms,
+    // languages, etc.) recover changes that occurred during the disconnect
+    // window without re-fetching everything. Initialised to "now" so the very
+    // first connect starts at the head of the feed (existing behaviour).
+    private lastSeq: string | number = "now";
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -148,8 +158,11 @@ export class DbService extends EventEmitter {
         while (true) {
             try {
                 await this.db.info();
+                const isReconnect = this.hasConnected;
                 this.connected = true;
+                this.hasConnected = true;
                 this.logger.info("Connected to database");
+                if (isReconnect) this.emit("reconnect");
                 return;
             } catch (err) {
                 this.connected = false;
@@ -167,7 +180,7 @@ export class DbService extends EventEmitter {
      */
     private startChangesFeed() {
         this.db.changesReader
-            .start({ includeDocs: true })
+            .start({ includeDocs: true, since: this.lastSeq })
             .on("change", (update) => {
                 // emit update event for all valid documents
                 if (update.doc && update.doc.type) {
@@ -191,16 +204,26 @@ export class DbService extends EventEmitter {
                             this.emit("languageUpdate", doc);
                     }
                 }
+
+                // Advance the resume cursor after listeners run so a crash
+                // mid-handler causes the change to be re-delivered on the next
+                // reconnect rather than silently skipped.
+                if (update.seq !== undefined) {
+                    this.lastSeq = update.seq;
+                }
             })
             .on("error", (err) => {
                 this.logger.warn("Database changes feed error, will restart:", err.message || err);
+                const wasConnected = this.connected;
                 this.connected = false;
+                if (wasConnected) this.emit("disconnect");
                 this.reconnect();
             })
             .on("close", () => {
                 if (this.connected) {
                     this.logger.warn("Database changes feed closed unexpectedly, will restart");
                     this.connected = false;
+                    this.emit("disconnect");
                     this.reconnect();
                 }
             });

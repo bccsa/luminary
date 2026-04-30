@@ -35,6 +35,19 @@ export class QueryService {
             }
         });
 
+        // Drop the language cache on disconnect; any changes made while the feed
+        // was down would otherwise be missed by the resumed change stream.
+        this.db.on("disconnect", () => {
+            this.languages = [];
+        });
+        this.db.on("reconnect", () => {
+            this.loadLanguages();
+        });
+
+        this.loadLanguages();
+    }
+
+    private loadLanguages() {
         this.db
             .executeFindQuery({
                 selector: { type: DocType.Language },
@@ -42,7 +55,20 @@ export class QueryService {
                 use_index: "sync-language-index",
             })
             .then((res) => {
-                this.languages.push(...(res.docs as LanguageDto[]));
+                // Merge by _id rather than reassigning or pushing blindly: the
+                // `languageUpdate` change-stream listener may fire during the async
+                // window of this query (especially on reconnect, where the resumed
+                // feed can deliver events before this promise resolves). Reassigning
+                // would clobber those concurrent updates; pushing could create
+                // duplicates for docs the listener already inserted.
+                for (const doc of res.docs as LanguageDto[]) {
+                    const i = this.languages.findIndex((l) => l._id == doc._id);
+                    if (i >= 0) this.languages[i] = doc;
+                    else this.languages.push(doc);
+                }
+            })
+            .catch((err) => {
+                this.logger.error("Failed to load languages cache", err);
             });
     }
 

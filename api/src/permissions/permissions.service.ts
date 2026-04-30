@@ -100,7 +100,9 @@ type TargetRouteTypeMap = Map<
 export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 
 /**
- * Global Group Map used for permission lookups
+ * Global Group Map used for permission lookups.
+ * Accessed throughout this file via object-style property access, so it is
+ * typed as a Record rather than a Map.
  */
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
@@ -144,7 +146,12 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         let updateQueue: any[] = [];
 
-        // Read group changes from the database change feed and update the permission system
+        // Read group changes from the database change feed and update the permission system.
+        // DbService resumes the feed from its last seq cursor on reconnect, so updates made
+        // while disconnected flow through here once we're back online — no snapshot refetch
+        // needed. The in-memory groupMap is intentionally kept intact across disconnects:
+        // clearing it would deny every request and cause clients syncing via this API to
+        // purge their local data.
         dbService.on("groupUpdate", async (update: DocType.Group) => {
             updateQueue.push(update);
             if (initialized) {
