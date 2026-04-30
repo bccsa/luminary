@@ -34,6 +34,7 @@ cp .env.example .env
 | ---- | -------- | ----------- |
 | `APP_BASE_URL` | yes | Base URL of the deployed App (e.g. a dev/staging environment) |
 | `CMS_BASE_URL` | yes | Base URL of the deployed CMS |
+| `E2E_AUTH_PROVIDER_LABEL` | yes | Visible label of the auth provider button on the CMS sign-in screen — typically a dedicated provider provisioned for E2E so its name is stable. |
 | `E2E_USER_EMAIL` | yes | Test user email for CMS login |
 | `E2E_USER_PASSWORD` | yes | Test user password for CMS login |
 | `E2E_USER_2_EMAIL` | optional | Second test user email — required for the multi-user authorization specs in `cms/authentication/group-authz.spec.ts`. Provision with a different group membership than user 1. |
@@ -74,7 +75,7 @@ Codegen bypasses the test runner (and global setup), so use it to explore the UI
 The CMS requires a real authenticated session. This is handled once per run in [fixtures/global-setup.ts](fixtures/global-setup.ts):
 
 1. Navigate to `CMS_BASE_URL`.
-2. Click the "BCC Africa Guest" provider button on the CMS sign-in screen.
+2. Click the auth provider button labelled `E2E_AUTH_PROVIDER_LABEL` on the CMS sign-in screen.
 3. Follow the redirect to the hosted auth provider and fill in `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` across the two-step login form.
 4. Wait for the return redirect and verify the CMS sign-in screen is gone (otherwise fail fast).
 5. Persist the authenticated state:
@@ -141,7 +142,7 @@ Tests run on every push to `main` via [.github/workflows/e2e-tests.yml](../.gith
 Required GitHub repo configuration:
 
 - **Secrets**: `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`, and (optional, for group-authz specs) `E2E_USER_2_EMAIL`, `E2E_USER_2_PASSWORD`
-- **Variables**: `APP_BASE_URL`, `CMS_BASE_URL`
+- **Variables**: `APP_BASE_URL`, `CMS_BASE_URL`, `E2E_AUTH_PROVIDER_LABEL`
 
 On failure the workflow:
 
