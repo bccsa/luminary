@@ -81,6 +81,18 @@ const pinned = computed({
         }
     },
 });
+
+// Convert showComingSoon to a boolean for the toggle
+const showComingSoon = computed({
+    get() {
+        return parent.value?.showComingSoon ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.showComingSoon = value;
+        }
+    },
+});
 </script>
 
 <template>
@@ -167,7 +179,7 @@ const pinned = computed({
             :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show as Coming soon</FormLabel>
-            <LToggle v-model="parent.showComingSoon" :disabled="disabled" class="mr-[4px]" />
+            <LToggle v-model="showComingSoon" :disabled="disabled" class="mr-[4px]" />
         </div>
 
 
