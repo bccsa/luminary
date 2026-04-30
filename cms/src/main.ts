@@ -4,11 +4,17 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import { DocType, getSocket, init } from "luminary-shared";
+import {
+    changeReqErrors,
+    changeReqWarnings,
+    DocType,
+    getSocket,
+    init,
+    serverError,
+} from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
-import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
 
@@ -130,6 +136,19 @@ async function Startup() {
 
     await auth.setupAuth(app);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+
+    // Show notification on server error (5xx)
+    watch(serverError, (error) => {
+        if (error) {
+            useNotificationStore().addNotification({
+                title: "Server error",
+                description: error,
+                state: "error",
+                timer: 10000,
+            });
+            serverError.value = null;
+        }
+    });
 
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {

@@ -4,6 +4,7 @@ import { ApiSyncQuery } from "./rest/RestApi";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
+export const serverError = ref<string | null>(null);
 
 /**
  * Shared configuration object

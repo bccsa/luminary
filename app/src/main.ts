@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -11,7 +11,8 @@ import {
     loginWithProvider,
     refreshTokenSilently,
 } from "@/auth";
-import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
+import { useNotificationStore } from "./stores/notification";
+import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
@@ -112,6 +113,20 @@ async function Startup() {
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+
+    // Show notification on server error (5xx)
+    watch(serverError, (error) => {
+        if (error) {
+            useNotificationStore().addNotification({
+                title: "Server error",
+                description: error,
+                state: "error",
+                type: "toast",
+                timeout: 10000,
+            });
+            serverError.value = null;
+        }
+    });
 
     // Install all plugins before mounting — components rendered during the
     // splash screen (e.g. SearchModal) call useI18n() at setup time.
