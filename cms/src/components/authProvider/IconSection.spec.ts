@@ -6,7 +6,7 @@ import { DocType, type AuthProviderDto } from "luminary-shared";
 import IconSection from "./IconSection.vue";
 
 const mockImageBuckets = vi.hoisted(() => {
-    const { ref: _ref } = require("vue");
+    const { ref: _ref } = require("vue") as typeof import("vue");
     return _ref<any[]>([]);
 });
 

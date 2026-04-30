@@ -8,7 +8,7 @@ import { ref } from "vue";
 
 // Reactive bucket list shared by all tests; each test sets it as needed.
 const mockImageBuckets = vi.hoisted(() => {
-    const { ref: _ref } = require("vue");
+    const { ref: _ref } = require("vue") as typeof import("vue");
     return _ref<any[]>([]);
 });
 
