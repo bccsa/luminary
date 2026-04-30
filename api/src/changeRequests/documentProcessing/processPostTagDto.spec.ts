@@ -66,7 +66,7 @@ describe("processPostTagDto", () => {
         await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
 
         let contentRes = await db.getDoc(contentCr.doc._id);
-        expect(contentRes.docs[0].parentShowComingSoon).toBe(false);
+        expect(contentRes.docs[0].parentShowComingSoon).toBeUndefined();
 
         const postUpdate = JSON.parse(JSON.stringify(postCr)) as ChangeReqDto;
         postUpdate.doc.showComingSoon = true;
