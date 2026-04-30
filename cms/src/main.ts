@@ -4,15 +4,25 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import { DocType, getSocket, init } from "luminary-shared";
+import {
+    changeReqErrors,
+    changeReqWarnings,
+    DocType,
+    getSocket,
+    init,
+    serverError,
+} from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed } from "./auth";
 import { useNotificationStore } from "./stores/notification";
-import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
+
+// Install Pinia early so any watchers/effects registered during startup that
+// resolve a store (e.g. useNotificationStore) have an active Pinia instance.
+app.use(createPinia());
 
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
@@ -131,6 +141,31 @@ async function Startup() {
     await auth.setupAuth(app);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
+    // Show notification on server error (5xx), debounced to avoid flooding.
+    // CMS has no i18n layer; copy is owned here rather than in the shared lib.
+    let serverErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+    watch(serverError, (error) => {
+        if (error) {
+            serverError.value = null;
+            if (serverErrorTimeout) return;
+            Sentry.captureMessage(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+                "error",
+            );
+            useNotificationStore().addNotification({
+                title: "Server error",
+                description: "Something went wrong on the server. Please try again in a minute.",
+                state: "error",
+                timer: 10000,
+            });
+
+            // Debounce server error notifications to avoid flooding the user with alerts if multiple errors occur in a short time
+            serverErrorTimeout = setTimeout(() => {
+                serverErrorTimeout = null;
+            }, 5000);
+        }
+    });
+
     // Show notification if a change request was rejected or accepted but has warnings
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
         if (warnings.length > 0) {
@@ -158,7 +193,6 @@ async function Startup() {
     await initLanguage();
     initSync();
 
-    app.use(createPinia());
     app.use(router);
     app.mount("#app");
 }

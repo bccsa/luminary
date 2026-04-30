@@ -6,6 +6,18 @@ export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
 
 /**
+ * Signal emitted when an HTTP request fails with a 5xx status. Consumers
+ * (app/CMS) translate this into a user-facing notification — the shared lib
+ * does not own user-facing copy. `message` is the raw server-provided message
+ * (when present) intended for diagnostics, not direct display.
+ */
+export type ServerError = {
+    status: number;
+    message?: string;
+};
+export const serverError = ref<ServerError | null>(null);
+
+/**
  * Shared configuration object
  */
 export type SharedConfig = {

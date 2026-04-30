@@ -67,6 +67,8 @@
         "notification.content_not_available.description": "La traduction en {language} de ce contenu n'est pas encore disponible.",
         "notification.translation_available.title": "Traduction disponible",
         "notification.translation_available.description": "Le contenu est également disponible en {language}. Cliquez ici pour le voir.",
+        "notification.server_error.title": "Erreur serveur",
+        "notification.server_error.description": "Une erreur s'est produite sur le serveur. Veuillez réessayer dans une minute.",
         "privacy_policy.modal.title": "Politique de confidentialité",
         "privacy_policy.modal.message": "En utilisant cette application, vous acceptez notre politique de confidentialité.",
         "privacy_policy.modal.button_accept": "Accepter",

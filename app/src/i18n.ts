@@ -9,7 +9,7 @@ import router from "./router";
  * so the plugin can be installed before `app.mount()` — components that call
  * `useI18n()` during setup (e.g. SearchModal) would otherwise throw.
  */
-export const initI18n = (): I18n => {
+export const initI18n = (): I18n<{}, {}, {}, string, false> => {
     const i18n = createI18n({ legacy: false });
 
     watch(
