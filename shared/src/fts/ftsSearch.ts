@@ -23,6 +23,37 @@ const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "author", boost: 1.0 },
 ];
 
+// LRU cache of per-doc normalized word sets.
+// stripHtml + normalizeText dominate word-match scoring cost; they depend only on
+// the doc's field content, so cache across queries and invalidate on edit via
+// `updatedTimeUtc` in the key.
+const WORD_SET_CACHE_MAX = 500;
+const wordSetCache = new Map<string, Record<string, Set<string>>>();
+
+function getWordSets(doc: ContentDto, fields: FtsFieldConfig[]): Record<string, Set<string>> {
+    const key = `${doc._id}:${doc.updatedTimeUtc}`;
+    const cached = wordSetCache.get(key);
+    if (cached) {
+        wordSetCache.delete(key);
+        wordSetCache.set(key, cached);
+        return cached;
+    }
+    const sets: Record<string, Set<string>> = {};
+    const docRec = doc as Record<string, any>;
+    for (const field of fields) {
+        const value = docRec[field.name];
+        if (typeof value !== "string" || !value) continue;
+        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
+        sets[field.name] = new Set(text.split(" "));
+    }
+    wordSetCache.set(key, sets);
+    if (wordSetCache.size > WORD_SET_CACHE_MAX) {
+        const oldest = wordSetCache.keys().next().value;
+        if (oldest !== undefined) wordSetCache.delete(oldest);
+    }
+    return sets;
+}
+
 /**
  * Compute a boost-weighted word match score across fields.
  * For each field, counts how many query words appear as full words,
@@ -30,15 +61,13 @@ const FTS_FIELDS: FtsFieldConfig[] = [
  */
 function computeFieldWordMatchScore(
     queryWords: string[],
-    doc: Record<string, any>,
+    wordSets: Record<string, Set<string>>,
     fields: FtsFieldConfig[],
 ): number {
     let totalScore = 0;
     for (const field of fields) {
-        const value = doc[field.name];
-        if (typeof value !== "string" || !value) continue;
-        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
-        const docWords = new Set(text.split(" "));
+        const docWords = wordSets[field.name];
+        if (!docWords) continue;
         let matches = 0;
         for (const word of queryWords) {
             if (docWords.has(word)) matches++;
@@ -75,16 +104,23 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
 
-    // Step 1: Count docs per trigram, filter over-represented
+    // Step 1 (merged from former step1+step3): fetch primaryKeys per trigram in parallel.
+    // `df` is derived from `ids.length`, so the previous separate .count() pass is gone.
+    const trigramResults = await Promise.all(
+        trigrams.map(async (trigram) => {
+            const ids = (await db.docs
+                .where("fts")
+                .between(trigram + ":", trigram + ";", true, false)
+                .primaryKeys()) as string[];
+            return { token: trigram, ids };
+        }),
+    );
     const usableTrigrams: Array<{ token: string; df: number }> = [];
-    for (const trigram of trigrams) {
-        const count = await db.docs
-            .where("fts")
-            .between(trigram + ":", trigram + ";", true, false)
-            .count();
-        if (count <= maxDocCount) {
-            usableTrigrams.push({ token: trigram, df: count });
-        }
+    const matchedDocIds = new Set<string>();
+    for (const { token, ids } of trigramResults) {
+        if (ids.length > maxDocCount) continue;
+        usableTrigrams.push({ token, df: ids.length });
+        for (const id of ids) matchedDocIds.add(id);
     }
     if (usableTrigrams.length === 0) return [];
 
@@ -94,20 +130,12 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
     }
 
-    // Step 3: Collect matching doc IDs across all trigrams
-    const matchedDocIds = new Set<string>();
-    for (const { token } of usableTrigrams) {
-        const ids = await db.docs
-            .where("fts")
-            .between(token + ":", token + ";", true, false)
-            .primaryKeys();
-        for (const id of ids) matchedDocIds.add(id as string);
-    }
-
-    // Step 4: Load matched docs
+    // Step 4: Load matched docs, filtering by language at query time so wrong-language
+    // docs never enter the scoring/word-match loops below.
     const loadedDocs = await db.docs
         .where("_id")
         .anyOf(Array.from(matchedDocIds))
+        .and((d) => !languageId || (d as ContentDto).language === languageId)
         .toArray();
     const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
 
@@ -116,8 +144,6 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     const results: FtsSearchResult[] = [];
 
     docMap.forEach((doc, docId) => {
-        if (languageId && doc.language !== languageId) return;
-
         const tfMap = new Map<string, number>();
         if (doc.fts) {
             for (const entry of doc.fts) {
@@ -151,11 +177,8 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
             const doc = docMap.get(result.docId);
             if (!doc) continue;
 
-            const wordMatchBonus = computeFieldWordMatchScore(
-                queryWords,
-                doc as Record<string, any>,
-                FTS_FIELDS,
-            );
+            const wordSets = getWordSets(doc, FTS_FIELDS);
+            const wordMatchBonus = computeFieldWordMatchScore(queryWords, wordSets, FTS_FIELDS);
             result.wordMatchScore = wordMatchBonus;
             result.score += wordMatchBonus;
         }
