@@ -11,8 +11,8 @@ import {
     loginWithProvider,
     refreshTokenSilently,
 } from "@/auth";
+import { appPluginsManager } from "@/build-time-plugin-contracts/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
-import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
@@ -119,12 +119,12 @@ async function Startup() {
     app.use(createPinia());
     app.use(router);
     app.use(i18n);
+    app.use(appPluginsManager);
     app.mount("#app");
 
     initAuthLangSync();
     await initLanguage();
     initSync();
-    await loadPlugins();
 
     isAppLoading.value = false;
     initAppTitle(i18n);

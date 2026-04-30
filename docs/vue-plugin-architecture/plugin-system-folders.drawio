@@ -1,0 +1,64 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram name="Page-1" id="2jGiKS831NWDrIv9mvvT">
+    <mxGraphModel dx="1026" dy="747" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-1" value="src" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-2" value="vite-plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="760" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-3" value="build-time-plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="440" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-4" value="build-time-plugin-contracts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-5" value="media-player" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="200" y="160" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-6" value="plugin-registry" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="200" y="120" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-8" value="media-player" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="480" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-9" value="index.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="200" y="520" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-10" value="media-player-web.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="200" y="560" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-11" value="contract.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="200" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-12" value="token.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="240" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-13" value="buildTargetVirtuals.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="180" y="800" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-14" value="auth-callback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="200" y="290" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-15" value="auth-callback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="600" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-16" value="contract.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="330" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-17" value="token.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="370" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-18" value="index.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="200" y="640" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-19" value="auth-callback-web.ts" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="200" y="680" width="120" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

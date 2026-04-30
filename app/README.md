@@ -1,8 +1,14 @@
 # Luminary App
 
-This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser
+This is the frontend of the Luminary app. It's an offline-first Vue app that runs in the browser.
 
-## Project Structure
+## Architecture (build-time plugins)
+
+Cross-cutting services can follow a **contract + injection key + build-time virtual module** pattern: Vite resolves `virtual:…` to one implementation folder under `src/plugins/<name>/`, and **`src/core/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** files, not direct imports of adapter code.
+
+**Example in this repo:** the global **audio player** (`virtual:media-player`, `src/plugins/media-player/`). Full pattern and diagrams: **[docs/research/vue-plugin-architecture/README.md](../docs/research/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin (same mechanism): **[Adding another build-swapped plugin](../docs/research/vue-plugin-architecture/README.md#adding-another-build-swapped-plugin)**.
+
+## Project structure
 
 > **Note:** We are currently migrating to a new component organization structure where each feature folder will contain a `__tests__` subdirectory alongside its related components. For example:
 >
@@ -20,21 +26,22 @@ app/
 ├── public/                       # Static assets
 ├── scripts/                      # Build and deployment scripts
 │   └── setup-nginxvars.sh
+├── vite-plugins/                 # Vite-only helpers (e.g. build-time module resolution)
 ├── src/
 │   ├── analytics/                # Analytics tracking and integration
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components
 │   ├── composables/              # Vue composables (reusable composition logic)
+│   ├── core/                     # App composition (e.g. plugin registry)
 │   ├── guards/                   # Route guards
 │   ├── pages/                    # Page-level components
-│   ├── plugins/                  # Plugin system for extending functionality
+│   ├── plugins/                  # build-swapped plugins (e.g. media-player) + optional extension classes
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
 │   ├── tests/                    # Test utilities and helpers
 │   ├── types/                    # TypeScript type definitions
 │   ├── util/                     # Utility functions
 │   ├── analytics.ts              # Analytics entry point
-│   ├── auth.ts                   # Authentication logic
 │   ├── globalConfig.ts           # Global configuration
 │   ├── i18n.ts                   # Internationalization setup
 │   ├── main.ts                   # Application entry point
@@ -60,6 +67,7 @@ app/
 UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
 
 See [docs/translations.md](../docs/translations.md) for details on:
+
 - How to add or update translation strings
 - Strings that contain named interpolation placeholders (`{variable}`)
 - Strings that are shown only under specific UI conditions
@@ -75,49 +83,10 @@ When running `npm run dev` the local reloading server of the app will start at h
 
 The following query string parameters are supported:
 
-- autoplay=true - Auto plays video when opening a post / tag with video content
-- autofullscreen=true - Automatically switches to full screen video player mode on play
+- autoplay=true — Auto plays video when opening a post / tag with video content
+- autofullscreen=true — Automatically switches to full screen video player mode on play
 
 _Note: When navigating directly to a video post / tag URL, autoplay and autofullscreen will only work if playing without user interaction is enabled in the browser settings._
-
-## Plugins
-
-Plugins can be used to extend the functionality of Luminary.
-
-### How to add plugins
-
-- To add a plugin you need to create a plugins folder, somewhere out of the project structure
-- Set the VITE_PLUGIN_PATH env variable in your .env, then vite will go fetch your files at that location and copy it into the [plugins folder](./src/plugins/)
-
-```
-VITE_PLUGIN_PATH="../../plugins"
-```
-
-- To let luminary run the plugin you need to add a env variable VITE_PLUGINS to your env file and add an array of the plugins you want to add
-
-```
-VITE_PLUGINS=["examplePlugin", "examplePlugin2"]
-```
-
-- Every plugin class should have a constructor function
-
-**The files is being copied every time before vite build, dev, and test is run**
-
-### Plugin format
-
-```ts
-export class examplePlugin {
-    constructor() {
-        this.someFunction();
-    }
-
-    someFunction() {
-        return "res";
-    }
-}
-```
-
-**Important that the filename and the class name is the same, and that the file is a ts file**
 
 ## Build for production
 
@@ -128,8 +97,7 @@ docker build -t luminary-app .
 docker run --rm -it -p 8080:80 luminary-app
 ```
 
-`gzip` functionality is enabled by default, disable it as shown:
-**It is available as a docker .env parameter**
+`gzip` functionality is enabled by default; disable it as shown (available as a Docker `.env` parameter):
 
 ```sh
 docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app
