@@ -138,6 +138,7 @@ export type GroupDto = BaseDocumentDto & {
 export type ImageDto = {
     fileCollections: ImageFileCollectionDto[];
     uploadData?: ImageUploadDto[];
+    duplicate?: boolean;
 };
 
 export type ImageFileCollectionDto = {

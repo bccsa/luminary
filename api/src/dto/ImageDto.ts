@@ -1,5 +1,5 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsOptional, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsOptional, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageUploadDto } from "./ImageUploadDto";
 import { ImageFileCollectionDto } from "./ImageFileCollectionDto";
@@ -19,4 +19,9 @@ export class ImageDto {
     @Type(() => ImageUploadDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
     uploadData?: ImageUploadDto[];
+
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    duplicate?: boolean;
 }

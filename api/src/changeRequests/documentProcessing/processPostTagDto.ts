@@ -16,7 +16,7 @@ import { processMedia } from "./processMediaDto";
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
-    prevDoc: PostDto | TagDto,
+    prevDoc: PostDto | TagDto | undefined,
     db: DbService,
 ): Promise<string[]> {
     const warnings: string[] = [];
@@ -64,6 +64,19 @@ export default async function processPostTagDto(
 
         if (!doc.imageBucketId) {
             imageWarnings.push("Bucket is not specified for image processing.");
+        }
+
+        // prevDoc is undefined on first upsert. A duplication request must include
+        // existing file references and a source bucket on the parent document.
+        if (!prevDoc && doc.imageData.duplicate) {
+            const hasSourceFiles = doc.imageData.fileCollections?.some(
+                (collection) => collection.imageFiles?.length > 0,
+            );
+            if (!doc.imageBucketId || !hasSourceFiles) {
+                imageWarnings.push("Image duplication request is invalid.");
+                delete doc.imageData.duplicate;
+                doc.imageData.fileCollections = [];
+            }
         }
 
         // Use the new bucket processing with db service for bucket lookup

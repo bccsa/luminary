@@ -472,7 +472,12 @@ describe("EditContent.vue - Duplication", () => {
         expect(vm.editableParent._rev).toBeUndefined();
     }, 15000);
 
-    it("clears image fileCollections on the duplicated parent", async () => {
+    it("keeps image fileCollections and marks duplicate source by default", async () => {
+        await db.docs.put({
+            ...mockData.mockPostDto,
+            imageBucketId: "storage-image-bucket",
+        } as any);
+
         // Ensure the mock post has image data with fileCollections
         expect(mockData.mockPostDto.imageData?.fileCollections.length).toBeGreaterThan(0);
 
@@ -517,9 +522,52 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Image fileCollections should be cleared on the duplicated parent
-        expect(vm.editableParent.imageData.fileCollections).toEqual([]);
+        // Image fileCollections should be preserved by default and duplicate intent should be set
+        expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
+        expect(vm.editableParent.imageData.duplicate).toBe(true);
     }, 15000);
+
+    it("clears image fileCollections when duplicate image is unchecked", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        await duplicateBtn!.trigger("click");
+        await nextTick();
+
+        const duplicateImageToggle = wrapper.find("[data-test='duplicate-image-toggle'] input");
+        expect(duplicateImageToggle.exists()).toBe(true);
+        expect((duplicateImageToggle.element as HTMLInputElement).checked).toBe(true);
+        await duplicateImageToggle.setValue(false);
+
+        const confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+        expect(confirmBtn.exists()).toBe(true);
+        await confirmBtn.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+        expect(vm.editableParent.imageData.fileCollections).toEqual([]);
+        expect(vm.editableParent.imageData.duplicate).toBeUndefined();
+    });
 
     it("does not modify the original document in the database after duplication", async () => {
         const wrapper = mount(EditContent, {
@@ -717,7 +765,7 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Media should be preserved on the duplicated parent (unlike images which are cleared)
+        // Media should be preserved on the duplicated parent
         expect(vm.editableParent.media).toBeDefined();
         expect(vm.editableParent.media.hlsUrl).toBe(mockData.mockPostDto.media!.hlsUrl);
         expect(vm.editableParent.media.fileCollections.length).toBe(
