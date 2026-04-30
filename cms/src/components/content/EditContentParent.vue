@@ -81,6 +81,18 @@ const pinned = computed({
         }
     },
 });
+
+// Convert showComingSoon to a boolean for the toggle
+const showComingSoon = computed({
+    get() {
+        return parent.value?.showComingSoon ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.showComingSoon = value;
+        }
+    },
+});
 </script>
 
 <template>
@@ -156,11 +168,20 @@ const pinned = computed({
         <!-- Toggle for Publish Date Visibility -->
         <div
             class="mt-2 flex items-center justify-between gap-1"
-            :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
         </div>
+
+        <!-- Toggle: show as Coming soon when scheduled with a future publish date -->
+        <div
+            class="mt-2 flex items-center justify-between gap-1"
+            :class="{ 'mb-2': docType !== DocType.Tag }"
+        >
+            <FormLabel>Show as Coming soon</FormLabel>
+            <LToggle v-model="showComingSoon" :disabled="disabled" class="mr-[4px]" />
+        </div>
+
 
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"

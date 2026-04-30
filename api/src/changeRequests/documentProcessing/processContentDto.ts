@@ -36,6 +36,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
             doc.parentTaggedDocs = (parentDoc as TagDto).taggedDocs;
         }
         doc.parentPublishDateVisible = parentDoc.publishDateVisible;
+        doc.parentShowComingSoon = parentDoc.showComingSoon;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property

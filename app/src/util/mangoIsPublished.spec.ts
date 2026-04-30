@@ -7,8 +7,11 @@ import { mangoCompile, type MangoSelector, PublishStatus } from "luminary-shared
  * Wraps the returned conditions array in an $and selector, matching
  * how the function is intended to be used.
  */
-function buildPredicate(languageIds: string[]) {
-    const conditions = mangoIsPublished(languageIds);
+function buildPredicate(languageIds: string[], includeScheduled?: boolean) {
+    const conditions =
+        includeScheduled === undefined
+            ? mangoIsPublished(languageIds)
+            : mangoIsPublished(languageIds, { includeScheduled });
     const selector: MangoSelector = { $and: conditions };
     return mangoCompile(selector);
 }
@@ -208,6 +211,52 @@ describe("mangoIsPublished", () => {
 
             const wrongType = makeDoc({ type: "tag" });
             expect(pred(wrongType)).toBe(false);
+        });
+    });
+
+    // ============================================
+    // includeScheduled (coming-soon / scheduled tiles)
+    // ============================================
+
+    describe("includeScheduled", () => {
+        it("matches already-published content (past publishDate)", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({ publishDate: Date.now() - 60_000 });
+            expect(pred(doc)).toBe(true);
+        });
+
+        it("matches scheduled content by default", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: true });
+            expect(pred(doc)).toBe(true);
+        });
+
+        it("rejects future publishDate when parentShowComingSoon is not true (omitted)", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({ publishDate: Date.now() + 60_000 });
+            expect(pred(doc)).toBe(false);
+        });
+
+        it("rejects scheduled content when includeScheduled is false", () => {
+            const pred = buildPredicate(["lang-eng"], false);
+            const doc = makeDoc({ publishDate: Date.now() + 60_000, parentShowComingSoon: true });
+            expect(pred(doc)).toBe(false);
+        });
+
+        it("rejects expired content", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({
+                publishDate: Date.now() + 60_000,
+                parentShowComingSoon: true,
+                expiryDate: 0,
+            });
+            expect(pred(doc)).toBe(false);
+        });
+
+        it("rejects draft content", () => {
+            const pred = buildPredicate(["lang-eng"]);
+            const doc = makeDoc({ status: PublishStatus.Draft });
+            expect(pred(doc)).toBe(false);
         });
     });
 });

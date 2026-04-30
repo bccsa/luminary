@@ -70,6 +70,7 @@ const editableParent = ref<ContentParentDto>({
     memberOf: [],
     tags: [],
     publishDateVisible: true,
+    showComingSoon: false,
 });
 const isLoading = computed(() => editableParent.value == undefined);
 const existingParent = ref<ContentParentDto>();
@@ -114,9 +115,11 @@ const loadData = (id: string, isNew: boolean) => {
             (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
             (editableParent.value as TagDto).pinned = 0;
             (editableParent.value as TagDto).publishDateVisible = false;
+            editableParent.value.showComingSoon = false;
         } else {
             (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
             (editableParent.value as PostDto).publishDateVisible = true;
+            editableParent.value.showComingSoon = false;
         }
     } else {
         db.get<PostDto | TagDto>(id).then((p) => {
