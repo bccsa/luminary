@@ -50,8 +50,23 @@ export async function createTestPost(
         waitUntil: "domcontentloaded",
     });
 
+    // New posts have no translations yet; the editor shows an "Add translation"
+    // empty state. Pick the language matching the URL so EditContentBasic mounts.
     const titleInput = page.locator('input[name="title"]');
-    await titleInput.waitFor({ state: "visible", timeout: 30_000 });
+    const titleVisible = await titleInput
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (!titleVisible) {
+        await page.getByRole("button", { name: "Add translation" }).first().click();
+        await page
+            .locator(`[data-test="select-language-${languageCode}"]:visible`)
+            .first()
+            .click();
+        await titleInput.waitFor({ state: "visible", timeout: 30_000 });
+    }
+
     await titleInput.fill(opts.title);
 
     if (opts.slug) {
@@ -59,24 +74,22 @@ export async function createTestPost(
         const slugInput = page.locator('input[name="slug"]');
         await slugInput.waitFor({ state: "visible", timeout: 5_000 });
         await slugInput.fill(opts.slug);
-        await titleInput.click(); // blur the slug input to commit the value
+        await titleInput.click(); // blur to commit
     }
 
-    await page.locator(SAVE_BUTTON).click();
-
-    // After save, the route's `:id` segment changes from "new" to the assigned UUID.
+    // The new-document flow rewrites the URL from "new" to the assigned UUID
+    // as soon as a language resolves, so capture it before saving.
     await page.waitForURL(
         new RegExp(`/post/edit/${tagOrPostType}/(?!new/)[a-z0-9-]+/${languageCode}`),
         { timeout: 30_000 },
     );
-
-    const url = new URL(page.url());
-    const segments = url.pathname.split("/").filter(Boolean);
-    // /post/edit/<tagOrPostType>/<id>/<languageCode>
+    const segments = new URL(page.url()).pathname.split("/").filter(Boolean);
     const parentId = segments[3];
     if (!parentId || parentId === "new") {
         throw new Error(`createTestPost: could not extract parent id from URL ${page.url()}`);
     }
+
+    await page.locator(SAVE_BUTTON).click();
 
     return { parentId, languageCode };
 }
