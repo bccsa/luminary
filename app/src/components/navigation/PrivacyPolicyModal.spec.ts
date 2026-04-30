@@ -25,6 +25,9 @@ vi.mock("vue-router", () => ({
     useRouter: vi.fn(() => ({
         push: vi.fn(),
     })),
+    useRoute: vi.fn(() => ({
+        query: {},
+    })),
 }));
 
 describe("PrivacyPolicyModal.vue", () => {

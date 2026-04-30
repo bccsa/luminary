@@ -8,7 +8,7 @@ import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useI18n } from "vue-i18n";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 import { isAuthPluginInstalled } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
@@ -20,6 +20,9 @@ const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
 const isAuthenticated = auth0?.isAuthenticated ?? computed(() => false);
 const logout = auth0?.logout ?? (() => {});
 const router = useRouter();
+const route = useRoute();
+
+const hidePrivacyPolicyFromQuery = computed(() => route.query.noprivacypolicy === "true");
 
 const show = defineModel<boolean>("show");
 
@@ -102,6 +105,10 @@ setTimeout(() => {
     watch(
         status,
         (status) => {
+            if (hidePrivacyPolicyFromQuery.value) {
+                useNotificationStore().removeNotification("privacy-policy-banner");
+                return;
+            }
             if (!status || (status != "accepted" && status != "necessaryOnly")) {
                 useNotificationStore().addNotification({
                     id: "privacy-policy-banner",
@@ -217,7 +224,7 @@ const shouldHidePrivacyPolicy = import.meta.env.VITE_HIDE_PRIVACY_POLICY === "tr
 
 <template>
     <LModal
-        :isVisible="show || false || shouldHidePrivacyPolicy"
+        :isVisible="(show || false || shouldHidePrivacyPolicy) && !hidePrivacyPolicyFromQuery"
         :heading="t('privacy_policy.modal.title')"
         @close="show = false"
     >
