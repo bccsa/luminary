@@ -50,9 +50,10 @@ watch(
     { immediate: true },
 );
 
-// Check if bucket is selected (or auto-selected when only one exists)
+// Mirrors ImageEditor's effectiveImageBucketId fallback so the Upload button
+// shows in single-bucket setups before the parent has been written to.
 const isBucketSelected = computed(() => {
-    return !!parent.value?.imageBucketId;
+    return parent.value?.imageBucketId ?? storage.autoSelectImageBucket.value;
 });
 
 // Get the selected bucket's mimeTypes for the accept attribute
@@ -131,8 +132,8 @@ const handleFileChange = () => {
             <div v-if="showHelp">
                 <p class="my-2 text-xs">
                     You can upload several files in different aspect ratios. The most suitable image
-                    will automatically be displayed based on the aspect ratio of the image element where
-                    the image is displayed.
+                    will automatically be displayed based on the aspect ratio of the image element
+                    where the image is displayed.
                 </p>
                 <p class="mb-2 text-xs">
                     Uploaded images are automatically scaled for various screen and display sizes.
@@ -190,8 +191,8 @@ const handleFileChange = () => {
             <div v-if="showHelp" class="mt-2">
                 <p class="my-2 text-xs">
                     You can upload several files in different aspect ratios. The most suitable image
-                    will automatically be displayed based on the aspect ratio of the image element where
-                    the image is displayed.
+                    will automatically be displayed based on the aspect ratio of the image element
+                    where the image is displayed.
                 </p>
                 <p class="mb-2 text-xs">
                     Uploaded images are automatically scaled for various screen and display sizes.
