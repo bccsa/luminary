@@ -386,7 +386,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "privacy_policy.banner.title": "Privacy Policy",
         "privacy_policy.modal.link_text": "here",
         "privacy_policy.modal.message_link": "Click {link} to read our privacy policy",
-        "login.bcc.button": "Login in with BCC",
+        "login.provider.button": "Sign in with Example Org",
         "login.guest.button": "Login in as guest",
         "auth.sign_in": "Sign in",
         "auth.no_methods_available": "No sign-in methods available.",

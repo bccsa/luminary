@@ -8,7 +8,12 @@ import AuthProviderSelectionModal from "./AuthProviderSelectionModal.vue";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) => key,
+        t: (key: string) =>
+            (
+                {
+                    "login.provider.button": "Sign in with Example Org",
+                } as Record<string, string>
+            )[key] ?? key,
     }),
 }));
 
@@ -49,6 +54,29 @@ const mockProviderB: AuthProviderDto = {
     audience: "https://api.beta.com",
     backgroundColor: "#1a1a2e",
     textColor: "#ffffff",
+};
+
+const mockProviderKeyLabel: AuthProviderDto = {
+    _id: "provider-key",
+    type: DocType.AuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    label: "login.provider.button",
+    domain: "key.auth0.com",
+    clientId: "client-key",
+    audience: "https://api.key.com",
+};
+
+const mockProviderDisplayNameFallback: AuthProviderDto = {
+    _id: "provider-display-name",
+    type: DocType.AuthProvider,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    label: "",
+    displayName: "Login with Display Name",
+    domain: "display.auth0.com",
+    clientId: "client-display",
+    audience: "https://api.display.com",
 };
 
 describe("AuthProviderSelectionModal.vue", () => {
@@ -157,5 +185,29 @@ describe("AuthProviderSelectionModal.vue", () => {
         });
 
         expect(wrapper.html()).not.toContain("auth.sign_in");
+    });
+
+    it("renders dotted i18n keys from labels through translation", async () => {
+        await db.docs.put(mockProviderKeyLabel);
+
+        const wrapper = mount(AuthProviderSelectionModal, {
+            props: { isVisible: true },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Sign in with Example Org");
+        });
+    });
+
+    it("falls back to displayName when label is empty", async () => {
+        await db.docs.put(mockProviderDisplayNameFallback);
+
+        const wrapper = mount(AuthProviderSelectionModal, {
+            props: { isVisible: true },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Login with Display Name");
+        });
     });
 });

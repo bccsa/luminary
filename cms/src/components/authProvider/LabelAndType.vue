@@ -10,18 +10,40 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 </script>
 
 <template>
-    <div>
+    <div class="min-w-0 w-full max-w-full">
         <label for="provider-label" class="mb-1 block text-xs font-medium text-gray-700">
-            Label <span class="text-red-500">*</span>
+            Label
         </label>
         <LInput
             id="provider-label"
             name="providerLabel"
             :model-value="provider.label ?? ''"
             type="text"
-            placeholder="Brand/Company Name"
+            placeholder="e.g. login.provider.button"
             :disabled="disabled"
             @update:model-value="provider.label = $event"
         />
+
+        <div class="mt-2">
+            <label for="provider-display-name" class="mb-1 block text-xs font-medium text-gray-700">
+                Display name
+            </label>
+            <p class="mb-1 text-[11px] text-gray-500">
+                You can use embedded translation lookups with [[key.path]] or enter a translation key
+                directly (key.subkey).
+            </p>
+            <LInput
+                id="provider-display-name"
+                name="providerDisplayName"
+                :model-value="provider.displayName ?? ''"
+                type="text"
+                placeholder="e.g. Sign in with [[organization.name]] or login.provider.button"
+                :disabled="disabled"
+                @update:model-value="provider.displayName = $event"
+            />
+            <p class="mt-1 text-[11px] text-gray-500">
+                This name is shown in CMS lists and dialogs.
+            </p>
+        </div>
     </div>
 </template>

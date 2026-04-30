@@ -72,7 +72,7 @@ const providerFilterOptions = computed(() => [
     { value: GLOBAL_FILTER, label: "Global (All Users)" },
     ...providers.value.map((p) => ({
         value: p._id,
-        label: p.label || p.domain || p._id,
+        label: p.displayName || p.label || p.domain || p._id,
     })),
 ]);
 
@@ -119,7 +119,7 @@ const filteredMappings = computed(() => {
 function providerName(providerId: string | undefined): string {
     if (!providerId) return "(no provider)";
     const p = providers.value.find((prov) => prov._id === providerId);
-    return p?.label || p?.domain || providerId;
+    return p?.displayName || p?.label || p?.domain || providerId;
 }
 
 function resetFilters() {

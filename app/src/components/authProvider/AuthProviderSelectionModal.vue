@@ -12,6 +12,7 @@ import {
 } from "luminary-shared";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { resolveI18nEmbedded } from "@/util/resolveI18nEmbedded";
 
 const { t } = useI18n();
 const isVisible = defineModel<boolean>("isVisible");
@@ -26,6 +27,8 @@ const allProviders = useDexieLiveQuery(
 );
 
 const providers = computed(() => allProviders.value ?? []);
+const resolveProviderLabel = (provider: AuthProviderDto) =>
+    resolveI18nEmbedded(provider.label || provider.displayName || provider.domain || provider._id, t);
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;
@@ -93,7 +96,7 @@ const handleClose = () => {
                             : {}
                     "
                 >
-                    {{ provider.label }}
+                    {{ resolveProviderLabel(provider) }}
                 </span>
             </button>
 

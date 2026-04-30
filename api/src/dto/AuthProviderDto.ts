@@ -21,6 +21,12 @@ export class AuthProviderDto extends _contentBaseDto {
         Object.assign(this, init);
     }
 
+    /** Display name shown in CMS */
+    @IsString()
+    @IsOptional()
+    @Expose()
+    public displayName?: string;
+
     /**
      * OIDC issuer domain (e.g. auth.example.com)
      */
