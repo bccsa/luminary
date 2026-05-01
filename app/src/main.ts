@@ -93,8 +93,10 @@ async function Startup() {
             }
 
             // Normal case: the access token expired. Ask the Auth0 SDK for a
-            // fresh one via the refresh token — no redirect needed.
-            if (await refreshTokenSilently()) return;
+            // fresh one via the refresh token — no redirect needed. Bypass
+            // the SDK's token cache: the server already rejected what we had,
+            // so the cached copy is useless and we must hit /oauth/token.
+            if (await refreshTokenSilently({ ignoreCache: true })) return;
 
             // The refresh token itself is gone or rejected — need a visible
             // re-login.

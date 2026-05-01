@@ -159,11 +159,20 @@ export async function setupAuth(app: App<Element>): Promise<void> {
  * the Authorization header and the socket. Returns true on success. Call from
  * the socket's connect_error handler before falling back to a visible
  * re-login — this is what `useRefreshTokens: true` is for.
+ *
+ * Pass `ignoreCache: true` after the server has rejected a token. Otherwise
+ * Auth0's default `cacheMode: "on"` can hand back the same cached
+ * still-client-valid token (60s leeway) that the server just rejected, so
+ * we'd loop forever on any clock skew or server-side revocation.
  */
-export async function refreshTokenSilently(): Promise<boolean> {
+export async function refreshTokenSilently(opts?: {
+    ignoreCache?: boolean;
+}): Promise<boolean> {
     if (!installedOauth) return false;
     try {
-        const token = await installedOauth.getAccessTokenSilently();
+        const token = await installedOauth.getAccessTokenSilently(
+            opts?.ignoreCache ? { cacheMode: "off" } : undefined,
+        );
         if (!token) return false;
         setCustomHeader("Authorization", `Bearer ${token}`);
         getSocket().setAuth(token, activeProviderId.value);
