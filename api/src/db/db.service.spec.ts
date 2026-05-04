@@ -478,7 +478,7 @@ describe("DbService", () => {
     describe("disconnect events", () => {
         afterEach(() => {
             (service as any).connected = true;
-            (service as any).hasConnected = true;
+            (service as any).disconnectEmitted = false;
         });
 
         it("captures the seq from each change event so the feed can resume", () => {
@@ -525,15 +525,15 @@ describe("DbService", () => {
             }
         });
 
-        it("emits 'reconnect' when waitForDb resolves after an initial connect", async () => {
+        it("emits 'reconnect' when waitForDb resolves after a 'disconnect' was emitted", async () => {
             let reconnectCount = 0;
             const handler = () => reconnectCount++;
             service.on("reconnect", handler);
 
-            // Simulate the reconnect path: hasConnected=true means an initial
-            // connect already happened, so the next successful waitForDb should
-            // fire 'reconnect'.
-            (service as any).hasConnected = true;
+            // Simulate the reconnect path: a real disconnect was emitted to
+            // listeners, so the next successful waitForDb should pair it with
+            // a 'reconnect'.
+            (service as any).disconnectEmitted = true;
             (service as any).connected = false;
             await (service as any).waitForDb();
 
@@ -546,11 +546,30 @@ describe("DbService", () => {
             const handler = () => reconnectCount++;
             service.on("reconnect", handler);
 
-            (service as any).hasConnected = false;
+            // No prior disconnect emit means this is either the first connect
+            // or a redundant waitForDb resolution — either way, no reconnect
+            // should fire.
+            (service as any).disconnectEmitted = false;
             (service as any).connected = false;
             await (service as any).waitForDb();
 
             expect(reconnectCount).toBe(0);
+            service.off("reconnect", handler);
+        });
+
+        it("does not double-emit 'reconnect' when two waitForDb() calls race", async () => {
+            // Race scenario: feed-error path and an explicit reconnect both
+            // call waitForDb(). The first to resolve clears disconnectEmitted
+            // and emits; the second must see the cleared flag and stay quiet.
+            let reconnectCount = 0;
+            const handler = () => reconnectCount++;
+            service.on("reconnect", handler);
+
+            (service as any).disconnectEmitted = true;
+            (service as any).connected = false;
+            await Promise.all([(service as any).waitForDb(), (service as any).waitForDb()]);
+
+            expect(reconnectCount).toBe(1);
             service.off("reconnect", handler);
         });
     });

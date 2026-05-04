@@ -101,7 +101,11 @@ export class DbService extends EventEmitter {
     private db: any;
     protected syncTolerance: number;
     private connected = false;
-    private hasConnected = false;
+    // Tracks an unmatched 'disconnect' emit. Used to gate the next 'reconnect'
+    // emit so it pairs with a real prior disconnect, rather than firing on the
+    // initial connect or on whichever waitForDb() happens to resolve second
+    // when two are racing (see startChangesFeed error handler).
+    private disconnectEmitted = false;
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
@@ -158,11 +162,15 @@ export class DbService extends EventEmitter {
         while (true) {
             try {
                 await this.db.info();
-                const isReconnect = this.hasConnected;
                 this.connected = true;
-                this.hasConnected = true;
                 this.logger.info("Connected to database");
-                if (isReconnect) this.emit("reconnect");
+                // Only emit 'reconnect' if we previously emitted a 'disconnect'.
+                // Clear the flag first so a concurrent waitForDb() resolving
+                // afterwards doesn't double-emit.
+                if (this.disconnectEmitted) {
+                    this.disconnectEmitted = false;
+                    this.emit("reconnect");
+                }
                 return;
             } catch (err) {
                 this.connected = false;
@@ -216,13 +224,20 @@ export class DbService extends EventEmitter {
                 this.logger.warn("Database changes feed error, will restart:", err.message || err);
                 const wasConnected = this.connected;
                 this.connected = false;
-                if (wasConnected) this.emit("disconnect");
+                // Only emit 'disconnect' on a real connected→disconnected
+                // transition. A feed error during initial connect (DB down at
+                // boot) is not a disconnect from a listener's perspective.
+                if (wasConnected) {
+                    this.disconnectEmitted = true;
+                    this.emit("disconnect");
+                }
                 this.reconnect();
             })
             .on("close", () => {
                 if (this.connected) {
                     this.logger.warn("Database changes feed closed unexpectedly, will restart");
                     this.connected = false;
+                    this.disconnectEmitted = true;
                     this.emit("disconnect");
                     this.reconnect();
                 }

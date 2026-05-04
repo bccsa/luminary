@@ -100,9 +100,7 @@ type TargetRouteTypeMap = Map<
 export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 
 /**
- * Global Group Map used for permission lookups.
- * Accessed throughout this file via object-style property access, so it is
- * typed as a Record rather than a Map.
+ * Global Group Map used for permission lookups
  */
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
@@ -146,12 +144,6 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         let updateQueue: any[] = [];
 
-        // Read group changes from the database change feed and update the permission system.
-        // DbService resumes the feed from its last seq cursor on reconnect, so updates made
-        // while disconnected flow through here once we're back online — no snapshot refetch
-        // needed. The in-memory groupMap is intentionally kept intact across disconnects:
-        // clearing it would deny every request and cause clients syncing via this API to
-        // purge their local data.
         dbService.on("groupUpdate", async (update: DocType.Group) => {
             updateQueue.push(update);
             if (initialized) {
@@ -187,7 +179,7 @@ export class PermissionSystem extends EventEmitter {
 
         if (groupIds) {
             groupIds.forEach((id: Uuid) => {
-                const g = groupMap[id] as PermissionSystem;
+                const g = groupMap.get(id);
                 if (!g) return;
 
                 // Add the access map of the group to the result map
@@ -277,7 +269,7 @@ export class PermissionSystem extends EventEmitter {
     ): Map<DocType, Uuid[]> {
         const resultMap = new Map<DocType, Uuid[]>();
         memberOfGroups.forEach((memberGroup: Uuid) => {
-            const g: PermissionSystem = groupMap[memberGroup];
+            const g = groupMap.get(memberGroup);
             if (!g) return;
             types.forEach((type: DocType) => {
                 if (
@@ -316,7 +308,7 @@ export class PermissionSystem extends EventEmitter {
         for (const memberGroup of memberOfGroups) {
             let memberGroupValidated = true;
             for (const targetGroup of targetGroups) {
-                const g: PermissionSystem = groupMap[memberGroup];
+                const g = groupMap.get(memberGroup);
                 if (
                     g &&
                     g._accessMap[targetGroup] &&
@@ -358,8 +350,9 @@ export class PermissionSystem extends EventEmitter {
     private static upsertGroup(doc: GroupDto, groupDocs: Array<GroupDto>): PermissionSystem {
         let g: PermissionSystem;
         // Check if group is already in group map
-        if (groupMap[doc._id]) {
-            g = groupMap[doc._id];
+        const existing = groupMap.get(doc._id);
+        if (existing) {
+            g = existing;
 
             // Existing groups: Remove ACL's not passed with updated group document
             Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
@@ -376,11 +369,11 @@ export class PermissionSystem extends EventEmitter {
         } else {
             // Add new group
             g = new PermissionSystem(doc._id);
-            groupMap[doc._id] = g;
+            groupMap.set(doc._id, g);
         }
 
         doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
-            let parent: PermissionSystem = groupMap[aclEntry.groupId];
+            let parent = groupMap.get(aclEntry.groupId);
 
             // Create parent group if not existing
             if (!parent) {
@@ -416,7 +409,7 @@ export class PermissionSystem extends EventEmitter {
     // Remove single group
     private static removeGroup(docId: Uuid) {
         // Find group in groupMap
-        const g: PermissionSystem = groupMap[docId];
+        const g = groupMap.get(docId);
         if (g) {
             // Remove all ACL's
             Object.values(g._aclMap).forEach((_acl: AclGroupMap) => {
@@ -427,7 +420,7 @@ export class PermissionSystem extends EventEmitter {
             });
 
             // Delete from groupMap
-            delete groupMap[docId];
+            groupMap.delete(docId);
         }
     }
 
@@ -786,6 +779,6 @@ export class PermissionSystem extends EventEmitter {
      * Check if a group exists in the permission system
      */
     static hasGroup(id: Uuid) {
-        return groupMap[id] != undefined;
+        return groupMap.has(id);
     }
 }
