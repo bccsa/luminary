@@ -42,7 +42,7 @@ const isMobileScreen = breakpoints.smaller("sm");
     <LTeleport v-if="isVisible">
         <div
             :class="[
-                'fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
+                'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
                 stickToEdges && isMobileScreen ? '' : 'p-2',
             ]"
             @mousedown.self="tryClose()"
@@ -56,7 +56,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex max-h-screen flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
+                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
                     isMobileScreen && stickToEdges
                         ? 'w-[100vw] max-w-none rounded-none'
                         : largeModal
