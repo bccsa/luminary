@@ -1,4 +1,4 @@
-# Build-time plugin system — detailed explainer (Luminar `app/`)
+# Build-time plugin system — detailed explainer (Luminary `app/`)
 
 This document is a **presentation-ready** description of how **contract + virtual module + `provide` / `inject`** works in `luminar/app`. It complements the shorter **[README](./README.md)** and the **[starter-code walkthrough](./starter-code.md)**.
 
@@ -7,9 +7,9 @@ This document is a **presentation-ready** description of how **contract + virtua
 ## 1. What you can say in 30 seconds
 
 - We need **one stable API** (TypeScript interface + injection key) for things like the **global media player**, so UI code never imports concrete implementation paths directly.
-- **Vite** resolves a fake import id (`virtual:media-player`) to **one real file** under `src/build-time-plugins/media-player/` when we **build** the app.
+- **Vite** resolves a fake import id (`virtual:media-player`) to **one real file** under `src/build-time/plugins/media-player/` when we **build** the app.
 - At **runtime**, a small **`install`** function **`provide`**s the implementation on the Vue app; components **`inject`** it using a key from **`token.ts`**.
-- **Result:** add or change implementations by editing `build-time-plugins/` and `buildTargetVirtuals.ts`, not by editing every screen.
+- **Result:** add or change implementations by editing `build-time/plugins/` and `buildTargetVirtuals.ts`, not by editing every screen.
 
 ---
 
@@ -30,7 +30,7 @@ You may hear "plugin" in two senses — only **A** is what this architecture doc
 | | Mechanism | Purpose |
 | --- | --- | --- |
 | **A. Build-time services (this doc)** | `virtual:…` + `plugin-registry.ts` | Injectable **services** (e.g. media player) resolved at build time. |
-| **B. Vue `app.use()`** | Standard Vue | Pinia, router, i18n, and our **`appPluginsPlugin`** wrapper. |
+| **B. Vue `app.use()`** | Standard Vue | Pinia, router, i18n, and our **`appPluginsManager`** wrapper. |
 
 Auth and similar concerns are **outside** the `virtual:…` registry unless you deliberately move them there.
 
@@ -38,18 +38,18 @@ Auth and similar concerns are **outside** the `virtual:…` registry unless you 
 
 ## 4. The five building blocks
 
-1. **`contract.ts`** — TypeScript **interface** (and related types) for the service. Lives in **`src/build-time-plugin-contracts/<name>/`**. Shared by all implementations and by consumers for typing.
+1. **`contract.ts`** — TypeScript **interface** (and related types) for the service. Lives in **`src/build-time/contracts/<name>/`**. Shared by all implementations and by consumers for typing.
 
-2. **`token.ts`** — **`InjectionKey<YourService>`** only. **No** import from `virtual:…`. Lives alongside `contract.ts` in **`src/build-time-plugin-contracts/<name>/`**. UI imports this file to **`inject`**.
+2. **`token.ts`** — **`InjectionKey<YourService>`** only. **No** import from `virtual:…`. Lives alongside `contract.ts` in **`src/build-time/contracts/<name>/`**. UI imports this file to **`inject`**.
 
-3. **Implementation folder** — **`src/build-time-plugins/<name>/`** — classes that satisfy the contract (e.g. `<name>-web.ts`), plus **`index.ts`** that:
+3. **Implementation folder** — **`src/build-time/plugins/<name>/`** — classes that satisfy the contract (e.g. `<name>-web.ts`), plus **`index.ts`** that:
    - builds the service,
    - exports **`install<Name>(app)`** which runs **`app.provide(<Name>Key, service)`**,
    - re-exports types/keys as needed for **`plugin-registry`**.
 
-4. **Virtual module id** — **`virtual:media-player`** — not a file on disk; **Vite** maps it to **`src/build-time-plugins/<name>/index.ts`** at build time.
+4. **Virtual module id** — **`virtual:media-player`** — not a file on disk; **Vite** maps it to **`src/build-time/plugins/<name>/index.ts`** at build time.
 
-5. **`src/build-time-plugin-contracts/plugin-registry.ts`** — **Composition root** for `virtual:…` plugins: imports **`install*`** from **`virtual:…`** and calls them inside **`installPlugins(app)`**. **`main.ts`** does **`app.use(appPluginsPlugin)`** so registration happens once at startup.
+5. **`src/build-time/contracts/plugin-registry.ts`** — **Composition root** for `virtual:…` plugins: imports **`install*`** from **`virtual:…`** and calls them inside **`installPlugins(app)`**. **`main.ts`** does **`app.use(appPluginsManager)`** so registration happens once at startup.
 
 ---
 
@@ -58,7 +58,7 @@ Auth and similar concerns are **outside** the `virtual:…` registry unless you 
 - **`import { installMediaPlayer } from "virtual:media-player"`** is resolved **while Vite bundles**.
 - The custom Vite plugin **`app/vite-plugins/buildTargetVirtuals.ts`** implements **`resolveId`**: when the id is **`virtual:media-player`**, it returns an **absolute path** to:
 
-  `app/src/build-time-plugins/media-player/index.ts`
+  `app/src/build-time/plugins/media-player/index.ts`
 
 - The **browser** never sees `virtual:…` — it runs the bundled JavaScript like any other module.
 
@@ -71,13 +71,13 @@ Official background: [Vite — Virtual modules convention](https://vite.dev/guid
 ### Build time
 
 1. Vite loads **`buildTargetVirtuals`**.
-2. Any **`import "virtual:media-player"`** resolves to **`src/build-time-plugins/media-player/index.ts`**.
+2. Any **`import "virtual:media-player"`** resolves to **`src/build-time/plugins/media-player/index.ts`**.
 3. Rollup bundles **only** that implementation's dependency graph.
 
 ### Runtime
 
-1. **`main.ts`** creates the app and, after other setup, runs **`app.use(appPluginsPlugin)`**.
-2. **`appPluginsPlugin.install`** calls **`installPlugins(app)`** → **`installMediaPlayer(app)`** (from the **already bundled** module).
+1. **`main.ts`** creates the app and, after other setup, runs **`app.use(appPluginsManager)`**.
+2. **`appPluginsManager.install`** calls **`installPlugins(app)`** → **`installMediaPlayer(app)`** (from the **already bundled** module).
 3. **`installMediaPlayer`** **`provide`**s **`MediaPlayerKey`** with a **`WebMediaPlayerService`** instance.
 4. **`App.vue`**, **`AudioPlayer.vue`**, etc. **`inject(MediaPlayerKey)`** and call methods on **`MediaPlayerService`** — they never import **`media-player-web.ts`** directly.
 
@@ -89,13 +89,13 @@ Official background: [Vite — Virtual modules convention](https://vite.dev/guid
 | --- | --- |
 | Virtual id | `virtual:media-player` |
 | Vite resolver | `app/vite-plugins/buildTargetVirtuals.ts` |
-| Contract | `app/src/build-time-plugin-contracts/media-player/contract.ts` |
-| Token | `app/src/build-time-plugin-contracts/media-player/token.ts` |
-| Implementation | `app/src/build-time-plugins/media-player/media-player-web.ts` |
-| Entry (install + provide) | `app/src/build-time-plugins/media-player/index.ts` |
+| Contract | `app/src/build-time/contracts/media-player/contract.ts` |
+| Token | `app/src/build-time/contracts/media-player/token.ts` |
+| Implementation | `app/src/build-time/plugins/media-player/media-player-web.ts` |
+| Entry (install + provide) | `app/src/build-time/plugins/media-player/index.ts` |
 | TypeScript module declaration | `app/env.d.ts` → `declare module "virtual:media-player" { … }` |
-| Registry | `app/src/build-time-plugin-contracts/plugin-registry.ts` |
-| Bootstrap | `app/src/main.ts` → `app.use(appPluginsPlugin)` |
+| Registry | `app/src/build-time/contracts/plugin-registry.ts` |
+| Bootstrap | `app/src/main.ts` → `app.use(appPluginsManager)` |
 | UI shell | `App.vue` mounts **`getGlobalAudioPlayerComponent()`**; **`AudioPlayer.vue`** uses **`inject(MediaPlayerKey)`** |
 
 ---
@@ -104,26 +104,26 @@ Official background: [Vite — Virtual modules convention](https://vite.dev/guid
 
 - **`plugin-registry.ts`** must **`import`** from **`virtual:media-player`** to call **`install`**.
 - If **`AudioPlayer.vue`** also imported **`virtual:media-player`** only to get the key, you could create awkward **module cycles** or pull the whole adapter graph into components.
-- **`token.ts`** holds **only** **`MediaPlayerKey`** — a stable, tiny module — so UI **`import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token"`** stays clean.
+- **`token.ts`** holds **only** **`MediaPlayerKey`** — a stable, tiny module — so UI **`import { MediaPlayerKey } from "@/build-time/contracts/media-player/token"`** stays clean.
 
 ---
 
-## 9. Why `plugin-registry.ts` lives in `build-time-plugin-contracts/`, not inside `build-time-plugins/`
+## 9. Why `plugin-registry.ts` lives in `build-time/contracts/`, not inside `build-time/plugins/`
 
-- **`build-time-plugins/<name>/`** is the **implementation package** (concrete adapter + installer).
-- **`build-time-plugin-contracts/plugin-registry.ts`** is **application composition**: "which **`virtual:…`** plugins are enabled for this app and in what order." Placing it next to the contracts (interfaces and tokens) rather than inside any single plugin folder keeps it neutral as the list grows to many plugins.
-- Consumers that only need a key import from **`build-time-plugin-contracts/<name>/token.ts`** — they never need to touch the registry or the implementations.
+- **`build-time/plugins/<name>/`** is the **implementation package** (concrete adapter + installer).
+- **`build-time/contracts/plugin-registry.ts`** is **application composition**: "which **`virtual:…`** plugins are enabled for this app and in what order." Placing it next to the contracts (interfaces and tokens) rather than inside any single plugin folder keeps it neutral as the list grows to many plugins.
+- Consumers that only need a key import from **`build-time/contracts/<name>/token.ts`** — they never need to touch the registry or the implementations.
 
 ---
 
 ## 10. Adding another `virtual:…` plugin (checklist)
 
-1. Create **`app/src/build-time-plugin-contracts/<name>/`** with **`contract.ts`** and **`token.ts`**.
-2. Create **`app/src/build-time-plugins/<name>/`** with **`<name>-web.ts`** (implementation) and **`index.ts`** (exporting **`install…(app)`** with **`provide`**).
-3. Add **`resolveId`** branch in **`buildTargetVirtuals.ts`** for **`virtual:<name>`** → **`…/build-time-plugins/<name>/index.ts`**.
+1. Create **`app/src/build-time/contracts/<name>/`** with **`contract.ts`** and **`token.ts`**.
+2. Create **`app/src/build-time/plugins/<name>/`** with **`<name>-web.ts`** (implementation) and **`index.ts`** (exporting **`install…(app)`** with **`provide`**).
+3. Add **`resolveId`** branch in **`buildTargetVirtuals.ts`** for **`virtual:<name>`** → **`…/build-time/plugins/<name>/index.ts`**.
 4. Add **`declare module "virtual:<name>"`** in **`env.d.ts`**.
 5. **`import`** and call **`install…`** from **`plugin-registry.ts`** inside **`installPlugins`**.
-6. In components, **`inject`** using **`@/build-time-plugin-contracts/<name>/token`**.
+6. In components, **`inject`** using **`@/build-time/contracts/<name>/token`**.
 
 See **[Adding another plugin](./README.md#adding-another-plugin)** in the README for prose and snippets.
 
@@ -145,7 +145,7 @@ See **[Adding another plugin](./README.md#adding-another-plugin)** in the README
 **A:** Yes, but you lose a **single stable import id** and the ability to wire different implementations without touching feature code; you'd use direct paths or aliases instead.
 
 **Q: Can we have multiple implementations for the same plugin?**  
-**A:** Yes. Add a second implementation file in `build-time-plugins/<name>/` and update `buildTargetVirtuals.ts` to resolve to it based on any condition you need (env var, flag, etc.).
+**A:** Yes. Add a second implementation file in `build-time/plugins/<name>/` and update `buildTargetVirtuals.ts` to resolve to it based on any condition you need (env var, flag, etc.).
 
 ---
 

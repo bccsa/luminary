@@ -10,10 +10,10 @@
         <mxCell id="nfThdFwXXM6ub8rvvYoT-2" value="vite-plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
           <mxGeometry x="160" y="760" width="120" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="nfThdFwXXM6ub8rvvYoT-3" value="build-time-plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-3" value="build-time/plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
           <mxGeometry x="160" y="440" width="120" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="nfThdFwXXM6ub8rvvYoT-4" value="build-time-plugin-contracts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+        <mxCell id="nfThdFwXXM6ub8rvvYoT-4" value="build-time/contracts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
           <mxGeometry x="180" y="80" width="120" height="30" as="geometry" />
         </mxCell>
         <mxCell id="nfThdFwXXM6ub8rvvYoT-5" value="media-player" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">

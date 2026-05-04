@@ -41,8 +41,8 @@ export type MediaPlayerComponent = Component<{
     onDurationChange: (duration: number) => void;
     onError: (error: Error) => void;
     onEnded: () => void;
-    onSeeking: (seeking: boolean) => void;
-    onSeeked: (seeking: boolean) => void;
+    onSeeking: (time: number) => void;
+    onSeeked: (time: number) => void;
     onVolumeChange: (volume: number) => void;
     onPlaybackRateChange: (playbackRate: number) => void;
 }>;
