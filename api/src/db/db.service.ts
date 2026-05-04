@@ -80,7 +80,7 @@ export type DbUpsertResult = {
  * @extends EventEmitter
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
- * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps. Also emitted with a `DeleteCmd` payload (docType === Group) when a group is deleted via the soft-delete flow, so the permission system can evict the entry.
  * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
  * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
@@ -218,11 +218,21 @@ export class DbService extends EventEmitter {
                         this.emit("languageUpdate", update.doc);
                     }
 
-                    // Emit delete commands for language documents
+                    // Emit delete commands for documents whose deletion is observed
+                    // by a typed cache (languages, groups). The DeleteCmd is the
+                    // only typed signal a hard-delete leaves in the change feed —
+                    // the subsequent CouchDB tombstone has no `type` field and is
+                    // dropped by the guard above — so cache consumers must reconcile
+                    // off the DeleteCmd, not the tombstone.
                     else if (update.doc.type === DocType.DeleteCmd) {
                         const doc = update.doc as DeleteCmdDto;
-                        if (doc.deleteReason === DeleteReason.Deleted)
-                            this.emit("languageUpdate", doc);
+                        if (doc.deleteReason === DeleteReason.Deleted) {
+                            if (doc.docType === DocType.Group) {
+                                this.emit("groupUpdate", doc);
+                            } else {
+                                this.emit("languageUpdate", doc);
+                            }
+                        }
                     }
                 }
 

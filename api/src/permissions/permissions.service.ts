@@ -144,7 +144,14 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         let updateQueue: any[] = [];
 
-        dbService.on("groupUpdate", async (update: DocType.Group) => {
+        dbService.on("groupUpdate", async (update: any) => {
+            // A group deletion arrives here as a DeleteCmd payload (the CouchDB
+            // tombstone for the group itself has no type and is filtered upstream).
+            if (update?.type === DocType.DeleteCmd) {
+                PermissionSystem.removeGroups([update.docId]);
+                return;
+            }
+
             updateQueue.push(update);
             if (initialized) {
                 PermissionSystem.upsertGroups(updateQueue);
