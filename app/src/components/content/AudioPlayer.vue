@@ -31,7 +31,7 @@ import {
 } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
-import WebMediaAudioElement from "@/build-time-plugins/media-player/WebMediaAudioElement.vue";
+import WebMediaAudioElement from "@/build-time/plugins/media-player/WebMediaAudioElement.vue";
 
 const router = useRouter();
 const mediaPlayerService = inject(MediaPlayerKey);

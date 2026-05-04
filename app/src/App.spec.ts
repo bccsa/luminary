@@ -15,8 +15,8 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
-import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
-import type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
+import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
+import type { MediaPlayerService } from "@/build-time/contracts/media-player/contract";
 
 const mockMediaPlayerService: MediaPlayerService = {
     supportsBackgroundPlayback: false,

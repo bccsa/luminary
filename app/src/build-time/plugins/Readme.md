@@ -18,3 +18,5 @@ This folder holds **implementations** of app services that depend on the build t
 1. Add types and an injection key under `../contracts/<name>/`.
 2. Implement the service (and optional UI shell) in `./<name>/`.
 3. Register `virtual:<name>` in `buildTargetVirtuals.ts` and call `install*` from `plugin-registry.ts`.
+
+Full diagrams and bootstrap details: **[docs/vue-plugin-architecture/README.md](../../../../docs/vue-plugin-architecture/README.md)**.

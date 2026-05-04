@@ -4,9 +4,9 @@ This is the frontend of the Luminary app. It's an offline-first Vue app that run
 
 ## Architecture (build-time plugins)
 
-Cross-cutting services can follow a **contract + injection key + build-time virtual module** pattern: Vite resolves `virtual:…` to one implementation folder under `src/plugins/<name>/`, and **`src/core/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** files, not direct imports of adapter code.
+Cross-cutting services follow a **contract + injection key + build-time virtual module** pattern: Vite resolves each `virtual:…` id to an entry under **`src/build-time/plugins/<name>/`**, and **`src/build-time/contracts/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** under **`src/build-time/contracts/`**, not direct imports of adapter code.
 
-**Example in this repo:** the global **audio player** (`virtual:media-player`, `src/plugins/media-player/`). Full pattern and diagrams: **[docs/research/vue-plugin-architecture/README.md](../docs/research/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin (same mechanism): **[Adding another build-swapped plugin](../docs/research/vue-plugin-architecture/README.md#adding-another-build-swapped-plugin)**.
+**Example in this repo:** the global **audio player** (`virtual:media-player`, `src/build-time/plugins/media-player/`). Full pattern and diagrams: **[docs/vue-plugin-architecture/README.md](../docs/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin: **[Adding another build-swapped plugin](../docs/vue-plugin-architecture/README.md#adding-another-plugin)**.
 
 ## Project structure
 
@@ -28,14 +28,15 @@ app/
 │   └── setup-nginxvars.sh
 ├── vite-plugins/                 # Vite-only helpers (e.g. build-time module resolution)
 ├── src/
+│   ├── build-time/               # Build-swapped services (contracts + implementations)
+│   │   ├── contracts/            # plugin-registry.ts, <name>/contract.ts, token.ts
+│   │   └── plugins/              # e.g. media-player/: index.ts, *-web.ts, plugin UI bits
 │   ├── analytics/                # Analytics tracking and integration
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components
 │   ├── composables/              # Vue composables (reusable composition logic)
-│   ├── core/                     # App composition (e.g. plugin registry)
 │   ├── guards/                   # Route guards
 │   ├── pages/                    # Page-level components
-│   ├── plugins/                  # build-swapped plugins (e.g. media-player) + optional extension classes
 │   ├── router/                   # Vue Router configuration
 │   ├── stores/                   # Pinia state management stores
 │   ├── tests/                    # Test utilities and helpers
