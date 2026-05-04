@@ -156,14 +156,16 @@ export async function setupAuth(app: App<Element>): Promise<void> {
 
 /**
  * Ask Auth0 for a fresh access token via the refresh token, then push it to
- * the Authorization header and the socket. Returns true on success. Call from
- * the socket's connect_error handler before falling back to a visible
- * re-login — this is what `useRefreshTokens: true` is for.
+ * the Authorization header and the socket. Call from the socket's
+ * `connect_error` handler before falling back to a visible re-login — this is
+ * what `useRefreshTokens: true` is for.
  *
- * Pass `ignoreCache: true` after the server has rejected a token. Otherwise
- * Auth0's default `cacheMode: "on"` can hand back the same cached
- * still-client-valid token (60s leeway) that the server just rejected, so
- * we'd loop forever on any clock skew or server-side revocation.
+ * @param opts - Options for the refresh.
+ * @param opts.ignoreCache - Pass `true` after the server has rejected a token.
+ *   Otherwise Auth0's default `cacheMode: "on"` can hand back the same cached
+ *   still-client-valid token (60s leeway) that the server just rejected, so
+ *   we'd loop forever on any clock skew or server-side revocation.
+ * @returns `true` on success, `false` otherwise.
  */
 export async function refreshTokenSilently(opts?: {
     ignoreCache?: boolean;
