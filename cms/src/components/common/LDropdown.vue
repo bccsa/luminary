@@ -185,7 +185,6 @@ const paddingClass = computed(() =>
             data-dropdown-trigger
             @click.stop="onTriggerClick"
             @keydown.enter.prevent.stop="toggle()"
-            @keydown.space.prevent.stop="toggle()"
         >
             <slot name="trigger" />
         </div>
