@@ -179,7 +179,7 @@ export class PermissionSystem extends EventEmitter {
 
         if (groupIds) {
             groupIds.forEach((id: Uuid) => {
-                const g = groupMap.get(id);
+                const g = groupMap[id] as PermissionSystem;
                 if (!g) return;
 
                 // Add the access map of the group to the result map
@@ -269,7 +269,7 @@ export class PermissionSystem extends EventEmitter {
     ): Map<DocType, Uuid[]> {
         const resultMap = new Map<DocType, Uuid[]>();
         memberOfGroups.forEach((memberGroup: Uuid) => {
-            const g = groupMap.get(memberGroup);
+            const g: PermissionSystem = groupMap[memberGroup];
             if (!g) return;
             types.forEach((type: DocType) => {
                 if (
@@ -308,7 +308,7 @@ export class PermissionSystem extends EventEmitter {
         for (const memberGroup of memberOfGroups) {
             let memberGroupValidated = true;
             for (const targetGroup of targetGroups) {
-                const g = groupMap.get(memberGroup);
+                const g: PermissionSystem = groupMap[memberGroup];
                 if (
                     g &&
                     g._accessMap[targetGroup] &&
@@ -350,9 +350,8 @@ export class PermissionSystem extends EventEmitter {
     private static upsertGroup(doc: GroupDto, groupDocs: Array<GroupDto>): PermissionSystem {
         let g: PermissionSystem;
         // Check if group is already in group map
-        const existing = groupMap.get(doc._id);
-        if (existing) {
-            g = existing;
+        if (groupMap[doc._id]) {
+            g = groupMap[doc._id];
 
             // Existing groups: Remove ACL's not passed with updated group document
             Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
@@ -369,11 +368,11 @@ export class PermissionSystem extends EventEmitter {
         } else {
             // Add new group
             g = new PermissionSystem(doc._id);
-            groupMap.set(doc._id, g);
+            groupMap[doc._id] = g;
         }
 
         doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
-            let parent = groupMap.get(aclEntry.groupId);
+            let parent: PermissionSystem = groupMap[aclEntry.groupId];
 
             // Create parent group if not existing
             if (!parent) {
@@ -409,7 +408,7 @@ export class PermissionSystem extends EventEmitter {
     // Remove single group
     private static removeGroup(docId: Uuid) {
         // Find group in groupMap
-        const g = groupMap.get(docId);
+        const g: PermissionSystem = groupMap[docId];
         if (g) {
             // Remove all ACL's
             Object.values(g._aclMap).forEach((_acl: AclGroupMap) => {
@@ -420,7 +419,7 @@ export class PermissionSystem extends EventEmitter {
             });
 
             // Delete from groupMap
-            groupMap.delete(docId);
+            delete groupMap[docId];
         }
     }
 
@@ -779,6 +778,6 @@ export class PermissionSystem extends EventEmitter {
      * Check if a group exists in the permission system
      */
     static hasGroup(id: Uuid) {
-        return groupMap.has(id);
+        return groupMap[id] != undefined;
     }
 }
