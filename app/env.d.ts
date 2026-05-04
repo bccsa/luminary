@@ -16,7 +16,7 @@ interface ImportMeta {
 declare module "virtual:media-player" {
     import type { App, Component } from "vue";
     import type { InjectionKey } from "vue";
-    import type { MediaPlayerService } from "@/build-time-plugin-contracts/media-player/contract";
+    import type { MediaPlayerService } from "@/build-time/contracts/media-player/contract";
 
     export const MediaPlayerKey: InjectionKey<MediaPlayerService>;
     export function installMediaPlayer(

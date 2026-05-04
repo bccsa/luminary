@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick, inject, toRef } from "vue";
+import { ref, shallowRef, onMounted, onUnmounted, computed, watch, nextTick, inject, toRef } from "vue";
 import { useRouter } from "vue-router";
 import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
 import { useBucketInfo } from "@/composables/useBucketInfo";
@@ -30,7 +30,8 @@ import {
     setMediaProgress,
 } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
-import { MediaPlayerKey } from "@/build-time-plugin-contracts/media-player/token";
+import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
+import WebMediaAudioElement from "@/build-time-plugins/media-player/WebMediaAudioElement.vue";
 
 const router = useRouter();
 const mediaPlayerService = inject(MediaPlayerKey);
@@ -727,9 +728,10 @@ onMounted(() => {
     // Reset auto-hide timer when player becomes active
     resetAutoHideTimer();
 
+    audioElement.value = audioSurfaceRef.value?.getAudioElement() ?? null;
+
     if (audioElement.value) {
         const el = audioElement.value;
-        mediaPlayerService.attachAudioElement(el);
 
         // Playback state events
         el.addEventListener("play", () => {
@@ -825,9 +827,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    if (audioElement.value) {
-        mediaPlayerService.detachAudioElement(audioElement.value);
-    }
     // Remove keyboard event listeners
     document.removeEventListener("keydown", handleKeyDown);
 
@@ -1001,12 +1000,9 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 
 <template>
     <div class="">
-        <!-- Hidden audio element -->
-        <audio
-            ref="audioElement"
+        <WebMediaAudioElement
+            ref="audioSurfaceRef"
             :src="matchAudioFileUrl"
-            preload="auto"
-            class="hidden"
         />
 
         <!-- Screen reader status announcements -->
