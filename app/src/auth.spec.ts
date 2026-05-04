@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
 import type { App } from "vue";
+import type { Router } from "vue-router";
 
 // Hoisted spies the mocked createAuth0 closes over. We assert against these to
 // verify what refreshTokenSilently passes to the Auth0 SDK.

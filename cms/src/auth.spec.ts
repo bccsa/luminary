@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
 import type { App } from "vue";
-import type { Router } from "vue-router";
 
 const { mockGetAccessTokenSilently, mockHandleRedirectCallback, mockCreateAuth0 } = vi.hoisted(
     () => ({
@@ -271,9 +270,8 @@ describe("auth", () => {
             // it; otherwise we'd loop on connect_error forever.
             const REJECTED = "expired-token-server-rejected";
             const FRESH = "fresh-token-from-refresh";
-            mockGetAccessTokenSilently.mockImplementation(
-                async (opts?: { cacheMode?: string }) =>
-                    opts?.cacheMode === "off" ? FRESH : REJECTED,
+            mockGetAccessTokenSilently.mockImplementation(async (opts?: { cacheMode?: string }) =>
+                opts?.cacheMode === "off" ? FRESH : REJECTED,
             );
 
             await refreshTokenSilently({ ignoreCache: true });
@@ -286,9 +284,7 @@ describe("auth", () => {
         });
 
         it("returns false when getAccessTokenSilently rejects (e.g. invalid_grant) and does not throw", async () => {
-            mockGetAccessTokenSilently.mockRejectedValueOnce(
-                new Error("invalid refresh token"),
-            );
+            mockGetAccessTokenSilently.mockRejectedValueOnce(new Error("invalid refresh token"));
 
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
         });
