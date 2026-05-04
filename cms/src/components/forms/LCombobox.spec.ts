@@ -328,6 +328,42 @@ describe("LCombobox", () => {
         });
     });
 
+    it("filters options ignoring punctuation and whitespace in the query", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Foo-Bar", value: "foo-bar" },
+                    { id: 1, label: "Hello, World!", value: "hello-world" },
+                    { id: 2, label: "Other", value: "other" },
+                ],
+                selectedOptions: [],
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+        await searchElement.setValue("foobar");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items).toHaveLength(1);
+            expect(items[0].text()).toContain("Foo-Bar");
+        });
+
+        await searchElement.setValue("helloworld");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items).toHaveLength(1);
+            expect(items[0].text()).toContain("Hello, World!");
+        });
+    });
+
     it("show the input search when the slot actions is not set", async () => {
         const wrapper = mount(LCombobox, {
             props: {
