@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
 import type { App } from "vue";
-import type { Router } from "vue-router";
 
 // Hoisted spies the mocked createAuth0 closes over. We assert against these to
 // verify what refreshTokenSilently passes to the Auth0 SDK.
@@ -281,9 +280,8 @@ describe("auth", () => {
             // it; otherwise we'd loop on connect_error forever.
             const REJECTED = "expired-token-server-rejected";
             const FRESH = "fresh-token-from-refresh";
-            mockGetAccessTokenSilently.mockImplementation(
-                async (opts?: { cacheMode?: string }) =>
-                    opts?.cacheMode === "off" ? FRESH : REJECTED,
+            mockGetAccessTokenSilently.mockImplementation(async (opts?: { cacheMode?: string }) =>
+                opts?.cacheMode === "off" ? FRESH : REJECTED,
             );
 
             await refreshTokenSilently({ ignoreCache: true });
@@ -302,9 +300,7 @@ describe("auth", () => {
             // Mirrors what happens when the refresh token itself is dead. The
             // connect_error handler treats `false` as a signal to show a
             // visible re-login.
-            mockGetAccessTokenSilently.mockRejectedValueOnce(
-                new Error("invalid refresh token"),
-            );
+            mockGetAccessTokenSilently.mockRejectedValueOnce(new Error("invalid refresh token"));
 
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
         });
