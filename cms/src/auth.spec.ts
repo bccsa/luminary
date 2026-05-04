@@ -1,6 +1,19 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { db, DocType, type AuthProviderDto } from "luminary-shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
+import type { App } from "vue";
+
+const { mockGetAccessTokenSilently, mockHandleRedirectCallback, mockCreateAuth0 } = vi.hoisted(
+    () => ({
+        mockGetAccessTokenSilently: vi.fn(),
+        mockHandleRedirectCallback: vi.fn(),
+        mockCreateAuth0: vi.fn(),
+    }),
+);
+
+vi.mock("@auth0/auth0-vue", () => ({
+    createAuth0: mockCreateAuth0,
+}));
 
 import {
     activeProviderId,
@@ -8,6 +21,7 @@ import {
     openProviderModal,
     refreshTokenSilently,
     resolveActiveProvider,
+    setupAuth,
     showProviderSelectionModal,
 } from "./auth";
 
@@ -172,6 +186,128 @@ describe("auth", () => {
             // oauth handle. The socket connect_error handler relies on this
             // being a safe `false` rather than a throw.
             expect(await refreshTokenSilently()).toBe(false);
+        });
+    });
+
+    // Regression coverage for issue #1581 — "App: token not being refreshed
+    // after expiration". The bug: refreshTokenSilently called
+    // getAccessTokenSilently() with the SDK default `cacheMode: "on"`, so when
+    // the server fires connect_error: auth_failed the SDK happily returned the
+    // SAME server-rejected access token (any token still inside the SDK's 60s
+    // leeway looks valid to the cache check). The connect_error handler would
+    // loop with an unrejectable token and fall through to a visible re-login.
+    // Fix: connect_error handlers now pass `{ ignoreCache: true }`, which
+    // forwards `cacheMode: "off"` to the SDK so it must hit /oauth/token via
+    // the refresh token. These tests pin that contract in place.
+    describe("refreshTokenSilently — cache control (issue #1581 regression)", () => {
+        const appStub = { use: () => {} } as unknown as App<Element>;
+
+        beforeEach(async () => {
+            mockGetAccessTokenSilently.mockReset();
+            mockHandleRedirectCallback.mockReset();
+            mockCreateAuth0.mockReset();
+            mockCreateAuth0.mockImplementation(() => ({
+                getAccessTokenSilently: mockGetAccessTokenSilently,
+                handleRedirectCallback: mockHandleRedirectCallback,
+                install: () => {},
+            }));
+
+            // resolveActiveProvider needs both the Dexie doc AND a localStorage
+            // cache key whose clientId segment matches.
+            await db.docs.bulkPut([providerA]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+
+            // setupAuth's trailing refreshTokenSilently() consumes one resolution
+            // before the actual test runs. Resolve it, then reset call history
+            // and the side-effects (CMS opens the provider modal on failure).
+            mockGetAccessTokenSilently.mockResolvedValueOnce("boot-token");
+            await setupAuth(appStub);
+            mockGetAccessTokenSilently.mockClear();
+            showProviderSelectionModal.value = false;
+        });
+
+        afterEach(() => {
+            // The real Authorization header is set by refreshTokenSilently on
+            // success — don't leak it into other tests.
+            setCustomHeader("Authorization", "");
+        });
+
+        it("forwards cacheMode 'off' to getAccessTokenSilently when ignoreCache is true (regression: post-rejection refresh must skip the SDK cache)", async () => {
+            mockGetAccessTokenSilently.mockResolvedValueOnce("fresh-token");
+
+            const ok = await refreshTokenSilently({ ignoreCache: true });
+
+            expect(ok).toBe(true);
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(1);
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith({ cacheMode: "off" });
+        });
+
+        it("calls getAccessTokenSilently without options when ignoreCache is omitted (boot path keeps SDK cache enabled)", async () => {
+            mockGetAccessTokenSilently.mockResolvedValueOnce("cached-token");
+
+            const ok = await refreshTokenSilently();
+
+            expect(ok).toBe(true);
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(1);
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith(undefined);
+        });
+
+        it("calls getAccessTokenSilently without options when ignoreCache is explicitly false", async () => {
+            mockGetAccessTokenSilently.mockResolvedValueOnce("cached-token");
+
+            const ok = await refreshTokenSilently({ ignoreCache: false });
+
+            expect(ok).toBe(true);
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith(undefined);
+        });
+
+        it("regression: returns the FRESH token when Auth0 cache would replay the rejected one", async () => {
+            // Simulates the production bug shape: the cache holds a token the
+            // server has already rejected. A cacheMode='off' call must bypass
+            // it; otherwise we'd loop on connect_error forever.
+            const REJECTED = "expired-token-server-rejected";
+            const FRESH = "fresh-token-from-refresh";
+            mockGetAccessTokenSilently.mockImplementation(async (opts?: { cacheMode?: string }) =>
+                opts?.cacheMode === "off" ? FRESH : REJECTED,
+            );
+
+            await refreshTokenSilently({ ignoreCache: true });
+
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith({ cacheMode: "off" });
+            const returnedTokens = await Promise.all(
+                mockGetAccessTokenSilently.mock.results.map((r) => r.value),
+            );
+            expect(returnedTokens).toEqual([FRESH]);
+        });
+
+        it("returns false when getAccessTokenSilently rejects (e.g. invalid_grant) and does not throw", async () => {
+            mockGetAccessTokenSilently.mockRejectedValueOnce(new Error("invalid refresh token"));
+
+            await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
+        });
+
+        it("returns false when getAccessTokenSilently resolves to an empty token", async () => {
+            mockGetAccessTokenSilently.mockResolvedValueOnce("");
+
+            const ok = await refreshTokenSilently({ ignoreCache: true });
+
+            expect(ok).toBe(false);
+        });
+
+        it("each call asks the SDK independently — back-to-back retries from connect_error must each hit /oauth/token", async () => {
+            mockGetAccessTokenSilently
+                .mockResolvedValueOnce("first-fresh")
+                .mockResolvedValueOnce("second-fresh");
+
+            await refreshTokenSilently({ ignoreCache: true });
+            await refreshTokenSilently({ ignoreCache: true });
+
+            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(2);
+            expect(mockGetAccessTokenSilently.mock.calls[0]).toEqual([{ cacheMode: "off" }]);
+            expect(mockGetAccessTokenSilently.mock.calls[1]).toEqual([{ cacheMode: "off" }]);
         });
     });
 });
