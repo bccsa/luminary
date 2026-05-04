@@ -597,4 +597,46 @@ describe("S3Service", () => {
             S3Service.clearCache(activeTestBucketId);
         });
     });
+
+    describe("DB disconnect handling", () => {
+        it("clears the singleton cache on 'disconnect' and lazily repopulates on next create()", async () => {
+            // Idempotent — no-op if already wired by an earlier test in this file.
+            S3Service.initializeChangeListener(dbService);
+
+            // Seed the cache via the normal create() path so both the instance
+            // and the credential/access maps are populated.
+            const disconnectBucketName = "disconnect-test-bucket-" + UUID();
+            const credId = await storeCryptoData(dbService, {
+                endpoint: s3BaseUrl,
+                bucketName: disconnectBucketName,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
+            });
+            const disconnectBucketId = "disconnect-test-bucket-doc-" + UUID();
+            await dbService.upsertDoc({
+                _id: disconnectBucketId,
+                type: "storage",
+                name: "Disconnect Test Bucket",
+                mimeTypes: ["image/*"],
+                publicUrl: `${s3PublicUrl}/disconnect-test-bucket`,
+                StorageType: "s3",
+                credential_id: credId,
+                memberOf: [],
+            });
+            const original = await S3Service.create(disconnectBucketId, dbService);
+            expect(S3Service.hasInstance(disconnectBucketId)).toBe(true);
+
+            dbService.emit("disconnect");
+
+            expect(S3Service.hasInstance(disconnectBucketId)).toBe(false);
+
+            // Next create() should build a fresh instance (not reuse the cleared one)
+            // and the cache should be repopulated.
+            const rebuilt = await S3Service.create(disconnectBucketId, dbService);
+            expect(S3Service.hasInstance(disconnectBucketId)).toBe(true);
+            expect(rebuilt).not.toBe(original);
+
+            S3Service.clearCache(disconnectBucketId);
+        });
+    });
 });

@@ -81,6 +81,8 @@ export type DbUpsertResult = {
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps
+ * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
+ * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
  * @example
  * // Listen for document updates
@@ -99,9 +101,34 @@ export class DbService extends EventEmitter {
     private db: any;
     protected syncTolerance: number;
     private connected = false;
+    // Tracks an unmatched 'disconnect' emit. Used to gate the next 'reconnect'
+    // emit so it pairs with a real prior disconnect, rather than firing on the
+    // initial connect or on whichever waitForDb() happens to resolve second
+    // when two are racing (see startChangesFeed error handler).
+    private disconnectEmitted = false;
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
+
+    /**
+     * Sequence cursor of the last change delivered to listeners. Passed as
+     * `since` to the CouchDB `_changes` feed when we (re)start it.
+     *
+     * Initialised to `"now"` — CouchDB resolves this to the current
+     * `update_seq` at request time and only delivers changes from that point
+     * forward. We do NOT use `0` (replay all history) because at cold start
+     * each consumer already loads its own snapshot via direct queries
+     * (PermissionSystem groups, QueryService languages, etc.), so replaying
+     * history would just re-fire emits for state we already have.
+     *
+     * After the first change is processed this holds a real seq value, so a
+     * reconnect resumes from the exact point we left off — that's how the
+     * in-memory caches recover updates that landed during the disconnect
+     * window without a full snapshot refetch. nano's own default for `since`
+     * is also `"now"`, so passing this on first connect matches that
+     * behaviour.
+     */
+    private lastSeq: string | number = "now";
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -150,6 +177,13 @@ export class DbService extends EventEmitter {
                 await this.db.info();
                 this.connected = true;
                 this.logger.info("Connected to database");
+                // Only emit 'reconnect' if we previously emitted a 'disconnect'.
+                // Clear the flag first so a concurrent waitForDb() resolving
+                // afterwards doesn't double-emit.
+                if (this.disconnectEmitted) {
+                    this.disconnectEmitted = false;
+                    this.emit("reconnect");
+                }
                 return;
             } catch (err) {
                 this.connected = false;
@@ -167,7 +201,7 @@ export class DbService extends EventEmitter {
      */
     private startChangesFeed() {
         this.db.changesReader
-            .start({ includeDocs: true })
+            .start({ includeDocs: true, since: this.lastSeq })
             .on("change", (update) => {
                 // emit update event for all valid documents
                 if (update.doc && update.doc.type) {
@@ -191,16 +225,33 @@ export class DbService extends EventEmitter {
                             this.emit("languageUpdate", doc);
                     }
                 }
+
+                // Advance the resume cursor after listeners run so a crash
+                // mid-handler causes the change to be re-delivered on the next
+                // reconnect rather than silently skipped.
+                if (update.seq !== undefined) {
+                    this.lastSeq = update.seq;
+                }
             })
             .on("error", (err) => {
                 this.logger.warn("Database changes feed error, will restart:", err.message || err);
+                const wasConnected = this.connected;
                 this.connected = false;
+                // Only emit 'disconnect' on a real connected→disconnected
+                // transition. A feed error during initial connect (DB down at
+                // boot) is not a disconnect from a listener's perspective.
+                if (wasConnected) {
+                    this.disconnectEmitted = true;
+                    this.emit("disconnect");
+                }
                 this.reconnect();
             })
             .on("close", () => {
                 if (this.connected) {
                     this.logger.warn("Database changes feed closed unexpectedly, will restart");
                     this.connected = false;
+                    this.disconnectEmitted = true;
+                    this.emit("disconnect");
                     this.reconnect();
                 }
             });

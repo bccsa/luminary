@@ -144,7 +144,6 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         let updateQueue: any[] = [];
 
-        // Read group changes from the database change feed and update the permission system
         dbService.on("groupUpdate", async (update: DocType.Group) => {
             updateQueue.push(update);
             if (initialized) {

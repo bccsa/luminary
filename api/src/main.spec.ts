@@ -42,7 +42,7 @@ describe("bootstrap", () => {
 
         mockApp = {
             register: jest.fn().mockResolvedValue(undefined),
-            get: jest.fn().mockReturnValue({}),
+            get: jest.fn().mockReturnValue({ on: jest.fn() }),
             enableCors: jest.fn(),
             useGlobalPipes: jest.fn(),
             useGlobalFilters: jest.fn(),
