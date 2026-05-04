@@ -364,6 +364,63 @@ describe("LCombobox", () => {
         });
     });
 
+    it("sorts dropdown options alphabetically ascending", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Charlie", value: "c" },
+                    { id: 1, label: "alpha", value: "a" },
+                    { id: 2, label: "Bravo", value: "b" },
+                    { id: 3, label: "delta", value: "d" },
+                ],
+                selectedOptions: [],
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items).toHaveLength(4);
+            expect(items[0].text()).toContain("alpha");
+            expect(items[1].text()).toContain("Bravo");
+            expect(items[2].text()).toContain("Charlie");
+            expect(items[3].text()).toContain("delta");
+        });
+    });
+
+    it("keeps filtered options sorted alphabetically", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Zebra", value: "z" },
+                    { id: 1, label: "Test Apple", value: "a" },
+                    { id: 2, label: "Test Mango", value: "m" },
+                    { id: 3, label: "Other", value: "o" },
+                ],
+                selectedOptions: [],
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+        await searchElement.setValue("Test");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items).toHaveLength(3);
+            expect(items[0].text()).toContain("Test Apple");
+            expect(items[1].text()).toContain("Test Mango");
+            expect(items[2].text()).toContain("Test Zebra");
+        });
+    });
+
     it("show the input search when the slot actions is not set", async () => {
         const wrapper = mount(LCombobox, {
             props: {
