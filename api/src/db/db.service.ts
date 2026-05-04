@@ -110,11 +110,24 @@ export class DbService extends EventEmitter {
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
 
-    // Sequence cursor of the last change we delivered to listeners. Resuming the
-    // feed from this value on reconnect is what lets in-memory caches (perms,
-    // languages, etc.) recover changes that occurred during the disconnect
-    // window without re-fetching everything. Initialised to "now" so the very
-    // first connect starts at the head of the feed (existing behaviour).
+    /**
+     * Sequence cursor of the last change delivered to listeners. Passed as
+     * `since` to the CouchDB `_changes` feed when we (re)start it.
+     *
+     * Initialised to `"now"` — CouchDB resolves this to the current
+     * `update_seq` at request time and only delivers changes from that point
+     * forward. We do NOT use `0` (replay all history) because at cold start
+     * each consumer already loads its own snapshot via direct queries
+     * (PermissionSystem groups, QueryService languages, etc.), so replaying
+     * history would just re-fire emits for state we already have.
+     *
+     * After the first change is processed this holds a real seq value, so a
+     * reconnect resumes from the exact point we left off — that's how the
+     * in-memory caches recover updates that landed during the disconnect
+     * window without a full snapshot refetch. nano's own default for `since`
+     * is also `"now"`, so passing this on first connect matches that
+     * behaviour.
+     */
     private lastSeq: string | number = "now";
 
     constructor(
