@@ -227,7 +227,7 @@ const userNavigation = computed(() => {
                         class="ml-3 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                         aria-hidden="true"
                         v-else
-                        >Menu</span
+                        >{{ t("profile_menu.title") }}</span
                     >
                     <ChevronUpIcon
                         v-if="menuOpen"
