@@ -78,6 +78,7 @@ setTimeout(() => {
                     type: "banner",
                     icon: ExclamationCircleIcon,
                     link: () => loginWithRedirect(),
+                    closable: false,
                 });
             }
 
