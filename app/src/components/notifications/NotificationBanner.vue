@@ -69,11 +69,11 @@ const handleNotificationClick = (notification: Notification) => {
 <template>
     <div
         v-if="show"
-        class="mb-8 rounded-2xl text-zinc-900"
+        class="mb-6 rounded-lg text-zinc-900"
         :class="color"
     >
         <div
-            class="flex items-center justify-between px-6 py-3"
+            class="flex items-center justify-between px-3 py-3"
             @click="() => handleNotificationClick(notification)"
             :class="{ 'cursor-pointer': notification.link }"
         >
