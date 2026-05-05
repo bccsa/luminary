@@ -78,12 +78,17 @@ const optionsList = computed(() =>
 
 const query = ref("");
 
-const filtered = computed(() =>
-    optionsList.value.filter((o) => {
-        if (!props.showSelectedInDropdown && o.selected) return false;
-        return o.label.toLowerCase().includes(query.value.toLowerCase());
-    }),
-);
+const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+const filtered = computed(() => {
+    const normalizedQuery = normalize(query.value);
+    return optionsList.value
+        .filter((o) => {
+            if (!props.showSelectedInDropdown && o.selected) return false;
+            return normalize(o.label).includes(normalizedQuery);
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+});
 
 const highlightedIndex = ref(-1);
 
