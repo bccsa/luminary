@@ -214,7 +214,7 @@ const userNavigation = computed(() => {
                             : 'text-zinc-600 dark:text-slate-100',
                     ]"
                 >
-                    Menu
+                    {{ t("profile_menu.title") }}
                 </span>
                 <span v-if="trigger === 'avatar'" class="hidden lg:flex lg:items-center">
                     <span

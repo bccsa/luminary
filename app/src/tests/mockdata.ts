@@ -325,6 +325,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "topic.no_results_found": "No results found for",
         "menu.home": "Home",
         "menu.explore": "Explore",
+        "profile_menu.title": "Menu",
         "profile_menu.settings": "Settings",
         "profile_menu.theme": "Theme",
         "profile_menu.language": "Language",
