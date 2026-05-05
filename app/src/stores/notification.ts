@@ -7,7 +7,7 @@ export type Notification = {
      * Optional notification ID. If not provided, it will be generated. The ID is needed to remove the notification.
      */
     id?: number | string;
-    title: string;
+    title?: string;
     description?: string;
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner" | "bottom";
