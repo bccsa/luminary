@@ -20,7 +20,7 @@ const emit = defineEmits(["close"]);
         @close="emit('close')"
     >
         <div
-            class="max-h-screen w-full max-w-md rounded-lg"
+            class="max-h-screen w-full max-w-md overflow-y-auto rounded-lg"
             :class="[
                 props.withBackground !== false
                     ? 'bg-white/90 p-5 shadow-xl dark:bg-slate-700/85'
