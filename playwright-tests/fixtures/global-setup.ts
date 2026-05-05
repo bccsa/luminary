@@ -150,7 +150,12 @@ async function loginAndSaveState(params: LoginParams) {
         ]);
 
         const onSinglePage = await passwordOnFirstPage.isVisible().catch(() => false);
-        if (!onSinglePage) {
+        if (onSinglePage) {
+            // Single-page flow (Classic Universal Login): email and password
+            // are on the same form. Fill the email here; password-fill and
+            // submit happen in the shared step below.
+            await emailField.fill(email);
+        } else {
             // Two-page flow: fill email, click Continue, then wait for the
             // explicit URL change away from /identifier (or whatever the
             // first page was) before looking for the password input. Avoiding

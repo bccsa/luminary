@@ -20,34 +20,36 @@ async function listCachedUrls(
     }, cacheName);
 }
 
-async function clearAllCaches(page: import("@playwright/test").Page) {
-    await page.evaluate(async () => {
-        if (typeof caches === "undefined") return;
-        const names = await caches.keys();
-        await Promise.all(names.map((n) => caches.delete(n)));
-    });
-}
-
 async function waitForServiceWorker(page: import("@playwright/test").Page) {
+    // navigator.serviceWorker.ready is a promise that *never rejects* — it
+    // pends forever if no SW reaches activation. Race it against a hard
+    // timeout so the test fails its own assertions rather than blocking
+    // page.evaluate until the test runner's 100s cap kicks in and kills the
+    // browser (which surfaces as a confusing "Target page closed" error).
     await page
         .evaluate(async () => {
             if (!("serviceWorker" in navigator)) return;
-            await navigator.serviceWorker.ready;
+            await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise((resolve) => setTimeout(resolve, 10_000)),
+            ]);
         })
         .catch(() => {
-            // The PWA registers on first load; in incognito or first-run
-            // environments it may not be ready yet. Caller polls cache state.
+            // Best effort; caller polls cache state.
         });
 }
 
 test.describe("App image caching", () => {
     test("populates external-images cache on first visit", async ({ page }) => {
+        // Each Playwright context starts with empty Cache Storage, so we don't
+        // need to clear caches up front. The first visit registers the SW; we
+        // reload so the now-active SW intercepts and caches the fresh image
+        // requests.
         await page.goto("/", { waitUntil: "domcontentloaded" });
         await waitForServiceWorker(page);
-        await clearAllCaches(page);
-
-        // Reload so the now-running SW intercepts the fresh image requests.
-        await page.reload({ waitUntil: "networkidle" });
+        // domcontentloaded — the app keeps a sync socket open, so networkidle
+        // may never fire. We poll for cache state below regardless.
+        await page.reload({ waitUntil: "domcontentloaded" });
         await waitForServiceWorker(page);
 
         // Make sure at least one rendered image actually loaded.
@@ -70,7 +72,10 @@ test.describe("App image caching", () => {
     });
 
     test("serves images from cache on a second visit while offline", async ({ page, context }) => {
-        await page.goto("/", { waitUntil: "networkidle" });
+        // domcontentloaded (instead of networkidle) — the app keeps a sync
+        // socket open which means networkidle may never fire and the goto
+        // hangs until the test timeout.
+        await page.goto("/", { waitUntil: "domcontentloaded" });
         await waitForServiceWorker(page);
         const firstImage = page.locator("img").first();
         await expect(firstImage).toBeVisible({ timeout: 30_000 });
