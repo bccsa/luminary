@@ -65,16 +65,24 @@ test.describe("CMS login flow", () => {
         await page.waitForURL((url) => url.origin === cmsOrigin, { timeout: 60_000 });
         await expect(page.getByRole("heading", { name: /sign in/i })).toHaveCount(0);
 
-        // The Auth0 SPA SDK uses cacheLocation: "localstorage" — at least one
-        // entry whose key starts with the SDK prefix should now exist.
-        const hasAuthCache = await page.evaluate(() => {
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith("@@auth0spajs::")) return true;
-            }
-            return false;
-        });
-        expect(hasAuthCache).toBe(true);
+        // The Auth0 SPA SDK uses cacheLocation: "localstorage" and writes keys
+        // prefixed with `@@auth0spajs@@::` (see cms/src/auth.ts AUTH0_CACHE_PREFIX).
+        // Poll because the SDK writes the cache asynchronously after the
+        // callback redirect — `signInHeading.toHaveCount(0)` can resolve before
+        // the SDK finishes persisting tokens.
+        await expect
+            .poll(
+                () =>
+                    page.evaluate(() => {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith("@@auth0spajs@@::")) return true;
+                        }
+                        return false;
+                    }),
+                { timeout: 15_000 },
+            )
+            .toBe(true);
     });
 
     test("blocks unauthenticated access to the CMS", async ({ page }) => {
@@ -94,7 +102,7 @@ test.describe("CMS login flow", () => {
             : page.getByRole("button", { name: /sign in/i });
 
         await expect(
-            providerLocator.or(page.getByRole("heading", { name: /sign in/i })),
+            providerLocator.or(page.getByRole("heading", { name: /sign in/i })).first(),
         ).toBeVisible({ timeout: 30_000 });
     });
 });

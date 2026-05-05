@@ -81,6 +81,31 @@ export async function readLocalChangesForDoc(page: Page, docId: string): Promise
 }
 
 /**
+ * Pick a language code to use as the test default. The CMS's seeded language
+ * set varies between environments (e.g. prod uses 3-letter ISO 639-3 like
+ * `eng`, some dev tenants use 2-letter ISO 639-1 like `en`), so we discover
+ * what's available rather than hardcoding. Polls because the initial sync
+ * can take a few seconds after page load. Returns null if no language ever
+ * lands in IndexedDB — caller should `test.skip()` rather than fail cryptically.
+ */
+export async function pickDefaultLanguageCode(
+    page: Page,
+    timeoutMs = 15_000,
+): Promise<string | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const codes = await listLanguageCodes(page);
+        // Prefer English if available (`eng` then `en`); otherwise the first
+        // synced code, sorted for determinism between runs.
+        const preferred = codes.find((c) => c === "eng") ?? codes.find((c) => c === "en");
+        if (preferred) return preferred;
+        if (codes.length > 0) return [...codes].sort()[0];
+        await page.waitForTimeout(500);
+    }
+    return null;
+}
+
+/**
  * List the language codes available in the synced dataset, excluding any
  * codes the caller already uses. Used by the translate spec to pick a
  * language to add.

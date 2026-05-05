@@ -14,7 +14,7 @@ test.describe("CMS delete content flow", () => {
     test("deletes a post via the editor's delete dialog", async ({ page }) => {
         // Create a throwaway post we own, so the test never touches prod content.
         const stamp = Date.now();
-        const { parentId, languageCode } = await createTestPost(page, {
+        const { parentId } = await createTestPost(page, {
             title: `e2e delete ${stamp}`,
             slug: `e2e-delete-${stamp}`,
         });
@@ -48,8 +48,5 @@ test.describe("CMS delete content flow", () => {
             .locator('[data-test="content-row"]')
             .filter({ hasText: `e2e delete ${stamp}` });
         await expect(row).toHaveCount(0);
-
-        // Also confirm `languageCode` is the same as we used (param-pass sanity).
-        expect(languageCode).toBe("eng");
     });
 });

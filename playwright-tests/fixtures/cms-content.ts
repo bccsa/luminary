@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { pickDefaultLanguageCode } from "./db";
 
 /**
  * Helpers that drive the CMS UI to create and delete throwaway content. Used
@@ -25,7 +26,7 @@ type CreatePostOptions = {
     slug?: string;
     /** Defaults to `blog`. Pass `event` etc. to test other post types. */
     tagOrPostType?: string;
-    /** Defaults to `eng`. */
+    /** If omitted, uses the first synced language in IndexedDB. */
     languageCode?: string;
 };
 
@@ -33,6 +34,35 @@ const SAVE_BUTTON = '[data-test="save-button"]:visible';
 const DROPDOWN_TRIGGER = '[data-test="dropdown-trigger"]:visible';
 const DELETE_BUTTON = '[data-test="delete-button"]:visible';
 const MODAL_PRIMARY = '[data-test="modal-primary-button"]:visible';
+
+/**
+ * Open the Group Membership editor and pick the first available group, then
+ * close the modal. The CMS only renders the "edit" trigger when at least one
+ * assignable group is available, so its absence is fatal — the test user
+ * doesn't have the permissions to assign any group and we cannot proceed.
+ */
+async function assignFirstAvailableGroup(page: Page): Promise<void> {
+    const editGroup = page.locator('[data-test="edit-group"]:visible').first();
+    await editGroup.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {
+        throw new Error(
+            "createTestPost: no assignable groups available — the test user lacks " +
+                "the Edit/Assign permissions needed to satisfy the API's memberOf constraint.",
+        );
+    });
+    await editGroup.click();
+
+    // The combobox auto-focuses its search input on open; ArrowDown opens the
+    // dropdown and highlights the first option.
+    const search = page.locator('input[name="option-search"]:visible').first();
+    await search.waitFor({ state: "visible", timeout: 10_000 });
+    await search.press("ArrowDown");
+
+    const firstOption = page.locator('[data-test="group-selector"]:visible').first();
+    await firstOption.waitFor({ state: "visible", timeout: 10_000 });
+    await firstOption.click();
+
+    await page.locator(MODAL_PRIMARY).click();
+}
 
 /**
  * Create a post via the CMS new-document route. Returns the assigned parent
@@ -44,7 +74,13 @@ export async function createTestPost(
     opts: CreatePostOptions,
 ): Promise<CreatePostResult> {
     const tagOrPostType = opts.tagOrPostType ?? "blog";
-    const languageCode = opts.languageCode ?? "eng";
+    const languageCode = opts.languageCode ?? (await pickDefaultLanguageCode(page));
+    if (!languageCode) {
+        throw new Error(
+            "createTestPost: no synced language found in IndexedDB — cannot pick a default. " +
+                "Either pass an explicit languageCode or ensure the test environment has at least one language.",
+        );
+    }
 
     await page.goto(`/post/edit/${tagOrPostType}/new/${languageCode}`, {
         waitUntil: "domcontentloaded",
@@ -89,7 +125,17 @@ export async function createTestPost(
         throw new Error(`createTestPost: could not extract parent id from URL ${page.url()}`);
     }
 
+    // The API enforces `memberOf.length > 0` for posts; assigning the first
+    // available group satisfies that constraint. Without this the save click
+    // would surface a "memberOf should not be empty" validation error and the
+    // local doc would be rolled back, making downstream IndexedDB lookups fail.
+    await assignFirstAvailableGroup(page);
+
     await page.locator(SAVE_BUTTON).click();
+    // Wait for the API to confirm the create — without this, callers race
+    // against a save that may still be in flight (or have failed with e.g.
+    // "memberOf should not be empty") and observe an inconsistent local DB.
+    await expectSuccessToast(page, /saved/i);
 
     return { parentId, languageCode };
 }
@@ -106,7 +152,11 @@ export async function deleteTestPost(
     opts: { tagOrPostType?: string; languageCode?: string } = {},
 ): Promise<void> {
     const tagOrPostType = opts.tagOrPostType ?? "blog";
-    const languageCode = opts.languageCode ?? "eng";
+    const languageCode = opts.languageCode ?? (await pickDefaultLanguageCode(page).catch(() => null));
+    if (!languageCode) {
+        // Cleanup is best-effort; if we can't even pick a language, bail silently.
+        return;
+    }
 
     try {
         await page.goto(`/post/edit/${tagOrPostType}/${parentId}/${languageCode}`, {
@@ -140,6 +190,10 @@ export async function deleteTestPost(
  * into.
  */
 export async function expectSuccessToast(page: Page, titlePattern: RegExp): Promise<void> {
-    const toast = page.locator('[aria-live="assertive"]').getByText(titlePattern);
+    // The notification renders a title and a description, both inside the
+    // aria-live region — scope to the first match (the title) so the regex
+    // doesn't strict-mode-fail when both lines match (e.g. "Blog saved" +
+    // "The blog was saved successfully").
+    const toast = page.locator('[aria-live="assertive"]').getByText(titlePattern).first();
     await expect(toast).toBeVisible({ timeout: 10_000 });
 }

@@ -12,7 +12,7 @@ test.describe("CMS translate content flow", () => {
 
     test("adds a translation in a new language", async ({ page }) => {
         const stamp = Date.now();
-        const { parentId } = await createTestPost(page, {
+        const { parentId, languageCode } = await createTestPost(page, {
             title: `e2e translate ${stamp}`,
             slug: `e2e-translate-${stamp}`,
         });
@@ -23,16 +23,18 @@ test.describe("CMS translate content flow", () => {
             .poll(() => readLocalChangesForDoc(page, parentId), { timeout: 30_000 })
             .toEqual([]);
 
-        const candidates = await listLanguageCodes(page, ["eng"]);
+        const candidates = await listLanguageCodes(page, [languageCode]);
         test.skip(
             candidates.length === 0,
             "test environment has only one language synced — cannot exercise translation flow",
         );
         const targetLanguage = candidates[0];
 
-        // Open the translation picker. Multiple add-translation buttons may be
-        // on screen — first visible one is fine.
-        await page.getByRole("button", { name: "Add translation" }).first().click();
+        // Open the translation picker. The CMS renders two add-translation
+        // buttons (one in the EmptyState, one in EditContentParentValidation's
+        // card actions), only one visible at a time per the editor state, so
+        // scope to whichever is currently visible.
+        await page.locator('[data-test="add-translation-button"]:visible').first().click();
         await page
             .locator(`[data-test="select-language-${targetLanguage}"]:visible`)
             .first()
