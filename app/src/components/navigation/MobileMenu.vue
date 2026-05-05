@@ -4,6 +4,7 @@ import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
+import ProfileMenu from "./ProfileMenu.vue";
 
 // Use global search overlay
 const { isSearchOpen, openSearch, closeSearch } = useSearchOverlay();
@@ -116,5 +117,7 @@ onUnmounted(() => {
                 {{ t("menu.search") }}
             </span>
         </div>
+
+        <ProfileMenu placement="top-end" trigger="bars" />
     </div>
 </template>

@@ -14,13 +14,11 @@ const firstBanner = computed(() => {
 </script>
 
 <template>
-    <div aria-live="assertive" class="sticky inset-x-0 flex items-end sm:items-start">
-        <div class="w-full">
-            <NotificationBanner
-                v-if="firstBanner"
-                :key="firstBanner.id"
-                :notification="firstBanner"
-            />
-        </div>
+    <div aria-live="assertive">
+        <NotificationBanner
+            v-if="firstBanner"
+            :key="firstBanner.id"
+            :notification="firstBanner"
+        />
     </div>
 </template>

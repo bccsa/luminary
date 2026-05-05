@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 
 defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
     defineProps<{
-        placement?: "bottom-end" | "bottom-start";
+        placement?: "bottom-end" | "bottom-start" | "top-end" | "top-start";
         panelClass?: string;
     }>(),
     { placement: "bottom-end" },
@@ -48,8 +48,18 @@ onUnmounted(() => {
     document.removeEventListener("pointerdown", onPointerDown);
 });
 
-const placementClasses =
-    props.placement === "bottom-start" ? "left-0 origin-top-left" : "right-0 origin-top-right";
+const placementClasses = computed(() => {
+    switch (props.placement) {
+        case "bottom-start":
+            return "left-0 origin-top-left top-full mt-2";
+        case "top-end":
+            return "right-0 origin-bottom-right bottom-full mb-2";
+        case "top-start":
+            return "left-0 origin-bottom-left bottom-full mb-2";
+        default:
+            return "right-0 origin-top-right top-full mt-2";
+    }
+});
 </script>
 
 <template>
@@ -69,7 +79,7 @@ const placementClasses =
         <div
             v-show="open"
             role="menu"
-            class="absolute z-[50] mt-2 min-w-[8rem] rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
+            class="absolute z-[50] min-w-[8rem] rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
             :class="[placementClasses, panelClass]"
         >
             <slot />

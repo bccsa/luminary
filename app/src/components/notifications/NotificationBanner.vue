@@ -67,9 +67,13 @@ const handleNotificationClick = (notification: Notification) => {
 </script>
 
 <template>
-    <div v-if="show" class="inset-x-0 text-zinc-900" :class="color">
+    <div
+        v-if="show"
+        class="mb-8 rounded-2xl text-zinc-900"
+        :class="color"
+    >
         <div
-            class="flex items-center justify-between px-6 py-1"
+            class="flex items-center justify-between px-6 py-3"
             @click="() => handleNotificationClick(notification)"
             :class="{ 'cursor-pointer': notification.link }"
         >
@@ -87,10 +91,16 @@ const handleNotificationClick = (notification: Notification) => {
                 class="flex w-3/4 items-center gap-2"
                 :class="{ 'cursor-pointer': notification.link }"
             >
-                <component :is="icon" class="h-5 w-5 min-w-5" />
+                <component
+                    :is="icon"
+                    class="h-5 w-5 min-w-5"
+                />
                 <div class="flex flex-col md:inline-block md:align-middle">
                     <span class="text-md md:text-sm">{{ notification.title }}</span>
-                    <span v-if="notification.description" class="text-xs md:ml-3">
+                    <span
+                        v-if="notification.description"
+                        class="text-xs md:ml-3"
+                    >
                         {{ notification.description }}
                     </span>
                 </div>
@@ -105,7 +115,10 @@ const handleNotificationClick = (notification: Notification) => {
                 v-if="notification.closable"
             >
                 <span class="sr-only">Close</span>
-                <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+                <XMarkIcon
+                    class="h-5 w-5"
+                    aria-hidden="true"
+                />
             </button>
         </div>
     </div>

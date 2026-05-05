@@ -37,7 +37,6 @@ onUnmounted(() => {
         >
             <template #quickControls><slot name="quickControls" /></template>
         </TopBar>
-        <NotificationBannerManager />
         <Teleport to="body">
             <NotificationToastManager />
         </Teleport>
@@ -45,6 +44,7 @@ onUnmounted(() => {
             class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
             ref="main"
         >
+            <NotificationBannerManager />
             <slot />
         </main>
 

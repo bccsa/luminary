@@ -6,12 +6,14 @@ import {
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
 } from "@heroicons/vue/20/solid";
+import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
 import { computed, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
+    Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
@@ -28,6 +30,19 @@ import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { clearAuth0Cache } from "@/auth";
+
+type Placement = "bottom-end" | "bottom-start" | "top-end" | "top-start";
+type Trigger = "avatar" | "bars";
+
+const props = withDefaults(
+    defineProps<{
+        placement?: Placement;
+        trigger?: Trigger;
+    }>(),
+    { placement: "bottom-end", trigger: "avatar" },
+);
+
+const panelClass = computed(() => (props.placement.startsWith("top") ? "" : "mb-10"));
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -150,27 +165,58 @@ const userNavigation = computed(() => {
 </script>
 
 <template>
-    <DropdownMenu v-model:open="menuOpen" panel-class="mb-10">
+    <DropdownMenu
+        v-model:open="menuOpen"
+        :placement="placement"
+        :panel-class="panelClass"
+    >
         <template #trigger>
             <button
                 type="button"
                 name="profile-menu-btn"
-                class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
                 aria-label="Open user menu"
+                :class="
+                    trigger === 'bars'
+                        ? 'flex flex-col items-center rounded-md px-2 py-1'
+                        : '-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600'
+                "
             >
-                <img
-                    class="h-8 min-w-8 rounded-full bg-slate-50"
-                    :src="user?.picture"
-                    v-if="isAuthenticated && user?.picture"
-                    alt=""
+                <component
+                    v-if="trigger === 'bars'"
+                    :is="menuOpen ? Bars3IconSolid : Bars3Icon"
+                    :class="[
+                        'h-6 w-6',
+                        menuOpen
+                            ? 'text-yellow-600 dark:text-yellow-500'
+                            : 'text-zinc-400 dark:text-slate-200',
+                    ]"
                 />
-                <div
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
-                    v-else
+                <template v-else>
+                    <img
+                        class="h-8 min-w-8 rounded-full bg-slate-50"
+                        :src="user?.picture"
+                        v-if="isAuthenticated && user?.picture"
+                        alt=""
+                    />
+                    <div
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
+                        v-else
+                    >
+                        <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
+                    </div>
+                </template>
+                <span
+                    v-if="trigger === 'bars'"
+                    :class="[
+                        'text-sm font-medium',
+                        menuOpen
+                            ? 'text-yellow-700 dark:text-yellow-400'
+                            : 'text-zinc-600 dark:text-slate-100',
+                    ]"
                 >
-                    <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
-                </div>
-                <span class="hidden lg:flex lg:items-center">
+                    Menu
+                </span>
+                <span v-if="trigger === 'avatar'" class="hidden lg:flex lg:items-center">
                     <span
                         class="ml-3 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                         aria-hidden="true"
@@ -224,21 +270,21 @@ const userNavigation = computed(() => {
     </DropdownMenu>
 
     <LanguageModal
-            :isVisible="showLanguageModal"
-            @close="showLanguageModal = false"
-        />
-        <ThemeSelectorModal
-            :isVisible="showThemeSelector"
-            @close="showThemeSelector = false"
-        />
+        :isVisible="showLanguageModal"
+        @close="showLanguageModal = false"
+    />
+    <ThemeSelectorModal
+        :isVisible="showThemeSelector"
+        @close="showThemeSelector = false"
+    />
 
-        <LDialog
-            v-model:open="showLogoutDialog"
-            :title="t('logout.modal.title')"
-            :description="t('logout.modal.description')"
-            :primaryAction="confirmLogout"
-            :primaryButtonText="t('logout.modal.button_logout')"
-            :secondaryAction="() => (showLogoutDialog = false)"
-            :secondaryButtonText="t('logout.modal.button_cancel')"
-        />
+    <LDialog
+        v-model:open="showLogoutDialog"
+        :title="t('logout.modal.title')"
+        :description="t('logout.modal.description')"
+        :primaryAction="confirmLogout"
+        :primaryButtonText="t('logout.modal.button_logout')"
+        :secondaryAction="() => (showLogoutDialog = false)"
+        :secondaryButtonText="t('logout.modal.button_cancel')"
+    />
 </template>

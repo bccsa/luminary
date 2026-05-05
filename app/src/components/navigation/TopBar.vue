@@ -5,6 +5,10 @@ import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { getRouteHistory } from "@/router";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import { isConnected } from "luminary-shared";
+import { useNotificationStore, type Notification } from "@/stores/notification";
+import { useI18n } from "vue-i18n";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -74,6 +78,23 @@ onMounted(() => {
 const isPostAndNoHistory = computed(() => {
     return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
 });
+
+const { isAuthenticated, user, loginWithRedirect } = useAuthWithPrivacyPolicy();
+const { t } = useI18n();
+
+const handleLogin = () => {
+    if (isConnected.value) {
+        loginWithRedirect();
+        return;
+    }
+    useNotificationStore().addNotification({
+        id: "no-internet-connection-login",
+        title: t("profile_menu.login.offline_notification_title"),
+        description: t("profile_menu.login.offline_notification"),
+        type: "toast",
+        state: "error",
+    } as Notification);
+};
 </script>
 
 <template>
@@ -116,7 +137,25 @@ const isPostAndNoHistory = computed(() => {
                 <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
                     <slot name="quickControls" />
                 </div>
-                <ProfileMenu />
+                <div class="hidden lg:block">
+                    <ProfileMenu />
+                </div>
+                <div class="lg:hidden">
+                    <img
+                        v-if="isAuthenticated && user?.picture"
+                        class="h-8 min-w-8 rounded-full bg-slate-50"
+                        :src="user.picture"
+                        alt=""
+                    />
+                    <button
+                        v-else-if="!isAuthenticated"
+                        type="button"
+                        @click="handleLogin"
+                        class="rounded-md px-3 py-1.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-200 dark:text-slate-50 dark:hover:bg-slate-600"
+                    >
+                        {{ t("profile_menu.login") }}
+                    </button>
+                </div>
             </div>
         </div>
     </header>
