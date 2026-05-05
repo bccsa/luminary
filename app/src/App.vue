@@ -15,6 +15,9 @@ import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const router = useRouter();
 const {
@@ -72,8 +75,7 @@ setTimeout(() => {
             if (isConnected.value && !isAuthenticated.value) {
                 useNotificationStore().addNotification({
                     id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
+                    description: t("notification.login.message"),
                     state: "warning",
                     type: "banner",
                     icon: ExclamationCircleIcon,
