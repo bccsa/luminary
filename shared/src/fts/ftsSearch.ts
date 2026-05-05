@@ -23,37 +23,6 @@ const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "author", boost: 1.0 },
 ];
 
-// LRU cache of per-doc normalized word sets.
-// stripHtml + normalizeText dominate word-match scoring cost; they depend only on
-// the doc's field content, so cache across queries and invalidate on edit via
-// `updatedTimeUtc` in the key.
-const WORD_SET_CACHE_MAX = 500;
-const wordSetCache = new Map<string, Record<string, Set<string>>>();
-
-function getWordSets(doc: ContentDto, fields: FtsFieldConfig[]): Record<string, Set<string>> {
-    const key = `${doc._id}:${doc.updatedTimeUtc}`;
-    const cached = wordSetCache.get(key);
-    if (cached) {
-        wordSetCache.delete(key);
-        wordSetCache.set(key, cached);
-        return cached;
-    }
-    const sets: Record<string, Set<string>> = {};
-    const docRec = doc as Record<string, any>;
-    for (const field of fields) {
-        const value = docRec[field.name];
-        if (typeof value !== "string" || !value) continue;
-        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
-        sets[field.name] = new Set(text.split(" "));
-    }
-    wordSetCache.set(key, sets);
-    if (wordSetCache.size > WORD_SET_CACHE_MAX) {
-        const oldest = wordSetCache.keys().next().value;
-        if (oldest !== undefined) wordSetCache.delete(oldest);
-    }
-    return sets;
-}
-
 /**
  * Compute a boost-weighted word match score across fields.
  * For each field, counts how many query words appear as full words,
@@ -61,13 +30,15 @@ function getWordSets(doc: ContentDto, fields: FtsFieldConfig[]): Record<string, 
  */
 function computeFieldWordMatchScore(
     queryWords: string[],
-    wordSets: Record<string, Set<string>>,
+    doc: Record<string, any>,
     fields: FtsFieldConfig[],
 ): number {
     let totalScore = 0;
     for (const field of fields) {
-        const docWords = wordSets[field.name];
-        if (!docWords) continue;
+        const value = doc[field.name];
+        if (typeof value !== "string" || !value) continue;
+        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
+        const docWords = new Set(text.split(" "));
         let matches = 0;
         for (const word of queryWords) {
             if (docWords.has(word)) matches++;
@@ -115,11 +86,11 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
             return { token: trigram, ids };
         }),
     );
-    const usableTrigrams: Array<{ token: string; df: number }> = [];
+    const usableTrigrams: Array<{ token: string; df: number; ids: string[] }> = [];
     const matchedDocIds = new Set<string>();
     for (const { token, ids } of trigramResults) {
         if (ids.length > maxDocCount) continue;
-        usableTrigrams.push({ token, df: ids.length });
+        usableTrigrams.push({ token, df: ids.length, ids });
         for (const id of ids) matchedDocIds.add(id);
     }
     if (usableTrigrams.length === 0) return [];
@@ -130,11 +101,32 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
     }
 
+    // Step 3: Coarse-rank all candidates by Σ idf over matched trigrams, then slice the
+    // page window. Loads only the docs needed for the current page (constant per-page
+    // cost regardless of pagination depth) — supports infinite scroll without ballooning
+    // K with offset. IDF is the dominant ranking signal for trigram queries, so coarse
+    // order tracks exact BM25 closely; final BM25 + word-match still runs on the loaded
+    // slice, so within-page ordering matches the full pipeline.
+    // Buffer of 50 over `limit` absorbs language-filter shrinkage and any disagreement
+    // between coarse and exact scoring at the page boundary.
+    const coarseScore = new Map<string, number>();
+    for (const { token, ids } of usableTrigrams) {
+        const idf = idfMap.get(token)!;
+        for (const id of ids) {
+            coarseScore.set(id, (coarseScore.get(id) || 0) + idf);
+        }
+    }
+    const ranked = Array.from(coarseScore.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => id);
+    const candidateIds = ranked.slice(offset, offset + limit + 50);
+    if (candidateIds.length === 0) return [];
+
     // Step 4: Load matched docs, filtering by language at query time so wrong-language
     // docs never enter the scoring/word-match loops below.
     const loadedDocs = await db.docs
         .where("_id")
-        .anyOf(Array.from(matchedDocIds))
+        .anyOf(candidateIds)
         .and((d) => !languageId || (d as ContentDto).language === languageId)
         .toArray();
     const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
@@ -165,7 +157,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
                 idf * ((tf * (bm25k1 + 1)) / (tf + bm25k1 * (1 - bm25b + bm25b * (dl / avgdl))));
         }
 
-        results.push({ docId, score, wordMatchScore: 0 });
+        results.push({ docId, score, wordMatchScore: 0, doc });
     });
 
     // Step 6: Boost-weighted full-word match scoring
@@ -177,18 +169,23 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
             const doc = docMap.get(result.docId);
             if (!doc) continue;
 
-            const wordSets = getWordSets(doc, FTS_FIELDS);
-            const wordMatchBonus = computeFieldWordMatchScore(queryWords, wordSets, FTS_FIELDS);
+            const wordMatchBonus = computeFieldWordMatchScore(
+                queryWords,
+                doc as Record<string, any>,
+                FTS_FIELDS,
+            );
             result.wordMatchScore = wordMatchBonus;
             result.score += wordMatchBonus;
         }
     }
 
-    // Step 7: Sort by combined score desc, then word match desc
+    // Step 7: Sort by combined score desc, then word match desc.
+    // `results` already represents the page window (Step 3 sliced ranked candidates by
+    // [offset, offset+limit+50]), so we just take the first `limit` after re-sorting.
     results.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
         return b.wordMatchScore - a.wordMatchScore;
     });
 
-    return results.slice(offset, offset + limit);
+    return results.slice(0, limit);
 }

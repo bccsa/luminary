@@ -1,4 +1,4 @@
-import type { Uuid } from "../types";
+import type { ContentDto, Uuid } from "../types";
 
 /** Configuration for a single field to be indexed or searched */
 export type FtsFieldConfig = {
@@ -17,6 +17,14 @@ export type FtsSearchResult = {
     score: number;
     /** Boost-weighted count of full query words matched in document fields */
     wordMatchScore: number;
+    /**
+     * The loaded document. `ftsSearch` already reads this from IDB during scoring,
+     * so we hand it back to consumers — they don't need a second `db.docs.where(...)`
+     * round-trip on the rendering path. Optional so test fixtures and synthetic
+     * `FtsSearchResult` literals stay valid; consumers should fall back to a DB
+     * lookup when missing.
+     */
+    doc?: ContentDto;
 };
 
 /** Search options */
