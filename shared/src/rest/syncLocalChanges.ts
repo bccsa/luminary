@@ -40,6 +40,10 @@ async function pushLocalChange(localChange: LocalChangeDto) {
     const res = await getRest().changeRequest(formData);
 
     if (res) handleAck(res as ChangeReqAckDto, localChange);
+    // Release the lock on a failed/non-acked push so the queue isn't stalled
+    // indefinitely. Recovery happens on the next localChanges mutation or
+    // reconnect (which both fire the watcher); we deliberately don't auto-retry
+    // here to avoid hot-looping on a persistently rejected change.
     else processChangeReqLock.value = false;
 }
 
@@ -53,7 +57,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         pushLocalChange(localChanges.value[0]);
     };
 
-    watch([isConnected, localChanges, processChangeReqLock], attemptSync, { immediate: true });
+    watch([isConnected, localChanges], attemptSync, { immediate: true });
 
     watch(isConnected, (connected) => {
         if (!connected) {
