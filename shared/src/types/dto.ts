@@ -64,6 +64,7 @@ export type LanguageDto = ContentBaseDto & {
     name: string;
     default?: number;
     translations: Record<string, string>;
+    readingSpeed?: number;
 };
 
 export type UserDto = ContentBaseDto & {
@@ -108,7 +109,8 @@ export type ContentDto = ContentBaseDto & {
     fts?: string[];
     ftsTokenCount?: number;
     copyright?: string;
-    timeToRead?: number;
+    wordCounter?: number;
+    readingTime?: number;
 };
 
 export type ContentParentDto = ContentBaseDto & {

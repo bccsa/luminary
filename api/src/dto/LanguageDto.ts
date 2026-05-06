@@ -24,4 +24,9 @@ export class LanguageDto extends _contentBaseDto {
     @Expose()
     @IsNotEmpty()
     translations: Record<string, string>;
+
+    @IsOptional()
+    @IsInt()
+    @Expose()
+    readingSpeed?: number;
 }

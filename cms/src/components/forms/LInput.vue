@@ -12,9 +12,29 @@ import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 
+const states = {
+    default:
+        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
+    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+    warning:
+        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
+} as const;
+
+const addOnStates = {
+    default: "border-zinc-300 px-3 text-zinc-500",
+    error: "border-red-300 bg-red-50 px-3 text-red-600",
+    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
+} as const;
+
+const sizes = {
+    sm: "py-1",
+    base: "py-1.5",
+    lg: "py-2.5",
+} as const;
+
 type Props = {
     name: string;
-    modelValue?: string; // modelValue is directly used
+    modelValue?: string | number;
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -25,7 +45,7 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
-    inputType?: "input" | "textarea";
+    inputType?: "input" | "textarea" | "number";
     autocomplete?: "on" | "off";
 };
 
@@ -39,7 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: string): void;
+    (event: "update:modelValue", value: string | number | undefined): void;
 }>();
 
 // Expose the focus method to parent components.
@@ -50,6 +70,7 @@ const focus = () => {
 defineExpose({ focus });
 
 const isTextarea = computed(() => props.inputType === "textarea");
+const isNumber = computed(() => props.inputType === "number");
 
 // Auto-resize function
 const autoResize = () => {
@@ -73,24 +94,15 @@ watch(
 
 const computedState = computed(() => props.state);
 
-const states = {
-    default:
-        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
-    warning:
-        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
-};
+const handleInput = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const value = target.value;
 
-const addOnStates = {
-    default: "border-zinc-300 px-3 text-zinc-500",
-    error: "border-red-300 bg-red-50 px-3 text-red-600",
-    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
-};
-
-const sizes = {
-    sm: "py-1",
-    base: "py-1.5",
-    lg: "py-2.5",
+    if (props.inputType === "number") {
+        emit("update:modelValue", value === "" ? undefined : Number(value));
+    } else {
+        emit("update:modelValue", value);
+    }
 };
 
 const id = `l-input-${useId()}`;
@@ -112,9 +124,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :is="icon"
                     class="h-5 w-5"
                     :class="{
-                        'text-zinc-400': state == 'default' && !disabled,
-                        'text-zinc-300': state == 'default' && disabled,
-                        'text-red-400': state == 'error',
+                        'text-zinc-400': computedState === 'default' && !disabled,
+                        'text-zinc-300': computedState === 'default' && disabled,
+                        'text-red-400': computedState === 'error',
                     }"
                 />
             </div>
@@ -131,9 +143,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
-                @input="
-                    (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value)
-                "
+                @input="handleInput"
+                :type="isNumber ? 'number' : undefined"
                 :class="[
                     sizes[size],
                     states[computedState],
@@ -141,7 +152,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-l-md': !leftAddOn,
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
-                        'pr-10': state == 'error',
+                        'pr-10': computedState == 'error',
                         'resize-none': inputType === 'textarea',
                     },
                     'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',

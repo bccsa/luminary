@@ -182,5 +182,10 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsNumber()
     @Expose()
-    timeToRead?: number;
+    wordCounter?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    readingTime?: number;
 }
