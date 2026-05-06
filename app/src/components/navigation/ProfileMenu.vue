@@ -278,48 +278,44 @@ const userNavigation = computed(() => {
         <Sidebar v-model:open="menuOpen">
             <template #header="{ close }">
                 <header
-                    class="flex items-center gap-3 border-b border-zinc-200 p-4 dark:border-slate-600"
+                    class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
                 >
                     <img
                         v-if="isAuthenticated && user?.picture"
-                        class="h-10 w-10 flex-shrink-0 rounded-full bg-slate-50"
+                        class="h-9 w-9 flex-shrink-0 rounded-full bg-slate-50"
                         :src="user.picture"
                         alt=""
                     />
                     <div
                         v-else
-                        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300"
+                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
                     >
-                        <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
+                        <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                     </div>
+
                     <div class="flex min-w-0 flex-1 flex-col leading-tight">
                         <span
-                            class="truncate text-base font-semibold text-zinc-900 dark:text-slate-50"
+                            class="truncate text-sm font-semibold text-zinc-900 dark:text-slate-50"
+                            :title="isAuthenticated ? user?.name || user?.email : undefined"
                         >
-                            {{
-                                isAuthenticated
-                                    ? user?.name || user?.email
-                                    : menuLabel
-                            }}
+                            {{ isAuthenticated ? user?.name || user?.email : menuLabel }}
                         </span>
                         <span
-                            v-if="
-                                isAuthenticated &&
-                                user?.email &&
-                                user.email !== user.name
-                            "
-                            class="truncate text-sm text-zinc-500 dark:text-slate-300"
+                            v-if="isAuthenticated && user?.email && user.email !== user.name"
+                            class="mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300"
+                            :title="user.email"
                         >
                             {{ user.email }}
                         </span>
                     </div>
+
                     <button
                         type="button"
                         @click="close"
-                        class="flex-shrink-0 rounded-md p-1 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                        class="flex-shrink-0 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
                         aria-label="Close menu"
                     >
-                        <XMarkIcon class="h-6 w-6 text-zinc-500 dark:text-slate-300" />
+                        <XMarkIcon class="h-5 w-5" />
                     </button>
                 </header>
             </template>
