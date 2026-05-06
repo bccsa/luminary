@@ -37,14 +37,10 @@ async function pushLocalChange(localChange: LocalChangeDto) {
     const formData = new LFormData();
     formData.append("changeRequest", localChange);
 
-    try {
-        const res = await getRest().changeRequest(formData);
-        if (res) await handleAck(res as ChangeReqAckDto, localChange);
-        else processChangeReqLock.value = false;
-    } catch (err) {
-        processChangeReqLock.value = false;
-        throw err;
-    }
+    const res = await getRest().changeRequest(formData);
+
+    if (res) handleAck(res as ChangeReqAckDto, localChange);
+    else processChangeReqLock.value = false;
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
