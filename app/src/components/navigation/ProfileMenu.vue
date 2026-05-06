@@ -59,7 +59,12 @@ function closeMenu() {
 }
 
 const { t, te } = useI18n();
-const menuLabel = computed(() => (te("profile_menu.title") ? t("profile_menu.title") : "Menu"));
+const menuLabel = computed(() => {
+    const key = "profile_menu.title";
+    if (typeof te === "function" && !te(key)) return "Menu";
+    const translated = t(key);
+    return translated === key ? "Menu" : translated;
+});
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
