@@ -67,30 +67,28 @@ setTimeout(() => {
     );
 }, 5000);
 
-// Wait 5.1 second before checking the authentication status
-setTimeout(() => {
-    watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    description: t("notification.login.message"),
-                    state: "warning",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    link: () => loginWithRedirect(),
-                    closable: false,
-                });
-            }
+watch(
+    [isConnected, isAuthenticated],
+    () => {
+        if (isConnected.value && !isAuthenticated.value) {
+            useNotificationStore().addNotification({
+                id: "accountBanner",
+                title: t("notification.login.title"),
+                description: t("notification.login.message"),
+                state: "warning",
+                type: "banner",
+                icon: ExclamationCircleIcon,
+                link: () => loginWithRedirect(),
+                closable: false,
+            });
+        }
 
-            if (!isConnected.value || isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 5100);
+        if (!isConnected.value || isAuthenticated.value) {
+            useNotificationStore().removeNotification("accountBanner");
+        }
+    },
+    { immediate: true },
+);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {

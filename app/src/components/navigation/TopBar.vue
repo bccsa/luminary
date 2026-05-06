@@ -9,6 +9,8 @@ import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
+import LButton from "@/components/button/LButton.vue";
+import { ArrowLeftEndOnRectangleIcon } from "@heroicons/vue/24/outline";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -34,11 +36,9 @@ const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 const isSmallScreen = ref(false);
 
-const logo = computed(() =>
-    isSmallScreen.value ? (LOGO_SMALL || defaultLogoSmall) : LOGO,
-);
+const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL || defaultLogoSmall : LOGO));
 const logoDark = computed(() =>
-    isSmallScreen.value ? (LOGO_SMALL_DARK || defaultLogoSmall) : LOGO_DARK,
+    isSmallScreen.value ? LOGO_SMALL_DARK || defaultLogoSmall : LOGO_DARK,
 );
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
@@ -147,14 +147,15 @@ const handleLogin = () => {
                         :src="user.picture"
                         alt=""
                     />
-                    <button
+                    <LButton
+                        variant="secondary"
+                        size="sm"
+                        :icon="ArrowLeftEndOnRectangleIcon"
                         v-else-if="!isAuthenticated"
-                        type="button"
                         @click="handleLogin"
-                        class="rounded-md px-3 py-1.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-200 dark:text-slate-50 dark:hover:bg-slate-600"
                     >
                         {{ t("profile_menu.login") }}
-                    </button>
+                    </LButton>
                 </div>
             </div>
         </div>
