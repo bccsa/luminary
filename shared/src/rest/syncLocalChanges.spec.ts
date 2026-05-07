@@ -292,18 +292,20 @@ describe("localChanges", () => {
         });
         getSocket({ reconnect: true });
 
+        // Let the reconnect watcher settle the lock before queuing changes,
+        // otherwise a late isConnected change races our localChanges mutation
+        // and the second watcher re-triggers the push.
+        await waitForExpect(() => {
+            expect(processChangeReqLock.value).toBe(false);
+        });
+
         const failingChange: ChangeReqDto = {
             id: 8888,
             doc: { _id: "fail-doc", type: DocType.Post, updatedTimeUtc: Date.now() },
         };
 
         // First push: no ack (HTTP failure surfaces as undefined from http.post).
-        // Second push: succeeds and acks the failing change at the queue head.
         changeRequestMock.mockResolvedValueOnce(undefined);
-        changeRequestMock.mockResolvedValueOnce({
-            id: failingChange.id,
-            ack: AckStatus.Accepted,
-        });
 
         await db.localChanges.put(failingChange);
 
@@ -317,6 +319,10 @@ describe("localChanges", () => {
 
         // A new local change mutation triggers the watcher and re-attempts the
         // queue head — this time with an accepted ack that drains it.
+        changeRequestMock.mockResolvedValueOnce({
+            id: failingChange.id,
+            ack: AckStatus.Accepted,
+        });
         const followupChange: ChangeReqDto = {
             id: 8889,
             doc: { _id: "followup-doc", type: DocType.Post, updatedTimeUtc: Date.now() },
