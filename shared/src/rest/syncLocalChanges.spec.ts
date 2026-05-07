@@ -256,7 +256,7 @@ describe("localChanges", () => {
         });
     });
 
-    it("syncs pending offline change after reconnect via lock dependency re-run", async () => {
+    it("syncs pending offline change after reconnect", async () => {
         // Arrange: simulate prior state with lock engaged while offline
         getSocket().disconnect();
         processChangeReqLock.value = true;
@@ -269,7 +269,7 @@ describe("localChanges", () => {
         await db.localChanges.put(localChange);
         expect(await db.localChanges.get(localChange.id)).toBeDefined();
 
-        // Act: reconnect (isConnected watcher unlocks; combined watcher observes lock change)
+        // Act: reconnect (isConnected watcher releases the lock and triggers attemptSync directly)
         socketServer.on("connection", (socket) => {
             socket.emit("clientConfig", {});
         });
@@ -283,6 +283,48 @@ describe("localChanges", () => {
                 expect.arrayContaining([["changeRequest__json", JSON.stringify(localChange)]]),
             );
             expect(await db.localChanges.count()).toBe(0);
+        });
+    });
+
+    it("releases the lock and resumes attempts after a failed push", async () => {
+        socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
+        });
+        getSocket({ reconnect: true });
+
+        const failingChange: ChangeReqDto = {
+            id: 8888,
+            doc: { _id: "fail-doc", type: DocType.Post, updatedTimeUtc: Date.now() },
+        };
+
+        // First push: no ack (HTTP failure surfaces as undefined from http.post).
+        // Second push: succeeds and acks the failing change at the queue head.
+        changeRequestMock.mockResolvedValueOnce(undefined);
+        changeRequestMock.mockResolvedValueOnce({
+            id: failingChange.id,
+            ack: AckStatus.Accepted,
+        });
+
+        await db.localChanges.put(failingChange);
+
+        // After the failure the lock must be released so a subsequent
+        // localChanges mutation can drive another attempt.
+        await waitForExpect(() => {
+            expect(changeRequestMock).toHaveBeenCalledTimes(1);
+            expect(processChangeReqLock.value).toBe(false);
+        });
+        expect(await db.localChanges.get(failingChange.id)).toBeDefined();
+
+        // A new local change mutation triggers the watcher and re-attempts the
+        // queue head — this time with an accepted ack that drains it.
+        const followupChange: ChangeReqDto = {
+            id: 8889,
+            doc: { _id: "followup-doc", type: DocType.Post, updatedTimeUtc: Date.now() },
+        };
+        await db.localChanges.put(followupChange);
+
+        await waitForExpect(async () => {
+            expect(await db.localChanges.get(failingChange.id)).toBeUndefined();
         });
     });
 });
