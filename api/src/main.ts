@@ -8,7 +8,7 @@ import { upgradeDbSchema } from "./db/db.upgrade";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
-import { AllExceptionsFilter } from "./filters/allExceptions.filter";
+import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 
 export async function bootstrap() {
