@@ -59,23 +59,19 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: string | number): void;
+    (event: "update:modelValue", value: string | number | null): void;
 }>();
 
-// Expose the focus method to parent components.
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
-const focus = () => {
-    input.value?.focus();
-};
+const focus = () => input.value?.focus();
 defineExpose({ focus });
 
 const isTextarea = computed(() => props.inputType === "textarea");
 const isNumber = computed(() => props.inputType === "number");
 
-// Auto-resize function
 const autoResize = () => {
     if (isTextarea.value && input.value) {
-        input.value.style.height = "auto"; // Reset height for recalculation
+        input.value.style.height = "auto";
         input.value.style.height = input.value.scrollHeight + "px";
     }
 };
@@ -83,8 +79,6 @@ const autoResize = () => {
 onMounted(() => {
     if (isTextarea.value) autoResize();
 });
-
-// Trigger auto-resize on input updates
 watch(
     () => props.modelValue,
     () => {
@@ -95,14 +89,11 @@ watch(
 const computedState = computed(() => props.state);
 
 const handleInput = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    const value = target.value;
+    const val = (e.target as HTMLInputElement).value;
 
-    if (props.inputType === "number") {
-        emit("update:modelValue", value === "" ? 0 : Number(value));
-    } else {
-        emit("update:modelValue", value);
-    }
+    const finalValue = isNumber.value ? (val !== "" ? Number(val) : null) : val;
+
+    emit("update:modelValue", finalValue);
 };
 
 const id = `l-input-${useId()}`;
@@ -124,9 +115,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :is="icon"
                     class="h-5 w-5"
                     :class="{
-                        'text-zinc-400': computedState === 'default' && !disabled,
-                        'text-zinc-300': computedState === 'default' && disabled,
-                        'text-red-400': computedState === 'error',
+                        'text-zinc-400': state == 'default' && !disabled,
+                        'text-zinc-300': state == 'default' && disabled,
+                        'text-red-400': state == 'error',
                     }"
                 />
             </div>
@@ -140,11 +131,11 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             </span>
 
             <component
-                :is="inputType === 'textarea' ? 'textarea' : 'input'"
+                :is="isTextarea ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
                 @input="handleInput"
-                :type="isNumber ? 'number' : undefined"
+                :type="isNumber ? 'number' : inputType === 'textarea' ? undefined : 'text'"
                 :class="[
                     sizes[size],
                     states[computedState],
@@ -152,8 +143,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-l-md': !leftAddOn,
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
-                        'pr-10': computedState == 'error',
-                        'resize-none': inputType === 'textarea',
+                        'pr-10': state == 'error',
+                        'resize-none': isTextarea,
                     },
                     'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
@@ -164,8 +155,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :placeholder="placeholder"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
-                :rows="inputType === 'textarea' ? '1' : undefined"
-                :autocomplete="autocomplete && inputType == 'input' ? autocomplete : 'on'"
+                :rows="isTextarea ? '1' : undefined"
+                :autocomplete="autocomplete && !isTextarea ? autocomplete : 'on'"
             />
 
             <span
