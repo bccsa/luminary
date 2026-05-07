@@ -473,6 +473,52 @@ describe("DbService", () => {
 
             service.off("languageUpdate", languageDeleteHandler);
         });
+
+        it("emits 'groupUpdate' event when a delete command for a group document is created", async () => {
+            const groupDoc = {
+                _id: "group-delete-event-test",
+                type: DocType.Group,
+                name: "Group to Delete",
+                acl: [],
+            };
+
+            await service.upsertDoc(groupDoc);
+
+            let deleteCmdEventReceived = false;
+            let receivedDeleteCmd: any;
+
+            const groupDeleteHandler = (update: any) => {
+                if (
+                    update.type === DocType.DeleteCmd &&
+                    update.docId === "group-delete-event-test"
+                ) {
+                    deleteCmdEventReceived = true;
+                    receivedDeleteCmd = update;
+                }
+            };
+
+            service.on("groupUpdate", groupDeleteHandler);
+
+            const docToDelete = {
+                _id: "group-delete-event-test",
+                type: DocType.Group,
+                name: "Group to Delete",
+                acl: [],
+                deleteReq: 1,
+            };
+
+            await service.upsertDoc(docToDelete);
+
+            await waitForExpect(() => {
+                expect(deleteCmdEventReceived).toBe(true);
+                expect(receivedDeleteCmd.type).toBe(DocType.DeleteCmd);
+                expect(receivedDeleteCmd.docId).toBe("group-delete-event-test");
+                expect(receivedDeleteCmd.docType).toBe(DocType.Group);
+                expect(receivedDeleteCmd.deleteReason).toBe(DeleteReason.Deleted);
+            });
+
+            service.off("groupUpdate", groupDeleteHandler);
+        });
     });
 
     describe("disconnect events", () => {

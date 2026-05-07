@@ -1,5 +1,5 @@
 import { PermissionSystem } from "./permissions.service";
-import { DocType, AclPermission } from "../enums";
+import { DocType, AclPermission, DeleteReason } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import waitForExpect from "wait-for-expect";
 import { GroupDto } from "../dto/GroupDto";
@@ -973,6 +973,53 @@ describe("PermissionService", () => {
                 ["group-public-content"],
             );
             expect(after[DocType.Language]?.includes(groupId)).toBe(true);
+        });
+
+        it("evicts a group from the cache when a DeleteCmd arrives via groupUpdate", () => {
+            // The hard-delete signal for a group reaches the permission system
+            // as a DeleteCmd payload on the groupUpdate event (the CouchDB
+            // tombstone for the group itself is filtered upstream because it
+            // has no `type` field). Verify the listener routes that payload to
+            // removeGroups so every API instance evicts the entry from its
+            // in-memory cache.
+            const groupId = "group-delete-via-deletecmd";
+
+            const initial: GroupDto = new GroupDto();
+            initial._id = groupId;
+            initial.type = DocType.Group;
+            initial.updatedTimeUtc = 1;
+            initial.name = "To be deleted";
+            initial.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([initial]);
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(true);
+            const before = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.View,
+                ["group-public-content"],
+            );
+            expect(before[DocType.Language]?.includes(groupId)).toBe(true);
+
+            testingModule.dbService.emit("groupUpdate", {
+                type: DocType.DeleteCmd,
+                docId: groupId,
+                docType: DocType.Group,
+                deleteReason: DeleteReason.Deleted,
+            });
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(false);
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.View,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBeFalsy();
         });
 
         it("removes a revoked ACL permission when the update arrives after a disconnect/reconnect cycle", () => {
