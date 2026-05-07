@@ -78,7 +78,7 @@ const isPostAndNoHistory = computed(() => {
     return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
 });
 
-const { isAuthenticated, user, loginWithRedirect } = useAuthWithPrivacyPolicy();
+const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 const { t } = useI18n();
 
 const handleLogin = () => {

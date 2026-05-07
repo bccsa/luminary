@@ -30,7 +30,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
-import Sidebar from "../common/MobileSidebar.vue";
+import MobileSidebar from "../common/MobileSidebar.vue";
 import { clearAuth0Cache } from "@/auth";
 
 type Placement = "bottom-end" | "bottom-start" | "top-end" | "top-start";
@@ -280,7 +280,7 @@ const userNavigation = computed(() => {
             </span>
         </button>
 
-        <Sidebar v-model:open="menuOpen">
+        <MobileSidebar v-model:open="menuOpen">
             <template #header="{ close }">
                 <header
                     class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
@@ -352,7 +352,7 @@ const userNavigation = computed(() => {
                     </button>
                 </div>
             </template>
-        </Sidebar>
+        </MobileSidebar>
     </template>
 
     <LanguageModal
