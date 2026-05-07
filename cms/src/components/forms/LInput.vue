@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: string | number | null): void;
+    (event: "update:modelValue", value: string | number): void;
 }>();
 
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
@@ -91,7 +91,7 @@ const computedState = computed(() => props.state);
 const handleInput = (e: Event) => {
     const val = (e.target as HTMLInputElement).value;
 
-    const finalValue = isNumber.value ? (val !== "" ? Number(val) : null) : val;
+    const finalValue = isNumber.value ? (val !== "" ? Number(val) : "") : val;
 
     emit("update:modelValue", finalValue);
 };
