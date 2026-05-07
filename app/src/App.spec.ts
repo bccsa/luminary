@@ -123,8 +123,8 @@ describe("App", () => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
                     expect.objectContaining({
                         id: "accountBanner",
-                        title: "You are missing out!",
-                        description: "Click here to create an account or log in.",
+                        title: "Log in",
+                        description: "Click here to login / create an account and access more features and/or content",
                     }),
                 );
             }, 8000);

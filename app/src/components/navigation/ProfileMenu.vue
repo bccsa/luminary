@@ -3,15 +3,18 @@ import {
     ChevronDownIcon,
     ChevronUpIcon,
     UserIcon,
+    XMarkIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
 } from "@heroicons/vue/20/solid";
+import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
 import { computed, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
+    Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
@@ -27,7 +30,17 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
+import MobileSidebar from "../common/MobileSidebar.vue";
 import { clearAuth0Cache } from "@/auth";
+
+type Trigger = "avatar" | "bars";
+
+withDefaults(
+    defineProps<{
+        trigger?: Trigger;
+    }>(),
+    { trigger: "avatar" },
+);
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -42,6 +55,7 @@ function closeMenu() {
 }
 
 const { t } = useI18n();
+const menuLabel = computed(() => t("profile_menu.title"));
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -150,13 +164,17 @@ const userNavigation = computed(() => {
 </script>
 
 <template>
-    <DropdownMenu v-model:open="menuOpen" panel-class="mb-10">
+    <DropdownMenu
+        v-if="trigger === 'avatar'"
+        v-model:open="menuOpen"
+        panel-class="mb-10"
+    >
         <template #trigger>
             <button
                 type="button"
                 name="profile-menu-btn"
-                class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
                 aria-label="Open user menu"
+                class="-m-1.5 flex items-center rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
             >
                 <img
                     class="h-8 min-w-8 rounded-full bg-slate-50"
@@ -181,7 +199,7 @@ const userNavigation = computed(() => {
                         class="ml-3 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                         aria-hidden="true"
                         v-else
-                        >Menu</span
+                        >{{ menuLabel }}</span
                     >
                     <ChevronUpIcon
                         v-if="menuOpen"
@@ -223,22 +241,126 @@ const userNavigation = computed(() => {
         </button>
     </DropdownMenu>
 
-    <LanguageModal
-            :isVisible="showLanguageModal"
-            @close="showLanguageModal = false"
-        />
-        <ThemeSelectorModal
-            :isVisible="showThemeSelector"
-            @close="showThemeSelector = false"
-        />
+    <template v-else>
+        <button
+            type="button"
+            name="profile-menu-btn"
+            aria-label="Open user menu"
+            class="flex flex-col items-center rounded-md px-2 py-1"
+            @click="menuOpen = !menuOpen"
+        >
+            <component
+                :is="menuOpen ? Bars3IconSolid : Bars3Icon"
+                :class="[
+                    'h-6 w-6',
+                    menuOpen
+                        ? 'text-yellow-600 dark:text-yellow-500'
+                        : 'text-zinc-400 dark:text-slate-200',
+                ]"
+            />
+            <span
+                :class="[
+                    'text-sm font-medium',
+                    menuOpen
+                        ? 'text-yellow-700 dark:text-yellow-400'
+                        : 'text-zinc-600 dark:text-slate-100',
+                ]"
+            >
+                {{ menuLabel }}
+            </span>
+        </button>
 
-        <LDialog
-            v-model:open="showLogoutDialog"
-            :title="t('logout.modal.title')"
-            :description="t('logout.modal.description')"
-            :primaryAction="confirmLogout"
-            :primaryButtonText="t('logout.modal.button_logout')"
-            :secondaryAction="() => (showLogoutDialog = false)"
-            :secondaryButtonText="t('logout.modal.button_cancel')"
-        />
+        <MobileSidebar v-model:open="menuOpen">
+            <template #header="{ close }">
+                <header
+                    class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
+                >
+                    <img
+                        v-if="isAuthenticated && user?.picture"
+                        class="h-9 w-9 flex-shrink-0 rounded-full bg-slate-50"
+                        :src="user.picture"
+                        alt=""
+                    />
+                    <div
+                        v-else
+                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
+                    >
+                        <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
+                    </div>
+
+                    <div class="flex min-w-0 flex-1 flex-col leading-tight">
+                        <span
+                            class="truncate text-sm font-semibold text-zinc-900 dark:text-slate-50"
+                            :title="isAuthenticated ? user?.name || user?.email : undefined"
+                        >
+                            {{ isAuthenticated ? user?.name || user?.email : menuLabel }}
+                        </span>
+                        <span
+                            v-if="isAuthenticated && user?.email && user.email !== user.name"
+                            class="mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300"
+                            :title="user.email"
+                        >
+                            {{ user.email }}
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        @click="close"
+                        class="flex-shrink-0 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                        aria-label="Close menu"
+                    >
+                        <XMarkIcon class="h-5 w-5" />
+                    </button>
+                </header>
+            </template>
+            <template #default="{ close }">
+                <div class="py-2">
+                    <button
+                        v-for="item in userNavigation"
+                        :key="item.name"
+                        type="button"
+                        class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-zinc-900 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                        @click="
+                            item.action();
+                            close();
+                        "
+                    >
+                        <component
+                            :is="item.icon"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                            aria-hidden="true"
+                        />
+                        <div class="flex flex-col leading-none">
+                            {{ item.name }}
+                            <span
+                                v-if="'language' in item && item.language"
+                                class="mt-1 text-xs text-zinc-500 dark:text-slate-300"
+                                >{{ item.language }}</span
+                            >
+                        </div>
+                    </button>
+                </div>
+            </template>
+        </MobileSidebar>
+    </template>
+
+    <LanguageModal
+        :isVisible="showLanguageModal"
+        @close="showLanguageModal = false"
+    />
+    <ThemeSelectorModal
+        :isVisible="showThemeSelector"
+        @close="showThemeSelector = false"
+    />
+
+    <LDialog
+        v-model:open="showLogoutDialog"
+        :title="t('logout.modal.title')"
+        :description="t('logout.modal.description')"
+        :primaryAction="confirmLogout"
+        :primaryButtonText="t('logout.modal.button_logout')"
+        :secondaryAction="() => (showLogoutDialog = false)"
+        :secondaryButtonText="t('logout.modal.button_cancel')"
+    />
 </template>

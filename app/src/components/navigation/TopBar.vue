@@ -5,6 +5,11 @@ import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { getRouteHistory } from "@/router";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import { isConnected } from "luminary-shared";
+import { useNotificationStore, type Notification } from "@/stores/notification";
+import { useI18n } from "vue-i18n";
+import { ArrowLeftEndOnRectangleIcon } from "@heroicons/vue/24/outline";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -30,11 +35,9 @@ const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 const isSmallScreen = ref(false);
 
-const logo = computed(() =>
-    isSmallScreen.value ? (LOGO_SMALL || defaultLogoSmall) : LOGO,
-);
+const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL || defaultLogoSmall : LOGO));
 const logoDark = computed(() =>
-    isSmallScreen.value ? (LOGO_SMALL_DARK || defaultLogoSmall) : LOGO_DARK,
+    isSmallScreen.value ? LOGO_SMALL_DARK || defaultLogoSmall : LOGO_DARK,
 );
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
@@ -74,12 +77,29 @@ onMounted(() => {
 const isPostAndNoHistory = computed(() => {
     return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
 });
+
+const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
+const { t } = useI18n();
+
+const handleLogin = () => {
+    if (isConnected.value) {
+        loginWithRedirect();
+        return;
+    }
+    useNotificationStore().addNotification({
+        id: "no-internet-connection-login",
+        title: t("profile_menu.login.offline_notification_title"),
+        description: t("profile_menu.login.offline_notification"),
+        type: "toast",
+        state: "error",
+    } as Notification);
+};
 </script>
 
 <template>
     <header>
         <div class="z-40 bg-zinc-100 dark:bg-slate-800">
-            <div class="flex items-center py-5 pl-6 pr-6 lg:pr-5">
+            <div class="flex items-center py-5 pl-6 pr-4 lg:pr-5">
                 <div class="flex flex-1 items-center">
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
@@ -116,7 +136,17 @@ const isPostAndNoHistory = computed(() => {
                 <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
                     <slot name="quickControls" />
                 </div>
-                <ProfileMenu />
+                <div class="hidden lg:block"><ProfileMenu /></div>
+                <div class="lg:hidden">
+                    <button
+                        v-if="!isAuthenticated"
+                        class="flex items-center gap-1 text-sm text-zinc-700 dark:text-slate-200"
+                        @click="handleLogin"
+                    >
+                        <ArrowLeftEndOnRectangleIcon class="h-5 w-5" />
+                        {{ t("profile_menu.login") }}
+                    </button>
+                </div>
             </div>
         </div>
     </header>

@@ -3,6 +3,8 @@ import { RouterLinkStub, config } from "@vue/test-utils";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { initConfig, initDatabase } from "luminary-shared";
 import { APP_DOCS_INDEX } from "./src/docsIndex";
+import { createI18n } from "vue-i18n";
+import { mockLanguageDtoEng } from "./src/tests/mockdata";
 
 // ============================================================================
 // Indexing warning detection — fail tests that trigger missing index warnings
@@ -74,6 +76,14 @@ vi.mock("luminary-shared", async (importOriginal) => {
 });
 
 config.global.stubs["RouterLink"] = RouterLinkStub;
+
+const testI18n = createI18n({
+    legacy: false,
+    locale: "eng",
+    fallbackLocale: "eng",
+    messages: { eng: mockLanguageDtoEng.translations as Record<string, string> },
+});
+config.global.plugins = [...(config.global.plugins || []), testI18n];
 
 window.matchMedia = vi.fn().mockImplementation((query) => {
     return {

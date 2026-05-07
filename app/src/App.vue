@@ -5,7 +5,7 @@ import { isConnected } from "luminary-shared";
 import { appName, isAppLoading, userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
-import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
+import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
@@ -15,6 +15,9 @@ import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const router = useRouter();
 const {
@@ -64,30 +67,28 @@ setTimeout(() => {
     );
 }, 5000);
 
-// Wait 5.1 second before checking the authentication status
-setTimeout(() => {
-    watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                    state: "warning",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    link: () => loginWithRedirect(),
-                });
-            }
+watch(
+    [isConnected, isAuthenticated],
+    () => {
+        if (isConnected.value && !isAuthenticated.value) {
+            useNotificationStore().addNotification({
+                id: "accountBanner",
+                title: t("notification.login.title"),
+                description: t("notification.login.message"),
+                state: "warning",
+                type: "banner",
+                icon: ArrowLeftEndOnRectangleIcon,
+                link: () => loginWithRedirect(),
+                closable: false,
+            });
+        }
 
-            if (!isConnected.value || isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 5100);
+        if (!isConnected.value || isAuthenticated.value) {
+            useNotificationStore().removeNotification("accountBanner");
+        }
+    },
+    { immediate: true },
+);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {

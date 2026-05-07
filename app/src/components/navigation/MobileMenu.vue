@@ -4,6 +4,7 @@ import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
+import ProfileMenu from "./ProfileMenu.vue";
 
 // Use global search overlay
 const { isSearchOpen, openSearch, closeSearch } = useSearchOverlay();
@@ -12,9 +13,12 @@ const { t } = useI18n();
 const route = useRoute();
 
 // Close search whenever the user navigates to another route
-watch(() => route.fullPath, () => {
-    closeSearch();
-});
+watch(
+    () => route.fullPath,
+    () => {
+        closeSearch();
+    },
+);
 
 // Search tab is active (highlighted) when the overlay is open
 const isSearchActive = computed(() => isSearchOpen.value);
@@ -59,7 +63,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800"
+        class="flex flex-row justify-center gap-3 bg-zinc-100 py-3 dark:bg-slate-800"
     >
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink
@@ -116,5 +120,7 @@ onUnmounted(() => {
                 {{ t("menu.search") }}
             </span>
         </div>
+
+        <ProfileMenu trigger="bars" />
     </div>
 </template>

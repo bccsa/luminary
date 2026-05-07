@@ -17,9 +17,9 @@ withDefaults(
     <div
         :class="[
             mobileOnly ? 'md:mx-0' : '',
-            '-mx-4',
-            ignoreTop ? (mobileOnly ? '-mt-4 md:mt-0' : '-mt-4') : '',
-            ignoreBottom ? (mobileOnly ? '-mb-4 md:mb-0' : '-mb-4') : '',
+            '-mx-2',
+            ignoreTop ? (mobileOnly ? '-mt-2 md:mt-0' : '-mt-2') : '',
+            ignoreBottom ? (mobileOnly ? '-mb-2 md:mb-0' : '-mb-2') : '',
         ]"
     >
         <slot />

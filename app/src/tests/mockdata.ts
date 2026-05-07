@@ -325,6 +325,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "topic.no_results_found": "No results found for",
         "menu.home": "Home",
         "menu.explore": "Explore",
+        "profile_menu.title": "Menu",
         "profile_menu.settings": "Settings",
         "profile_menu.theme": "Theme",
         "profile_menu.language": "Language",
@@ -347,8 +348,8 @@ export const mockLanguageDtoEng: LanguageDto = {
         "explore.title": "Explore",
         "home.newest": "Newest",
         "content.related_title": "Related",
-        "notification.login.title": "You are missing out!",
-        "notification.login.message": "Click here to create an account or log in",
+        "notification.login.title": "Log in",
+        "notification.login.message": "Click here to login / create an account and access more features and/or content",
         "notification.offline.title": "You are offline.",
         "notification.offline.message":
             "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
