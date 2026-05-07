@@ -34,7 +34,7 @@ const sizes = {
 
 type Props = {
     name: string;
-    modelValue?: string | number;
+    modelValue?: string | number | null;
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: string | number | undefined): void;
+    (event: "update:modelValue", value: string | number): void;
 }>();
 
 // Expose the focus method to parent components.
@@ -99,7 +99,7 @@ const handleInput = (e: Event) => {
     const value = target.value;
 
     if (props.inputType === "number") {
-        emit("update:modelValue", value === "" ? undefined : Number(value));
+        emit("update:modelValue", value === "" ? 0 : Number(value));
     } else {
         emit("update:modelValue", value);
     }
