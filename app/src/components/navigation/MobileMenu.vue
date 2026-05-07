@@ -117,13 +117,10 @@ onUnmounted(() => {
                     { 'text-yellow-700 dark:text-yellow-400': isSearchActive },
                 ]"
             >
-                {{ t("menu.search", "Search") }}
+                {{ t("menu.search") }}
             </span>
         </div>
 
-        <ProfileMenu
-            placement="top-end"
-            trigger="bars"
-        />
+        <ProfileMenu trigger="bars" />
     </div>
 </template>

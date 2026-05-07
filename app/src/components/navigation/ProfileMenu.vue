@@ -33,18 +33,14 @@ import DropdownMenu from "../common/DropdownMenu.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import { clearAuth0Cache } from "@/auth";
 
-type Placement = "bottom-end" | "bottom-start" | "top-end" | "top-start";
 type Trigger = "avatar" | "bars";
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
-        placement?: Placement;
         trigger?: Trigger;
     }>(),
-    { placement: "bottom-end", trigger: "avatar" },
+    { trigger: "avatar" },
 );
-
-const panelClass = computed(() => (props.placement.startsWith("top") ? "" : "mb-10"));
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -58,13 +54,8 @@ function closeMenu() {
     menuOpen.value = false;
 }
 
-const { t, te } = useI18n();
-const menuLabel = computed(() => {
-    const key = "profile_menu.title";
-    if (typeof te === "function" && !te(key)) return "Menu";
-    const translated = t(key);
-    return translated === key ? "Menu" : translated;
-});
+const { t } = useI18n();
+const menuLabel = computed(() => t("profile_menu.title"));
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -176,8 +167,7 @@ const userNavigation = computed(() => {
     <DropdownMenu
         v-if="trigger === 'avatar'"
         v-model:open="menuOpen"
-        :placement="placement"
-        :panel-class="panelClass"
+        panel-class="mb-10"
     >
         <template #trigger>
             <button
