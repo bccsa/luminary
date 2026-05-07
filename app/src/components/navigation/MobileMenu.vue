@@ -13,9 +13,12 @@ const { t } = useI18n();
 const route = useRoute();
 
 // Close search whenever the user navigates to another route
-watch(() => route.fullPath, () => {
-    closeSearch();
-});
+watch(
+    () => route.fullPath,
+    () => {
+        closeSearch();
+    },
+);
 
 // Search tab is active (highlighted) when the overlay is open
 const isSearchActive = computed(() => isSearchOpen.value);
@@ -60,7 +63,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-4 bg-zinc-100 py-3 dark:bg-slate-800"
+        class="flex flex-row justify-center gap-3 bg-zinc-100 py-3 dark:bg-slate-800"
     >
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink
@@ -114,10 +117,13 @@ onUnmounted(() => {
                     { 'text-yellow-700 dark:text-yellow-400': isSearchActive },
                 ]"
             >
-                {{ t("menu.search") }}
+                {{ t("menu.search", "Search") }}
             </span>
         </div>
 
-        <ProfileMenu placement="top-end" trigger="bars" />
+        <ProfileMenu
+            placement="top-end"
+            trigger="bars"
+        />
     </div>
 </template>

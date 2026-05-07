@@ -5,7 +5,7 @@ import { isConnected } from "luminary-shared";
 import { appName, isAppLoading, userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
-import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
+import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
@@ -77,7 +77,7 @@ watch(
                 description: t("notification.login.message"),
                 state: "warning",
                 type: "banner",
-                icon: ExclamationCircleIcon,
+                icon: ArrowLeftEndOnRectangleIcon,
                 link: () => loginWithRedirect(),
                 closable: false,
             });

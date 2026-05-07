@@ -138,7 +138,7 @@ const handleLogin = () => {
                     <slot name="quickControls" />
                 </div>
                 <div class="hidden lg:block">
-                    <ProfileMenu />
+                    <ProfileMenu />xp
                 </div>
                 <div class="lg:hidden">
                     <img
@@ -148,7 +148,7 @@ const handleLogin = () => {
                         alt=""
                     />
                     <LButton
-                        variant="secondary"
+                        variant="tertiary"
                         size="sm"
                         :icon="ArrowLeftEndOnRectangleIcon"
                         v-else-if="!isAuthenticated"
