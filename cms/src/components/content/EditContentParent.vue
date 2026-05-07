@@ -168,7 +168,7 @@ const pinned = computed({
             :class="{ 'my-3': docType == DocType.Tag }"
         >
             <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="disabled" />
+            <LToggle v-model="pinned" :disabled="disabled" class="mr-[4px]" />
         </div>
 
         <slot name="supplementary" />
