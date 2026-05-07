@@ -69,7 +69,7 @@ const handleNotificationClick = (notification: Notification) => {
 <template>
     <div
         v-if="show"
-        class="mb-6 rounded-lg text-zinc-900"
+        class="mb-4 rounded-lg text-zinc-900"
         :class="color"
     >
         <div
@@ -96,7 +96,11 @@ const handleNotificationClick = (notification: Notification) => {
                     class="h-5 w-5 min-w-5"
                 />
                 <div class="flex flex-col md:inline-block md:align-middle">
-                    <span v-if="notification.title" class="text-md md:text-sm">{{ notification.title }}</span>
+                    <span
+                        v-if="notification.title"
+                        class="text-md md:text-sm"
+                        >{{ notification.title }}</span
+                    >
                     <span
                         v-if="notification.description"
                         class="text-xs md:ml-3"

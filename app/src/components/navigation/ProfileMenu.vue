@@ -30,7 +30,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
-import Sidebar from "../common/Sidebar.vue";
+import Sidebar from "../common/MobileSidebar.vue";
 import { clearAuth0Cache } from "@/auth";
 
 type Placement = "bottom-end" | "bottom-start" | "top-end" | "top-start";

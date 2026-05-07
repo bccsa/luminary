@@ -45,8 +45,17 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 $and: [
                     { type: DocType.Content },
                     { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-                    { parentTags: { $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) } } },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: TagType.Topic },
+                        ],
+                    },
+                    {
+                        parentTags: {
+                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
+                        },
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
@@ -64,10 +73,17 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinne
 </script>
 
 <template>
-    <HorizontalContentTileCollection v-for="(c, index) in pinnedContentByCategory.tagged.value" :key="c.tag._id"
-        :contentDocs="c.content" :title="c.tag.title" :summary="c.tag.summary" :showPublishDate="false"
-        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5" :class="[
+    <HorizontalContentTileCollection
+        v-for="(c, index) in pinnedContentByCategory.tagged.value"
+        :key="c.tag._id"
+        :contentDocs="c.content"
+        :title="c.tag.title"
+        :summary="c.tag.summary"
+        :showPublishDate="false"
+        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
+        :class="[
             index == 0 ? 'pt-4' : 'pt-2',
             index == pinnedContentByCategory.tagged.value.length - 1 ? 'pb-3' : '',
-        ]" />
+        ]"
+    />
 </template>

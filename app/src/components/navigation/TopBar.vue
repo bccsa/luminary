@@ -9,7 +9,6 @@ import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
-import LButton from "@/components/button/LButton.vue";
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/vue/24/outline";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
@@ -100,7 +99,7 @@ const handleLogin = () => {
 <template>
     <header>
         <div class="z-40 bg-zinc-100 dark:bg-slate-800">
-            <div class="flex items-center py-5 pl-6 pr-6 lg:pr-5">
+            <div class="flex items-center py-5 pl-6 pr-4 lg:pr-5">
                 <div class="flex flex-1 items-center">
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
@@ -137,25 +136,16 @@ const handleLogin = () => {
                 <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
                     <slot name="quickControls" />
                 </div>
-                <div class="hidden lg:block">
-                    <ProfileMenu />xp
-                </div>
+                <div class="hidden lg:block"><ProfileMenu /></div>
                 <div class="lg:hidden">
-                    <img
-                        v-if="isAuthenticated && user?.picture"
-                        class="h-8 min-w-8 rounded-full bg-slate-50"
-                        :src="user.picture"
-                        alt=""
-                    />
-                    <LButton
-                        variant="tertiary"
-                        size="sm"
-                        :icon="ArrowLeftEndOnRectangleIcon"
-                        v-else-if="!isAuthenticated"
+                    <button
+                        v-if="!isAuthenticated"
+                        class="flex items-center gap-1 text-sm text-zinc-700 dark:text-slate-200"
                         @click="handleLogin"
                     >
+                        <ArrowLeftEndOnRectangleIcon class="h-5 w-5" />
                         {{ t("profile_menu.login") }}
-                    </LButton>
+                    </button>
                 </div>
             </div>
         </div>
