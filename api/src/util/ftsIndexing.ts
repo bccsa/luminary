@@ -155,9 +155,8 @@ export function stripHtml(html: string): string {
 
 /**
  * Calculate the estimated reading time for a given text (in minutes).
- * Uses a standard reading speed of 200 words per minute.
  */
-export function wordCounter(text: string): number {
+export function wordsCount(text: string): number {
     const strippedText = stripHtml(text).trim();
     if (!strippedText) return 0;
     return strippedText.split(/\s+/).length;

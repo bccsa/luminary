@@ -778,7 +778,7 @@ const readingTime = computed(() => {
                                 class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 <EyeIcon class="h-4 w-4" />
-                                {{ readingTime ? `${readingTime} min` : "-" }}
+                                {{ readingTime }}
                             </div>
 
                             <div

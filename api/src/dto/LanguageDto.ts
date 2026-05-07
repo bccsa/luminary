@@ -3,7 +3,10 @@ import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
 /**
- * Database structured Language object
+ * Database structured Language object.
+ * * @property {number} averageReadingSpeed - The average reading speed in words per minute
+ * for this language, used to calculate reading time for content.
+ * If not provided, a default of 200 wpm is assumed.
  */
 export class LanguageDto extends _contentBaseDto {
     @IsNotEmpty()
@@ -28,5 +31,5 @@ export class LanguageDto extends _contentBaseDto {
     @IsOptional()
     @IsInt()
     @Expose()
-    readingSpeed?: number;
+    averageReadingSpeed?: number;
 }

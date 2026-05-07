@@ -4,7 +4,7 @@ import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, PublishStatus, Uuid } from "../../enums";
-import { computeFtsData, wordCounter } from "../../util/ftsIndexing";
+import { computeFtsData, wordsCount } from "../../util/ftsIndexing";
 
 /**
  * Process Content DTO
@@ -67,12 +67,12 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         doc.ftsTokenCount = ftsData.ftsTokenCount;
     }
 
-    const wordCount = wordCounter(doc.text || "");
-    doc.wordCounter = wordCount;
+    const wordCount = wordsCount(doc.text || "");
+    doc.wordCount = wordCount;
 
     // Calculate reading time based on language reading speed
     const langQuery = await db.getDoc(doc.language);
     const langDoc = langQuery.docs[0] as any;
-    const readingSpeed = langDoc?.readingSpeed || 200;
-    doc.readingTime = Math.ceil(wordCount / readingSpeed);
+    const averageReadingSpeed = langDoc?.averageReadingSpeed || 200;
+    doc.readingTime = Math.ceil(wordCount / averageReadingSpeed);
 }

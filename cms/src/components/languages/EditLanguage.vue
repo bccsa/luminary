@@ -59,7 +59,7 @@ const editable = ref<LanguageDto>({
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
     translations: {},
-    readingSpeed: 200,
+    averageReadingSpeed: 200,
 });
 const isNew = computed(() => !original.value?._id);
 
@@ -424,11 +424,11 @@ const contentActions = computed(() => {
 
                 <LInput
                     inputType="number"
-                    label="Reading Speed (words per minute)"
-                    name="readingSpeed"
-                    v-model="editable.readingSpeed"
+                    label="Average reading Speed (words per minute)"
+                    name="averageReadingSpeed"
+                    v-model="editable.averageReadingSpeed"
                     class="mb-4 w-full"
-                    placeholder="Enter reading speed in words per minute (optional)"
+                    placeholder="Enter the average reading speed for people speaking this language( 200 wpm is the default)"
                     :disabled="!canEditOrCreate"
                 />
 
