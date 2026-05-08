@@ -39,7 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: any): void;
+    (event: "update:modelValue", value: string | number | null): void;
 }>();
 
 // Expose the focus method to parent components.
@@ -61,11 +61,9 @@ const autoResize = () => {
 
 const handleInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
-    let val: any = target.value;
-    if (target.type === "number" && val !== "") {
-        const parsed = parseInt(val, 10);
-        val = Number.isNaN(parsed) ? "" : parsed;
-    }
+    const { value, type } = target;
+    const val = type === "number" && value !== "" ? parseInt(value, 10) : value;
+
     emit("update:modelValue", val);
 };
 

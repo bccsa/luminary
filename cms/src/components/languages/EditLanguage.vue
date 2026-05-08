@@ -424,11 +424,11 @@ const contentActions = computed(() => {
 
                 <LInput
                     type="number"
-                    label="Average reading Speed (words per minute)"
+                    label="Average reading speed (words per minute)"
                     name="averageReadingSpeed"
                     v-model="editable.averageReadingSpeed"
                     class="mb-4 w-full"
-                    placeholder="Enter the average reading speed for people speaking this language( 200 wpm is the default)"
+                    placeholder="Enter the average reading speed for people speaking this language ( 200 wpm is the default)"
                     :disabled="!canEditOrCreate"
                 />
 
