@@ -12,26 +12,6 @@ import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 
-const states = {
-    default:
-        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
-    warning:
-        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
-} as const;
-
-const addOnStates = {
-    default: "border-zinc-300 px-3 text-zinc-500",
-    error: "border-red-300 bg-red-50 px-3 text-red-600",
-    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
-} as const;
-
-const sizes = {
-    sm: "py-1",
-    base: "py-1.5",
-    lg: "py-2.5",
-} as const;
-
 type Props = {
     name: string;
     modelValue?: string | number | null;
@@ -45,7 +25,7 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
-    inputType?: "input" | "textarea" | "number";
+    inputType?: "input" | "textarea";
     autocomplete?: "on" | "off";
 };
 
@@ -59,19 +39,22 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (event: "update:modelValue", value: string | number): void;
+    (event: "update:modelValue", value: any): void;
 }>();
 
+// Expose the focus method to parent components.
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
-const focus = () => input.value?.focus();
+const focus = () => {
+    input.value?.focus();
+};
 defineExpose({ focus });
 
 const isTextarea = computed(() => props.inputType === "textarea");
-const isNumber = computed(() => props.inputType === "number");
 
+// Auto-resize function
 const autoResize = () => {
     if (isTextarea.value && input.value) {
-        input.value.style.height = "auto";
+        input.value.style.height = "auto"; // Reset height for recalculation
         input.value.style.height = input.value.scrollHeight + "px";
     }
 };
@@ -79,6 +62,8 @@ const autoResize = () => {
 onMounted(() => {
     if (isTextarea.value) autoResize();
 });
+
+// Trigger auto-resize on input updates
 watch(
     () => props.modelValue,
     () => {
@@ -88,12 +73,24 @@ watch(
 
 const computedState = computed(() => props.state);
 
-const handleInput = (e: Event) => {
-    const val = (e.target as HTMLInputElement).value;
+const states = {
+    default:
+        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
+    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+    warning:
+        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
+};
 
-    const finalValue = isNumber.value ? (val !== "" ? Number(val) : "") : val;
+const addOnStates = {
+    default: "border-zinc-300 px-3 text-zinc-500",
+    error: "border-red-300 bg-red-50 px-3 text-red-600",
+    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
+};
 
-    emit("update:modelValue", finalValue);
+const sizes = {
+    sm: "py-1",
+    base: "py-1.5",
+    lg: "py-2.5",
 };
 
 const id = `l-input-${useId()}`;
@@ -131,11 +128,19 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             </span>
 
             <component
-                :is="isTextarea ? 'textarea' : 'input'"
+                :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
-                @input="handleInput"
-                :type="isNumber ? 'number' : inputType === 'textarea' ? undefined : 'text'"
+                @input="
+                    (e: Event) => {
+                        const target = e.target as HTMLInputElement;
+                        let val: any = target.value;
+                        if (target.type === 'number' && val !== '') {
+                            val = Number(val);
+                        }
+                        emit('update:modelValue', val);
+                    }
+                "
                 :class="[
                     sizes[size],
                     states[computedState],
@@ -144,7 +149,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
                         'pr-10': state == 'error',
-                        'resize-none': isTextarea,
+                        'resize-none': inputType === 'textarea',
                     },
                     'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
@@ -155,8 +160,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :placeholder="placeholder"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
-                :rows="isTextarea ? '1' : undefined"
-                :autocomplete="autocomplete && !isTextarea ? autocomplete : 'on'"
+                :rows="inputType === 'textarea' ? '1' : undefined"
+                :autocomplete="autocomplete && inputType == 'input' ? autocomplete : 'on'"
             />
 
             <span

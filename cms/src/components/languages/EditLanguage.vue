@@ -423,7 +423,7 @@ const contentActions = computed(() => {
                 />
 
                 <LInput
-                    inputType="number"
+                    type="number"
                     label="Average reading Speed (words per minute)"
                     name="averageReadingSpeed"
                     v-model="editable.averageReadingSpeed"
