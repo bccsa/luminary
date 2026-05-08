@@ -88,7 +88,7 @@ const handleNotificationClick = (notification: Notification) => {
                         : undefined
                 "
                 @click.stop="() => handleNotificationClick(notification)"
-                class="flex w-3/4 items-center gap-2"
+                class="flex w-full items-center gap-2"
                 :class="{ 'cursor-pointer': notification.link }"
             >
                 <component
@@ -98,7 +98,7 @@ const handleNotificationClick = (notification: Notification) => {
                 <div class="flex flex-col md:inline-block md:align-middle">
                     <span
                         v-if="notification.title"
-                        class="text-md md:text-sm"
+                        class="text-md font-medium md:text-sm"
                         >{{ notification.title }}</span
                     >
                     <span
