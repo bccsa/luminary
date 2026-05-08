@@ -594,11 +594,6 @@ const playAudio = () => {
         addToMediaQueue(content.value);
     }
 };
-
-const readingTime = computed(() => {
-    if (!content.value || content.value.readingTime === undefined) return "-";
-    return content.value.readingTime;
-});
 </script>
 
 <template>
@@ -774,11 +769,11 @@ const readingTime = computed(() => {
                                 By {{ content.author }}
                             </div>
                             <div
-                                v-if="readingTime"
+                                v-if="content.readingTime"
                                 class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 <EyeIcon class="h-4 w-4" />
-                                {{ readingTime }}
+                                {{ content.readingTime }}
                             </div>
 
                             <div

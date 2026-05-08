@@ -63,7 +63,8 @@ const handleInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
     let val: any = target.value;
     if (target.type === "number" && val !== "") {
-        val = Number(val);
+        const parsed = parseInt(val, 10);
+        val = Number.isNaN(parsed) ? "" : parsed;
     }
     emit("update:modelValue", val);
 };

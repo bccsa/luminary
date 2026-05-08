@@ -67,7 +67,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         doc.ftsTokenCount = ftsData.ftsTokenCount;
     }
 
-    const wordCount = wordsCount(doc.text || "");
+    const wordCount = wordsCount(doc.text);
     doc.wordCount = wordCount;
 
     // Calculate reading time based on language reading speed
