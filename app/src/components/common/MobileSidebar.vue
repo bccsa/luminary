@@ -36,7 +36,7 @@ onUnmounted(() => {
         <Transition name="sidebar-slide">
             <aside
                 v-if="open"
-                class="fixed inset-y-0 right-0 z-[70] flex w-60 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-slate-700"
+                class="fixed inset-y-0 right-0 z-[70] flex w-60 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-slate-800"
                 role="dialog"
                 aria-modal="true"
             >
