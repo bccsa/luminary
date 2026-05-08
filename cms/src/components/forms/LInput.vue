@@ -38,10 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
     inputType: "input",
 });
 
-const emit = defineEmits<{
-    (event: "update:modelValue", value: string | number | null): void;
-}>();
-
+const model = defineModel<string | number | null>("modelValue");
 // Expose the focus method to parent components.
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 const focus = () => {
@@ -62,9 +59,8 @@ const autoResize = () => {
 const handleInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
     const { value, type } = target;
-    const val = type === "number" && value !== "" ? parseInt(value, 10) : value;
-
-    emit("update:modelValue", val);
+    const val =
+        type === "number" && value !== "" ? (model.value = Number(value)) : (model.value = value);
 };
 
 onMounted(() => {
