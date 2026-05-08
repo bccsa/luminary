@@ -98,7 +98,7 @@ const handleNotificationClick = (notification: Notification) => {
                 <div class="flex flex-col md:inline-block md:align-middle">
                     <span
                         v-if="notification.title"
-                        class="text-md md:text-sm"
+                        class="text-md font-medium md:text-sm"
                         >{{ notification.title }}</span
                     >
                     <span
