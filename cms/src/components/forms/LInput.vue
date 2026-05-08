@@ -59,8 +59,7 @@ const autoResize = () => {
 const handleInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
     const { value, type } = target;
-    const val =
-        type === "number" && value !== "" ? (model.value = Number(value)) : (model.value = value);
+    model.value = type === "number" && value !== "" ? Number.parseFloat(value) : value;
 };
 
 onMounted(() => {
