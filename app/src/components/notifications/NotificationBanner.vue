@@ -88,7 +88,7 @@ const handleNotificationClick = (notification: Notification) => {
                         : undefined
                 "
                 @click.stop="() => handleNotificationClick(notification)"
-                class="flex w-3/4 items-center gap-2"
+                class="flex w-full items-center gap-2"
                 :class="{ 'cursor-pointer': notification.link }"
             >
                 <component
