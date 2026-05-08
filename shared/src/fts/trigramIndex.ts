@@ -3,33 +3,24 @@ import type { Table } from "dexie";
 import { DocType, type ContentDto } from "../types";
 
 /**
- * Persisted inverted FTS index, split across two tables so common-trigram
- * filtering doesn't pay for postings deserialization:
- *
- * - `trigramStats`: tiny `{ trigram, df }` rows used to skip too-common trigrams
- *   (df > maxDocCount) before any postings are loaded.
- * - `trigramPostings`: the actual `[docId, tf]` lists, looked up only for
- *   trigrams that survive the df filter.
- *
- * Per-query lookups become a 2-phase bulkGet: stats first, then postings for
- * the survivors. Each is a B-tree page hit per trigram instead of N cursor
- * scans over the multi-entry `*fts` index.
+ * Persisted inverted FTS index keyed by trigram. Search reads this instead of
+ * running per-trigram `between(...)` queries on the multi-entry `*fts` index of
+ * `db.docs` — those queries queue behind sync's `bulkPut` writes on `docs`,
+ * and on a fresh sync that wait dominates the search latency. `trigramPostings`
+ * is updated via debounced flushes from a Dexie hook on `db.docs`, so search
+ * reads contend only with infrequent index-update writes (5 s debounce).
  */
-export type TrigramStatsRow = {
-    /** Three-character trigram, primary key. */
-    trigram: string;
-    /** Document frequency, equal to postings.length on the matching postings row. */
-    df: number;
-};
-
 export type TrigramPostingsRow = {
     /** Three-character trigram, primary key. */
     trigram: string;
-    /** [docId, tf] pairs. */
+    /** [docId, tf] pairs. df is implicit as postings.length. */
     postings: Array<[string, number]>;
 };
 
-const FLUSH_DEBOUNCE_MS = 100;
+/** 5 s of quiescence before we flush the queue, sized to coalesce a sync burst
+ *  into one write tx so search reads on `trigramPostings` aren't queued behind
+ *  a stream of small updates. Mirrors the corpus-stats debounce. */
+const FLUSH_DEBOUNCE_MS = 5_000;
 
 type PendingDocChange = { oldFts: string[]; newFts: string[] };
 
@@ -39,8 +30,50 @@ let flushChain: Promise<void> = Promise.resolve();
 let backfilled = false;
 
 /**
- * Parse an `fts` array of "trigram:tf" entries into a Map<trigram, tf>.
+ * In-memory LRU cache of loaded `ContentDto`s keyed by `_id`. Lets `ftsSearch`
+ * skip the contended `db.docs` bulkGet for docs we already loaded in a recent
+ * search (heavy overlap during incremental typing, pagination, language
+ * switch). Invalidated by the same Dexie hooks that maintain the trigram
+ * index, so a doc write evicts its cache entry before the next search runs.
  */
+const DOC_CACHE_MAX = 500;
+const docCache = new Map<string, ContentDto>();
+
+export function getCachedDoc(id: string): ContentDto | undefined {
+    const doc = docCache.get(id);
+    if (doc !== undefined) {
+        // refresh LRU recency
+        docCache.delete(id);
+        docCache.set(id, doc);
+    }
+    return doc;
+}
+
+export function cacheDocs(docs: ContentDto[]): void {
+    for (const doc of docs) {
+        if (!doc._id) continue;
+        docCache.set(doc._id, doc);
+    }
+    while (docCache.size > DOC_CACHE_MAX) {
+        const oldest = docCache.keys().next().value;
+        if (oldest === undefined) break;
+        docCache.delete(oldest);
+    }
+}
+
+export function invalidateCachedDoc(id: string): void {
+    docCache.delete(id);
+}
+
+/**
+ * Subset of the Database we touch — keeps this module decoupled from the
+ * concrete Database class to avoid a circular import.
+ */
+export interface TrigramDb extends Dexie {
+    docs: Table<any>;
+    trigramPostings: Table<TrigramPostingsRow, string>;
+}
+
 function parseFtsArray(fts: readonly string[]): Map<string, number> {
     const out = new Map<string, number>();
     for (const entry of fts) {
@@ -55,9 +88,8 @@ function parseFtsArray(fts: readonly string[]): Map<string, number> {
 }
 
 /**
- * Record a doc-level change in the pending queue. Coalesces multiple changes
- * to the same doc within a flush window: keeps the original committed state
- * as `oldFts` and overwrites `newFts` with the latest target state.
+ * Coalesce multiple changes to the same doc within one flush window: keep the
+ * original committed state as `oldFts` and overwrite `newFts` with the latest.
  */
 function recordChange(docId: string, oldFts: string[], newFts: string[]): void {
     const existing = pendingChanges.get(docId);
@@ -69,7 +101,9 @@ function recordChange(docId: string, oldFts: string[], newFts: string[]): void {
 }
 
 function scheduleFlush(db: TrigramDb): void {
-    if (flushTimer !== undefined) return;
+    // Reset on every change so the flush only fires after the write stream
+    // has been quiet for FLUSH_DEBOUNCE_MS — i.e. after sync settles.
+    if (flushTimer !== undefined) clearTimeout(flushTimer);
     flushTimer = setTimeout(() => {
         flushTimer = undefined;
         flushPendingTrigramChanges(db).catch((err) => {
@@ -79,21 +113,8 @@ function scheduleFlush(db: TrigramDb): void {
 }
 
 /**
- * Subset of the Database we touch — keeps this module decoupled from the
- * concrete Database class to avoid a circular import.
- */
-export interface TrigramDb extends Dexie {
-    docs: Table<any>;
-    trigramStats: Table<TrigramStatsRow, string>;
-    trigramPostings: Table<TrigramPostingsRow, string>;
-    luminaryInternals: Table<{ id: string; value: any }, string>;
-}
-
-/**
- * Apply queued doc-level changes to the trigram tables in one batched
- * read-modify-write. Concurrent callers serialize via `flushChain`, so the
- * latest call always sees a consistent state. Cancels any pending debounce
- * timer so callers (e.g. ftsSearch) can drain on demand.
+ * Apply queued doc-level changes to `trigramPostings` in one batched
+ * read-modify-write. Concurrent callers serialize via `flushChain`.
  */
 export function flushPendingTrigramChanges(db: TrigramDb): Promise<void> {
     if (flushTimer !== undefined) {
@@ -106,7 +127,6 @@ export function flushPendingTrigramChanges(db: TrigramDb): Promise<void> {
 
 async function doFlush(db: TrigramDb): Promise<void> {
     if (pendingChanges.size === 0) return;
-
     const changes = pendingChanges;
     pendingChanges = new Map();
 
@@ -116,7 +136,6 @@ async function doFlush(db: TrigramDb): Promise<void> {
     changes.forEach(({ oldFts, newFts }, docId) => {
         const oldMap = parseFtsArray(oldFts);
         const newMap = parseFtsArray(newFts);
-
         oldMap.forEach((_tf, trigram) => {
             if (!newMap.has(trigram)) {
                 let ops = trigramOps.get(trigram);
@@ -138,20 +157,17 @@ async function doFlush(db: TrigramDb): Promise<void> {
     });
 
     if (trigramOps.size === 0) return;
+    const touched = Array.from(trigramOps.keys());
 
-    const touched: string[] = [];
-    trigramOps.forEach((_ops, trigram) => touched.push(trigram));
-
-    await db.transaction("rw", db.trigramStats, db.trigramPostings, async () => {
-        const postingsRows = await db.trigramPostings.bulkGet(touched);
-        const postingUpdates: TrigramPostingsRow[] = [];
-        const statsUpdates: TrigramStatsRow[] = [];
+    await db.transaction("rw", db.trigramPostings, async () => {
+        const existingRows = await db.trigramPostings.bulkGet(touched);
+        const upserts: TrigramPostingsRow[] = [];
         const deletes: string[] = [];
 
         for (let i = 0; i < touched.length; i++) {
             const trigram = touched[i];
             const ops = trigramOps.get(trigram)!;
-            const existing = postingsRows[i];
+            const existing = existingRows[i];
 
             const postingsMap = new Map<string, number>();
             if (existing) {
@@ -170,31 +186,25 @@ async function doFlush(db: TrigramDb): Promise<void> {
             } else {
                 const postings: Array<[string, number]> = [];
                 postingsMap.forEach((tf, docId) => postings.push([docId, tf]));
-                postingUpdates.push({ trigram, postings });
-                statsUpdates.push({ trigram, df: postings.length });
+                upserts.push({ trigram, postings });
             }
         }
 
-        if (deletes.length > 0) {
-            await db.trigramPostings.bulkDelete(deletes);
-            await db.trigramStats.bulkDelete(deletes);
-        }
-        if (postingUpdates.length > 0) {
-            await db.trigramPostings.bulkPut(postingUpdates);
-            await db.trigramStats.bulkPut(statsUpdates);
-        }
+        if (deletes.length > 0) await db.trigramPostings.bulkDelete(deletes);
+        if (upserts.length > 0) await db.trigramPostings.bulkPut(upserts);
     });
 }
 
 /**
  * Install Dexie hooks on the docs table that record fts-affecting changes
- * into the pending queue. The hooks fire for any write source (sync, manual
- * upsert, deleteRevoked, etc.) so the index stays consistent without needing
- * each call site to know about the trigram tables.
+ * into the pending queue. Hooks fire for any write source (sync, manual
+ * upsert, deleteRevoked, etc.) so the index stays consistent without each
+ * call site needing to know about `trigramPostings`.
  */
 export function installTrigramHooks(db: TrigramDb): void {
     db.docs.hook("creating", (_pk, obj) => {
         if (!obj || obj.type !== DocType.Content) return;
+        invalidateCachedDoc(obj._id);
         const fts = (obj as ContentDto).fts;
         if (!Array.isArray(fts) || fts.length === 0) return;
         recordChange(obj._id, [], fts);
@@ -204,6 +214,8 @@ export function installTrigramHooks(db: TrigramDb): void {
     db.docs.hook("updating", (mods, _pk, obj) => {
         if (!obj) return;
         const after = { ...obj, ...(mods as object) } as ContentDto;
+        const id = after._id ?? (obj as any)._id;
+        if (id) invalidateCachedDoc(id);
         const isContentNow = after.type === DocType.Content;
         const wasContent = (obj as any).type === DocType.Content;
         if (!isContentNow && !wasContent) return;
@@ -213,12 +225,14 @@ export function installTrigramHooks(db: TrigramDb): void {
                 : [];
         const newFts = isContentNow && Array.isArray(after.fts) ? (after.fts as string[]) : [];
         if (oldFts.length === 0 && newFts.length === 0) return;
-        recordChange(after._id ?? (obj as any)._id, oldFts, newFts);
+        recordChange(id, oldFts, newFts);
         scheduleFlush(db);
     });
 
     db.docs.hook("deleting", (_pk, obj) => {
-        if (!obj || obj.type !== DocType.Content) return;
+        if (!obj) return;
+        if (obj._id) invalidateCachedDoc(obj._id);
+        if (obj.type !== DocType.Content) return;
         const fts = (obj as ContentDto).fts;
         if (!Array.isArray(fts) || fts.length === 0) return;
         recordChange(obj._id, fts, []);
@@ -227,13 +241,12 @@ export function installTrigramHooks(db: TrigramDb): void {
 }
 
 /**
- * Build the trigram tables from scratch by scanning every Content doc.
- * Used on first run after the schema upgrade and as a recovery if the index
- * gets out of sync.
+ * Build `trigramPostings` from scratch by scanning every Content doc's fts
+ * array. Used on first run after the schema upgrade. Pure rearrangement of
+ * existing data — no `stripHtml` / `normalizeText` needed.
  */
 export async function backfillTrigramIndex(db: TrigramDb): Promise<void> {
-    // (trigram → docId → tf)
-    const accum = new Map<string, Map<string, number>>();
+    const accum = new Map<string, Map<string, number>>(); // trigram → docId → tf
 
     await db.docs
         .where("type")
@@ -257,49 +270,50 @@ export async function backfillTrigramIndex(db: TrigramDb): Promise<void> {
             }
         });
 
-    const postingsRows: TrigramPostingsRow[] = [];
-    const statsRows: TrigramStatsRow[] = [];
+    const rows: TrigramPostingsRow[] = [];
     accum.forEach((postingsMap, trigram) => {
         const postings: Array<[string, number]> = [];
         postingsMap.forEach((tf, docId) => postings.push([docId, tf]));
-        postingsRows.push({ trigram, postings });
-        statsRows.push({ trigram, df: postings.length });
+        rows.push({ trigram, postings });
     });
 
-    await db.transaction("rw", db.trigramStats, db.trigramPostings, async () => {
+    await db.transaction("rw", db.trigramPostings, async () => {
         await db.trigramPostings.clear();
-        await db.trigramStats.clear();
-        if (postingsRows.length > 0) {
-            await db.trigramPostings.bulkPut(postingsRows);
-            await db.trigramStats.bulkPut(statsRows);
-        }
+        if (rows.length > 0) await db.trigramPostings.bulkPut(rows);
     });
 
     backfilled = true;
 }
 
 /**
- * Run a backfill if the trigram tables are empty but content docs exist.
- * Called from initDatabase; safe to call repeatedly (no-op once populated).
+ * Run a backfill if `trigramPostings` is empty but content docs exist. Called
+ * from `initDatabase` (background, non-awaited); safe to call repeatedly.
  */
 export async function ensureTrigramIndexBuilt(db: TrigramDb): Promise<void> {
     if (backfilled) return;
-    const statsCount = await db.trigramStats.count();
-    if (statsCount > 0) {
+    const count = await db.trigramPostings.count();
+    if (count > 0) {
         backfilled = true;
         return;
     }
     const hasContent = await db.docs.where("type").equals(DocType.Content).first();
     if (!hasContent) {
-        backfilled = true; // nothing to build yet; hooks will populate as docs arrive
+        backfilled = true; // nothing to build yet; hooks will populate as docs arrive.
         return;
     }
     await backfillTrigramIndex(db);
 }
 
 /**
- * Reset module-level state. Used by tests between cases.
+ * True once the backfill has populated `trigramPostings`. Searches before
+ * this returns true must fall through to the multi-entry-index path on
+ * `db.docs` to avoid returning empty results during the brief startup window.
  */
+export function isTrigramIndexReady(): boolean {
+    return backfilled;
+}
+
+/** Reset module-level state. Used by tests between cases. */
 export function resetTrigramIndexState(): void {
     pendingChanges = new Map();
     if (flushTimer !== undefined) {
@@ -308,5 +322,5 @@ export function resetTrigramIndexState(): void {
     }
     flushChain = Promise.resolve();
     backfilled = false;
+    docCache.clear();
 }
-

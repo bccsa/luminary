@@ -1,7 +1,7 @@
 import { db } from "../db/database";
 import { generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
 import { getCorpusStats } from "./ftsIndexer";
-import { flushPendingTrigramChanges } from "./trigramIndex";
+import { cacheDocs, getCachedDoc, isTrigramIndexReady } from "./trigramIndex";
 import type { FtsFieldConfig, FtsSearchOptions, FtsSearchResult } from "./types";
 import type { ContentDto } from "../types";
 
@@ -24,6 +24,37 @@ const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "author", boost: 1.0 },
 ];
 
+// LRU cache of per-doc normalized word sets.
+// stripHtml + normalizeText dominate word-match scoring cost; they depend only on
+// the doc's field content, so cache across queries and invalidate on edit via
+// `updatedTimeUtc` in the key.
+const WORD_SET_CACHE_MAX = 500;
+const wordSetCache = new Map<string, Record<string, Set<string>>>();
+
+function getWordSets(doc: ContentDto, fields: FtsFieldConfig[]): Record<string, Set<string>> {
+    const key = `${doc._id}:${doc.updatedTimeUtc}`;
+    const cached = wordSetCache.get(key);
+    if (cached) {
+        wordSetCache.delete(key);
+        wordSetCache.set(key, cached);
+        return cached;
+    }
+    const sets: Record<string, Set<string>> = {};
+    const docRec = doc as Record<string, any>;
+    for (const field of fields) {
+        const value = docRec[field.name];
+        if (typeof value !== "string" || !value) continue;
+        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
+        sets[field.name] = new Set(text.split(" "));
+    }
+    wordSetCache.set(key, sets);
+    if (wordSetCache.size > WORD_SET_CACHE_MAX) {
+        const oldest = wordSetCache.keys().next().value;
+        if (oldest !== undefined) wordSetCache.delete(oldest);
+    }
+    return sets;
+}
+
 /**
  * Compute a boost-weighted word match score across fields.
  * For each field, counts how many query words appear as full words,
@@ -31,15 +62,13 @@ const FTS_FIELDS: FtsFieldConfig[] = [
  */
 function computeFieldWordMatchScore(
     queryWords: string[],
-    doc: Record<string, any>,
+    wordSets: Record<string, Set<string>>,
     fields: FtsFieldConfig[],
 ): number {
     let totalScore = 0;
     for (const field of fields) {
-        const value = doc[field.name];
-        if (typeof value !== "string" || !value) continue;
-        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
-        const docWords = new Set(text.split(" "));
+        const docWords = wordSets[field.name];
+        if (!docWords) continue;
         let matches = 0;
         for (const word of queryWords) {
             if (docWords.has(word)) matches++;
@@ -52,12 +81,8 @@ function computeFieldWordMatchScore(
 }
 
 /**
- * Perform a full-text search using BM25 scoring against the persisted trigram
- * inverted index (`trigramStats` + `trigramPostings` tables).
- *
- * All four IDB reads (corpus stats, trigram stats, trigram postings, candidate
- * docs) run inside a single readonly transaction so we pay the transaction
- * setup cost once per search rather than four times.
+ * Perform a full-text search using BM25 scoring via the MultiEntry index on docs.
+ * Trigram lookups use `between(trigram + ":", trigram + ";")` on the `*fts` index.
  */
 export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
     const {
@@ -75,172 +100,149 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     const tTrigrams = performance.now();
     if (trigrams.length === 0) return [];
 
-    // Drain any queued trigram-index writes outside the readonly transaction
-    // (writes can't run inside `r` mode). No-op when nothing's pending.
-    await flushPendingTrigramChanges(db);
-    const tFlush = performance.now();
+    // Each `await` below is its own implicit IDB tx scoped to just the
+    // store(s) it touches. Narrow scopes get granted faster: trigramPostings
+    // doesn't have to wait for sync's writes on `db.docs`, and the docs read
+    // only enters that contention once we actually need it. Wider single-tx
+    // wrappers ended up *slower* in practice because the broader scope means
+    // the whole transaction starves until `db.docs` writers clear before any
+    // read inside can run.
+    const corpusStats = await getCorpusStats();
+    const tCorpusStats = performance.now();
+    const N = corpusStats.docCount;
+    if (N === 0) return [];
+    const avgdl = corpusStats.totalTokenCount / N;
+    const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
 
-    type UsableTrigram = {
+    // Step 1: trigram → docIds (and tf on the fast path).
+    const fastPath = isTrigramIndexReady();
+    type TrigramHit = {
         token: string;
-        df: number;
         ids: string[];
-        tfByDoc: Map<string, number>;
+        /** Per-doc tf for this trigram. Only populated on the fast path. */
+        tfByDoc?: Map<string, number>;
     };
-
-    type ReadResult = {
-        N: number;
-        avgdl: number;
-        usableTrigrams: UsableTrigram[];
-        docMap: Map<string, ContentDto>;
-    } | null;
-
-    const phaseTimes = {
-        corpusStats: 0,
-        statsBulkGet: 0,
-        postingsBulkGet: 0,
-        postingsParse: 0,
-        coarseRank: 0,
-        docsLoad: 0,
-        usableTrigramCount: 0,
-        candidateCount: 0,
-        statsRowCount: 0,
-        postingsRowCount: 0,
-        docsLoaded: 0,
-    };
-
-    const tTxStart = performance.now();
-    const reads: ReadResult = await db.transaction(
-        "r",
-        [db.luminaryInternals, db.trigramStats, db.trigramPostings, db.docs],
-        async () => {
-            // 1. Corpus stats (uses parent transaction via Dexie.currentTransaction)
-            const tA = performance.now();
-            const corpusStats = await getCorpusStats();
-            phaseTimes.corpusStats = performance.now() - tA;
-            const N = corpusStats.docCount;
-            if (N === 0) return null;
-            const avgdl = corpusStats.totalTokenCount / N;
-            const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
-
-            // 2. Stats: tiny rows used to skip common trigrams (df > maxDocCount)
-            //    before paying for any postings deserialization.
-            const tB = performance.now();
-            const statsRows = await db.trigramStats.bulkGet(trigrams);
-            phaseTimes.statsBulkGet = performance.now() - tB;
-            phaseTimes.statsRowCount = statsRows.filter(Boolean).length;
-            const usableTokens: string[] = [];
-            const usableDfs: number[] = [];
-            for (let i = 0; i < trigrams.length; i++) {
-                const stats = statsRows[i];
-                if (!stats || stats.df === 0 || stats.df > maxDocCount) continue;
-                usableTokens.push(trigrams[i]);
-                usableDfs.push(stats.df);
+    let trigramResults: TrigramHit[];
+    if (fastPath) {
+        const rows = await db.trigramPostings.bulkGet(trigrams);
+        trigramResults = trigrams.map((token, i) => {
+            const row = rows[i];
+            if (!row) return { token, ids: [] };
+            const ids: string[] = new Array(row.postings.length);
+            const tfByDoc = new Map<string, number>();
+            for (let j = 0; j < row.postings.length; j++) {
+                const [docId, tf] = row.postings[j];
+                ids[j] = docId;
+                tfByDoc.set(docId, tf);
             }
-            if (usableTokens.length === 0) return null;
-
-            // 3. Postings: load full posting lists only for usable trigrams.
-            const tC = performance.now();
-            const postingsRows = await db.trigramPostings.bulkGet(usableTokens);
-            phaseTimes.postingsBulkGet = performance.now() - tC;
-            phaseTimes.postingsRowCount = postingsRows.filter(Boolean).length;
-            const tCParse = performance.now();
-            const usableTrigrams: UsableTrigram[] = [];
-            for (let k = 0; k < usableTokens.length; k++) {
-                const row = postingsRows[k];
-                if (!row) continue;
-                const tfByDoc = new Map<string, number>();
-                const ids: string[] = new Array(row.postings.length);
-                for (let j = 0; j < row.postings.length; j++) {
-                    const [docId, tf] = row.postings[j];
-                    ids[j] = docId;
-                    tfByDoc.set(docId, tf);
-                }
-                usableTrigrams.push({
-                    token: usableTokens[k],
-                    df: usableDfs[k],
-                    ids,
-                    tfByDoc,
-                });
-            }
-            phaseTimes.postingsParse = performance.now() - tCParse;
-            phaseTimes.usableTrigramCount = usableTrigrams.length;
-            if (usableTrigrams.length === 0) return null;
-
-            // Coarse-rank by Σ idf over matched trigrams to pick a page window.
-            const tD = performance.now();
-            const idfMap = new Map<string, number>();
-            for (const { token, df } of usableTrigrams) {
-                idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
-            }
-            const coarseScore = new Map<string, number>();
-            for (const { token, ids } of usableTrigrams) {
-                const idf = idfMap.get(token)!;
-                for (const id of ids) {
-                    coarseScore.set(id, (coarseScore.get(id) || 0) + idf);
-                }
-            }
-            const ranked = Array.from(coarseScore.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([id]) => id);
-            const candidateIds = ranked.slice(offset, offset + limit + 50);
-            phaseTimes.coarseRank = performance.now() - tD;
-            phaseTimes.candidateCount = candidateIds.length;
-            if (candidateIds.length === 0) return null;
-
-            // 4. Load candidate docs. When a languageId is provided, use the
-            //    compound `[language+_id]` index so wrong-language candidates
-            //    miss at the IDB layer — no row read, no structured-clone
-            //    deserialization for docs we'd discard anyway.
-            const tE = performance.now();
-            const loadedDocs = languageId
-                ? await db.docs
-                      .where("[language+_id]")
-                      .anyOf(candidateIds.map((id) => [languageId, id]))
-                      .toArray()
-                : await db.docs.where("_id").anyOf(candidateIds).toArray();
-            const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
-            phaseTimes.docsLoad = performance.now() - tE;
-            phaseTimes.docsLoaded = loadedDocs.length;
-
-            return { N, avgdl, usableTrigrams, docMap };
-        },
-    );
-    const tTxEnd = performance.now();
-
-    if (!reads) {
-        const tEnd = performance.now();
-        console.log("[ftsSearch]", {
-            query,
-            trigramCount: trigrams.length,
-            total_ms: +(tEnd - t0).toFixed(2),
-            trigramGen_ms: +(tTrigrams - t0).toFixed(2),
-            flush_ms: +(tFlush - tTrigrams).toFixed(2),
-            tx_total_ms: +(tTxEnd - tTxStart).toFixed(2),
-            ...phaseTimes,
-            note: "no results",
+            return { token, ids, tfByDoc };
         });
-        return [];
+    } else {
+        // Fallback path runs parallel multi-entry-index queries on `db.docs`
+        // while the backfill is still building `trigramPostings` after a
+        // fresh install. `tf` not available here.
+        trigramResults = await Promise.all(
+            trigrams.map(async (trigram) => {
+                const ids = (await db.docs
+                    .where("fts")
+                    .between(trigram + ":", trigram + ";", true, false)
+                    .primaryKeys()) as string[];
+                return { token: trigram, ids };
+            }),
+        );
     }
-    const { N, avgdl, usableTrigrams, docMap } = reads;
+    const tTrigramLookup = performance.now();
 
-    // Pure-JS work below — no IDB.
-    const tBm25Start = performance.now();
+    const usableTrigrams: Array<{ token: string; df: number; tfByDoc?: Map<string, number> }> = [];
+    for (const hit of trigramResults) {
+        if (hit.ids.length > maxDocCount) continue;
+        usableTrigrams.push({ token: hit.token, df: hit.ids.length, tfByDoc: hit.tfByDoc });
+    }
+    if (usableTrigrams.length === 0) return [];
+
+    // Step 2: IDF + coarse-rank from postings alone — no doc loads. Score per
+    // doc is Σ idf*tf (fast path) or Σ idf (fallback). +20 buffer absorbs
+    // reranking by full BM25 / word-match within the loaded window.
+    const tCoarseStart = performance.now();
     const idfMap = new Map<string, number>();
     for (const { token, df } of usableTrigrams) {
         idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
     }
+    const coarseScore = new Map<string, number>();
+    for (const hit of trigramResults) {
+        if (hit.ids.length > maxDocCount) continue;
+        const idf = idfMap.get(hit.token)!;
+        if (hit.tfByDoc) {
+            for (const id of hit.ids) {
+                const tf = hit.tfByDoc.get(id) ?? 1;
+                coarseScore.set(id, (coarseScore.get(id) || 0) + idf * tf);
+            }
+        } else {
+            for (const id of hit.ids) {
+                coarseScore.set(id, (coarseScore.get(id) || 0) + idf);
+            }
+        }
+    }
+    const matchedCount = coarseScore.size;
+    const ranked = Array.from(coarseScore.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => id);
+    const candidateIds = ranked.slice(0, offset + limit + 20);
+    const tCoarseEnd = performance.now();
+    if (candidateIds.length === 0) return [];
 
+    // Step 3: hydrate. Cache hits skip IDB; only `bulkGet` the misses. The
+    // implicit tx here is scoped to just `db.docs`.
+    const tDocsLoadStart = performance.now();
+    const docMap = new Map<string, ContentDto>();
+    const missingIds: string[] = [];
+    for (const id of candidateIds) {
+        const cached = getCachedDoc(id);
+        if (cached) docMap.set(id, cached);
+        else missingIds.push(id);
+    }
+    let loadedFromIdb = 0;
+    if (missingIds.length > 0) {
+        const loadedDocs = languageId
+            ? await db.docs
+                  .where("[language+_id]")
+                  .anyOf(missingIds.map((id) => [languageId, id]))
+                  .toArray()
+            : await db.docs.where("_id").anyOf(missingIds).toArray();
+        loadedFromIdb = loadedDocs.length;
+        for (const d of loadedDocs) docMap.set(d._id, d as ContentDto);
+        cacheDocs(loadedDocs as ContentDto[]);
+    }
+    const tDocsLoadEnd = performance.now();
+
+    // Step 5: Build per-doc trigram→tf map from fts array, compute BM25.
+    // (Pure JS — no IDB. Outside the readonly tx.)
+    const tBm25Start = performance.now();
+    const usableTokens = new Set(usableTrigrams.map((t) => t.token));
     const results: FtsSearchResult[] = [];
+
     docMap.forEach((doc, docId) => {
+        const tfMap = new Map<string, number>();
+        if (doc.fts) {
+            for (const entry of doc.fts) {
+                const colonIdx = entry.indexOf(":", 3); // token is always 3 chars
+                const token = entry.substring(0, colonIdx);
+                if (usableTokens.has(token)) {
+                    tfMap.set(token, parseFloat(entry.substring(colonIdx + 1)));
+                }
+            }
+        }
+
         const dl = doc.ftsTokenCount || 1;
         let score = 0;
-        for (const t of usableTrigrams) {
-            const tf = t.tfByDoc.get(docId) || 0;
+        for (const { token } of usableTrigrams) {
+            const tf = tfMap.get(token) || 0;
             if (tf === 0) continue;
-            const idf = idfMap.get(t.token)!;
+            const idf = idfMap.get(token)!;
             score +=
                 idf * ((tf * (bm25k1 + 1)) / (tf + bm25k1 * (1 - bm25b + bm25b * (dl / avgdl))));
         }
+
         results.push({ docId, score, wordMatchScore: 0, doc });
     });
     const tBm25End = performance.now();
@@ -254,20 +256,15 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
             const doc = docMap.get(result.docId);
             if (!doc) continue;
 
-            const wordMatchBonus = computeFieldWordMatchScore(
-                queryWords,
-                doc as Record<string, any>,
-                FTS_FIELDS,
-            );
+            const wordSets = getWordSets(doc, FTS_FIELDS);
+            const wordMatchBonus = computeFieldWordMatchScore(queryWords, wordSets, FTS_FIELDS);
             result.wordMatchScore = wordMatchBonus;
             result.score += wordMatchBonus;
         }
     }
     const tWordMatchEnd = performance.now();
 
-    // Step 7: Sort by combined score desc, then word match desc.
-    // `results` already represents the page window (Step 3 sliced ranked candidates by
-    // [offset, offset+limit+50]), so we just take the first `limit` after re-sorting.
+    // Step 7: Sort by combined score desc, then word match desc
     results.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
         return b.wordMatchScore - a.wordMatchScore;
@@ -277,29 +274,23 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     console.log("[ftsSearch]", {
         query,
         trigramCount: trigrams.length,
+        path: fastPath ? "trigramPostings" : "multiEntryFallback",
         total_ms: +(tEnd - t0).toFixed(2),
         trigramGen_ms: +(tTrigrams - t0).toFixed(2),
-        flush_ms: +(tFlush - tTrigrams).toFixed(2),
-        tx_total_ms: +(tTxEnd - tTxStart).toFixed(2),
-        // Inside-tx phases:
-        corpusStats_ms: +phaseTimes.corpusStats.toFixed(2),
-        statsBulkGet_ms: +phaseTimes.statsBulkGet.toFixed(2),
-        postingsBulkGet_ms: +phaseTimes.postingsBulkGet.toFixed(2),
-        postingsParse_ms: +phaseTimes.postingsParse.toFixed(2),
-        coarseRank_ms: +phaseTimes.coarseRank.toFixed(2),
-        docsLoad_ms: +phaseTimes.docsLoad.toFixed(2),
-        // Post-tx phases:
+        corpusStats_ms: +(tCorpusStats - tTrigrams).toFixed(2),
+        trigramLookup_ms: +(tTrigramLookup - tCorpusStats).toFixed(2),
+        coarseRank_ms: +(tCoarseEnd - tCoarseStart).toFixed(2),
+        docsLoad_ms: +(tDocsLoadEnd - tDocsLoadStart).toFixed(2),
         bm25_ms: +(tBm25End - tBm25Start).toFixed(2),
         wordMatch_ms: +(tWordMatchEnd - tBm25End).toFixed(2),
         sort_ms: +(tEnd - tWordMatchEnd).toFixed(2),
-        // Counts (sanity-check what was loaded):
-        statsHit: phaseTimes.statsRowCount,
-        postingsHit: phaseTimes.postingsRowCount,
-        usableTrigrams: phaseTimes.usableTrigramCount,
-        candidates: phaseTimes.candidateCount,
-        docsLoaded: phaseTimes.docsLoaded,
+        usableTrigrams: usableTrigrams.length,
+        matchedDocs: matchedCount,
+        candidates: candidateIds.length,
+        docsCached: candidateIds.length - loadedFromIdb,
+        docsLoaded: loadedFromIdb,
         results: results.length,
     });
 
-    return results.slice(0, limit);
+    return results.slice(offset, offset + limit);
 }

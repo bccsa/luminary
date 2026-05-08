@@ -274,9 +274,9 @@ watch(
             return;
         }
 
-        // FTS already loaded these docs during scoring — reuse via `result.doc` and
-        // only fall back to a DB lookup for results that arrive without one (e.g.
-        // test fixtures or older callers).
+        // FTS already loaded these docs during scoring — reuse via `result.doc`
+        // and only fall back to a DB lookup for results that arrive without
+        // one (e.g. test fixtures or older callers).
         const docMap = new Map<string, ContentDto>();
         const langIds = new Set<string>();
         const missingIds: string[] = [];
