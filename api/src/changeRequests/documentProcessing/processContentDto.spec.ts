@@ -301,13 +301,17 @@ describe("processContentDto", () => {
         expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
     });
 
-    it("can calculate the estimated reading time using", async () => {
+    it("can calculate the estimated reading time using a custom language reading speed", async () => {
         // Create a language with a different reading speed
         await db.upsertDoc({
             _id: "lang-test-speed",
             type: "language",
+            languageCode: "lts",
+            name: "Test Speed Language",
+            memberOf: ["group-languages"],
             averageReadingSpeed: 100,
-        });
+            translations: {},
+        } as any);
 
         // Create a sample text with 300 words
         const sampleText = Array(300).fill("word").join(" ");
