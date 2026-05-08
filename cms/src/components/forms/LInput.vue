@@ -59,6 +59,15 @@ const autoResize = () => {
     }
 };
 
+const handleInput = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    let val: any = target.value;
+    if (target.type === "number" && val !== "") {
+        val = Number(val);
+    }
+    emit("update:modelValue", val);
+};
+
 onMounted(() => {
     if (isTextarea.value) autoResize();
 });
@@ -131,16 +140,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
-                @input="
-                    (e: Event) => {
-                        const target = e.target as HTMLInputElement;
-                        let val: any = target.value;
-                        if (target.type === 'number' && val !== '') {
-                            val = Number(val);
-                        }
-                        emit('update:modelValue', val);
-                    }
-                "
+                @input="handleInput"
                 :class="[
                     sizes[size],
                     states[computedState],
