@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -30,6 +30,7 @@ export class LanguageDto extends _contentBaseDto {
 
     @IsOptional()
     @IsInt()
+    @Min(1)
     @Expose()
     averageReadingSpeed?: number;
 }

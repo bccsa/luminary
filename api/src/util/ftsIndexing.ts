@@ -154,7 +154,7 @@ export function stripHtml(html: string): string {
 }
 
 /**
- * Calculate the estimated reading time for a given text (in minutes).
+ * Calculate the number of words in a string by stripping HTML and splitting on whitespace.
  */
 export function wordsCount(text: string): number {
     const strippedText = stripHtml(text).trim();
