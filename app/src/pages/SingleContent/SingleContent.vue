@@ -780,6 +780,7 @@ const playAudio = () => {
                                         <PencilIcon class="h-5 w-5" />
                                     </button>
                                 </div>
+                                <div class="flex justify-center gap-4">{{ LiveUrl }}</div>
                                 <div class="flex justify-center gap-4">
                                     <div
                                         @click="toggleBookmark"
