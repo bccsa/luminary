@@ -41,6 +41,7 @@ const FTS_FIELDS: FtsFieldConfig[] = [
 export type FtsData = {
     fts: string[];
     ftsTokenCount: number;
+    wordCount: number;
 };
 
 // ── HTML stripping ──────────────────────────────────────────────────────────
@@ -153,15 +154,6 @@ export function stripHtml(html: string): string {
     return result.join("");
 }
 
-/**
- * Calculate the number of words in a string by stripping HTML and splitting on whitespace.
- */
-export function wordsCount(text: string): number {
-    const strippedText = stripHtml(text).trim();
-    if (!strippedText) return 0;
-    return strippedText.split(/\s+/).length;
-}
-
 // ── Text normalization ──────────────────────────────────────────────────────
 
 /**
@@ -241,5 +233,9 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
 
     const fts: string[] = Array.from(aggregatedTf.entries()).map(([token, tf]) => token + ":" + tf);
 
-    return { fts, ftsTokenCount: totalTokenCount };
+    // Compute word count for reading time estimation (strip HTML and split on whitespace)
+    const combinedContent = `${doc.summary} ${stripHtml(doc.text)}`.trim();
+    const wordCount = combinedContent.split(/\s+/).length;
+
+    return { fts, ftsTokenCount: totalTokenCount, wordCount };
 }

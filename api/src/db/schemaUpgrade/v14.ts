@@ -1,6 +1,6 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
-import { wordsCount } from "../../util/ftsIndexing";
+import { computeFtsData } from "../../util/ftsIndexing";
 
 export default async function (db: DbService) {
     try {
@@ -29,7 +29,7 @@ export default async function (db: DbService) {
             await db.processAllDocs([DocType.Content], async (doc: any) => {
                 if (!doc) return;
 
-                const newWordCount = wordsCount(doc.text || "");
+                const newWordCount = computeFtsData(doc).wordCount;
 
                 if (!readingSpeeds.has(doc.language)) {
                     contentsWithoutLanguage++;

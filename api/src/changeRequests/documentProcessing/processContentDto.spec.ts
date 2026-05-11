@@ -8,7 +8,7 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
-import { wordsCount } from "../../util/ftsIndexing";
+import { computeFtsData } from "../../util/ftsIndexing";
 
 describe("processContentDto", () => {
     let db: DbService;
@@ -315,7 +315,7 @@ describe("processContentDto", () => {
 
         // Create a sample text with 300 words
         const sampleText = Array(300).fill("word").join(" ");
-        const expectedWordCount = wordsCount(sampleText);
+        const expectedWordCount = computeFtsData({ text: sampleText }).wordCount;
 
         // Create a content document with the sample text
         const changeRequest = changeRequest_content();
