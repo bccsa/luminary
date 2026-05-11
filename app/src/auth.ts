@@ -77,6 +77,21 @@ export async function resolveActiveProvider(): Promise<AuthProviderDto | null> {
     return (doc as AuthProviderDto) ?? null;
 }
 
+/**
+ * Read the clientId out of Auth0's localStorage cache key, without touching
+ * IndexedDB. Returns null when there is no Auth0 cache present.
+ */
+function findActiveAuth0ClientId(): string | null {
+    if (typeof localStorage === "undefined") return null;
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(AUTH0_CACHE_PREFIX)) continue;
+        const clientId = key.slice(AUTH0_CACHE_PREFIX.length).split("::")[0] || null;
+        if (clientId) return clientId;
+    }
+    return null;
+}
+
 function buildAuth0Options(p: ProviderConfig) {
     return {
         domain: p.domain,
@@ -105,10 +120,27 @@ let installedOauth: ReturnType<typeof createAuth0> | null = null;
 export async function setupAuth(app: App<Element>, router: Router): Promise<void> {
     const provider = await resolveActiveProvider();
     if (!provider) {
-        // Auth0 cache keys from a deleted provider (or a session that predates
-        // the provider doc landing in Dexie) will linger in localStorage
-        // forever without this — no other path cleans them up for a cold start.
-        clearAuth0Cache();
+        // We used to clearAuth0Cache() here to evict stale cache keys from a
+        // deleted provider. That conflates "Dexie doesn't have a matching
+        // AuthProvider doc right now" with "the user has no session," which
+        // is wrong when IndexedDB and localStorage have been evicted on
+        // different schedules (issue #1606 — suspected on iOS Safari but
+        // unconfirmed). Capture the orphan-cache state so we can tell from
+        // production whether the iOS-eviction hypothesis actually fires;
+        // otherwise leave the cache in place — the server-side
+        // `provider_not_found` connect_error path will wipe it if the
+        // provider really is gone.
+        const orphanClientId = findActiveAuth0ClientId();
+        if (orphanClientId) {
+            Sentry?.captureMessage(
+                "Auth bootstrap: Auth0 cache key present but no matching AuthProvider doc in Dexie",
+                {
+                    level: "warning",
+                    tags: { area: "auth", issue: "1606" },
+                    extra: { clientId: orphanClientId },
+                },
+            );
+        }
         return;
     }
 
