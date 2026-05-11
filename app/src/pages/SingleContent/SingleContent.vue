@@ -98,7 +98,7 @@ const defaultContent: ContentDto = {
 
 const content = ref<ContentDto | undefined>(defaultContent);
 
-const LiveUrl = computed(() => {
+const liveUrl = computed(() => {
     if (!content.value || !selectedLanguageCode.value) return "";
 
     const docType = content.value.parentType;
@@ -106,19 +106,23 @@ const LiveUrl = computed(() => {
     const id = content.value.parentId;
     const lang = selectedLanguageCode.value;
     const baseUrl = cmsUrl.value;
+    const url = baseUrl
+        ? `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`
+        : "http://localhost";
 
-    return `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`;
+    return url;
 });
 
 const openCmsEditor = () => {
-    if (LiveUrl.value) {
-        window.open(LiveUrl.value, "_blank");
+    if (liveUrl.value) {
+        window.open(liveUrl.value, "_blank");
     }
 };
 
 const canEdit = computed(() => {
     if (!content.value) return false;
-    return verifyAccess(content.value.memberOf, DocType.Content, AclPermission.Edit);
+    if (content.value.memberOf.length === 0) return true;
+    return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 });
 
 const idbContent = useDexieLiveQuery(
@@ -767,7 +771,10 @@ const playAudio = () => {
                                 }}
                             </div>
                             <div class="items-center">
-                                <div class="flex justify-center">
+                                <div
+                                    v-if="canEdit"
+                                    class="flex justify-center"
+                                >
                                     <button
                                         @click="openCmsEditor"
                                         class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
@@ -780,7 +787,6 @@ const playAudio = () => {
                                         <PencilIcon class="h-5 w-5" />
                                     </button>
                                 </div>
-                                <div class="flex justify-center gap-4">{{ LiveUrl }}</div>
                                 <div class="flex justify-center gap-4">
                                     <div
                                         @click="toggleBookmark"
