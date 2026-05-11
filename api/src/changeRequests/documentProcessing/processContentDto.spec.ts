@@ -315,7 +315,6 @@ describe("processContentDto", () => {
 
         // Create a sample text with 300 words
         const sampleText = Array(300).fill("word").join(" ");
-        const expectedWordCount = computeFtsData({ text: sampleText }).wordCount;
 
         // Create a content document with the sample text
         const changeRequest = changeRequest_content();
@@ -323,6 +322,8 @@ describe("processContentDto", () => {
         changeRequest.doc._id = "test-reading-time-custom-speed";
         changeRequest.doc.text = sampleText;
         changeRequest.doc.language = "lang-test-speed";
+
+        const expectedWordCount = computeFtsData(changeRequest.doc).wordCount;
 
         const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         const dbDoc = await db.getDoc(changeRequest.doc._id);

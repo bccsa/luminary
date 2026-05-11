@@ -234,8 +234,10 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
     const fts: string[] = Array.from(aggregatedTf.entries()).map(([token, tf]) => token + ":" + tf);
 
     // Compute word count for reading time estimation (strip HTML and split on whitespace)
-    const combinedContent = `${doc.summary} ${stripHtml(doc.text)}`.trim();
-    const wordCount = combinedContent.split(/\s+/).length;
+    const summary = doc.summary || "";
+    const text = stripHtml(doc.text || "");
+    const combinedContent = `${summary} ${text}`.trim();
+    const wordCount = combinedContent ? combinedContent.split(/\s+/).length : 0;
 
     return { fts, ftsTokenCount: totalTokenCount, wordCount };
 }
