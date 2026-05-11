@@ -81,7 +81,12 @@ export const isMac = computed(() => {
     if (uaDataPlatform) return uaDataPlatform.includes("mac");
 
     const ua = (navigator.userAgent || "").toLowerCase();
-    return ua.includes("mac os") || ua.includes("macintosh") || ua.includes("iphone") || ua.includes("ipad");
+    return (
+        ua.includes("mac os") ||
+        ua.includes("macintosh") ||
+        ua.includes("iphone") ||
+        ua.includes("ipad")
+    );
 });
 
 /**
@@ -435,6 +440,4 @@ export const fallbackImageUrls = loadFallbackImageUrls();
 /**
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
-export const isAppLoading = ref(
-    !new URLSearchParams(window.location.search).has("nosplash"),
-);
+export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
