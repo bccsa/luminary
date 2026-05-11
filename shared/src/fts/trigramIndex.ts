@@ -30,42 +30,6 @@ let flushChain: Promise<void> = Promise.resolve();
 let backfilled = false;
 
 /**
- * In-memory LRU cache of loaded `ContentDto`s keyed by `_id`. Lets `ftsSearch`
- * skip the contended `db.docs` bulkGet for docs we already loaded in a recent
- * search (heavy overlap during incremental typing, pagination, language
- * switch). Invalidated by the same Dexie hooks that maintain the trigram
- * index, so a doc write evicts its cache entry before the next search runs.
- */
-const DOC_CACHE_MAX = 500;
-const docCache = new Map<string, ContentDto>();
-
-export function getCachedDoc(id: string): ContentDto | undefined {
-    const doc = docCache.get(id);
-    if (doc !== undefined) {
-        // refresh LRU recency
-        docCache.delete(id);
-        docCache.set(id, doc);
-    }
-    return doc;
-}
-
-export function cacheDocs(docs: ContentDto[]): void {
-    for (const doc of docs) {
-        if (!doc._id) continue;
-        docCache.set(doc._id, doc);
-    }
-    while (docCache.size > DOC_CACHE_MAX) {
-        const oldest = docCache.keys().next().value;
-        if (oldest === undefined) break;
-        docCache.delete(oldest);
-    }
-}
-
-export function invalidateCachedDoc(id: string): void {
-    docCache.delete(id);
-}
-
-/**
  * Subset of the Database we touch — keeps this module decoupled from the
  * concrete Database class to avoid a circular import.
  */
@@ -204,7 +168,6 @@ async function doFlush(db: TrigramDb): Promise<void> {
 export function installTrigramHooks(db: TrigramDb): void {
     db.docs.hook("creating", (_pk, obj) => {
         if (!obj || obj.type !== DocType.Content) return;
-        invalidateCachedDoc(obj._id);
         const fts = (obj as ContentDto).fts;
         if (!Array.isArray(fts) || fts.length === 0) return;
         recordChange(obj._id, [], fts);
@@ -215,7 +178,6 @@ export function installTrigramHooks(db: TrigramDb): void {
         if (!obj) return;
         const after = { ...obj, ...(mods as object) } as ContentDto;
         const id = after._id ?? (obj as any)._id;
-        if (id) invalidateCachedDoc(id);
         const isContentNow = after.type === DocType.Content;
         const wasContent = (obj as any).type === DocType.Content;
         if (!isContentNow && !wasContent) return;
@@ -231,7 +193,6 @@ export function installTrigramHooks(db: TrigramDb): void {
 
     db.docs.hook("deleting", (_pk, obj) => {
         if (!obj) return;
-        if (obj._id) invalidateCachedDoc(obj._id);
         if (obj.type !== DocType.Content) return;
         const fts = (obj as ContentDto).fts;
         if (!Array.isArray(fts) || fts.length === 0) return;
@@ -322,5 +283,4 @@ export function resetTrigramIndexState(): void {
     }
     flushChain = Promise.resolve();
     backfilled = false;
-    docCache.clear();
 }
