@@ -98,7 +98,7 @@ const defaultContent: ContentDto = {
 
 const content = ref<ContentDto | undefined>(defaultContent);
 
-const liveUrl = computed(() => {
+const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
 
     const docType = content.value.parentType;
@@ -110,20 +110,20 @@ const liveUrl = computed(() => {
         ? `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`
         : "http://localhost";
 
-    return url;
-});
+    return url.toString();
+};
 
 const openCmsEditor = () => {
-    if (liveUrl.value) {
-        window.open(liveUrl.value, "_blank");
+    if (liveUrl()) {
+        window.open(liveUrl(), "_blank");
     }
 };
 
-const canEdit = computed(() => {
+const canEdit = () => {
     if (!content.value) return false;
     if (content.value.memberOf.length === 0) return true;
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
-});
+};
 
 const idbContent = useDexieLiveQuery(
     () =>
@@ -754,7 +754,7 @@ const playAudio = () => {
                                     {{ content.title }}
                                 </h1>
                                 <div
-                                    v-if="canEdit"
+                                    v-if="canEdit()"
                                     class="flex justify-center"
                                 >
                                     <button
