@@ -28,11 +28,8 @@ onMounted(() => {
 </script>
 
 <template>
-    <section class="bg-yellow-500/10 px-4 py-5 dark:bg-yellow-500/5">
+    <section class="bg-yellow-500/10 px-2 pt-2 dark:bg-yellow-500/5">
         <div class="mx-auto max-w-xl">
-            <h2 class="mb-3 text-center text-zinc-800 dark:text-slate-100">
-                {{ t("search.homePageHeading") }}
-            </h2>
             <button
                 type="button"
                 @click="openSearch"
