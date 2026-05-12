@@ -14,6 +14,7 @@ import {
     scheduleCorpusStatsRecompute,
 } from "./ftsIndexer";
 import { ftsSearch } from "./ftsSearch";
+import { flushPendingTrigramChanges } from "./trigramIndex";
 
 function makeContentDoc(overrides: Partial<ContentDto> & { _id: string }): ContentDto {
     return {
@@ -77,12 +78,15 @@ function mergeFtsEntries(...fieldResults: Array<{ entries: string[]; tokenCount:
 }
 
 /**
- * Helper: ingest a doc with FTS data via bulkPut.
+ * Helper: ingest a doc with FTS data via bulkPut. Drains the trigram-index
+ * write queue so the next `ftsSearch` call sees this doc on the fast path —
+ * in production the queue flushes on a 5 s quiescence debounce.
  */
 async function ingestDocWithFts(doc: ContentDto, ftsEntries: string[], tokenCount: number) {
     doc.fts = ftsEntries;
     doc.ftsTokenCount = tokenCount;
     await db.bulkPut([doc]);
+    await flushPendingTrigramChanges(db);
 }
 
 describe("FTS Indexer and Search", () => {
@@ -98,6 +102,12 @@ describe("FTS Indexer and Search", () => {
     beforeEach(async () => {
         await db.docs.clear();
         await db.luminaryInternals.clear();
+        // Drain the in-memory queue first so any pending changes from prior
+        // tests don't write back into the just-cleared trigram table, then
+        // clear it. `db.docs.clear()` may not fire deleting hooks (Dexie's
+        // bulk clear bypasses them), so we can't rely on the hook path alone.
+        await flushPendingTrigramChanges(db);
+        await db.trigramPostings.clear();
     });
 
     describe("FTS ingestion via bulkPut", () => {

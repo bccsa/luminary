@@ -273,14 +273,27 @@ watch(
             resolvedDocs.value = new Map();
             return;
         }
-        const docIds = newResults.map((r) => r.docId);
-        const docs = await db.docs.where("_id").anyOf(docIds).toArray();
 
+        // FTS already loaded these docs during scoring — reuse via `result.doc`
+        // and only fall back to a DB lookup for results that arrive without
+        // one (e.g. test fixtures or older callers).
         const docMap = new Map<string, ContentDto>();
         const langIds = new Set<string>();
-        for (const doc of docs) {
-            docMap.set(doc._id, doc as ContentDto);
-            if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
+        const missingIds: string[] = [];
+        for (const r of newResults) {
+            if (r.doc) {
+                docMap.set(r.doc._id, r.doc);
+                if (r.doc.language) langIds.add(r.doc.language);
+            } else {
+                missingIds.push(r.docId);
+            }
+        }
+        if (missingIds.length) {
+            const docs = await db.docs.where("_id").anyOf(missingIds).toArray();
+            for (const doc of docs) {
+                docMap.set(doc._id, doc as ContentDto);
+                if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
+            }
         }
         resolvedDocs.value = docMap;
 

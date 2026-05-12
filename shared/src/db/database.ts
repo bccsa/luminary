@@ -16,6 +16,12 @@ import {
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+import {
+    ensureTrigramIndexBuilt,
+    installTrigramHooks,
+    type TrigramDb,
+    type TrigramPostingsRow,
+} from "../fts/trigramIndex";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { ref, type Ref, toRaw, watch } from "vue";
@@ -58,6 +64,12 @@ type dbIndex = {
     localChanges: string;
     queryCache: string;
     luminaryInternals: string;
+    /**
+     * Inverted FTS index — `{ trigram, postings: [docId, tf][] }`. Read by
+     * `ftsSearch` so per-trigram lookups don't queue behind sync's writes on
+     * `db.docs`. Maintained via debounced flush from a Dexie hook on `db.docs`.
+     */
+    trigramPostings: string;
 };
 
 export type QueryOptions = {
@@ -119,11 +131,12 @@ export type UpsertOptions<T> = {
     localChangesOnly?: boolean;
 };
 
-class Database extends Dexie {
+class Database extends Dexie implements TrigramDb {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
+    trigramPostings!: Table<TrigramPostingsRow, string>;
 
     /**
      * Luminary Shared Database class
@@ -135,7 +148,7 @@ class Database extends Dexie {
         this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
-            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],*fts",
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[language+_id],*fts",
             docsIndex,
         ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
@@ -143,6 +156,7 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
+            trigramPostings: "trigram",
         };
 
         const version: number = bumpDBVersion(
@@ -859,6 +873,7 @@ class Database extends Dexie {
             this.localChanges.clear(),
             this.queryCache.clear(),
             this.luminaryInternals.clear(),
+            this.trigramPostings.clear(),
         ]);
     }
 }
@@ -868,6 +883,11 @@ export let db: Database;
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
+
+    // Install trigram-index hooks before opening the DB so the first writes
+    // are captured. Hooks just queue changes; the batched flush runs on a
+    // 5 s quiescence debounce.
+    installTrigramHooks(db);
 
     // Open the database and wait for it to be ready
     await new Promise<void>((resolve) => {
@@ -889,11 +909,18 @@ export async function initDatabase() {
         console.error("Database blocked");
     });
 
-    // Compute FTS corpus stats on startup.
-    // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
-    setTimeout(() => {
-        scheduleCorpusStatsRecompute();
-    }, 0);
+    // Schedule a debounced FTS corpus stats recompute on startup. The persisted
+    // stats from the previous session are used until this fires (10 s later), so
+    // first searches aren't blocked by a full-corpus scan contending with IDB.
+    scheduleCorpusStatsRecompute();
+
+    // Build `trigramPostings` from existing fts arrays if empty. Run in the
+    // background so app startup isn't gated on the (one-time) backfill;
+    // searches before it commits will fall through to the multi-entry index
+    // fallback path in `ftsSearch`.
+    ensureTrigramIndexBuilt(db).catch((err) => {
+        console.error("[trigramIndex] backfill failed", err);
+    });
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
     setTimeout(() => {

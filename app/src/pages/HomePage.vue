@@ -10,6 +10,7 @@ import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
+            <HomePageSearch />
             <Suspense>
                 <HomePagePinned />
             </Suspense>
