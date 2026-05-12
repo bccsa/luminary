@@ -156,7 +156,7 @@ setup_env_wizard() {
 apply_auth0_env() {
   local output_file="$1"
 
-  if grep -q "VITE_AUTH0_DOMAIN" "$output_file" || grep -q "AUTH0_DOMAIN" "$output_file"; then
+  if grep -q "" "$output_file" || grep -q "AUTH0_DOMAIN" "$output_file"; then
     echo ""
     echo "=================================================================="
     echo "Auth0 Authentication Setup"
@@ -169,7 +169,7 @@ apply_auth0_env() {
     info "AUTH0_DOMAIN: Your Auth0 tenant domain."
     info "  Example: dev-abc123.us.auth0.com or mycompany.auth0.com"
     read -rp "Auth0 Domain: " auth0_domain
-    sed -i.bak "s|VITE_AUTH0_DOMAIN=.*|VITE_AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
+    sed -i.bak "s|=.*|=$auth0_domain|g" "$output_file"
     sed -i.bak "s|AUTH0_DOMAIN=.*|AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
     rm -f "$output_file.bak"
 
@@ -177,7 +177,7 @@ apply_auth0_env() {
     info "AUTH0_CLIENT_ID: Your application's unique identifier in Auth0."
     info "  This is a long alphanumeric string found in the Auth0 dashboard."
     read -rp "Auth0 Client ID: " auth0_client_id
-    sed -i.bak "s|VITE_AUTH0_CLIENT_ID=.*|VITE_AUTH0_CLIENT_ID=$auth0_client_id|g" "$output_file"
+    sed -i.bak "s|=.*|=$auth0_client_id|g" "$output_file"
     sed -i.bak "s|AUTH0_CLIENT_ID=.*|AUTH0_CLIENT_ID=$auth0_client_id|g" "$output_file"
     rm -f "$output_file.bak"
 
@@ -186,7 +186,7 @@ apply_auth0_env() {
     info "  Example: https://your-api.com/api or https://luminary.example.com"
     info "  This should match the Identifier you set in Auth0 APIs section."
     read -rp "Auth0 Audience: " auth0_audience
-    sed -i.bak "s|VITE_AUTH0_AUDIENCE=.*|VITE_AUTH0_AUDIENCE=$auth0_audience|g" "$output_file"
+    sed -i.bak "s|=.*|=$auth0_audience|g" "$output_file"
     sed -i.bak "s|AUTH0_AUDIENCE=.*|AUTH0_AUDIENCE=$auth0_audience|g" "$output_file"
     rm -f "$output_file.bak"
   fi
