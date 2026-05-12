@@ -265,15 +265,6 @@ export async function ensureTrigramIndexBuilt(db: TrigramDb): Promise<void> {
     await backfillTrigramIndex(db);
 }
 
-/**
- * True once the backfill has populated `trigramPostings`. Searches before
- * this returns true must fall through to the multi-entry-index path on
- * `db.docs` to avoid returning empty results during the brief startup window.
- */
-export function isTrigramIndexReady(): boolean {
-    return backfilled;
-}
-
 /** Reset module-level state. Used by tests between cases. */
 export function resetTrigramIndexState(): void {
     pendingChanges = new Map();

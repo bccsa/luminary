@@ -2,29 +2,21 @@ import { db } from "../db/database";
 import { DocType, type ContentDto } from "../types";
 import type { FtsCorpusStats } from "./types";
 
-/**
- * Get corpus statistics for BM25 scoring.
- */
+const RECOMPUTE_DEBOUNCE_MS = 10_000;
+
+/** BM25 needs N (doc count) and avgdl (avg doc length). The aggregate is
+ *  persisted so search doesn't have to scan all docs per query. */
 export async function getCorpusStats(): Promise<FtsCorpusStats> {
     const entry = await db.luminaryInternals.get("corpusStats");
     return entry?.value ?? { totalTokenCount: 0, docCount: 0 };
 }
 
-/**
- * Store corpus statistics for BM25 scoring.
- */
 export async function setCorpusStats(stats: FtsCorpusStats): Promise<void> {
     await db.luminaryInternals.put({ id: "corpusStats", value: stats });
 }
 
-let recomputeTimer: ReturnType<typeof setTimeout> | undefined;
-const RECOMPUTE_DEBOUNCE_MS = 10_000;
-
-/**
- * Recompute corpus stats from scratch by scanning all Content docs.
- * Uses the existing `type` index on the docs table for efficient filtering.
- * Streams docs via `.each()` to keep memory usage constant.
- */
+/** Stream all Content docs via `.each()` to keep memory constant, sum
+ *  `ftsTokenCount`, persist the aggregate. */
 export async function recomputeCorpusStats(): Promise<void> {
     let totalTokenCount = 0;
     let docCount = 0;
@@ -41,16 +33,16 @@ export async function recomputeCorpusStats(): Promise<void> {
     await setCorpusStats({ totalTokenCount, docCount });
 }
 
-/**
- * Schedule a debounced corpus stats recomputation.
- * Ensures only one recomputation fires 10 seconds after the last call.
- */
+let recomputeTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Debounced full-corpus recompute. Coalesces a sync burst into a single
+ *  scan that fires after `RECOMPUTE_DEBOUNCE_MS` of quiescence. */
 export function scheduleCorpusStatsRecompute(): void {
-    if (recomputeTimer !== undefined) {
-        clearTimeout(recomputeTimer);
-    }
+    if (recomputeTimer !== undefined) clearTimeout(recomputeTimer);
     recomputeTimer = setTimeout(() => {
         recomputeTimer = undefined;
-        recomputeCorpusStats();
+        recomputeCorpusStats().catch((err) => {
+            console.error("[ftsIndexer] corpus stats recompute failed", err);
+        });
     }, RECOMPUTE_DEBOUNCE_MS);
 }

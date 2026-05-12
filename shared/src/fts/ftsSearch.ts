@@ -1,7 +1,6 @@
 import { db } from "../db/database";
 import { generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
 import { getCorpusStats } from "./ftsIndexer";
-import { isTrigramIndexReady } from "./trigramIndex";
 import type { FtsFieldConfig, FtsSearchOptions, FtsSearchResult } from "./types";
 import type { ContentDto } from "../types";
 
@@ -10,16 +9,16 @@ const DEFAULT_MAX_TRIGRAM_DOC_PERCENT = 50;
 const DEFAULT_K1 = 1.2;
 const DEFAULT_B = 0.75;
 
-/** Extra candidates above (offset+limit) that get fully scored, so BM25 +
+/** Extra candidates above `offset + limit` that get fully scored, so BM25 +
  *  word-match reranking has room to reorder the top page. */
 const RERANK_BUFFER = 20;
 
 /**
  * FTS field configuration for search-time word match scoring.
  *
- * **IMPORTANT**: This config must be kept in sync with the index-time config in
- * `api/src/util/ftsIndexing.ts`. If you change boost values or fields here,
- * update the other location as well.
+ * **IMPORTANT**: keep in sync with the index-time config in
+ * `api/src/util/ftsIndexing.ts`. Changing boosts or fields here without
+ * updating the other side silently drifts query and index behaviour.
  */
 const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "title", boost: 3.0 },
@@ -28,29 +27,20 @@ const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "author", boost: 1.0 },
 ];
 
-/**
- * Per-trigram lookup result. `tfByDoc` is only populated on the fast path
- * (`trigramPostings`); on the fallback path tf is unknown and coarse rank
- * falls back to Σ idf instead of Σ idf*tf.
- */
 type TrigramHit = {
     token: string;
     ids: string[];
-    tfByDoc?: Map<string, number>;
+    tfByDoc: Map<string, number>;
 };
 
 /**
- * Perform a full-text search using BM25 scoring against the persisted trigram
- * inverted index (`trigramPostings`), with a multi-entry-index fallback on
- * `db.docs.fts` while the index is still being backfilled.
+ * Full-text search using BM25 scoring against the persisted trigram inverted
+ * index (`trigramPostings`).
  *
  * Each `await` is its own implicit IDB tx scoped to just the store(s) it
  * touches. Wider single-tx wrappers ended up slower in practice — the broad
  * scope means the whole transaction starves until `db.docs` writers clear
  * before any read inside can run.
- *
- * @param options Query, optional language scope, paging, and BM25 params.
- * @returns Top `limit` results starting at `offset`, sorted by combined score.
  */
 export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
     const {
@@ -91,27 +81,15 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
 // --- Trigram lookup -------------------------------------------------------
 
-/**
- * Resolve each query trigram to its matching docIds, choosing the fast or
- * fallback path based on whether `trigramPostings` has been backfilled.
- */
+/** One `bulkGet` against `trigramPostings`. Each row gives both the docId
+ *  list and the per-doc tf needed for tf-weighted coarse ranking. */
 async function lookupTrigrams(trigrams: string[]): Promise<TrigramHit[]> {
-    return isTrigramIndexReady()
-        ? lookupTrigramsFast(trigrams)
-        : lookupTrigramsFallback(trigrams);
-}
-
-/**
- * Fast path: one `bulkGet` against `trigramPostings`. Each row gives both
- * the docId list and the per-doc tf needed for tf-weighted coarse ranking.
- */
-async function lookupTrigramsFast(trigrams: string[]): Promise<TrigramHit[]> {
     const rows = await db.trigramPostings.bulkGet(trigrams);
     return trigrams.map((token, i) => {
         const row = rows[i];
-        if (!row) return { token, ids: [] };
-        const ids: string[] = new Array(row.postings.length);
         const tfByDoc = new Map<string, number>();
+        if (!row) return { token, ids: [], tfByDoc };
+        const ids: string[] = new Array(row.postings.length);
         for (let j = 0; j < row.postings.length; j++) {
             const [docId, tf] = row.postings[j];
             ids[j] = docId;
@@ -121,38 +99,16 @@ async function lookupTrigramsFast(trigrams: string[]): Promise<TrigramHit[]> {
     });
 }
 
-/**
- * Fallback path used while `trigramPostings` is still being backfilled after
- * a fresh install. Runs parallel multi-entry-index queries on `db.docs.fts`.
- * `tf` is not available on this path, so coarse rank falls back to Σ idf.
- */
-async function lookupTrigramsFallback(trigrams: string[]): Promise<TrigramHit[]> {
-    return Promise.all(
-        trigrams.map(async (trigram) => {
-            const ids = (await db.docs
-                .where("fts")
-                .between(trigram + ":", trigram + ";", true, false)
-                .primaryKeys()) as string[];
-            return { token: trigram, ids };
-        }),
-    );
-}
-
-/**
- * Drop empty hits and trigrams that match more than `maxDocCount` docs.
- * Common-trigram filtering keeps low-signal tokens (e.g. " th", "the") from
- * dominating the candidate set.
- */
+/** Drop empty hits and trigrams that match more than `maxDocCount` docs.
+ *  Common-trigram filtering keeps low-signal tokens from dominating the
+ *  candidate set. */
 function filterCommonTrigrams(hits: TrigramHit[], maxDocCount: number): TrigramHit[] {
     return hits.filter((hit) => hit.ids.length > 0 && hit.ids.length <= maxDocCount);
 }
 
 // --- Ranking --------------------------------------------------------------
 
-/**
- * Compute IDF per usable trigram using the standard BM25 IDF variant:
- * `log((N - df + 0.5) / (df + 0.5) + 1)`. Rare trigrams get higher weight.
- */
+/** Standard BM25 IDF: `log((N - df + 0.5) / (df + 0.5) + 1)`. */
 function buildIdfMap(usable: TrigramHit[], N: number): Map<string, number> {
     const idfMap = new Map<string, number>();
     for (const { token, ids } of usable) {
@@ -163,11 +119,8 @@ function buildIdfMap(usable: TrigramHit[], N: number): Map<string, number> {
 }
 
 /**
- * Score every matched doc by Σ idf*tf (fast path) or Σ idf (fallback) using
- * postings alone — no doc loads. Returns the top `take` doc IDs by score.
- *
- * This is the candidate-window cut: a cheap approximation of BM25 used to
- * pick which docs are worth fully scoring.
+ * Pick the top `take` doc IDs by Σ idf*tf over the postings alone — no doc
+ * loads. A cheap BM25 approximation used as the candidate-window cut.
  */
 function coarseRankCandidates(
     usable: TrigramHit[],
@@ -177,15 +130,9 @@ function coarseRankCandidates(
     const score = new Map<string, number>();
     for (const hit of usable) {
         const idf = idfMap.get(hit.token)!;
-        if (hit.tfByDoc) {
-            for (const id of hit.ids) {
-                const tf = hit.tfByDoc.get(id) ?? 1;
-                score.set(id, (score.get(id) || 0) + idf * tf);
-            }
-        } else {
-            for (const id of hit.ids) {
-                score.set(id, (score.get(id) || 0) + idf);
-            }
+        for (const id of hit.ids) {
+            const tf = hit.tfByDoc.get(id) ?? 1;
+            score.set(id, (score.get(id) || 0) + idf * tf);
         }
     }
     return Array.from(score.entries())
@@ -196,43 +143,34 @@ function coarseRankCandidates(
 
 // --- Hydration ------------------------------------------------------------
 
-/**
- * Resolve `candidateIds` to `ContentDto`s via a single IDB `bulkGet`,
- * scoped to a language when provided.
- */
 async function hydrateCandidates(
     candidateIds: string[],
     languageId: string | undefined,
 ): Promise<Map<string, ContentDto>> {
     const loadedDocs = await loadDocsByIds(candidateIds, languageId);
     const docMap = new Map<string, ContentDto>();
-    for (const d of loadedDocs) docMap.set(d._id, d as ContentDto);
+    for (const d of loadedDocs) docMap.set(d._id, d);
     return docMap;
 }
 
-/**
- * Load docs by id, optionally scoped to a language. The compound
- * `[language+_id]` index lets wrong-language candidates miss at the IDB
- * layer — no row read, no structured-clone deserialization for docs we'd
- * discard anyway.
- */
-async function loadDocsByIds(ids: string[], languageId: string | undefined): Promise<any[]> {
+/** When `languageId` is provided, use the compound `[language+_id]` index
+ *  so wrong-language candidates miss at the IDB layer — no row read, no
+ *  structured-clone deserialization for docs we'd discard anyway. */
+async function loadDocsByIds(
+    ids: string[],
+    languageId: string | undefined,
+): Promise<ContentDto[]> {
     if (languageId) {
-        return db.docs
+        return (await db.docs
             .where("[language+_id]")
             .anyOf(ids.map((id) => [languageId, id]))
-            .toArray();
+            .toArray()) as ContentDto[];
     }
-    return db.docs.where("_id").anyOf(ids).toArray();
+    return (await db.docs.where("_id").anyOf(ids).toArray()) as ContentDto[];
 }
 
 // --- BM25 scoring ---------------------------------------------------------
 
-/**
- * Compute the full BM25 score for every hydrated candidate. Returns a result
- * per doc with `wordMatchScore` initialised to 0; the word-match bonus is
- * applied separately so it can be skipped for short queries.
- */
 function scoreCandidates(
     docMap: Map<string, ContentDto>,
     usable: TrigramHit[],
@@ -252,26 +190,22 @@ function scoreCandidates(
     return results;
 }
 
-/**
- * Parse a doc's `fts` array (`"trigram:tf"` entries) into a tf map, keeping
- * only entries for trigrams in `usableTokens`. The `colonIdx` starts at 3
- * because the trigram prefix is always 3 chars.
- */
+/** Parse a doc's `fts` array (`"XYZ:tf"` entries, trigram always 3 chars)
+ *  into a tf map, keeping only entries for trigrams in `usableTokens`. */
 function parseDocTfMap(doc: ContentDto, usableTokens: Set<string>): Map<string, number> {
     const tfMap = new Map<string, number>();
     if (!doc.fts) return tfMap;
     for (const entry of doc.fts) {
-        const colonIdx = entry.indexOf(":", 3);
-        const token = entry.substring(0, colonIdx);
+        const token = entry.substring(0, 3);
         if (usableTokens.has(token)) {
-            tfMap.set(token, parseFloat(entry.substring(colonIdx + 1)));
+            tfMap.set(token, parseFloat(entry.substring(4)));
         }
     }
     return tfMap;
 }
 
 /**
- * Okapi BM25 score for a single doc:
+ * Okapi BM25 score for one doc:
  * `Σ idf(t) * (tf * (k1+1)) / (tf + k1 * (1 - b + b * dl/avgdl))`.
  *
  * @param tfMap Per-trigram tf for this doc.
@@ -301,21 +235,15 @@ function bm25Score(
 
 // --- Word-match bonus -----------------------------------------------------
 
-/**
- * Normalize the query and split into significant words. Words ≤2 chars are
- * dropped because they overlap noisily with content.
- */
+/** Words ≤2 chars are dropped because they overlap noisily with content. */
 function extractQueryWords(query: string): string[] {
     return normalizeText(query)
         .split(" ")
         .filter((w) => w.length > 2);
 }
 
-/**
- * Add a boost-weighted full-word match bonus to each result's score and
- * record it on `wordMatchScore` for use as a sort tiebreaker. Mutates
- * `results` in place.
- */
+/** Adds a boost-weighted word-match bonus to each result's score and records
+ *  it on `wordMatchScore` for use as a sort tiebreaker. Mutates `results`. */
 function applyWordMatchBonus(
     results: FtsSearchResult[],
     docMap: Map<string, ContentDto>,
@@ -332,10 +260,8 @@ function applyWordMatchBonus(
     }
 }
 
-/**
- * Boost-weighted word match score. For each field, count how many query words
- * appear as full words and multiply by the field's boost; sum across fields.
- */
+/** For each field, count how many query words appear as full words and
+ *  multiply by the field's boost; sum across fields. */
 function computeFieldWordMatchScore(
     queryWords: string[],
     wordSets: Record<string, Set<string>>,
@@ -356,20 +282,15 @@ function computeFieldWordMatchScore(
     return totalScore;
 }
 
-// --- Word-set building ----------------------------------------------------
-
-/**
- * Build the per-field `{ field → Set<word> }` map for `doc`, stripping HTML
- * for fields configured with `isHtml` and normalizing whitespace/case.
- */
+/** Build `{ field → Set<word> }` for `doc`, stripping HTML on `isHtml`
+ *  fields and normalizing whitespace/case. */
 function buildWordSets(
     doc: ContentDto,
     fields: FtsFieldConfig[],
 ): Record<string, Set<string>> {
     const sets: Record<string, Set<string>> = {};
-    const docRec = doc as Record<string, any>;
     for (const field of fields) {
-        const value = docRec[field.name];
+        const value = (doc as Record<string, any>)[field.name];
         if (typeof value !== "string" || !value) continue;
         const text = normalizeText(field.isHtml ? stripHtml(value) : value);
         sets[field.name] = new Set(text.split(" "));
@@ -379,11 +300,9 @@ function buildWordSets(
 
 // --- Sort -----------------------------------------------------------------
 
-/**
- * Sort by combined score desc, with `wordMatchScore` as the tiebreaker for
- * scores within `0.001` of each other (BM25 floats often collide near the
- * top when several docs share the same trigram set).
- */
+/** Sort by combined score desc, with `wordMatchScore` as a tiebreaker for
+ *  scores within `0.001` (BM25 floats often collide near the top when
+ *  several docs share the same trigram set). */
 function sortByScore(results: FtsSearchResult[]): void {
     results.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
