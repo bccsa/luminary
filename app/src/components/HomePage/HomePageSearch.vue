@@ -10,19 +10,19 @@ const { t } = useI18n();
 
 const shortcutLabel = computed(() => (isMac.value ? "⌘K" : "Ctrl+K"));
 
-// First-time onboarding hint: pulse the search button to draw attention,
+// First-time onboarding hint: shimmer the search button to draw attention,
 // but only on the user's very first mount. localStorage marker survives
 // reloads, so returning users don't see the animation again.
-const PULSE_FLAG_KEY = "homePageSearchPulseShown";
-const shouldPulse = ref(!localStorage.getItem(PULSE_FLAG_KEY));
+const SHIMMER_FLAG_KEY = "homePageSearchPulseShown";
+const shouldShimmer = ref(!localStorage.getItem(SHIMMER_FLAG_KEY));
 
 onMounted(() => {
-    if (!shouldPulse.value) return;
+    if (!shouldShimmer.value) return;
     try {
-        localStorage.setItem(PULSE_FLAG_KEY, "1");
+        localStorage.setItem(SHIMMER_FLAG_KEY, "1");
     } catch {
         // Safari private mode / quota exceeded. The user will just see the
-        // pulse again on their next mount — preferable to crashing the page.
+        // shimmer again on their next mount — preferable to crashing the page.
     }
 });
 </script>
@@ -34,7 +34,7 @@ onMounted(() => {
                 type="button"
                 @click="openSearch"
                 :aria-label="t('search.ariaLabel')"
-                :class="{ 'pulse-once': shouldPulse }"
+                :class="{ 'shimmer-once': shouldShimmer }"
                 class="search-button group relative flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-yellow-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-yellow-500"
             >
                 <MagnifyingGlassIcon
@@ -56,41 +56,39 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Attention-getter on mount: a soft halo breathes around the button twice,
-   then fades out. The animation runs once on the first render (CSS
-   animations fire on element insertion) — no JS hook needed. Two stacked
-   shadows (a tighter brighter core + a wider softer bloom) give the glow
-   more depth than a single shadow can produce. forwards keeps the final
-   transparent state so the halo doesn't snap back at the end. */
-.search-button.pulse-once::before {
+/* Attention-getter on mount: a warm yellow highlight sweeps left-to-right
+   across the button three times, then fades. border-radius: inherit clips
+   the gradient to the button's rounded corners — no overflow:hidden needed
+   on the button itself, which would clip the focus/hover shadow. */
+.search-button.shimmer-once::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    animation: search-pulse 1.4s ease-in-out 3 forwards;
+    background-image: linear-gradient(
+        90deg,
+        transparent 25%,
+        rgb(234 179 8 / 0.4) 50%,
+        transparent 75%
+    );
+    background-repeat: no-repeat;
+    background-size: 200% 100%;
+    background-position: 200% 0;
+    animation: search-shimmer 1.4s ease-in-out 2 forwards;
 }
 
-@keyframes search-pulse {
-    0%,
-    100% {
-        box-shadow:
-            0 0 0 0 rgb(234 179 8 / 0),
-            0 0 0 0 rgb(245 158 11 / 0);
+@keyframes search-shimmer {
+    0% {
+        background-position: 200% 0;
     }
-    50% {
-        /* Two-stop colour ramp: a tight yellow-500 core fades into an
-           amber-500 bloom, giving the glow a warm gradient. Lower blur +
-           a touch of spread compared to the all-blur version sharpens
-           the edges so it reads as "glow" rather than "mist". */
-        box-shadow:
-            0 0 14px 2px rgb(234 179 8 / 0.75),
-            0 0 36px 6px rgb(245 158 11 / 0.45);
+    100% {
+        background-position: -100% 0;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .search-button.pulse-once::before {
+    .search-button.shimmer-once::before {
         animation: none;
     }
 }
