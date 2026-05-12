@@ -747,11 +747,26 @@ const playAudio = () => {
                                 'gap-3': content.publishDate && content.parentPublishDateVisible,
                             }"
                         >
-                            <h1
-                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
-                            >
-                                {{ content.title }}
-                            </h1>
+                            <div class="flex flex-row items-center justify-center gap-2">
+                                <h1
+                                    class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                                >
+                                    {{ content.title }}
+                                </h1>
+                                <div
+                                    v-if="canEdit"
+                                    class="flex justify-center"
+                                >
+                                    <button
+                                        @click="openCmsEditor"
+                                        class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
+                                        :title="t('singlecontent.edit')"
+                                        data-test="editButton"
+                                    >
+                                        <PencilIcon class="h-5 w-5" />
+                                    </button>
+                                </div>
+                            </div>
                             <div
                                 v-if="content.author"
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
@@ -771,22 +786,6 @@ const playAudio = () => {
                                 }}
                             </div>
                             <div class="items-center">
-                                <div
-                                    v-if="canEdit"
-                                    class="flex justify-center"
-                                >
-                                    <button
-                                        @click="openCmsEditor"
-                                        class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
-                                        :title="t('singlecontent.edit')"
-                                        data-test="editButton"
-                                    >
-                                        <span class="text-md hidden font-medium sm:inline">
-                                            Edit
-                                        </span>
-                                        <PencilIcon class="h-5 w-5" />
-                                    </button>
-                                </div>
                                 <div class="flex justify-center gap-4">
                                     <div
                                         @click="toggleBookmark"
