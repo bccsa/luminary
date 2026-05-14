@@ -17,10 +17,16 @@ import {
     type RedirectDto,
     type Uuid,
     type LanguageDto,
+    verifyAccess,
+    AclPermission,
 } from "luminary-shared";
 import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
-import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
+import {
+    BookmarkIcon as BookmarkIconOutline,
+    MoonIcon,
+    PencilIcon,
+} from "@heroicons/vue/24/outline";
 
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
@@ -33,6 +39,7 @@ import {
     appLanguageAsRef,
     queryParams,
     addToMediaQueue,
+    cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -90,6 +97,33 @@ const defaultContent: ContentDto = {
 };
 
 const content = ref<ContentDto | undefined>(defaultContent);
+
+const liveUrl = () => {
+    if (!content.value || !selectedLanguageCode.value) return "";
+
+    const docType = content.value.parentType;
+    const subType = content.value.parentPostType || content.value.parentTagType;
+    const id = content.value.parentId;
+    const lang = selectedLanguageCode.value;
+    const baseUrl = cmsUrl.value;
+    const url = baseUrl
+        ? `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`
+        : "http://localhost";
+
+    return url.toString();
+};
+
+const openCmsEditor = () => {
+    if (liveUrl()) {
+        window.open(liveUrl(), "_blank");
+    }
+};
+
+const canEdit = () => {
+    if (!content.value) return false;
+    if (content.value.memberOf.length === 0) return true;
+    return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
+};
 
 const idbContent = useDexieLiveQuery(
     () =>
@@ -713,11 +747,25 @@ const playAudio = () => {
                                 'gap-3': content.publishDate && content.parentPublishDateVisible,
                             }"
                         >
-                            <h1
-                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
-                            >
-                                {{ content.title }}
-                            </h1>
+                            <div class="flex flex-row items-center justify-center gap-2">
+                                <h1
+                                    class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                                >
+                                    {{ content.title }}
+                                </h1>
+                                <div
+                                    v-if="canEdit() && cmsUrl"
+                                    class="flex justify-center"
+                                >
+                                    <button
+                                        @click="openCmsEditor"
+                                        class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
+                                        data-test="editButton"
+                                    >
+                                        <PencilIcon class="h-5 w-5" />
+                                    </button>
+                                </div>
+                            </div>
                             <div
                                 v-if="content.author"
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
@@ -737,7 +785,7 @@ const playAudio = () => {
                                 }}
                             </div>
                             <div class="items-center">
-                                <div class="flex justify-center">
+                                <div class="flex justify-center gap-4">
                                     <div
                                         @click="toggleBookmark"
                                         data-test="bookmark"

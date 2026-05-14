@@ -26,6 +26,7 @@ export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;
 export const isTestEnviroment = import.meta.env.MODE === "test";
+export const cmsUrl = ref(import.meta.env.VITE_CLIENT_CMS_URL);
 
 const isTestEnv = import.meta.env.MODE === "test";
 
