@@ -754,13 +754,12 @@ const playAudio = () => {
                                     {{ content.title }}
                                 </h1>
                                 <div
-                                    v-if="canEdit()"
+                                    v-if="canEdit() && cmsUrl"
                                     class="flex justify-center"
                                 >
                                     <button
                                         @click="openCmsEditor"
                                         class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
-                                        :title="t('singlecontent.edit')"
                                         data-test="editButton"
                                     >
                                         <PencilIcon class="h-5 w-5" />
