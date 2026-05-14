@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
 import type { App } from "vue";
 import type { Router } from "vue-router";
+import * as Sentry from "@sentry/vue";
 
 // Hoisted spies the mocked createAuth0 closes over. We assert against these to
 // verify what refreshTokenSilently passes to the Auth0 SDK.
@@ -16,6 +17,11 @@ const { mockGetAccessTokenSilently, mockHandleRedirectCallback, mockCreateAuth0 
 
 vi.mock("@auth0/auth0-vue", () => ({
     createAuth0: mockCreateAuth0,
+}));
+
+vi.mock("@sentry/vue", () => ({
+    captureMessage: vi.fn(),
+    captureException: vi.fn(),
 }));
 
 import {
@@ -327,6 +333,89 @@ describe("auth", () => {
             expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(2);
             expect(mockGetAccessTokenSilently.mock.calls[0]).toEqual([{ cacheMode: "off" }]);
             expect(mockGetAccessTokenSilently.mock.calls[1]).toEqual([{ cacheMode: "off" }]);
+        });
+    });
+
+    // Regression coverage for issue #1606 — "App: potential iPhone auth
+    // IndexedDB race condition". The pre-existing setupAuth cold-start
+    // branch called clearAuth0Cache() whenever resolveActiveProvider() came
+    // up empty, which conflates "Dexie doesn't have a matching provider doc
+    // right now" with "the user has no session intended." On iOS Safari we
+    // suspect IDB can be evicted while localStorage survives, which would
+    // make this defensive wipe destroy a valid session on every cold open.
+    // The hypothesis is unconfirmed in the field; the minimum-impact fix is
+    // to stop wiping the cache here (the server's provider_not_found
+    // connect_error path still cleans it up if the provider really is gone)
+    // and to send a Sentry message tagged with the orphan clientId so we
+    // can verify whether this state actually occurs in production.
+    describe("setupAuth — orphan Auth0 cache handling (issue #1606)", () => {
+        const appStub = { use: () => {} } as unknown as App<Element>;
+        const routerStub = { replace: () => Promise.resolve(undefined) } as unknown as Router;
+        const cacheKeyFor = (p: AuthProviderDto) =>
+            `@@auth0spajs@@::${p.clientId}::${p.audience}::openid profile email offline_access`;
+
+        beforeEach(() => {
+            mockGetAccessTokenSilently.mockReset();
+            mockHandleRedirectCallback.mockReset();
+            mockCreateAuth0.mockReset();
+            mockCreateAuth0.mockImplementation(() => ({
+                getAccessTokenSilently: mockGetAccessTokenSilently,
+                handleRedirectCallback: mockHandleRedirectCallback,
+                install: () => {},
+            }));
+            vi.mocked(Sentry.captureMessage).mockClear();
+        });
+
+        afterEach(() => {
+            setCustomHeader("Authorization", "");
+        });
+
+        it("leaves an orphan Auth0 cache key in place and reports it to Sentry", async () => {
+            // The suspect state: Auth0 session cached in localStorage, but
+            // no matching AuthProvider doc in Dexie. Previously setupAuth
+            // would wipe the cache here; now it must leave it alone and
+            // surface the state so we can confirm whether the iOS-eviction
+            // hypothesis is actually happening.
+            const cacheKey = cacheKeyFor(providerA);
+            const cacheValue = JSON.stringify({ body: {} });
+            localStorage.setItem(cacheKey, cacheValue);
+
+            await setupAuth(appStub, routerStub);
+
+            // Cache untouched — the whole point of the change.
+            expect(localStorage.getItem(cacheKey)).toBe(cacheValue);
+            // No Auth0 plugin install (we still don't know which provider
+            // this is), and no provider id header set.
+            expect(mockCreateAuth0).not.toHaveBeenCalled();
+            expect(activeProviderId.value).toBeNull();
+            // Sentry was told about the orphan, tagged so we can filter.
+            expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+            const [msg, ctx] = vi.mocked(Sentry.captureMessage).mock.calls[0];
+            expect(msg).toContain("Auth0 cache key present but no matching AuthProvider doc");
+            expect((ctx as { extra?: { clientId?: string } }).extra?.clientId).toBe(
+                providerA.clientId,
+            );
+            expect((ctx as { tags?: { issue?: string } }).tags?.issue).toBe("1606");
+        });
+
+        it("does not report or touch storage on a true cold start (no Auth0 cache at all)", async () => {
+            await setupAuth(appStub, routerStub);
+
+            expect(mockCreateAuth0).not.toHaveBeenCalled();
+            expect(Sentry.captureMessage).not.toHaveBeenCalled();
+            expect(activeProviderId.value).toBeNull();
+        });
+
+        it("happy path: when the provider doc is in Dexie, installs Auth0 and does NOT report", async () => {
+            await db.docs.bulkPut([providerA]);
+            localStorage.setItem(cacheKeyFor(providerA), JSON.stringify({ body: {} }));
+            mockGetAccessTokenSilently.mockResolvedValue("boot-token");
+
+            await setupAuth(appStub, routerStub);
+
+            expect(mockCreateAuth0).toHaveBeenCalledTimes(1);
+            expect(activeProviderId.value).toBe(providerA._id);
+            expect(Sentry.captureMessage).not.toHaveBeenCalled();
         });
     });
 });
