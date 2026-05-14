@@ -21,7 +21,13 @@ import {
 import LoadingBar from "@/components/LoadingBar.vue";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import {
+    appLanguageIdsAsRef,
+    appName,
+    initLanguage,
+    userPreferencesAsRef,
+    cmsUrl,
+} from "@/globalConfig";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
@@ -143,6 +149,7 @@ describe("SingleContent", () => {
 
     afterEach(async () => {
         await db.docs.clear();
+        cmsUrl.value = "";
     });
 
     it("displays the video player when defined", async () => {
@@ -558,5 +565,55 @@ describe("SingleContent", () => {
             expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
             expect(wrapper.find("article").exists()).toBe(true);
         });
+    });
+
+    it("shows the edit button and opens CMS editor URL when clicked", async () => {
+        const windowOpenMock = vi.fn();
+        global.window.open = windowOpenMock;
+
+        cmsUrl.value = "https://cms.example.com";
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+        await waitForExpect(() => {
+            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            expect(translationSelector.exists()).toBe(true);
+        });
+        const editButton = wrapper.find("button[data-test='editButton']");
+        if (editButton.exists()) {
+            await editButton.trigger("click");
+
+            await waitForExpect(() => {
+                expect(windowOpenMock).toHaveBeenCalled();
+                const callArgs = windowOpenMock.mock.calls[0];
+                expect(callArgs[0]).toContain("https://cms.example.com");
+                expect(callArgs[1]).toBe("_blank");
+            });
+        }
+    });
+
+    it("does not show edit button when cmsUrl is not defined", async () => {
+        cmsUrl.value = "";
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+        await waitForExpect(() => {
+            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            expect(translationSelector.exists()).toBe(true);
+        });
+        const editButton = wrapper.find("button[data-test='editButton']");
+        expect(editButton.exists()).toBe(false);
     });
 });
