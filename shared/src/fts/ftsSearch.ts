@@ -139,7 +139,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
                 idf * ((tf * (bm25k1 + 1)) / (tf + bm25k1 * (1 - bm25b + bm25b * (dl / avgdl))));
         }
 
-        results.push({ docId, score, wordMatchScore: 0 });
+        results.push({ docId, score, wordMatchScore: 0, doc });
     });
 
     // Step 6: Boost-weighted full-word match scoring
@@ -148,12 +148,9 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     if (queryWords.length > 0 && results.length > 0) {
         for (const result of results) {
-            const doc = docMap.get(result.docId);
-            if (!doc) continue;
-
             const wordMatchBonus = computeFieldWordMatchScore(
                 queryWords,
-                doc as Record<string, any>,
+                result.doc as Record<string, any>,
                 FTS_FIELDS,
             );
             result.wordMatchScore = wordMatchBonus;

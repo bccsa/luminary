@@ -7,8 +7,13 @@ vi.mock("./ftsSearch", () => ({
 
 import { useFtsSearch } from "./useFtsSearch";
 import { ftsSearch } from "./ftsSearch";
+import type { FtsSearchResult } from "./types";
 
 const mockFtsSearch = vi.mocked(ftsSearch);
+
+function makeResult(docId: string, score = 1, wordMatchScore = 0): FtsSearchResult {
+    return { docId, score, wordMatchScore, doc: { _id: docId } as any };
+}
 
 describe("useFtsSearch", () => {
     beforeEach(() => {
@@ -39,7 +44,7 @@ describe("useFtsSearch", () => {
         const scope = effectScope();
         scope.run(() => {
             const queryRef = ref("quantum physics");
-            mockFtsSearch.mockResolvedValue([{ docId: "1", score: 1, wordMatchScore: 0 }]);
+            mockFtsSearch.mockResolvedValue([makeResult("1")]);
             useFtsSearch(queryRef, { debounceMs: 100 });
         });
 
@@ -90,11 +95,7 @@ describe("useFtsSearch", () => {
         scope.run(() => {
             const queryRef = ref("quantum physics test");
             // Return full page so hasMore = true
-            const fullPage = Array.from({ length: 20 }, (_, i) => ({
-                docId: `doc-${i}`,
-                score: 1,
-                wordMatchScore: 0,
-            }));
+            const fullPage = Array.from({ length: 20 }, (_, i) => makeResult(`doc-${i}`));
             mockFtsSearch.mockResolvedValue(fullPage);
             result = useFtsSearch(queryRef, { debounceMs: 50, pageSize: 20 });
         });
@@ -107,7 +108,7 @@ describe("useFtsSearch", () => {
         expect(result.totalLoaded.value).toBe(20);
 
         // Load more
-        mockFtsSearch.mockResolvedValue([{ docId: "doc-20", score: 0.5, wordMatchScore: 0 }]);
+        mockFtsSearch.mockResolvedValue([makeResult("doc-20", 0.5)]);
         result.loadMore();
         await vi.advanceTimersByTimeAsync(10);
 
@@ -141,7 +142,7 @@ describe("useFtsSearch", () => {
         let result: any;
         scope.run(() => {
             const queryRef = ref("quantum physics test");
-            mockFtsSearch.mockResolvedValue([{ docId: "1", score: 1, wordMatchScore: 0 }]);
+            mockFtsSearch.mockResolvedValue([makeResult("1")]);
             result = useFtsSearch(queryRef, { debounceMs: 50 });
         });
 
@@ -174,7 +175,7 @@ describe("useFtsSearch", () => {
         let result: any;
         scope.run(() => {
             const queryRef = ref("quantum physics test");
-            mockFtsSearch.mockResolvedValue([{ docId: "1", score: 1, wordMatchScore: 0 }]);
+            mockFtsSearch.mockResolvedValue([makeResult("1")]);
             result = useFtsSearch(queryRef, { debounceMs: "manual" });
         });
 
@@ -221,7 +222,7 @@ describe("useFtsSearch", () => {
         const langRef = ref("lang-eng");
         scope.run(() => {
             const queryRef = ref("quantum physics test");
-            mockFtsSearch.mockResolvedValue([{ docId: "1", score: 1, wordMatchScore: 0 }]);
+            mockFtsSearch.mockResolvedValue([makeResult("1")]);
             useFtsSearch(queryRef, { debounceMs: 50, languageId: langRef });
         });
 
@@ -250,6 +251,62 @@ describe("useFtsSearch", () => {
         await vi.advanceTimersByTimeAsync(200);
         // Search should not fire after dispose
         expect(mockFtsSearch).not.toHaveBeenCalled();
+    });
+
+    it("cancel() discards an in-flight search's results", async () => {
+        const scope = effectScope();
+        let result: any;
+        let resolveSearch: (v: ReturnType<typeof makeResult>[]) => void = () => {};
+        scope.run(() => {
+            const queryRef = ref("quantum physics test");
+            mockFtsSearch.mockReturnValue(new Promise((r) => (resolveSearch = r)));
+            result = useFtsSearch(queryRef, { debounceMs: "manual" });
+        });
+
+        result.runSearch();
+        await nextTick();
+        expect(result.isSearching.value).toBe(true);
+
+        // User clears the query / hits revert before the search resolves.
+        result.cancel();
+        expect(result.isSearching.value).toBe(false);
+
+        // The slow search now resolves — its results must be discarded.
+        resolveSearch([makeResult("stale")]);
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(result.results.value).toEqual([]);
+        scope.stop();
+    });
+
+    it("query change invalidates an in-flight search before debounce fires", async () => {
+        const scope = effectScope();
+        let result: any;
+        let resolveFirst: (v: ReturnType<typeof makeResult>[]) => void = () => {};
+        const queryRef = ref("first query");
+        scope.run(() => {
+            mockFtsSearch.mockReturnValueOnce(new Promise((r) => (resolveFirst = r)));
+            mockFtsSearch.mockResolvedValue([makeResult("new")]);
+            result = useFtsSearch(queryRef, { debounceMs: 50 });
+        });
+
+        // First debounced search starts and hangs.
+        await vi.advanceTimersByTimeAsync(60);
+        expect(result.isSearching.value).toBe(true);
+
+        // User keeps typing — query changes before the slow first search resolves.
+        queryRef.value = "second query";
+        await nextTick();
+
+        // Stale first search resolves; must be discarded.
+        resolveFirst([makeResult("stale")]);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(result.results.value).not.toContainEqual(expect.objectContaining({ docId: "stale" }));
+
+        // New debounced search proceeds normally.
+        await vi.advanceTimersByTimeAsync(60);
+        expect(result.results.value).toEqual([makeResult("new")]);
+        scope.stop();
     });
 
     it("reactive debounceMs ref restarts watcher on change", async () => {

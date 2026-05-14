@@ -19,6 +19,8 @@ export type UseFtsSearchReturn = {
     lastSearchedQuery: Ref<string>;
     /** Run a search immediately (useful for manual mode and forcing refresh on reopen). */
     runSearch: () => void;
+    /** Invalidate any in-flight search and cancel a pending debounced run. Does not clear results. */
+    cancel: () => void;
 };
 
 /**
@@ -105,6 +107,16 @@ export function useFtsSearch(
         doSearch(q, 0, false);
     }
 
+    function cancel() {
+        // Bumping the generation invalidates any in-flight doSearch so its results are discarded.
+        searchGeneration++;
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
+        isSearching.value = false;
+    }
+
     let stopQueryWatch: WatchStopHandle | null = null;
 
     function startQueryWatch() {
@@ -116,6 +128,9 @@ export function useFtsSearch(
             queryRef,
             (newQuery) => {
                 if (debounceTimer) clearTimeout(debounceTimer);
+                // Invalidate any in-flight search before the debounce, so a slow previous
+                // doSearch can't publish stale results after the query has changed.
+                searchGeneration++;
                 currentQuery = newQuery;
                 const d = getDebounce();
                 debounceTimer = setTimeout(() => {
@@ -158,5 +173,6 @@ export function useFtsSearch(
         totalLoaded,
         lastSearchedQuery,
         runSearch,
+        cancel,
     };
 }

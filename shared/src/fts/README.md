@@ -53,11 +53,12 @@ const results = await ftsSearch({
 
 ### FtsSearchResult
 
-| Property         | Type     | Description                                      |
-| ---------------- | -------- | ------------------------------------------------ |
-| `docId`          | `string` | The document ID                                  |
-| `score`          | `number` | BM25 score plus word match bonus                 |
-| `wordMatchScore` | `number` | Boost-weighted count of full query words matched |
+| Property         | Type         | Description                                                          |
+| ---------------- | ------------ | -------------------------------------------------------------------- |
+| `docId`          | `string`     | The document ID                                                      |
+| `score`          | `number`     | BM25 score plus word match bonus                                     |
+| `wordMatchScore` | `number`     | Boost-weighted count of full query words matched                     |
+| `doc`            | `ContentDto` | The matched document — already loaded for scoring, so no refetch     |
 
 ## Architecture
 
