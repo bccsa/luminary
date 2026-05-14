@@ -110,7 +110,6 @@ export type ContentDto = ContentBaseDto & {
     ftsTokenCount?: number;
     copyright?: string;
     wordCount?: number;
-    readingTime?: number;
 };
 
 export type ContentParentDto = ContentBaseDto & {

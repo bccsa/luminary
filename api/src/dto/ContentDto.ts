@@ -183,9 +183,4 @@ export class ContentDto extends _contentBaseDto {
     @IsNumber()
     @Expose()
     wordCount?: number;
-
-    @IsOptional()
-    @IsNumber()
-    @Expose()
-    readingTime?: number;
 }

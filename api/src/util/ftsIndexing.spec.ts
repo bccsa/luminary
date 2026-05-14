@@ -1,9 +1,4 @@
-import {
-    stripHtml,
-    normalizeText,
-    generateTrigramCounts,
-    computeFtsData,
-} from "./ftsIndexing";
+import { stripHtml, normalizeText, generateTrigramCounts, computeFtsData } from "./ftsIndexing";
 
 describe("FTS Indexing", () => {
     describe("stripHtml", () => {
@@ -163,6 +158,18 @@ describe("FTS Indexing", () => {
             const result = computeFtsData({ title: "hello", summary: "world" });
             expect(result).toBeDefined();
             expect(result!.ftsTokenCount).toBe(6);
+        });
+
+        it("should compute word count excluding the title field", () => {
+            const doc = {
+                title: "This is the title",
+                summary: "Brief summary",
+                text: "The main text body",
+                author: "John Doe",
+            };
+            const result = computeFtsData(doc);
+            expect(result).toBeDefined();
+            expect(result!.wordCount).toBe(8);
         });
     });
 });

@@ -316,6 +316,15 @@ const tags = useDexieLiveQueryWithDeps(
     { initialValue: [] as ContentDto[] },
 );
 
+const currentLanguageData = useDexieLiveQueryWithDeps(
+    [content],
+    ([content]) => {
+        if (!content?.language) return Promise.resolve(undefined);
+        return db.docs.get(content.language) as unknown as Promise<LanguageDto | undefined>;
+    },
+    { initialValue: undefined as LanguageDto | undefined },
+);
+
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
@@ -598,6 +607,17 @@ const playAudio = () => {
         addToMediaQueue(content.value);
     }
 };
+
+const readingTime = computed(() => {
+    if (!content.value) return "";
+    const wordCount = content.value.wordCount!;
+
+    const readingSpeed = currentLanguageData.value?.averageReadingSpeed
+        ? currentLanguageData.value.averageReadingSpeed
+        : 200;
+
+    return Math.ceil(wordCount / readingSpeed).toString();
+});
 </script>
 
 <template>
@@ -773,11 +793,11 @@ const playAudio = () => {
                                 By {{ content.author }}
                             </div>
                             <div
-                                v-if="content.readingTime"
+                                v-if="readingTime"
                                 class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 <ClockIcon class="h-4 w-4" />
-                                {{ ` ${content.readingTime} min` }}
+                                {{ readingTime }} min
                             </div>
 
                             <div

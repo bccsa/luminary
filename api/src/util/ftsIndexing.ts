@@ -215,12 +215,16 @@ export function generateTrigramCounts(text: string): {
 export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
     const aggregatedTf = new Map<string, number>();
     let totalTokenCount = 0;
+    let wordCount = 0;
 
     for (const field of FTS_FIELDS) {
         const value = doc[field.name];
         if (typeof value !== "string" || !value) continue;
 
         const text = field.isHtml ? stripHtml(value) : value;
+        if (field.name !== "title") {
+            wordCount += text.split(/\s+/).filter(Boolean).length;
+        }
         const { counts, totalCount } = generateTrigramCounts(text);
         totalTokenCount += totalCount;
 
@@ -232,12 +236,6 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
     if (aggregatedTf.size === 0) return undefined;
 
     const fts: string[] = Array.from(aggregatedTf.entries()).map(([token, tf]) => token + ":" + tf);
-
-    // Compute word count for reading time estimation (strip HTML and split on whitespace)
-    const summary = doc.summary || "";
-    const text = stripHtml(doc.text || "");
-    const combinedContent = `${summary} ${text}`.trim();
-    const wordCount = combinedContent ? combinedContent.split(/\s+/).length : 0;
 
     return { fts, ftsTokenCount: totalTokenCount, wordCount };
 }
