@@ -1,5 +1,5 @@
 import { PermissionSystem } from "./permissions.service";
-import { DocType, AclPermission } from "../enums";
+import { DocType, AclPermission, DeleteReason } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import waitForExpect from "wait-for-expect";
 import { GroupDto } from "../dto/GroupDto";
@@ -973,6 +973,194 @@ describe("PermissionService", () => {
                 ["group-public-content"],
             );
             expect(after[DocType.Language]?.includes(groupId)).toBe(true);
+        });
+
+        it("dispatches DeleteCmd entries to removeGroup when interleaved with upserts in upsertGroups", () => {
+            // upsertGroups accepts mixed payloads: GroupDto upserts and DeleteCmd
+            // entries are dispatched in arrival order. This is what lets the init
+            // replay drain a single queue without losing ordering between a hard
+            // delete and the upserts around it.
+            const keepId = "group-mixed-keep";
+            const deleteId = "group-mixed-delete";
+
+            const keep: GroupDto = new GroupDto();
+            keep._id = keepId;
+            keep.type = DocType.Group;
+            keep.updatedTimeUtc = 1;
+            keep.name = "Keep";
+            keep.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const toDelete: GroupDto = new GroupDto();
+            toDelete._id = deleteId;
+            toDelete.type = DocType.Group;
+            toDelete.updatedTimeUtc = 1;
+            toDelete.name = "Delete";
+            toDelete.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([
+                keep,
+                toDelete,
+                {
+                    type: DocType.DeleteCmd,
+                    docId: deleteId,
+                    docType: DocType.Group,
+                    deleteReason: DeleteReason.Deleted,
+                },
+            ]);
+
+            expect(PermissionSystem.hasGroup(keepId)).toBe(true);
+            expect(PermissionSystem.hasGroup(deleteId)).toBe(false);
+        });
+
+        it("preserves arrival order when a DeleteCmd precedes a re-creation upsert in the same upsertGroups call", () => {
+            // Re-creation scenario: a group is deleted and then immediately
+            // re-created within the same replay batch. The final state must be
+            // "present" — the upsert is the last operation and wins.
+            const groupId = "group-delete-then-recreate";
+
+            const initial: GroupDto = new GroupDto();
+            initial._id = groupId;
+            initial.type = DocType.Group;
+            initial.updatedTimeUtc = 1;
+            initial.name = "Initial";
+            initial.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([initial]);
+            expect(PermissionSystem.hasGroup(groupId)).toBe(true);
+
+            const recreated: GroupDto = new GroupDto();
+            recreated._id = groupId;
+            recreated.type = DocType.Group;
+            recreated.updatedTimeUtc = 3;
+            recreated.name = "Recreated";
+            recreated.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([
+                {
+                    type: DocType.DeleteCmd,
+                    docId: groupId,
+                    docType: DocType.Group,
+                    deleteReason: DeleteReason.Deleted,
+                },
+                recreated,
+            ]);
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(true);
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.Edit,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBe(true);
+        });
+
+        it("preserves arrival order when an upsert precedes a DeleteCmd for the same group in the same upsertGroups call", () => {
+            // Complement of the re-creation case: if a stale snapshot upsert
+            // arrives before a DeleteCmd in the same drain, the group must end
+            // up removed. This is the specific race the queue refactor exists
+            // to defend against.
+            const groupId = "group-upsert-then-delete";
+
+            const stale: GroupDto = new GroupDto();
+            stale._id = groupId;
+            stale.type = DocType.Group;
+            stale.updatedTimeUtc = 1;
+            stale.name = "Stale snapshot";
+            stale.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([
+                stale,
+                {
+                    type: DocType.DeleteCmd,
+                    docId: groupId,
+                    docType: DocType.Group,
+                    deleteReason: DeleteReason.Deleted,
+                },
+            ]);
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(false);
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.View,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBeFalsy();
+        });
+
+        it("evicts a group from the cache when a DeleteCmd arrives via groupUpdate", () => {
+            // The hard-delete signal for a group reaches the permission system
+            // as a DeleteCmd payload on the groupUpdate event (the CouchDB
+            // tombstone for the group itself is filtered upstream because it
+            // has no `type` field). Verify the listener routes that payload to
+            // removeGroups so every API instance evicts the entry from its
+            // in-memory cache.
+            const groupId = "group-delete-via-deletecmd";
+
+            const initial: GroupDto = new GroupDto();
+            initial._id = groupId;
+            initial.type = DocType.Group;
+            initial.updatedTimeUtc = 1;
+            initial.name = "To be deleted";
+            initial.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([initial]);
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(true);
+            const before = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.View,
+                ["group-public-content"],
+            );
+            expect(before[DocType.Language]?.includes(groupId)).toBe(true);
+
+            testingModule.dbService.emit("groupUpdate", {
+                type: DocType.DeleteCmd,
+                docId: groupId,
+                docType: DocType.Group,
+                deleteReason: DeleteReason.Deleted,
+            });
+
+            expect(PermissionSystem.hasGroup(groupId)).toBe(false);
+            const after = PermissionSystem.getAccessibleGroups(
+                [DocType.Language],
+                AclPermission.View,
+                ["group-public-content"],
+            );
+            expect(after[DocType.Language]?.includes(groupId)).toBeFalsy();
         });
 
         it("removes a revoked ACL permission when the update arrives after a disconnect/reconnect cycle", () => {

@@ -1,6 +1,7 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 import { DbService } from "../db/db.service";
 import { EventEmitter } from "node:events";
 
@@ -142,9 +143,9 @@ export class PermissionSystem extends EventEmitter {
         dbService = db;
 
         let initialized = false;
-        let updateQueue: any[] = [];
+        let updateQueue: (GroupDto | DeleteCmdDto)[] = [];
 
-        dbService.on("groupUpdate", async (update: DocType.Group) => {
+        dbService.on("groupUpdate", async (update: GroupDto | DeleteCmdDto) => {
             updateQueue.push(update);
             if (initialized) {
                 PermissionSystem.upsertGroups(updateQueue);
@@ -337,12 +338,19 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Create or update groups from passed array of group database documents
+     * Create or update groups from passed array of group database documents.
+     * DeleteCmd payloads interleaved in the array trigger removal of the
+     * referenced group in arrival order.
      * @param groupDocs
      */
     static upsertGroups(groupDocs: Array<any>) {
         while (groupDocs.length > 0) {
-            this.upsertGroup(groupDocs.splice(0, 1)[0], groupDocs);
+            const doc = groupDocs.splice(0, 1)[0];
+            if (doc?.type === DocType.DeleteCmd) {
+                this.removeGroup(doc.docId);
+            } else if (doc) {
+                this.upsertGroup(doc, groupDocs);
+            }
         }
     }
 
