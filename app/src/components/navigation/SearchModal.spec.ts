@@ -13,6 +13,7 @@ import type { FtsSearchResult } from "luminary-shared";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 const loadMoreMock = vi.hoisted(() => vi.fn());
+const cancelMock = vi.hoisted(() => vi.fn());
 
 /** Doc returned by db mock; _id/slug/title must match mockEnglishContentDto for assertions. */
 const searchMockDoc = vi.hoisted(() => ({
@@ -96,6 +97,7 @@ function setupFts(
         totalLoaded: ref(0),
         lastSearchedQuery: lastSearchedQueryRef,
         runSearch: runSearchMock,
+        cancel: cancelMock,
     } as any);
 
     return { resultsRef, isSearchingRef, hasMoreRef, lastSearchedQueryRef };
@@ -128,6 +130,7 @@ const fakeResult: FtsSearchResult = {
     docId: mockEnglishContentDto._id,
     score: 1.5,
     wordMatchScore: 1,
+    doc: searchMockDoc as any,
 };
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -137,6 +140,7 @@ describe("SearchButton", () => {
         setActivePinia(createTestingPinia());
         setupFts();
         loadMoreMock.mockReset();
+        cancelMock.mockReset();
         routePushMock.mockReset();
         window.localStorage.clear();
         window.sessionStorage.clear();
@@ -715,8 +719,8 @@ describe("SearchButton", () => {
 
     describe("Keyboard navigation", () => {
         const twoResults: FtsSearchResult[] = [
-            { docId: mockEnglishContentDto._id, score: 2, wordMatchScore: 1 },
-            { docId: mockEnglishContentDto._id, score: 1, wordMatchScore: 1 },
+            { docId: mockEnglishContentDto._id, score: 2, wordMatchScore: 1, doc: searchMockDoc as any },
+            { docId: mockEnglishContentDto._id, score: 1, wordMatchScore: 1, doc: searchMockDoc as any },
         ];
 
         async function setupWithTwoResults() {

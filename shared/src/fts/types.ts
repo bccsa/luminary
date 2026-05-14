@@ -1,4 +1,4 @@
-import type { Uuid } from "../types";
+import type { ContentDto, Uuid } from "../types";
 
 /** Configuration for a single field to be indexed or searched */
 export type FtsFieldConfig = {
@@ -17,6 +17,8 @@ export type FtsSearchResult = {
     score: number;
     /** Boost-weighted count of full query words matched in document fields */
     wordMatchScore: number;
+    /** The matched document. Loaded by ftsSearch during scoring; returned so callers don't have to refetch. */
+    doc: ContentDto;
 };
 
 /** Search options */

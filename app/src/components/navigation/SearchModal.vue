@@ -109,6 +109,7 @@ const {
     hasMore,
     lastSearchedQuery,
     runSearch,
+    cancel,
 } = ftsRet;
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
@@ -263,26 +264,17 @@ type EnrichedResult = ContentDto & {
     languageName: string;
 };
 
-const resolvedDocs = ref<Map<string, ContentDto>>(new Map());
 const languageNames = ref<Map<string, string>>(new Map());
 
 watch(
     () => ftsResults.value as FtsSearchResult[],
     async (newResults) => {
-        if (!newResults.length) {
-            resolvedDocs.value = new Map();
-            return;
-        }
-        const docIds = newResults.map((r) => r.docId);
-        const docs = await db.docs.where("_id").anyOf(docIds).toArray();
+        if (!newResults.length) return;
 
-        const docMap = new Map<string, ContentDto>();
         const langIds = new Set<string>();
-        for (const doc of docs) {
-            docMap.set(doc._id, doc as ContentDto);
-            if ((doc as ContentDto).language) langIds.add((doc as ContentDto).language);
+        for (const r of newResults) {
+            if (r.doc.language) langIds.add(r.doc.language);
         }
-        resolvedDocs.value = docMap;
 
         if (langIds.size) {
             const langs = await db.docs
@@ -310,18 +302,15 @@ const highlightQuery = computed(() => {
 
 const results = computed<EnrichedResult[]>(() => {
     const query = highlightQuery.value;
-    return (ftsResults.value as FtsSearchResult[])
-        .map((r) => resolvedDocs.value.get(r.docId))
-        .filter((doc): doc is ContentDto => !!doc)
-        .map((doc) => ({
-            ...doc,
-            titleHighlight: applyTermHighlights(stripHtml(doc.title ?? ""), query),
-            highlight: createHighlight(doc, query),
-            authorHighlight: doc.author
-                ? applyTermHighlights(stripHtml(doc.author), query)
-                : undefined,
-            languageName: languageNames.value.get(doc.language) ?? "",
-        }));
+    return (ftsResults.value as FtsSearchResult[]).map(({ doc }) => ({
+        ...doc,
+        titleHighlight: applyTermHighlights(stripHtml(doc.title ?? ""), query),
+        highlight: createHighlight(doc, query),
+        authorHighlight: doc.author
+            ? applyTermHighlights(stripHtml(doc.author), query)
+            : undefined,
+        languageName: languageNames.value.get(doc.language) ?? "",
+    }));
 });
 const showResults = computed(() => results.value.length > 0);
 
@@ -367,8 +356,9 @@ watch(
         // Editing the query should cancel any selected result so Enter applies the search.
         if (newQuery !== oldQuery) selectedIndex.value = -1;
         if (!trimmed) {
+            // Cancel any in-flight search first so a slow previous run can't repopulate results.
+            cancel();
             ftsResults.value = [];
-            resolvedDocs.value = new Map();
             lastSearchedQuery.value = "";
             selectedIndex.value = -1;
         }
@@ -389,8 +379,8 @@ watch(isSearchOpen, (open) => {
         // Only clear results when they don't match the query we're about to show.
         // This keeps results in memory when reopening the modal for the same term.
         if (!q || lastSearchedQuery.value !== q) {
+            cancel();
             ftsResults.value = [];
-            resolvedDocs.value = new Map();
             lastSearchedQuery.value = "";
         }
     }
