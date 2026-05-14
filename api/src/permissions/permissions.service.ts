@@ -1,6 +1,7 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 import { DbService } from "../db/db.service";
 import { EventEmitter } from "node:events";
 
@@ -142,25 +143,23 @@ export class PermissionSystem extends EventEmitter {
         dbService = db;
 
         let initialized = false;
-        const updateQueue: any[] = [];
+        let updateQueue: (GroupDto | DeleteCmdDto)[] = [];
 
-        // groupUpdate carries both group upserts and DeleteCmd payloads (the
-        // CouchDB tombstone for the group itself has no `type` field and is
-        // filtered upstream). Both are dispatched by upsertGroups, so a single
-        // queue preserves arrival order across the init window — otherwise a
-        // DeleteCmd arriving during init would run against an empty groupMap
-        // (no-op) and then be re-added by the stale snapshot.
-        dbService.on("groupUpdate", (update: any) => {
+        dbService.on("groupUpdate", async (update: GroupDto | DeleteCmdDto) => {
             updateQueue.push(update);
-            if (initialized) PermissionSystem.upsertGroups(updateQueue);
+            if (initialized) {
+                PermissionSystem.upsertGroups(updateQueue);
+                updateQueue = [];
+            }
         });
 
         // Add existing groups to permission system
         const dbGroups = await dbService.getGroups();
         this.upsertGroups(dbGroups.docs);
 
-        // Replay events that arrived during the snapshot fetch.
+        // Add changes that might have occurred while the permission system was being initialized
         this.upsertGroups(updateQueue);
+        updateQueue = [];
         initialized = true;
     }
 
