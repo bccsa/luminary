@@ -144,44 +144,23 @@ export class PermissionSystem extends EventEmitter {
         let initialized = false;
         const updateQueue: any[] = [];
 
-        // Drain queued change-feed events in arrival order. Upserts and
-        // DeleteCmds share one queue so the post-snapshot replay preserves
-        // ordering — without this, a DeleteCmd arriving during the init
-        // window would run against an empty groupMap (no-op) and then be
-        // re-added by the stale snapshot.
-        const drainQueue = () => {
-            while (updateQueue.length > 0) {
-                if (updateQueue[0]?.type === DocType.DeleteCmd) {
-                    const cmd = updateQueue.shift();
-                    PermissionSystem.removeGroups([cmd.docId]);
-                } else {
-                    // Batch consecutive upserts so upsertGroup's parent-
-                    // lookahead within a batch still works.
-                    const batch: any[] = [];
-                    while (
-                        updateQueue.length > 0 &&
-                        updateQueue[0]?.type !== DocType.DeleteCmd
-                    ) {
-                        batch.push(updateQueue.shift());
-                    }
-                    PermissionSystem.upsertGroups(batch);
-                }
-            }
-        };
-
+        // groupUpdate carries both group upserts and DeleteCmd payloads (the
+        // CouchDB tombstone for the group itself has no `type` field and is
+        // filtered upstream). Both are dispatched by upsertGroups, so a single
+        // queue preserves arrival order across the init window — otherwise a
+        // DeleteCmd arriving during init would run against an empty groupMap
+        // (no-op) and then be re-added by the stale snapshot.
         dbService.on("groupUpdate", (update: any) => {
-            // A group deletion arrives here as a DeleteCmd payload (the CouchDB
-            // tombstone for the group itself has no type and is filtered upstream).
             updateQueue.push(update);
-            if (initialized) drainQueue();
+            if (initialized) PermissionSystem.upsertGroups(updateQueue);
         });
 
         // Add existing groups to permission system
         const dbGroups = await dbService.getGroups();
         this.upsertGroups(dbGroups.docs);
 
-        // Replay events that arrived during the snapshot fetch (in arrival order).
-        drainQueue();
+        // Replay events that arrived during the snapshot fetch.
+        this.upsertGroups(updateQueue);
         initialized = true;
     }
 
@@ -360,12 +339,19 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Create or update groups from passed array of group database documents
+     * Create or update groups from passed array of group database documents.
+     * DeleteCmd payloads interleaved in the array trigger removal of the
+     * referenced group in arrival order.
      * @param groupDocs
      */
     static upsertGroups(groupDocs: Array<any>) {
         while (groupDocs.length > 0) {
-            this.upsertGroup(groupDocs.splice(0, 1)[0], groupDocs);
+            const doc = groupDocs.splice(0, 1)[0];
+            if (doc?.type === DocType.DeleteCmd) {
+                this.removeGroup(doc.docId);
+            } else if (doc) {
+                this.upsertGroup(doc, groupDocs);
+            }
         }
     }
 
