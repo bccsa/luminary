@@ -3,7 +3,7 @@ import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getRouteHistory } from "@/router";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
@@ -45,33 +45,32 @@ const logoCss = computed(
     () => "--image-url: url(" + logo.value + "); --image-url-dark: url(" + logoDark.value + ");",
 );
 
-// Detect screen size on load and window resize
 const updateScreenSize = () => {
     if (!logoWidth.value) return;
     if (!logoContainer.value) return;
     isSmallScreen.value = logoWidth.value > logoContainer.value.clientWidth;
 };
 
+let resizeObserver: ResizeObserver | undefined;
+
 onMounted(() => {
-    if (!logoWidth.value) {
-        const img = new Image();
-        img.src = LOGO;
-        img.onload = () => {
-            if (!logoContainer.value) return;
-            logoWidth.value = (img.width * 32) / img.height; // 32px = tailwind h-8
-        };
+    const img = new Image();
+    img.src = LOGO;
+    img.onload = () => {
+        logoWidth.value = (img.width * 32) / img.height; // 32px = tailwind h-8
+        updateScreenSize();
+    };
+
+    // Observe the container so we re-measure whenever surrounding layout settles
+    // (i18n strings hydrating, ProfileMenu/avatar loading, viewport resize, etc.)
+    if (logoContainer.value) {
+        resizeObserver = new ResizeObserver(updateScreenSize);
+        resizeObserver.observe(logoContainer.value);
     }
+});
 
-    watch(
-        [logoWidth],
-        async () => {
-            await nextTick();
-            updateScreenSize();
-        },
-        { immediate: true },
-    );
-
-    window.addEventListener("resize", updateScreenSize);
+onBeforeUnmount(() => {
+    resizeObserver?.disconnect();
 });
 
 const isPostAndNoHistory = computed(() => {
