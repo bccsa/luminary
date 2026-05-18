@@ -317,15 +317,6 @@ const tags = useDexieLiveQueryWithDeps(
     { initialValue: [] as ContentDto[] },
 );
 
-const currentLanguageData = useDexieLiveQueryWithDeps(
-    [content],
-    ([content]) => {
-        if (!content?.language) return Promise.resolve(undefined);
-        return db.docs.get(content.language) as unknown as Promise<LanguageDto | undefined>;
-    },
-    { initialValue: undefined as LanguageDto | undefined },
-);
-
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
@@ -612,10 +603,8 @@ const playAudio = () => {
 const readingTime = computed(() => {
     if (!content.value) return "";
     const wordCount = content.value.wordCount!;
-
-    const readingSpeed = currentLanguageData.value?.averageReadingSpeed
-        ? currentLanguageData.value.averageReadingSpeed
-        : 200;
+    const currentLanguage = languages.value.find(l => l._id === content.value?.language);
+    const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
     return Math.ceil(wordCount / readingSpeed).toString();
 });
