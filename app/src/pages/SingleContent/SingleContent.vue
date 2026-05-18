@@ -26,6 +26,7 @@ import {
     BookmarkIcon as BookmarkIconOutline,
     MoonIcon,
     ClockIcon,
+    PencilIcon,
 } from "@heroicons/vue/24/outline";
 
 import { DateTime } from "luxon";
