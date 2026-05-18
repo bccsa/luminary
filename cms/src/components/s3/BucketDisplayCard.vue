@@ -99,10 +99,10 @@ const handleEdit = () => {
             </div>
         </div>
 
-        <div class="flex w-full items-center gap-2 py-1.5 text-xs">
-            <div class="flex w-full items-center gap-1.5">
+        <div class="flex w-full min-w-0 items-center gap-2 py-1.5 text-xs">
+            <div class="flex w-full min-w-0 items-center gap-1.5">
                 <span class="text-xs text-zinc-500">Path:</span>
-                <code class="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{{
+                <code class="truncate rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{{
                     bucket.publicUrl
                 }}</code>
             </div>
