@@ -153,45 +153,6 @@ setup_env_wizard() {
   echo ""
 }
 
-apply_auth0_env() {
-  local output_file="$1"
-
-  if grep -q "" "$output_file" || grep -q "AUTH0_DOMAIN" "$output_file"; then
-    echo ""
-    echo "=================================================================="
-    echo "Auth0 Authentication Setup"
-    echo "=================================================================="
-    info "Auth0 is used for user authentication and authorization."
-    info "You'll need an Auth0 account and application configured."
-    info "Get these values from your Auth0 dashboard (Applications > Your App > Settings)."
-    echo ""
-    
-    info "AUTH0_DOMAIN: Your Auth0 tenant domain."
-    info "  Example: dev-abc123.us.auth0.com or mycompany.auth0.com"
-    read -rp "Auth0 Domain: " auth0_domain
-    sed -i.bak "s|=.*|=$auth0_domain|g" "$output_file"
-    sed -i.bak "s|AUTH0_DOMAIN=.*|AUTH0_DOMAIN=$auth0_domain|g" "$output_file"
-    rm -f "$output_file.bak"
-
-    echo ""
-    info "AUTH0_CLIENT_ID: Your application's unique identifier in Auth0."
-    info "  This is a long alphanumeric string found in the Auth0 dashboard."
-    read -rp "Auth0 Client ID: " auth0_client_id
-    sed -i.bak "s|=.*|=$auth0_client_id|g" "$output_file"
-    sed -i.bak "s|AUTH0_CLIENT_ID=.*|AUTH0_CLIENT_ID=$auth0_client_id|g" "$output_file"
-    rm -f "$output_file.bak"
-
-    echo ""
-    info "AUTH0_AUDIENCE: The unique identifier of your API in Auth0."
-    info "  Example: https://your-api.com/api or https://luminary.example.com"
-    info "  This should match the Identifier you set in Auth0 APIs section."
-    read -rp "Auth0 Audience: " auth0_audience
-    sed -i.bak "s|=.*|=$auth0_audience|g" "$output_file"
-    sed -i.bak "s|AUTH0_AUDIENCE=.*|AUTH0_AUDIENCE=$auth0_audience|g" "$output_file"
-    rm -f "$output_file.bak"
-  fi
-}
-
 escape_env_value() {
   python3 -c 'import sys
 value = sys.stdin.read()
