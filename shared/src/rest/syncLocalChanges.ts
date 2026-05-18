@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from "vue";
+import { watch, type Ref } from "vue";
 import { isConnected } from "../socket/socketio";
 import { getRest } from "./RestApi";
 import { ChangeReqAckDto, LocalChangeDto } from "../types";
@@ -6,67 +6,54 @@ import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
 import { changeReqErrors, changeReqWarnings } from "../config";
 
-/**
- * Lock to prevent multiple change requests from being processed at the same time
- * This is set to true when a change request is being processed and false when it is done
- * as change requests are asynchronous operations that can take time to complete.
- */
-export const processChangeReqLock = ref(false); // start unlocked so first change can go through
+let running = false;
 
 /**
- * Handle change request acknowledgements from the api
- * @param ack ack from api
- * @param localChange the local change that was sent (for reference)
+ * Drain pending local changes one-at-a-time while online. Exits on empty
+ * queue, disconnect, or a non-ack response. The watcher re-enters on the
+ * next localChanges mutation or reconnect.
+ *
+ * We read the head of the queue from the db (not the ref) so that we see
+ * the result of `applyLocalChangeAck` immediately — the Dexie live query
+ * refreshes async, so the ref would be one step behind inside the loop.
  */
-async function handleAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
-    // Clear previous warnings and errors
-    changeReqWarnings.value = [];
-    changeReqErrors.value = [];
+async function drain() {
+    if (running) return;
+    running = true;
+    let attempts = 0;
+    try {
+        while (isConnected.value) {
+            const change = (await db.localChanges.toCollection().first()) as
+                | LocalChangeDto
+                | undefined;
+            if (!change) return;
 
-    await db.applyLocalChangeAck(ack, localChange);
+            const formData = new LFormData();
+            formData.append("changeRequest", change);
 
-    // Release lock; watcher will notice localChanges updated (Dexie live query) and proceed
-    processChangeReqLock.value = false;
-}
+            const res = (await getRest().changeRequest(formData)) as ChangeReqAckDto | undefined;
+            if (!res) {
+                if (++attempts >= 3) return;
+                await new Promise((r) => setTimeout(r, 100));
+                continue;
+            }
+            attempts = 0;
 
-/**
- * Push a single local change to the api
- * @param localChange the local change to push
- */
-async function pushLocalChange(localChange: LocalChangeDto) {
-    const formData = new LFormData();
-    formData.append("changeRequest", localChange);
-
-    const res = await getRest().changeRequest(formData);
-
-    if (res) handleAck(res as ChangeReqAckDto, localChange);
-    // Release the lock on a failed/non-acked push so the queue isn't stalled
-    // indefinitely. Recovery happens on the next localChanges mutation or
-    // reconnect (which both fire the watcher); we deliberately don't auto-retry
-    // here to avoid hot-looping on a persistently rejected change.
-    else processChangeReqLock.value = false;
+            changeReqWarnings.value = [];
+            changeReqErrors.value = [];
+            await db.applyLocalChangeAck(res, change);
+        }
+    } finally {
+        running = false;
+    }
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
-    const attemptSync = () => {
-        if (!isConnected.value) return;
-        if (localChanges.value.length === 0) return;
-        if (processChangeReqLock.value) return; // already processing a change request
-        // Acquire lock synchronously so concurrent watcher triggers bail out
-        processChangeReqLock.value = true;
-        pushLocalChange(localChanges.value[0]);
-    };
-
-    watch([isConnected, localChanges], attemptSync, { immediate: true });
-
-    watch(isConnected, (connected) => {
-        if (!connected) {
-            // Prevent new processing while offline (existing in-flight may still resolve)
-            processChangeReqLock.value = true;
-            return;
-        }
-        // When coming online, allow processing and attempt immediately
-        processChangeReqLock.value = false;
-        attemptSync();
-    });
+    watch(
+        [isConnected, localChanges],
+        () => {
+            drain().catch((err) => console.error("syncLocalChanges drain error:", err));
+        },
+        { immediate: true },
+    );
 }
