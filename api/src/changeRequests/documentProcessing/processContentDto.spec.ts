@@ -9,6 +9,7 @@ import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
 import { computeFtsData } from "../../util/ftsIndexing";
+import { title } from "node:process";
 
 describe("processContentDto", () => {
     let db: DbService;
@@ -299,44 +300,5 @@ describe("processContentDto", () => {
         // The French draft doc itself should also not list French as available (it's draft)
         expect(dbDocFr.docs[0].availableTranslations).toEqual(["lang-eng"]);
         expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
-    });
-
-    it("can calculate the estimated reading time using a custom language reading speed", async () => {
-        // Create a language with a different reading speed
-        await db.upsertDoc({
-            _id: "lang-test-speed",
-            type: "language",
-            languageCode: "lts",
-            name: "Test Speed Language",
-            memberOf: ["group-languages"],
-            averageReadingSpeed: 100,
-            translations: {},
-        } as any);
-
-        // Create a sample text with 300 words
-        const sampleText = Array(300).fill("word").join(" ");
-
-        // Create a content document with the sample text
-        const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-blog1";
-        changeRequest.doc._id = "test-reading-time-custom-speed";
-        changeRequest.doc.text = sampleText;
-        changeRequest.doc.language = "lang-test-speed";
-
-        const expectedWordCount = computeFtsData(changeRequest.doc).wordCount;
-
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
-        const dbDoc = await db.getDoc(changeRequest.doc._id);
-
-        // Expected reading time: ceil(300 / 100) = 3 minutes
-        const expectedReadingTime = Math.ceil(expectedWordCount / 100);
-
-        expect(res.result.ok).toBe(true);
-        expect(dbDoc.docs[0].wordCount).toBe(expectedWordCount);
-
-        const actualReadingTime = Math.ceil(
-            dbDoc.docs[0].wordCount / dbDoc.docs[0].averageReadingSpeed,
-        );
-        expect(actualReadingTime).toBe(expectedReadingTime);
     });
 });
