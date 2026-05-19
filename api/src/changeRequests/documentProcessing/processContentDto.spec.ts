@@ -334,7 +334,9 @@ describe("processContentDto", () => {
         expect(res.result.ok).toBe(true);
         expect(dbDoc.docs[0].wordCount).toBe(expectedWordCount);
 
-        const actualReadingTime = dbDoc.docs[0].wordCount / dbDoc.docs[0].averageReadingSpeed;
+        const actualReadingTime = Math.ceil(
+            dbDoc.docs[0].wordCount / dbDoc.docs[0].averageReadingSpeed,
+        );
         expect(actualReadingTime).toBe(expectedReadingTime);
     });
 });

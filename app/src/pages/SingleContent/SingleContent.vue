@@ -606,7 +606,7 @@ const readingTime = computed(() => {
     const currentLanguage = languages.value.find(l => l._id === content.value?.language);
     const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
-    return Math.ceil(wordCount / readingSpeed).toString();
+    return Math.ceil(wordCount / readingSpeed);
 });
 </script>
 
