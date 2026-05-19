@@ -8,8 +8,6 @@ import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
-import { computeFtsData } from "../../util/ftsIndexing";
-import { title } from "node:process";
 
 describe("processContentDto", () => {
     let db: DbService;
