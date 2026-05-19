@@ -348,7 +348,8 @@ describe("syncLocalChanges", () => {
         await wait(200);
         expect(changeRequestMock).toHaveBeenCalledTimes(1);
 
-        // Release the first one — drain should pick up c2 in the same pass.
+        // Release the first one — the c1 ack mutates the queue, refiring the
+        // watcher, which drains c2.
         changeRequestMock.mockResolvedValueOnce(ack(40));
         resolveFirst(ack(40));
 
