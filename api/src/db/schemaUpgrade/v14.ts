@@ -25,7 +25,7 @@ export default async function (db: DbService) {
             });
 
             console.info(
-                `Schema v14 update complete: ${contentUpdated} contents and ${languagesUpdated} languages (${languagesWithoutSpeed} with default speed) have been updated.`,
+                `Schema v14 update complete: ${contentUpdated} contents and ${languagesUpdated} languages (which ${languagesWithoutSpeed} with default value  ) have been updated.`,
             );
 
             await db.setSchemaVersion(14);
