@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
 import { getSocket, isConnected } from "../socket/socketio";
-import { initConfig } from "../config";
+import { changeReqErrors, initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../rest/RestApi";
@@ -60,6 +60,7 @@ describe("syncLocalChanges", () => {
 
         await db.docs.clear();
         await db.localChanges.clear();
+        changeReqErrors.value = [];
 
         // Make sure the connection state is clean for the next test.
         await waitForExpect(() => expect(isConnected.value).toBe(false));
@@ -219,6 +220,47 @@ describe("syncLocalChanges", () => {
             return JSON.parse(entry![1] as string).id;
         });
         expect(new Set(sentIds)).toEqual(new Set([10]));
+    });
+
+    it("surfaces an error to changeReqErrors after exhausting retries", async () => {
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        const failing: ChangeReqDto = {
+            id: 100,
+            doc: { _id: "fail-error", type: DocType.Post, updatedTimeUtc: 1 },
+        };
+        changeRequestMock
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined);
+
+        expect(changeReqErrors.value).toEqual([]);
+
+        await db.localChanges.put(failing);
+
+        await waitForExpect(() => {
+            expect(changeReqErrors.value.length).toBe(1);
+            expect(changeReqErrors.value[0]).toMatch(/refresh/i);
+        });
+    });
+
+    it("clears changeReqErrors on a successful ack", async () => {
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        changeReqErrors.value = ["stale error from a previous attempt"];
+
+        changeRequestMock.mockResolvedValueOnce(ack(110));
+        await db.localChanges.put({
+            id: 110,
+            doc: { _id: "ok", type: DocType.Post, updatedTimeUtc: 1 },
+        } as ChangeReqDto);
+
+        await waitForExpect(async () => {
+            expect(await db.localChanges.count()).toBe(0);
+            expect(changeReqErrors.value).toEqual([]);
+        });
     });
 
     it("self-heals a transient failure within the retry cap and keeps draining", async () => {
