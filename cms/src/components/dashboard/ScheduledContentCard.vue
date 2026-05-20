@@ -22,6 +22,7 @@ function formatDate(timestamp: number): string {
         :icon="CalendarDaysIcon"
         collapsible
         defaultCollapsed
+        class="-mx-1 lg:mx-0"
     >
         <ul class="divide-y divide-zinc-100">
             <li

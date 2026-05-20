@@ -29,18 +29,18 @@ function formatRelativeTime(timestamp: number): string {
 </script>
 
 <template>
-    <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
+    <LCard title="Recent activity" :icon="ClockIcon" fillHeight class="-mx-1 lg:mx-0">
         <div v-if="recentContent.length === 0" class="py-6 text-center text-sm text-zinc-400">
             No content found for the selected language.
         </div>
-        <ul v-else ref="listEl" class="divide-y divide-zinc-100">
+        <ul v-else ref="listEl" class="-mx-1.5 divide-y divide-zinc-100 lg:mx-0">
             <li
                 v-for="doc in recentContent"
                 :key="doc._id"
                 class="rounded-lg p-1.5 hover:bg-zinc-100"
             >
                 <RouterLink
-                    class="grid grid-cols-[auto_1fr_auto_auto] items-center sm:grid-cols-[20px_1fr_150px_100px_80px]"
+                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
                     :to="parentRoute(doc)!"
                 >
                     <component

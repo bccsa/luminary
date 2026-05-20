@@ -64,7 +64,7 @@ watch(missingTranslations, () => nextTick(update));
 </script>
 
 <template>
-    <LCard v-if="missingTranslations.length > 0" fillHeight>
+    <LCard v-if="missingTranslations.length > 0" fillHeight class="-mx-1 lg:mx-0">
         <div class="flex flex-col gap-2 lg:h-full">
             <div class="flex items-center justify-center gap-2">
                 <PencilSquareIcon class="h-4 w-4 text-zinc-600" />
@@ -99,7 +99,7 @@ watch(missingTranslations, () => nextTick(update));
                 </div>
             </div>
             <div class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                <ul ref="listEl" class="divide-y divide-zinc-100">
+                <ul ref="listEl" class="-mx-1.5 divide-y divide-zinc-100 lg:mx-0">
                     <li
                         v-for="item in missingTranslations"
                         :key="item.parentId"
@@ -107,10 +107,10 @@ watch(missingTranslations, () => nextTick(update));
                     >
                         <RouterLink
                             :to="parentRoute(item)!"
-                            class="min-w-0 truncate text-sm text-zinc-900 hover:text-yellow-600"
+                            class="block w-full text-sm text-zinc-900 hover:text-yellow-600"
                         >
                             <div class="flex items-center justify-between gap-2">
-                                <span v-if="parentRoute(item)">
+                                <span v-if="parentRoute(item)" class="min-w-0 truncate">
                                     {{ item.title }}
                                 </span>
                                 <span v-else class="min-w-0 truncate text-sm text-zinc-900">
