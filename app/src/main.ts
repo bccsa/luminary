@@ -14,7 +14,7 @@ import {
 import { useNotificationStore } from "./stores/notification";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry, initSentry } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
@@ -34,13 +34,7 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
-if (import.meta.env.PROD && Sentry) {
-    Sentry.init({
-        app,
-        dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-    });
-}
+initSentry(app);
 
 async function Startup() {
     // Pre-warm Mango query caches from localStorage before any queries run.

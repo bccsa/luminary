@@ -7,19 +7,27 @@ import {
     type Uuid,
     type ContentDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type App } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export let Sentry: typeof import("@sentry/vue") | null = null;
 
-if (import.meta.env.PROD) {
-    import("@sentry/vue")
-        .then((sentryModule) => {
-            Sentry = sentryModule;
-        })
-        .catch((e) => {
-            console.error("Failed to initialize Sentry:", e);
+export async function initSentry(app: App) {
+    if (!import.meta.env.PROD) return;
+
+    try {
+        Sentry = await import("@sentry/vue");
+        Sentry.init({
+            app,
+            dsn: import.meta.env.VITE_SENTRY_DSN,
+            integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
         });
+
+        // TEMPORARY: confirm Sentry is initialised and ingest is working. Remove once verified.
+        Sentry.captureMessage("Sentry initialised", "info");
+    } catch (e) {
+        console.error("Failed to initialize Sentry:", e);
+    }
 }
 
 export const appName = import.meta.env.VITE_APP_NAME;
