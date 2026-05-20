@@ -513,7 +513,11 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                             <li
                                 v-for="doc in recentContent"
                                 :key="doc._id"
-                                class="flex items-center gap-2 py-1.5"
+                                class="p-1.5 hover:bg-zinc-100 rounded-lg"
+                            >
+                            <RouterLink
+                                class="grid grid-cols-[auto_1fr_auto_auto] items-center sm:grid-cols-[20px_1fr_150px_100px_80px] "
+                                :to="parentRoute(doc)!"
                             >
                                 <component
                                     :is="
@@ -521,13 +525,10 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                     "
                                     class="h-4 w-4 shrink-0 text-zinc-300"
                                 />
-                                <RouterLink
-                                    v-if="parentRoute(doc)"
-                                    :to="parentRoute(doc)!"
-                                    class="min-w-0 truncate text-sm font-medium text-zinc-900 hover:text-yellow-600"
-                                >
+                                <span v-if="parentRoute(doc)"
+                                 class="min-w-0 truncate text-sm  font-medium text-zinc-900 hover:text-yellow-600">                             
                                     {{ doc.title || "Untitled" }}
-                                </RouterLink>
+                                </span>
                                 <span
                                     v-else
                                     class="min-w-0 truncate text-sm font-medium text-zinc-900"
@@ -536,13 +537,13 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                 </span>
                                 <span
                                     v-if="doc.author"
-                                    class="ml-auto hidden truncate text-xs text-zinc-400 sm:inline"
+                                    class="hidden truncate text-right text-xs text-zinc-400 sm:col-start-3 sm:inline"
                                 >
                                     by {{ doc.author }}
                                 </span>
+                                <div v-else class="hidden sm:col-start-3 sm:block"></div>
                                 <span
-                                    class="shrink-0 text-xs text-zinc-400"
-                                    :class="{ 'ml-auto': !doc.author }"
+                                    class="text-right text-xs text-zinc-400 sm:col-start-4"
                                 >
                                     {{ formatRelativeTime(doc.updatedTimeUtc) }}
                                 </span>
@@ -554,10 +555,13 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                     "
                                     paddingY="py-0.5"
                                     paddingX="px-1.5"
+                                    class="justify-self-end sm:col-start-5"
                                 >
                                     {{ doc.status }}
                                 </LBadge>
+                            </RouterLink>
                             </li>
+
                         </ul>
                     </LCard>
 
@@ -699,28 +703,31 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
                                     <li
                                         v-for="item in missingTranslations"
                                         :key="item.parentId"
-                                        class="py-1.5"
+                                        class="hover:bg-zinc-100 rounded-lg p-1.5"
+                                    >
+                                    <RouterLink
+                                        
+                                        :to="parentRoute(item)!"
+                                        class="min-w-0 truncate text-sm text-zinc-900 hover:text-yellow-600"
                                     >
                                         <div class="flex items-center justify-between gap-2">
-                                            <RouterLink
-                                                v-if="parentRoute(item)"
-                                                :to="parentRoute(item)!"
-                                                class="min-w-0 truncate text-sm text-zinc-900 hover:text-yellow-600"
-                                            >
+                                            <span v-if="parentRoute(item)">
+
                                                 {{ item.title }}
-                                            </RouterLink>
-                                            <span
+                                            </span>
+                                                <span
                                                 v-else
                                                 class="min-w-0 truncate text-sm text-zinc-900"
-                                            >
+                                                >
                                                 {{ item.title }}
                                             </span>
                                             <span
-                                                class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                            class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
                                             >
-                                                {{ item.translated }}/{{ item.total }}
-                                            </span>
-                                        </div>
+                                            {{ item.translated }}/{{ item.total }}
+                                        </span>
+                                    </div>
+                                </RouterLink>
                                     </li>
                                 </ul>
                             </div>
