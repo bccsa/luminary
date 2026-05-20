@@ -1,5 +1,6 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
+import { computeFtsData } from "../../util/ftsIndexing";
 
 export default async function (db: DbService) {
     try {
@@ -24,8 +25,20 @@ export default async function (db: DbService) {
                 languagesUpdated++;
             });
 
+            await db.processAllDocs([DocType.Content], async (doc: any) => {
+                if (!doc) return;
+
+                const newWordCount = computeFtsData(doc)?.wordCount || 0;
+
+                if (doc.wordCount !== newWordCount) {
+                    doc.wordCount = newWordCount;
+                    await db.insertDoc(doc);
+                    contentUpdated++;
+                }
+            });
+
             console.info(
-                `Schema v14 update complete: ${contentUpdated} contents and ${languagesUpdated} languages (which ${languagesWithoutSpeed} with default value  ) have been updated.`,
+                `Schema v14 update complete: ${contentUpdated} contents and ${languagesUpdated} languages (which ${languagesWithoutSpeed} with default value) have been updated.`,
             );
 
             await db.setSchemaVersion(14);
