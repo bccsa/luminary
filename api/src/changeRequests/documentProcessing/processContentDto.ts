@@ -66,4 +66,6 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         doc.fts = ftsData.fts;
         doc.ftsTokenCount = ftsData.ftsTokenCount;
     }
+
+    doc.wordCount = ftsData.wordCount;
 }

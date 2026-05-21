@@ -616,4 +616,34 @@ describe("SingleContent", () => {
         const editButton = wrapper.find("button[data-test='editButton']");
         expect(editButton.exists()).toBe(false);
     });
+
+    it("can calculate the estimated reading time using a custom language reading speed", async () => {
+        const wordCount = 400;
+        const readingSpeed = 200;
+        const expectedReadingTime = Math.ceil(wordCount / readingSpeed);
+
+        // Update content with wordCount
+        await db.docs.update(mockEnglishContentDto._id, {
+            wordCount,
+        } as any);
+
+        // Update language with custom reading speed
+        await db.docs.update(mockLanguageDtoEng._id, {
+            averageReadingSpeed: readingSpeed,
+        } as any);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(`${expectedReadingTime} min`);
+        });
+    });
 });

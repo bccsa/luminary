@@ -14,7 +14,7 @@ import FormMessage from "./FormMessage.vue";
 
 type Props = {
     name: string;
-    modelValue?: string; // modelValue is directly used
+    modelValue?: string | number | null;
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -38,10 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
     inputType: "input",
 });
 
-const emit = defineEmits<{
-    (event: "update:modelValue", value: string): void;
-}>();
-
+const model = defineModel<string | number | null>("modelValue");
 // Expose the focus method to parent components.
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 const focus = () => {
@@ -57,6 +54,12 @@ const autoResize = () => {
         input.value.style.height = "auto"; // Reset height for recalculation
         input.value.style.height = input.value.scrollHeight + "px";
     }
+};
+
+const handleInput = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const { value, type } = target;
+    model.value = type === "number" && value !== "" ? Number.parseFloat(value) : value;
 };
 
 onMounted(() => {
@@ -131,9 +134,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
-                @input="
-                    (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value)
-                "
+                @input="handleInput"
                 :class="[
                     sizes[size],
                     states[computedState],
