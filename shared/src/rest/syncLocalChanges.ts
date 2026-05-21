@@ -37,7 +37,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
                 for (let attempt = 0; attempt < 3; attempt++) {
                     if (!isConnected.value) return;
                     if (await send(change)) return;
-                    await new Promise((r) => setTimeout(r, 100));
+                    if (attempt < 2) await new Promise((r) => setTimeout(r, 100));
                 }
 
                 changeReqErrors.value.push(
