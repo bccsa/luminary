@@ -8,26 +8,17 @@ import { changeReqErrors, changeReqWarnings } from "../config";
 
 let running = false;
 
-async function attemptSend(
-    change: LocalChangeDto,
-    formData: LFormData,
-    attempts: number,
-): Promise<void> {
+async function send(change: LocalChangeDto): Promise<boolean> {
+    const formData = new LFormData();
+    formData.append("changeRequest", change);
+
     const res = (await getRest().changeRequest(formData)) as ChangeReqAckDto | undefined;
-    if (res) {
-        changeReqWarnings.value = [];
-        changeReqErrors.value = [];
-        await db.applyLocalChangeAck(res, change);
-        return;
-    }
-    if (attempts >= 2) {
-        changeReqErrors.value.push(
-            "Unable to save changes. Please refresh the page and try again.",
-        );
-        return;
-    }
-    await new Promise((r) => setTimeout(r, 100));
-    return attemptSend(change, formData, attempts + 1);
+    if (!res) return false;
+
+    changeReqWarnings.value = [];
+    changeReqErrors.value = [];
+    await db.applyLocalChangeAck(res, change);
+    return true;
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
@@ -43,10 +34,15 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
                     | undefined;
                 if (!change) return;
 
-                const formData = new LFormData();
-                formData.append("changeRequest", change);
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    if (!isConnected.value) return;
+                    if (await send(change)) return;
+                    await new Promise((r) => setTimeout(r, 100));
+                }
 
-                await attemptSend(change, formData, 0);
+                changeReqErrors.value.push(
+                    "Unable to save changes. Please refresh the page and try again.",
+                );
             } catch (err) {
                 console.error("syncLocalChanges error:", err);
             } finally {
