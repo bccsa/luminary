@@ -1247,7 +1247,9 @@ describe("EditContent.vue", () => {
         it("is not dirty on load when no storage buckets exist", async () => {
             const wrapper = await loadWithoutUserEdits();
 
-            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            });
         });
 
         it("is not dirty on load when the post already has bucket IDs persisted", async () => {
