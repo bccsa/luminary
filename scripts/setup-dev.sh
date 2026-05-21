@@ -145,8 +145,6 @@ setup_env_wizard() {
     success ".env file created for $project with defaults"
   fi
 
-  apply_auth0_env "$output_file"
-
   if [[ "$project" == "api" ]]; then
     apply_api_env_defaults "$output_file"
   fi
@@ -643,6 +641,26 @@ setup_projects() {
   
   success "All subprojects installed and built."
 }
+setup_auth() {
+  echo ""
+  echo "Do you want to set up the auth system for this project ?"
+  echo "  1) Yes"
+  echo "  2) No"
+  echo ""
+  read -rp "Select mode (1 or 2): " auth_config_confirm
+  echo ""
+
+  if [[ "$auth_config_confirm" == "1" ]]; then
+    cd "$LUMINARY_ROOT/api"
+
+    if [[ -f "$LUMINARY_ROOT/api/.env" ]]; then
+      info "Setting up Auth0 authentication..."
+      npm run auth-setup || warn "The configuration failed"
+    fi
+  else 
+    info "Auth configuration skipped."
+  fi
+}
 
 # ============================================================
 # SERVICE MANAGEMENT
@@ -841,6 +859,7 @@ main() {
 
       setup_git_hooks
       setup_projects
+      setup_auth
       
       success "Luminary setup complete!"
       info "Next steps:"
