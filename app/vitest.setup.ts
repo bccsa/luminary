@@ -85,11 +85,12 @@ const testI18n = createI18n({
 });
 config.global.plugins = [...(config.global.plugins || []), testI18n];
 
-window.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-}));
+class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 window.matchMedia = vi.fn().mockImplementation((query) => {
     return {
