@@ -280,12 +280,28 @@ class Database extends Dexie {
      * Bulk insert documents into the database, and delete documents that are marked for deletion.
      */
     async bulkPut(docs: BaseDocumentDto[]) {
-        const toDeleteIds = docs
-            .filter((doc) => {
-                if (doc.type !== DocType.DeleteCmd) return false;
-                return this.validateDeleteCommand(doc as DeleteCmdDto);
+        const candidateDeleteCmds = docs.filter(
+            (doc) =>
+                doc.type === DocType.DeleteCmd &&
+                this.validateDeleteCommand(doc as DeleteCmdDto),
+        ) as DeleteCmdDto[];
+
+        // Bulk-fetch target docs once, then skip any deleteCmd whose target is already
+        // at-or-newer than the deleteCmd itself (e.g. unpublish-then-republish race).
+        const targetIds = candidateDeleteCmds.map((cmd) => cmd.docId);
+        const existing = targetIds.length > 0 ? await this.docs.bulkGet(targetIds) : [];
+        const existingById = new Map<string, BaseDocumentDto>();
+        for (const d of existing) {
+            if (d) existingById.set(d._id, d);
+        }
+
+        const toDeleteIds = candidateDeleteCmds
+            .filter((cmd) => {
+                const local = existingById.get(cmd.docId);
+                if (!local) return true;
+                return local.updatedTimeUtc < cmd.updatedTimeUtc;
             })
-            .map((doc) => (doc as DeleteCmdDto).docId);
+            .map((cmd) => cmd.docId);
 
         if (toDeleteIds.length > 0) {
             await this.docs.bulkDelete(toDeleteIds);

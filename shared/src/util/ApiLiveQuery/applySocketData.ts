@@ -32,12 +32,14 @@ export function applySocketData<T extends BaseDocumentDto>(
     destination: Ref<Array<T> | undefined>,
     query: ApiSearchQuery,
 ) {
-    // Delete documents that are marked for deletion
+    // Delete documents that are marked for deletion. Skip any deleteCmd whose target is already
+    // at-or-newer than the deleteCmd itself (e.g. unpublish-then-republish race).
     const toDeleteIds = (data.docs as unknown as Array<DeleteCmdDto>)
         .filter((doc) => {
             if (doc.type !== DocType.DeleteCmd) return false;
-
-            return db.validateDeleteCommand(doc);
+            if (!db.validateDeleteCommand(doc)) return false;
+            const local = destination.value?.find((d) => d._id === doc.docId);
+            return !local || local.updatedTimeUtc < doc.updatedTimeUtc;
         })
         .map((doc) => doc.docId);
 

@@ -47,12 +47,19 @@ describe("applySocketData", () => {
 
     it("removes documents marked for deletion", () => {
         const destination = ref<BaseDocumentDto[]>([
-            { _id: "1", type: DocType.Post } as BaseDocumentDto,
+            { _id: "1", type: DocType.Post, updatedTimeUtc: 1000 } as BaseDocumentDto,
             { _id: "2", type: DocType.Tag } as BaseDocumentDto,
         ]);
 
         const data: ApiQueryResult<BaseDocumentDto> = {
-            docs: [{ _id: "1", type: DocType.DeleteCmd, docId: "1" } as DeleteCmdDto],
+            docs: [
+                {
+                    _id: "1",
+                    type: DocType.DeleteCmd,
+                    docId: "1",
+                    updatedTimeUtc: 2000,
+                } as DeleteCmdDto,
+            ],
         };
 
         vi.mocked(db.validateDeleteCommand).mockReturnValue(true);
@@ -60,6 +67,33 @@ describe("applySocketData", () => {
         applySocketData(data, destination, {});
 
         expect(destination.value).toEqual([{ _id: "2", type: DocType.Tag }]);
+    });
+
+    it("skips stale deleteCmd when local doc has a newer updatedTimeUtc (republish race)", () => {
+        const destination = ref<BaseDocumentDto[]>([
+            { _id: "1", type: DocType.Post, updatedTimeUtc: 3000 } as BaseDocumentDto,
+            { _id: "2", type: DocType.Tag } as BaseDocumentDto,
+        ]);
+
+        const data: ApiQueryResult<BaseDocumentDto> = {
+            docs: [
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: "1",
+                    updatedTimeUtc: 2000,
+                } as DeleteCmdDto,
+            ],
+        };
+
+        vi.mocked(db.validateDeleteCommand).mockReturnValue(true);
+
+        applySocketData(data, destination, {});
+
+        expect(destination.value).toEqual([
+            { _id: "1", type: DocType.Post, updatedTimeUtc: 3000 },
+            { _id: "2", type: DocType.Tag },
+        ]);
     });
 
     it("filters out delete commands from the result", () => {
