@@ -9,7 +9,9 @@ import {
     sync,
     type AccessMap,
 } from "luminary-shared";
-import { appLanguageIdsAsRef, Sentry } from "./globalConfig";
+import { appLanguageIdsAsRef } from "./globalConfig";
+import { Sentry } from "./util/initSentry";
+
 import _ from "lodash";
 
 export const syncIterators = ref<{ language: number; content: number }>({
@@ -160,7 +162,6 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
-
         },
         { immediate: true },
     );
