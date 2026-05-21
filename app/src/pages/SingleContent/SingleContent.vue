@@ -25,6 +25,7 @@ import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/
 import {
     BookmarkIcon as BookmarkIconOutline,
     MoonIcon,
+    ClockIcon,
     PencilIcon,
 } from "@heroicons/vue/24/outline";
 
@@ -598,6 +599,15 @@ const playAudio = () => {
         addToMediaQueue(content.value);
     }
 };
+
+const readingTime = computed(() => {
+    if (!content.value) return "";
+    const wordCount = content.value.wordCount!;
+    const currentLanguage = languages.value.find(l => l._id === content.value?.language);
+    const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
+
+    return Math.ceil(wordCount / readingSpeed);
+});
 </script>
 
 <template>
@@ -772,6 +782,14 @@ const playAudio = () => {
                             >
                                 By {{ content.author }}
                             </div>
+                            <div
+                                v-if="readingTime"
+                                class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
+                                <ClockIcon class="h-4 w-4" />
+                                {{ readingTime }} min
+                            </div>
+
                             <div
                                 class="text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"

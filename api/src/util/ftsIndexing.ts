@@ -41,6 +41,7 @@ const FTS_FIELDS: FtsFieldConfig[] = [
 export type FtsData = {
     fts: string[];
     ftsTokenCount: number;
+    wordCount: number;
 };
 
 // ── HTML stripping ──────────────────────────────────────────────────────────
@@ -214,12 +215,16 @@ export function generateTrigramCounts(text: string): {
 export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
     const aggregatedTf = new Map<string, number>();
     let totalTokenCount = 0;
+    let wordCount = 0;
 
     for (const field of FTS_FIELDS) {
         const value = doc[field.name];
         if (typeof value !== "string" || !value) continue;
 
         const text = field.isHtml ? stripHtml(value) : value;
+        if (field.name !== "title") {
+            wordCount += text.split(/\s+/).filter(Boolean).length;
+        }
         const { counts, totalCount } = generateTrigramCounts(text);
         totalTokenCount += totalCount;
 
@@ -234,5 +239,5 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
         ([token, tf]) => token + ":" + tf,
     );
 
-    return { fts, ftsTokenCount: totalTokenCount };
+    return { fts, ftsTokenCount: totalTokenCount, wordCount };
 }

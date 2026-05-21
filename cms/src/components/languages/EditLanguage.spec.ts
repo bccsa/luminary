@@ -277,4 +277,28 @@ describe("EditLanguage.vue", () => {
         expect(keyInput.attributes("disabled")).toBeDefined();
         expect(valueInput.attributes("disabled")).toBeDefined();
     });
+
+    it("can update average reading speed", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        // Wait for the editor to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        const readingSpeedInput = wrapper.find('input[name="averageReadingSpeed"]');
+        await readingSpeedInput.setValue(250);
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(async () => {
+            const updatedLanguage = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
+            expect(updatedLanguage.averageReadingSpeed).toBe(250);
+        });
+    });
 });

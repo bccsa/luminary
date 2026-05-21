@@ -1,9 +1,9 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
 /**
- * Database structured Language object
+ * Database structured Language object.
  */
 export class LanguageDto extends _contentBaseDto {
     @IsNotEmpty()
@@ -24,4 +24,10 @@ export class LanguageDto extends _contentBaseDto {
     @Expose()
     @IsNotEmpty()
     translations: Record<string, string>;
+
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Expose()
+    averageReadingSpeed?: number;
 }
