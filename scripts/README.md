@@ -133,23 +133,6 @@ The setup wizard configures environment variables across three sub-projects: **a
 
 The wizard will ask you for these values. Here's what each one does:
 
-### For the App and CMS
-
-**`VITE_AUTH0_DOMAIN`** - Your Auth0 tenant domain
-
-- Example: `dev-abc123.us.auth0.com`
-- Where to find it: Auth0 Dashboard → Applications → Your App → Settings → Domain
-
-**`VITE_AUTH0_CLIENT_ID`** - Your application's unique ID in Auth0
-
-- Example: A long alphanumeric string like `aBcDeFgHiJkLmNoPqRsTuVwXyZ`
-- Where to find it: Same place as Domain, labeled "Client ID"
-
-**`VITE_AUTH0_AUDIENCE`** - Your API identifier
-
-- Example: `https://luminary-api.local`
-- Where to find it: Auth0 Dashboard → Applications → APIs → Your API → Settings → Identifier
-
 ### For the API
 
 **`JWT_SECRET`** - The secret key for verifying user tokens
