@@ -41,7 +41,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
                 }
 
                 changeReqErrors.value.push(
-                    "Unable to save changes. Please refresh the page and try again.",
+                    "Unable to submit saved changes. Please refresh the page to try again.",
                 );
             } catch (err) {
                 console.error("syncLocalChanges error:", err);
