@@ -14,12 +14,13 @@ import {
 import { useNotificationStore } from "./stores/notification";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage, isAppLoading, Sentry, initSentry } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
+import { initSentry, Sentry } from "@/util/initSentry";
 
 export const app = createApp(App);
 
