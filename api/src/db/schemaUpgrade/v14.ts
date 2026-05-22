@@ -18,6 +18,8 @@ export default async function (db: DbService) {
                 if (!doc) return;
                 if (!doc.averageReadingSpeed) {
                     doc.averageReadingSpeed = 200;
+                    // Bump updatedTimeUtc so clients sync the new reading speed
+                    doc.updatedTimeUtc = Date.now();
                     await db.insertDoc(doc);
                     languagesWithoutSpeed++;
                 }
@@ -32,6 +34,8 @@ export default async function (db: DbService) {
 
                 if (doc.wordCount !== newWordCount) {
                     doc.wordCount = newWordCount;
+                    // Bump updatedTimeUtc so clients sync the new word count (reading time)
+                    doc.updatedTimeUtc = Date.now();
                     await db.insertDoc(doc);
                     contentUpdated++;
                 }
