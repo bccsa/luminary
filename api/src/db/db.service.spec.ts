@@ -6,6 +6,7 @@ import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 import { SearchOptions } from "./db.searchFunctions";
+import processContentDto from "../changeRequests/documentProcessing/processContentDto";
 
 describe("DbService", () => {
     let service: DbService;
@@ -1259,6 +1260,79 @@ describe("DbService", () => {
 
                 const deleteCmdAfter = await service.executeFindQuery(deleteCmdQuery);
                 expect(deleteCmdAfter.docs.length).toBe(0);
+            });
+
+            it("sets statusChangeDeleteCmdId on the draft doc when content is unpublished", async () => {
+                const contentDocId = "delete-test-statusChange-trackingField-set";
+
+                const publishedDoc = {
+                    _id: contentDocId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedDoc);
+
+                const draftDoc = { ...publishedDoc, status: "draft" };
+                await service.upsertDoc(draftDoc);
+
+                const persistedDraft = (await service.getDoc(contentDocId)).docs[0];
+                expect(persistedDraft.statusChangeDeleteCmdId).toBeDefined();
+
+                const trackedCmd = (await service.getDoc(persistedDraft.statusChangeDeleteCmdId))
+                    .docs[0];
+                expect(trackedCmd).toBeDefined();
+                expect(trackedCmd.type).toBe(DocType.DeleteCmd);
+                expect(trackedCmd.docId).toBe(contentDocId);
+                expect(trackedCmd.deleteReason).toBe(DeleteReason.StatusChange);
+            });
+
+            it("deletes the tracked deleteCmd by primary key on republish and clears the tracking field", async () => {
+                const contentDocId = "delete-test-statusChange-trackingField-republish";
+
+                const publishedDoc = {
+                    _id: contentDocId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedDoc);
+                await service.upsertDoc({ ...publishedDoc, status: "draft" });
+
+                const draftAfterUnpublish = (await service.getDoc(contentDocId)).docs[0];
+                const trackedCmdId = draftAfterUnpublish.statusChangeDeleteCmdId;
+                expect(trackedCmdId).toBeDefined();
+
+                // Republish
+                await service.upsertDoc({ ...publishedDoc, testData: "test123-republished" });
+
+                const republished = (await service.getDoc(contentDocId)).docs[0];
+                expect(republished.statusChangeDeleteCmdId).toBeUndefined();
+
+                const trackedCmdAfter = await service.getDoc(trackedCmdId);
+                expect(trackedCmdAfter.docs.length).toBe(0);
+            });
+
+            it("ignores client-provided statusChangeDeleteCmdId on a change request", async () => {
+                const contentDocId = "delete-test-statusChange-trackingField-forged";
+
+                const forgedDoc: any = {
+                    _id: contentDocId,
+                    type: DocType.Content,
+                    parentId: "post-blog1",
+                    language: "lang-eng",
+                    status: "draft",
+                    slug: "trackingfield-forged-test-slug",
+                    title: "Test",
+                    memberOf: ["group-public-content"],
+                    statusChangeDeleteCmdId: "forged-id-the-client-set",
+                };
+
+                await processContentDto(forgedDoc, service);
+
+                expect(forgedDoc.statusChangeDeleteCmdId).toBeUndefined();
             });
 
             it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {

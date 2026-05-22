@@ -963,6 +963,7 @@ describe("Database", async () => {
                     type: DocType.DeleteCmd,
                     docId: mockEnglishContentDto._id,
                     deleteReason: "deleted",
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
                 } as DeleteCmdDto,
             ]);
 
@@ -983,6 +984,7 @@ describe("Database", async () => {
                     type: DocType.DeleteCmd,
                     docId: mockEnglishContentDto._id,
                     deleteReason: "statusChange",
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
                 } as DeleteCmdDto,
             ]);
 
@@ -1003,6 +1005,7 @@ describe("Database", async () => {
                     type: DocType.DeleteCmd,
                     docId: mockEnglishContentDto._id,
                     deleteReason: "statusChange",
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
                 } as DeleteCmdDto,
             ]);
 
@@ -1023,6 +1026,7 @@ describe("Database", async () => {
                     docId: mockEnglishContentDto._id,
                     deleteReason: "permissionChange",
                     newMemberOf: ["inaccessible-group"],
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
                 } as DeleteCmdDto,
             ]);
 
@@ -1054,6 +1058,7 @@ describe("Database", async () => {
                     docId: mockEnglishContentDto._id,
                     deleteReason: "permissionChange",
                     newMemberOf: ["group-public-content"],
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
                 } as DeleteCmdDto,
             ]);
 
@@ -1061,6 +1066,156 @@ describe("Database", async () => {
             expect(deletedDoc).toBeDefined();
 
             accessMap.value = {};
+        });
+
+        describe("stale deleteCmd timestamp guard", () => {
+            const localTime = 2000;
+            const olderTime = 1000;
+            const equalTime = localTime;
+
+            it("skips deleteCmd with reason 'deleted' when local doc is newer", async () => {
+                await db.docs.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
+                ]);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-stale-1",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "deleted",
+                        updatedTimeUtc: olderTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeDefined();
+                expect(doc?.updatedTimeUtc).toBe(localTime);
+            });
+
+            it("skips deleteCmd with reason 'statusChange' when local doc is newer (non-CMS)", async () => {
+                config.cms = false;
+                await db.docs.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
+                ]);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-stale-2",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "statusChange",
+                        updatedTimeUtc: olderTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeDefined();
+                expect(doc?.updatedTimeUtc).toBe(localTime);
+            });
+
+            it("skips deleteCmd with reason 'permissionChange' when local doc is newer", async () => {
+                await db.docs.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
+                ]);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-stale-3",
+                        type: DocType.DeleteCmd,
+                        docType: DocType.Post,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "permissionChange",
+                        newMemberOf: ["inaccessible-group"],
+                        updatedTimeUtc: olderTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeDefined();
+                expect(doc?.updatedTimeUtc).toBe(localTime);
+            });
+
+            it("skips deleteCmd when timestamps are equal (treats ties as superseded)", async () => {
+                await db.docs.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
+                ]);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-stale-4",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "deleted",
+                        updatedTimeUtc: equalTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeDefined();
+            });
+
+            it("applies deleteCmd when local doc is older than the deleteCmd", async () => {
+                await db.docs.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: olderTime },
+                ]);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-fresh-1",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "deleted",
+                        updatedTimeUtc: localTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeUndefined();
+            });
+
+            it("applies deleteCmd when local doc is absent (no-op without error)", async () => {
+                await db.docs.delete(mockEnglishContentDto._id);
+
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-absent-1",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "deleted",
+                        updatedTimeUtc: localTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeUndefined();
+            });
+
+            it("preserves republished content when stale statusChange deleteCmd arrives in a later sync batch (bug repro)", async () => {
+                config.cms = false;
+                const republishedTime = 3000;
+                const staleUnpublishTime = 2000;
+
+                // Catch-up content sync: newer republished content arrives first
+                await db.bulkPut([
+                    { ...mockEnglishContentDto, updatedTimeUtc: republishedTime },
+                ]);
+
+                // Catch-up deleteCmd sync: stale unpublish deleteCmd arrives after
+                await db.bulkPut([
+                    {
+                        _id: "delete-cmd-bug-repro",
+                        type: DocType.DeleteCmd,
+                        docId: mockEnglishContentDto._id,
+                        deleteReason: "statusChange",
+                        updatedTimeUtc: staleUnpublishTime,
+                    } as DeleteCmdDto,
+                ]);
+
+                const doc = await db.get<ContentDto>(mockEnglishContentDto._id);
+                expect(doc).toBeDefined();
+                expect(doc?.updatedTimeUtc).toBe(republishedTime);
+            });
         });
 
         it("can delete related content documents when a parent document is deleted locally through marking a document with deleteReq: 1", async () => {
