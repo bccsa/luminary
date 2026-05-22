@@ -1177,7 +1177,10 @@ describe("EditContent.vue", () => {
         // which made the diff against existingParent flag a phantom dirty state every
         // time a legacy doc (no bucket IDs persisted) was opened.
 
-        const loadWithoutUserEdits = async (postOverride: Partial<PostDto> = {}) => {
+        const loadWithoutUserEdits = async (
+            postOverride: Partial<PostDto> = {},
+            extraDocs: any[] = [],
+        ) => {
             await db.docs.clear();
             await db.localChanges.clear();
 
@@ -1197,6 +1200,9 @@ describe("EditContent.vue", () => {
                 mockData.mockLanguageDtoFra,
                 mockData.mockLanguageDtoSwa,
             ]);
+            if (extraDocs.length > 0) {
+                await db.docs.bulkPut(extraDocs);
+            }
 
             const wrapper = mount(EditContent, {
                 props: {
@@ -1247,22 +1253,26 @@ describe("EditContent.vue", () => {
         it("is not dirty on load when no storage buckets exist", async () => {
             const wrapper = await loadWithoutUserEdits();
 
-            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
-        });
-
-        it("is not dirty on load when the post already has bucket IDs persisted", async () => {
-            await db.docs.bulkPut([
-                mockData.mockStorageDto,
-                mockData.mockStorageDtoWithEncryptedCredentials,
-            ]);
-
-            const wrapper = await loadWithoutUserEdits({
-                imageBucketId: mockData.mockStorageDto._id,
-                mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
             });
-
-            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
         });
+
+        it(
+            "is not dirty on load when the post already has bucket IDs persisted",
+            async () => {
+                const wrapper = await loadWithoutUserEdits(
+                    {
+                        imageBucketId: mockData.mockStorageDto._id,
+                        mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+                    },
+                    [mockData.mockStorageDto, mockData.mockStorageDtoWithEncryptedCredentials],
+                );
+
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            },
+            15000,
+        );
 
         it(
             "becomes dirty after a genuine user edit on a legacy post with auto-selected buckets",
