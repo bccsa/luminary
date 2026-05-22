@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from "vue";
+import { watch, type Ref } from "vue";
 import { isConnected } from "../socket/socketio";
 import { getRest } from "./RestApi";
 import { ChangeReqAckDto, LocalChangeDto } from "../types";
@@ -6,67 +6,60 @@ import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
 import { changeReqErrors, changeReqWarnings } from "../config";
 
-/**
- * Lock to prevent multiple change requests from being processed at the same time
- * This is set to true when a change request is being processed and false when it is done
- * as change requests are asynchronous operations that can take time to complete.
- */
-export const processChangeReqLock = ref(false); // start unlocked so first change can go through
+let running = false;
 
-/**
- * Handle change request acknowledgements from the api
- * @param ack ack from api
- * @param localChange the local change that was sent (for reference)
- */
-async function handleAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
-    // Clear previous warnings and errors
+async function send(change: LocalChangeDto): Promise<boolean> {
+    const formData = new LFormData();
+    formData.append("changeRequest", change);
+
+    const res = (await getRest().changeRequest(formData)) as ChangeReqAckDto | undefined;
+    if (!res) return false;
+
     changeReqWarnings.value = [];
     changeReqErrors.value = [];
-
-    await db.applyLocalChangeAck(ack, localChange);
-
-    // Release lock; watcher will notice localChanges updated (Dexie live query) and proceed
-    processChangeReqLock.value = false;
-}
-
-/**
- * Push a single local change to the api
- * @param localChange the local change to push
- */
-async function pushLocalChange(localChange: LocalChangeDto) {
-    const formData = new LFormData();
-    formData.append("changeRequest", localChange);
-
-    const res = await getRest().changeRequest(formData);
-
-    if (res) handleAck(res as ChangeReqAckDto, localChange);
-    // Release the lock on a failed/non-acked push so the queue isn't stalled
-    // indefinitely. Recovery happens on the next localChanges mutation or
-    // reconnect (which both fire the watcher); we deliberately don't auto-retry
-    // here to avoid hot-looping on a persistently rejected change.
-    else processChangeReqLock.value = false;
+    await db.applyLocalChangeAck(res, change);
+    return true;
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
-    const attemptSync = () => {
-        if (!isConnected.value) return;
-        if (localChanges.value.length === 0) return;
-        if (processChangeReqLock.value) return; // already processing a change request
-        // Acquire lock synchronously so concurrent watcher triggers bail out
-        processChangeReqLock.value = true;
-        pushLocalChange(localChanges.value[0]);
-    };
+    watch(
+        [isConnected, localChanges],
+        async () => {
+            if (!isConnected.value || localChanges.value.length === 0) return;
+            if (running) return;
+            running = true;
+            try {
+                while (isConnected.value) {
+                    const change = (await db.localChanges.toCollection().first()) as
+                        | LocalChangeDto
+                        | undefined;
+                    if (!change) return;
 
-    watch([isConnected, localChanges], attemptSync, { immediate: true });
+                    let sent = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        if (!isConnected.value) return;
+                        if (await send(change)) {
+                            sent = true;
+                            break;
+                        }
+                        if (attempt < 2) await new Promise((r) => setTimeout(r, 100));
+                    }
 
-    watch(isConnected, (connected) => {
-        if (!connected) {
-            // Prevent new processing while offline (existing in-flight may still resolve)
-            processChangeReqLock.value = true;
-            return;
-        }
-        // When coming online, allow processing and attempt immediately
-        processChangeReqLock.value = false;
-        attemptSync();
-    });
+                    // The head failed every attempt; stop without touching the rest of
+                    // the queue so order is preserved and we don't hammer the API.
+                    if (!sent) {
+                        changeReqErrors.value.push(
+                            "Unable to submit saved changes. Please refresh the page to try again.",
+                        );
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("syncLocalChanges error:", err);
+            } finally {
+                running = false;
+            }
+        },
+        { immediate: true },
+    );
 }
