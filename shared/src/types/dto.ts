@@ -110,6 +110,7 @@ export type ContentDto = ContentBaseDto & {
     ftsTokenCount?: number;
     copyright?: string;
     wordCount?: number;
+    statusChangeDeleteCmdId?: Uuid;
 };
 
 export type ContentParentDto = ContentBaseDto & {

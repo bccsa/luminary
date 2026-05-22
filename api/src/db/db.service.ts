@@ -410,30 +410,24 @@ export class DbService extends EventEmitter {
                 });
             }
 
-            // Cleanup obsolete delete commands when switching content from draft to published.
-            // Without this, older `DeleteReason.StatusChange` deleteCmd documents may still exist in the DB,
-            // which would cause non-CMS clients to delete the document even though it is published again.
+            // Cleanup the obsolete StatusChange deleteCmd when switching content from draft to
+            // published. The deleteCmd's `_id` is tracked on the draft doc itself
+            // (`statusChangeDeleteCmdId`), so we can delete it by primary key — strongly consistent.
+            // Pre-fix orphan deleteCmds (no tracking field) are handled by a one-time schema
+            // upgrade in `schemaUpgrade/v15.ts`.
             if (
                 existing &&
                 doc.type === DocType.Content &&
                 (existing as ContentDto).status === PublishStatus.Draft &&
                 (doc as ContentDto).status === PublishStatus.Published
             ) {
-                const query: nano.MangoQuery = {
-                    selector: {
-                        type: DocType.DeleteCmd,
-                        docId: (existing as ContentDto)._id,
-                        deleteReason: DeleteReason.StatusChange,
-                    },
-                    limit: Number.MAX_SAFE_INTEGER,
-                };
-
-                const res: any = await this.db.find(query);
-                const deleteCmdDocs: any[] = res.docs || [];
-
-                for (const cmd of deleteCmdDocs) {
-                    await this.deleteDoc(cmd._id);
+                const trackedId = (existing as ContentDto).statusChangeDeleteCmdId;
+                if (trackedId) {
+                    await this.deleteDoc(trackedId);
                 }
+
+                // Don't carry the field forward onto the republished doc.
+                delete (doc as ContentDto).statusChangeDeleteCmdId;
             }
 
             // Generate delete command if the document's status has changed to draft
@@ -443,11 +437,14 @@ export class DbService extends EventEmitter {
                 (existing as ContentDto).status === PublishStatus.Published &&
                 (doc as ContentDto).status === PublishStatus.Draft
             ) {
-                await this.insertDeleteCmd({
+                const result = await this.insertDeleteCmd({
                     reason: DeleteReason.StatusChange,
                     doc: doc as ContentDto,
                     prevDoc: existing as _contentBaseDto,
                 });
+                // Track the deleteCmd ID on the draft so a future republish can delete it by
+                // primary key (strongly consistent) instead of relying on an unindexed Mango find.
+                (doc as ContentDto).statusChangeDeleteCmdId = result.id;
             }
         }
 

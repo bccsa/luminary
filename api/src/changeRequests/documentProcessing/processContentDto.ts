@@ -12,6 +12,10 @@ import { computeFtsData } from "../../util/ftsIndexing";
  * @param db
  */
 export default async function processContentDto(doc: ContentDto, db: DbService) {
+    // Server-controlled field; clients must not set it. Cleared here so any forged value
+    // is dropped before persistence — only the unpublish path in DbService is allowed to set it.
+    delete doc.statusChangeDeleteCmdId;
+
     doc.slug = await validateSlug(doc.slug, doc._id, db);
 
     const parentQuery = await db.getDoc(doc.parentId);
