@@ -29,20 +29,31 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
             if (running) return;
             running = true;
             try {
-                const change = (await db.localChanges.toCollection().first()) as
-                    | LocalChangeDto
-                    | undefined;
-                if (!change) return;
+                while (isConnected.value) {
+                    const change = (await db.localChanges.toCollection().first()) as
+                        | LocalChangeDto
+                        | undefined;
+                    if (!change) return;
 
-                for (let attempt = 0; attempt < 3; attempt++) {
-                    if (!isConnected.value) return;
-                    if (await send(change)) return;
-                    if (attempt < 2) await new Promise((r) => setTimeout(r, 100));
+                    let sent = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        if (!isConnected.value) return;
+                        if (await send(change)) {
+                            sent = true;
+                            break;
+                        }
+                        if (attempt < 2) await new Promise((r) => setTimeout(r, 100));
+                    }
+
+                    // The head failed every attempt; stop without touching the rest of
+                    // the queue so order is preserved and we don't hammer the API.
+                    if (!sent) {
+                        changeReqErrors.value.push(
+                            "Unable to submit saved changes. Please refresh the page to try again.",
+                        );
+                        return;
+                    }
                 }
-
-                changeReqErrors.value.push(
-                    "Unable to submit saved changes. Please refresh the page to try again.",
-                );
             } catch (err) {
                 console.error("syncLocalChanges error:", err);
             } finally {
