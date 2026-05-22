@@ -38,6 +38,13 @@ type translationKeyValuePair = {
 type Props = {
     id: Uuid;
 };
+
+type validationRule = {
+    field: string;
+    isInvalid: boolean;
+    message: string;
+};
+
 const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
@@ -205,6 +212,35 @@ const confirmDelete = () => {
 
 // Save the current JSON to the database
 const save = async () => {
+    const validationRules: validationRule[] = [
+        {
+            field: "languageCode",
+            isInvalid: !editable.value.languageCode || editable.value.languageCode.trim() === "",
+            message: "Language code should not be empty.",
+        },
+        {
+            field: "name",
+            isInvalid: !editable.value.name || editable.value.name.trim() === "",
+            message: "Language name should not be empty.",
+        },
+        {
+            field: "averageReadingSpeed",
+            isInvalid:
+                !editable.value.averageReadingSpeed || editable.value.averageReadingSpeed <= 0,
+            message: "Average reading speed must be greater than 0.",
+        },
+    ];
+    const firstError = validationRules.find((rule) => rule.isInvalid);
+
+    if (firstError) {
+        addNotification({
+            title: "Validation Error",
+            description: firstError.message,
+            state: "error",
+        });
+        return;
+    };
+
     // Bypass save if the language is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
