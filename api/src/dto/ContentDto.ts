@@ -183,4 +183,9 @@ export class ContentDto extends _contentBaseDto {
     @IsNumber()
     @Expose()
     wordCount?: number;
+
+    @IsOptional() // Server-controlled: set by the API on unpublish, cleared on republish. Sanitized from incoming change requests.
+    @IsString()
+    @Expose()
+    statusChangeDeleteCmdId?: Uuid;
 }
