@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import InAppBrowserCheck from "@/pages/InAppBrowserCheck.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
+import { markPageLoading } from "@/util/ssgRenderState";
 
 // Preload all route components immediately as separate chunks
 const ExplorePage = import("@/pages/ExplorePage.vue");
@@ -108,6 +109,8 @@ const router = createRouter({
 const routeHistory = ref<string[]>([]);
 
 router.beforeEach((to) => {
+    markPageLoading();
+
     const telegramWarningAcknowledged =
         sessionStorage.getItem("telegram_open_warning_ack") === "1";
 

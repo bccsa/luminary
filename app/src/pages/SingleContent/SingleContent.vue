@@ -20,7 +20,7 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -66,6 +66,7 @@ import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
+import { markPageReady } from "@/util/ssgRenderState";
 
 const router = useRouter();
 
@@ -607,6 +608,18 @@ const readingTime = computed(() => {
     const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
     return Math.ceil(wordCount / readingSpeed);
+});
+
+watch([isLoading, content, is404], async () => {
+    if (is404.value) {
+        await nextTick();
+        markPageReady();
+        return;
+    }
+    if (!isLoading.value && content.value && content.value !== defaultContent) {
+        await nextTick();
+        markPageReady();
+    }
 });
 </script>
 

@@ -7,16 +7,30 @@ import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
 import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
+import { nextTick, onActivated, ref } from "vue";
+import { markPageReady } from "@/util/ssgRenderState";
+
+const pinnedResolved = ref(false);
+const newestResolved = ref(false);
+
+async function checkReady() {
+    if (pinnedResolved.value && newestResolved.value) {
+        await nextTick();
+        markPageReady();
+    }
+}
+
+onActivated(checkReady);
 </script>
 
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
             <HomePageSearch v-if="isMdScreen" />
-            <Suspense>
+            <Suspense @resolve="pinnedResolved = true; checkReady()">
                 <HomePagePinned />
             </Suspense>
-            <Suspense>
+            <Suspense @resolve="newestResolved = true; checkReady()">
                 <HomePageNewest />
             </Suspense>
 

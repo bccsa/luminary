@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import LDialog from "@/components/common/LDialog.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
 import { appName } from "@/globalConfig";
+import { markPageReady } from "@/util/ssgRenderState";
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +34,7 @@ function cancel() {
     else router.replace("/");
 }
 
-onMounted(() => {
+onMounted(async () => {
     // Prevent showing the warning when user navigates to /open manually
     // or from a non-Telegram browser.
     if (!isTelegramBrowser()) {
@@ -41,6 +42,8 @@ onMounted(() => {
         return;
     }
     open.value = true;
+    await nextTick();
+    markPageReady();
 });
 
 // If user dismisses via backdrop/escape, treat it as "Cancel".

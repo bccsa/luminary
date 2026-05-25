@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, onMounted, ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -9,8 +9,14 @@ import { useI18n } from "vue-i18n";
 import { getDeviceInfo } from "@/globalConfig";
 import BasePage from "@/components/BasePage.vue";
 import { triggerSync } from "@/sync";
+import { markPageReady } from "@/util/ssgRenderState";
 
 const { t } = useI18n();
+
+onMounted(async () => {
+    await nextTick();
+    markPageReady();
+});
 
 const { addNotification } = useNotificationStore();
 
