@@ -21,7 +21,7 @@ import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
-import { markAppReady, markAppError } from "@/util/ssgRenderState";
+import { markAppReady, markAppError } from "@/util/renderState";
 
 export const app = createApp(App);
 

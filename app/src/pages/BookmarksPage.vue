@@ -7,7 +7,7 @@ import { BookmarkIcon } from "@heroicons/vue/24/outline";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const { t } = useI18n();
 

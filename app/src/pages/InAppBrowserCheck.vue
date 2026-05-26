@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import LDialog from "@/components/common/LDialog.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
 import { appName } from "@/globalConfig";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const route = useRoute();
 const router = useRouter();

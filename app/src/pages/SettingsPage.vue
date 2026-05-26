@@ -9,7 +9,7 @@ import { useI18n } from "vue-i18n";
 import { getDeviceInfo } from "@/globalConfig";
 import BasePage from "@/components/BasePage.vue";
 import { triggerSync } from "@/sync";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const { t } = useI18n();
 

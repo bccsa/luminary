@@ -3,7 +3,7 @@ import { nextTick, onMounted } from "vue";
 import { RouterLink } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 

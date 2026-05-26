@@ -8,7 +8,7 @@ import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);

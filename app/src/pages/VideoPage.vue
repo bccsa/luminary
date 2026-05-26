@@ -4,7 +4,7 @@ import UnpinnedVideo from "@/components/VideoPage/UnpinnedVideo.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import BasePage from "@/components/BasePage.vue";
 import { nextTick, onActivated, ref } from "vue";
-import { markPageReady } from "@/util/ssgRenderState";
+import { markPageReady } from "@/util/renderState";
 
 const pinnedResolved = ref(false);
 const unpinnedResolved = ref(false);

@@ -1,12 +1,12 @@
 import { computed, ref, watch } from "vue";
 
-export type SsgState = "loading" | "ready" | "error";
+export type RenderState = "loading" | "ready" | "error";
 
 const appReady = ref(false);
 const appError = ref(false);
-const pageReady = ref<SsgState>("loading");
+const pageReady = ref<RenderState>("loading");
 
-export const ssgState = computed<SsgState>(() => {
+export const renderState = computed<RenderState>(() => {
     if (appError.value || pageReady.value === "error") return "error";
     if (!appReady.value) return "loading";
     return pageReady.value;
@@ -34,12 +34,12 @@ export function markPageError() {
 }
 
 if (typeof document !== "undefined") {
-    document.documentElement.dataset.ssgState = ssgState.value;
+    document.documentElement.dataset.renderState = renderState.value;
     watch(
-        ssgState,
+        renderState,
         (s) => {
-            document.documentElement.dataset.ssgState = s;
-            window.dispatchEvent(new CustomEvent("ssg-state-change", { detail: s }));
+            document.documentElement.dataset.renderState = s;
+            window.dispatchEvent(new CustomEvent("render-state-change", { detail: s }));
         },
         { flush: "post" },
     );

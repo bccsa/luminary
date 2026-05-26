@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import InAppBrowserCheck from "@/pages/InAppBrowserCheck.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
-import { markPageLoading } from "@/util/ssgRenderState";
+import { markPageLoading } from "@/util/renderState";
 
 // Preload all route components immediately as separate chunks
 const ExplorePage = import("@/pages/ExplorePage.vue");
