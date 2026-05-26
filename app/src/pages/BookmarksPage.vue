@@ -2,13 +2,19 @@
 import ContentTile from "@/components/content/ContentTile.vue";
 import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import { db, useDexieLiveQueryWithDeps, mangoToDexie, type ContentDto, type Uuid } from "luminary-shared";
-import { computed } from "vue";
+import { computed, nextTick, onMounted } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
+import { markPageReady } from "@/util/renderState";
 
 const { t } = useI18n();
+
+onMounted(async () => {
+    await nextTick();
+    markPageReady();
+});
 
 // Get bookmarked documents
 const bookmarks = computed(

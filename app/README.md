@@ -119,6 +119,35 @@ export class examplePlugin {
 
 **Important that the filename and the class name is the same, and that the file is a ts file**
 
+## Render state event
+
+The app exposes a render lifecycle signal that external tooling (e.g. static site generation, pre-rendering, or integration tests) can hook into to know when the DOM is fully populated.
+
+- A `data-render-state` attribute is set on `<html>` and updated as the state changes.
+- A `render-state-change` `CustomEvent` is dispatched on `window` whenever the state changes. The new state is available on `event.detail`.
+
+States:
+
+- `loading` — the app is bootstrapping or the current page is still populating
+- `ready` — the app has booted and the current page has finished populating the DOM
+- `error` — the app failed to boot or the current page errored
+
+Example consumer (e.g. a pre-render runner):
+
+```js
+if (document.documentElement.dataset.renderState === "ready") {
+    // already done
+} else {
+    window.addEventListener("render-state-change", (e) => {
+        if (e.detail === "ready") {
+            // snapshot the DOM
+        }
+    });
+}
+```
+
+Note: SSG / ISR is not part of the Luminary main project — this event is provided so implementers can build their own pre-rendering pipeline on top of it.
+
 ## Build for production
 
 The web version of the app can be deployed as a Docker container by building the `Dockerfile`:
