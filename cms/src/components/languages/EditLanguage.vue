@@ -225,8 +225,7 @@ const save = async () => {
         },
         {
             field: "averageReadingSpeed",
-            isInvalid:
-                !editable.value.averageReadingSpeed || editable.value.averageReadingSpeed <= 0,
+            isInvalid: editable.value.averageReadingSpeed == null || editable.value.averageReadingSpeed < 0,
             message: "Average reading speed must be greater than 0.",
         },
     ];
@@ -244,6 +243,10 @@ const save = async () => {
     // Bypass save if the language is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
+    }
+
+    if (editable.value.averageReadingSpeed === 0) {
+        editable.value.averageReadingSpeed = 200;
     }
 
     // Update the original object to reflect the newly saved state
@@ -464,7 +467,7 @@ const contentActions = computed(() => {
                     name="averageReadingSpeed"
                     v-model="editable.averageReadingSpeed"
                     class="mb-4 w-full"
-                    placeholder="Enter the average reading speed for people speaking this language ( 200 wpm is the default)"
+                    placeholder="Enter the average reading speed for people speaking this language ( 200 wpm is the default value)"
                     :disabled="!canEditOrCreate"
                 />
 
