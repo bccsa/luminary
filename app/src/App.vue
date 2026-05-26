@@ -68,8 +68,10 @@ setTimeout(() => {
 }, 5000);
 
 watch(
-    [isConnected, isAuthenticated],
+    [isConnected, isAuthenticated, isAppLoading],
     () => {
+        if (isAppLoading.value) return;
+
         if (isConnected.value && !isAuthenticated.value) {
             useNotificationStore().addNotification({
                 id: "accountBanner",
