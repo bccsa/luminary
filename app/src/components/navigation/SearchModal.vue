@@ -77,18 +77,6 @@ function pushRecentSearch(q: string) {
 function pickRecentSearch(term: string) {
     searchQuery.value = term;
     runSearch();
-    // Clicking a recent-search chip moves focus to the button.
-    // Bring focus back to the input and select the query so arrow keys work within the modal.
-    nextTick(() => {
-        const el = inputRef.value;
-        if (!el) return;
-        el.focus({ preventScroll: true });
-        try {
-            el.setSelectionRange(0, el.value.length);
-        } catch {
-            el.select();
-        }
-    });
 }
 
 const ftsRet = useFtsSearch(
