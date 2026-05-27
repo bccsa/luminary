@@ -45,6 +45,17 @@ export default defineConfig({
         VitePWA({
             registerType: "autoUpdate",
             includeAssets: ["src/assets"],
+            manifest: {
+                name: env.VITE_APP_NAME,
+                short_name: env.VITE_APP_NAME,
+                icons: [
+                    {
+                        src: env.VITE_LOGO_FAVICON,
+                        sizes: "192x192",
+                        type: "image/png",
+                    },
+                ],
+            },
             workbox: {
                 globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
                 runtimeCaching: [
