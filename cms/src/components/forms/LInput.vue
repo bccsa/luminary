@@ -27,6 +27,7 @@ type Props = {
     rightAddOn?: string;
     inputType?: "input" | "textarea";
     autocomplete?: "on" | "off";
+    onBlur?: Function;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -135,6 +136,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 ref="input"
                 :value="modelValue"
                 @input="handleInput"
+                @blur="onBlur"
                 :class="[
                     sizes[size],
                     states[computedState],

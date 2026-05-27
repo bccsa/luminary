@@ -210,6 +210,18 @@ const confirmDelete = () => {
     }
 };
 
+const handleSpeedBlur = () => {
+    if (
+        editable.value.averageReadingSpeed == null ||
+        editable.value.averageReadingSpeed < 0 ||
+        isNaN(editable.value.averageReadingSpeed) ||
+        !editable.value.averageReadingSpeed
+
+    ) {
+        editable.value.averageReadingSpeed = 200;
+    }
+};
+
 // Save the current JSON to the database
 const save = async () => {
     const validationRules: validationRule[] = [
@@ -225,7 +237,10 @@ const save = async () => {
         },
         {
             field: "averageReadingSpeed",
-            isInvalid: editable.value.averageReadingSpeed == null || editable.value.averageReadingSpeed < 0,
+            isInvalid:
+                editable.value.averageReadingSpeed == null ||
+                isNaN(editable.value.averageReadingSpeed) ||
+                editable.value.averageReadingSpeed < 0,
             message: "Average reading speed must be greater than 0.",
         },
     ];
@@ -243,10 +258,6 @@ const save = async () => {
     // Bypass save if the language is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
-    }
-
-    if (editable.value.averageReadingSpeed === 0) {
-        editable.value.averageReadingSpeed = 200;
     }
 
     // Update the original object to reflect the newly saved state
@@ -464,6 +475,7 @@ const contentActions = computed(() => {
                 <LInput
                     type="number"
                     label="Average reading speed (words per minute)"
+                    :onBlur="handleSpeedBlur"
                     name="averageReadingSpeed"
                     v-model="editable.averageReadingSpeed"
                     class="mb-4 w-full"
@@ -660,6 +672,7 @@ const contentActions = computed(() => {
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editable.deleteReq" />
 
     <LDialog
+        data-test="delete-string-modal"
         v-model:open="showStringDeleteModal"
         context="default"
         title="Are you sure you want to delete this translation?"
@@ -670,6 +683,7 @@ const contentActions = computed(() => {
     />
 
     <LDialog
+        data-test="delete-language-modal"
         v-model:open="showDeleteModal"
         :title="`Delete ${editable.name}?`"
         :description="`Are you sure you want to delete this language? All content in this language will become unavailable! This action cannot be undone.`"

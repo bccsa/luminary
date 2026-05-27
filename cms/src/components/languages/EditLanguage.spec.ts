@@ -230,6 +230,58 @@ describe("EditLanguage.vue", () => {
         });
     });
 
+    it("can delete a language", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await ensureValidFormData(wrapper);
+
+        // Wait for the editor to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+        let dropdownTrigger;
+        await waitForExpect(async () => {
+            dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
+            expect(dropdownTrigger.exists()).toBe(true);
+        });
+        await dropdownTrigger!.trigger("click");
+
+        let deleteButton;
+        await waitForExpect(async () => {
+            deleteButton = wrapper.find('[data-test="delete-button"]');
+            expect(deleteButton.exists()).toBe(true);
+        });
+        await deleteButton!.trigger("click"); // Click the delete button
+
+        let confirmDeleteModals;
+        await waitForExpect(async () => {
+            confirmDeleteModals = wrapper.find('[data-test="delete-language-modal"]');
+            expect(confirmDeleteModals.exists()).toBe(true);
+        });
+
+        let confirmDeleteButton;
+        await waitForExpect(async () => {
+            confirmDeleteButton = confirmDeleteModals!.find('[data-test="modal-primary-button"]');
+            expect(confirmDeleteButton.exists()).toBe(true);
+        });
+
+        await confirmDeleteButton!.trigger("click");
+
+        await waitForExpect(async () => {
+            const localChange = await db.localChanges
+                .where({ docId: mockLanguageDtoEng._id })
+                .first();
+            console.log("local changes :", localChange);
+
+            expect(localChange).toBeDefined();
+            expect(localChange?.doc!.deleteReq).toBe(1);
+        });
+    });
+
     it("user cannot add translation without create or edit permission: add UI is hidden and inputs disabled", async () => {
         accessMap.value = viewAccessToAllContentMap as typeof accessMap.value;
 
@@ -349,6 +401,7 @@ describe("EditLanguage.vue", () => {
         // Find the reading speed input and set it to 0
         const readingSpeedInput = wrapper.find('input[name="averageReadingSpeed"]');
         await readingSpeedInput.setValue(0);
+        await readingSpeedInput.trigger("blur");
 
         // Try to save
         await wrapper.find('[data-test="save-button"]').trigger("click");

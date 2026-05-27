@@ -27,7 +27,7 @@ export class LanguageDto extends _contentBaseDto {
 
     @IsOptional()
     @IsInt()
-    @Min(0)
+    @Min(1)
     @Expose()
     averageReadingSpeed?: number;
 }
