@@ -16,6 +16,9 @@ import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
+import defaultLogo from "@/assets/logo.svg?url";
+
+const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
 const { t } = useI18n();
 
@@ -121,7 +124,7 @@ onErrorCaptured((err) => {
         <div class="flex flex-col items-center gap-4">
             <img
                 class="w-72"
-                src="@/assets/logo.svg"
+                :src="LOGO"
                 :alt="appName"
             />
             <LoadingBar />
