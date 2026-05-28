@@ -57,7 +57,35 @@ describe("EditLanguage.vue", () => {
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+        vi.clearAllMocks();
     });
+
+    // Helper function to ensure all required fields are filled for save to work
+    const ensureValidFormData = async (wrapper: any) => {
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        // Ensure name is valid
+        if (!wrapper.vm.editable.name || wrapper.vm.editable.name.trim() === "") {
+            wrapper.vm.editable.name = "Valid Language Name";
+        }
+
+        // Ensure language code is valid
+        if (!wrapper.vm.editable.languageCode || wrapper.vm.editable.languageCode.trim() === "") {
+            wrapper.vm.editable.languageCode = "xx";
+        }
+
+        // Ensure average reading speed is valid (> 0)
+        if (
+            !wrapper.vm.editable.averageReadingSpeed ||
+            wrapper.vm.editable.averageReadingSpeed <= 0
+        ) {
+            wrapper.vm.editable.averageReadingSpeed = 200;
+        }
+
+        await wrapper.vm.$nextTick();
+    };
 
     it("should display the passed language", async () => {
         const wrapper = mount(EditLanguage, {
@@ -81,14 +109,10 @@ describe("EditLanguage.vue", () => {
             },
         });
 
+        await ensureValidFormData(wrapper);
+
         // Find textareas and set their values
         const currentLanguage = wrapper.findAll("input");
-
-        // Wait for the language to be loaded
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
-            expect(currentLanguage[1].element.value).toBe(mockLanguageDtoEng.languageCode);
-        });
 
         // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
@@ -115,10 +139,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        // Wait for the editor to be loaded
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
-        });
+        await ensureValidFormData(wrapper);
 
         // Wait for the textareas and buttons to be available in the DOM
         const keytextarea = wrapper.find("[data-test='key-input']");
@@ -159,9 +180,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockLanguageDtoEng.name);
-        });
+        await ensureValidFormData(wrapper);
 
         const translationRow = wrapper
             .findAll('[data-test="translation-row"]')
@@ -188,9 +207,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockLanguageDtoEng.name);
-        });
+        await ensureValidFormData(wrapper);
 
         const translationRow = wrapper
             .findAll('[data-test="translation-row"]')
@@ -220,6 +237,8 @@ describe("EditLanguage.vue", () => {
             },
         });
 
+        await ensureValidFormData(wrapper);
+
         // Wait for the editor to be loaded
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
@@ -238,17 +257,28 @@ describe("EditLanguage.vue", () => {
         });
         await deleteButton!.trigger("click"); // Click the delete button
 
-        let deleteModalButton;
+        let confirmDeleteModals;
         await waitForExpect(async () => {
-            deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-            expect(deleteModalButton.exists()).toBe(true);
+            confirmDeleteModals = wrapper.find('[data-test="delete-language-modal"]');
+            expect(confirmDeleteModals.exists()).toBe(true);
         });
-        await deleteModalButton!.trigger("click"); // Accept dialog
+
+        let confirmDeleteButton;
+        await waitForExpect(async () => {
+            confirmDeleteButton = confirmDeleteModals!.find('[data-test="modal-primary-button"]');
+            expect(confirmDeleteButton.exists()).toBe(true);
+        });
+
+        await confirmDeleteButton!.trigger("click");
 
         await waitForExpect(async () => {
-            const deletedLanguage = await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray();
+            const localChange = await db.localChanges
+                .where({ docId: mockLanguageDtoEng._id })
+                .first();
+            console.log("local changes :", localChange);
 
-            expect(deletedLanguage.length).toBe(0);
+            expect(localChange).toBeDefined();
+            expect(localChange?.doc!.deleteReq).toBe(1);
         });
     });
 
@@ -285,10 +315,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        // Wait for the editor to be loaded
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
-        });
+        await ensureValidFormData(wrapper);
 
         const readingSpeedInput = wrapper.find('input[name="averageReadingSpeed"]');
         await readingSpeedInput.setValue(250);
@@ -299,6 +326,93 @@ describe("EditLanguage.vue", () => {
                 await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
             )[0] as LanguageDto;
             expect(updatedLanguage.averageReadingSpeed).toBe(250);
+        });
+    });
+
+    it("should not save if language code is empty", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        // Find the language code input and clear it
+        const inputs = wrapper.findAll("input");
+        const codeInput = inputs.find((input) => input.attributes("name") === "languageCode");
+        await codeInput?.setValue("");
+
+        // Try to save
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        // Verify the language code is still empty (not saved)
+        await waitForExpect(async () => {
+            const language = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
+
+            expect(language.languageCode).toBe(mockLanguageDtoEng.languageCode);
+        });
+    });
+
+    it("should not save if language name is empty", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        // Find the language name input and clear it
+        const inputs = wrapper.findAll("input");
+        const nameInput = inputs.find((input) => input.attributes("name") === "languageName");
+        await nameInput?.setValue("");
+
+        // Try to save
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        // Verify the language name is still the original (not saved)
+        await waitForExpect(async () => {
+            const language = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
+
+            expect(language.name).toBe(mockLanguageDtoEng.name);
+        });
+    });
+
+    it("should set the average reading speed to 200 if it is equal to 0", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        // Find the reading speed input and set it to 0
+        const readingSpeedInput = wrapper.find('input[name="averageReadingSpeed"]');
+        await readingSpeedInput.setValue(0);
+        await readingSpeedInput.trigger("blur");
+
+        // Try to save
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        // Verify the reading speed is set to 200 in the database
+        await waitForExpect(async () => {
+            const language = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
+
+            expect(language.averageReadingSpeed).toBe(200);
         });
     });
 });

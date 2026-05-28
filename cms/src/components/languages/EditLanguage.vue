@@ -38,6 +38,13 @@ type translationKeyValuePair = {
 type Props = {
     id: Uuid;
 };
+
+type validationRule = {
+    field: string;
+    isInvalid: boolean;
+    message: string;
+};
+
 const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
@@ -203,8 +210,51 @@ const confirmDelete = () => {
     }
 };
 
+const handleSpeedBlur = () => {
+    if (
+        editable.value.averageReadingSpeed == null ||
+        editable.value.averageReadingSpeed < 0 ||
+        isNaN(editable.value.averageReadingSpeed) ||
+        !editable.value.averageReadingSpeed
+
+    ) {
+        editable.value.averageReadingSpeed = 200;
+    }
+};
+
 // Save the current JSON to the database
 const save = async () => {
+    const validationRules: validationRule[] = [
+        {
+            field: "languageCode",
+            isInvalid: !editable.value.languageCode || editable.value.languageCode.trim() === "",
+            message: "Language code should not be empty.",
+        },
+        {
+            field: "name",
+            isInvalid: !editable.value.name || editable.value.name.trim() === "",
+            message: "Language name should not be empty.",
+        },
+        {
+            field: "averageReadingSpeed",
+            isInvalid:
+                editable.value.averageReadingSpeed == null ||
+                isNaN(editable.value.averageReadingSpeed) ||
+                editable.value.averageReadingSpeed < 0,
+            message: "Average reading speed must be greater than 0.",
+        },
+    ];
+    const firstError = validationRules.find((rule) => rule.isInvalid);
+
+    if (firstError) {
+        addNotification({
+            title: "Validation Error",
+            description: firstError.message,
+            state: "error",
+        });
+        return;
+    };
+
     // Bypass save if the language is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
@@ -425,10 +475,11 @@ const contentActions = computed(() => {
                 <LInput
                     type="number"
                     label="Average reading speed (words per minute)"
+                    :onBlur="handleSpeedBlur"
                     name="averageReadingSpeed"
                     v-model="editable.averageReadingSpeed"
                     class="mb-4 w-full"
-                    placeholder="Enter the average reading speed for people speaking this language ( 200 wpm is the default)"
+                    placeholder="200"
                     :disabled="!canEditOrCreate"
                 />
 
@@ -621,6 +672,7 @@ const contentActions = computed(() => {
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editable.deleteReq" />
 
     <LDialog
+        data-test="delete-string-modal"
         v-model:open="showStringDeleteModal"
         context="default"
         title="Are you sure you want to delete this translation?"
@@ -631,6 +683,7 @@ const contentActions = computed(() => {
     />
 
     <LDialog
+        data-test="delete-language-modal"
         v-model:open="showDeleteModal"
         :title="`Delete ${editable.name}?`"
         :description="`Are you sure you want to delete this language? All content in this language will become unavailable! This action cannot be undone.`"
