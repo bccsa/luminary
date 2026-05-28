@@ -7,7 +7,7 @@ import NotificationBottomManager from "./notifications/NotificationBottomManager
 import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
 
-const showNotifications = !queryParams.has("nonotifications");
+const showNotifications = !queryParams.has("supress-notifications");
 
 defineProps<{
     content?: ContentDto;
