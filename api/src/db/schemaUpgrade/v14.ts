@@ -31,17 +31,9 @@ export default async function (db: DbService) {
                 if (!doc) return;
 
                 const newWordCount = computeFtsData(doc)?.wordCount || 0;
-                const languageSpeed = readingSpeeds.get(doc.language) || 200;
 
-                if (
-                    doc.wordCount === undefined ||
-                    doc.wordCount !== newWordCount ||
-                    doc.averageReadingSpeed === undefined ||
-                    doc.averageReadingSpeed !== languageSpeed
-                ) {
+                if (doc.wordCount !== newWordCount) {
                     doc.wordCount = newWordCount;
-                    doc.averageReadingSpeed = languageSpeed;
-
                     // Bump updatedTimeUtc so clients sync the new word count (reading time)
                     doc.updatedTimeUtc = Date.now();
                     await db.insertDoc(doc);

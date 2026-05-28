@@ -255,16 +255,10 @@ watch([content, isConnected], async () => {
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
+    languages.value = availableLanguages as LanguageDto[];
+
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
-    }
-
-    if (availableTranslations.value.length > 0) {
-        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((t) => t.language === lang._id)
-        );
-    } else {
-        languages.value = availableLanguages as LanguageDto[];
     }
 
     isLoadingTranslations.value = false;
@@ -608,9 +602,10 @@ const playAudio = () => {
 
 const readingTime = computed(() => {
     if (!content.value) return "";
-
+    
     const wordCount = content.value.wordCount || 0;
-    const readingSpeed = languages.value.find(l => l._id === content.value?.language)?.averageReadingSpeed || 200;
+    const readingSpeed =
+        languages.value.find((l) => l._id === content.value?.language)?.averageReadingSpeed || 200;
 
     return wordCount ? Math.ceil(wordCount / readingSpeed) : 0;
 });
@@ -630,13 +625,22 @@ watch([isLoading, content, is404], async () => {
 
 <template>
     <BasePage :showBackButton="true">
-        <template #quickControls v-if="!is404">
-            <DropdownMenu v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
-                v-model:open="showDropdown" panel-class="py-1">
+        <template
+            #quickControls
+            v-if="!is404"
+        >
+            <DropdownMenu
+                v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
+                v-model:open="showDropdown"
+                panel-class="py-1"
+            >
                 <template #trigger>
-                    <button type="button" name="translationSelector"
+                    <button
+                        type="button"
+                        name="translationSelector"
                         class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
-                        data-test="translationSelector">
+                        data-test="translationSelector"
+                    >
                         <span class="hidden sm:inline">
                             {{
                                 languages.find(
@@ -653,54 +657,105 @@ watch([isLoading, content, is404], async () => {
                         </span>
                     </button>
                 </template>
-                <button v-for="language in languages" :key="language._id" type="button" role="menuitem"
+                <button
+                    v-for="language in languages"
+                    :key="language._id"
+                    type="button"
+                    role="menuitem"
                     @click="quickLanguageSwitch(language._id)"
                     class="flex w-full cursor-pointer select-none items-center gap-2 px-4 py-2 text-left text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                    data-test="translationOption">
+                    data-test="translationOption"
+                >
                     {{ language.name }}
-                    <CheckCircleIcon v-if="selectedLanguageId === language._id"
-                        class="h-5 w-5 flex-shrink-0 text-yellow-500" aria-hidden="true" />
+                    <CheckCircleIcon
+                        v-if="selectedLanguageId === language._id"
+                        class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                        aria-hidden="true"
+                    />
                 </button>
             </DropdownMenu>
-            <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
-                <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
-                <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
+            <div
+                class="text-zinc-400 dark:text-slate-300"
+                data-test="themeButton"
+            >
+                <SunIcon
+                    class="h-6 w-6"
+                    v-if="isDarkTheme"
+                    @click="theme = 'light'"
+                />
+                <MoonIcon
+                    class="h-6 w-6"
+                    v-else
+                    @click="theme = 'dark'"
+                />
             </div>
         </template>
 
         <NotFoundPage v-if="is404" />
 
-        <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
-            <div class="flex flex-grow justify-center" :class="{ 'items-center': isLoading }">
-                <LoadingBar v-if="isLoading" label="Loading..." />
-                <article class="w-full lg:w-3/4 lg:max-w-3xl" v-else-if="!isLoading && content">
-                    <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                        <VideoPlayer v-if="content && content.video" :content="content"
-                            :language="selectedLanguageCode" />
-                        <div v-else-if="content.parentId || content.parentImageData" class="relative cursor-pointer"
+        <div
+            v-else
+            class="flex min-h-full flex-col gap-6"
+            :class="{ 'mb-6': !tags.length }"
+        >
+            <div
+                class="flex flex-grow justify-center"
+                :class="{ 'items-center': isLoading }"
+            >
+                <LoadingBar
+                    v-if="isLoading"
+                    label="Loading..."
+                />
+                <article
+                    class="w-full lg:w-3/4 lg:max-w-3xl"
+                    v-else-if="!isLoading && content"
+                >
+                    <IgnorePagePadding
+                        :mobileOnly="true"
+                        :ignoreTop="true"
+                    >
+                        <VideoPlayer
+                            v-if="content && content.video"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
+                        <div
+                            v-else-if="content.parentId || content.parentImageData"
+                            class="relative cursor-pointer"
                             @click="
                                 () => {
                                     if (content) currentImageIndex = activeImageCollection(content);
                                     enableZoom = true;
                                 }
-                            ">
-                            <LImage :image="content.parentImageData" :content-parent-id="content.parentId"
-                                :parent-image-bucket-id="content.parentImageBucketId" aspectRatio="video" size="post" />
-                            <div v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex items-center gap-1">
+                            "
+                        >
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
+                                aspectRatio="video"
+                                size="post"
+                            />
+                            <div
+                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1"
+                            >
                                 <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
 
                             <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                            <button v-if="hasAudioFiles" @click.stop="
-                                (event) => {
-                                    playAudio();
-                                    // Prevent focus staying on button
-                                    (event.target as HTMLElement).blur();
-                                }
-                            "
+                            <button
+                                v-if="hasAudioFiles"
+                                @click.stop="
+                                    (event) => {
+                                        playAudio();
+                                        // Prevent focus staying on button
+                                        (event.target as HTMLElement).blur();
+                                    }
+                                "
                                 class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                title="Play Audio">
+                                title="Play Audio"
+                            >
                                 <SpeakerWaveIcon class="h-5 w-5" />
                                 {{ t("singlecontent.listen") }}
                             </button>
@@ -708,107 +763,170 @@ watch([isLoading, content, is404], async () => {
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
-                        <div class="mt-3 flex flex-col" :class="{
-                            'gap-1': !content.publishDate || !content.parentPublishDateVisible,
-                            'gap-3': content.publishDate && content.parentPublishDateVisible,
-                        }">
+                        <div
+                            class="mt-3 flex flex-col"
+                            :class="{
+                                'gap-1': !content.publishDate || !content.parentPublishDateVisible,
+                                'gap-3': content.publishDate && content.parentPublishDateVisible,
+                            }"
+                        >
                             <div class="flex flex-row items-center justify-center gap-2">
-                                <h1 class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl">
+                                <h1
+                                    class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                                >
                                     {{ content.title }}
                                 </h1>
-                                <div v-if="canEdit() && cmsUrl" class="flex justify-center">
-                                    <button @click="openCmsEditor"
+                                <div
+                                    v-if="canEdit() && cmsUrl"
+                                    class="flex justify-center"
+                                >
+                                    <button
+                                        @click="openCmsEditor"
                                         class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
-                                        data-test="editButton">
+                                        data-test="editButton"
+                                    >
                                         <PencilIcon class="h-5 w-5" />
                                     </button>
                                 </div>
                             </div>
-                            <div v-if="content.author" class="text-center text-xs text-zinc-500 dark:text-slate-300">
+                            <div
+                                v-if="content.author"
+                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
                                 By {{ content.author }}
                             </div>
-                            <div v-if="readingTime"
-                                class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300">
+                            <div
+                                v-if="readingTime"
+                                class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
                                 <ClockIcon class="h-4 w-4" />
                                 {{ readingTime }} min
                             </div>
 
-                            <div class="text-center text-xs text-zinc-500 dark:text-slate-300"
-                                v-if="content.publishDate && content.parentPublishDateVisible">
+                            <div
+                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                                v-if="content.publishDate && content.parentPublishDateVisible"
+                            >
                                 {{
                                     content.publishDate
                                         ? db
-                                            .toDateTime(content.publishDate)
-                                            .toLocaleString(DateTime.DATETIME_MED)
+                                              .toDateTime(content.publishDate)
+                                              .toLocaleString(DateTime.DATETIME_MED)
                                         : ""
                                 }}
                             </div>
                             <div class="items-center">
                                 <div class="flex justify-center gap-4">
-                                    <div @click="toggleBookmark" data-test="bookmark">
-                                        <component v-if="
-                                            !(
-                                                content.parentPostType &&
-                                                content.parentPostType == PostType.Page
-                                            )
-                                        " :is="isBookmarked
+                                    <div
+                                        @click="toggleBookmark"
+                                        data-test="bookmark"
+                                    >
+                                        <component
+                                            v-if="
+                                                !(
+                                                    content.parentPostType &&
+                                                    content.parentPostType == PostType.Page
+                                                )
+                                            "
+                                            :is="
+                                                isBookmarked
                                                     ? BookmarkIconSolid
                                                     : BookmarkIconOutline
-                                                " class="h-6 w-6 cursor-pointer"
-                                            :class="{ 'text-yellow-500': isBookmarked }" />
+                                            "
+                                            class="h-6 w-6 cursor-pointer"
+                                            :class="{ 'text-yellow-500': isBookmarked }"
+                                        />
                                     </div>
                                 </div>
                             </div>
-                            <div class="text-center text-sm text-zinc-800 dark:text-slate-200" v-if="content.summary">
+                            <div
+                                class="text-center text-sm text-zinc-800 dark:text-slate-200"
+                                v-if="content.summary"
+                            >
                                 {{ content.summary }}
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
-                        v-if="categoryTags.length">
-                        <span v-for="tag in categoryTags" :key="tag._id" @click="
-                            selectedCategoryId = tag.parentId;
-                        showCategoryModal = true;
-                        "
-                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25">
+                    <div
+                        class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                        v-if="categoryTags.length"
+                    >
+                        <span
+                            v-for="tag in categoryTags"
+                            :key="tag._id"
+                            @click="
+                                selectedCategoryId = tag.parentId;
+                                showCategoryModal = true;
+                            "
+                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
+                        >
                             <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" />
                             <span class="line-clamp-1">{{ tag.title }}</span>
                         </span>
                     </div>
 
                     <!-- Render content with highlighting support -->
-                    <LHighlightable v-if="content.text" :content-id="content._id">
-                        <div v-html="text" class="prose prose-zinc mt-3 max-w-full dark:prose-invert" :class="{
-                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
-                        }"></div>
-                    </LHighlightable><br />
-                    <div v-if="content.copyright" class="text-xs text-zinc-500 dark:text-slate-300">
+                    <LHighlightable
+                        v-if="content.text"
+                        :content-id="content._id"
+                    >
+                        <div
+                            v-html="text"
+                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                            :class="{
+                                'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                            }"
+                        ></div> </LHighlightable
+                    ><br />
+                    <div
+                        v-if="content.copyright"
+                        class="text-xs text-zinc-500 dark:text-slate-300"
+                    >
                         {{ content.copyright }}
                     </div>
                 </article>
             </div>
 
-            <RelatedContent v-if="content && tags.length" :selectedContent="content" :tags="tags.filter(
-                (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
-            )
-                " />
+            <RelatedContent
+                v-if="content && tags.length"
+                :selectedContent="content"
+                :tags="
+                    tags.filter(
+                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
+                    )
+                "
+            />
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
         </div>
     </BasePage>
 
-    <LModal :isVisible="showCategoryModal" @close="showCategoryModal = false" :heading="selectedCategory?.title || ''">
+    <LModal
+        :isVisible="showCategoryModal"
+        @close="showCategoryModal = false"
+        :heading="selectedCategory?.title || ''"
+    >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
-                <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
+                <VerticalTagViewer
+                    v-if="selectedCategory"
+                    :tag="selectedCategory"
+                    class=""
+                />
             </div>
         </div>
     </LModal>
 
-    <ImageModal v-if="content && enableZoom" :content-parent-id="content.parentId"
+    <ImageModal
+        v-if="content && enableZoom"
+        :content-parent-id="content.parentId"
         :parent-image-bucket-id="content.parentImageBucketId"
-        :imageCollections="content?.parentImageData?.fileCollections" :currentIndex="currentImageIndex"
-        aspectRatio="original" @update:index="currentImageIndex = $event" @close="enableZoom = false" />
+        :imageCollections="content?.parentImageData?.fileCollections"
+        :currentIndex="currentImageIndex"
+        aspectRatio="original"
+        @update:index="currentImageIndex = $event"
+        @close="enableZoom = false"
+    />
 </template>
