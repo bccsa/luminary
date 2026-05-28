@@ -154,13 +154,8 @@ export const initLanguage = () => {
             { deep: true },
         );
 
-        // If user already has preferred languages, resolve immediately
-        if (appLanguageIdsAsRef.value.length > 0) {
-            resolve();
-            return;
-        }
-
-        // Initialize preferred language when CMS languages are available
+        // Wait for cmsLanguages to populate before resolving so the i18n watcher
+        // has loaded translations by the time the splash screen ends.
         const unwatchCmsLanguages = watch(
             cmsLanguages,
             (_languages) => {
