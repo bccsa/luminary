@@ -4,7 +4,10 @@ import TopBar from "./navigation/TopBar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
 import NotificationBottomManager from "./notifications/NotificationBottomManager.vue";
+import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
+
+const showNotifications = !queryParams.has("supress-notifications");
 
 defineProps<{
     content?: ContentDto;
@@ -38,19 +41,19 @@ onUnmounted(() => {
             <template #quickControls><slot name="quickControls" /></template>
         </TopBar>
         <Teleport to="body">
-            <NotificationToastManager />
+            <NotificationToastManager v-if="showNotifications" />
         </Teleport>
         <main
             class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900"
             ref="main"
         >
-            <NotificationBannerManager />
+            <NotificationBannerManager v-if="showNotifications" />
             <slot />
         </main>
 
         <!-- slot for footer -->
         <div class="sticky bottom-0">
-            <NotificationBottomManager />
+            <NotificationBottomManager v-if="showNotifications" />
             <slot name="footer" />
         </div>
     </div>
