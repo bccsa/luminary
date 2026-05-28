@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory, type NavigationGuard } from "vue-router";
+import { createRouter, createWebHistory, START_LOCATION, type NavigationGuard } from "vue-router";
 import { authGuard } from "@auth0/auth0-vue";
-import { nextTick } from "vue";
+import { nextTick, watch } from "vue";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -211,7 +211,7 @@ router.beforeEach((to, from) => {
         return from;
     }
 
-    if (to.meta.onlineOnly && !isConnected.value) {
+    if (to.meta.onlineOnly && !isConnected.value && from !== START_LOCATION) {
         addNotification({
             title: "Unable to open page",
             description: "This page can only be viewed online",
@@ -228,6 +228,19 @@ router.afterEach((to, from, failure) => {
     nextTick(() => {
         document.title = to.meta.title ? `${to.meta.title} - ${appName}` : appName;
     });
+});
+
+watch(isConnected, (connected) => {
+    if (connected) return;
+    if (!router.currentRoute.value.meta.onlineOnly) return;
+
+    const { addNotification } = useNotificationStore();
+    addNotification({
+        title: "Unable to open page",
+        description: "This page can only be viewed online",
+        state: "error",
+    });
+    router.push("/");
 });
 
 export default router;
