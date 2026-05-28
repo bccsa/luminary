@@ -3,7 +3,3 @@ node_modules
 *.bkp
 
 stats.html
-
-.agent
-CLAUDE.md
-.claude/settings.json
