@@ -32,7 +32,7 @@ export default async function (db: DbService) {
 
                 const newWordCount = computeFtsData(doc)?.wordCount || 0;
 
-                if (doc.wordCount !== newWordCount) {
+                if (doc.wordCount !== newWordCount || doc.wordCount === undefined) {
                     doc.wordCount = newWordCount;
                     // Bump updatedTimeUtc so clients sync the new word count (reading time)
                     doc.updatedTimeUtc = Date.now();

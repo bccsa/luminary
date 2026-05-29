@@ -121,11 +121,11 @@ const openCmsEditor = () => {
     }
 };
 
-const canEdit = () => {
-    if (!content.value) return false;
+const canEdit = computed(() => {
+    if (!content.value || !content.value.parentType) return false;
     if (content.value.memberOf.length === 0) return true;
-    return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
-};
+    return verifyAccess(content.value.memberOf, content.value.parentType, AclPermission.Edit);
+});
 
 const idbContent = useDexieLiveQuery(
     () =>
@@ -255,12 +255,16 @@ watch([content, isConnected], async () => {
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
-    if (availableContentTranslations.length > 0) {
+    if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
-        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((t) => t.language === lang._id),
-        );
     }
+
+    languages.value =
+        availableTranslations.value.length > 0
+            ? (availableLanguages as LanguageDto[]).filter((lang) =>
+                  availableTranslations.value.some((t) => t.language === lang._id),
+              )
+            : (availableLanguages as LanguageDto[]); // 👈 Sécurité : si pas de traduction, on affiche tout par défaut
 
     isLoadingTranslations.value = false;
 
@@ -604,7 +608,7 @@ const playAudio = () => {
 const readingTime = computed(() => {
     if (!content.value) return "";
     const wordCount = content.value.wordCount!;
-    const currentLanguage = languages.value.find(l => l._id === content.value?.language);
+    const currentLanguage = languages.value.find((l) => l._id === content.value?.language);
     const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
     return Math.ceil(wordCount / readingSpeed);
@@ -777,7 +781,7 @@ watch([isLoading, content, is404], async () => {
                                     {{ content.title }}
                                 </h1>
                                 <div
-                                    v-if="canEdit() && cmsUrl"
+                                    v-if="canEdit && cmsUrl"
                                     class="flex justify-center"
                                 >
                                     <button
