@@ -66,6 +66,9 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
 
+        // The name now lives in the slide-in panel header, not on the trigger.
+        await wrapper.find("button").trigger("click");
+
         expect(wrapper.html()).toContain("Test Person");
     });
 
@@ -78,14 +81,11 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
 
+        // Open the slide-in menu, then click the "Language" item.
         await wrapper.find("button").trigger("click");
 
-        const profileMenuButtons = wrapper.findAll("button");
-
-        await profileMenuButtons[3].trigger("click");
-
-        //@ts-ignore
-        wrapper.vm.showLanguageModal = true;
+        const languageButton = wrapper.findAll("button").find((b) => b.text().includes("Language"));
+        await languageButton!.trigger("click");
 
         expect(wrapper.html()).toContain(t("language.modal.title"));
     });
@@ -102,9 +102,9 @@ describe("ProfileMenu", () => {
         isConnected.value = true;
 
         await wrapper.find("button").trigger("click");
-        const profileMenuButtons = wrapper.findAll("button");
 
-        await profileMenuButtons[6].trigger("click");
+        const logoutButton = wrapper.findAll("button").find((b) => b.text() === "Logout");
+        await logoutButton!.trigger("click");
 
         // accept on the dialog
         await wrapper.find("[data-test='modal-primary-button']").trigger("click");
@@ -128,9 +128,9 @@ describe("ProfileMenu", () => {
         isConnected.value = false;
 
         await wrapper.find("button").trigger("click");
-        const profileMenuButtons = wrapper.findAll("button");
 
-        await profileMenuButtons[6].trigger("click");
+        const loginButton = wrapper.findAll("button").find((b) => b.text() === "Login");
+        await loginButton!.trigger("click");
         await waitForExpect(() => {
             expect(login).not.toHaveBeenCalled();
             expect(notificationStore.addNotification).toHaveBeenCalled();
@@ -151,9 +151,9 @@ describe("ProfileMenu", () => {
         isConnected.value = false;
 
         await wrapper.find("button").trigger("click");
-        const profileMenuButtons = wrapper.findAll("button");
 
-        await profileMenuButtons[6].trigger("click");
+        const logoutButton = wrapper.findAll("button").find((b) => b.text() === "Logout");
+        await logoutButton!.trigger("click");
         await waitForExpect(() => {
             expect(logout).not.toHaveBeenCalled();
             expect(notificationStore.addNotification).toHaveBeenCalled();
