@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onUnmounted, watch } from "vue";
+import LTeleport from "./LTeleport.vue";
 
 const open = defineModel<boolean>("open", { required: true });
 
@@ -25,7 +26,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Teleport to="body">
+    <LTeleport>
         <Transition name="sidebar-backdrop">
             <div
                 v-if="open"
@@ -49,7 +50,7 @@ onUnmounted(() => {
                 </div>
             </aside>
         </Transition>
-    </Teleport>
+    </LTeleport>
 </template>
 
 <style scoped>
