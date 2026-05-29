@@ -266,7 +266,7 @@ watch([content, isConnected], async () => {
             ? (availableLanguages as LanguageDto[]).filter((lang) =>
                   availableTranslations.value.some((t) => t.language === lang._id),
               )
-            : (availableLanguages as LanguageDto[]); // 👈 Sécurité : si pas de traduction, on affiche tout par défaut
+            : (availableLanguages as LanguageDto[]);
 
     isLoadingTranslations.value = false;
     })
@@ -274,15 +274,6 @@ watch([content, isConnected], async () => {
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
     }
-
-    languages.value =
-        availableTranslations.value.length > 0
-            ? (availableLanguages as LanguageDto[]).filter((lang) =>
-                  availableTranslations.value.some((t) => t.language === lang._id),
-              )
-            : (availableLanguages as LanguageDto[]); // 👈 Sécurité : si pas de traduction, on affiche tout par défaut
-
-    isLoadingTranslations.value = false;
 
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
