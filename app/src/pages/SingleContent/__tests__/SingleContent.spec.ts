@@ -19,7 +19,7 @@ import {
     mockRedirectDto,
 } from "@/tests/mockdata";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { db, type ContentDto } from "luminary-shared";
+import { db, isConnected, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
@@ -116,6 +116,9 @@ describe("SingleContent", () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
+        // IndexedDB-only path; avoid ApiLiveQuery from other specs leaving isConnected true
+        isConnected.value = false;
+
         // Ensure router mock is clean for each test
         routeReplaceMock.mockClear();
 
@@ -150,6 +153,7 @@ describe("SingleContent", () => {
     afterEach(async () => {
         await db.docs.clear();
         cmsUrl.value = "";
+        isConnected.value = false;
     });
 
     it("displays the video player when defined", async () => {
@@ -634,18 +638,19 @@ describe("SingleContent", () => {
 
     it("can calculate the estimated reading time using a custom language reading speed", async () => {
         const wordCount = 400;
-        const readingSpeed = 200;
+        const readingSpeed = 100;
         const expectedReadingTime = Math.ceil(wordCount / readingSpeed);
 
-        // Update content with wordCount
-        await db.docs.update(mockEnglishContentDto._id, {
-            wordCount,
-        } as any);
+        isConnected.value = false;
 
-        // Update language with custom reading speed
-        await db.docs.update(mockLanguageDtoEng._id, {
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount,
+        } as ContentDto);
+        await db.docs.put({
+            ...mockLanguageDtoEng,
             averageReadingSpeed: readingSpeed,
-        } as any);
+        });
 
         await flushPromises();
 
@@ -654,6 +659,8 @@ describe("SingleContent", () => {
                 slug: mockEnglishContentDto.slug,
             },
         });
+
+        await flushPromises();
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
