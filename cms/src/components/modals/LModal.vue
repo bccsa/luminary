@@ -11,12 +11,15 @@ type Props = {
     largeModal?: boolean;
     stickToEdges?: boolean;
     showClosingButton?: boolean;
+    // When true, the modal cannot be dismissed by clicking outside of it or pressing Escape.
+    preventClose?: boolean;
     beforeClose?: () => boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
     noDivider: false,
     showClosingButton: true,
+    preventClose: false,
 });
 
 const isVisible = defineModel<boolean>("isVisible");
@@ -24,6 +27,12 @@ const isVisible = defineModel<boolean>("isVisible");
 const tryClose = () => {
     if (props.beforeClose && props.beforeClose() === false) return;
     isVisible.value = false;
+};
+
+// Dismiss attempts via the backdrop or the Escape key; blocked when preventClose is set.
+const tryDismiss = () => {
+    if (props.preventClose) return;
+    tryClose();
 };
 
 const modalRef = ref<HTMLElement>();
@@ -45,13 +54,13 @@ const isMobileScreen = breakpoints.smaller("sm");
                 'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
                 stickToEdges && isMobileScreen ? '' : 'p-2',
             ]"
-            @mousedown.self="tryClose()"
+            @mousedown.self="tryDismiss()"
             data-test="modal-backdrop"
         >
             <!-- Modal content at higher z-index -->
             <div
                 tabindex="0"
-                @keydown.esc="tryClose()"
+                @keydown.esc="tryDismiss()"
                 @click.stop
                 ref="modalRef"
                 data-test="modal-content"
