@@ -255,10 +255,11 @@ watch([content, isConnected], async () => {
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
-    languages.value = availableLanguages as LanguageDto[];
-
-    if (availableContentTranslations.length > 1) {
+    if (availableContentTranslations.length > 0) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
+        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
+            availableTranslations.value.some((t) => t.language === lang._id),
+        );
     }
 
     isLoadingTranslations.value = false;
@@ -602,12 +603,11 @@ const playAudio = () => {
 
 const readingTime = computed(() => {
     if (!content.value) return "";
-    
-    const wordCount = content.value.wordCount || 0;
-    const readingSpeed =
-        languages.value.find((l) => l._id === content.value?.language)?.averageReadingSpeed || 200;
+    const wordCount = content.value.wordCount!;
+    const currentLanguage = languages.value.find(l => l._id === content.value?.language);
+    const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
-    return wordCount ? Math.ceil(wordCount / readingSpeed) : 0;
+    return Math.ceil(wordCount / readingSpeed);
 });
 
 watch([isLoading, content, is404], async () => {
