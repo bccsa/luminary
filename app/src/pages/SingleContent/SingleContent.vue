@@ -67,6 +67,7 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
+import { onBeforeMount } from "vue";
 
 const router = useRouter();
 
@@ -254,6 +255,21 @@ watch([content, isConnected], async () => {
         }),
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
+
+    onBeforeMount (() => {
+        if (availableContentTranslations.length > 1) {
+        availableTranslations.value = availableContentTranslations as ContentDto[];
+    }
+
+    languages.value =
+        availableTranslations.value.length > 0
+            ? (availableLanguages as LanguageDto[]).filter((lang) =>
+                  availableTranslations.value.some((t) => t.language === lang._id),
+              )
+            : (availableLanguages as LanguageDto[]); // 👈 Sécurité : si pas de traduction, on affiche tout par défaut
+
+    isLoadingTranslations.value = false;
+    })
 
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
