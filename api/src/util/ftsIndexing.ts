@@ -223,7 +223,7 @@ export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
 
         const text = field.isHtml ? stripHtml(value) : value;
         if (field.name !== "title") {
-            wordCount += text.split(/\s+/).filter(Boolean).length * 2;
+            wordCount += text.split(/\s+/).filter(Boolean).length;
         }
         const { counts, totalCount } = generateTrigramCounts(text);
         totalTokenCount += totalCount;

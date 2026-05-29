@@ -260,13 +260,6 @@ watch([content, isConnected], async () => {
         availableTranslations.value.some((t) => t.language === lang._id),
     );
 
-    languages.value =
-        availableTranslations.value.length > 0
-            ? (availableLanguages as LanguageDto[]).filter((lang) =>
-                  availableTranslations.value.some((t) => t.language === lang._id),
-              )
-            : (availableLanguages as LanguageDto[]);
-
     isLoadingTranslations.value = false;
     })
 
