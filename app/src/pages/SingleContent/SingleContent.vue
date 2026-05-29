@@ -67,7 +67,6 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
-import { onBeforeMount } from "vue";
 
 const router = useRouter();
 
@@ -256,10 +255,10 @@ watch([content, isConnected], async () => {
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
-    onBeforeMount (() => {
-        if (availableContentTranslations.length > 1) {
-        availableTranslations.value = availableContentTranslations as ContentDto[];
-    }
+    availableTranslations.value = availableContentTranslations as ContentDto[];
+    languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
+        availableTranslations.value.some((t) => t.language === lang._id),
+    );
 
     languages.value =
         availableTranslations.value.length > 0
@@ -271,10 +270,6 @@ watch([content, isConnected], async () => {
     isLoadingTranslations.value = false;
     })
 
-    if (availableContentTranslations.length > 1) {
-        availableTranslations.value = availableContentTranslations as ContentDto[];
-    }
-
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
         isLoadingTranslations.value = true;
@@ -282,7 +277,7 @@ watch([content, isConnected], async () => {
         const languageQuery = ref<ApiSearchQuery>({ types: [DocType.Language] });
         const contentQuery = ref<ApiSearchQuery>({
             types: [DocType.Content],
-            parentId: content.value.parentId,
+            parentId: content.value?.parentId,
         });
 
         const contentLiveQuery = new ApiLiveQuery(contentQuery);
@@ -309,7 +304,7 @@ watch([content, isConnected], async () => {
             isLoadingTranslations.value = false;
         });
     }
-});
+
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
