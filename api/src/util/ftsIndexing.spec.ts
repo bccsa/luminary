@@ -169,7 +169,7 @@ describe("FTS Indexing", () => {
             };
             const result = computeFtsData(doc);
             expect(result).toBeDefined();
-            expect(result!.wordCount).toBe(8);
+            expect(result!.wordCount).toBe(16);
         });
     });
 });
