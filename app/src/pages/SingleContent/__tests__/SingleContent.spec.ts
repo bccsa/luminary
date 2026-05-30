@@ -19,7 +19,7 @@ import {
     mockRedirectDto,
 } from "@/tests/mockdata";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { db, isConnected, type ContentDto } from "luminary-shared";
+import { db, isConnected, type ContentDto, type LanguageDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
@@ -635,7 +635,7 @@ describe("SingleContent", () => {
         await db.docs.put({
             ...mockLanguageDtoEng,
             averageReadingSpeed: readingSpeed,
-        });
+        } as LanguageDto);
 
         const wrapper = mount(SingleContent, {
             props: {
