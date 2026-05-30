@@ -42,6 +42,7 @@ if (!mediaPlayerService) {
 const isExpanded = ref(true); // Controls whether player shows expanded or minimal view
 const isPlaying = ref(false);
 const audioElement = ref<HTMLAudioElement | null>(null);
+const audioSurfaceRef = ref<InstanceType<typeof WebMediaAudioElement> | null>(null);
 
 // Error state
 const audioError = ref<string | null>(null);
