@@ -87,8 +87,8 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
         </div>
 
         <!-- Profile at bottom -->
-        <div class="border-t border-zinc-200 px-5 py-4 dark:border-slate-700">
-            <ProfileMenu />
+        <div class="border-t border-zinc-200 px-3 py-4 dark:border-slate-700">
+            <ProfileMenu trigger="sidebar" />
         </div>
     </nav>
 </template>
