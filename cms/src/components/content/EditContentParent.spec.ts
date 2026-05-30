@@ -30,12 +30,11 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Check if the LToggle component is rendered
-        // There should be two toggles, one for pinned and one for publishDate
+        // Publish date, Coming soon, then Pinned (Tag has three LToggle components)
         const toggle = wrapper.findAllComponents({ name: "LToggle" });
-        expect(toggle[1].exists()).toBe(true);
+        expect(toggle[2].exists()).toBe(true);
 
-        expect(toggle[1].props("modelValue")).toBe(true);
+        expect(toggle[2].props("modelValue")).toBe(true);
     });
 
     it("test the show publishDate toggle", async () => {

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
-import { mockEnglishContentDto } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress } from "@/globalConfig";
@@ -12,6 +12,12 @@ import { computed } from "vue";
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
         bucketBaseUrl: computed(() => "https://bucket.example.com"),
+    }),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
 
@@ -117,6 +123,42 @@ describe("ContentTile", () => {
             name: "content",
             params: { slug: mockEnglishContentDto.slug },
         });
+    });
+
+    it("renders a Coming soon overlay and is not clickable when parentShowComingSoon is true", () => {
+        const scheduledContent = {
+            ...mockEnglishContentDto,
+            publishDate: Date.now() + 60_000,
+            parentShowComingSoon: true,
+        };
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: scheduledContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Coming soon");
+        expect(wrapper.find("a").exists()).toBe(false);
+    });
+
+    it("does not show a Coming soon overlay when parentShowComingSoon is omitted", () => {
+        const scheduledContent = {
+            ...mockEnglishContentDto,
+            publishDate: Date.now() + 60_000,
+        };
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: scheduledContent,
+            },
+            global: {
+                stubs: { RouterLink: { template: "<a><slot /></a>" } },
+            },
+        });
+
+        expect(wrapper.text()).not.toContain(mockLanguageDtoEng.translations["content.coming_soon"]);
+        expect(wrapper.find("a").exists()).toBe(true);
     });
 
     it("renders the play icon if the content has a video", () => {

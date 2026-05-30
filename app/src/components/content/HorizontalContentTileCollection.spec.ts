@@ -1,13 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { mockEnglishContentDto } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
 import { DateTime } from "luxon";
 import ContentTile from "./ContentTile.vue";
 
 vi.mock("vue-router");
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
 
 describe("HorizontalContentTileCollection", () => {
     it("displays a content tile", async () => {

@@ -310,7 +310,7 @@ const tags = useDexieLiveQueryWithDeps(
                 $and: [
                     { parentId: { $in: parentIds } },
                     { parentType: DocType.Tag },
-                    ...mangoIsPublished(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: false }),
                 ],
             },
         }) as unknown as Promise<ContentDto[]>;
@@ -329,7 +329,10 @@ const is404 = ref(false);
 const isPublishedFilter = computed(() => {
     if (!content.value?.language) return () => false;
     return mangoCompile({
-        $and: [{ status: PublishStatus.Published }, ...mangoIsPublished([content.value.language])],
+        $and: [
+            { status: PublishStatus.Published },
+            ...mangoIsPublished([content.value.language], { includeScheduled: false }),
+        ],
     });
 });
 

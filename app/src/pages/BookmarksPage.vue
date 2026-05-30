@@ -29,7 +29,7 @@ const content = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { parentId: { $in: bookmarkIds } },
-                    ...mangoIsPublished(appLanguageIds),
+                    ...mangoIsPublished(appLanguageIds, { includeScheduled: false }),
                 ],
             },
         });
