@@ -32,7 +32,7 @@ import LDialog from "../common/LDialog.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import { clearAuth0Cache } from "@/auth";
 
-type Trigger = "avatar" | "bars";
+type Trigger = "avatar" | "bars" | "sidebar";
 
 withDefaults(
     defineProps<{
@@ -183,6 +183,37 @@ const userNavigation = computed(() => {
         <component
             :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
             class="h-5 w-5 text-zinc-400 dark:text-slate-100"
+            aria-hidden="true"
+        />
+    </button>
+
+    <!-- Trigger: sidebar row — avatar + name, full width, for the desktop left sidebar -->
+    <button
+        v-else-if="trigger === 'sidebar'"
+        type="button"
+        name="profile-menu-btn"
+        aria-label="Open user menu"
+        class="flex w-full items-center gap-3 rounded-md px-1 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+        @click="menuOpen = !menuOpen"
+    >
+        <img
+            v-if="isAuthenticated && user?.picture"
+            class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
+            :src="user.picture"
+            alt=""
+        />
+        <div
+            v-else
+            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
+        >
+            <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
+        </div>
+        <span class="flex-1 truncate text-left text-sm font-medium text-zinc-700 dark:text-slate-100">
+            {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
+        </span>
+        <component
+            :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
+            class="h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-400"
             aria-hidden="true"
         />
     </button>
