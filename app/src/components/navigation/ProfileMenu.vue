@@ -30,6 +30,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
+import DropdownMenu from "../common/DropdownMenu.vue";
 import { clearAuth0Cache } from "@/auth";
 
 type Trigger = "avatar" | "bars" | "sidebar";
@@ -188,35 +189,71 @@ const userNavigation = computed(() => {
     </button>
 
     <!-- Trigger: sidebar row — avatar + name, full width, for the desktop left sidebar -->
-    <button
+    <DropdownMenu
         v-else-if="trigger === 'sidebar'"
-        type="button"
-        name="profile-menu-btn"
-        aria-label="Open user menu"
-        class="flex w-full items-center gap-3 rounded-md px-1 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-        @click="menuOpen = !menuOpen"
+        v-model:open="menuOpen"
+        placement="top-start"
+        class="w-full"
+        panel-class="w-56"
     >
-        <img
-            v-if="isAuthenticated && user?.picture"
-            class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
-            :src="user.picture"
-            alt=""
-        />
-        <div
-            v-else
-            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
-        >
-            <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
+        <template #trigger>
+            <div
+                class="flex w-full items-center gap-3 rounded-md px-1 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                aria-label="Open user menu"
+            >
+                <img
+                    v-if="isAuthenticated && user?.picture"
+                    class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
+                    :src="user.picture"
+                    alt=""
+                />
+                <div
+                    v-else
+                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
+                >
+                    <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
+                </div>
+                <span
+                    class="flex-1 truncate text-left text-sm font-medium text-zinc-700 dark:text-slate-100"
+                >
+                    {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
+                </span>
+                <component
+                    :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
+                    class="h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-400"
+                    aria-hidden="true"
+                />
+            </div>
+        </template>
+
+        <div class="py-1">
+            <button
+                v-for="item in userNavigation"
+                :key="item.name"
+                type="button"
+                class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-900 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                @click="
+                    item.action();
+                    menuOpen = false;
+                "
+            >
+                <component
+                    :is="item.icon"
+                    class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                    aria-hidden="true"
+                />
+                <div class="flex flex-col leading-none">
+                    {{ item.name }}
+                    <span
+                        v-if="'language' in item && item.language"
+                        class="mt-1 text-xs text-zinc-500 dark:text-slate-300"
+                    >
+                        {{ item.language }}
+                    </span>
+                </div>
+            </button>
         </div>
-        <span class="flex-1 truncate text-left text-sm font-medium text-zinc-700 dark:text-slate-100">
-            {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
-        </span>
-        <component
-            :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
-            class="h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-400"
-            aria-hidden="true"
-        />
-    </button>
+    </DropdownMenu>
 
     <!-- Trigger: bars + "Menu" tab on the mobile bottom bar (matches the other tabs) -->
     <button
@@ -248,8 +285,8 @@ const userNavigation = computed(() => {
         </span>
     </button>
 
-    <!-- Shared slide-in panel -->
-    <MobileSidebar v-model:open="menuOpen">
+    <!-- Shared slide-in panel (avatar + bars triggers only) -->
+    <MobileSidebar v-if="trigger !== 'sidebar'" v-model:open="menuOpen">
         <template #header="{ close }">
             <header
                 class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
