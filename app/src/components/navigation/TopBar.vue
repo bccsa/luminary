@@ -2,7 +2,6 @@
 import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
-import DesktopMenu from "./DesktopMenu.vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getRouteHistory } from "@/router";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
@@ -128,7 +127,6 @@ const handleLogin = () => {
                             />
                         </div>
 
-                        <DesktopMenu class="ml-6 hidden lg:flex" />
                     </div>
                 </div>
 
