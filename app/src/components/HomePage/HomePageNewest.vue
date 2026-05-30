@@ -1,4 +1,4 @@
-dd .<script setup lang="ts">
+<script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { watch } from "vue";
 import {
