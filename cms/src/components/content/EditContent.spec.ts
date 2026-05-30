@@ -1222,9 +1222,7 @@ describe("EditContent.vue", () => {
         };
 
         it("is not dirty on load when the post has no bucket IDs and a single media bucket is auto-selected", async () => {
-            await db.docs.bulkPut([mockData.mockStorageDtoWithEncryptedCredentials]);
-
-            const wrapper = await loadWithoutUserEdits();
+            const wrapper = await loadWithoutUserEdits({}, [mockData.mockStorageDtoWithEncryptedCredentials]);
 
             // Revert action is only rendered while isDirty is true — its absence proves
             // the dirty state stayed clean across the bucket auto-select watcher.
@@ -1232,20 +1230,16 @@ describe("EditContent.vue", () => {
         });
 
         it("is not dirty on load when the post has no bucket IDs and a single image bucket is auto-selected", async () => {
-            await db.docs.bulkPut([mockData.mockStorageDto]);
-
-            const wrapper = await loadWithoutUserEdits();
+            const wrapper = await loadWithoutUserEdits({}, [mockData.mockStorageDto]);
 
             expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
         });
 
         it("is not dirty on load when both image and media buckets are auto-selected", async () => {
-            await db.docs.bulkPut([
+            const wrapper = await loadWithoutUserEdits({}, [
                 mockData.mockStorageDto,
                 mockData.mockStorageDtoWithEncryptedCredentials,
             ]);
-
-            const wrapper = await loadWithoutUserEdits();
 
             expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
         });
@@ -1277,12 +1271,10 @@ describe("EditContent.vue", () => {
         it(
             "becomes dirty after a genuine user edit on a legacy post with auto-selected buckets",
             async () => {
-                await db.docs.bulkPut([
+                const wrapper = await loadWithoutUserEdits({}, [
                     mockData.mockStorageDto,
                     mockData.mockStorageDtoWithEncryptedCredentials,
                 ]);
-
-                const wrapper = await loadWithoutUserEdits();
 
                 // Baseline must be clean before the edit — otherwise the next assertion
                 // could pass for the wrong reason.
