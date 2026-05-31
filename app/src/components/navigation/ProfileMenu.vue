@@ -35,7 +35,7 @@ import { clearAuth0Cache } from "@/auth";
 
 type Trigger = "avatar" | "bars" | "sidebar";
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         trigger?: Trigger;
     }>(),
@@ -157,6 +157,14 @@ const userNavigation = computed(() => {
         ];
     }
 });
+
+const sidebarNavigation = computed(() =>
+    userNavigation.value.filter(
+        (item) =>
+            item.name !== t("profile_menu.settings") &&
+            item.name !== t("profile_menu.bookmarks"),
+    ),
+);
 </script>
 
 <template>
@@ -228,7 +236,7 @@ const userNavigation = computed(() => {
 
         <div class="py-1">
             <button
-                v-for="item in userNavigation"
+                v-for="item in sidebarNavigation"
                 :key="item.name"
                 type="button"
                 class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-900 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
