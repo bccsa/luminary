@@ -25,6 +25,12 @@ export type MangoQuery = {
     selector: MangoSelector;
     $limit?: number;
     $sort?: Array<Record<string, "asc" | "desc">>; // CouchDB Mango-style sort
+    /**
+     * Optional CouchDB index hint forwarded to the API as `use_index`. Pick the
+     * name of a design doc whose leading indexed field matches your `$sort`.
+     * The API validator allowlists a hard-coded set of permitted names.
+     */
+    use_index?: string;
 };
 
 /** Comparison object { $op: value } */

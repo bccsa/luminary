@@ -44,6 +44,10 @@ async function Startup() {
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
+        // CMS editors need the full content set — omit any publishDate cutoff so
+        // sync2 keeps its OPEN_MIN default (full content sync) and HybridQuery's
+        // older-tail supplement never fires.
+        contentPublishDateCutoff: undefined,
         syncList: [
             {
                 type: DocType.AuthProvider,

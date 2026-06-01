@@ -123,7 +123,7 @@ export function initSync() {
                 sync({
                     type: DocType.Post,
                     memberOf: access[DocType.Post],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during post sync:", err);
@@ -149,7 +149,7 @@ export function initSync() {
                 sync({
                     type: DocType.Tag,
                     memberOf: access[DocType.Tag],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during tag sync:", err);
@@ -161,7 +161,7 @@ export function initSync() {
                     subType: DocType.Tag,
                     memberOf: access[DocType.Tag],
                     languages: cmsLanguageIdsAsRef.value,
-                    limit: 1000,
+                    limit: 100,
                     cms: true,
                     includeDeleteCmds: false, // Delete commands use the parent type for permissions calculations, and are already handled by the tag sync
                 }).catch((err) => {
@@ -175,7 +175,7 @@ export function initSync() {
                 sync({
                     type: DocType.Redirect,
                     memberOf: access[DocType.Redirect],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during redirect sync:", err);
@@ -188,7 +188,7 @@ export function initSync() {
                 sync({
                     type: DocType.Group,
                     memberOf: access[DocType.Group],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during group sync:", err);
@@ -201,7 +201,7 @@ export function initSync() {
                 sync({
                     type: DocType.Storage,
                     memberOf: access[DocType.Storage],
-                    limit: 1000,
+                    limit: 100,
                     cms: true,
                 }).catch((err) => {
                     console.error("Error during storage sync:", err);

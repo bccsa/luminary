@@ -11,11 +11,17 @@ import {
     getGroupSets,
     getLanguages,
     getLanguageSets,
+    getPublishDateRanges,
+    OPEN_MAX,
+    OPEN_MIN,
+    resolveRange,
     splitChunkTypeString,
+    subtractRanges,
 } from "./utils";
 import { trim } from "./trim";
 import { syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
+import { getContentPublishDateCutoff } from "../../config";
 
 let _httpService: HttpReq<any>;
 
@@ -84,13 +90,32 @@ export async function initSync(httpService: HttpReq<any>) {
                 entry.eof === true &&
                 entry.blockEnd > 0 &&
                 entry.blockStart - entry.blockEnd <= syncTolerance
-            ),
+            ) &&
+            // publishDate bounds, when present, must be finite numbers in non-inverted order.
+            // Missing bounds are tolerated here and resolved in place below.
+            (entry.publishDateMin === undefined ||
+                (typeof entry.publishDateMin === "number" &&
+                    Number.isFinite(entry.publishDateMin))) &&
+            (entry.publishDateMax === undefined ||
+                (typeof entry.publishDateMax === "number" &&
+                    Number.isFinite(entry.publishDateMax))) &&
+            (entry.publishDateMin === undefined ||
+                entry.publishDateMax === undefined ||
+                entry.publishDateMin <= entry.publishDateMax),
     );
 
     if (!isValid) {
         syncList.value = [];
         await db.setSyncList();
         return;
+    }
+
+    // Resolve legacy entries (persisted before publishDate became a sync dimension) in place.
+    // After this loop every entry has concrete numeric bounds. The existing setSyncList()
+    // watcher will persist the change; we don't need an explicit migration step.
+    for (const entry of syncList.value) {
+        if (entry.publishDateMin === undefined) entry.publishDateMin = OPEN_MIN;
+        if (entry.publishDateMax === undefined) entry.publishDateMax = OPEN_MAX;
     }
 
     // Relational self-heal: if a chunkType holds genuinely-degenerate (duplicate) columns, reset
@@ -137,6 +162,15 @@ export function setCancelSync(value: boolean): void {
  */
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
+
+    // Resolve publishDate bounds at the public entry point so every downstream call
+    // (trim, merge, syncBatch, column-spawn logic) sees concrete numbers.
+    // For content, an unspecified floor falls back to the configured cutoff so
+    // sync never pulls content older than the app/HybridQuery treat as "remote-only".
+    options.publishDateMin =
+        options.publishDateMin ??
+        (options.type === DocType.Content ? getContentPublishDateCutoff() : OPEN_MIN);
+    options.publishDateMax = options.publishDateMax ?? OPEN_MAX;
 
     const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
 
@@ -199,6 +233,60 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         }
     }
 
+    // Compare requested publishDate range with existing ranges in the syncList. When the
+    // user broadens (or shifts) the cutoff, any uncovered slice must be picked up by a
+    // new column so existing data is not re-fetched and the new window can later be
+    // horizontally merged with the existing column(s).
+    if (options.type === DocType.Content) {
+        const existingRanges = getPublishDateRanges({
+            type: options.type,
+            subType: options.subType,
+        });
+        const requested = resolveRange(options.publishDateMin, options.publishDateMax);
+
+        // Existing ranges fully inside the requested range — these are columns we want
+        // to resume at their own bounds. Ranges that extend outside `requested` belong
+        // to (or also belong to) other columns and are not touched by this runner.
+        const insideRequest = existingRanges.filter(
+            (r) => r.min >= requested.min && r.max <= requested.max,
+        );
+        // Anything that even partially overlaps the request counts as covered for the
+        // subtraction step — clipping inside subtractRanges takes care of the overflow.
+        const overlapsRequest = existingRanges.filter(
+            (r) => r.max >= requested.min && r.min <= requested.max,
+        );
+        const uncovered = subtractRanges(requested, overlapsRequest);
+
+        if (insideRequest.length > 1 || uncovered.length > 0) {
+            // Resume existing columns that lie fully inside the requested range.
+            for (const range of insideRequest) {
+                await _sync({
+                    ...options,
+                    publishDateMin: range.min,
+                    publishDateMax: range.max,
+                });
+            }
+
+            if (uncovered.length === 0) {
+                // Everything inside the requested range is already covered by existing columns.
+                return;
+            }
+
+            // Spawn additional runners for any extra uncovered slices beyond the first.
+            for (let i = 1; i < uncovered.length; i++) {
+                await _sync({
+                    ...options,
+                    publishDateMin: uncovered[i].min,
+                    publishDateMax: uncovered[i].max,
+                });
+            }
+
+            // Continue this runner with the first uncovered slice.
+            options.publishDateMin = uncovered[0].min;
+            options.publishDateMax = uncovered[0].max;
+        }
+    }
+
     // Compare passed memberOf groups with existing groups in the syncList for the given type
     const existingGroups = getGroups(options);
     const newGroups = options.memberOf.filter((g) => !existingGroups.includes(g));
@@ -243,14 +331,19 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     if (options.includeDeleteCmds && syncResult) {
         const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
 
+        // DeleteCmd entries are intentionally always stored with an open publishDate range
+        // so that deletes propagate regardless of the user's content cutoff. Use open bounds
+        // when filtering and inserting so a single DeleteCmd column covers all content columns.
+        const deleteCmdOptions = {
+            ...options,
+            type: DocType.DeleteCmd,
+            subType: deleteCmdSubType,
+            publishDateMin: OPEN_MIN,
+            publishDateMax: OPEN_MAX,
+        };
+
         // Check if there are deleteCmd entries in the syncList for the given type and memberOf groups.
-        const hasDeleteCmdEntries = syncList.value.some(
-            filterByTypeMemberOf({
-                ...options,
-                type: DocType.DeleteCmd,
-                subType: deleteCmdSubType,
-            }),
-        );
+        const hasDeleteCmdEntries = syncList.value.some(filterByTypeMemberOf(deleteCmdOptions));
 
         if (!hasDeleteCmdEntries) {
             // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
@@ -265,17 +358,17 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
                 blockStart: syncResult.blockStart,
                 blockEnd: syncResult.blockEnd,
                 eof: syncResult.eof,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
 
-            merge({ ...options, type: DocType.DeleteCmd, subType: deleteCmdSubType });
+            merge(deleteCmdOptions);
         }
 
         // Start sync process for deleteCmd documents if this is not a new sync "column" (new language or memberOf group)
         if (!syncResult.firstSync) {
             await syncBatch({
-                ...options,
-                type: DocType.DeleteCmd,
-                subType: deleteCmdSubType,
+                ...deleteCmdOptions,
                 initialSync: true,
                 httpService: _httpService,
             });

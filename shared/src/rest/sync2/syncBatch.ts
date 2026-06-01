@@ -4,7 +4,14 @@ import { merge } from "./merge";
 import { syncList } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
-import { calcChunk, filterByTypeMemberOf, getChunkTypeString } from "./utils";
+import {
+    calcChunk,
+    filterByTypeMemberOf,
+    getChunkTypeString,
+    OPEN_MAX,
+    OPEN_MIN,
+    resolveRange,
+} from "./utils";
 
 /**
  * Persist eof = true onto the frontier (newest) chunk of the given column. The stall / inverted-range
@@ -55,7 +62,12 @@ export async function syncBatch(options: SyncOptions) {
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
-            "sync-" + (options.subType ? options.subType + "-" : "") + options.type + "-index",
+            options.type === DocType.Content
+                ? "sync-content-index"
+                : "sync-" +
+                  (options.subType ? options.subType + "-" : "") +
+                  options.type +
+                  "-index",
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };
@@ -80,6 +92,22 @@ export async function syncBatch(options: SyncOptions) {
         }
     }
 
+    // Inject publishDate range selector for Content queries when the range is narrowed.
+    // DeleteCmd queries are intentionally never publishDate-filtered so deletes propagate
+    // regardless of the user's cutoff. When both bounds are at defaults the selector is
+    // omitted so the wire format stays byte-identical to clients that don't use publishDate.
+    if (options.type === DocType.Content) {
+        const pdMin = options.publishDateMin ?? OPEN_MIN;
+        const pdMax = options.publishDateMax ?? OPEN_MAX;
+        const isNarrowed = pdMin > OPEN_MIN || pdMax < OPEN_MAX;
+        if (isNarrowed) {
+            const pd: { $gte?: number; $lte?: number } = {};
+            if (pdMin > OPEN_MIN) pd.$gte = pdMin;
+            if (pdMax < OPEN_MAX) pd.$lte = pdMax;
+            mangoQuery.selector.publishDate = pd;
+        }
+    }
+
     // Check if sync has been cancelled before making API request
     if (cancelSync) {
         return;
@@ -93,9 +121,25 @@ export async function syncBatch(options: SyncOptions) {
     }
 
     if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
-    if (res.warning) console.warn("API warning received: ", res.warning);
-    if (res.warnings && Array.isArray(res.warnings))
-        res.warnings.forEach((w: string) => console.warn("API warning received: ", w));
+
+    // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact
+    // query + index that triggered them, so the offending sync column is identifiable.
+    const apiWarnings: string[] = [
+        ...(res.warning ? [res.warning] : []),
+        ...(Array.isArray(res.warnings) ? res.warnings : []),
+    ];
+    if (apiWarnings.length) {
+        const queryDetails = {
+            use_index: mangoQuery.use_index,
+            selector: mangoQuery.selector,
+            sort: mangoQuery.sort,
+            limit: mangoQuery.limit,
+            resultCount: res.docs.length,
+        };
+        for (const w of apiWarnings) {
+            console.warn("[sync2] API warning received:", w, queryDetails);
+        }
+    }
 
     // Get the block start and end timestamps.
     // When no docs are returned, use the queried range boundaries so the chunk correctly
@@ -117,6 +161,12 @@ export async function syncBatch(options: SyncOptions) {
     // Upsert to IndexedDB
     if (fetchedDocs.length) {
         await db.bulkPut(fetchedDocs);
+        // Resolve publishDate bounds so persisted entries always carry concrete numbers,
+        // even when the caller is at defaults (legacy / non-publishDate callers).
+        const { min: publishDateMin, max: publishDateMax } = resolveRange(
+            options.publishDateMin,
+            options.publishDateMax,
+        );
         // Push chunk to chunk list
         syncList.value.push({
             chunkType: getChunkTypeString(options.type, options.subType),
@@ -130,6 +180,8 @@ export async function syncBatch(options: SyncOptions) {
             // below blockEnd that must still be fetched by the downward continuation. Inferring EOF
             // from such a narrow window falsely seals an incomplete column.
             eof: blockLength < options.limit && chunk.blockEnd === 0,
+            publishDateMin,
+            publishDateMax,
         });
     }
 

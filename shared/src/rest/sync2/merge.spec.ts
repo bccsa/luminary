@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { syncList } from "./state";
-import { merge } from "./merge";
+import { merge, mergeHorizontal, mergeVertical } from "./merge";
 import { DocType } from "../../types";
+import { OPEN_MAX, OPEN_MIN } from "./utils";
 
 describe("merge", () => {
     beforeEach(() => {
@@ -291,5 +292,144 @@ describe("merge", () => {
         expect(result.eof).toBe(true);
         expect(syncList.value).toHaveLength(1);
         expect(syncList.value[0].languages).toEqual(["en", "fr"]);
+    });
+
+    // --- publishDate range awareness (Part A) ---
+
+    describe("publishDate range awareness", () => {
+        it("mergeVertical does NOT merge columns with different publishDate ranges", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: false,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 4000,
+                    blockEnd: 3000,
+                    eof: false,
+                    publishDateMin: 500,
+                    publishDateMax: 1000,
+                },
+            ];
+
+            // Filter by the FIRST entry's range — the second must not be considered.
+            mergeVertical({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                publishDateMin: 100,
+                publishDateMax: 200,
+            });
+
+            // Both entries must still exist; mergeVertical only saw the first.
+            expect(syncList.value).toHaveLength(2);
+        });
+
+        it("mergeHorizontal merges two EOF entries when publishDate ranges are adjacent and unions memberOf", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group2"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                    publishDateMin: 201, // immediately adjacent to the first entry
+                    publishDateMax: 500,
+                },
+            ];
+
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].memberOf.sort()).toEqual(["group1", "group2"]);
+            expect(syncList.value[0].publishDateMin).toBe(100);
+            expect(syncList.value[0].publishDateMax).toBe(500);
+        });
+
+        it("mergeHorizontal does NOT union memberOf when publishDate ranges are NOT adjacent-or-overlapping", () => {
+            // Without the publishDate gate, the old code would silently union memberOf
+            // across non-mergeable date windows. This is the regression test.
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group2"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                    publishDateMin: 1000, // disjoint from first
+                    publishDateMax: 2000,
+                },
+            ];
+
+            mergeHorizontal({ type: DocType.Content, subType: DocType.Post });
+
+            // Both entries must remain, and memberOf must not have been merged.
+            expect(syncList.value).toHaveLength(2);
+            const g1 = syncList.value.find((e) => e.memberOf.includes("group1"));
+            const g2 = syncList.value.find((e) => e.memberOf.includes("group2"));
+            expect(g1?.memberOf).toEqual(["group1"]);
+            expect(g2?.memberOf).toEqual(["group2"]);
+        });
+
+        it("mergeHorizontal preserves legacy entries (no publishDate fields) — they resolve to OPEN range and still merge", () => {
+            // Regression: legacy entries (persisted before publishDate became a sync dim)
+            // must continue to merge horizontally exactly as before.
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["group1"],
+                    blockStart: 5000,
+                    blockEnd: 3000,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["group2"],
+                    blockStart: 4500,
+                    blockEnd: 2500,
+                    eof: true,
+                },
+            ];
+
+            mergeHorizontal({ type: DocType.Post });
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].memberOf.sort()).toEqual(["group1", "group2"]);
+            // The merged entry now carries explicit OPEN bounds (resolved from undefined).
+            expect(syncList.value[0].publishDateMin).toBe(OPEN_MIN);
+            expect(syncList.value[0].publishDateMax).toBe(OPEN_MAX);
+        });
     });
 });

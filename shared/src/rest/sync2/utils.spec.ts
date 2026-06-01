@@ -7,8 +7,16 @@ import {
     getGroupSets,
     getLanguages,
     getLanguageSets,
+    getPublishDateRanges,
     filterByTypeMemberOf,
     arraysEqual,
+    isRangeSubsetOf,
+    mergeRanges,
+    OPEN_MAX,
+    OPEN_MIN,
+    rangesAdjacentOrOverlap,
+    resolveRange,
+    subtractRanges,
 } from "./utils";
 
 describe("sync2 utils", () => {
@@ -862,6 +870,242 @@ describe("sync2 utils", () => {
 
         it("should return false for different single element arrays", () => {
             expect(arraysEqual(["a"], ["b"])).toBe(false);
+        });
+    });
+
+    describe("OPEN_MIN / OPEN_MAX", () => {
+        it("uses Number.MIN_SAFE_INTEGER / Number.MAX_SAFE_INTEGER (NOT ±Infinity)", () => {
+            expect(OPEN_MIN).toBe(Number.MIN_SAFE_INTEGER);
+            expect(OPEN_MAX).toBe(Number.MAX_SAFE_INTEGER);
+            // Critical: sentinels must survive JSON serialization (Infinity does not).
+            expect(JSON.parse(JSON.stringify(OPEN_MIN))).toBe(OPEN_MIN);
+            expect(JSON.parse(JSON.stringify(OPEN_MAX))).toBe(OPEN_MAX);
+        });
+    });
+
+    describe("resolveRange", () => {
+        it.each([
+            [undefined, undefined, OPEN_MIN, OPEN_MAX],
+            [100, undefined, 100, OPEN_MAX],
+            [undefined, 200, OPEN_MIN, 200],
+            [100, 200, 100, 200],
+        ])("resolveRange(%p, %p) -> { min: %p, max: %p }", (min, max, expMin, expMax) => {
+            const r = resolveRange(min, max);
+            expect(r.min).toBe(expMin);
+            expect(r.max).toBe(expMax);
+        });
+    });
+
+    describe("isRangeSubsetOf", () => {
+        it.each<[{ min: number; max: number }, { min: number; max: number }, boolean]>([
+            [{ min: 100, max: 200 }, { min: 100, max: 200 }, true], // equal
+            [{ min: 110, max: 190 }, { min: 100, max: 200 }, true], // strictly inside
+            [{ min: 99, max: 200 }, { min: 100, max: 200 }, false], // exceeds left
+            [{ min: 100, max: 201 }, { min: 100, max: 200 }, false], // exceeds right
+            [{ min: 300, max: 400 }, { min: 100, max: 200 }, false], // disjoint
+            [{ min: OPEN_MIN, max: OPEN_MAX }, { min: OPEN_MIN, max: OPEN_MAX }, true], // open is subset of open
+        ])("isRangeSubsetOf(%p, %p) === %p", (inner, outer, expected) => {
+            expect(isRangeSubsetOf(inner, outer)).toBe(expected);
+        });
+    });
+
+    describe("rangesAdjacentOrOverlap", () => {
+        it.each<[{ min: number; max: number }, { min: number; max: number }, boolean]>([
+            [{ min: 100, max: 200 }, { min: 150, max: 250 }, true], // overlap
+            [{ min: 100, max: 200 }, { min: 200, max: 300 }, true], // touching
+            [{ min: 100, max: 200 }, { min: 201, max: 300 }, true], // immediately adjacent
+            [{ min: 100, max: 200 }, { min: 300, max: 400 }, false], // disjoint
+            [{ min: 300, max: 400 }, { min: 100, max: 200 }, false], // disjoint reversed
+            [{ min: OPEN_MIN, max: OPEN_MAX }, { min: 100, max: 200 }, true], // open spans all
+            [{ min: 100, max: 100 }, { min: 100, max: 100 }, true], // singleton equal
+        ])("rangesAdjacentOrOverlap(%p, %p) === %p", (a, b, expected) => {
+            expect(rangesAdjacentOrOverlap(a, b)).toBe(expected);
+        });
+    });
+
+    describe("mergeRanges", () => {
+        it("returns the smallest range containing both inputs", () => {
+            expect(mergeRanges({ min: 100, max: 200 }, { min: 150, max: 300 })).toEqual({
+                min: 100,
+                max: 300,
+            });
+        });
+        it("works with open bounds", () => {
+            expect(mergeRanges({ min: OPEN_MIN, max: 200 }, { min: 100, max: OPEN_MAX })).toEqual({
+                min: OPEN_MIN,
+                max: OPEN_MAX,
+            });
+        });
+    });
+
+    describe("subtractRanges", () => {
+        it("returns target unchanged when nothing covers it", () => {
+            expect(subtractRanges({ min: 100, max: 200 }, [])).toEqual([{ min: 100, max: 200 }]);
+        });
+        it("returns empty when target is fully covered by a single range", () => {
+            expect(subtractRanges({ min: 100, max: 200 }, [{ min: 50, max: 300 }])).toEqual([]);
+        });
+        it("returns the leftover slices when target is partially covered", () => {
+            expect(subtractRanges({ min: 100, max: 1000 }, [{ min: 300, max: 500 }])).toEqual([
+                { min: 100, max: 299 },
+                { min: 501, max: 1000 },
+            ]);
+        });
+        it("merges overlapping/adjacent covers before subtraction", () => {
+            expect(
+                subtractRanges({ min: 0, max: 100 }, [
+                    { min: 10, max: 30 },
+                    { min: 30, max: 50 },
+                    { min: 49, max: 80 },
+                ]),
+            ).toEqual([
+                { min: 0, max: 9 },
+                { min: 81, max: 100 },
+            ]);
+        });
+        it("clips covers to the target before subtraction", () => {
+            expect(
+                subtractRanges({ min: 100, max: 200 }, [
+                    { min: 0, max: 150 },
+                    { min: 180, max: 999 },
+                ]),
+            ).toEqual([{ min: 151, max: 179 }]);
+        });
+    });
+
+    describe("getPublishDateRanges", () => {
+        it("returns empty array for empty syncList", () => {
+            expect(getPublishDateRanges({ type: DocType.Content, subType: DocType.Post })).toEqual(
+                [],
+            );
+        });
+
+        it("returns unique resolved ranges for the given chunkType", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g2"],
+                    languages: ["fr"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                }, // duplicate range, different memberOf
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 500,
+                    publishDateMax: 1000,
+                },
+                {
+                    chunkType: "content:tag",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 0,
+                    publishDateMax: 50,
+                }, // different chunkType, must be excluded
+            ];
+            const ranges = getPublishDateRanges({
+                type: DocType.Content,
+                subType: DocType.Post,
+            });
+            expect(ranges).toHaveLength(2);
+            expect(ranges).toContainEqual({ min: 100, max: 200 });
+            expect(ranges).toContainEqual({ min: 500, max: 1000 });
+        });
+
+        it("resolves legacy entries (no publishDate fields) to the open range", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                },
+            ];
+            const ranges = getPublishDateRanges({
+                type: DocType.Content,
+                subType: DocType.Post,
+            });
+            expect(ranges).toEqual([{ min: OPEN_MIN, max: OPEN_MAX }]);
+        });
+    });
+
+    describe("filterByTypeMemberOf — publishDate range gating", () => {
+        it("does not match entries with a different resolved publishDate range", () => {
+            const narrowEntry = {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+                publishDateMin: 100,
+                publishDateMax: 200,
+            };
+            const openOptions = {
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+            };
+            // The narrow entry should NOT match an options object that leaves the range open
+            // (resolving to OPEN_MIN/OPEN_MAX), because the ranges are unequal.
+            expect(filterByTypeMemberOf(openOptions)(narrowEntry)).toBe(false);
+        });
+
+        it("matches a legacy entry (no publishDate fields) against open options", () => {
+            const legacyEntry = {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+            };
+            expect(
+                filterByTypeMemberOf({
+                    type: DocType.Content,
+                    subType: DocType.Post,
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                })(legacyEntry),
+            ).toBe(true);
+        });
+
+        it("matches when entry range equals options range exactly", () => {
+            const entry = {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+                publishDateMin: 100,
+                publishDateMax: 200,
+            };
+            expect(
+                filterByTypeMemberOf({
+                    type: DocType.Content,
+                    subType: DocType.Post,
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                })(entry),
+            ).toBe(true);
         });
     });
 });

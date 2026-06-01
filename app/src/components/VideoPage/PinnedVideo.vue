@@ -47,8 +47,18 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 $and: [
                     { type: DocType.Content },
                     { video: { $exists: true, $ne: "" } },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: TagType.Topic },
+                        ],
+                    },
                     {
                         parentTags: {
                             $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
