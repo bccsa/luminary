@@ -4,7 +4,20 @@ import { merge } from "./merge";
 import { syncList } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
-import { calcChunk, getChunkTypeString } from "./utils";
+import { calcChunk, filterByTypeMemberOf, getChunkTypeString } from "./utils";
+
+/**
+ * Persist eof = true onto the frontier (newest) chunk of the given column. The stall / inverted-range
+ * guards decide a column is as complete as it can get, but historically only set eof on the returned
+ * value, never on the stored entry — leaving the column at eof:false forever, which blocks it from
+ * ever merging horizontally. Marking the stored frontier chunk lets the column merge.
+ */
+function markColumnEof(options: SyncOptions) {
+    const entries = syncList.value.filter(filterByTypeMemberOf(options));
+    if (!entries.length) return;
+    const frontier = entries.reduce((a, b) => (a.blockStart >= b.blockStart ? a : b));
+    frontier.eof = true;
+}
 
 /**
  * Perform an iterative vertical sync (for given type and memberOf groups), and merge chunks as they are fetched.
@@ -27,6 +40,7 @@ export async function syncBatch(options: SyncOptions) {
     if (chunk.blockStart < chunk.blockEnd) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
+        markColumnEof(options);
         return { ...mergeResult, firstSync };
     }
 
@@ -110,7 +124,12 @@ export async function syncBatch(options: SyncOptions) {
             languages: options.languages,
             blockStart,
             blockEnd,
-            eof: blockLength < options.limit, // If less than limit, we reached the end
+            // EOF only when this query actually reached the bottom of the timeline (floor 0).
+            // A catch-up window (floor = blockStart - tolerance, when resuming an existing column)
+            // returning < limit does NOT mean the column is complete — there may be older data
+            // below blockEnd that must still be fetched by the downward continuation. Inferring EOF
+            // from such a narrow window falsely seals an incomplete column.
+            eof: blockLength < options.limit && chunk.blockEnd === 0,
         });
     }
 
@@ -123,6 +142,7 @@ export async function syncBatch(options: SyncOptions) {
         const nextChunk = calcChunk({ ...options, initialSync: false });
         if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
             mergeResult.eof = true;
+            markColumnEof(options);
             return { ...mergeResult, firstSync };
         }
 
