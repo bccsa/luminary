@@ -677,6 +677,55 @@ describe("syncBatch", () => {
         expect(result?.eof).toBe(true);
     });
 
+    it("does NOT prematurely mark eof on a publishDate-bounded column's catch-up window", async () => {
+        // Regression for the rebase interaction between main's tightened EOF rule
+        // (`< limit && chunk.blockEnd === 0`) and our publishDate gap columns.
+        // Setup: a publishDate-bounded column [500..999] was syncing backwards and
+        // paused mid-sync (blockEnd > 0, eof: false). On resume, the catch-up
+        // batch returns only 2 docs (< limit) above the existing blockStart — but
+        // chunk.blockEnd from calcChunk is non-zero (it's the catch-up window
+        // floor, not the timeline floor). Under the OLD rule (< limit alone) this
+        // batch would falsely seal eof and leave the older window un-fetched.
+        // Under main's tightening the column must continue to a real floor.
+        syncList.value.push({
+            chunkType: "content:post",
+            memberOf: ["g1"],
+            languages: ["en"],
+            blockStart: 5000,
+            blockEnd: 3000,
+            eof: false,
+            publishDateMin: 500,
+            publishDateMax: 999,
+        });
+
+        const catchUp = makeDocs(2, 5500, 100); // < limit; catch-up window
+        const tail = makeDocs(3, 3000, 500); // continuation; reaches floor 0
+        const http = { post: vi.fn() };
+        http.post
+            .mockImplementationOnce(async () => ({ docs: catchUp }))
+            .mockImplementationOnce(async () => ({ docs: tail }));
+
+        const result = await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+            limit: 5,
+            initialSync: true,
+            publishDateMin: 500,
+            publishDateMax: 999,
+            httpService: http as any,
+        });
+
+        // Catch-up did NOT seal eof — continuation ran. Two API calls.
+        expect(http.post).toHaveBeenCalledTimes(2);
+        expect(result?.eof).toBe(true);
+        // publishDate bounds preserved on the (merged) column entry.
+        const final = syncList.value.find((e) => e.chunkType === "content:post");
+        expect(final?.publishDateMin).toBe(500);
+        expect(final?.publishDateMax).toBe(999);
+    });
+
     // --- Loop termination / regression tests ---
 
     it("terminates without infinite loop when initial sync returns no docs (empty database)", async () => {
