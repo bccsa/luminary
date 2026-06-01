@@ -2,14 +2,16 @@ import { DocType } from "../../types";
 import { db } from "../../db/database";
 import { HttpReq } from "../http";
 import { syncBatch } from "./syncBatch";
-import type { SyncRunnerOptions } from "./types";
+import type { SyncListEntry, SyncRunnerOptions } from "./types";
 import {
+    arraysEqual,
     filterByTypeMemberOf,
     getChunkTypeString,
     getGroups,
     getGroupSets,
     getLanguages,
     getLanguageSets,
+    splitChunkTypeString,
 } from "./utils";
 import { trim } from "./trim";
 import { syncList, syncTolerance } from "./state";
@@ -25,6 +27,37 @@ let _httpService: HttpReq<any>;
  * - Set to `false` to allow sync to run (e.g., when coming back online)
  */
 export let cancelSync = false;
+
+/**
+ * Find chunkTypes whose syncList contains a genuinely-degenerate state that the runtime engine
+ * cannot resolve on its own — currently: two entries for the same chunkType with identical
+ * memberOf + languages (true duplicates that should have vertically merged and never legitimately
+ * coexist). The ordinary subset/superset "dual column" is intentionally NOT flagged here: the
+ * recursion guard + incomplete-column completion resolve it without discarding state.
+ */
+function findDegenerateChunkTypes(): Set<string> {
+    const byChunkType = new Map<string, SyncListEntry[]>();
+    for (const entry of syncList.value) {
+        const list = byChunkType.get(entry.chunkType) ?? [];
+        list.push(entry);
+        byChunkType.set(entry.chunkType, list);
+    }
+
+    const degenerate = new Set<string>();
+    byChunkType.forEach((entries, chunkType) => {
+        for (let i = 0; i < entries.length; i++) {
+            for (let j = i + 1; j < entries.length; j++) {
+                if (
+                    arraysEqual(entries[i].memberOf, entries[j].memberOf) &&
+                    arraysEqual(entries[i].languages ?? [], entries[j].languages ?? [])
+                ) {
+                    degenerate.add(chunkType);
+                }
+            }
+        }
+    });
+    return degenerate;
+}
 
 /**
  * Initialize sync module with HTTP service
@@ -56,6 +89,23 @@ export async function initSync(httpService: HttpReq<any>) {
 
     if (!isValid) {
         syncList.value = [];
+        await db.setSyncList();
+        return;
+    }
+
+    // Relational self-heal: if a chunkType holds genuinely-degenerate (duplicate) columns, reset
+    // just that chunkType (and its paired deleteCmd sibling) so it re-syncs cleanly, rather than
+    // discarding the entire list.
+    const degenerate = findDegenerateChunkTypes();
+    if (degenerate.size) {
+        const toReset = new Set(degenerate);
+        degenerate.forEach((chunkType) => {
+            const { type, subType } = splitChunkTypeString(chunkType);
+            if (type !== DocType.DeleteCmd) {
+                toReset.add(getChunkTypeString(DocType.DeleteCmd, subType ?? type));
+            }
+        });
+        syncList.value = syncList.value.filter((entry) => !toReset.has(entry.chunkType));
         await db.setSyncList();
     }
 }
@@ -158,19 +208,29 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // was added and the sync was interrupted before merging could occur)
     const groupSets = getGroupSets(options);
 
+    // Whether options.memberOf is itself one of the tracked group sets.
+    const selfTracked = groupSets.some((groupSet) => arraysEqual(groupSet, options.memberOf));
+
     if (groupSets.length > 1 || newGroups.length > 0) {
-        // Start new runners for any existing group sets
+        // Start new runners for any existing group sets — but NEVER recurse into a set equal to
+        // the current options.memberOf. Re-entering _sync with an identical memberOf re-derives the
+        // same groupSets and recurses forever (the "dual column" lockout, e.g. a full-set column
+        // coexisting with a strict-subset column, which makes getGroupSets return both).
         for (const groupSet of groupSets) {
+            if (arraysEqual(groupSet, options.memberOf)) continue;
             await _sync({ ...options, memberOf: groupSet });
         }
 
         // Use this runner for new groups only
         if (newGroups.length > 0) {
             options.memberOf = newGroups;
-        } else {
-            // No new groups, this runner is not needed
+        } else if (!selfTracked) {
+            // No new groups and the current set is fully covered by the other runners — this
+            // runner is not needed
             return;
         }
+        // selfTracked && no new groups → fall through to syncBatch for options.memberOf (its own
+        // column) instead of returning, so its new content is still caught up in this pass.
     }
 
     // Start the iterative sync process
