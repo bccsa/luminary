@@ -188,6 +188,21 @@ describe("compileTemplateSelector", () => {
             expect(match({ meta: { a: 2 } })).toBe(true);
             expect(match({ meta: { a: 1 } })).toBe(false);
         });
+
+        it("excludes documents missing the field (CouchDB parity)", () => {
+            const match = compile({ parentPostType: { $ne: "page" } });
+            expect(match({ parentPostType: "blog" })).toBe(true);
+            expect(match({ parentPostType: "page" })).toBe(false);
+            expect(match({})).toBe(false); // missing field -> excluded
+            expect(match({ parentPostType: undefined })).toBe(false); // undefined treated as missing
+        });
+
+        it("requires the field to exist for $ne: null", () => {
+            const match = compile({ field: { $ne: null } });
+            expect(match({ field: 1 })).toBe(true);
+            expect(match({ field: null })).toBe(false);
+            expect(match({})).toBe(false); // missing field -> excluded
+        });
     });
 
     describe("$gt operator", () => {
@@ -291,6 +306,13 @@ describe("compileTemplateSelector", () => {
             const match = compile({ meta: { $nin: [{ a: 1 }] } });
             expect(match({ meta: { a: 1 } })).toBe(false);
             expect(match({ meta: { a: 2 } })).toBe(true);
+        });
+
+        it("excludes documents missing the field (CouchDB parity)", () => {
+            const match = compile({ status: { $nin: ["archived", "deleted"] } });
+            expect(match({ status: "active" })).toBe(true);
+            expect(match({ status: "archived" })).toBe(false);
+            expect(match({})).toBe(false); // missing field -> excluded
         });
     });
 
@@ -617,10 +639,13 @@ describe("compileTemplateSelector", () => {
         });
 
         it("handles $ne in primitive matcher", () => {
+            // The primitive matcher tests array ELEMENT values, not document fields,
+            // so the field-existence gate added for field-level $ne must NOT apply here.
             const match = compile({
                 items: { $elemMatch: { $ne: "excluded" } },
             });
             expect(match({ items: ["other"] })).toBe(true);
+            expect(match({ items: ["excluded"] })).toBe(false);
         });
 
         it("handles $in in primitive matcher", () => {
