@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { type ContentDto, DocType, db, PostType, TagType, mangoToDexie, useDexieLiveQueryWithDeps } from "luminary-shared";
+import {
+    type ContentDto,
+    DocType,
+    db,
+    PostType,
+    TagType,
+    mangoToDexie,
+    useDexieLiveQueryWithDeps,
+} from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
@@ -19,21 +27,30 @@ const listenedContent = useDexieLiveQueryWithDeps(
                 $and: [
                     { _id: { $in: contentIds } },
                     { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: { $ne: TagType.Category } },
+                        ],
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
         });
 
-        const orderMap = new Map<string, number>(contentIds.map((id: string, i: number) => [id, i]));
+        const orderMap = new Map<string, number>(
+            contentIds.map((id: string, i: number) => [id, i]),
+        );
         results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
 
         return results.filter(
-            (c) =>
-                c.parentMedia?.fileCollections?.length &&
-                !c.video &&
-                !c.parentMedia?.hlsUrl,
+            (c) => c.parentMedia?.fileCollections?.length && !c.video && !c.parentMedia?.hlsUrl,
         );
     },
     {

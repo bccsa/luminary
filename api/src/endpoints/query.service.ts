@@ -93,12 +93,6 @@ export class QueryService {
                 HttpStatus.BAD_REQUEST,
             );
 
-        if (type === DocType.Content && !parentType)
-            throw new HttpException(
-                "'parentType' field is required for Content type",
-                HttpStatus.BAD_REQUEST,
-            );
-
         if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(
                 "'docType' field is required for DeleteCmd type",
@@ -109,7 +103,8 @@ export class QueryService {
         const permissionCheckTypes: DocType[] = [];
         switch (type as DocType) {
             case DocType.Content:
-                permissionCheckTypes.push(parentType as DocType, DocType.Language);
+                if (parentType) permissionCheckTypes.push(parentType as DocType, DocType.Language);
+                else permissionCheckTypes.push(DocType.Post, DocType.Tag, DocType.Language);
                 break;
             case DocType.DeleteCmd:
                 if (docType === DocType.Content) {
@@ -129,11 +124,13 @@ export class QueryService {
             [...permissionCheckTypes],
         );
 
-        let viewGroups: string[];
+        let viewGroups: string[] = [];
+        // True once a content query without parentType has injected its own per-parentType
+        // memberOf scoping (the $or below), so the single global memberOf push is skipped.
+        let memberOfInjected = false;
 
         // Permission and publishing status filtering: Content documents
         if (type === DocType.Content) {
-            viewGroups = userViewGroups[parentType as DocType] || [];
             const langViewGroups = userViewGroups[DocType.Language] || [];
 
             // Filter languages to those the user has view access to
@@ -147,6 +144,44 @@ export class QueryService {
             // If no accessible languages, user cannot view any content
             if (accessibleLanguages.length === 0)
                 throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+
+            if (parentType) {
+                viewGroups = userViewGroups[parentType as DocType] || [];
+            } else {
+                // No parentType in the query: scope EACH parentType to its own view groups via an
+                // $or, so a Post-content doc can never be returned through Tag view access (or vice
+                // versa). A flat Post+Tag group union would leak content across permission types.
+                const postGroups = userViewGroups[DocType.Post] || [];
+                const tagGroups = userViewGroups[DocType.Tag] || [];
+                const postEff = memberOf.length
+                    ? postGroups.filter((g) => memberOf.includes(g))
+                    : postGroups;
+                const tagEff = memberOf.length
+                    ? tagGroups.filter((g) => memberOf.includes(g))
+                    : tagGroups;
+
+                const branches: MongoSelectorDto[] = [];
+                if (postEff.length)
+                    branches.push({
+                        $and: [
+                            { parentType: DocType.Post },
+                            { memberOf: { $elemMatch: { $in: postEff } } },
+                        ],
+                    });
+                if (tagEff.length)
+                    branches.push({
+                        $and: [
+                            { parentType: DocType.Tag },
+                            { memberOf: { $elemMatch: { $in: tagEff } } },
+                        ],
+                    });
+
+                if (branches.length === 0)
+                    throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+
+                query.selector.$and.push({ $or: branches });
+                memberOfInjected = true;
+            }
 
             // If the CMS flag is not set, add additional filters for published content
             if (!query.cms) {
@@ -190,20 +225,28 @@ export class QueryService {
         delete query.cms;
         delete query.includeExpired;
 
-        // User has no access to any of the requested types/groups
-        if (viewGroups.length === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+        // For content queries without parentType the per-parentType $or above already injected
+        // memberOf scoping; otherwise apply the single global memberOf filter here.
+        if (!memberOfInjected) {
+            // User has no access to any of the requested types/groups
+            if (viewGroups.length === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
-        // Add memberOf filter to the $and array
-        query.selector.$and.push({
-            memberOf: {
-                $elemMatch: {
-                    $in: memberOf.length
-                        ? memberOf.filter((id) => viewGroups?.includes(id))
-                        : viewGroups,
+            // Add memberOf filter to the $and array
+            query.selector.$and.push({
+                memberOf: {
+                    $elemMatch: {
+                        $in: memberOf.length
+                            ? memberOf.filter((id) => viewGroups?.includes(id))
+                            : viewGroups,
+                    },
                 },
-            },
-        });
+            });
+        }
 
+        // `use_index` (when present) is forwarded to CouchDB as-is. The
+        // hybridQuery validator allowlists the permitted names; index selection
+        // is a client-side concern (see shared/src/util/hybridQuery — same pattern
+        // as sync2/syncBatch.ts).
         return this.db.executeFindQuery(query);
     }
 }
