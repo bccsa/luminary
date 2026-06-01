@@ -795,7 +795,7 @@ watch([isLoading, content, is404], async () => {
                                 By {{ content.author }}
                             </div>
                             <div
-                                v-if="readingTime"
+                                v-if="readingTime && readingTime > 1"
                                 class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
                             >
                                 <ClockIcon class="h-4 w-4" />
