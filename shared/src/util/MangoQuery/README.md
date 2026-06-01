@@ -19,6 +19,8 @@ When to use which:
 
 Both utilities share the same selector shape (MangoSelector), covering equality, `$eq/$ne/$gt/$lt/$gte/$lte`, `$in`, and logical `$and/$or`.
 
+> **CouchDB parity:** condition operators require the field to **exist** — a document missing the queried field never matches, including `$ne`/`$nin`. To include missing-field docs, use `{ $or: [{ f: { $exists: false } }, { f: { $ne: v } }] }`. See [mangoCompile › Missing fields](./mangoCompile.md#missing-fields-couchdb-parity).
+
 ## Cache persistence across page loads
 
 Both utilities use **template-based caching** to avoid recompiling queries with the same structure. To eliminate cold-start latency on subsequent page loads, compiled templates are automatically persisted to `localStorage`. On app startup, call `warmMangoCaches()` to restore them before any queries run:

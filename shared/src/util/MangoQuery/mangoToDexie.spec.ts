@@ -464,6 +464,34 @@ describe("mangoToDexie", () => {
 
             expect(table.lastClauseOp).toBe("notEqual");
             expect(res.map((d) => d.id)).toEqual([1, 3]);
+            // Note: real IndexedDB excludes records lacking the indexed key from the
+            // index, so notEqual() never returns missing-field docs. FakeClause.notEqual
+            // does not replicate that, so the application-visible "$ne excludes missing
+            // field" behavior is asserted via the residual-predicate path below and in
+            // compileTemplateSelector.spec.ts, not against this mock.
+        });
+
+        it("$or($exists:false, $ne) includes docs missing the field via residual filter", async () => {
+            // The intended rewrite for "field absent OR field !== value". $or is never
+            // index-pushed, so this exercises the residual compileTemplateSelector path.
+            const docs: Doc[] = [
+                { id: 1, type: "x", name: "page" },
+                { id: 2, type: "x", name: "blog" },
+                { id: 3, type: "x" }, // missing name
+            ];
+            const table = new FakeTable(docs);
+            const query = {
+                selector: {
+                    $and: [
+                        { type: "x" },
+                        { $or: [{ name: { $exists: false } }, { name: { $ne: "page" } }] },
+                    ],
+                },
+            };
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
+
+            // type drives the index; the $or is applied as a residual predicate.
+            expect(res.map((d) => d.id).sort()).toEqual([2, 3]);
         });
 
         it("pushes $eq via multiEq (preferred) or equals", async () => {

@@ -187,6 +187,7 @@ const rows = await mangoToDexie(db.items, q).toArray();
 
 ## Notes and limitations
 
+- **Missing fields / `$ne` parity**: IndexedDB indexes contain no entry for records that lack the indexed key, so `where(field).notEqual(value)` (and every other index pushdown) never returns documents missing the field. This matches the in‑memory `mangoCompile` semantics, where `$ne`/`$nin` also require the field to exist (CouchDB parity — see [mangoCompile](./mangoCompile.md#missing-fields-couchdb-parity)). To include missing‑field docs, write `{ $or: [{ field: { $exists: false } }, { field: { $ne: value } }] }`; the `$or` is evaluated in memory.
 - **Booleans** are not pushed down as equality criteria; they remain in the residual in‑memory filter.
 - **`$or`, `$not`, `$nor`** are not pushed down; they're evaluated in memory.
 - Only the **first `$sort` field** is honored. Additional sort keys are ignored.
