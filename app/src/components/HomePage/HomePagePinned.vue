@@ -44,9 +44,23 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-                    { parentTags: { $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) } } },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: TagType.Topic },
+                        ],
+                    },
+                    {
+                        parentTags: {
+                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
+                        },
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },

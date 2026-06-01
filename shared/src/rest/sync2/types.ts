@@ -21,6 +21,16 @@ export type SyncBaseOptions = {
      * Array of languages this sync entry applies to (for content document types only)
      */
     languages?: string[];
+    /**
+     * Inclusive lower bound for publishDate (for Content document types only).
+     * If undefined, resolved to OPEN_MIN (Number.MIN_SAFE_INTEGER) at sync entry.
+     */
+    publishDateMin?: number;
+    /**
+     * Inclusive upper bound for publishDate (for Content document types only).
+     * If undefined, resolved to OPEN_MAX (Number.MAX_SAFE_INTEGER) at sync entry.
+     */
+    publishDateMax?: number;
 };
 
 /**
@@ -83,4 +93,14 @@ export type SyncListEntry = {
      * Indicates that the end (oldest available data) of the sync data has been reached
      */
     eof?: boolean;
+    /**
+     * Inclusive lower bound for publishDate covered by this entry.
+     * Optional on the wire (legacy entries may omit it); resolved to OPEN_MIN on initSync load.
+     */
+    publishDateMin?: number;
+    /**
+     * Inclusive upper bound for publishDate covered by this entry.
+     * Optional on the wire (legacy entries may omit it); resolved to OPEN_MAX on initSync load.
+     */
+    publishDateMax?: number;
 };

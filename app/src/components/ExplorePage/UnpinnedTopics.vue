@@ -47,7 +47,9 @@ const categories = useDexieLiveQueryWithDeps(
                     { type: DocType.Content },
                     { status: "published" },
                     { parentTagType: TagType.Category },
-                    { parentPinned: { $ne: 1 } },
+                    {
+                        $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }],
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },

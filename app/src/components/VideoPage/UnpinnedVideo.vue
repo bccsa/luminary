@@ -23,8 +23,18 @@ const newest100Content = useDexieLiveQueryWithDeps(
                 $and: [
                     { type: DocType.Content },
                     { video: { $exists: true, $ne: "" } },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: TagType.Topic },
+                        ],
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
@@ -61,7 +71,9 @@ const categories = useDexieLiveQueryWithDeps(
                     { parentId: { $in: _categoryIds } },
                     { parentType: DocType.Tag },
                     { parentTagType: TagType.Category },
-                    { parentPinned: { $ne: 1 } },
+                    {
+                        $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }],
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },

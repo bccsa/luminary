@@ -3,6 +3,7 @@ import { syncBatch } from "./syncBatch";
 import { setCancelSync } from "./sync";
 import { syncList } from "./state";
 import { DocType, BaseDocumentDto } from "../../types";
+import { OPEN_MAX, OPEN_MIN } from "./utils";
 
 // We mock database bulkPut
 vi.mock("../../db/database", () => ({ db: { bulkPut: vi.fn(async () => {}) } }));
@@ -64,6 +65,8 @@ describe("syncBatch", () => {
         expect(body.selector.parentType).toBe(DocType.Post);
         expect(body.selector.language.$in).toEqual(languages);
         expect(body.identifier).toBe("sync");
+        // Content uses the de-partitioned single index regardless of parentType.
+        expect(body.use_index).toBe("sync-content-index");
     });
 
     it("builds mango query for deleteCmd type including docType and language selector", async () => {
@@ -89,6 +92,8 @@ describe("syncBatch", () => {
         const body = capturedBodies[0];
         expect(body.selector.docType).toBe(DocType.Post);
         expect(body.selector.language.$in).toEqual(languages);
+        // DeleteCmd index naming is unchanged (still per-docType).
+        expect(body.use_index).toBe("sync-post-deleteCmd-index");
     });
 
     it("does not add language selector to deleteCmd query when languages is empty", async () => {
@@ -794,5 +799,225 @@ describe("syncBatch", () => {
         expect(http.post).toHaveBeenCalledTimes(2); // initial + one retry that detects stall
         expect(result).toBeDefined();
         expect(result?.eof).toBe(true);
+    });
+
+    // --- publishDate selector injection (Part A) ---
+
+    describe("publishDate selector", () => {
+        function makeContentDocs(count: number): BaseDocumentDto[] {
+            return Array.from({ length: count }, (_, i) => ({
+                id: `c-${i}`,
+                type: DocType.Content,
+                parentType: DocType.Post,
+                language: "en",
+                updatedTimeUtc: 5000 - i,
+                memberOf: ["g1"],
+            })) as any;
+        }
+
+        it("does NOT inject publishDate selector when both bounds are at defaults (byte-identical wire format)", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+            });
+            // Regression: when at defaults the selector must look identical to a call
+            // that didn't even know about publishDate.
+            expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+            expect(Object.keys(capturedBodies[0].selector).sort()).toEqual(
+                ["language", "memberOf", "parentType", "type", "updatedTimeUtc"].sort(),
+            );
+        });
+
+        it("does NOT inject publishDate selector when publishDate options are completely absent", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+            });
+            expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+        });
+
+        it("injects $gte only when publishDateMin is narrowed", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: 1000,
+                publishDateMax: OPEN_MAX,
+            });
+            expect(capturedBodies[0].selector.publishDate).toEqual({ $gte: 1000 });
+        });
+
+        it("injects $lte only when publishDateMax is narrowed", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: 5000,
+            });
+            expect(capturedBodies[0].selector.publishDate).toEqual({ $lte: 5000 });
+        });
+
+        it("injects both $gte and $lte when both bounds are narrowed", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: 1000,
+                publishDateMax: 5000,
+            });
+            expect(capturedBodies[0].selector.publishDate).toEqual({ $gte: 1000, $lte: 5000 });
+        });
+
+        it("NEVER injects publishDate for DeleteCmd queries even when narrowed", async () => {
+            const docs = Array.from({ length: 2 }, (_, i) => ({
+                id: `d-${i}`,
+                type: DocType.DeleteCmd,
+                docType: DocType.Post,
+                updatedTimeUtc: 5000 - i,
+                memberOf: ["g1"],
+            })) as any;
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.DeleteCmd,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                // Even with narrowed bounds, DeleteCmd must NOT be filtered by publishDate
+                // so deletes propagate regardless of the user's cutoff.
+                publishDateMin: 1000,
+                publishDateMax: 5000,
+            });
+            expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+        });
+
+        it("does NOT inject publishDate for non-Content types (e.g. Post)", async () => {
+            const docs = makeDocs(2, 5000, 10);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Post,
+                memberOf: ["g1"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: 1000,
+                publishDateMax: 5000,
+            });
+            expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+        });
+
+        it("persists resolved publishDate bounds on the pushed syncList chunk (default callers)", async () => {
+            const docs = makeContentDocs(2);
+            const http = { post: vi.fn(async () => ({ docs })) };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+            });
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(OPEN_MIN);
+            expect(syncList.value[0].publishDateMax).toBe(OPEN_MAX);
+        });
+
+        it("persists narrowed publishDate bounds on the pushed syncList chunk", async () => {
+            const docs = makeContentDocs(2);
+            const http = { post: vi.fn(async () => ({ docs })) };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                publishDateMin: 1000,
+                publishDateMax: 5000,
+            });
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(1000);
+            expect(syncList.value[0].publishDateMax).toBe(5000);
+        });
     });
 });

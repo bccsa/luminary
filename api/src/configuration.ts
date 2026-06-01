@@ -13,6 +13,16 @@ export type SyncConfig = {
     tolerance: number;
 };
 
+export type QueryConfig = {
+    /**
+     * Maximum `limit` accepted on a POST /query request, enforced centrally for every
+     * query identifier (sync, hybridQuery, …). Requests above this are rejected with 400.
+     * Guards against a single authenticated client forcing CouchDB to materialize a huge
+     * result set. Environment variable: QUERY_MAX_LIMIT (default 500).
+     */
+    maxLimit: number;
+};
+
 export type ValidationConfig = {
     /**
      * When set to true, query template validation will log warnings instead of throwing exceptions.
@@ -59,6 +69,7 @@ export type Configuration = {
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
+    query?: QueryConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -78,6 +89,9 @@ export default () =>
         sync: {
             tolerance: parseInt(process.env.SYNC_TOLERANCE, 10) || 1000,
         } as SyncConfig,
+        query: {
+            maxLimit: parseInt(process.env.QUERY_MAX_LIMIT, 10) || 500,
+        } as QueryConfig,
         permissionMap: process.env.PERMISSION_MAP,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,

@@ -203,6 +203,292 @@ describe("verifyMongoQuery", () => {
         expect(res.valid).toBe(true);
     });
 
+    it("passes when sync template omits publishDate (backwards compatible)", () => {
+        const q: any = validBaseQuery();
+        // Sanity: the base query has no publishDate.
+        expect(q.selector.publishDate).toBeUndefined();
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("passes with optional publishDate $gte in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = { $gte: 1000 };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("passes with optional publishDate $lte in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = { $lte: 5000 };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("passes with optional publishDate $gte and $lte in sync template", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = { $gte: 1000, $lte: 5000 };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(true);
+    });
+
+    it("fails when publishDate has extra (non-$gte/$lte) keys", () => {
+        const q: any = validBaseQuery();
+        // Use $lt (a real operator the global policy doesn't block) so this test
+        // exercises the sync template's publishDate key restriction, not the
+        // global operator policy.
+        q.selector.publishDate = { $gte: 1000, $lt: 5000 };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Function validation failed/);
+    });
+
+    it("fails when publishDate $gte is not a number", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = { $gte: "1000" };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Function validation failed/);
+    });
+
+    it("fails when publishDate $lte is not a number", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = { $lte: "5000" };
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Function validation failed/);
+    });
+
+    it("fails when publishDate is not an object", () => {
+        const q: any = validBaseQuery();
+        q.selector.publishDate = 1234;
+        const res = validateMongoQuery(q);
+        expect(res.valid).toBe(false);
+        expect(res.error).toMatch(/Function validation failed/);
+    });
+
+    describe("hybridQuery template", () => {
+        const validHybridQuery = () => ({
+            identifier: "hybridQuery",
+            selector: {
+                type: "content",
+                parentType: "post",
+                language: { $in: ["lang-eng"] },
+                memberOf: { $elemMatch: { $in: ["group-public-content"] } },
+            },
+        });
+
+        it("passes for a minimal hybridQuery", () => {
+            const res = validateMongoQuery(validHybridQuery() as any);
+            expect(res.valid).toBe(true);
+            expect(res.error).toBe("");
+        });
+
+        it("passes with optional limit, sort, cms fields", () => {
+            const q: any = validHybridQuery();
+            q.limit = 50;
+            q.sort = [{ updatedTimeUtc: "desc" }];
+            q.cms = false;
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(true);
+        });
+
+        it("accepts arbitrary selector fields (permission injection happens server-side)", () => {
+            const q: any = validHybridQuery();
+            q.selector.status = "published";
+            q.selector.slug = "some-slug";
+            q.selector.publishDate = { $gte: 1000, $lte: 5000 };
+            q.selector.expiryDate = { $gt: 0 };
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(true);
+        });
+
+        it("fails when selector is missing", () => {
+            const q: any = validHybridQuery();
+            delete q.selector;
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when selector is not an object", () => {
+            const q: any = validHybridQuery();
+            q.selector = "not-an-object";
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when selector is an array", () => {
+            const q: any = validHybridQuery();
+            q.selector = [];
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when an unknown top-level key is present", () => {
+            const q: any = validHybridQuery();
+            q.somethingElse = "x"; // not in the top-level allowlist
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("passes use_index when it matches the allowlist", () => {
+            const q: any = validHybridQuery();
+            q.use_index = "content-publishDate-index";
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(true);
+        });
+
+        it("fails use_index when it doesn't match the allowlist", () => {
+            const q: any = validHybridQuery();
+            q.use_index = "some-other-index";
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails use_index when it is not a string", () => {
+            const q: any = validHybridQuery();
+            q.use_index = 123;
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when limit is not a positive number", () => {
+            const q: any = validHybridQuery();
+            q.limit = 0;
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when sort is not an array", () => {
+            const q: any = validHybridQuery();
+            q.sort = { updatedTimeUtc: "desc" }; // must be array
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+
+        it("fails when cms is not a boolean", () => {
+            const q: any = validHybridQuery();
+            q.cms = "true";
+            const res = validateMongoQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/Function validation failed/);
+        });
+    });
+
+    describe("global query policy (all identifiers)", () => {
+        const validHybridQuery = () => ({
+            identifier: "hybridQuery",
+            selector: {
+                type: "content",
+                parentType: "post",
+                memberOf: { $elemMatch: { $in: ["group-public-content"] } },
+            },
+        });
+
+        describe("limit cap", () => {
+            it("rejects a limit above the default maximum (500)", () => {
+                const q: any = validHybridQuery();
+                q.limit = 501;
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/limit exceeds maximum \(500\)/);
+            });
+
+            it("accepts a limit at the maximum", () => {
+                const q: any = validHybridQuery();
+                q.limit = 500;
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(true);
+            });
+
+            it("honors a custom maxLimit option", () => {
+                const q: any = validHybridQuery();
+                q.limit = 100;
+                const res = validateMongoQuery(q, { maxLimit: 50 });
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/limit exceeds maximum \(50\)/);
+            });
+
+            it("applies the cap to the sync identifier too", () => {
+                const q: any = validBaseQuery();
+                q.limit = 100000;
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/limit exceeds maximum/);
+            });
+        });
+
+        describe("operator policy", () => {
+            it("rejects $regex anywhere in the selector", () => {
+                const q: any = validHybridQuery();
+                q.selector.title = { $regex: "^.*$" };
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/\$regex/);
+            });
+
+            it("rejects $where anywhere in the selector", () => {
+                const q: any = validHybridQuery();
+                q.selector.$where = "function() { return true; }";
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/\$where/);
+            });
+
+            it("rejects $regex nested inside $and / $or (proves recursive walk)", () => {
+                const q: any = validHybridQuery();
+                q.selector.$or = [{ slug: "a" }, { title: { $regex: "x" } }];
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/\$regex/);
+            });
+
+            it("rejects $elemMatch on a field other than memberOf", () => {
+                const q: any = validHybridQuery();
+                q.selector.parentTags = { $elemMatch: { $in: ["tag1"] } };
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(/\$elemMatch.*memberOf/);
+            });
+
+            it("allows $elemMatch on memberOf (sync + hybridQuery shape)", () => {
+                const res = validateMongoQuery(validHybridQuery() as any);
+                expect(res.valid).toBe(true);
+                const syncRes = validateMongoQuery(validBaseQuery() as any);
+                expect(syncRes.valid).toBe(true);
+            });
+
+            it("allows $elemMatch on availableTranslations", () => {
+                const q: any = validHybridQuery();
+                q.selector.availableTranslations = { $elemMatch: { $eq: "lang-eng" } };
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(true);
+            });
+
+            it("allows the hybrid query language-priority shape ($not/$or wrapping availableTranslations $elemMatch)", () => {
+                const q: any = validHybridQuery();
+                q.selector.$or = [
+                    { language: "lang-eng" },
+                    {
+                        $and: [
+                            { $not: { availableTranslations: { $elemMatch: { $eq: "lang-eng" } } } },
+                        ],
+                    },
+                ];
+                const res = validateMongoQuery(q);
+                expect(res.valid).toBe(true);
+            });
+        });
+    });
+
     it("caches successfully validated templates for performance", async () => {
         // First call - template should be loaded from file
         const q1 = validBaseQuery();

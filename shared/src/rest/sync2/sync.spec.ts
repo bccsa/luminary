@@ -6,7 +6,9 @@ import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
 import { DocType } from "../../types";
 import * as utils from "./utils";
+import { OPEN_MAX, OPEN_MIN } from "./utils";
 import { merge, mergeHorizontal } from "./merge";
+import { initConfig } from "../../config";
 
 // Mock dependencies
 vi.mock("../../db/database", () => ({
@@ -94,7 +96,13 @@ describe("sync module", () => {
             vi.mocked(db.getSyncList).mockResolvedValue([]);
             syncList.value = [
                 { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
-                { chunkType: "post", memberOf: ["g1"], blockStart: Number.MAX_SAFE_INTEGER, blockEnd: 0, eof: true },
+                {
+                    chunkType: "post",
+                    memberOf: ["g1"],
+                    blockStart: Number.MAX_SAFE_INTEGER,
+                    blockEnd: 0,
+                    eof: true,
+                },
             ];
 
             await initSync(mockHttpService);
@@ -118,7 +126,13 @@ describe("sync module", () => {
         it("should reset syncList when an entry has inverted range", async () => {
             vi.mocked(db.getSyncList).mockResolvedValue([]);
             syncList.value = [
-                { chunkType: "post", memberOf: ["g1"], blockStart: 1000, blockEnd: 5000, eof: true },
+                {
+                    chunkType: "post",
+                    memberOf: ["g1"],
+                    blockStart: 1000,
+                    blockEnd: 5000,
+                    eof: true,
+                },
             ];
 
             await initSync(mockHttpService);
@@ -130,7 +144,13 @@ describe("sync module", () => {
         it("should reset syncList when an entry has eof with narrow range (merge regression)", async () => {
             vi.mocked(db.getSyncList).mockResolvedValue([]);
             syncList.value = [
-                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4000, eof: true },
+                {
+                    chunkType: "post",
+                    memberOf: ["g1"],
+                    blockStart: 5000,
+                    blockEnd: 4000,
+                    eof: true,
+                },
             ];
 
             await initSync(mockHttpService);
@@ -154,13 +174,135 @@ describe("sync module", () => {
         it("should keep valid eof:false entry with narrow range (still syncing)", async () => {
             vi.mocked(db.getSyncList).mockResolvedValue([]);
             syncList.value = [
-                { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 4500, eof: false },
+                {
+                    chunkType: "post",
+                    memberOf: ["g1"],
+                    blockStart: 5000,
+                    blockEnd: 4500,
+                    eof: false,
+                },
             ];
 
             await initSync(mockHttpService);
 
             expect(syncList.value).toHaveLength(1);
             expect(db.setSyncList).not.toHaveBeenCalled();
+        });
+
+        it("resolves legacy entries (no publishDate fields) in place to OPEN_MIN/OPEN_MAX", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            // Two legacy entries — neither has publishDateMin/Max.
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                },
+                {
+                    chunkType: "post",
+                    memberOf: ["g1"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                },
+            ];
+
+            await initSync(mockHttpService);
+
+            // List is preserved (valid) and publishDate fields are resolved in place.
+            expect(syncList.value).toHaveLength(2);
+            for (const entry of syncList.value) {
+                expect(entry.publishDateMin).toBe(OPEN_MIN);
+                expect(entry.publishDateMax).toBe(OPEN_MAX);
+            }
+        });
+
+        it("preserves explicit publishDate bounds on entries that already have them", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 1000,
+                    publishDateMax: 5000,
+                },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(1000);
+            expect(syncList.value[0].publishDateMax).toBe(5000);
+        });
+
+        it("resets syncList when publishDateMin > publishDateMax (inverted range)", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 5000,
+                    publishDateMax: 1000,
+                },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("resets syncList when publishDateMin is not a finite number", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: NaN,
+                    publishDateMax: 5000,
+                },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
+        });
+
+        it("resets syncList when publishDateMax is the wrong type", async () => {
+            vi.mocked(db.getSyncList).mockResolvedValue([]);
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 1000,
+                    publishDateMax: "5000" as unknown as number,
+                },
+            ];
+
+            await initSync(mockHttpService);
+
+            expect(syncList.value).toHaveLength(0);
+            expect(db.setSyncList).toHaveBeenCalled();
         });
     });
 
@@ -228,6 +370,8 @@ describe("sync module", () => {
                 memberOf: ["group1"],
                 limit: 100,
                 includeDeleteCmds: false,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -263,6 +407,8 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
                 initialSync: true,
                 httpService: mockHttpService,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -321,6 +467,8 @@ describe("sync module", () => {
                 languages: ["en"],
                 limit: 100,
                 includeDeleteCmds: false,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
 
             expect(syncBatch).toHaveBeenCalledWith({
@@ -332,6 +480,8 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
                 initialSync: true,
                 httpService: mockHttpService,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -808,13 +958,17 @@ describe("sync module", () => {
                 includeDeleteCmds: true,
             });
 
-            // Verify merge was called with correct parameters after pushing DeleteCmd chunk
+            // Verify merge was called with correct parameters after pushing DeleteCmd chunk.
+            // The DeleteCmd path always uses open publishDate bounds so deletes propagate
+            // regardless of the user's content cutoff.
             expect(merge).toHaveBeenCalledWith({
                 type: DocType.DeleteCmd,
                 subType: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
                 includeDeleteCmds: true,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -876,7 +1030,8 @@ describe("sync module", () => {
                 includeDeleteCmds: true,
             });
 
-            // Verify merge was called with correct parameters including languages
+            // Verify merge was called with correct parameters including languages.
+            // DeleteCmd path always uses open publishDate bounds.
             expect(merge).toHaveBeenCalledWith({
                 type: DocType.DeleteCmd,
                 subType: DocType.Post,
@@ -884,6 +1039,8 @@ describe("sync module", () => {
                 languages: ["en"],
                 limit: 100,
                 includeDeleteCmds: true,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -1224,6 +1381,216 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("publishDate column spawning (Part A)", () => {
+        beforeEach(async () => {
+            await initSync(mockHttpService);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 3000,
+                firstSync: false,
+            });
+        });
+
+        it("does NOT spawn extra runners when called with default (open) publishDate bounds and empty syncList", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            syncList.value = [];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            // Exactly one content syncBatch call — the publishDate block resolved to
+            // the open uncovered slice (no-op) and continued with this runner.
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Content,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+        });
+
+        it("does NOT spawn when requested range is a strict subset of one existing range", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            // Existing column covers [100..5000].
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 100,
+                    publishDateMax: 5000,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+                publishDateMin: 200,
+                publishDateMax: 1000, // strictly inside the existing range
+            });
+
+            // Only one Content syncBatch call. The spawn block sees a single inside
+            // range with no uncovered slice and skips, letting this runner continue
+            // with the originally-requested bounds.
+            const contentCalls = vi
+                .mocked(syncBatch)
+                .mock.calls.filter((c) => (c[0] as any).type === DocType.Content);
+            expect(contentCalls).toHaveLength(1);
+            expect(contentCalls[0][0]).toMatchObject({
+                publishDateMin: 200,
+                publishDateMax: 1000,
+            });
+        });
+
+        it("spawns a new column when the user broadens the cutoff (uncovered older window)", async () => {
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            // Existing column covers the recent window [1000..OPEN_MAX].
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 1000,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+                publishDateMin: 500, // broadened — older window now requested
+                publishDateMax: OPEN_MAX,
+            });
+
+            const contentCalls = vi
+                .mocked(syncBatch)
+                .mock.calls.filter((c) => (c[0] as any).type === DocType.Content);
+
+            // Two columns: one resumed for the existing range, one for the uncovered slice.
+            expect(contentCalls).toHaveLength(2);
+
+            const resumed = contentCalls.find((c) => (c[0] as any).publishDateMin === 1000);
+            const spawned = contentCalls.find((c) => (c[0] as any).publishDateMin === 500);
+            expect(resumed).toBeDefined();
+            expect(spawned).toBeDefined();
+            // The spawned column covers the uncovered gap [500..999].
+            expect((spawned![0] as any).publishDateMax).toBe(999);
+        });
+    });
+
+    describe("content publishDate cutoff floor (SharedConfig.contentPublishDateCutoff)", () => {
+        const CONFIGURED_CUTOFF = 42_000_000;
+
+        beforeEach(async () => {
+            await initSync(mockHttpService);
+            vi.mocked(syncBatch).mockResolvedValue(undefined);
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+            initConfig({
+                cms: false,
+                docsIndex: "type",
+                apiUrl: "https://api.example.com",
+                contentPublishDateCutoff: CONFIGURED_CUTOFF,
+            });
+        });
+
+        afterEach(() => {
+            // Restore the default (no cutoff) so unrelated tests aren't affected.
+            initConfig({
+                cms: false,
+                docsIndex: "type",
+                apiUrl: "https://api.example.com",
+            });
+        });
+
+        it("content sync without an explicit publishDateMin floors to the configured cutoff", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Content,
+                    publishDateMin: CONFIGURED_CUTOFF,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+        });
+
+        it("non-content sync ignores the cutoff and stays at OPEN_MIN", async () => {
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Post,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+        });
+
+        it("an explicit publishDateMin from the caller still wins over the configured cutoff", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+                publishDateMin: 12_345,
+            });
+
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    publishDateMin: 12_345,
+                }),
+            );
         });
     });
 });
