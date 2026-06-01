@@ -4,6 +4,7 @@ import { HttpReq } from "./rest/http";
 import { getRest } from "./rest/RestApi";
 import { initSync } from "./rest/sync2/sync";
 import { getSocket } from "./socket/socketio";
+import { initHybridQuery } from "./util/hybridQuery";
 
 /**
  * Initialize the Luminary database
@@ -25,4 +26,5 @@ export async function init(config: SharedConfig) {
     // Create HTTP service instance for use in sync operations
     const http = new HttpReq(config.apiUrl || "");
     initSync(http);
+    initHybridQuery(http);
 }

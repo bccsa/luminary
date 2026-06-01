@@ -44,7 +44,12 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             selector: {
                 $and: [
                     { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
                     {
                         $or: [
                             { parentTagType: { $exists: false } },

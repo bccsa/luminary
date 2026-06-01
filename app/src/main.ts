@@ -38,6 +38,14 @@ if (import.meta.env.VITE_FAV_ICON) {
 
 initSentry(app);
 
+/**
+ * Rolling window for partial content sync. Content with `publishDate` older than
+ * `Date.now() - CONTENT_SYNC_WINDOW_MS` is not synced into IndexedDB and is
+ * fetched on demand by `HybridQuery`. ~12 months — adjust if product wants a
+ * different window.
+ */
+const CONTENT_SYNC_WINDOW_MS = 12 * 30 * 24 * 60 * 60 * 1000; // ~12 months
+
 async function Startup() {
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
@@ -49,6 +57,7 @@ async function Startup() {
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
         appLanguageIdsAsRef,
+        contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
         syncList: [
             {
                 type: DocType.AuthProvider,

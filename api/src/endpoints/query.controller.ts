@@ -39,8 +39,11 @@ export class QueryController {
         const bypassValidation =
             this.configService.get<boolean>("validation.bypassTemplateValidation") || false;
 
+        const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
+
         let validationResult = { valid: true, error: "" };
-        if (!bypassValidation) validationResult = validateMongoQuery(body as MongoQueryDto);
+        if (!bypassValidation)
+            validationResult = validateMongoQuery(body as MongoQueryDto, { maxLimit });
 
         if (!validationResult.valid) {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);
