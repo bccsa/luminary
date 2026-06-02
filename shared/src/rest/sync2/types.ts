@@ -22,13 +22,14 @@ export type SyncBaseOptions = {
      */
     languages?: string[];
     /**
-     * Inclusive lower bound for publishDate (for Content document types only).
-     * If undefined, resolved to OPEN_MIN (Number.MIN_SAFE_INTEGER) at sync entry.
+     * Inclusive lower bound for publishDate. Only meaningful for Content (and its DeleteCmd
+     * sibling, where it's intentionally OPEN to propagate deletes regardless of the cutoff).
+     * For non-Content callers leave undefined — every code path that uses this bound is
+     * wrapped in `if (type === Content)` and `resolveRange` treats undefined as OPEN_MIN.
      */
     publishDateMin?: number;
     /**
-     * Inclusive upper bound for publishDate (for Content document types only).
-     * If undefined, resolved to OPEN_MAX (Number.MAX_SAFE_INTEGER) at sync entry.
+     * Inclusive upper bound for publishDate. See {@link publishDateMin}.
      */
     publishDateMax?: number;
 };
@@ -94,13 +95,15 @@ export type SyncListEntry = {
      */
     eof?: boolean;
     /**
-     * Inclusive lower bound for publishDate covered by this entry.
-     * Optional on the wire (legacy entries may omit it); resolved to OPEN_MIN on initSync load.
+     * Inclusive lower bound for publishDate covered by this entry. Only set on Content and
+     * DeleteCmd entries — non-Content chunkTypes (Language, Redirect, Storage, AuthProvider,
+     * Group, …) leave this undefined since their docs have no publishDate field. `resolveRange`
+     * treats undefined as OPEN_MIN, so existing comparisons (filterByTypeMemberOf, mergeHorizontal,
+     * findStaleSubsetEntries, findDegenerateChunkTypes) continue to work uniformly.
      */
     publishDateMin?: number;
     /**
-     * Inclusive upper bound for publishDate covered by this entry.
-     * Optional on the wire (legacy entries may omit it); resolved to OPEN_MAX on initSync load.
+     * Inclusive upper bound for publishDate covered by this entry. See {@link publishDateMin}.
      */
     publishDateMax?: number;
 };
