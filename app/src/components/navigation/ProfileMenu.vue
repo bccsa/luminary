@@ -3,9 +3,10 @@ import {
     ChevronDownIcon,
     ChevronUpIcon,
     UserIcon,
-    XMarkIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
+    BookmarkIcon as FilledBookmarkIcon,
+    Cog6ToothIcon as FilledCog6ToothIcon,
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
@@ -32,6 +33,8 @@ import LDialog from "../common/LDialog.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { clearAuth0Cache } from "@/auth";
+import { getNavigationItems } from "./navigationItems";
+import { useSearchOverlay } from "@/composables/useSearchOverlay";
 
 type Trigger = "avatar" | "bars" | "sidebar";
 type Props = {
@@ -52,6 +55,10 @@ const menuOpen = ref(false);
 
 const { t } = useI18n();
 const menuLabel = computed(() => t("profile_menu.title"));
+
+const navigationItems = computed(() => getNavigationItems(t));
+const { isSearchOpen, openSearch } = useSearchOverlay();
+const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -74,6 +81,28 @@ const confirmLogout = async () => {
     // logout redirect doesn't leave stale provider state behind.
     clearAuth0Cache();
     await logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
+const handleLogout = () => {
+    if (!isConnected.value) {
+        showOfflineNotification();
+        return;
+    }
+    showLogoutDialog.value = true;
+};
+
+const handleLogin = () => {
+    if (isConnected.value) {
+        loginWithRedirect();
+        return;
+    }
+    useNotificationStore().addNotification({
+        id: "no-internet-connection-login",
+        title: t("profile_menu.login.offline_notification_title"),
+        description: t("profile_menu.login.offline_notification"),
+        type: "toast",
+        state: "error",
+    } as Notification);
 };
 
 type NavigationItems = {
@@ -297,75 +326,198 @@ const sidebarNavigation = computed(() =>
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"
     >
-        <template #header="{ close }">
-            <header
-                class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
-            >
-                <img
-                    v-if="isAuthenticated && user?.picture"
-                    class="h-9 w-9 flex-shrink-0 rounded-full bg-slate-50"
-                    :src="user.picture"
-                    alt=""
-                />
-                <div
-                    v-else
-                    class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
-                >
-                    <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
-                </div>
-
-                <div class="flex min-w-0 flex-1 flex-col leading-tight">
-                    <span
-                        class="truncate text-sm font-semibold text-zinc-900 dark:text-slate-50"
-                        :title="isAuthenticated ? user?.name || user?.email : undefined"
-                    >
-                        {{ isAuthenticated ? user?.name || user?.email : menuLabel }}
-                    </span>
-                    <span
-                        v-if="isAuthenticated && user?.email && user.email !== user.name"
-                        class="mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300"
-                        :title="user.email"
-                    >
-                        {{ user.email }}
-                    </span>
-                </div>
-
-                <button
-                    type="button"
-                    @click="close"
-                    class="flex-shrink-0 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
-                    aria-label="Close menu"
-                >
-                    <XMarkIcon class="h-5 w-5" />
-                </button>
-            </header>
-        </template>
         <template #default="{ close }">
-            <div class="py-2">
-                <button
-                    v-for="item in userNavigation"
+            <div class="px-3 py-2">
+                <!-- Primary nav items -->
+                <RouterLink
+                    v-for="item in navigationItems.slice(0, -1)"
                     :key="item.name"
-                    type="button"
-                    class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-zinc-900 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                    :to="item.to"
+                    v-slot="{ isActive, navigate }"
+                    custom
+                >
+                    <span
+                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        :class="
+                            isItemActive(isActive)
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-100'
+                        "
+                        @click="
+                            navigate();
+                            close();
+                        "
+                    >
+                        <component
+                            :is="isItemActive(isActive) ? item.selectedIcon : item.defaultIcon"
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{ item.name }}</span>
+                    </span>
+                </RouterLink>
+
+                <!-- Search -->
+                <span
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                    :class="
+                        isSearchOpen
+                            ? 'text-yellow-700 dark:text-yellow-400'
+                            : 'text-zinc-600 dark:text-slate-100'
+                    "
                     @click="
-                        item.action();
+                        openSearch();
                         close();
                     "
                 >
                     <component
-                        :is="item.icon"
-                        class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                        :is="
+                            isSearchOpen
+                                ? navigationItems[navigationItems.length - 1].selectedIcon
+                                : navigationItems[navigationItems.length - 1].defaultIcon
+                        "
+                        class="h-5 w-5 flex-shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span class="text-sm font-medium">{{ t("menu.search") }}</span>
+                </span>
+
+                <!-- Bookmarks -->
+                <RouterLink
+                    :to="{ name: 'bookmarks' }"
+                    v-slot="{ isActive, navigate }"
+                    custom
+                >
+                    <span
+                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        :class="
+                            isActive
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-100'
+                        "
+                        @click="
+                            navigate();
+                            close();
+                        "
+                    >
+                        <component
+                            :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{ t("profile_menu.bookmarks") }}</span>
+                    </span>
+                </RouterLink>
+
+                <!-- Theme -->
+                <span
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showThemeSelector = true"
+                >
+                    <SunIcon
+                        class="h-5 w-5 flex-shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
+                </span>
+
+                <!-- Language -->
+                <span
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showLanguageModal = true"
+                >
+                    <LanguageIcon
+                        class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
                     <div class="flex flex-col leading-none">
-                        {{ item.name }}
+                        <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
                         <span
-                            v-if="'language' in item && item.language"
-                            class="mt-1 text-xs text-zinc-500 dark:text-slate-300"
-                            >{{ item.language }}</span
-                        >
+                            v-if="appLanguageAsRef?.name"
+                            class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
+                        >{{ appLanguageAsRef.name }}</span>
                     </div>
-                </button>
+                </span>
+
+                <!-- Privacy Policy -->
+                <span
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showPrivacyPolicyModal = true"
+                >
+                    <ShieldCheckIcon
+                        class="h-5 w-5 flex-shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
+                </span>
+
+                <!-- Settings -->
+                <RouterLink
+                    :to="{ name: 'settings' }"
+                    v-slot="{ isActive, navigate }"
+                    custom
+                >
+                    <span
+                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        :class="
+                            isActive
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-100'
+                        "
+                        @click="
+                            navigate();
+                            close();
+                        "
+                    >
+                        <component
+                            :is="isActive ? FilledCog6ToothIcon : Cog6ToothIcon"
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                    </span>
+                </RouterLink>
+            </div>
+        </template>
+
+        <template #footer>
+            <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
+                <!-- Logout / Login -->
+                <span
+                    class="mb-2 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="isAuthenticated ? handleLogout() : handleLogin()"
+                >
+                    <component
+                        :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                        class="h-5 w-5 flex-shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span class="text-sm font-medium">
+                        {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
+                    </span>
+                </span>
+
+                <!-- Profile display -->
+                <div
+                    v-if="isAuthenticated"
+                    class="flex items-center gap-3 rounded-md px-3 py-1.5"
+                >
+                    <img
+                        v-if="user?.picture"
+                        class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
+                        :src="user.picture"
+                        alt=""
+                    />
+                    <div
+                        v-else
+                        class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-slate-600"
+                    >
+                        <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
+                    </div>
+                    <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
+                        {{ user?.name || user?.email }}
+                    </span>
+                </div>
             </div>
         </template>
     </MobileSidebar>

@@ -48,6 +48,10 @@ onUnmounted(() => {
                 <div class="flex-1 overflow-y-auto overscroll-contain">
                     <slot :close="close" />
                 </div>
+                <slot
+                    name="footer"
+                    :close="close"
+                />
             </aside>
         </Transition>
     </LTeleport>
