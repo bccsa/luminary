@@ -72,7 +72,7 @@ describe("LImageProvider", () => {
         });
     });
 
-    it("does not load fallback image if srcset1 or srcset2 is available and no error occurred", async () => {
+    it("renders the best-fit primary image (closest aspect ratio) and not the fallback", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id-srcset",
@@ -83,14 +83,14 @@ describe("LImageProvider", () => {
             },
         });
         await wrapper.vm.$nextTick();
-        // Should show main image, not fallback
+        // Should show the main image, not the fallback. For a 600px target the best fit from
+        // the video collection ([300, 600]) is the 600-wide file.
         const img1 = wrapper.find('img[data-test="image-element1"]');
         expect(img1.exists()).toBe(true);
-        expect(img1.attributes("srcset")).toContain("video-300.webp");
-        expect(img1.attributes("srcset")).toContain("video-600.webp");
+        expect(img1.attributes("src")).toBe("https://bucket.example.com/video-600.webp");
     });
 
-    it("does not filter out higher quality images when isModal is true", async () => {
+    it("picks the highest quality image in modal mode regardless of parent width", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id-modal",
@@ -104,8 +104,8 @@ describe("LImageProvider", () => {
         await wrapper.vm.$nextTick();
         const img1 = wrapper.find('img[data-test="image-element1"]');
         expect(img1.exists()).toBe(true);
-        expect(img1.attributes("srcset")).toContain("video-300.webp");
-        expect(img1.attributes("srcset")).toContain("video-600.webp");
+        // Modal uses the largest-area file across all collections (video-600).
+        expect(img1.attributes("src")).toBe("https://bucket.example.com/video-600.webp");
     });
 
     it("does not set crossorigin attribute on images to avoid CORS errors with external storage", async () => {

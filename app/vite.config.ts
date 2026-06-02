@@ -57,31 +57,11 @@ export default defineConfig({
                 ],
             },
             workbox: {
+                // Precache the bundled, same-origin app shell (JS/CSS/HTML + bundled assets
+                // such as logos, favicons and fallback images) so the app launches offline.
+                // CDN/content images are NOT cached here — they are cached explicitly via the
+                // Cache API in useCachedImage.ts (see LImageProvider.vue).
                 globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
-                runtimeCaching: [
-                    // Cache images called outside of <img> tags (e.g. CSS background images, logos, etc.) - matches common image extensions
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-                        handler: "CacheFirst",
-                        options: {
-                            cacheName: "external-images",
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
-                    },
-                    // Cache images called within <img> tags (e.g. content images with relative URLs)
-                    {
-                        urlPattern: ({ request }) => request.destination === "image",
-                        handler: "CacheFirst",
-                        options: {
-                            cacheName: "external-images",
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
-                    },
-                ],
             },
         }),
         movePreloadScriptsToBody(),

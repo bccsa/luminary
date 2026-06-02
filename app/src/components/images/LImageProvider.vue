@@ -21,17 +21,11 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
-import {
-    isConnected,
-    type ContentDto,
-    type ImageDto,
-    type ImageFileCollectionDto,
-    type ImageFileDto,
-    type Uuid,
-} from "luminary-shared";
+import { fallbackImageUrls } from "@/globalConfig";
+import { type ContentDto, type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useCachedImage } from "@/composables/useCachedImage";
 
 type Props = {
     image?: ImageDto;
@@ -96,160 +90,146 @@ const resolvedAlt = computed(() => {
 
 const baseUrl = computed(() => props.bucketPublicUrl);
 
-const connectionSpeed = getConnectionSpeed();
-const isDesktop = window.innerWidth >= 768;
+const devicePixelRatio = window.devicePixelRatio || 1;
 
-const calcImageLoadingTime = (imageFile: ImageFileDto) => {
-    // This calculation is using data from https://developers.google.com/speed/webp/docs/webp_study calculated to an average size per pixel for webp images comparable to JPEG Q=75 images.
-    const sizePerPixel = 0.0000000368804; // 9.9 KB / (512 x 512 pixels) = 0.00966797 MB / 262144 pixels = 3.68804E-08 MB per pixel
-    const imageFileSize = imageFile.width * imageFile.height * sizePerPixel;
-    return imageFileSize / (connectionSpeed / 8); // Convert connection speed from Mbps to MBps
+// Target render width in device pixels. Deterministic and independent of connection state, so
+// the single image URL cached while online is exactly the one requested while offline.
+const targetWidth = computed(
+    () => (props.parentWidth > 0 ? props.parentWidth : 400) * devicePixelRatio,
+);
+
+// Pick the best-fit file: the smallest whose width >= target, otherwise the largest available.
+const pickBestFit = (files: ImageFileDto[], target: number): ImageFileDto | undefined => {
+    if (!files.length) return undefined;
+    const sorted = [...files].sort((a, b) => a.width - b.width);
+    return sorted.find((f) => f.width >= target) ?? sorted[sorted.length - 1];
 };
 
-// Filter out images that would take more than 1 second to load on mobile devices or that are bigger than the parent element width plus 50%
-const filteredFileCollections = computed(() => {
-    const res: Array<ImageFileCollectionDto> = [];
-    if (!props.image?.fileCollections) return res;
-
-    // When displayed in a modal, we should not filter the images based on size
-    // to ensure high quality on zoom.
-    if (props.isModal) return props.image.fileCollections;
-
-    props.image.fileCollections.forEach((collection) => {
-        const images = collection.imageFiles.filter(
-            (imgFile) =>
-                !isConnected.value || // Bypass filtering when not connected, allowing the image element to select any available image from cache
-                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
-        );
-
-        // add the smallest image from collection.imageFiles to images if images is empty
-        if (images.length == 0) {
-            if (collection.imageFiles.length == 0) return;
-            images.push(collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b)));
+// Object URL for a local, unsaved upload blob (e.g. CMS preview). Bypasses network/cache.
+const uploadBlobUrl = ref<string | undefined>(undefined);
+watch(
+    () => props.image?.uploadData,
+    (uploadData) => {
+        if (uploadBlobUrl.value) {
+            URL.revokeObjectURL(uploadBlobUrl.value);
+            uploadBlobUrl.value = undefined;
         }
-
-        res.push({
-            ...collection,
-            imageFiles: images,
-        });
-    });
-
-    return res;
+        if (uploadData?.length) {
+            uploadBlobUrl.value = URL.createObjectURL(
+                new Blob([uploadData[uploadData.length - 1].fileData], { type: "image/*" }),
+            );
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => {
+    if (uploadBlobUrl.value) URL.revokeObjectURL(uploadBlobUrl.value);
 });
 
-// Calculate the closest aspect ratio to the desired one
+// Closest available aspect ratio to the requested one.
 const closestAspectRatio = computed(() => {
-    if (!filteredFileCollections.value.length) return 0;
+    const collections = props.image?.fileCollections ?? [];
+    if (!collections.length) return 0;
 
-    // In modal mode, don't filter by aspect ratio - use the first available
-    if (props.isModal && filteredFileCollections.value.length > 0) {
-        return filteredFileCollections.value[0].aspectRatio;
-    }
+    // In modal mode, don't filter by aspect ratio - use the first available.
+    if (props.isModal) return collections[0].aspectRatio;
 
-    const aspectRatios = filteredFileCollections.value
-        .map((collection) => collection.aspectRatio)
-        .reduce((acc, cur) => {
-            if (!acc.includes(cur)) acc.push(cur);
-            return acc;
-        }, [] as number[])
-        .sort((a, b) => a - b);
-
-    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    return aspectRatios.reduce((acc, cur) => {
-        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
-    }, aspectRatios[0]);
+    const aspectRatios = [...new Set(collections.map((c) => c.aspectRatio))].sort((a, b) => a - b);
+    const desired = aspectRatioNumbers[props.aspectRatio];
+    return aspectRatios.reduce(
+        (acc, cur) => (Math.abs(cur - desired) < Math.abs(acc - desired) ? cur : acc),
+        aspectRatios[0],
+    );
 });
 
-// Direct src for icon mode: pick the smallest available image file (no srcset needed)
-const iconSrc = computed(() => {
-    if (!props.isIcon) return undefined;
+// --- Single CDN URL per rendering role (undefined when a local upload blob is used) ---
 
-    // Prefer local upload blob if available (unsaved image)
-    if (props.image?.uploadData?.length) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
-
+// Primary image: best-fit file from the closest-aspect-ratio collection.
+const primaryNetworkUrl = computed(() => {
+    if (props.aspectRatio == "original" || uploadBlobUrl.value) return undefined;
     if (!props.image?.fileCollections?.length || !baseUrl.value) return undefined;
 
-    // Find the smallest image file across all collections
-    const allFiles = props.image.fileCollections.flatMap((fc) => fc.imageFiles);
-    if (!allFiles.length) return undefined;
+    const files = props.image.fileCollections
+        .filter((c) => c.aspectRatio == closestAspectRatio.value)
+        .flatMap((c) => c.imageFiles);
+    const best = pickBestFit(files, targetWidth.value);
+    return best ? `${baseUrl.value}/${best.filename}` : undefined;
+});
 
-    const smallest = allFiles.reduce((a, b) => (a.width < b.width ? a : b));
+// Secondary (fallback) image: best-fit from the other aspect ratios; all collections in
+// "original" mode (where there is no primary).
+const secondaryNetworkUrl = computed(() => {
+    if (uploadBlobUrl.value) return undefined;
+    if (!props.image?.fileCollections?.length || !baseUrl.value) return undefined;
+
+    const collections =
+        props.aspectRatio == "original"
+            ? props.image.fileCollections
+            : props.image.fileCollections.filter((c) => c.aspectRatio != closestAspectRatio.value);
+    const best = pickBestFit(
+        collections.flatMap((c) => c.imageFiles),
+        targetWidth.value,
+    );
+    return best ? `${baseUrl.value}/${best.filename}` : undefined;
+});
+
+// Icon mode: smallest available file.
+const iconNetworkUrl = computed(() => {
+    if (!props.isIcon || uploadBlobUrl.value) return undefined;
+    if (!props.image?.fileCollections?.length || !baseUrl.value) return undefined;
+
+    const files = props.image.fileCollections.flatMap((c) => c.imageFiles);
+    if (!files.length) return undefined;
+    const smallest = files.reduce((a, b) => (a.width < b.width ? a : b));
     return `${baseUrl.value}/${smallest.filename}`;
 });
 
-// Source set for the primary image element with the closest aspect ratio
-const srcset1 = computed(() => {
-    if (props.aspectRatio == "original") return "";
+// Modal mode: largest-area file to preserve detail when zooming.
+const modalNetworkUrl = computed(() => {
+    if (!props.isModal || uploadBlobUrl.value || !baseUrl.value) return undefined;
 
-    if (props.image?.uploadData && props.image.uploadData.length > 0) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
-
-    if (!filteredFileCollections.value.length || !baseUrl.value) return "";
-
-    // In icon/modal mode, use all available images without aspect ratio filtering
-    const collectionsToUse =
-        props.isIcon || props.isModal
-            ? filteredFileCollections.value
-            : filteredFileCollections.value.filter(
-                  (collection) => collection.aspectRatio == closestAspectRatio.value,
-              );
-
-    return collectionsToUse
-        .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
-                .join(", ");
-        })
-        .join(", ");
+    const files = props.image?.fileCollections?.flatMap((c) => c.imageFiles) ?? [];
+    if (!files.length) return undefined;
+    const largest = files.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+    return `${baseUrl.value}/${largest.filename}`;
 });
 
-// Source set for the secondary image element (used if the primary image element fails to load)
-const srcset2 = computed(() => {
-    if (!props.image?.fileCollections?.length || !baseUrl.value) return "";
+// Resolve each CDN URL to a Cache-API-backed object URL so it is available offline.
+const { objectUrl: primaryCached, error: primaryCacheError } = useCachedImage(primaryNetworkUrl);
+const { objectUrl: secondaryCached, error: secondaryCacheError } =
+    useCachedImage(secondaryNetworkUrl);
+const { objectUrl: iconCached, error: iconCacheError } = useCachedImage(iconNetworkUrl);
+const { objectUrl: modalCached, error: modalCacheError } = useCachedImage(modalNetworkUrl);
 
-    // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
-    // 400 is a conservative default that avoids excluding all images due to 0 width,
-    // and works well across mobile, modal, and early-render scenarios.
-    const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
-
-    return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
-        .map((collection) => {
-            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
-            // fallback: smallest image if all are too large
-            const files = images.length
-                ? images
-                : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
-        })
-        .join(", ");
-});
+// Final src per role: prefer the local upload blob, otherwise the cached object URL.
+const iconSrc = computed(() => uploadBlobUrl.value ?? iconCached.value);
+const primarySrc = computed(() => uploadBlobUrl.value ?? primaryCached.value);
+const secondarySrc = computed(() => uploadBlobUrl.value ?? secondaryCached.value);
+const modalSrc = computed(() => uploadBlobUrl.value ?? modalCached.value);
 
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 const modalImageError = ref(false);
 
+// Visibility is driven by whether a candidate URL exists (synchronous) rather than by the
+// resolved object URL, so we don't flash the bundled fallback while the cached image is still
+// being fetched. A role "fails" on an <img> error or a cache/network failure.
+const hasPrimary = computed(() => !!(uploadBlobUrl.value || primaryNetworkUrl.value));
+const hasSecondary = computed(() => !!(uploadBlobUrl.value || secondaryNetworkUrl.value));
+const hasIcon = computed(() => !!(uploadBlobUrl.value || iconNetworkUrl.value));
+const hasModal = computed(() => !!(uploadBlobUrl.value || modalNetworkUrl.value));
+
+const primaryFailed = computed(() => imageElement1Error.value || primaryCacheError.value);
+const secondaryFailed = computed(() => imageElement2Error.value || secondaryCacheError.value);
+
 const showImageElement1 = computed(
-    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
+    () => props.aspectRatio != "original" && hasPrimary.value && !primaryFailed.value,
 );
 const showImageElement2 = computed(
     () =>
-        (props.aspectRatio == "original" || imageElement1Error.value) &&
-        !imageElement2Error.value &&
-        srcset2.value != "",
+        (props.aspectRatio == "original" || primaryFailed.value) &&
+        hasSecondary.value &&
+        !secondaryFailed.value,
 );
 
 const pickFallbackImage = () =>
@@ -258,46 +238,13 @@ const pickFallbackImage = () =>
     ] as string;
 
 const fallbackImageUrl = ref<string | undefined>(pickFallbackImage());
-
-// In modal mode we want the largest available original image (no aspect ratio coercion)
-const modalSrc = computed(() => {
-    // If we have local upload data (e.g. unsaved/new image), prefer the last blob (likely highest quality)
-    if (props.isModal && props.image?.uploadData?.length) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
-    if (!props.isModal || !baseUrl.value) return undefined;
-    const allFiles = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) ||
-        []) as ImageFileDto[];
-    if (!allFiles.length) return fallbackImageUrl.value;
-    // Pick the file with the largest area (width * height) to preserve detail for zooming
-    const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
-    return `${baseUrl.value}/${largest.filename}`;
-});
-
-// Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
-const modalSrcset = computed(() => {
-    if (!props.isModal || !baseUrl.value) return "";
-    // If using uploadData blob, we cannot build a srcset of different widths
-    if (props.image?.uploadData?.length) return "";
-    const files = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) || [])
-        .slice()
-        .sort((a, b) => a.width - b.width);
-    if (!files.length) return "";
-    return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
-});
-
 </script>
 
 <template>
     <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="isModal && modalSrc && !modalImageError"
+        v-if="isModal && hasModal && !modalImageError && !modalCacheError"
         :src="modalSrc"
-        :srcset="modalSrcset || undefined"
         :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
@@ -314,7 +261,7 @@ const modalSrcset = computed(() => {
     />
     <!-- Icon mode: simple contained rendering, no fallback landscape -->
     <img
-        v-else-if="isIcon && iconSrc"
+        v-else-if="isIcon && hasIcon && !iconCacheError"
         :src="iconSrc"
         class="h-full w-full object-contain"
         :alt="resolvedAlt"
@@ -324,10 +271,10 @@ const modalSrcset = computed(() => {
     />
     <!-- Icon mode: no image available, render nothing -->
     <span v-else-if="isIcon" />
-    <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
+    <!-- Non-modal primary image (closest aspect ratio, responsive best-fit) -->
     <img
-        v-else-if="srcset1 && showImageElement1"
-        :srcset="srcset1"
+        v-else-if="showImageElement1"
+        :src="primarySrc"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -341,9 +288,8 @@ const modalSrcset = computed(() => {
     />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
-        v-else-if="showImageElement2 && srcset2"
-        src=""
-        :srcset="srcset2"
+        v-else-if="showImageElement2"
+        :src="secondarySrc"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],

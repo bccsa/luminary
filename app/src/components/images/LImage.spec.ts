@@ -25,7 +25,7 @@ describe("LImage", () => {
 
         await waitForExpect(() => {
             const imageElement = wrapper.find("img");
-            expect(imageElement.attributes("srcset")).toContain("test-image.webp");
+            expect(imageElement.attributes("src")).toContain("test-image.webp");
         });
     });
 
