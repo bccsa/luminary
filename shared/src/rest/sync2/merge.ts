@@ -28,7 +28,14 @@ export function mergeVertical(options: SyncBaseOptions) {
         if (
             current.blockEnd <= next.blockStart ||
             // handle responses which did not return any data
-            next.blockStart === 0
+            next.blockStart === 0 ||
+            // Same-key (same chunkType + memberOf-multiset + languages + publishDate
+            // bounds — already enforced by filterByTypeMemberOf above) entries that
+            // BOTH carry eof:true necessarily describe the same column. Any gap
+            // between them is an artifact of premature sealing (e.g. markColumnEof
+            // firing on a wide-inversion calcChunk output that was never actually
+            // queried). Consolidate so downstream sees one column instead of two.
+            (current.eof === true && next.eof === true)
         ) {
             // Merge chunks — use the older chunk's blockEnd to extend the range.
             // Only preserve current blockEnd for legacy {0, 0} entries (truly empty chunks

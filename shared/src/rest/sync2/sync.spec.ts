@@ -1382,6 +1382,277 @@ describe("sync module", () => {
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
         });
+
+        it("resets degenerate chunkTypes at the top of sync() so runtime drift self-heals", async () => {
+            // Companion to initSync's startup-time degeneracy reset. If runtime drift
+            // (e.g. a socket push, a concurrent runner, a partial write) leaves two same-key
+            // columns in syncList between sync() calls, the next sync() must filter them
+            // (plus their paired deleteCmd sibling) before trim/merge/_sync runs — otherwise
+            // the dual-column shape persists across the whole iteration.
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            // Inject two same-key (chunkType + memberOf + languages) entries — the exact
+            // shape findDegenerateChunkTypes flags.
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 12000,
+                    blockEnd: 11000,
+                    eof: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+                // unrelated chunkType — must survive the reset
+                {
+                    chunkType: "group",
+                    memberOf: ["group1"],
+                    languages: undefined,
+                    blockStart: 9999,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            // The two degenerate content:post entries must be gone (sync's reset filtered them).
+            // The unrelated chunkType stays.
+            const contentEntries = syncList.value.filter((e) => e.chunkType === "content:post");
+            const groupEntries = syncList.value.filter((e) => e.chunkType === "group");
+            expect(contentEntries).toHaveLength(0);
+            expect(groupEntries).toHaveLength(1);
+        });
+
+        it("does NOT flag entries that differ only by publishDate range as degenerate", async () => {
+            // Two entries with identical memberOf+languages but DIFFERENT publishDate ranges
+            // describe a legitimate publishDate-split column (e.g. one column for the configured
+            // cutoff window, another for the older catch-up window). They must survive sync()
+            // — false-flagging them would discard both columns' progress.
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: 999,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["group1"],
+                    languages: ["en"],
+                    blockStart: 12000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 1000,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            // Both publishDate-split entries must still be present.
+            const contentEntries = syncList.value.filter((e) => e.chunkType === "content:post");
+            expect(contentEntries).toHaveLength(2);
+            expect(contentEntries.find((e) => e.publishDateMax === 999)).toBeDefined();
+            expect(contentEntries.find((e) => e.publishDateMin === 1000)).toBeDefined();
+        });
+    });
+
+    describe("stale subset cleanup (covers the seeded mid-sync-vs-eof-superset bug)", () => {
+        // The bug it addresses: an injected / drifted syncList can contain a mid-sync entry
+        // (eof:false) whose memberOf is a strict subset of another eof:true entry's memberOf
+        // for the same chunkType + languages + publishDate. Such a pair is invisible to every
+        // existing self-heal:
+        //   - findDegenerateChunkTypes requires identical memberOf (mismatch — different sizes)
+        //   - mergeVertical filters by exact memberOf equality (skips the pair)
+        //   - mergeHorizontal requires BOTH columns to be eof:true (subset is eof:false)
+        // So the subset persists forever, and _sync's group-split treats it as a real second
+        // column, recursing for it on every sync iteration. removeStaleSubsetEntries drops it
+        // before _sync sees it, so the canonical column is the only one syncing.
+        beforeEach(async () => {
+            await initSync(mockHttpService);
+            vi.mocked(syncBatch).mockResolvedValue({
+                eof: true,
+                blockStart: 5000,
+                blockEnd: 0,
+                firstSync: false,
+            });
+        });
+
+        it("drops a mid-sync subset whose eof:true superset (same key) already covers it", async () => {
+            // The exact shape of the user-reported seed: a memberOf=[g1..gN] eof:true entry plus
+            // a memberOf=[g1,g2] eof:false entry at the same languages + publishDate window.
+            vi.mocked(utils.getGroups).mockReturnValue(["g1", "g2", "g3"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["g1", "g2", "g3"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1", "g2", "g3"],
+                    languages: ["en"],
+                    blockStart: 9000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1", "g2"],
+                    languages: ["en"],
+                    blockStart: 8000,
+                    blockEnd: 5000,
+                    eof: false,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1", "g2", "g3"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            const contentEntries = syncList.value.filter((e) => e.chunkType === "content:post");
+            expect(contentEntries).toHaveLength(1);
+            expect(contentEntries[0].memberOf).toEqual(["g1", "g2", "g3"]);
+            expect(contentEntries[0].eof).toBe(true);
+        });
+
+        it("does NOT drop a mid-sync entry when no eof:true superset exists for the same key", async () => {
+            // Sibling entries at the same key but neither is eof:true — both must be preserved
+            // (they may be legitimately catching up different ranges).
+            vi.mocked(utils.getGroups).mockReturnValue(["g1", "g2"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["g1", "g2"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1", "g2"],
+                    languages: ["en"],
+                    blockStart: 9000,
+                    blockEnd: 6000,
+                    eof: false,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 8000,
+                    blockEnd: 5000,
+                    eof: false,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1", "g2"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            const contentEntries = syncList.value.filter((e) => e.chunkType === "content:post");
+            expect(contentEntries).toHaveLength(2);
+        });
+
+        it("does NOT drop a subset whose superset belongs to a different publishDate window", async () => {
+            // The superset's eof:true coverage doesn't extend into the subset's window when
+            // their publishDate ranges differ — the subset's data is NOT redundant.
+            vi.mocked(utils.getGroups).mockReturnValue(["g1", "g2"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["g1", "g2"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1", "g2"],
+                    languages: ["en"],
+                    blockStart: 9000,
+                    blockEnd: 0,
+                    eof: true,
+                    publishDateMin: 1000,
+                    publishDateMax: OPEN_MAX,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 8000,
+                    blockEnd: 5000,
+                    eof: false,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: 999,
+                },
+            ];
+
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1", "g2"],
+                languages: ["en"],
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            const contentEntries = syncList.value.filter((e) => e.chunkType === "content:post");
+            expect(contentEntries).toHaveLength(2);
+        });
     });
 
     describe("publishDate column spawning (Part A)", () => {

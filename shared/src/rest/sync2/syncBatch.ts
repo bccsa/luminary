@@ -1,7 +1,7 @@
 import { db } from "../../db/database";
 import { BaseDocumentDto, DocType } from "../../types";
 import { merge } from "./merge";
-import { syncList } from "./state";
+import { syncList, syncTolerance } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
 import {
@@ -41,10 +41,19 @@ export async function syncBatch(options: SyncOptions) {
     // that this is the first sync for this type and memberOf groups.
     const firstSync = chunk.blockEnd === 0;
 
-    // If the calculated range is inverted (blockStart < blockEnd), it means there are non-adjacent
-    // chunks with a tiny gap that can't be filled. This can happen when boundary documents don't
-    // overlap perfectly. Stop iteration to avoid infinite recursion.
-    if (chunk.blockStart < chunk.blockEnd) {
+    // If the calculated range is inverted (blockStart < blockEnd) AND the inversion is within
+    // `syncTolerance`, treat it as the intended sub-tolerance boundary gap — stop iteration and
+    // seal the frontier to avoid infinite recursion on identical chunks.
+    //
+    // A WIDE inversion (much larger than syncTolerance) means calcChunk produced an actual
+    // unfilled inter-column gap (e.g. two same-key columns at distinct updatedTimeUtc windows).
+    // Sealing the frontier there would falsely mark the column complete while leaving days of
+    // data unfetched. In that case fall through so the gap-fill / vertical-merge paths can
+    // resolve it instead of prematurely declaring eof.
+    if (
+        chunk.blockStart < chunk.blockEnd &&
+        chunk.blockEnd - chunk.blockStart <= syncTolerance
+    ) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
         markColumnEof(options);
