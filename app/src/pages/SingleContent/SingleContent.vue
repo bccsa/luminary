@@ -624,7 +624,7 @@ watch([isLoading, content, is404], async () => {
 </script>
 
 <template>
-    <BasePage :showBackButton="true">
+    <BasePage :showBackButton="true" desktopTopBar>
         <template
             #quickControls
             v-if="!is404"

@@ -34,13 +34,13 @@ import DropdownMenu from "../common/DropdownMenu.vue";
 import { clearAuth0Cache } from "@/auth";
 
 type Trigger = "avatar" | "bars" | "sidebar";
+type Props = {
+    trigger?: Trigger;
+};
 
-const props = withDefaults(
-    defineProps<{
-        trigger?: Trigger;
-    }>(),
-    { trigger: "avatar" },
-);
+withDefaults(defineProps<Props>(), {
+    trigger: "avatar",
+});
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
@@ -161,8 +161,7 @@ const userNavigation = computed(() => {
 const sidebarNavigation = computed(() =>
     userNavigation.value.filter(
         (item) =>
-            item.name !== t("profile_menu.settings") &&
-            item.name !== t("profile_menu.bookmarks"),
+            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.bookmarks"),
     ),
 );
 </script>
@@ -294,7 +293,10 @@ const sidebarNavigation = computed(() =>
     </button>
 
     <!-- Shared slide-in panel (avatar + bars triggers only) -->
-    <MobileSidebar v-if="trigger !== 'sidebar'" v-model:open="menuOpen">
+    <MobileSidebar
+        v-if="trigger !== 'sidebar'"
+        v-model:open="menuOpen"
+    >
         <template #header="{ close }">
             <header
                 class="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-slate-600"
