@@ -69,6 +69,12 @@ const toolbarGrouping: ToolbarItem[][] = [
     ["upload", "download", "copy"],
 ];
 
+// Base button styling without the group edge-rounding. The first/last rounding is
+// applied per-button in the toolbar slot so that a button nested inside a wrapper
+// (e.g. the download dropdown trigger) stays square instead of rounding both edges.
+const toolbarButtonClass =
+    "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300";
+
 const toolbarClasses = {
     root: "-mx-4 flex h-full flex-col px-4",
     header: "flex items-center gap-2",
@@ -76,7 +82,7 @@ const toolbarClasses = {
     title: "text-sm font-medium text-zinc-700",
     toolbar: "flex flex-nowrap overflow-x-auto scrollbar-hide gap-4",
     toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
-    button: "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300 first:!rounded-l-md last:!rounded-r-md",
+    button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
     buttonActive: "!bg-zinc-300",
     editor: "flex flex-1 flex-col min-h-0",
     editorContent:
@@ -173,7 +179,7 @@ defineExpose({
                                 <button
                                     type="button"
                                     :title="getLabel(item)"
-                                    :class="toolbarClasses.button"
+                                    :class="toolbarButtonClass"
                                 >
                                     <ArrowDownTrayIcon class="h-5 w-5" />
                                 </button>
