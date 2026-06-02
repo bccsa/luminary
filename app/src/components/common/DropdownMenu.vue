@@ -23,7 +23,9 @@ function onEscape(e: KeyboardEvent) {
 }
 
 function onPointerDown(e: MouseEvent | TouchEvent) {
-    if (rootRef.value && !rootRef.value.contains(e.target as Node)) close();
+    if (!rootRef.value) return;
+    if (rootRef.value.offsetParent === null) return;
+    if (!rootRef.value.contains(e.target as Node)) close();
 }
 
 watch(open, (isOpen) => {
@@ -59,7 +61,11 @@ const placementClasses =
 </script>
 
 <template>
-    <div ref="rootRef" class="relative" v-bind="$attrs">
+    <div
+        ref="rootRef"
+        class="relative"
+        v-bind="$attrs"
+    >
         <div
             class="cursor-pointer outline-none"
             role="button"
