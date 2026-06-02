@@ -70,23 +70,30 @@ onUnmounted(() => {
                 <!-- Desktop top row: back (left) | notification (center) | quick controls + theme (right) -->
                 <div
                     v-if="desktopTopBar"
-                    class="mb-2 hidden items-center gap-2 lg:flex"
+                    class="relative mb-2 hidden lg:block"
                 >
+                    <!-- Notification centered at the same width as the article -->
+                    <div class="flex min-h-9 justify-center">
+                        <div class="w-full lg:w-3/4 lg:max-w-3xl">
+                            <NotificationBannerManager
+                                v-if="showNotifications"
+                                class="[&>div]:mb-0"
+                            />
+                        </div>
+                    </div>
+                    <!-- Back button overlaid at far left -->
                     <button
                         v-if="showBackButton"
-                        class="-ml-1 flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                        class="absolute left-0 top-1/2 -ml-1 -translate-y-1/2 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         @click="isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()"
                         aria-label="Go back"
                     >
                         <ChevronLeftIcon class="h-5 w-5" />
                     </button>
-                    <div class="min-w-0 flex-1">
-                        <NotificationBannerManager
-                            v-if="showNotifications"
-                            class="[&>div]:mb-0"
-                        />
+                    <!-- Quick controls overlaid at far right -->
+                    <div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                        <slot name="quickControls" />
                     </div>
-                    <slot name="quickControls" />
                 </div>
 
                 <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages -->
