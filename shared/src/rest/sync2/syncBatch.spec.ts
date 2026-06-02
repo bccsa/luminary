@@ -824,6 +824,44 @@ describe("syncBatch", () => {
         expect(result?.eof).toBe(true);
     });
 
+    it("does NOT short-circuit eof from the inverted-range guard when the inversion is much wider than syncTolerance", async () => {
+        // Regression for the dual-column drift scenario. With two same-key columns
+        // sitting at distinct updatedTimeUtc windows in syncList, calcChunk's
+        // continuation-mode output is an inverted, very wide range:
+        //   blockStart = list[0].blockEnd, blockEnd = list[1].blockStart.
+        // The original inverted-range guard (`if (blockStart < blockEnd)`) treated
+        // this as a tiny sub-tolerance boundary gap and called markColumnEof on
+        // the frontier — falsely sealing a column that hadn't actually fetched the
+        // ~5.95-day gap below. The widened guard only short-circuits when the
+        // inversion is within `syncTolerance`; here it falls through and lets the
+        // downstream stall guard (which terminates after one API call) handle it.
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: true },
+            {
+                chunkType: "post",
+                memberOf: ["g1"],
+                blockStart: 12000,
+                blockEnd: 11000,
+                eof: false,
+            },
+        ];
+
+        const http = { post: vi.fn(async () => ({ docs: [] })) };
+        await syncBatch({
+            type: DocType.Post,
+            memberOf: ["g1"],
+            limit: 5,
+            initialSync: false, // forces calcChunk's continuation-mode (the inverted-wide case)
+            httpService: http as any,
+        });
+
+        // Old behaviour: http.post was NEVER called (the inverted-range guard
+        // short-circuited before any query). New behaviour: the guard's
+        // `syncTolerance` gate stops short-circuiting on wide inversions, so
+        // the runner reaches the POST step at least once.
+        expect(http.post).toHaveBeenCalled();
+    });
+
     it("terminates when docs are returned but chunk range does not advance (same-timestamp docs)", async () => {
         // All docs have the same updatedTimeUtc, so blockStart === blockEnd after fetch.
         // Without the widened stall guard, this would loop forever because blockLength > 0

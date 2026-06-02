@@ -25,6 +25,11 @@ export async function init(config: SharedConfig) {
 
     // Create HTTP service instance for use in sync operations
     const http = new HttpReq(config.apiUrl || "");
-    initSync(http);
+    // MUST be awaited: initSync's body (db.getSyncList load → validation →
+    // legacy publishDate resolve → findDegenerateChunkTypes reset) has to
+    // complete before consumers register their {immediate:true} sync
+    // watchers — otherwise the first sync() races the degenerate-state
+    // reset and persists fresh entries that re-introduce the broken shape.
+    await initSync(http);
     initHybridQuery(http);
 }

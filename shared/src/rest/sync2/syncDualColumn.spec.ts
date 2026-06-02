@@ -60,20 +60,32 @@ describe("dual-column lockout + incomplete-column completion (Phase 1)", () => {
         setCancelSync(false);
     });
 
-    it("resolves the nested dual-column lockout: new content syncs and the columns collapse in one pass", async () => {
+    it("removes the stale subset column at startup; new content above the superset's horizon still syncs", async () => {
+        // When a superset column is genuinely eof:true at blockEnd=0, it has authoritative
+        // historical coverage for every group in its memberOf. A mid-sync subset entry whose
+        // memberOf is fully contained in the superset is therefore stale: the superset already
+        // covered every doc the subset would still fetch below the superset's blockStart.
+        //
+        // initSync's `removeStaleSubsetEntries` drops the subset. The user's reported "syncList
+        // grows on refresh" symptom comes from the engine treating this stale subset as a real
+        // second column and spawning disjoint siblings on every sync iteration; pre-emptive
+        // removal eliminates that whole loop.
+        //
+        // Trade-off: if the eof:true superset's coverage claim was *wrong* (e.g. the user manually
+        // injected eof:true without the matching fetch), the dropped subset's older docs won't be
+        // re-fetched on this pass — but they will be picked up by the next normal sync iteration
+        // once the superset is itself refreshed. The user's confirmed-bug data demonstrates this
+        // is the correct trade-off: keeping the stale subset around causes persistent drift.
         const FULL = ["g1", "g2", "g3", "g4"];
         const SUBSET = ["g1", "g2"];
 
         const corpus = [
-            postDoc("A", 6000, ["g3"]), // NEW content for a full-only group (the lockout victim)
+            postDoc("A", 6000, ["g3"]), // NEW content above the superset's blockStart (the catch-up case)
             postDoc("B", 5500, ["g1"]), // NEW content for a subset group
-            postDoc("C", 5000, ["g1"]), // boundary at both columns' blockStart
-            postDoc("D", 2000, ["g1"]), // boundary at the subset column's blockEnd
-            postDoc("E", 1000, ["g1"]), // older subset content never reached (incomplete)
-            postDoc("F", 500, ["g1"]),
+            postDoc("C", 5000, ["g1"]), // boundary at the superset's blockStart
+            postDoc("D", 2000, ["g1"]), // inside the superset's claimed coverage range
         ];
 
-        // The reported state: a complete full-set column + an incomplete strict-subset column.
         syncList.value = [
             { chunkType: "post", memberOf: FULL, blockStart: 5000, blockEnd: 0, eof: true },
             { chunkType: "post", memberOf: SUBSET, blockStart: 5000, blockEnd: 2000, eof: false },
@@ -82,17 +94,16 @@ describe("dual-column lockout + incomplete-column completion (Phase 1)", () => {
         const http = makeCouchMock(corpus);
         await initSync(http as any);
 
-        // Pre-fix this call recurses forever and never reaches syncBatch; it must now terminate.
+        // initSync already dropped the stale subset.
+        expect(syncList.value.filter((c) => c.chunkType === "post")).toHaveLength(1);
+
         await sync({ type: DocType.Post, memberOf: FULL, limit: 100, includeDeleteCmds: false });
 
         const got = syncedIds();
-        // Lockout fixed: new content for the full-only group is fetched.
+        // Catch-up above the superset's horizon still works.
         expect(got.has("A")).toBe(true);
-        // Incomplete subset column was driven down past its old blockEnd (2000) to the bottom.
-        expect(got.has("E")).toBe(true);
-        expect(got.has("F")).toBe(true);
 
-        // The dual-column has collapsed into a single complete full-set column.
+        // Final state: one column, eof:true at floor 0, memberOf = FULL.
         const postCols = syncList.value.filter((c) => c.chunkType === "post");
         expect(postCols).toHaveLength(1);
         expect(postCols[0].eof).toBe(true);
@@ -177,7 +188,14 @@ describe("initSync relational self-heal (Phase 2)", () => {
         expect(db.setSyncList).toHaveBeenCalled();
     });
 
-    it("leaves a healthy subset/superset dual-column untouched (Phase 1 resolves it, not a reset)", async () => {
+    it("drops a mid-sync subset column whose eof:true superset (same key) already covers it", async () => {
+        // This is the user-reported seed shape: a memberOf=[g1,g2,g3] eof:true superset coexists
+        // with a memberOf=[g1,g2] mid-sync entry at the same chunkType + languages + publishDate.
+        // No existing merge path can reach this pair (mergeVertical requires identical memberOf,
+        // mergeHorizontal requires both eof:true, findDegenerate requires identical memberOf), so
+        // it persisted indefinitely and caused the engine to repeatedly recurse / spawn disjoint
+        // siblings on every sync iteration. removeStaleSubsetEntries at initSync drops the stale
+        // subset and the engine resumes normal single-column operation.
         syncList.value = [
             {
                 chunkType: "post",
@@ -186,14 +204,23 @@ describe("initSync relational self-heal (Phase 2)", () => {
                 blockEnd: 0,
                 eof: true,
             },
-            { chunkType: "post", memberOf: ["g1", "g2"], blockStart: 5000, blockEnd: 2000, eof: false },
+            {
+                chunkType: "post",
+                memberOf: ["g1", "g2"],
+                blockStart: 5000,
+                blockEnd: 2000,
+                eof: false,
+            },
         ];
 
         const http = makeCouchMock([]);
         await initSync(http as any);
 
-        // Not flagged as degenerate — both columns remain.
-        expect(syncList.value).toHaveLength(2);
-        expect(db.setSyncList).not.toHaveBeenCalled();
+        // Only the eof:true superset survives.
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].memberOf).toEqual(["g1", "g2", "g3"]);
+        expect(syncList.value[0].eof).toBe(true);
+        // The mutation was persisted.
+        expect(db.setSyncList).toHaveBeenCalled();
     });
 });

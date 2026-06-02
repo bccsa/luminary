@@ -36,10 +36,14 @@ export let cancelSync = false;
 
 /**
  * Find chunkTypes whose syncList contains a genuinely-degenerate state that the runtime engine
- * cannot resolve on its own — currently: two entries for the same chunkType with identical
- * memberOf + languages (true duplicates that should have vertically merged and never legitimately
- * coexist). The ordinary subset/superset "dual column" is intentionally NOT flagged here: the
- * recursion guard + incomplete-column completion resolve it without discarding state.
+ * cannot resolve on its own — two entries for the same chunkType with the FULL column identity
+ * equal: same memberOf-multiset, same languages, same publishDate range. Such pairs are true
+ * duplicates that should have vertically merged and never legitimately coexist.
+ *
+ * Equality on `publishDateMin`/`publishDateMax` is required so a column intentionally split by
+ * publishDate (`_sync`'s spawn path) is not collateral-damaged by the reset. Subset/superset
+ * "dual columns" with different memberOf are intentionally NOT flagged here — the recursion
+ * guard + `mergeHorizontal` resolve those once both columns reach eof.
  */
 function findDegenerateChunkTypes(): Set<string> {
     const byChunkType = new Map<string, SyncListEntry[]>();
@@ -55,7 +59,9 @@ function findDegenerateChunkTypes(): Set<string> {
             for (let j = i + 1; j < entries.length; j++) {
                 if (
                     arraysEqual(entries[i].memberOf, entries[j].memberOf) &&
-                    arraysEqual(entries[i].languages ?? [], entries[j].languages ?? [])
+                    arraysEqual(entries[i].languages ?? [], entries[j].languages ?? []) &&
+                    entries[i].publishDateMin === entries[j].publishDateMin &&
+                    entries[i].publishDateMax === entries[j].publishDateMax
                 ) {
                     degenerate.add(chunkType);
                 }
@@ -118,21 +124,96 @@ export async function initSync(httpService: HttpReq<any>) {
         if (entry.publishDateMax === undefined) entry.publishDateMax = OPEN_MAX;
     }
 
+    // Drop subset columns whose superset (same chunkType + languages + publishDate) is already
+    // eof:true. Such subset entries are stale mid-sync progress: the superset's eof:true means
+    // its data fully covers the subset's scope, and the subset can never be resolved by any
+    // merge path (different memberOf blocks mergeVertical/findDegenerate; eof:false blocks
+    // mergeHorizontal). See removeStaleSubsetEntries doc.
+    await removeStaleSubsetEntries();
+
     // Relational self-heal: if a chunkType holds genuinely-degenerate (duplicate) columns, reset
     // just that chunkType (and its paired deleteCmd sibling) so it re-syncs cleanly, rather than
     // discarding the entire list.
+    await resetDegenerateChunkTypes();
+}
+
+/**
+ * Runs {@link findDegenerateChunkTypes} and, for any flagged chunkType, drops it (plus its paired
+ * deleteCmd sibling) from `syncList`. Used at startup (`initSync`) AND at the top of every `sync()`
+ * call — runtime drift can re-introduce duplicate columns even after a clean refresh, so the same
+ * cleanup needs to run defensively before each sync iteration, not only once at boot.
+ *
+ * No-op when nothing is degenerate. The deep watcher on `syncList` would normally persist the
+ * filtered array on its own, but `setSyncList()` here makes the persistence ordering deterministic
+ * relative to whatever ran before us.
+ */
+async function resetDegenerateChunkTypes(): Promise<void> {
     const degenerate = findDegenerateChunkTypes();
-    if (degenerate.size) {
-        const toReset = new Set(degenerate);
-        degenerate.forEach((chunkType) => {
-            const { type, subType } = splitChunkTypeString(chunkType);
-            if (type !== DocType.DeleteCmd) {
-                toReset.add(getChunkTypeString(DocType.DeleteCmd, subType ?? type));
+    if (!degenerate.size) return;
+    const toReset = new Set(degenerate);
+    degenerate.forEach((chunkType) => {
+        const { type, subType } = splitChunkTypeString(chunkType);
+        if (type !== DocType.DeleteCmd) {
+            toReset.add(getChunkTypeString(DocType.DeleteCmd, subType ?? type));
+        }
+    });
+    syncList.value = syncList.value.filter((entry) => !toReset.has(entry.chunkType));
+    await db.setSyncList();
+}
+
+/**
+ * Find entries that are strict-subset siblings of an eof:true column for the same chunkType +
+ * languages + publishDate. Such entries are stale mid-sync progress that no merge path can
+ * reach:
+ *
+ * - `mergeVertical` filters by exact memberOf equality, so the subset and superset are treated
+ *   as separate columns and never combined.
+ * - `mergeHorizontal` requires BOTH columns to be eof:true; the subset (mid-sync, eof:false)
+ *   blocks unification.
+ * - `findDegenerateChunkTypes` requires identical memberOf, so it skips them too.
+ *
+ * The subset is safe to drop precisely BECAUSE the eof:true superset already covers the subset's
+ * scope: same languages window, same publishDate window, and the superset's memberOf includes
+ * every group in the subset's memberOf. Any docs the subset would still fetch are guaranteed to
+ * have been (or be on track to be) fetched by the superset's continued sync.
+ */
+function findStaleSubsetEntries(): Set<SyncListEntry> {
+    const stale = new Set<SyncListEntry>();
+    const entries = syncList.value;
+    for (let i = 0; i < entries.length; i++) {
+        const a = entries[i];
+        // Only consider non-eof entries as candidates for being stale. An eof:true entry
+        // represents complete coverage of its own range and should never be dropped.
+        if (a.eof) continue;
+        for (let j = 0; j < entries.length; j++) {
+            if (i === j) continue;
+            const b = entries[j];
+            // Superset must be eof:true so we can safely declare its coverage authoritative.
+            if (!b.eof) continue;
+            if (a.chunkType !== b.chunkType) continue;
+            if (!arraysEqual(a.languages ?? [], b.languages ?? [])) continue;
+            if (a.publishDateMin !== b.publishDateMin) continue;
+            if (a.publishDateMax !== b.publishDateMax) continue;
+            // Strict subset (a smaller than b, every group in a present in b).
+            if (a.memberOf.length >= b.memberOf.length) continue;
+            const aInB = a.memberOf.every((g) => b.memberOf.includes(g));
+            if (aInB) {
+                stale.add(a);
+                break;
             }
-        });
-        syncList.value = syncList.value.filter((entry) => !toReset.has(entry.chunkType));
-        await db.setSyncList();
+        }
     }
+    return stale;
+}
+
+/**
+ * Drops entries flagged by {@link findStaleSubsetEntries}. Safe no-op when nothing is stale.
+ */
+async function removeStaleSubsetEntries(): Promise<void> {
+    const stale = findStaleSubsetEntries();
+    if (!stale.size) return;
+    syncList.value = syncList.value.filter((entry) => !stale.has(entry));
+    await db.setSyncList();
 }
 
 /**
@@ -174,21 +255,39 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 
     const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
 
-    // Trim and merge syncList before starting sync. We are merging before starting the sync to help
-    // prevent issues with the syncList not being properly merged due to e.g. disconnection / app closure
-    // while syncing.
+    // Trim runs first so memberOf is clamped to options.memberOf, languages to options.languages,
+    // and publishDate is raised when the configured content cutoff has moved forward since the
+    // entry was persisted. This converges entries that look different in the persisted state but
+    // describe the same logical column under the current call's options.
     trim(options);
     trim({
         ...options,
         type: DocType.DeleteCmd,
         subType: deleteCmdSubType,
     });
+
+    // After trim, drop stale subset entries: entries whose superset (same chunkType + languages
+    // + publishDate) is already eof:true. These are mid-sync entries whose data is fully covered
+    // by the superset, and which no merge path can reach (mergeVertical wants identical memberOf,
+    // mergeHorizontal wants both eof:true, findDegenerate wants identical memberOf). Running this
+    // BEFORE merge is intentional: with the stale subset gone, _sync's group-split sees only the
+    // canonical column and skips its disjoint-sibling spawn path.
+    await removeStaleSubsetEntries();
+
     merge(options);
     merge({
         ...options,
         type: DocType.DeleteCmd,
         subType: deleteCmdSubType,
     });
+
+    // Runtime degeneracy self-heal — companion to initSync's startup check. If runtime drift
+    // (a socket push, a concurrent runner, a partial write) landed two same-key columns into
+    // syncList that trim+merge above could not collapse, drop those chunkTypes (+ their
+    // deleteCmd siblings) and let this sync rebuild them cleanly. Cheap when nothing is
+    // degenerate (one map scan over syncList).
+    await resetDegenerateChunkTypes();
+
     await _sync(options);
 }
 
