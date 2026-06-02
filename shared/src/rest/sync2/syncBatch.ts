@@ -170,12 +170,15 @@ export async function syncBatch(options: SyncOptions) {
     // Upsert to IndexedDB
     if (fetchedDocs.length) {
         await db.bulkPut(fetchedDocs);
-        // Resolve publishDate bounds so persisted entries always carry concrete numbers,
-        // even when the caller is at defaults (legacy / non-publishDate callers).
-        const { min: publishDateMin, max: publishDateMax } = resolveRange(
-            options.publishDateMin,
-            options.publishDateMax,
-        );
+        // publishDate is a Content-only sync dimension. For non-Content types (Language,
+        // Redirect, Storage, AuthProvider, Group, …) the docs have no publishDate field and
+        // every comparison path against these bounds wraps in `if (type === Content)`, so
+        // setting them on the entry is dead weight. DeleteCmd pushes go through sync.ts (not
+        // here) and explicitly use OPEN_MIN/MAX — see `if (!hasDeleteCmdEntries)`.
+        const isContent = options.type === DocType.Content;
+        const { min: publishDateMin, max: publishDateMax } = isContent
+            ? resolveRange(options.publishDateMin, options.publishDateMax)
+            : { min: undefined, max: undefined };
         // Push chunk to chunk list
         syncList.value.push({
             chunkType: getChunkTypeString(options.type, options.subType),

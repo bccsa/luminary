@@ -189,9 +189,11 @@ describe("sync module", () => {
             expect(db.setSyncList).not.toHaveBeenCalled();
         });
 
-        it("resolves legacy entries (no publishDate fields) in place to OPEN_MIN/OPEN_MAX", async () => {
+        it("resolves legacy publishDate fields only on Content and DeleteCmd entries", async () => {
             vi.mocked(db.getSyncList).mockResolvedValue([]);
-            // Two legacy entries — neither has publishDateMin/Max.
+            // Three legacy entries (no publishDate fields), covering the three relevant cases:
+            // Content (filled), DeleteCmd (filled — intentional OPEN coverage), and a non-Content
+            // non-DeleteCmd chunkType (left untouched — publishDate has no meaning for it).
             syncList.value = [
                 {
                     chunkType: "content:post",
@@ -202,7 +204,15 @@ describe("sync module", () => {
                     eof: true,
                 },
                 {
-                    chunkType: "post",
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                },
+                {
+                    chunkType: "language",
                     memberOf: ["g1"],
                     blockStart: 5000,
                     blockEnd: 0,
@@ -212,12 +222,18 @@ describe("sync module", () => {
 
             await initSync(mockHttpService);
 
-            // List is preserved (valid) and publishDate fields are resolved in place.
-            expect(syncList.value).toHaveLength(2);
-            for (const entry of syncList.value) {
-                expect(entry.publishDateMin).toBe(OPEN_MIN);
-                expect(entry.publishDateMax).toBe(OPEN_MAX);
-            }
+            expect(syncList.value).toHaveLength(3);
+            const byChunkType = Object.fromEntries(
+                syncList.value.map((e) => [e.chunkType, e]),
+            );
+            // Content + DeleteCmd entries get filled.
+            expect(byChunkType["content:post"].publishDateMin).toBe(OPEN_MIN);
+            expect(byChunkType["content:post"].publishDateMax).toBe(OPEN_MAX);
+            expect(byChunkType["deleteCmd:post"].publishDateMin).toBe(OPEN_MIN);
+            expect(byChunkType["deleteCmd:post"].publishDateMax).toBe(OPEN_MAX);
+            // Non-Content non-DeleteCmd entry stays undefined — publishDate is dead weight there.
+            expect(byChunkType["language"].publishDateMin).toBeUndefined();
+            expect(byChunkType["language"].publishDateMax).toBeUndefined();
         });
 
         it("preserves explicit publishDate bounds on entries that already have them", async () => {
@@ -365,13 +381,13 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
             });
 
+            // publishDate is only defaulted on Content callers; non-Content callers leave it
+            // undefined (every code path that reads it wraps in `if (type === Content)`).
             expect(trim).toHaveBeenCalledWith({
                 type: DocType.Post,
                 memberOf: ["group1"],
                 limit: 100,
                 includeDeleteCmds: false,
-                publishDateMin: OPEN_MIN,
-                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -400,6 +416,8 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
             });
 
+            // Non-Content callers don't default publishDate — it stays undefined and downstream
+            // comparators (resolveRange) treat that as the open range.
             expect(syncBatch).toHaveBeenCalledWith({
                 type: DocType.Post,
                 memberOf: ["group1"],
@@ -407,8 +425,6 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
                 initialSync: true,
                 httpService: mockHttpService,
-                publishDateMin: OPEN_MIN,
-                publishDateMax: OPEN_MAX,
             });
         });
 
@@ -1829,7 +1845,10 @@ describe("sync module", () => {
             );
         });
 
-        it("non-content sync ignores the cutoff and stays at OPEN_MIN", async () => {
+        it("non-content sync ignores the cutoff and leaves publishDate bounds undefined", async () => {
+            // publishDate is a Content-only sync dimension. For non-Content callers (Language,
+            // Redirect, Storage, AuthProvider, Group, …) we don't even default the bounds, so
+            // downstream comparators treat them as the open range via resolveRange.
             await sync({
                 type: DocType.Post,
                 memberOf: ["group1"],
@@ -1837,13 +1856,10 @@ describe("sync module", () => {
                 includeDeleteCmds: false,
             });
 
-            expect(syncBatch).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: DocType.Post,
-                    publishDateMin: OPEN_MIN,
-                    publishDateMax: OPEN_MAX,
-                }),
-            );
+            const call = vi.mocked(syncBatch).mock.calls[0][0];
+            expect(call.type).toBe(DocType.Post);
+            expect(call.publishDateMin).toBeUndefined();
+            expect(call.publishDateMax).toBeUndefined();
         });
 
         it("an explicit publishDateMin from the caller still wins over the configured cutoff", async () => {

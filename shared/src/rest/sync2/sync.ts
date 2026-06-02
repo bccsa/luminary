@@ -116,10 +116,15 @@ export async function initSync(httpService: HttpReq<any>) {
         return;
     }
 
-    // Resolve legacy entries (persisted before publishDate became a sync dimension) in place.
-    // After this loop every entry has concrete numeric bounds. The existing setSyncList()
-    // watcher will persist the change; we don't need an explicit migration step.
+    // Resolve legacy entries (persisted before publishDate became a sync dimension) in place,
+    // but only for Content and DeleteCmd — those are the only chunkTypes where publishDate
+    // means anything. For other chunkTypes the field is dead weight; leave it undefined so
+    // subsequent persists don't carry redundant data. (DeleteCmd entries always carry an open
+    // range so deletes propagate regardless of the user's content cutoff; we fill them here
+    // for parity with the sync.ts push paths that explicitly set OPEN_MIN/OPEN_MAX.)
     for (const entry of syncList.value) {
+        const { type } = splitChunkTypeString(entry.chunkType);
+        if (type !== DocType.Content && type !== DocType.DeleteCmd) continue;
         if (entry.publishDateMin === undefined) entry.publishDateMin = OPEN_MIN;
         if (entry.publishDateMax === undefined) entry.publishDateMax = OPEN_MAX;
     }
@@ -244,14 +249,16 @@ export function setCancelSync(value: boolean): void {
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
-    // Resolve publishDate bounds at the public entry point so every downstream call
-    // (trim, merge, syncBatch, column-spawn logic) sees concrete numbers.
-    // For content, an unspecified floor falls back to the configured cutoff so
-    // sync never pulls content older than the app/HybridQuery treat as "remote-only".
-    options.publishDateMin =
-        options.publishDateMin ??
-        (options.type === DocType.Content ? getContentPublishDateCutoff() : OPEN_MIN);
-    options.publishDateMax = options.publishDateMax ?? OPEN_MAX;
+    // publishDate is a Content-only sync dimension. For Content callers, an unspecified
+    // floor falls back to the configured cutoff so sync never pulls content older than the
+    // app/HybridQuery treat as "remote-only". Non-Content callers (Language, Redirect,
+    // Storage, AuthProvider, Group, …) leave the bounds undefined — every downstream code
+    // path that does something with publishDate is wrapped in `if (type === Content)` and
+    // every comparison goes through `resolveRange` which treats undefined as OPEN_MIN/MAX.
+    if (options.type === DocType.Content) {
+        options.publishDateMin = options.publishDateMin ?? getContentPublishDateCutoff();
+        options.publishDateMax = options.publishDateMax ?? OPEN_MAX;
+    }
 
     const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
 
