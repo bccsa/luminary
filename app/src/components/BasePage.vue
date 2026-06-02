@@ -67,32 +67,38 @@ onUnmounted(() => {
                 class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900"
                 ref="main"
             >
-                <!-- Desktop top row: back (left) | notification (center) | quick controls + theme (right) -->
+                <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
+                     Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
+                     pointer-events-none lets clicks fall through the empty centre to the notification. -->
                 <div
                     v-if="desktopTopBar"
-                    class="relative mb-2 hidden lg:block"
+                    class="pointer-events-none sticky top-0 z-20 hidden h-9 items-center lg:flex"
                 >
-                    <!-- Notification centered at the same width as the article -->
-                    <div class="flex min-h-9 justify-center">
-                        <div class="w-full lg:w-3/4 lg:max-w-3xl">
-                            <NotificationBannerManager
-                                v-if="showNotifications"
-                                class="[&>div]:mb-0"
-                            />
-                        </div>
-                    </div>
-                    <!-- Back button overlaid at far left -->
                     <button
                         v-if="showBackButton"
-                        class="absolute left-0 top-1/2 -ml-1 -translate-y-1/2 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                        class="pointer-events-auto -ml-1 flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         @click="isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()"
                         aria-label="Go back"
                     >
                         <ChevronLeftIcon class="h-5 w-5" />
                     </button>
-                    <!-- Quick controls overlaid at far right -->
-                    <div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                    <div class="pointer-events-auto ml-auto flex items-center gap-2">
                         <slot name="quickControls" />
+                    </div>
+                </div>
+
+                <!-- Desktop notification: scrolls with the content. Pulled up to sit on the same row
+                     as the pinned chrome at scroll-top; min-height reserves the row when empty so the
+                     article never slides under the pinned controls. Width matches the article column. -->
+                <div
+                    v-if="desktopTopBar"
+                    class="-mt-9 mb-2 hidden min-h-[2.25rem] justify-center lg:flex"
+                >
+                    <div class="w-full lg:w-3/4 lg:max-w-3xl">
+                        <NotificationBannerManager
+                            v-if="showNotifications"
+                            class="[&>div]:mb-0"
+                        />
                     </div>
                 </div>
 
