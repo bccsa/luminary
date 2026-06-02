@@ -1,15 +1,11 @@
-import { chromium, type FullConfig, type Page } from "@playwright/test";
+import { chromium, type FullConfig, type Page, type BrowserContext } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { driveLogin } from "./auth-flow";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authDir = path.resolve(__dirname, "../.auth");
-
-/** Escape user-provided text before injecting into a RegExp. */
-function escapeRegex(s: string): string {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /**
  * Capture sessionStorage from the current page. Playwright's storageState only
@@ -26,6 +22,16 @@ async function dumpSessionStorage(page: Page): Promise<Record<string, string>> {
         }
         return out;
     });
+}
+
+/** Seed a saved sessionStorage dump into a context, mirroring fixtures/test.ts. */
+async function seedSessionStorage(context: BrowserContext, sessionStoragePath: string) {
+    const data = JSON.parse(fs.readFileSync(sessionStoragePath, "utf8")) as Record<string, string>;
+    await context.addInitScript((entries) => {
+        for (const [key, value] of Object.entries(entries)) {
+            sessionStorage.setItem(key, value as string);
+        }
+    }, data);
 }
 
 /**
@@ -53,9 +59,6 @@ type LoginParams = {
     label: string;
 };
 
-const SUBMIT_BUTTON_REGEX = /continue|next|log[ _]?in|sign[ _]?in|submit/i;
-const CONSENT_BUTTON_REGEX = /^(authorize|authorise|allow|accept|continue|confirm|approve)\b/i;
-
 /**
  * Honoured for debugging the global-setup login flow:
  *   HEADED=1 npm test         # see the browser
@@ -67,6 +70,18 @@ const HEADED =
     process.env.HEADED === "true" ||
     process.env.PWDEBUG === "1" ||
     process.env.PWDEBUG === "console";
+
+/**
+ * Force a fresh UI login even when a valid cached session exists:
+ *   E2E_FORCE_LOGIN=1 npm test
+ */
+const FORCE_LOGIN =
+    process.env.E2E_FORCE_LOGIN === "1" || process.env.E2E_FORCE_LOGIN === "true";
+
+/** Sidecar recording which user a captured state belongs to. */
+function metaPathFor(storageStatePath: string): string {
+    return `${storageStatePath}.meta.json`;
+}
 
 /**
  * Capture diagnostics — current URL, page title, and a screenshot — so a
@@ -99,8 +114,8 @@ async function dumpDiagnostics(page: Page, label: string, step: string) {
 }
 
 /**
- * Drive the real auth provider login UI for an app that redirects
- * unauthenticated users to a hosted login page (the CMS).
+ * Drive the real auth provider login UI (via the shared driveLogin helper) and
+ * persist the resulting authenticated state to disk.
  */
 async function loginAndSaveState(params: LoginParams) {
     const { baseURL, email, password, storageStatePath, sessionStoragePath, label } = params;
@@ -117,142 +132,22 @@ async function loginAndSaveState(params: LoginParams) {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    const appOrigin = new URL(baseURL).origin;
+    const credentialsHint =
+        label === "user 1"
+            ? "Verify E2E_USER_EMAIL/E2E_USER_PASSWORD matches the user's credentials on the configured auth provider."
+            : "Verify E2E_USER_2_EMAIL/E2E_USER_2_PASSWORD matches the user's credentials on the configured auth provider.";
 
     try {
-        await page.goto(baseURL, { waitUntil: "domcontentloaded" });
-
-        // Click the configured auth provider button on the CMS sign-in screen.
-        const providerButton = page
-            .getByRole("button", { name: new RegExp(escapeRegex(providerLabel), "i") })
-            .first();
-        await providerButton.waitFor({ state: "visible", timeout: 15_000 });
-        await providerButton.click();
-
-        // Wait for redirect off CMS origin onto the hosted auth provider login page.
-        await page.waitForURL((url) => url.origin !== appOrigin, { timeout: 30_000 });
-        await page.waitForLoadState("domcontentloaded");
-
-        const passwordSelector =
-            'input[type="password"]:not([aria-hidden="true"]):not(.hide):visible';
-
-        // Step 1: identifier (email). Auth0's New Universal Login splits this
-        // into an email page and a password page; some providers do both on
-        // one page. Detect which by waiting briefly for either an email field
-        // (Step 1) or a password field (single-page) before doing anything.
-        const emailField = page
-            .locator('input[type="email"]:visible, input[name="username"]:visible')
-            .first();
-        const passwordOnFirstPage = page.locator(passwordSelector).first();
-        await Promise.race([
-            emailField.waitFor({ state: "visible", timeout: 30_000 }),
-            passwordOnFirstPage.waitFor({ state: "visible", timeout: 30_000 }),
-        ]);
-
-        const onSinglePage = await passwordOnFirstPage.isVisible().catch(() => false);
-        if (onSinglePage) {
-            // Single-page flow (Classic Universal Login): email and password
-            // are on the same form. Fill the email here; password-fill and
-            // submit happen in the shared step below.
-            await emailField.fill(email);
-        } else {
-            // Two-page flow: fill email, click Continue, then wait for the
-            // explicit URL change away from /identifier (or whatever the
-            // first page was) before looking for the password input. Avoiding
-            // the race that has us looking at a stale Step 1 DOM.
-            const beforeUrl = page.url();
-            await emailField.fill(email);
-            await Promise.all([
-                page.waitForURL((url) => url.toString() !== beforeUrl, { timeout: 30_000 }),
-                page
-                    .getByRole("button", { name: SUBMIT_BUTTON_REGEX })
-                    .first()
-                    .click({ timeout: 15_000 })
-                    .catch(() => emailField.press("Enter")),
-            ]);
-            await page.waitForLoadState("domcontentloaded");
-        }
-
-        // Step 2: password. Re-locate the password field on the (now current)
-        // page; use real keystrokes (pressSequentially) instead of fill() so
-        // any keypress-based listeners or anti-automation guards see real
-        // input. Then verify the value actually landed before submitting.
-        const passwordField = page.locator(passwordSelector).first();
-        await passwordField.waitFor({ state: "visible", timeout: 30_000 });
-        await passwordField.click();
-        await passwordField.fill(""); // clear any pre-fill / autofill value
-        await passwordField.pressSequentially(password, { delay: 20 });
-
-        const enteredValue = await passwordField.inputValue();
-        if (enteredValue.length !== password.length) {
-            throw new Error(
-                `Password field did not capture the full password (got ${enteredValue.length} chars, expected ${password.length}). ` +
-                    "The provider may be using anti-automation guards or a non-standard input.",
-            );
-        }
-
-        const beforeSubmitUrl = page.url();
-        await page
-            .getByRole("button", { name: SUBMIT_BUTTON_REGEX })
-            .first()
-            .click({ timeout: 15_000 })
-            .catch(() => passwordField.press("Enter"));
-
-        // After submit, the page either navigates (success path → wait for the
-        // URL to change) OR stays put and renders an inline credential error
-        // (e.g. "Wrong email or password"). Race the two so a bad password
-        // surfaces in a few seconds instead of timing out at 30s.
-        const credentialError = page
-            .getByText(
-                /(wrong|invalid|incorrect)\b[^.]{0,40}(email|password|credentials|username)/i,
-            )
-            .first();
-        const navigated = page
-            .waitForURL((url) => url.toString() !== beforeSubmitUrl, { timeout: 30_000 })
-            .then(() => "navigated" as const);
-        const errorAppeared = credentialError
-            .waitFor({ state: "visible", timeout: 15_000 })
-            .then(() => "error" as const)
-            .catch(() => null);
-
-        const outcome = await Promise.race([navigated, errorAppeared]);
-        if (outcome === "error") {
-            const errorText = await credentialError.textContent().catch(() => null);
-            await dumpDiagnostics(page, label, "credentials-rejected");
-            throw new Error(
-                `Auth provider rejected credentials for ${label}: "${errorText?.trim() ?? "unknown error"}". ` +
-                    `Verify ${label === "user 1" ? "E2E_USER_EMAIL/E2E_USER_PASSWORD" : "E2E_USER_2_EMAIL/E2E_USER_2_PASSWORD"} ` +
-                    "matches the user's credentials on the configured auth provider.",
-            );
-        }
-        await page.waitForLoadState("domcontentloaded");
-
-        // Some providers insert a consent / authorize screen after a fresh
-        // password submit. Click through it if present, then wait for the
-        // round-trip back to CMS. Best-effort — if no consent screen renders
-        // we just continue.
-        const consentButton = page.getByRole("button", { name: CONSENT_BUTTON_REGEX }).first();
-        await consentButton
-            .waitFor({ state: "visible", timeout: 5_000 })
-            .then(() => consentButton.click().catch(() => {}))
-            .catch(() => {});
-
-        // Wait until we're back on the CMS origin after the auth round-trip.
-        await page.waitForURL((url) => url.origin === appOrigin, { timeout: 60_000 });
-        await page.waitForLoadState("networkidle").catch(() => {});
-
-        // Strictly verify the sign-in screen is gone — otherwise auth didn't land.
-        const signInHeading = page.getByRole("heading", { name: /sign in/i });
-        try {
-            await signInHeading.waitFor({ state: "hidden", timeout: 30_000 });
-        } catch {
-            await dumpDiagnostics(page, label, "post-redirect-sign-in-still-visible");
-            throw new Error(
-                `Auth login flow completed for ${label} but the CMS sign-in screen is still visible. ` +
-                    "The auth provider may have rejected credentials or the redirect callback failed. " +
-                    "See the screenshot in playwright-tests/.auth/.",
-            );
-        }
+        await driveLogin({
+            page,
+            baseURL,
+            email,
+            password,
+            providerLabel,
+            label,
+            credentialsHint,
+            onFailure: (step) => dumpDiagnostics(page, label, step),
+        });
 
         fs.mkdirSync(authDir, { recursive: true });
         // indexedDB: true (Playwright 1.51+) also captures IndexedDB — the new
@@ -262,6 +157,10 @@ async function loginAndSaveState(params: LoginParams) {
         // Save sessionStorage separately — storageState() does not capture it.
         const sessionData = await dumpSessionStorage(page);
         fs.writeFileSync(sessionStoragePath, JSON.stringify(sessionData, null, 2));
+
+        // Record which user this capture belongs to, so a later run can detect a
+        // changed E2E_*_EMAIL and re-login instead of reusing the wrong session.
+        fs.writeFileSync(metaPathFor(storageStatePath), JSON.stringify({ email }, null, 2));
     } catch (err) {
         // Capture whatever the page looks like so the user can diagnose.
         await dumpDiagnostics(page, label, "exception");
@@ -269,6 +168,72 @@ async function loginAndSaveState(params: LoginParams) {
     } finally {
         await browser.close();
     }
+}
+
+/** True when the sidecar records the same user we're about to authenticate. */
+function identityMatches(storageStatePath: string, email: string): boolean {
+    try {
+        const meta = JSON.parse(fs.readFileSync(metaPathFor(storageStatePath), "utf8"));
+        return meta?.email === email;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Load the cached state into a throwaway context and confirm it still lands
+ * authenticated (sign-in screen hidden). Provider-agnostic: it exercises the
+ * real session — including any silent token refresh via the SSO cookie —
+ * instead of parsing token internals that may live in localStorage or
+ * IndexedDB depending on the provider.
+ */
+async function cachedSessionStillValid(params: LoginParams): Promise<boolean> {
+    const { baseURL, storageStatePath, sessionStoragePath } = params;
+    if (!fs.existsSync(storageStatePath) || !fs.existsSync(sessionStoragePath)) return false;
+
+    const browser = await chromium.launch({ headless: !HEADED, slowMo: HEADED ? 100 : 0 });
+    try {
+        const context = await browser.newContext({ storageState: storageStatePath });
+        try {
+            await seedSessionStorage(context, sessionStoragePath);
+        } catch {
+            return false; // corrupt session dump → treat as invalid
+        }
+        const page = await context.newPage();
+        await page.goto(baseURL, { waitUntil: "domcontentloaded" });
+        await page.getByRole("heading", { name: /sign in/i }).waitFor({
+            state: "hidden",
+            timeout: 10_000,
+        });
+        return true;
+    } catch {
+        return false;
+    } finally {
+        await browser.close();
+    }
+}
+
+/**
+ * Reuse a cached authenticated session when one exists for the same user and
+ * still validates; otherwise drive the UI login once and persist fresh state.
+ * This is the core of "log in once, cache via storageState" — without it the
+ * brittle third-party login UI runs on every invocation.
+ */
+async function ensureSession(params: LoginParams) {
+    if (FORCE_LOGIN) {
+        console.log(`[global-setup] E2E_FORCE_LOGIN set — forcing fresh login for ${params.label}.`);
+    } else if (
+        identityMatches(params.storageStatePath, params.email) &&
+        (await cachedSessionStillValid(params))
+    ) {
+        console.log(
+            `[global-setup] reusing cached session for ${params.label} (${params.storageStatePath}).`,
+        );
+        return;
+    }
+
+    console.log(`[global-setup] logging in ${params.label} via the auth provider UI.`);
+    await loginAndSaveState(params);
 }
 
 export default async function globalSetup(_config: FullConfig) {
@@ -294,7 +259,7 @@ export default async function globalSetup(_config: FullConfig) {
     await saveGuestState(appBaseURL, path.join(authDir, "app.json"));
 
     // CMS requires authentication and redirects to the hosted auth provider.
-    await loginAndSaveState({
+    await ensureSession({
         baseURL: cmsBaseURL,
         email: user1Email,
         password: user1Password,
@@ -310,7 +275,7 @@ export default async function globalSetup(_config: FullConfig) {
     const user2Password = process.env.E2E_USER_2_PASSWORD;
 
     if (user2Email && user2Password) {
-        await loginAndSaveState({
+        await ensureSession({
             baseURL: cmsBaseURL,
             email: user2Email,
             password: user2Password,

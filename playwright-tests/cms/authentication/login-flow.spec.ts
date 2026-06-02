@@ -1,4 +1,5 @@
 import { test as baseTest, expect } from "@playwright/test";
+import { driveLogin, escapeRegex } from "../../fixtures/auth-flow";
 
 /**
  * The other CMS specs reuse a persisted login from global-setup. This file
@@ -13,10 +14,6 @@ test.use({ storageState: { cookies: [], origins: [] } });
 const REQUIRED =
     "E2E_USER_EMAIL, E2E_USER_PASSWORD, and E2E_AUTH_PROVIDER_LABEL must be set in the env";
 
-function escapeRegex(s: string): string {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 test.describe("CMS login flow", () => {
     test("logs a user in via the auth provider redirect flow", async ({ page }) => {
         const email = process.env.E2E_USER_EMAIL;
@@ -26,50 +23,17 @@ test.describe("CMS login flow", () => {
         if (!email || !password || !providerLabel) return;
 
         const cmsBaseURL = process.env.CMS_BASE_URL!;
-        const cmsOrigin = new URL(cmsBaseURL).origin;
 
-        await page.goto(cmsBaseURL, { waitUntil: "domcontentloaded" });
-
-        const provider = page
-            .getByRole("button", { name: new RegExp(escapeRegex(providerLabel), "i") })
-            .first();
-        await provider.waitFor({ state: "visible", timeout: 15_000 });
-        await provider.click();
-
-        // Redirect to the hosted login.
-        await page.waitForURL((url) => url.origin !== cmsOrigin, { timeout: 30_000 });
-
-        const emailField = page
-            .locator('input[type="email"]:visible, input[name="username"]:visible')
-            .first();
-        await emailField.waitFor({ state: "visible", timeout: 30_000 });
-        await emailField.fill(email);
-        await page
-            .getByRole("button", {
-                name: /continue|next|log[ _]?in|sign[ _]?in|submit/i,
-            })
-            .first()
-            .click();
-
-        const passwordField = page
-            .locator('input[type="password"]:not([aria-hidden="true"]):not(.hide):visible')
-            .first();
-        await passwordField.waitFor({ state: "visible", timeout: 30_000 });
-        await passwordField.fill(password);
-        await page
-            .getByRole("button", { name: /continue|log[ _]?in|sign[ _]?in|submit/i })
-            .first()
-            .click();
-
-        // Back on the CMS — sign-in screen should be gone.
-        await page.waitForURL((url) => url.origin === cmsOrigin, { timeout: 60_000 });
-        await expect(page.getByRole("heading", { name: /sign in/i })).toHaveCount(0);
+        // Drive the exact same login flow global-setup uses — the single shared
+        // implementation in fixtures/auth-flow.ts. driveLogin returns only once
+        // we're back on the CMS with the sign-in screen gone.
+        await driveLogin({ page, baseURL: cmsBaseURL, email, password, providerLabel });
 
         // The Auth0 SPA SDK uses cacheLocation: "localstorage" and writes keys
         // prefixed with `@@auth0spajs@@::` (see cms/src/auth.ts AUTH0_CACHE_PREFIX).
         // Poll because the SDK writes the cache asynchronously after the
-        // callback redirect — `signInHeading.toHaveCount(0)` can resolve before
-        // the SDK finishes persisting tokens.
+        // callback redirect — the sign-in screen can disappear before the SDK
+        // finishes persisting tokens.
         await expect
             .poll(
                 () =>
