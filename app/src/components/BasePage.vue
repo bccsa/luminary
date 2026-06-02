@@ -22,9 +22,7 @@ defineProps<{
 const router = useRouter();
 
 const isPostAndNoHistory = computed(
-    () =>
-        getRouteHistory().value.length <= 1 &&
-        router.currentRoute.value.name === "content",
+    () => getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content",
 );
 
 const main = ref<HTMLElement | undefined>(undefined);
@@ -92,7 +90,7 @@ onUnmounted(() => {
                      article never slides under the pinned controls. Width matches the article column. -->
                 <div
                     v-if="desktopTopBar"
-                    class="-mt-9 mb-2 hidden min-h-[2.25rem] justify-center lg:flex"
+                    class="-mt-9 mb-6 hidden min-h-[2.25rem] justify-center lg:flex"
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
                         <NotificationBannerManager
@@ -117,5 +115,4 @@ onUnmounted(() => {
             </div>
         </div>
     </div>
-
 </template>
