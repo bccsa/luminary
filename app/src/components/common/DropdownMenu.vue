@@ -5,7 +5,7 @@ defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
     defineProps<{
-        placement?: "bottom-end" | "bottom-start";
+        placement?: "bottom-end" | "bottom-start" | "top-start" | "top-end";
         panelClass?: string;
     }>(),
     { placement: "bottom-end" },
@@ -23,7 +23,9 @@ function onEscape(e: KeyboardEvent) {
 }
 
 function onPointerDown(e: MouseEvent | TouchEvent) {
-    if (rootRef.value && !rootRef.value.contains(e.target as Node)) close();
+    if (!rootRef.value) return;
+    if (rootRef.value.offsetParent === null) return;
+    if (!rootRef.value.contains(e.target as Node)) close();
 }
 
 watch(open, (isOpen) => {
@@ -49,11 +51,21 @@ onUnmounted(() => {
 });
 
 const placementClasses =
-    props.placement === "bottom-start" ? "left-0 origin-top-left" : "right-0 origin-top-right";
+    props.placement === "bottom-start"
+        ? "left-0 origin-top-left"
+        : props.placement === "top-start"
+          ? "bottom-full mb-2 left-0 origin-bottom-left"
+          : props.placement === "top-end"
+            ? "bottom-full mb-2 right-0 origin-bottom-right"
+            : "right-0 origin-top-right";
 </script>
 
 <template>
-    <div ref="rootRef" class="relative" v-bind="$attrs">
+    <div
+        ref="rootRef"
+        class="relative"
+        v-bind="$attrs"
+    >
         <div
             class="cursor-pointer outline-none"
             role="button"
