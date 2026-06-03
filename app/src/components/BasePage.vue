@@ -100,10 +100,13 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages -->
+                <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages.
+                     On non-desktopTopBar pages, px-2 lifts it to the same 16px gutter as the page
+                     content (main px-2 + px-2). desktopTopBar pages keep the mobile banner at the
+                     main 8px gutter, matching their full-width mobile content. -->
                 <NotificationBannerManager
                     v-if="showNotifications"
-                    :class="desktopTopBar ? 'lg:hidden' : ''"
+                    :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
                 />
 
                 <slot />
