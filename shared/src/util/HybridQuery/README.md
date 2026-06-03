@@ -1,4 +1,4 @@
-# hybridQuery
+# HybridQuery
 
 ## Overview
 
@@ -80,17 +80,102 @@ IndexedDB change re-runs the query, replaces the local contribution wholesale
 sort/limit. Cross-tab reactivity comes for free (Dexie's `liveQuery` propagates
 across tabs).
 
-The **API supplement stays one-shot** in both modes — it is decided exactly once
-off the *first* local result (gated by an internal `_apiDecided` flag) and merged
-into `output`. Live updates pushed from the API over the socket are **not** wired
-yet (see "What's deliberately out of scope").
+The **API supplement POST stays one-shot** in both modes — it is decided exactly
+once off the *first* local result (gated by an internal `_apiDecided` flag) and
+merged into `output`.
 
 Internally the class keeps two contributions — `_local` (the Dexie result,
-replaced wholesale on each live emission) and `_remote` (the one-shot API
-supplement) — and recomputes `output = applySortLimit(mergeById(_local, _remote),
-$sort, $limit)` via the private `_recompute`. When socket-driven API updates are
-wired later, they feed `_remote` and reuse the same `_recompute`, with no public
-API change.
+replaced wholesale on each live emission) and `_remote` (the API supplement) — and
+recomputes `output = applySortLimit(mergeById(_local, _remote), $sort, $limit)`
+via the private `_recompute`. `_recompute` only reassigns the `output` ref when
+the windowed result actually changed (compared by `_id` + `updatedTimeUtc` per
+position via `sameWindow`), to avoid needless Vue re-renders.
+
+### Live socket updates (live mode)
+
+In **live mode**, the remote contribution is also kept live. The class attaches a
+`getSocket().on("data", …)` listener to the **global access-scoped changefeed**
+and filters it client-side with a predicate compiled (`mangoCompile`) from the
+**API supplement query**. Matching docs are upserted into `_remote`; `DeleteCmd`s
+that pass `db.validateDeleteCommand` + a compiled delete predicate
+(`toDeleteSelector`) and target a doc we currently hold (newer than our copy) are
+removed — **whether sourced locally or remotely**. Everything feeds the same
+`_recompute` (dedup → sort → limit → minimal mutation).
+
+This does *not* reuse the deprecated `ApiLiveQuery`/`applySocketData` path (those
+are coupled to the old `/search` `ApiSearchQuery` shape); it is a fresh
+`mangoCompile`-based apply over the new `/query` model.
+
+The feed carries **all** changes the user has access to (the server streams the
+CouchDB changefeed; it's the *global* client handler in `socketio.ts` that narrows
+to `syncList` before writing Dexie), so older-tail / non-synced remote docs **do**
+receive live updates.
+
+The listener attaches only when `live: true` **and** there is a supplement query:
+the content branch (when `decideContentApiQuery` returns one) and the API-only
+branch. The syncList-only branch attaches **no** listener — those docs already
+update via the global `bulkPut → Dexie → liveQuery` path.
+
+#### Shortcomings (read before relying on this)
+
+1. **No offline-gap healing.** On socket reconnect the listener only **re-attaches**
+   — it does **not** re-fetch the supplement. Changes to `_remote` docs that happen
+   **while offline** are **missed**; the view self-corrects only on the next
+   **remount** (which re-runs the one-shot supplement). See "Planned future work".
+2. **Offline deletes especially.** Even the planned incremental gap-fetch
+   (`updatedTimeUtc > lastSeen`) can't surface deletions — `/query` returns live
+   docs, not tombstones — so a doc deleted while offline can linger until remount.
+3. **Delete-predicate fidelity.** A `DeleteCmd` carries only `docType` + `docId`
+   (not the deleted doc's `publishDate`/`parentType`/`language`), so the compiled
+   delete predicate is effectively a `docType` (+ id-list) pre-filter. The real
+   gate is `db.validateDeleteCommand` + **output membership** + the stale guard
+   (`ourCopy.updatedTimeUtc < cmd.updatedTimeUtc`).
+4. **Tombstone window.** Between a socket delete and Dexie catching up, a
+   short-lived tombstone (per `docId`) suppresses the doc so an unrelated
+   `liveQuery` re-emit can't resurrect it; it's released in `_setLocal` once the
+   fresh Dexie read no longer holds a stale copy. A copy newer than the delete
+   (republish-after-delete) supersedes the tombstone.
+5. **`_remote` is not persisted to Dexie.** Older-tail docs and socket upserts to
+   them live in memory only; a remount re-fetches.
+6. **Live mode must be disposed.** A non-component caller that forgets `dispose()`
+   leaks the Dexie subscription **and** the socket listener.
+
+#### Planned future work
+
+- **Reconnect gap-fetch / offline-gap healing.** The gap is *temporal*: track the
+  max `updatedTimeUtc` seen and, on a **debounced** reconnect, fetch only
+  `supplementSelector + updatedTimeUtc > lastSeen` (upserts). Offline-delete
+  healing needs a "DeleteCmds since lastSeen" query — which is what sync2 already
+  does — so this likely belongs as a **sync2 extension**, not a per-instance
+  mini-sync.
+- **Re-work `applySocketData`** onto `mangoCompile`-from-sync-queries, retiring the
+  deprecated `ApiSearchQuery`/`/search` coupling and aligning the codebase on one
+  changefeed-filtering approach.
+
+### `useHybridQuery<T>(query, options?)` — composable
+
+A thin wrapper that constructs the class and returns **only** its `output` ref —
+the simplest way to consume `HybridQuery` from a component:
+
+```ts
+const items = useHybridQuery<ContentDto>(query, { live: true });
+// template: <div v-for="d in items" :key="d._id">…</div>
+```
+
+It auto-disposes on unmount: `HybridQuery` registers `onScopeDispose` in its
+constructor, and the composable is a plain synchronous call, so the instance is
+owned by the **caller's effect scope**. Call it synchronously in `setup` /
+`<script setup>` (or after a top-level `await`). Same contract — and same
+caveats — as `useDexieLiveQuery`:
+
+- **Setup-only.** Outside an effect scope (event handler, `.then`, module
+  top-level) it won't auto-dispose, and the return value carries no `dispose()`
+  handle — use the `HybridQuery` class directly there.
+- **`<KeepAlive>`.** Disposal fires on real unmount, not on deactivation, so a
+  cached ("recycled") page keeps its instance and **socket listener** alive in
+  the background until the cache evicts it.
+- **Static query.** Captured once at construction; a changing query means
+  dispose + reconstruct (reactive `deps` are not wired yet).
 
 ### Other exports
 
@@ -284,11 +369,14 @@ The watcher's `stop` handle is registered as a class disposer, so:
 - **Dexie live-query reactivity** — now **opt-in** via `{ live: true }` (see "Live
   mode" above). In the **default one-shot mode**, `output` still updates at most
   twice (local read, then merged remote) and local IndexedDB changes after the
-  initial read do not flow in. Live mode covers the **local** source only.
-- **Live socket updates (API).** The API supplement is one-shot in both modes —
-  decided once off the first local result. There is no socket subscription yet,
-  so updates pushed from the API don't flow into `output`. When wired later they
-  feed `_remote` and reuse `_recompute`, with no public API change.
+  initial read do not flow in.
+- **Live socket updates** are now **wired in live mode** (see "Live socket updates
+  (live mode)" above) — the remote contribution stays live off the global
+  changefeed. What remains out of scope is **offline-gap healing**: on reconnect
+  the listener only re-attaches, so changes (especially deletes) that happened
+  while offline are not re-fetched until remount. See that section's "Shortcomings"
+  and "Planned future work". In the **default one-shot mode** there is no socket
+  listener at all.
 - **Persisting remote-supplement docs to Dexie.** Older docs fetched on demand
   live in `output` only; they're not written back to IndexedDB. A new mount
   will re-fetch on demand. Consequence in live mode: if a doc was also fetched
@@ -318,10 +406,10 @@ Compared to the previous committed state of this module:
 - **`HybridQueryResult` type is gone.** The class instance *is* the result.
 - **`isQueryCovered` is no longer exported.** Routing decisions are now
   per-query (inside `decideContentApiQuery`) rather than a separate boolean.
-- **`useHybridQuery` (the reactive composable) is shelved** as
-  `useHybridQuery.ts.old`. The reactive variant will be rewritten on top of
-  `HybridQuery` in a follow-up; for now construct the class directly inside
-  `<script setup>` and let `onScopeDispose` handle cleanup.
+- **`useHybridQuery(query, options?)` composable** is now provided (on top of
+  `HybridQuery`) — it returns just the `output` ref and auto-disposes via the
+  caller's effect scope. Prefer it in components; use the class directly only when
+  you need a manual `dispose()` handle (non-setup callers). See "Public API".
 - **Coverage-based routing removed.** The previous per-`(memberOf × language ×
   publishDate)` coverage analysis was replaced with the much simpler routing
   described above: `readType` chooses a branch, `decideContentApiQuery` picks

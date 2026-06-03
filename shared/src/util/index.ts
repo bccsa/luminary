@@ -4,5 +4,5 @@ export * from "./useDexieLiveQueryAsEditable";
 export * from "./createEditable";
 export * from "./ApiLiveQuery";
 export * from "./MangoQuery";
-export * from "./hybridQuery";
+export * from "./HybridQuery";
 export * from "./watchValue";

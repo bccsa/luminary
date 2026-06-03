@@ -66,3 +66,21 @@ export function applySortLimit<T>(docs: T[], sort?: MangoQuery["$sort"], limit?:
 
     return result;
 }
+
+/**
+ * True when two windowed result arrays are visually identical — same length, and
+ * the same `_id` + `updatedTimeUtc` at every position. `updatedTimeUtc` is the
+ * revision clock (any content change bumps it), so equal id + timestamp ⇒ equal
+ * doc. Used to skip a `ShallowRef` reassignment when a recompute produced no
+ * visible change, saving a Vue re-render.
+ */
+export function sameWindow<T extends BaseDocumentDto>(
+    a: readonly T[],
+    b: readonly T[] | undefined,
+): boolean {
+    if (!b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i]._id !== b[i]._id || a[i].updatedTimeUtc !== b[i].updatedTimeUtc) return false;
+    }
+    return true;
+}

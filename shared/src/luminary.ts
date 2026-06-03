@@ -4,7 +4,7 @@ import { HttpReq } from "./rest/http";
 import { getRest } from "./rest/RestApi";
 import { initSync } from "./rest/sync2/sync";
 import { getSocket } from "./socket/socketio";
-import { initHybridQuery } from "./util/hybridQuery";
+import { initHybridQuery } from "./util/HybridQuery";
 
 /**
  * Initialize the Luminary database
