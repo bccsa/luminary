@@ -641,7 +641,7 @@ watch([isLoading, content, is404], async () => {
                     <button
                         type="button"
                         name="translationSelector"
-                        class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
+                        class="block cursor-pointer truncate rounded-md px-1.5 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         data-test="translationSelector"
                     >
                         <span class="hidden sm:inline">
