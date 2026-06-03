@@ -172,53 +172,55 @@ const handleLogin = () => {
                 </span>
             </RouterLink>
 
-            <!-- Theme -->
-            <span
-                class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                @click="showThemeSelector = true"
-            >
-                <SunIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
-            </span>
-
-            <!-- Language -->
-            <span
-                class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                @click="showLanguageModal = true"
-            >
-                <LanguageIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                <div class="flex flex-col leading-none">
-                    <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
-                    <span
-                        v-if="appLanguageAsRef?.name"
-                        class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
-                    >{{ appLanguageAsRef.name }}</span>
-                </div>
-            </span>
-
-            <!-- Settings -->
-            <RouterLink
-                :to="{ name: 'settings' }"
-                v-slot="{ isActive, navigate }"
-                custom
-            >
+            <div class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700">
+                <!-- Theme -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-                    :class="
-                        isActive
-                            ? 'text-yellow-700 dark:text-yellow-400'
-                            : 'text-zinc-600 dark:text-slate-100'
-                    "
-                    @click="navigate"
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showThemeSelector = true"
                 >
-                    <component
-                        :is="isActive ? FilledCog6ToothIcon : Cog6ToothIcon"
-                        class="h-5 w-5 flex-shrink-0"
-                        aria-hidden="true"
-                    />
-                    <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                    <SunIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
                 </span>
-            </RouterLink>
+
+                <!-- Language -->
+                <span
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showLanguageModal = true"
+                >
+                    <LanguageIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <div class="flex flex-col leading-none">
+                        <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                        <span
+                            v-if="appLanguageAsRef?.name"
+                            class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
+                        >{{ appLanguageAsRef.name }}</span>
+                    </div>
+                </span>
+
+                <!-- Settings -->
+                <RouterLink
+                    :to="{ name: 'settings' }"
+                    v-slot="{ isActive, navigate }"
+                    custom
+                >
+                    <span
+                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        :class="
+                            isActive
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-100'
+                        "
+                        @click="navigate"
+                    >
+                        <component
+                            :is="isActive ? FilledCog6ToothIcon : Cog6ToothIcon"
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                    </span>
+                </RouterLink>
+            </div>
         </div>
 
         <!-- Bottom section: Logout + Profile -->
