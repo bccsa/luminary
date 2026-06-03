@@ -7,7 +7,6 @@ import waitForExpect from "wait-for-expect";
 // Mock dependencies
 vi.mock("../useDexieLiveQuery", () => ({
     useDexieLiveQuery: vi.fn(),
-    useDexieLiveQueryWithDeps: vi.fn(),
 }));
 
 vi.mock("../createEditable", () => ({
@@ -27,9 +26,6 @@ type TestDocType = BaseDocumentDto & { name: string; value: number };
 
 describe("useDexieLiveQueryAsEditable", async () => {
     const mockUseDexieLiveQuery = vi.mocked(await import("../useDexieLiveQuery")).useDexieLiveQuery;
-    const mockUseDexieLiveQueryWithDeps = vi.mocked(
-        await import("../useDexieLiveQuery"),
-    ).useDexieLiveQueryWithDeps;
     const mockCreateEditable = vi.mocked(await import("../createEditable")).createEditable;
     const mockDb = vi.mocked(await import("../../db/database")).db;
 
@@ -72,8 +68,8 @@ describe("useDexieLiveQueryAsEditable", async () => {
 
         const result = useDexieLiveQueryAsEditable(querier, options);
 
-        expect(mockUseDexieLiveQuery).toHaveBeenCalledWith(querier, options);
-        expect(mockUseDexieLiveQueryWithDeps).not.toHaveBeenCalled();
+        // Unified call: deps is threaded through options (undefined here ⇒ run-once).
+        expect(mockUseDexieLiveQuery).toHaveBeenCalledWith(querier, { ...options, deps: undefined });
         expect(mockCreateEditable).toHaveBeenCalledWith(mockSource);
         expect(result.source).toBe(mockSource);
         expect(result.editable).toBe(mockEditable);
@@ -90,8 +86,8 @@ describe("useDexieLiveQueryAsEditable", async () => {
 
         const result = useDexieLiveQueryAsEditable(querier, options, deps);
 
-        expect(mockUseDexieLiveQueryWithDeps).toHaveBeenCalledWith(deps, querier, options);
-        expect(mockUseDexieLiveQuery).not.toHaveBeenCalled();
+        // Unified call: deps is threaded through options (drives the re-run watch).
+        expect(mockUseDexieLiveQuery).toHaveBeenCalledWith(querier, { ...options, deps });
         waitForExpect(() => {
             expect(result.source).toBe(mockSource);
         });
