@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ref, type Ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
 import { getSocket, isConnected } from "../socket/socketio";
@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../rest/RestApi";
 import { useDexieLiveQuery } from "../util";
-import { syncLocalChanges } from "./syncLocalChanges";
+import { syncLocalChanges, type SyncLocalChangesHandle } from "./syncLocalChanges";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -17,6 +17,8 @@ const changeRequestMock = vi.fn();
 
 describe("syncLocalChanges", () => {
     const socketServer = new Server(12344);
+    let localChanges: Ref<LocalChangeDto[]>;
+    let handle: SyncLocalChangesHandle;
 
     beforeAll(async () => {
         initConfig({
@@ -42,28 +44,38 @@ describe("syncLocalChanges", () => {
             changeRequest: changeRequestMock,
         } as unknown as any);
 
-        const localChanges = useDexieLiveQuery(
+        localChanges = useDexieLiveQuery(
             () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
             { initialValue: [] as unknown as LocalChangeDto[] },
         );
-        syncLocalChanges(localChanges);
 
         socket.disconnect();
     });
 
+    beforeEach(() => {
+        // Fresh registration per test → fresh closure `running`/`drainPromise`, so a drain
+        // left mid-flight by a prior test can never bleed into this one.
+        handle = syncLocalChanges(localChanges);
+    });
+
     afterEach(async () => {
+        // Drop offline first so any in-flight drain bails at its next await boundary.
+        getSocket().disconnect();
+        socketServer.removeAllListeners();
+        await waitForExpect(() => expect(isConnected.value).toBe(false));
+
+        // Deterministically join the in-flight drain and unsubscribe the watcher BEFORE
+        // resetting the shared mock / clearing the queue. This is the fix: no leaked
+        // send() can land on the next test's changeRequestMock, and the closure `running`
+        // flag can never be stuck true across tests.
+        await handle.stop();
+
         // Reset (not just clear) so any leftover mockResolvedValueOnce/mockImplementationOnce
         // entries from a previous test don't bleed into the next one.
         changeRequestMock.mockReset();
-        getSocket().disconnect();
-        socketServer.removeAllListeners();
-
         await db.docs.clear();
         await db.localChanges.clear();
         changeReqErrors.value = [];
-
-        // Make sure the connection state is clean for the next test.
-        await waitForExpect(() => expect(isConnected.value).toBe(false));
     });
 
     afterAll(async () => {
