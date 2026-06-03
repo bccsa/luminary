@@ -47,5 +47,5 @@ watch(newest10Content, async (value) => {
 
 <template>
     <HorizontalContentTileCollection :contentDocs="newest10Content" :title="t('home.newest')" :showPublishDate="true"
-        class="pb-1 pt-4" />
+        aspectRatio="portrait" imageSize="thumbnailCompact" contentTitlePosition="overlay" class="pb-1 pt-4" />
 </template>

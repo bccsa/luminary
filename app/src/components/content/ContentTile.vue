@@ -9,19 +9,56 @@ import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
+type ImageSize = "thumbnail" | "thumbnailFeatured" | "thumbnailCompact";
+type AspectRatio =
+    | "original"
+    | "video"
+    | "square"
+    | "vertical"
+    | "portrait"
+    | "wide"
+    | "classic"
+    | "smallSquare";
+
 type Props = {
     content: ContentDto;
     showPublishDate?: boolean;
-    aspectRatio?: typeof LImage.aspectRatios;
-    titlePosition?: "bottom" | "center";
+    aspectRatio?: AspectRatio;
+    imageSize?: ImageSize;
+    titlePosition?: "bottom" | "center" | "overlay";
+    /** Shown below the title in overlay mode (e.g. uppercase category label). */
+    overlayLabel?: string;
     showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
     aspectRatio: "video",
+    imageSize: "thumbnail",
     titlePosition: "bottom",
     showProgress: false,
 });
+
+const publishDateText = computed(() => {
+    if (
+        !props.showPublishDate ||
+        !props.content.parentPublishDateVisible ||
+        !props.content.publishDate
+    ) {
+        return "";
+    }
+    return db.toDateTime(props.content.publishDate).toLocaleString(DateTime.DATETIME_MED);
+});
+
+const hasVideo = computed(() => Boolean(props.content.video));
+const hasAudio = computed(
+    () => !props.content.video && Boolean(props.content.parentMedia?.fileCollections?.length),
+);
+
+const mediaIconClass = computed(() =>
+    props.titlePosition === "overlay"
+        ? "relative h-7 w-7 text-white/50 lg:h-8 lg:w-8"
+        : "relative h-8 w-8 text-white lg:h-12 lg:w-12",
+);
 
 const media = ref<{ progress: number; duration: number }>({
     progress: 0,
@@ -87,17 +124,20 @@ if (allMedia) {
         "
         :aria-disabled="isComingSoon || undefined"
         class="ease-out-expo group transition"
-        :class="isComingSoon ? 'cursor-not-allowed opacity-80 hover:brightness-100' : 'hover:brightness-[1.15]'"
+        :class="
+            isComingSoon
+                ? 'cursor-not-allowed opacity-80 hover:brightness-100'
+                : 'hover:brightness-[1.15]'
+        "
     >
         <div class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
-            <!-- Image Wrapper (Ensures Play Icon Stays on the Image) -->
             <div class="relative">
                 <LImage
                     :image="content.parentImageData"
                     :content-parent-id="content.parentId"
                     :parent-image-bucket-id="content.parentImageBucketId"
                     :aspectRatio="aspectRatio"
-                    size="thumbnail"
+                    :size="imageSize"
                 >
                     <template #default>
                         <div
@@ -108,16 +148,10 @@ if (allMedia) {
                                 {{ content.title }}
                             </h3>
                             <div
-                                v-if="showPublishDate && content.parentPublishDateVisible"
+                                v-if="publishDateText"
                                 class="mt-0.5 text-xs text-zinc-500 dark:text-slate-400"
                             >
-                                {{
-                                    content.publishDate
-                                        ? db
-                                              .toDateTime(content.publishDate!)
-                                              .toLocaleString(DateTime.DATETIME_MED)
-                                        : ""
-                                }}
+                                {{ publishDateText }}
                             </div>
                         </div>
                     </template>
@@ -126,48 +160,39 @@ if (allMedia) {
                             v-if="isComingSoon"
                             class="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/50 opacity-100 transition-opacity duration-200"
                         >
-                            <span class="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white shadow">
+                            <span
+                                class="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white shadow"
+                            >
                                 {{ t("content.coming_soon") }}
                             </span>
                         </div>
-                        <!-- Play Icon (Only if content has a video and titlePosition is not center) -->
-                        <div v-if="titlePosition !== 'center'">
+                        <template v-if="titlePosition !== 'center'">
                             <div
-                                v-if="content.video"
+                                v-if="hasVideo"
                                 class="absolute inset-0 flex items-center justify-center rounded-lg"
                             >
-                                <PlayIcon
-                                    class="relative h-8 w-8 text-black blur-sm lg:h-12 lg:w-12"
-                                />
+                                <PlayIcon :class="[mediaIconClass, 'text-black blur-sm']" />
                             </div>
                             <div
-                                v-if="content.video"
+                                v-if="hasVideo"
                                 class="absolute inset-0 flex items-center justify-center rounded-lg"
                             >
-                                <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
-                            </div>
-                            <!-- Audio Icon (Only if content has audio files but no video) -->
-                            <div
-                                v-if="
-                                    !content.video && content.parentMedia?.fileCollections?.length
-                                "
-                                class="absolute inset-0 flex items-center justify-center rounded-lg"
-                            >
-                                <SpeakerWaveIcon
-                                    class="relative h-8 w-8 text-black blur-sm lg:h-12 lg:w-12"
-                                />
+                                <PlayIcon :class="mediaIconClass" />
                             </div>
                             <div
-                                v-if="
-                                    !content.video && content.parentMedia?.fileCollections?.length
-                                "
+                                v-if="hasAudio"
                                 class="absolute inset-0 flex items-center justify-center rounded-lg"
                             >
-                                <SpeakerWaveIcon
-                                    class="relative h-8 w-8 text-white lg:h-12 lg:w-12"
-                                />
+                                <SpeakerWaveIcon :class="[mediaIconClass, 'text-black blur-sm']" />
                             </div>
-                        </div>
+                            <div
+                                v-if="hasAudio"
+                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            >
+                                <SpeakerWaveIcon :class="mediaIconClass" />
+                            </div>
+                        </template>
+
                         <div
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
@@ -182,17 +207,37 @@ if (allMedia) {
                             </p>
                         </div>
 
-                        <!-- Bottom overlay: progress bar + duration on same line -->
+                        <div
+                            v-if="titlePosition === 'overlay'"
+                            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end rounded-lg bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-16"
+                        >
+                            <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-white">
+                                {{ content.title }}
+                            </h3>
+                            <p
+                                v-if="overlayLabel"
+                                class="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-white/80"
+                            >
+                                {{ overlayLabel }}
+                            </p>
+                            <p
+                                v-else-if="publishDateText"
+                                class="mt-1 truncate text-[11px] text-white/80"
+                            >
+                                {{ publishDateText }}
+                            </p>
+                        </div>
+
                         <div
                             v-if="
                                 showProgress &&
                                 (content.video || content.parentMedia?.fileCollections?.length) &&
                                 hasProgress
                             "
-                            class="absolute bottom-2 left-0 right-0 z-10 mx-1 rounded-md bg-black/50 px-1"
+                            class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1"
+                            :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
                         >
                             <div class="flex h-4 w-full items-center gap-2">
-                                <!-- Progress bar -->
                                 <div
                                     class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
                                 >
@@ -201,8 +246,6 @@ if (allMedia) {
                                         :style="{ width: `${media.progress}%` }"
                                     ></div>
                                 </div>
-
-                                <!-- Duration text -->
                                 <span class="whitespace-nowrap text-xs text-white">
                                     {{ durationText }}
                                 </span>

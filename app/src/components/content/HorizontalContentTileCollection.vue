@@ -4,15 +4,19 @@ import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/sol
 import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
-import LImage from "../images/LImage.vue";
+
+type AspectRatio = "original" | "video" | "square" | "vertical" | "portrait" | "wide" | "classic" | "smallSquare";
+type ImageSize = "thumbnail" | "thumbnailFeatured" | "thumbnailCompact";
 
 type Props = {
     contentDocs: ContentDto[];
     title?: string;
     summary?: string;
     showPublishDate?: boolean;
-    aspectRatio?: typeof LImage.aspectRatios;
-    contentTitlePosition?: "bottom" | "center";
+    aspectRatio?: AspectRatio;
+    imageSize?: ImageSize;
+    contentTitlePosition?: "bottom" | "center" | "overlay";
+    tileOverlayLabel?: string;
     showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
@@ -116,8 +120,10 @@ useInfiniteScroll(
                         v-memo="[content]"
                         :content="content"
                         :aspectRatio="aspectRatio"
+                        :imageSize="imageSize"
                         :show-publish-date="showPublishDate"
                         :titlePosition="contentTitlePosition"
+                        :overlayLabel="tileOverlayLabel"
                         :showProgress="showProgress"
                     />
                 </div>
