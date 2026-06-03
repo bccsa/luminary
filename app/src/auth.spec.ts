@@ -25,9 +25,12 @@ vi.mock("@sentry/vue", () => ({
 }));
 
 import {
+    ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuth0Cache,
     openProviderModal,
+    persistActiveProvider,
+    readPersistedProvider,
     refreshTokenSilently,
     resolveActiveProvider,
     setupAuth,
@@ -154,6 +157,131 @@ describe("auth", () => {
             const resolved = await resolveActiveProvider();
             expect(resolved?._id).toBe(providerA._id);
         });
+
+        it("resolves from the persisted provider when Dexie has been evicted (issue #1671)", async () => {
+            // The Auth0 refresh-token cache survives in localStorage but the
+            // AuthProvider doc has been evicted from IndexedDB. _id + domain come
+            // from the persisted blob; clientId + audience from the cache key —
+            // no Dexie dependency.
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: { access_token: "fake" } }),
+            );
+            persistActiveProvider(providerA);
+            // Dexie intentionally left empty.
+
+            const resolved = await resolveActiveProvider();
+            expect(resolved).toEqual({
+                _id: providerA._id,
+                domain: providerA.domain,
+                clientId: providerA.clientId,
+                audience: providerA.audience,
+            });
+        });
+
+        it("write-through: caches the resolved Dexie doc so it survives later eviction", async () => {
+            await db.docs.bulkPut([providerA]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
+
+            const first = await resolveActiveProvider();
+            expect(first?._id).toBe(providerA._id);
+            // The Dexie resolve wrote the config through to localStorage.
+            expect(readPersistedProvider()?._id).toBe(providerA._id);
+
+            // Now evict Dexie; resolution still works from the persisted copy.
+            await db.docs.clear();
+            const second = await resolveActiveProvider();
+            expect(second?._id).toBe(providerA._id);
+        });
+
+        it("prefers the live Dexie doc over a stale persisted domain (Dexie-first)", async () => {
+            // Persisted copy has a stale domain (e.g. the provider was migrated
+            // to an Auth0 custom domain). The live Dexie doc is authoritative and
+            // refreshes the persisted copy.
+            await db.docs.bulkPut([providerA]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider({ _id: providerA._id, domain: "stale.auth0.com" });
+
+            const resolved = await resolveActiveProvider();
+            expect(resolved?.domain).toBe(providerA.domain);
+            expect(resolved?.audience).toBe(providerA.audience);
+            expect(readPersistedProvider()?.domain).toBe(providerA.domain);
+        });
+
+        // Regression — the #1671 recovery must be purely additive: the
+        // pre-existing Dexie path is unchanged, the realistic two-key Auth0
+        // cache parses correctly, and the eviction fallback only fires with a
+        // genuine persisted blob (no accidental recovery).
+        it("Dexie-backed resolve is unchanged with the realistic two-key cache", async () => {
+            // The real Auth0 SDK writes BOTH a standard token key and a sibling
+            // id-token (::@@user@@) key. With the provider doc in Dexie this must
+            // resolve the full config from Dexie, exactly as before.
+            await db.docs.bulkPut([providerA, providerB]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
+                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
+            );
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+
+            expect(await resolveActiveProvider()).toEqual({
+                _id: providerA._id,
+                domain: providerA.domain,
+                clientId: providerA.clientId,
+                audience: providerA.audience,
+            });
+        });
+
+        it("on eviction, reads audience from the standard key and skips the id-token (::@@user@@) key", async () => {
+            // Both keys present, Dexie evicted → clientId + audience come off the
+            // standard key (never "@@user@@"), _id + domain from the blob.
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
+                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
+            );
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider(providerA);
+
+            expect(await resolveActiveProvider()).toEqual({
+                _id: providerA._id,
+                domain: providerA.domain,
+                clientId: providerA.clientId,
+                audience: providerA.audience,
+            });
+        });
+
+        it("does not recover when only the id-token (::@@user@@) key is present (no audience)", async () => {
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
+                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
+            );
+            persistActiveProvider(providerA);
+
+            expect(await resolveActiveProvider()).toBeNull();
+        });
+
+        it("does not recover from the cache key alone without a persisted blob (opt-in)", async () => {
+            // Pre-feature behaviour: a session cache with no Dexie doc and no
+            // persisted blob still resolves to null — no accidental recovery.
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+
+            expect(await resolveActiveProvider()).toBeNull();
+        });
     });
 
     describe("clearAuth0Cache", () => {
@@ -187,6 +315,45 @@ describe("auth", () => {
             activeProviderId.value = "provider-a";
             clearAuth0Cache();
             expect(activeProviderId.value).toBeNull();
+        });
+
+        it("removes the persisted active provider (issue #1671)", () => {
+            persistActiveProvider(providerA);
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toBeNull();
+
+            clearAuth0Cache();
+
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
+        });
+    });
+
+    describe("persistActiveProvider / readPersistedProvider (issue #1671)", () => {
+        it("round-trips _id and domain (and stores nothing else)", () => {
+            persistActiveProvider(providerA);
+            expect(readPersistedProvider()).toEqual({
+                _id: providerA._id,
+                domain: providerA.domain,
+            });
+            // clientId / audience are read from the cache key, never persisted.
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toContain(providerA.clientId);
+        });
+
+        it("returns null when nothing is persisted", () => {
+            expect(readPersistedProvider()).toBeNull();
+        });
+
+        it("returns null for corrupt JSON", () => {
+            localStorage.setItem(ACTIVE_PROVIDER_KEY, "{not valid json");
+            expect(readPersistedProvider()).toBeNull();
+        });
+
+        it("returns null when a required field is missing", () => {
+            // Missing `domain` — buildAuth0Options would break without it.
+            localStorage.setItem(
+                ACTIVE_PROVIDER_KEY,
+                JSON.stringify({ _id: "x", clientId: "c", audience: "a" }),
+            );
+            expect(readPersistedProvider()).toBeNull();
         });
     });
 
