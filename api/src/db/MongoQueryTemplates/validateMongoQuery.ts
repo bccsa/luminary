@@ -30,7 +30,7 @@ const templateCache = new Map<string, any>();
  *  1. A maximum `limit` (DoS guard against materializing huge result sets).
  *  2. An operator policy: reject `$regex` and `$where` anywhere in the selector,
  *     and `$elemMatch` on any field other than the array fields it legitimately
- *     targets (`memberOf`, `availableTranslations`).
+ *     targets (`memberOf`, `availableTranslations`, `parentTags`, `tags`).
  *
  * Runs on the raw client selector, before query.service.ts injects its own
  * `memberOf $elemMatch` permission filter — so the injected filter is never
@@ -55,11 +55,24 @@ export function enforceGlobalQueryPolicy(
 const LOGICAL_OPERATORS = new Set(["$and", "$or", "$nor", "$not"]);
 
 /**
- * Array fields on which `$elemMatch` is permitted: `memberOf` (group permission
- * filter) and `availableTranslations` (language-priority filtering in hybrid
- * queries). `$elemMatch` on any other field is rejected as a data-mining vector.
+ * Array fields on which `$elemMatch` is permitted:
+ *  - `memberOf` — group permission filter (injected server-side).
+ *  - `availableTranslations` — language-priority filtering in hybrid queries.
+ *  - `parentTags` — content-by-category filters (e.g. homepage pinned categories);
+ *    a HybridQuery content selector tests parent-tag membership with `$elemMatch`.
+ *  - `tags` — a document's own tag-membership filters.
+ *
+ * `$elemMatch` on any other field is rejected as a data-mining vector. These four
+ * are safe because `/query` results are always permission-filtered server-side
+ * (query.service.ts injects the `memberOf` filter), so an array-membership test
+ * can never surface a document the caller couldn't already see.
  */
-const ELEM_MATCH_ALLOWED_FIELDS = new Set(["memberOf", "availableTranslations"]);
+const ELEM_MATCH_ALLOWED_FIELDS = new Set([
+    "memberOf",
+    "availableTranslations",
+    "parentTags",
+    "tags",
+]);
 
 /**
  * Recursively walk a selector node rejecting disallowed operators. `owningField`
@@ -82,7 +95,9 @@ function checkOperatorPolicy(node: any, owningField: string | undefined): string
         if (key === "$regex") return "operator '$regex' is not allowed";
         if (key === "$where") return "operator '$where' is not allowed";
         if (key === "$elemMatch" && !ELEM_MATCH_ALLOWED_FIELDS.has(owningField ?? "")) {
-            return "operator '$elemMatch' is only allowed on the 'memberOf' and 'availableTranslations' fields";
+            // Build the message from the allowlist so it can't drift out of sync.
+            const allowed = [...ELEM_MATCH_ALLOWED_FIELDS].map((f) => `'${f}'`).join(", ");
+            return `operator '$elemMatch' is only allowed on the ${allowed} fields`;
         }
 
         // Logical operators ($and/$or/$nor/$not) and comparison operators ($in, $gte, …)

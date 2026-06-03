@@ -451,12 +451,22 @@ describe("verifyMongoQuery", () => {
                 expect(res.error).toMatch(/\$regex/);
             });
 
-            it("rejects $elemMatch on a field other than memberOf", () => {
+            it("rejects $elemMatch on a field outside the allowlist", () => {
                 const q: any = validHybridQuery();
-                q.selector.parentTags = { $elemMatch: { $in: ["tag1"] } };
+                q.selector.slug = { $elemMatch: { $in: ["x"] } };
                 const res = validateMongoQuery(q);
                 expect(res.valid).toBe(false);
-                expect(res.error).toMatch(/\$elemMatch.*memberOf/);
+                expect(res.error).toMatch(/\$elemMatch/);
+            });
+
+            it("allows $elemMatch on parentTags and tags (content category filters)", () => {
+                const q1: any = validHybridQuery();
+                q1.selector.parentTags = { $elemMatch: { $in: ["tag1"] } };
+                expect(validateMongoQuery(q1).valid).toBe(true);
+
+                const q2: any = validHybridQuery();
+                q2.selector.tags = { $elemMatch: { $in: ["tag1"] } };
+                expect(validateMongoQuery(q2).valid).toBe(true);
             });
 
             it("allows $elemMatch on memberOf (sync + hybridQuery shape)", () => {
