@@ -4,13 +4,24 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // vitest supports require() against ESM packages via interop.
 const mocks = vi.hoisted(() => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { ref } = require("vue");
+    const { ref, shallowRef } = require("vue");
+    // Live-mode test harness: the mocked useDexieLiveQuery returns a real
+    // shallowRef per call (recorded in `liveRefs`) so a test can drive emissions
+    // via `liveRefs[i].ref.value = [...]`. The real Vue `watch` inside HybridQuery
+    // reacts to those assignments.
+    const liveRefs: Array<{ ref: { value: any }; querier: any; options: any }> = [];
     return {
         mangoToDexieMock: vi.fn<(...args: any[]) => Promise<any[]>>(),
         docsTable: { _docsTableSentinel: true },
         isConnected: ref(true) as { value: boolean },
         syncList: { value: [] as Array<{ chunkType: string }> },
         cutoff: 1000,
+        liveRefs,
+        useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
+            const r = shallowRef(options?.initialValue);
+            liveRefs.push({ ref: r, querier, options });
+            return r;
+        }),
     };
 });
 
@@ -35,6 +46,12 @@ vi.mock("../../config", () => ({
     getContentPublishDateCutoff: () => mocks.cutoff,
     config: {},
     initConfig: () => {},
+}));
+
+// Live mode only. One-shot tests never call useDexieLiveQuery, so this mock is
+// inert for them.
+vi.mock("../useDexieLiveQuery/useDexieLiveQuery", () => ({
+    useDexieLiveQuery: mocks.useDexieLiveQueryMock,
 }));
 
 import { effectScope, nextTick } from "vue";
@@ -62,6 +79,8 @@ describe("HybridQuery", () => {
         mocks.isConnected.value = true;
         mocks.syncList.value = [];
         mocks.cutoff = 1000;
+        mocks.useDexieLiveQueryMock.mockClear();
+        mocks.liveRefs.length = 0;
         postHttpMock = vi.fn();
         initHybridQuery({ post: postHttpMock } as any);
     });
@@ -525,6 +544,105 @@ describe("HybridQuery", () => {
                 });
             },
         );
+    });
+
+    describe("live mode", () => {
+        /** Push a new local emission and let watch + downstream async settle. */
+        const emit = async (docs: any[]) => {
+            mocks.liveRefs[0]!.ref.value = docs;
+            await flush();
+        };
+
+        it("uses useDexieLiveQuery (not a direct mangoToDexie read) for the local source", async () => {
+            new HybridQuery({ selector: { type: "content" } }, { live: true });
+            await flush();
+
+            expect(mocks.useDexieLiveQueryMock).toHaveBeenCalledTimes(1);
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled(); // the querier is held by the mock, not invoked
+        });
+
+        it("content: first emission decides the API once; later emissions re-merge without re-POST; deletions drop", async () => {
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old", updatedTimeUtc: 1, publishDate: 100, type: "content" }],
+            });
+
+            const q = new HybridQuery(
+                { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+                { live: true },
+            );
+            await flush();
+            expect(q.output.value).toEqual([]); // no emission yet
+
+            // First emission ⇒ API decided off [a]; merged + sorted desc.
+            await emit([{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }]);
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "old"]);
+
+            // Second emission adds "b" ⇒ no new POST, output re-merges through sort.
+            await emit([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+                { _id: "b", updatedTimeUtc: 6, publishDate: 1500, type: "content" },
+            ]);
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "b", "old"]);
+
+            // Third emission drops "b" (local delete) ⇒ falls out of output, still no POST.
+            await emit([{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }]);
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "old"]);
+        });
+
+        it("content: API decision gated even when the first emission needs no API ($limit satisfied)", async () => {
+            const q = new HybridQuery(
+                { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }], $limit: 1 },
+                { live: true },
+            );
+            await flush();
+
+            // First emission already satisfies $limit ⇒ no POST, but the gate must close.
+            await emit([{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }]);
+            expect(postHttpMock).not.toHaveBeenCalled();
+
+            // A later emission that would now be a shortfall must NOT trigger a POST
+            // (live updates from the API are excluded this phase).
+            await emit([]);
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.output.value).toEqual([]);
+        });
+
+        it("syncList type: emissions update output, never POST", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+
+            const q = new HybridQuery({ selector: { type: "group" } }, { live: true });
+            await flush();
+
+            await emit([{ _id: "g1", updatedTimeUtc: 1, type: "group" }]);
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+
+            await emit([
+                { _id: "g1", updatedTimeUtc: 1, type: "group" },
+                { _id: "g2", updatedTimeUtc: 2, type: "group" },
+            ]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1", "g2"]);
+        });
+
+        it("dispose() stops the subscription: a post-dispose emission does not mutate output", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+
+            const q = new HybridQuery({ selector: { type: "group" } }, { live: true });
+            await flush();
+            await emit([{ _id: "g1", updatedTimeUtc: 1, type: "group" }]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+
+            q.dispose();
+
+            await emit([
+                { _id: "g1", updatedTimeUtc: 1, type: "group" },
+                { _id: "g2", updatedTimeUtc: 2, type: "group" },
+            ]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]); // unchanged
+        });
     });
 });
 

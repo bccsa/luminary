@@ -63,11 +63,33 @@ const q = new HybridQuery<ContentDto>({
 
 | Member | Description |
 | --- | --- |
-| `output: ShallowRef<T[]>` | The reactive merged set. Bind your template to `q.output.value`. Mutated **once** for the Dexie-only and API-only non-content branches; **twice** for the content branch (local read, then merged remote). |
-| `dispose(): void` | Stop the reconnect watcher (and any future internal subscriptions). Idempotent. Called automatically when the owning Vue scope disposes. |
+| `output: ShallowRef<T[]>` | The reactive merged set. Bind your template to `q.output.value`. In one-shot mode, mutated **once** for the Dexie-only and API-only non-content branches; **twice** for the content branch (local read, then merged remote). In **live mode** it additionally re-emits on every local IndexedDB change (see below). |
+| `dispose(): void` | Stop the reconnect watcher and (in live mode) the Dexie live-query subscription. Idempotent. Called automatically when the owning Vue scope disposes. |
 
-Internally the class owns the reconnect watcher and (future) socket subscription;
-future live updates merge in by calling the same private `_merge` with no public
+### Live mode (opt-in)
+
+```ts
+const q = new HybridQuery<ContentDto>(query, { live: true });
+```
+
+`HybridQueryOptions = { live?: boolean }` is a second constructor argument
+(default `live: false` — one-shot, the original behaviour). With `live: true`,
+the **local Dexie source** is read reactively via `useDexieLiveQuery`: every
+IndexedDB change re-runs the query, replaces the local contribution wholesale
+(so **local deletions drop out of `output`**), and re-applies the same dedup +
+sort/limit. Cross-tab reactivity comes for free (Dexie's `liveQuery` propagates
+across tabs).
+
+The **API supplement stays one-shot** in both modes — it is decided exactly once
+off the *first* local result (gated by an internal `_apiDecided` flag) and merged
+into `output`. Live updates pushed from the API over the socket are **not** wired
+yet (see "What's deliberately out of scope").
+
+Internally the class keeps two contributions — `_local` (the Dexie result,
+replaced wholesale on each live emission) and `_remote` (the one-shot API
+supplement) — and recomputes `output = applySortLimit(mergeById(_local, _remote),
+$sort, $limit)` via the private `_recompute`. When socket-driven API updates are
+wired later, they feed `_remote` and reuse the same `_recompute`, with no public
 API change.
 
 ### Other exports
@@ -239,32 +261,45 @@ The watcher's `stop` handle is registered as a class disposer, so:
 
 ## Merge semantics
 
-`output` is the result of `mergeById(_acc, incoming)` followed by
-`applySortLimit(_acc, $sort, $limit)`:
+`output` is recomputed (`_recompute`) from two separately-tracked contributions —
+`_local` (the Dexie result) and `_remote` (the one-shot API supplement) — as
+`applySortLimit(mergeById(_local, _remote), $sort, $limit)`:
 
-- **Union, not replace.** The remote query may fetch only the older tail
-  (`publishDate <= cutoff`), so fresh local docs above the cutoff *must* be
-  retained across the local-then-remote sequence. Local-only docs above the
-  cutoff survive a remote merge.
-- **Conflict resolution.** `mergeById` keeps the doc with the higher
-  `updatedTimeUtc` for any given `_id` (ties favour `incoming`). That's what
-  "removes stale entries" means in this pass — older versions of the same id
-  are replaced.
-- **View shape.** `$sort` and `$limit` from the original query are re-applied
-  every merge so the truncated view always reflects the current accumulator.
+- **Union, not replace, across sources.** The remote query may fetch only the
+  older tail (`publishDate <= cutoff`), so fresh local docs above the cutoff
+  *must* be retained alongside it. Local-only docs above the cutoff survive a
+  remote merge.
+- **Local replaced wholesale, remote persists.** In live mode each Dexie emission
+  replaces `_local` entirely (so deletions drop out), while `_remote` is kept
+  from the one-shot API fetch. In one-shot mode each is simply set once.
+- **Conflict resolution.** `mergeById(_local, _remote)` keeps the doc with the
+  higher `updatedTimeUtc` for any given `_id`; with `_local` seeding and
+  `_remote` layered on top, the remote copy wins `updatedTimeUtc` ties (argument
+  order is load-bearing — don't flip it).
+- **View shape.** `$sort` and `$limit` from the original query are re-applied on
+  every recompute so the truncated view always reflects the current merged set.
 
 ## What's deliberately out of scope (for now)
 
-- **Dexie live-query reactivity.** `output` updates at most twice (local read,
-  then merged remote). Local IndexedDB changes after the initial read do not
-  flow into `output` automatically.
+- **Dexie live-query reactivity** — now **opt-in** via `{ live: true }` (see "Live
+  mode" above). In the **default one-shot mode**, `output` still updates at most
+  twice (local read, then merged remote) and local IndexedDB changes after the
+  initial read do not flow in. Live mode covers the **local** source only.
+- **Live socket updates (API).** The API supplement is one-shot in both modes —
+  decided once off the first local result. There is no socket subscription yet,
+  so updates pushed from the API don't flow into `output`. When wired later they
+  feed `_remote` and reuse `_recompute`, with no public API change.
 - **Persisting remote-supplement docs to Dexie.** Older docs fetched on demand
   live in `output` only; they're not written back to IndexedDB. A new mount
-  will re-fetch on demand.
-- **Live socket updates.** The class has a place for an internal
-  `setLiveResponse`-style merge, but no socket subscription yet — when wired
-  later, a single-doc `_merge([doc])` will be enough and the public API stays
-  unchanged.
+  will re-fetch on demand. Consequence in live mode: if a doc was also fetched
+  into `_remote` (the older tail), deleting it locally lets `mergeById`
+  **resurrect the remote copy** — consistent with the documented union
+  semantics; a true fix needs remote invalidation (out of scope).
+- **Read-failure parity in live mode.** `useDexieLiveQuery` retries a failing
+  Dexie read silently every 100ms and never emits, so on a *persistent* local
+  read failure in live mode `onLocal` never runs and the one-shot API supplement
+  is never decided — unlike one-shot mode, where a failed read still triggers the
+  API with an empty local set.
 - **Re-running on syncList changes.** `syncList` is a reactive ref, but
   `HybridQuery` reads it exactly once at construction (via `typeIsInSyncList`)
   and never re-evaluates. Similarly the cutoff is read once per merge — but
