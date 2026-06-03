@@ -53,7 +53,7 @@ const deleteLocalData = async () => {
 
 <template>
     <BasePage showBackButton>
-        <div class="space-y-4">
+        <div class="space-y-4 px-2">
             <LCard :title="t('settings.local_cache.title')">
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
                     {{ t("settings.local_cache.description") }}
