@@ -196,15 +196,6 @@ const handleLogin = () => {
                 </div>
             </span>
 
-            <!-- Privacy Policy -->
-            <span
-                class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                @click="showPrivacyPolicyModal = true"
-            >
-                <ShieldCheckIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
-            </span>
-
             <!-- Settings -->
             <RouterLink
                 :to="{ name: 'settings' }"
@@ -232,9 +223,20 @@ const handleLogin = () => {
 
         <!-- Bottom section: Logout + Profile -->
         <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
+            <!-- Privacy Policy -->
+            <button
+                type="button"
+                class="mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                @click="showPrivacyPolicyModal = true"
+            >
+                <ShieldCheckIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
+            </button>
+
             <!-- Logout / Login -->
-            <span
-                class="mb-2 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+            <button
+                type="button"
+                class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                 @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
                 <component
@@ -245,7 +247,7 @@ const handleLogin = () => {
                 <span class="text-sm font-medium">
                     {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                 </span>
-            </span>
+            </button>
 
             <!-- Profile display -->
             <div

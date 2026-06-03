@@ -137,54 +137,49 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             icon: BookmarkIcon,
             action: () => router.push({ name: "bookmarks" }),
         },
-        {
-            name: t("profile_menu.privacy_policy"),
-            icon: ShieldCheckIcon,
-            action: () => (showPrivacyPolicyModal.value = true),
-        },
     ];
 });
 
+const privacyPolicyNavigationItem = computed(
+    (): NavigationItems => ({
+        name: t("profile_menu.privacy_policy"),
+        icon: ShieldCheckIcon,
+        action: () => (showPrivacyPolicyModal.value = true),
+    }),
+);
+
 const userNavigation = computed(() => {
-    if (isAuthenticated.value) {
-        return [
-            ...commonNavigation.value,
+    const authItem = isAuthenticated.value
+        ? {
+              name: t("profile_menu.logout"),
+              icon: ArrowRightEndOnRectangleIcon,
+              action: () => {
+                  if (isConnected.value) {
+                      showLogoutDialog.value = true;
+                      return;
+                  }
+                  showOfflineNotification();
+              },
+          }
+        : {
+              name: t("profile_menu.login"),
+              icon: ArrowLeftEndOnRectangleIcon,
+              action: () => {
+                  if (isConnected.value) {
+                      loginWithRedirect();
+                      return;
+                  }
+                  useNotificationStore().addNotification({
+                      id: "no-internet-connection-login",
+                      title: t("profile_menu.login.offline_notification_title"),
+                      description: t("profile_menu.login.offline_notification"),
+                      type: "toast",
+                      state: "error",
+                  } as Notification);
+              },
+          };
 
-            {
-                name: t("profile_menu.logout"),
-                icon: ArrowRightEndOnRectangleIcon,
-                action: () => {
-                    if (isConnected.value) {
-                        showLogoutDialog.value = true;
-                        return;
-                    }
-                    showOfflineNotification();
-                },
-            },
-        ];
-    } else {
-        return [
-            ...commonNavigation.value,
-
-            {
-                name: t("profile_menu.login"),
-                icon: ArrowLeftEndOnRectangleIcon,
-                action: () => {
-                    if (isConnected.value) {
-                        loginWithRedirect();
-                        return;
-                    }
-                    useNotificationStore().addNotification({
-                        id: "no-internet-connection-login",
-                        title: t("profile_menu.login.offline_notification_title"),
-                        description: t("profile_menu.login.offline_notification"),
-                        type: "toast",
-                        state: "error",
-                    } as Notification);
-                },
-            },
-        ];
-    }
+    return [...commonNavigation.value, privacyPolicyNavigationItem.value, authItem];
 });
 
 const sidebarNavigation = computed(() =>
@@ -439,18 +434,6 @@ const sidebarNavigation = computed(() =>
                     </div>
                 </span>
 
-                <!-- Privacy Policy -->
-                <span
-                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="showPrivacyPolicyModal = true"
-                >
-                    <ShieldCheckIcon
-                        class="h-5 w-5 flex-shrink-0"
-                        aria-hidden="true"
-                    />
-                    <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
-                </span>
-
                 <!-- Settings -->
                 <RouterLink
                     :to="{ name: 'settings' }"
@@ -482,9 +465,23 @@ const sidebarNavigation = computed(() =>
 
         <template #footer>
             <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
+                <!-- Privacy Policy -->
+                <button
+                    type="button"
+                    class="mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    @click="showPrivacyPolicyModal = true"
+                >
+                    <ShieldCheckIcon
+                        class="h-5 w-5 flex-shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
+                </button>
+
                 <!-- Logout / Login -->
-                <span
-                    class="mb-2 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                <button
+                    type="button"
+                    class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                     @click="isAuthenticated ? handleLogout() : handleLogin()"
                 >
                     <component
@@ -495,7 +492,7 @@ const sidebarNavigation = computed(() =>
                     <span class="text-sm font-medium">
                         {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                     </span>
-                </span>
+                </button>
 
                 <!-- Profile display -->
                 <div
