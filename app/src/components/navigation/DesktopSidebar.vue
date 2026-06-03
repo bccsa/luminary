@@ -3,7 +3,16 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { BookmarkIcon, Cog6ToothIcon, SunIcon, LanguageIcon, ShieldCheckIcon } from "@heroicons/vue/24/outline";
+import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
+import {
+    BookmarkIcon,
+    Cog6ToothIcon,
+    SunIcon,
+    LanguageIcon,
+    ShieldCheckIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+} from "@heroicons/vue/24/outline";
 import {
     BookmarkIcon as FilledBookmarkIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
@@ -13,6 +22,7 @@ import {
 } from "@heroicons/vue/24/solid";
 import defaultLogo from "@/assets/logo.svg?url";
 import defaultLogoDark from "@/assets/logo-dark.svg?url";
+import defaultLogoSmall from "@/assets/logo-small.svg?url";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LanguageModal from "./LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -24,10 +34,13 @@ import { clearAuth0Cache } from "@/auth";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
+const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
+const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || defaultLogoSmall;
+const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || defaultLogoSmall;
 
 const navigationItems = computed(() => getNavigationItems(t));
 
@@ -36,6 +49,34 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+
+const navIconClass = "h-5 w-5 flex-shrink-0";
+const navLabelClass = "truncate text-sm font-medium";
+const navMetaClass = "mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300";
+
+function navItemClasses(active: boolean) {
+    return [
+        "mb-1 flex cursor-pointer rounded-md hover:bg-zinc-200 dark:hover:bg-slate-700",
+        collapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
+        active ? "text-yellow-700 dark:text-yellow-400" : "text-zinc-600 dark:text-slate-100",
+    ];
+}
+
+function actionButtonClasses() {
+    return [
+        "mb-1 flex w-full cursor-pointer rounded-md text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700",
+        collapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5 text-left",
+    ];
+}
+
+const languageTooltip = computed(() => {
+    const name = appLanguageAsRef.value?.name;
+    return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
+});
+
+const profileTooltip = computed(() =>
+    isAuthenticated.value ? user.value?.name || user.value?.email || t("profile_menu.title") : "",
+);
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -83,24 +124,71 @@ const handleLogin = () => {
 
 <template>
     <nav
-        class="hidden w-64 flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 dark:border-slate-700 dark:bg-slate-800 lg:flex"
+        class="hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
+        :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
     >
-        <!-- Logo -->
-        <div class="px-6 py-5">
-            <img
-                class="h-8 dark:hidden"
-                :src="LOGO"
-                alt=""
-            />
-            <img
-                class="hidden h-8 dark:block"
-                :src="LOGO_DARK"
-                alt=""
-            />
+        <!-- Logo + collapse toggle -->
+        <div
+            :class="
+                collapsed
+                    ? 'flex flex-col items-center gap-2 px-2 py-4'
+                    : 'flex items-center justify-between gap-2 px-4 py-5'
+            "
+        >
+            <RouterLink
+                :to="{ name: 'home' }"
+                class="flex-shrink-0"
+                :title="collapsed ? t('menu.home') : undefined"
+            >
+                <template v-if="collapsed">
+                    <img
+                        class="h-8 w-8 dark:hidden"
+                        :src="LOGO_SMALL"
+                        alt=""
+                    />
+                    <img
+                        class="hidden h-8 w-8 dark:block"
+                        :src="LOGO_SMALL_DARK"
+                        alt=""
+                    />
+                </template>
+                <template v-else>
+                    <img
+                        class="h-8 dark:hidden"
+                        :src="LOGO"
+                        alt=""
+                    />
+                    <img
+                        class="hidden h-8 dark:block"
+                        :src="LOGO_DARK"
+                        alt=""
+                    />
+                </template>
+            </RouterLink>
+            <button
+                type="button"
+                class="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                @click="toggleCollapsed"
+            >
+                <ChevronLeftIcon
+                    v-if="!collapsed"
+                    class="h-5 w-5"
+                    aria-hidden="true"
+                />
+                <ChevronRightIcon
+                    v-else
+                    class="h-5 w-5"
+                    aria-hidden="true"
+                />
+            </button>
         </div>
 
-        <!-- Primary nav items -->
-        <div class="flex-1 overflow-y-auto px-3 py-2">
+        <!-- Nav -->
+        <div
+            class="flex-1 overflow-y-auto overflow-x-hidden py-2 scrollbar-hide"
+            :class="collapsed ? 'px-2' : 'px-3'"
+        >
             <RouterLink
                 v-for="item in navigationItems.slice(0, -1)"
                 :key="item.name"
@@ -109,31 +197,25 @@ const handleLogin = () => {
                 custom
             >
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-                    :class="
-                        isItemActive(isActive)
-                            ? 'text-yellow-700 dark:text-yellow-400'
-                            : 'text-zinc-600 dark:text-slate-100'
-                    "
+                    :class="navItemClasses(isItemActive(isActive))"
+                    :title="item.name"
                     @click="navigate"
                 >
                     <component
                         :is="isItemActive(isActive) ? item.selectedIcon : item.defaultIcon"
-                        class="h-5 w-5 flex-shrink-0"
+                        :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span class="text-sm font-medium">{{ item.name }}</span>
+                    <span
+                        v-if="!collapsed"
+                        :class="navLabelClass"
+                    >{{ item.name }}</span>
                 </span>
             </RouterLink>
 
-            <!-- Search (opens overlay) -->
             <span
-                class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-                :class="
-                    isSearchOpen
-                        ? 'text-yellow-700 dark:text-yellow-400'
-                        : 'text-zinc-600 dark:text-slate-100'
-                "
+                :class="navItemClasses(isSearchOpen)"
+                :title="t('menu.search')"
                 @click="openSearch"
             >
                 <component
@@ -142,122 +224,151 @@ const handleLogin = () => {
                             ? navigationItems[navigationItems.length - 1].selectedIcon
                             : navigationItems[navigationItems.length - 1].defaultIcon
                     "
-                    class="h-5 w-5 flex-shrink-0"
+                    :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span class="text-sm font-medium">{{ t("menu.search") }}</span>
+                <span
+                    v-if="!collapsed"
+                    :class="navLabelClass"
+                >{{ t("menu.search") }}</span>
             </span>
 
-            <!-- Bookmarks -->
             <RouterLink
                 :to="{ name: 'bookmarks' }"
                 v-slot="{ isActive, navigate }"
                 custom
             >
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-                    :class="
-                        isActive
-                            ? 'text-yellow-700 dark:text-yellow-400'
-                            : 'text-zinc-600 dark:text-slate-100'
-                    "
+                    :class="navItemClasses(isActive)"
+                    :title="t('profile_menu.bookmarks')"
                     @click="navigate"
                 >
                     <component
                         :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
-                        class="h-5 w-5 flex-shrink-0"
+                        :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span class="text-sm font-medium">{{ t("profile_menu.bookmarks") }}</span>
+                    <span
+                        v-if="!collapsed"
+                        :class="navLabelClass"
+                    >{{ t("profile_menu.bookmarks") }}</span>
                 </span>
             </RouterLink>
 
-            <div class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700">
-                <!-- Theme -->
+            <div
+                class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700"
+                :class="collapsed ? 'mx-0' : ''"
+            >
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    :class="navItemClasses(false)"
+                    :title="t('profile_menu.theme')"
                     @click="showThemeSelector = true"
                 >
-                    <SunIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                    <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
+                    <SunIcon
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
+                    <span
+                        v-if="!collapsed"
+                        :class="navLabelClass"
+                    >{{ t("profile_menu.theme") }}</span>
                 </span>
 
-                <!-- Language -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    :class="navItemClasses(false)"
+                    :title="languageTooltip"
                     @click="showLanguageModal = true"
                 >
-                    <LanguageIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                    <div class="flex flex-col leading-none">
-                        <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                    <LanguageIcon
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
+                    <div
+                        v-if="!collapsed"
+                        class="min-w-0 flex flex-col leading-none"
+                    >
+                        <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
                             v-if="appLanguageAsRef?.name"
-                            class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
+                            :class="navMetaClass"
                         >{{ appLanguageAsRef.name }}</span>
                     </div>
                 </span>
 
-                <!-- Settings -->
                 <RouterLink
                     :to="{ name: 'settings' }"
                     v-slot="{ isActive, navigate }"
                     custom
                 >
                     <span
-                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
-                        :class="
-                            isActive
-                                ? 'text-yellow-700 dark:text-yellow-400'
-                                : 'text-zinc-600 dark:text-slate-100'
-                        "
+                        :class="navItemClasses(isActive)"
+                        :title="t('profile_menu.settings')"
                         @click="navigate"
                     >
                         <component
                             :is="isActive ? FilledCog6ToothIcon : Cog6ToothIcon"
-                            class="h-5 w-5 flex-shrink-0"
+                            :class="navIconClass"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                        <span
+                            v-if="!collapsed"
+                            :class="navLabelClass"
+                        >{{ t("profile_menu.settings") }}</span>
                     </span>
                 </RouterLink>
             </div>
         </div>
 
-        <!-- Bottom section: Logout + Profile -->
-        <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
-            <!-- Privacy Policy -->
+        <!-- Account -->
+        <div
+            class="border-t border-zinc-200 py-3 dark:border-slate-700"
+            :class="collapsed ? 'px-2' : 'px-3'"
+        >
             <button
                 type="button"
-                class="mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                :class="actionButtonClasses()"
+                :title="t('profile_menu.privacy_policy')"
                 @click="showPrivacyPolicyModal = true"
             >
-                <ShieldCheckIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
+                <ShieldCheckIcon
+                    :class="navIconClass"
+                    aria-hidden="true"
+                />
+                <span
+                    v-if="!collapsed"
+                    :class="navLabelClass"
+                >{{ t("profile_menu.privacy_policy") }}</span>
             </button>
 
-            <!-- Logout / Login -->
             <button
                 type="button"
-                class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                :class="[...actionButtonClasses(), !collapsed ? 'mb-2' : 'mb-1']"
+                :title="isAuthenticated ? t('profile_menu.logout') : t('profile_menu.login')"
                 @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
                 <component
                     :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
-                    class="h-5 w-5 flex-shrink-0"
+                    :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span class="text-sm font-medium">
+                <span
+                    v-if="!collapsed"
+                    :class="navLabelClass"
+                >
                     {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                 </span>
             </button>
 
-            <!-- Profile display -->
             <div
                 v-if="isAuthenticated"
-                class="flex items-center gap-3 rounded-md px-3 py-1.5"
+                :class="[
+                    'flex items-center rounded-md',
+                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 px-3 py-1.5',
+                ]"
+                :title="profileTooltip"
             >
                 <img
-                    v-if="isAuthenticated && user?.picture"
+                    v-if="user?.picture"
                     class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
                     :src="user.picture"
                     alt=""
@@ -268,8 +379,11 @@ const handleLogin = () => {
                 >
                     <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                 </div>
-                <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
-                    {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
+                <span
+                    v-if="!collapsed"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                >
+                    {{ user?.name || user?.email }}
                 </span>
             </div>
         </div>
