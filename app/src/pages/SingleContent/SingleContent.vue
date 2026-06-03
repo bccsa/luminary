@@ -677,21 +677,24 @@ watch([isLoading, content, is404], async () => {
                     />
                 </button>
             </DropdownMenu>
-            <div
-                class="text-zinc-400 dark:text-slate-300"
+            <button
+                type="button"
+                class="cursor-pointer rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                 data-test="themeButton"
+                :aria-label="isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
+                @click="theme = isDarkTheme ? 'light' : 'dark'"
             >
                 <SunIcon
-                    class="h-6 w-6"
                     v-if="isDarkTheme"
-                    @click="theme = 'light'"
+                    class="h-5 w-5"
+                    aria-hidden="true"
                 />
                 <MoonIcon
-                    class="h-6 w-6"
                     v-else
-                    @click="theme = 'dark'"
+                    class="h-5 w-5"
+                    aria-hidden="true"
                 />
-            </div>
+            </button>
         </template>
 
         <NotFoundPage v-if="is404" />
