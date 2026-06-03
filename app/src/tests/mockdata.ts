@@ -407,7 +407,7 @@ export const mockLanguageDtoEng: LanguageDto = {
             "You should try this! Click on this icon on any post to bookmark it.",
         "bookmarks.notification.title": "Bookmark added",
         "bookmarks.notification.description":
-            "This content has been added to your bookmarks. You can find the bookmarks page from the profile menu.",
+            "This content has been added to your bookmarks.",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
