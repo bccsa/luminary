@@ -327,7 +327,7 @@ const sidebarNavigation = computed(() =>
         v-model:open="menuOpen"
     >
         <template #default="{ close }">
-            <div class="px-3 py-2">
+            <div class="flex flex-col gap-1 p-3">
                 <!-- Primary nav items -->
                 <RouterLink
                     v-for="item in navigationItems.slice(0, -1)"
@@ -337,7 +337,7 @@ const sidebarNavigation = computed(() =>
                     custom
                 >
                     <span
-                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                         :class="
                             isItemActive(isActive)
                                 ? 'text-yellow-700 dark:text-yellow-400'
@@ -359,7 +359,7 @@ const sidebarNavigation = computed(() =>
 
                 <!-- Search -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                     :class="
                         isSearchOpen
                             ? 'text-yellow-700 dark:text-yellow-400'
@@ -389,7 +389,7 @@ const sidebarNavigation = computed(() =>
                     custom
                 >
                     <span
-                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                         :class="
                             isActive
                                 ? 'text-yellow-700 dark:text-yellow-400'
@@ -411,7 +411,7 @@ const sidebarNavigation = computed(() =>
 
                 <!-- Theme -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                     @click="showThemeSelector = true"
                 >
                     <SunIcon
@@ -423,7 +423,7 @@ const sidebarNavigation = computed(() =>
 
                 <!-- Language -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                     @click="showLanguageModal = true"
                 >
                     <LanguageIcon
@@ -441,7 +441,7 @@ const sidebarNavigation = computed(() =>
 
                 <!-- Privacy Policy -->
                 <span
-                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                     @click="showPrivacyPolicyModal = true"
                 >
                     <ShieldCheckIcon
@@ -458,7 +458,7 @@ const sidebarNavigation = computed(() =>
                     custom
                 >
                     <span
-                        class="mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                         :class="
                             isActive
                                 ? 'text-yellow-700 dark:text-yellow-400'
