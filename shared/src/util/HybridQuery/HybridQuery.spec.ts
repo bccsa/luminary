@@ -10,6 +10,17 @@ const mocks = vi.hoisted(() => {
     // via `liveRefs[i].ref.value = [...]`. The real Vue `watch` inside HybridQuery
     // reacts to those assignments.
     const liveRefs: Array<{ ref: { value: any }; querier: any; options: any }> = [];
+    // Socket harness: getSocket() returns a stable wrapper whose on/off mutate a
+    // shared set of "data" handlers; emitSocket() invokes them with { docs }.
+    const socketDataHandlers = new Set<(data: any) => void>();
+    const socketMock = {
+        on: (event: string, cb: (data: any) => void) => {
+            if (event === "data") socketDataHandlers.add(cb);
+        },
+        off: (event: string, cb: (data: any) => void) => {
+            if (event === "data") socketDataHandlers.delete(cb);
+        },
+    };
     return {
         mangoToDexieMock: vi.fn<(...args: any[]) => Promise<any[]>>(),
         docsTable: { _docsTableSentinel: true },
@@ -22,11 +33,18 @@ const mocks = vi.hoisted(() => {
             liveRefs.push({ ref: r, querier, options });
             return r;
         }),
+        validateDeleteCommandMock: vi.fn(() => true),
+        socketDataHandlers,
+        getSocketMock: vi.fn(() => socketMock),
+        emitSocket: (docs: any[]) => {
+            for (const h of [...socketDataHandlers]) h({ docs });
+        },
     };
 });
 
 vi.mock("../../socket/socketio", () => ({
     isConnected: mocks.isConnected,
+    getSocket: mocks.getSocketMock,
 }));
 
 vi.mock("../MangoQuery/mangoToDexie", () => ({
@@ -34,7 +52,7 @@ vi.mock("../MangoQuery/mangoToDexie", () => ({
 }));
 
 vi.mock("../../db/database", () => ({
-    db: { docs: mocks.docsTable },
+    db: { docs: mocks.docsTable, validateDeleteCommand: mocks.validateDeleteCommandMock },
 }));
 
 vi.mock("../../rest/sync2/state", () => ({
@@ -55,6 +73,7 @@ vi.mock("../useDexieLiveQuery/useDexieLiveQuery", () => ({
 }));
 
 import { effectScope, nextTick } from "vue";
+import { DocType } from "../../types";
 
 import {
     _resetHybridQueryForTests,
@@ -62,7 +81,7 @@ import {
     HybridQuery,
     initHybridQuery,
     postQuery,
-} from "./hybridQuery";
+} from "./HybridQuery";
 
 /** Drain pending micro/macrotasks + a tick so the background async work runs. */
 const flush = async () => {
@@ -72,6 +91,14 @@ const flush = async () => {
 
 describe("HybridQuery", () => {
     let postHttpMock: ReturnType<typeof vi.fn>;
+    // Live instances own a persistent `isConnected` watcher (the socket listener
+    // lifecycle). Track them so afterEach can dispose them — otherwise a leaked
+    // watcher re-attaches its socket handler when a later test toggles isConnected.
+    const liveInstances: Array<{ dispose: () => void }> = [];
+    const track = <T extends { dispose: () => void }>(q: T): T => {
+        liveInstances.push(q);
+        return q;
+    };
 
     beforeEach(() => {
         _resetHybridQueryForTests();
@@ -81,11 +108,17 @@ describe("HybridQuery", () => {
         mocks.cutoff = 1000;
         mocks.useDexieLiveQueryMock.mockClear();
         mocks.liveRefs.length = 0;
+        mocks.validateDeleteCommandMock.mockReset();
+        mocks.validateDeleteCommandMock.mockReturnValue(true);
+        mocks.getSocketMock.mockClear();
+        mocks.socketDataHandlers.clear();
         postHttpMock = vi.fn();
         initHybridQuery({ post: postHttpMock } as any);
     });
 
     afterEach(() => {
+        liveInstances.forEach((q) => q.dispose());
+        liveInstances.length = 0;
         vi.restoreAllMocks();
     });
 
@@ -566,9 +599,11 @@ describe("HybridQuery", () => {
                 docs: [{ _id: "old", updatedTimeUtc: 1, publishDate: 100, type: "content" }],
             });
 
-            const q = new HybridQuery(
-                { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
-                { live: true },
+            const q = track(
+                new HybridQuery(
+                    { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+                    { live: true },
+                ),
             );
             await flush();
             expect(q.output.value).toEqual([]); // no emission yet
@@ -642,6 +677,163 @@ describe("HybridQuery", () => {
                 { _id: "g2", updatedTimeUtc: 2, type: "group" },
             ]);
             expect(q.output.value.map((d) => d._id)).toEqual(["g1"]); // unchanged
+        });
+    });
+
+    describe("socket live", () => {
+        // Build a live content query whose API supplement is decided (so the socket
+        // listener attaches), driving the first local emission with `firstLocal`.
+        const setupContentLive = async (
+            firstLocal: any[] = [],
+            query: any = { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+        ) => {
+            postHttpMock.mockResolvedValue({ docs: [] }); // one-shot supplement: nothing
+            const q = track(new HybridQuery(query, { live: true }));
+            await flush();
+            mocks.liveRefs[0]!.ref.value = firstLocal; // first emission ⇒ api decision + listener
+            await flush();
+            return q;
+        };
+        const del = (docId: string, updatedTimeUtc: number) => ({
+            _id: `del-${docId}-${updatedTimeUtc}`,
+            type: DocType.DeleteCmd,
+            docType: "content",
+            docId,
+            updatedTimeUtc,
+        });
+
+        it("attaches one listener; a matching doc upserts into _remote → output", async () => {
+            const q = await setupContentLive();
+            expect(mocks.socketDataHandlers.size).toBe(1);
+
+            mocks.emitSocket([{ _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 }]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["x"]);
+        });
+
+        it("ignores a doc that doesn't match the supplement selector (early-out, no mutation)", async () => {
+            const q = await setupContentLive([
+                { _id: "a", type: "content", publishDate: 2000, updatedTimeUtc: 5 },
+            ]);
+            const ref1 = q.output.value;
+            // publishDate 5000 > cutoff 1000 ⇒ fails matchP ⇒ early-out before recompute.
+            mocks.emitSocket([{ _id: "y", type: "content", publishDate: 5000, updatedTimeUtc: 6 }]);
+            expect(q.output.value).toBe(ref1); // same reference — nothing mutated
+            expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
+        });
+
+        it("a valid DeleteCmd removes a remote-sourced doc; a stale one is ignored", async () => {
+            const q = await setupContentLive();
+            mocks.emitSocket([{ _id: "r", type: "content", publishDate: 500, updatedTimeUtc: 5 }]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["r"]);
+
+            mocks.emitSocket([del("r", 3)]); // older than our copy ⇒ stale guard skips
+            expect(q.output.value.map((d) => d._id)).toEqual(["r"]);
+
+            mocks.emitSocket([del("r", 9)]); // newer ⇒ removed
+            expect(q.output.value).toEqual([]);
+        });
+
+        it("a DeleteCmd removes a locally-sourced doc too", async () => {
+            const q = await setupContentLive([
+                { _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 },
+            ]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["x"]);
+            mocks.emitSocket([del("x", 10)]);
+            expect(q.output.value).toEqual([]);
+        });
+
+        it("validateDeleteCommand === false blocks the delete", async () => {
+            const q = await setupContentLive([
+                { _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 },
+            ]);
+            mocks.validateDeleteCommandMock.mockReturnValue(false);
+            mocks.emitSocket([del("x", 10)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["x"]); // not deleted
+        });
+
+        it("tombstone: suppresses a re-emitted stale local doc, then releases when Dexie catches up", async () => {
+            const q = await setupContentLive([
+                { _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 },
+            ]);
+            mocks.emitSocket([del("x", 10)]);
+            expect(q.output.value).toEqual([]);
+
+            // Dexie not caught up: a local re-emission still holds x ⇒ tombstone suppresses it.
+            mocks.liveRefs[0]!.ref.value = [
+                { _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 },
+            ];
+            await flush();
+            expect(q.output.value).toEqual([]);
+
+            // Dexie caught up: emission without x ⇒ tombstone released.
+            mocks.liveRefs[0]!.ref.value = [];
+            await flush();
+            expect(q.output.value).toEqual([]);
+
+            // Proof the tombstone is gone: x can reappear (e.g. republished + re-synced).
+            mocks.liveRefs[0]!.ref.value = [
+                { _id: "x", type: "content", publishDate: 500, updatedTimeUtc: 5 },
+            ];
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["x"]);
+        });
+
+        it("minimal mutation: a below-limit upsert recomputes but leaves the output ref unchanged", async () => {
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "c", type: "content", publishDate: 800, updatedTimeUtc: 4 }],
+            });
+            const q = track(
+                new HybridQuery(
+                    {
+                        selector: { type: "content" },
+                        $sort: [{ publishDate: "desc" as const }],
+                        $limit: 2,
+                    },
+                    { live: true },
+                ),
+            );
+            await flush();
+            mocks.liveRefs[0]!.ref.value = [
+                { _id: "a", type: "content", publishDate: 3000, updatedTimeUtc: 5 },
+            ];
+            await flush();
+            const ref1 = q.output.value;
+            expect(ref1.map((d) => d._id)).toEqual(["a", "c"]); // window full at limit 2
+
+            // publishDate 500 sorts last ⇒ falls beyond the limit-2 window.
+            mocks.emitSocket([{ _id: "b", type: "content", publishDate: 500, updatedTimeUtc: 6 }]);
+            expect(q.output.value).toBe(ref1); // recompute ran, window identical → same ref
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "c"]);
+        });
+
+        it("reconnect re-attaches the listener without re-POSTing; dispose detaches", async () => {
+            const q = await setupContentLive();
+            expect(mocks.socketDataHandlers.size).toBe(1);
+            const postsAfterSetup = postHttpMock.mock.calls.length;
+
+            mocks.isConnected.value = false;
+            await flush();
+            expect(mocks.socketDataHandlers.size).toBe(0); // detached while offline
+
+            mocks.isConnected.value = true;
+            await flush();
+            expect(mocks.socketDataHandlers.size).toBe(1); // re-attached, single listener
+            expect(postHttpMock.mock.calls.length).toBe(postsAfterSetup); // NOT re-POSTed
+
+            q.dispose();
+            expect(mocks.socketDataHandlers.size).toBe(0); // detached on dispose
+        });
+
+        it("syncList-only branch attaches no socket listener", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            const q = track(new HybridQuery({ selector: { type: "group" } }, { live: true }));
+            await flush();
+            mocks.liveRefs[0]!.ref.value = [{ _id: "g1", type: "group", updatedTimeUtc: 1 }];
+            await flush();
+
+            expect(mocks.socketDataHandlers.size).toBe(0);
+            expect(mocks.getSocketMock).not.toHaveBeenCalled();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
         });
     });
 });

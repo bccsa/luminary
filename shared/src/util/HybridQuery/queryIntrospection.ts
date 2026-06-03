@@ -139,3 +139,28 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
         use_index: query.use_index,
     };
 }
+
+/**
+ * Build a selector that matches the `DeleteCmd`s for the docs a supplement query
+ * targets. A `DeleteCmd` carries the deleted doc's `docType` and `docId` but NOT
+ * its content fields (`publishDate`, `parentType`, `language`, …), and
+ * `mangoCompile` treats a missing field as non-matching — so the original content
+ * selector can't be evaluated against a `DeleteCmd`. We therefore reduce it: map
+ * `type → docType` and `_id → docId`, dropping every other clause. The result is
+ * effectively a `docType` (+ id-list) pre-filter; `HybridQuery` still gates each
+ * delete on `db.validateDeleteCommand` + output membership + the stale guard.
+ *
+ * `queryType` is the resolved top-level type ({@link readType}) — `undefined` for
+ * a typeless / `$or`-across-types query, in which case the selector is `{}`
+ * (matches all, leaving membership as the sole gate).
+ */
+export function toDeleteSelector(
+    selector: MangoSelector,
+    queryType: DocType | undefined,
+): MangoSelector {
+    const and: MangoSelector[] = [];
+    if (queryType) and.push({ docType: queryType } as MangoSelector);
+    const idHit = findIdInList(expandMangoSelector(selector).$and ?? []);
+    if (idHit) and.push({ docId: { $in: idHit.ids } } as MangoSelector);
+    return and.length ? { $and: and } : {};
+}
