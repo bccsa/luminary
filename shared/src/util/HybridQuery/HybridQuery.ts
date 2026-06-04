@@ -15,6 +15,7 @@ import {
     type DeleteCmdDto,
     DocType,
 } from "../../types";
+import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { mangoToDexie } from "../MangoQuery/mangoToDexie";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
@@ -225,6 +226,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // The per-result work (onLocal / _postAndMerge / the socket callback)
         // carries its own handlers because it runs on a later tick, outside this try.
         try {
+            // Unsatisfiable selector (e.g. an empty `$in`) → `output` stays [] and
+            // we skip the Dexie read, the API supplement POST, and the socket
+            // listener. Judged from the SELECTOR (an empty local read alone looks
+            // the same as "nothing synced yet").
+            if (isProvablyEmpty(this._query.selector)) return;
+
             const type = readType(this._query);
 
             if (type === DocType.Content) {
