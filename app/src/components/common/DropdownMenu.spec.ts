@@ -77,6 +77,14 @@ describe("DropdownMenu", () => {
         const wrapper = mountMenu({ open: true });
         await nextTick();
 
+        // jsdom returns null for offsetParent on detached elements; stub it so
+        // the DropdownMenu guard doesn't bail before calling close().
+        const root = wrapper.find(".relative").element as HTMLElement;
+        Object.defineProperty(root, "offsetParent", {
+            get: () => document.body,
+            configurable: true,
+        });
+
         document.dispatchEvent(new Event("pointerdown"));
         await nextTick();
 

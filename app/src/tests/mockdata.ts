@@ -408,6 +408,8 @@ export const mockLanguageDtoEng: LanguageDto = {
         "bookmarks.notification.title": "Bookmark added",
         "bookmarks.notification.description":
             "This content has been added to your bookmarks.",
+        "language.modal.title": "Select Language",
+        "language.modal.close": "Close",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
