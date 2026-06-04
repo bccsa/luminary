@@ -758,7 +758,7 @@ const onSelectorHeightUpdate = (val: number) => {
                                 </LButton>
                             </template>
                             <div
-                                class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 lg:static lg:left-auto lg:mb-0 lg:ml-2 lg:inline-block lg:translate-x-0"
+                                class="static left-auto mx-2 mb-0 inline-block w-11/12 translate-x-0"
                             >
                                 <LanguageSelector
                                     data-test="language-selector"
