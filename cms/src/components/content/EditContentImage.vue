@@ -50,19 +50,22 @@ watch(
     { immediate: true },
 );
 
-// Mirrors ImageEditor's effectiveImageBucketId fallback so the Upload button
-// shows in single-bucket setups before the parent has been written to.
+// Use explicit selection first, otherwise allow composable auto-selection.
+const effectiveImageBucketId = computed(() => {
+    return parent.value?.imageBucketId ?? storage.autoSelectImageBucket.value ?? undefined;
+});
+
 const isBucketSelected = computed(() => {
-    return parent.value?.imageBucketId ?? storage.autoSelectImageBucket.value;
+    return !!effectiveImageBucketId.value;
 });
 
 // Get the selected bucket's mimeTypes for the accept attribute
 const acceptedmimeTypes = computed(() => {
-    if (!parent.value?.imageBucketId) {
+    if (!effectiveImageBucketId.value) {
         return "image/jpeg, image/png, image/webp"; // default
     }
 
-    const bucket = storage.getBucketById(parent.value.imageBucketId);
+    const bucket = storage.getBucketById(effectiveImageBucketId.value);
     if (!bucket || !bucket.mimeTypes || bucket.mimeTypes.length === 0) {
         return "image/*"; // accept all images if no restrictions
     }
