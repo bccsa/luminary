@@ -10,6 +10,15 @@ const AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
 const AUTH0_TX_PREFIX = "a0.spajs.";
 const AUTH0_TX_KEY_PREFIX = "a0.spajs.txs.";
 
+/**
+ * localStorage key holding the active provider's identity. Persisting it next
+ * to Auth0's own localStorage refresh-token cache lets resolveActiveProvider
+ * recover `domain` + `_id` (which otherwise live only in the Dexie
+ * AuthProvider doc) after IndexedDB is evicted but localStorage survives —
+ * the iOS-Safari-ITP logout (issue #1671).
+ */
+export const ACTIVE_PROVIDER_KEY = "cms_activeAuthProvider";
+
 /** Development / E2E testing bypass. */
 export const isAuthBypassed = import.meta.env.VITE_AUTH_BYPASS === "true";
 
@@ -27,12 +36,52 @@ export const showProviderSelectionModal = ref(false);
 export const isAuthPluginInstalled = ref(false);
 
 type Auth0Prompt = "none" | "login" | "consent" | "select_account";
-type ProviderConfig = Pick<AuthProviderDto, "_id" | "domain" | "clientId" | "audience">;
+export type ProviderConfig = Pick<AuthProviderDto, "_id" | "domain" | "clientId" | "audience">;
+
+/**
+ * The only provider fields not recoverable from Auth0's own storage after a
+ * Dexie eviction. `clientId` and `audience` live in the Auth0 cache key, so we
+ * never persist them — see {@link resolveActiveProvider}.
+ */
+type PersistedProvider = Pick<AuthProviderDto, "_id" | "domain">;
 
 function clearStoragePrefix(storage: Storage, prefix: string): void {
     for (let i = storage.length - 1; i >= 0; i--) {
         const key = storage.key(i);
         if (key?.startsWith(prefix)) storage.removeItem(key);
+    }
+}
+
+/**
+ * Persist the active provider's `_id` + `domain` to localStorage — the only two
+ * fields that aren't recoverable from Auth0's own storage after a Dexie
+ * eviction. Best-effort: storage failures (quota, Safari private mode) must
+ * never abort a login redirect, so they are swallowed — resolution just falls
+ * back to the Dexie lookup.
+ */
+export function persistActiveProvider(p: PersistedProvider): void {
+    if (typeof localStorage === "undefined") return;
+    try {
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, JSON.stringify({ _id: p._id, domain: p.domain }));
+    } catch {
+        // ignore — persistence is an optimization, not a requirement
+    }
+}
+
+/**
+ * Read the persisted `{ _id, domain }`. Returns null when absent, corrupt, or
+ * missing either field.
+ */
+export function readPersistedProvider(): PersistedProvider | null {
+    if (typeof localStorage === "undefined") return null;
+    try {
+        const raw = localStorage.getItem(ACTIVE_PROVIDER_KEY);
+        if (!raw) return null;
+        const p = JSON.parse(raw);
+        if (p && p._id && p.domain) return { _id: p._id, domain: p.domain };
+        return null;
+    } catch {
+        return null;
     }
 }
 
@@ -43,21 +92,35 @@ function setProviderIdHeader(id: string | null): void {
 }
 
 /**
- * Identify the current provider by reading Auth0's own storage footprint and
- * looking it up in Dexie. Prefers the localStorage session cache; falls back
- * to the PKCE transaction key in sessionStorage, but only while we're on the
- * OAuth callback URL — without that gate, a stale txs key from an aborted
- * login would impersonate a real session and lock the user out of re-picking.
+ * Identify the current provider by reading Auth0's own storage footprint, then
+ * recovering its config. Prefers the localStorage session cache; falls back to
+ * the PKCE transaction key in sessionStorage, but only while we're on the OAuth
+ * callback URL — without that gate, a stale txs key from an aborted login would
+ * impersonate a real session and lock the user out of re-picking.
+ *
+ * Once a clientId is known, the config (`domain`, `_id`, …) comes Dexie-first:
+ * the AuthProvider doc is authoritative (so provider edits propagate) and we
+ * write it through to localStorage. Only when Dexie has no match — typically
+ * after IndexedDB eviction while the Auth0 refresh token survives in
+ * localStorage (issue #1671) — do we fall back to the persisted copy, so the
+ * session can still silently refresh instead of logging the user out.
  */
-export async function resolveActiveProvider(): Promise<AuthProviderDto | null> {
+export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
     if (typeof sessionStorage === "undefined" || typeof localStorage === "undefined") return null;
 
+    // The standard Auth0 token cache key is `<prefix><clientId>::<audience>::<scope>`,
+    // so clientId + audience are both recoverable from it. (The sibling id-token
+    // key `<prefix><clientId>::@@user@@` has no audience segment — skip it.)
     let clientId: string | null = null;
+    let audience: string | null = null;
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key?.startsWith(AUTH0_CACHE_PREFIX)) continue;
-        clientId = key.slice(AUTH0_CACHE_PREFIX.length).split("::")[0] || null;
-        if (clientId) break;
+        const segments = key.slice(AUTH0_CACHE_PREFIX.length).split("::");
+        if (!segments[0]) continue;
+        clientId = segments[0];
+        if (segments.length >= 3 && segments[1]) audience = segments[1];
+        if (audience) break;
     }
 
     if (!clientId) {
@@ -77,7 +140,19 @@ export async function resolveActiveProvider(): Promise<AuthProviderDto | null> {
         .equals(DocType.AuthProvider)
         .filter((d) => (d as AuthProviderDto).clientId === clientId)
         .first();
-    return (doc as AuthProviderDto) ?? null;
+    if (doc) {
+        const d = doc as AuthProviderDto;
+        persistActiveProvider(d);
+        return { _id: d._id, domain: d.domain, clientId: d.clientId, audience: d.audience };
+    }
+
+    // Dexie evicted: rebuild from the persisted `{ _id, domain }` plus the
+    // clientId + audience still carried by the Auth0 cache key.
+    const persisted = readPersistedProvider();
+    if (persisted && audience) {
+        return { _id: persisted._id, domain: persisted.domain, clientId, audience };
+    }
+    return null;
 }
 
 function buildAuth0Options(p: ProviderConfig) {
@@ -117,10 +192,14 @@ export async function setupAuth(app: App<Element>): Promise<void> {
 
     const provider = await resolveActiveProvider();
     if (!provider) {
-        // Auth0 cache keys from a deleted provider (or a session that predates
-        // the provider doc landing in Dexie) will linger in localStorage
-        // forever without this — no other path cleans them up for a cold start.
-        clearAuth0Cache();
+        // Don't destroy a possibly-valid Auth0 session just because Dexie has
+        // no matching AuthProvider doc — IndexedDB can be evicted while the
+        // localStorage refresh token survives (issue #1671), and wiping the
+        // cache here would conflate "no provider doc right now" with "no
+        // session." The router guard (conditionalAuthGuard) opens the provider
+        // modal because no Auth0 plugin was installed, and the server's
+        // `provider_not_found` connect_error path still wipes the cache if the
+        // provider really is gone.
         return;
     }
 
@@ -167,9 +246,7 @@ export async function setupAuth(app: App<Element>): Promise<void> {
  *   we'd loop forever on any clock skew or server-side revocation.
  * @returns `true` on success, `false` otherwise.
  */
-export async function refreshTokenSilently(opts?: {
-    ignoreCache?: boolean;
-}): Promise<boolean> {
+export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Promise<boolean> {
     if (!installedOauth) return false;
     try {
         const token = await installedOauth.getAccessTokenSilently(
@@ -193,6 +270,9 @@ export async function loginWithProvider(
     provider: ProviderConfig,
     opts?: { prompt?: Auth0Prompt },
 ): Promise<void> {
+    // Remember the chosen provider so a returning session can be resolved
+    // without the Dexie AuthProvider doc (issue #1671).
+    persistActiveProvider(provider);
     // Evict stale PKCE transactions from aborted attempts so the next
     // callback matches the fresh code_verifier.
     clearStoragePrefix(sessionStorage, AUTH0_TX_PREFIX);
@@ -211,6 +291,11 @@ export function clearAuth0Cache(): void {
     removeCustomHeader("Authorization");
     clearStoragePrefix(localStorage, AUTH0_CACHE_PREFIX);
     clearStoragePrefix(sessionStorage, AUTH0_TX_PREFIX);
+    try {
+        localStorage.removeItem(ACTIVE_PROVIDER_KEY);
+    } catch {
+        // ignore — storage may be unavailable
+    }
 }
 
 export function openProviderModal(): void {
