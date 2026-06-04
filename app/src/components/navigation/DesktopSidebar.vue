@@ -146,11 +146,11 @@ const handleLogin = () => {
             />
         </button>
 
-        <!-- Logo -->
-        <div :class="collapsed ? 'flex items-center justify-center px-2 py-5' : 'flex items-center px-6 py-5'">
+        <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item -->
+        <div :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'">
             <RouterLink
                 :to="{ name: 'home' }"
-                class="flex-shrink-0"
+                :class="collapsed ? 'flex justify-center p-2.5' : 'flex items-center px-3 py-2'"
                 :title="collapsed ? t('menu.home') : undefined"
             >
                 <template v-if="collapsed">
@@ -359,7 +359,7 @@ const handleLogin = () => {
                 v-if="isAuthenticated"
                 :class="[
                     'flex items-center rounded-md',
-                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 px-3 py-1.5',
+                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 pl-1.5 py-1.5',
                 ]"
                 :title="profileTooltip"
             >
