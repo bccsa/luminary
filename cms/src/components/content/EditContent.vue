@@ -757,9 +757,7 @@ const onSelectorHeightUpdate = (val: number) => {
                                     <template #tooltip>Add a new translation</template>
                                 </LButton>
                             </template>
-                            <div
-                                class="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 lg:static lg:left-auto lg:mb-0 lg:ml-2 lg:inline-block lg:translate-x-0"
-                            >
+                            <div>
                                 <LanguageSelector
                                     data-test="language-selector"
                                     :parent="editableParent"
