@@ -295,9 +295,9 @@ describe("SingleContent", () => {
             expect(wrapper.text()).not.toContain("Loading...");
         });
 
-        const icon = wrapper.find("div[data-test='bookmark']");
-        expect(icon.exists()).toBe(true);
-        icon.trigger("click");
+        const bookmarkButton = wrapper.find("button[data-test='bookmark']");
+        expect(bookmarkButton.exists()).toBe(true);
+        await bookmarkButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
@@ -308,7 +308,7 @@ describe("SingleContent", () => {
             ).toBe(true);
         });
 
-        icon.trigger("click");
+        await bookmarkButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
