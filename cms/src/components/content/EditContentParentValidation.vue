@@ -255,7 +255,10 @@ watch(
                                 aria-label="Add translation"
                             />
                         </template>
-                        <div v-if="untranslatedLanguages.length > 0">
+                        <div
+                            class="static left-auto mx-2 mb-0 inline-block w-11/12 translate-x-0"
+                            v-if="untranslatedLanguages.length > 0"
+                        >
                             <LanguageSelector
                                 :languages="untranslatedLanguages"
                                 :parent="editableParent"
