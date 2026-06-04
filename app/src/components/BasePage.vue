@@ -74,13 +74,13 @@ onUnmounted(() => {
                 >
                     <button
                         v-if="showBackButton"
-                        class="pointer-events-auto -ml-1 flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                        class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         @click="isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()"
                         aria-label="Go back"
                     >
                         <ChevronLeftIcon class="h-5 w-5" />
                     </button>
-                    <div class="pointer-events-auto ml-auto flex items-center gap-2">
+                    <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
                         <slot name="quickControls" />
                     </div>
                 </div>
