@@ -124,17 +124,30 @@ const handleLogin = () => {
 
 <template>
     <nav
-        class="hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
+        class="relative hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
         :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
     >
-        <!-- Logo + collapse toggle -->
-        <div
-            :class="
-                collapsed
-                    ? 'flex flex-col items-center gap-2 px-2 py-4'
-                    : 'flex items-center justify-between gap-2 px-4 py-5'
-            "
+        <!-- Collapse toggle — sits on the right edge, vertically centred -->
+        <button
+            type="button"
+            class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-zinc-500 shadow-sm transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            @click="toggleCollapsed"
         >
+            <ChevronLeftIcon
+                v-if="!collapsed"
+                class="h-4 w-4"
+                aria-hidden="true"
+            />
+            <ChevronRightIcon
+                v-else
+                class="h-4 w-4"
+                aria-hidden="true"
+            />
+        </button>
+
+        <!-- Logo -->
+        <div :class="collapsed ? 'flex items-center justify-center px-2 py-5' : 'flex items-center px-4 py-5'">
             <RouterLink
                 :to="{ name: 'home' }"
                 class="flex-shrink-0"
@@ -165,23 +178,6 @@ const handleLogin = () => {
                     />
                 </template>
             </RouterLink>
-            <button
-                type="button"
-                class="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-                @click="toggleCollapsed"
-            >
-                <ChevronLeftIcon
-                    v-if="!collapsed"
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-                <ChevronRightIcon
-                    v-else
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-            </button>
         </div>
 
         <!-- Nav -->
