@@ -128,6 +128,29 @@ describe("HybridQuery", () => {
         expect(q.output.value).toEqual([]);
     });
 
+    it("provably-empty selector (empty $in) short-circuits: no Dexie read, no POST, no socket listener", async () => {
+        const q = track(
+            new HybridQuery(
+                {
+                    selector: {
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: [] } } },
+                        ],
+                    },
+                },
+                { live: true },
+            ),
+        );
+        await flush();
+
+        expect(q.output.value).toEqual([]);
+        expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+        expect(postHttpMock).not.toHaveBeenCalled();
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
+        expect(mocks.socketDataHandlers.size).toBe(0);
+    });
+
     describe("content routing", () => {
         it("no $limit + no _id list ⇒ always POSTs with publishDate <= cutoff", async () => {
             const local = [

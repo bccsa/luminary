@@ -1,6 +1,7 @@
 import type { Collection, Table } from "dexie";
 import type { MangoQuery, MangoSelector } from "./MangoTypes";
 import { mangoCompile } from "./mangoCompile";
+import { isProvablyEmpty } from "./isProvablyEmpty";
 import { expandMangoSelector } from "./expandMangoQuery";
 import { normalizeSelector, generateTemplateKey, isPlaceholder } from "./templateNormalize";
 import { compileTemplateSelector, type ParameterizedPredicate } from "./compileTemplateSelector";
@@ -99,6 +100,11 @@ export function getDexieCacheStats(): { size: number; keys: string[] } {
  */
 export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<T[]> {
     const selector: MangoSelector = (query?.selector || {}) as MangoSelector;
+
+    // Unsatisfiable by construction (e.g. an empty `$in`) → skip IndexedDB entirely
+    // instead of scanning + filtering every row out. Sound; see isProvablyEmpty.
+    if (isProvablyEmpty(selector)) return Promise.resolve([] as T[]);
+
     const limit = typeof query?.$limit === "number" ? query.$limit : undefined;
     const sort = Array.isArray(query?.$sort) ? query.$sort : undefined;
 

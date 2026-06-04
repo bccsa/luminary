@@ -377,7 +377,7 @@ describe("mangoToDexie", () => {
             expect(res.map((d) => d.id)).toEqual([1, 2, 3]);
         });
 
-        it("handles empty $in array via bulkGet", async () => {
+        it("short-circuits an empty $in (provably empty) without touching the table", async () => {
             const docs: Doc[] = [
                 { id: 1, name: "Alice" },
             ];
@@ -385,8 +385,10 @@ describe("mangoToDexie", () => {
             const query = { selector: { id: { $in: [] } } };
             const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
 
-            expect(table.lastBulkGetKeys).toEqual([]);
             expect(res).toHaveLength(0);
+            // isProvablyEmpty returns [] before any bulkGet / where clause runs.
+            expect(table.lastBulkGetKeys).toBeUndefined();
+            expect(table.lastWhereField).toBeUndefined();
         });
     });
 

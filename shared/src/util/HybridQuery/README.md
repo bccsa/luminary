@@ -186,6 +186,19 @@ caveats — as `useDexieLiveQuery`:
   (`shared/src/luminary.ts`).
 - `DEFAULT_REMOTE_QUERY_LIMIT = 500`.
 
+## Provably-empty short-circuit
+
+Before routing, the constructor checks `isProvablyEmpty(selector)` (from
+`MangoQuery/`). If the selector is **unsatisfiable by construction** — today that
+means an empty `$in` (`{$in: []}`, e.g. a `parentTags $elemMatch $in []` filter
+built from an empty category list) sitting in a conjunctive position — `output`
+stays `[]` and the class skips the Dexie read, the API supplement POST, **and**
+the socket listener entirely. `mangoToDexie` applies the same check, so every
+local query (not just HybridQuery) avoids scanning + filtering every row out for a
+result that's empty by construction. The check is sound (never skips a query that
+could match) but intentionally incomplete — it does not detect contradictions or
+`$all: []`.
+
 ## Routing
 
 ```
