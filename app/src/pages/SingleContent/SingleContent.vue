@@ -604,10 +604,10 @@ const playAudio = () => {
     }
 };
 
-const readingTime = computed(() => {
-    if (!content.value) return "";
+const readingTime = computed<number>(() => {
+    if (!content.value) return 0;
     const wordCount = content.value.wordCount!;
-    const currentLanguage = languages.value.find(l => l._id === content.value?.language);
+    const currentLanguage = languages.value.find((l) => l._id === content.value?.language);
     const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
 
     return Math.ceil(wordCount / readingSpeed);
@@ -713,102 +713,119 @@ watch([isLoading, content, is404], async () => {
                     class="w-full lg:w-3/4 lg:max-w-3xl"
                     v-else-if="!isLoading && content"
                 >
-                    <IgnorePagePadding
-                        :mobileOnly="true"
-                        :ignoreTop="true"
-                    >
-                        <VideoPlayer
-                            v-if="content && content.video"
-                            :content="content"
-                            :language="selectedLanguageCode"
-                        />
-                        <div
-                            v-else-if="content.parentId || content.parentImageData"
-                            class="relative cursor-pointer"
-                            @click="
-                                () => {
-                                    if (content) currentImageIndex = activeImageCollection(content);
-                                    enableZoom = true;
-                                }
-                            "
-                        >
-                            <LImage
-                                :image="content.parentImageData"
-                                :content-parent-id="content.parentId"
-                                :parent-image-bucket-id="content.parentImageBucketId"
-                                aspectRatio="video"
-                                size="post"
-                            />
-                            <div
-                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex items-center gap-1"
-                            >
-                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                            </div>
-
-                            <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                            <button
-                                v-if="hasAudioFiles"
-                                @click.stop="
-                                    (event) => {
-                                        playAudio();
-                                        // Prevent focus staying on button
-                                        (event.target as HTMLElement).blur();
-                                    }
-                                "
-                                class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                title="Play Audio"
-                            >
-                                <SpeakerWaveIcon class="h-5 w-5" />
-                                {{ t("singlecontent.listen") }}
-                            </button>
-                        </div>
-                    </IgnorePagePadding>
-
                     <div class="flex w-full flex-col items-center">
-                        <div
-                            class="mt-3 flex flex-col"
-                            :class="{
-                                'gap-1': !content.publishDate || !content.parentPublishDateVisible,
-                                'gap-3': content.publishDate && content.parentPublishDateVisible,
-                            }"
-                        >
-                            <div class="flex flex-row items-center justify-center gap-2">
+                        <div class="mt-1 flex flex-col gap-4 text-center md:mt-4">
+                            <div class="flex flex-row items-start justify-center gap-2">
                                 <h1
-                                    class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                                    class="text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
                                 >
                                     {{ content.title }}
                                 </h1>
-                                <div
+                                <button
                                     v-if="canEdit() && cmsUrl"
-                                    class="flex justify-center"
+                                    @click="openCmsEditor"
+                                    class="mt-1.5 flex cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
+                                    data-test="editButton"
                                 >
-                                    <button
-                                        @click="openCmsEditor"
-                                        class="flex cursor-pointer items-center gap-1 text-zinc-600 hover:text-yellow-500 dark:text-slate-300 dark:hover:text-yellow-400"
-                                        data-test="editButton"
-                                    >
-                                        <PencilIcon class="h-5 w-5" />
-                                    </button>
-                                </div>
+                                    <PencilIcon class="h-5 w-5" />
+                                </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <IgnorePagePadding
+                            :mobileOnly="true"
+                            :ignoreTop="true"
+                        >
+                            <VideoPlayer
+                                v-if="content && content.video"
+                                :content="content"
+                                :language="selectedLanguageCode"
+                            />
+                            <div
+                                v-else-if="content.parentId || content.parentImageData"
+                                class="relative cursor-pointer overflow-hidden"
+                                @click="
+                                    () => {
+                                        if (content)
+                                            currentImageIndex = activeImageCollection(content);
+                                        enableZoom = true;
+                                    }
+                                "
+                            >
+                                <LImage
+                                    :image="content.parentImageData"
+                                    :content-parent-id="content.parentId"
+                                    :parent-image-bucket-id="content.parentImageBucketId"
+                                    aspectRatio="video"
+                                    size="post"
+                                />
+                                <div
+                                    v-if="
+                                        (content.parentImageData?.fileCollections?.length ?? 0) > 1
+                                    "
+                                    class="absolute bottom-2 right-2 flex items-center gap-1"
+                                >
+                                    <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                                </div>
+
+                                <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                                <button
+                                    v-if="hasAudioFiles"
+                                    @click.stop="
+                                        (event) => {
+                                            playAudio();
+                                            // Prevent focus staying on button
+                                            (event.target as HTMLElement).blur();
+                                        }
+                                    "
+                                    class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                    title="Play Audio"
+                                >
+                                    <SpeakerWaveIcon class="h-5 w-5" />
+                                    {{ t("singlecontent.listen") }}
+                                </button>
+                            </div>
+                        </IgnorePagePadding>
+                    </div>
+
+                    <div
+                        v-if="content.summary"
+                        class="mt-6 flex justify-center"
+                    >
+                        <p
+                            class="max-w-2xl text-center text-lg leading-relaxed text-zinc-600 dark:text-slate-300"
+                        >
+                            {{ content.summary }}
+                        </p>
+                    </div>
+
+                    <div class="mt-6 flex flex-col items-center gap-4">
+                        <div
+                            class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
+                        >
+                            <!-- Author -->
                             <div
                                 v-if="content.author"
-                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
+                                class="flex items-center after:px-2 after:font-normal after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
                             >
                                 By {{ content.author }}
                             </div>
+
+                            <!-- Reading Time -->
                             <div
-                                v-if="readingTime"
-                                class="flex items-center justify-center gap-1 text-center text-xs text-zinc-500 dark:text-slate-300"
+                                v-if="readingTime && readingTime > 1"
+                                class="flex items-center gap-1.5 after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
                             >
-                                <ClockIcon class="h-4 w-4" />
-                                {{ readingTime }} min
+                                <ClockIcon class="h-4 w-4 flex-shrink-0" />
+                                <span>{{ readingTime }} min</span>
                             </div>
 
+                            <!-- Publish Date -->
                             <div
-                                class="text-center text-xs text-zinc-500 dark:text-slate-300"
                                 v-if="content.publishDate && content.parentPublishDateVisible"
+                                class="flex items-center text-center after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700 sm:text-left"
                             >
                                 {{
                                     content.publishDate
@@ -818,41 +835,31 @@ watch([isLoading, content, is404], async () => {
                                         : ""
                                 }}
                             </div>
-                            <div class="items-center">
-                                <div class="flex justify-center gap-4">
-                                    <div
-                                        @click="toggleBookmark"
-                                        data-test="bookmark"
-                                    >
-                                        <component
-                                            v-if="
-                                                !(
-                                                    content.parentPostType &&
-                                                    content.parentPostType == PostType.Page
-                                                )
-                                            "
-                                            :is="
-                                                isBookmarked
-                                                    ? BookmarkIconSolid
-                                                    : BookmarkIconOutline
-                                            "
-                                            class="h-6 w-6 cursor-pointer"
-                                            :class="{ 'text-yellow-500': isBookmarked }"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="text-center text-sm text-zinc-800 dark:text-slate-200"
-                                v-if="content.summary"
-                            >
-                                {{ content.summary }}
-                            </div>
                         </div>
+
+                        <!-- Bookmark Button -->
+                        <button
+                            v-if="
+                                !(content.parentPostType && content.parentPostType == PostType.Page)
+                            "
+                            @click="toggleBookmark"
+                            data-test="bookmark"
+                            class="flex items-center transition-colors"
+                        >
+                            <component
+                                :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                class="h-5 w-5"
+                                :class="{
+                                    'text-yellow-500': isBookmarked,
+                                    'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
+                                        !isBookmarked,
+                                }"
+                            />
+                        </button>
                     </div>
 
                     <div
-                        class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                        class="mt-6 flex flex-wrap justify-center gap-2"
                         v-if="categoryTags.length"
                     >
                         <span
@@ -876,9 +883,10 @@ watch([isLoading, content, is404], async () => {
                     >
                         <div
                             v-html="text"
-                            class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                            class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{
-                                'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                                'border-t border-zinc-100 pt-8 dark:border-slate-800':
+                                    categoryTags.length == 0,
                             }"
                         ></div> </LHighlightable
                     ><br />
