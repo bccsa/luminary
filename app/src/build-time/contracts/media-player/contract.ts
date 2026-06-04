@@ -29,20 +29,3 @@ export type MediaPlayerService = {
     onStateChange(cb: (state: MediaPlayerState) => void): () => void;
     setNowPlaying?(info: NowPlayingInfo): void;
 };
-
-// vue component with props that tells durations, current, events...
-export type MediaPlayerComponent = Component<{
-    duration: number;
-    currentTime: number;
-    isPlaying: boolean;
-    onPlay: () => void;
-    onPause: () => void;
-    onTimeUpdate: (currentTime: number) => void;
-    onDurationChange: (duration: number) => void;
-    onError: (error: Error) => void;
-    onEnded: () => void;
-    onSeeking: (time: number) => void;
-    onSeeked: (time: number) => void;
-    onVolumeChange: (volume: number) => void;
-    onPlaybackRateChange: (playbackRate: number) => void;
-}>;
