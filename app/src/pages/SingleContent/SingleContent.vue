@@ -714,10 +714,10 @@ watch([isLoading, content, is404], async () => {
                     v-else-if="!isLoading && content"
                 >
                     <div class="flex w-full flex-col items-center">
-                        <div class="mt-6 flex flex-col gap-4 text-center">
+                        <div class="mt-1 flex flex-col gap-4 text-center md:mt-4">
                             <div class="flex flex-row items-start justify-center gap-2">
                                 <h1
-                                    class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-slate-50 lg:text-4xl"
+                                    class="text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
                                 >
                                     {{ content.title }}
                                 </h1>
@@ -733,7 +733,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
                     </div>
 
-                    <div class="mt-8">
+                    <div class="mt-5">
                         <IgnorePagePadding
                             :mobileOnly="true"
                             :ignoreTop="true"
@@ -745,7 +745,7 @@ watch([isLoading, content, is404], async () => {
                             />
                             <div
                                 v-else-if="content.parentId || content.parentImageData"
-                                class="relative cursor-pointer"
+                                class="relative cursor-pointer overflow-hidden"
                                 @click="
                                     () => {
                                         if (content)
@@ -790,10 +790,9 @@ watch([isLoading, content, is404], async () => {
                         </IgnorePagePadding>
                     </div>
 
-                    <!-- Summary Section (moved before metadata) -->
                     <div
                         v-if="content.summary"
-                        class="mt-8 flex justify-center"
+                        class="mt-6 flex justify-center"
                     >
                         <p
                             class="max-w-2xl text-center text-lg leading-relaxed text-zinc-600 dark:text-slate-300"
@@ -805,12 +804,12 @@ watch([isLoading, content, is404], async () => {
                     <!-- Metadata Section (after image) -->
                     <div class="mt-6 flex flex-col items-center gap-4">
                         <div
-                            class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t border-zinc-100 px-8 pt-6 text-sm text-zinc-500 dark:border-slate-800 dark:text-slate-400"
+                            class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
                         >
                             <!-- Author -->
                             <div
                                 v-if="content.author"
-                                class="flex items-center font-medium text-zinc-900 after:px-2 after:font-normal after:text-zinc-300 after:content-['•'] last:after:hidden dark:text-slate-100 dark:after:text-slate-700"
+                                class="flex items-center after:px-2 after:font-normal after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
                             >
                                 By {{ content.author }}
                             </div>
