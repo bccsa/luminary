@@ -44,6 +44,20 @@ const cardStyle = computed(() => ({
         ? `${props.languageSelectorHeight ?? 0}px`
         : "0px",
 }));
+
+// Suggest the translation's title (or slug) as the download filename, stripped of
+// characters that are invalid in filenames. Returns undefined when there is nothing
+// usable so rte-vue falls back to its default "document".
+const downloadFilename = computed(() => {
+    const raw = content.value?.title?.trim() || content.value?.slug?.trim();
+    if (!raw) return undefined;
+    return (
+        raw
+            .replace(/[/\\?%*:|"<>]/g, "")
+            .replace(/\s+/g, " ")
+            .trim() || undefined
+    );
+});
 </script>
 
 <template>
@@ -61,6 +75,7 @@ const cardStyle = computed(() => ({
                 class="mb-0 lg:mb-16"
                 v-model:text="content.text"
                 v-model:text-language="content.language"
+                :download-filename="downloadFilename"
                 :disabled="disabled"
                 data-test="richTextEditor"
             />

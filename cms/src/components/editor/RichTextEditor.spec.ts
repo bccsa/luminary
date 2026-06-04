@@ -368,4 +368,80 @@ describe("RichTextEditor", () => {
             expect(html).not.toContain("Drop file to insert content");
         });
     });
+
+    describe("download and copy integration", () => {
+        it("renders a download button with the ArrowDownTrayIcon", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "<p>Some content</p>",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            const downloadButton = wrapper.find('button[title="Download"]');
+            expect(downloadButton.exists()).toBe(true);
+            // The button should contain an SVG icon, not a text label
+            expect(downloadButton.find("svg").exists()).toBe(true);
+            expect(downloadButton.find("span").exists()).toBe(false);
+        });
+
+        it("renders a copy button with the ClipboardDocumentIcon", async () => {
+            const wrapper = mount(RichTextEditor, {
+                props: {
+                    disabled: false,
+                    text: "<p>Some content</p>",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            const copyButton = wrapper.find('button[title="Copy"]');
+            expect(copyButton.exists()).toBe(true);
+            // The button should contain an SVG icon, not a text label
+            expect(copyButton.find("svg").exists()).toBe(true);
+            expect(copyButton.find("span").exists()).toBe(false);
+        });
+
+        it("opens a document-type menu when the download button is clicked", async () => {
+            const wrapper = mount(RichTextEditor, {
+                attachTo: document.body,
+                props: {
+                    disabled: false,
+                    text: "<p>Some content</p>",
+                    textLanguage: "lang-eng",
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find(".tiptap").exists()).toBe(true);
+            });
+
+            await wrapper.find('button[title="Download"]').trigger("click");
+
+            // The menu is teleported to <body>, so query the document directly.
+            await waitForExpect(() => {
+                const labels = Array.from(document.querySelectorAll('[role="menuitem"]')).map(
+                    (el) => el.textContent?.trim(),
+                );
+                expect(labels).toEqual(
+                    expect.arrayContaining([
+                        "Markdown (.md)",
+                        "Word (.docx)",
+                        "OpenDocument Text (.odt)",
+                        "OpenDocument (.odf)",
+                    ]),
+                );
+            });
+
+            wrapper.unmount();
+        });
+    });
 });
