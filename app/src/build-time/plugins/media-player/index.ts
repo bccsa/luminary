@@ -17,4 +17,9 @@ export function installMediaPlayer(app: App, options: MediaPlayerInstallOptions 
 }
 
 export { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
-export type { MediaPlayerService, MediaPlayerState, NowPlayingInfo } from "@/build-time/contracts/media-player/contract";
+export type {
+    MediaPlayerService,
+    MediaPlayerState,
+    MediaPlayerError,
+    NowPlayingInfo,
+} from "@/build-time/contracts/media-player/contract";

@@ -31,7 +31,10 @@ import {
 } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
+import type { MediaPlayerState } from "@/build-time/contracts/media-player/contract";
 import WebMediaAudioElement from "@/build-time/plugins/media-player/WebMediaAudioElement.vue";
+
+const MEDIA_ERR_NETWORK = 2;
 
 const router = useRouter();
 const mediaPlayerService = inject(MediaPlayerKey);
@@ -129,48 +132,28 @@ const availableAudioLanguages = computed(() => {
     return availableLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
 });
 
-// Enhanced error handling
-const handleAudioError = (errorEvent?: Event) => {
-    const audio = audioElement.value;
-    if (!audio) return;
+const applyMediaPlayerState = (state: MediaPlayerState) => {
+    volume.value = state.volume;
+    isMuted.value = state.isMuted;
 
-    isLoading.value = false;
-    isPlaying.value = false;
-
-    let errorMessage = "Audio playback failed";
-    canRetry.value = true;
-
-    if (audio.error) {
-        switch (audio.error.code) {
-            case MediaError.MEDIA_ERR_NETWORK:
-                errorMessage = "Network error. Please check your internet connection.";
-                connectionError.value = true;
-                break;
-            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMessage = "Audio format not supported by your browser.";
-                canRetry.value = false;
-                break;
-            case MediaError.MEDIA_ERR_ABORTED:
-                errorMessage = "Audio loading was cancelled.";
-                break;
-            case MediaError.MEDIA_ERR_DECODE:
-                errorMessage = "Audio file is corrupted or cannot be decoded.";
-                canRetry.value = false;
-                break;
-            default:
-                errorMessage = "Unknown audio error occurred.";
+    if (state.error) {
+        audioError.value = state.error.message;
+        canRetry.value = state.error.retryable;
+        if (state.error.code === MEDIA_ERR_NETWORK) {
+            connectionError.value = true;
         }
+        isLoading.value = false;
+        isPlaying.value = false;
+    } else {
+        audioError.value = null;
     }
-
-    audioError.value = errorMessage;
-    console.error("Audio error:", audio.error, errorEvent);
 };
 
 const retryAudio = async () => {
     if (!audioElement.value || retryCount.value >= maxRetries) return;
 
     retryCount.value++;
-    audioError.value = null;
+    mediaPlayerService.clearError();
     connectionError.value = false;
     isLoading.value = true;
 
@@ -187,7 +170,6 @@ const retryAudio = async () => {
         retryCount.value = 0; // Reset on success
     } catch (err) {
         console.error("Retry failed:", err);
-        handleAudioError();
     } finally {
         isLoading.value = false;
     }
@@ -195,26 +177,13 @@ const retryAudio = async () => {
 
 // Volume controls
 const toggleMute = () => {
-    if (!audioElement.value) return;
-
-    isMuted.value = !isMuted.value;
-    audioElement.value.muted = isMuted.value;
+    mediaPlayerService.setMuted(!isMuted.value);
     resetAutoHideTimer();
 };
 
 const changeVolume = (delta: number) => {
-    if (!audioElement.value) return;
-
     const newVolume = Math.max(0, Math.min(1, volume.value + delta));
-    volume.value = newVolume;
-    audioElement.value.volume = newVolume;
-
-    // Unmute if volume is changed
-    if (newVolume > 0 && isMuted.value) {
-        isMuted.value = false;
-        audioElement.value.muted = false;
-    }
-
+    mediaPlayerService.setVolume(newVolume);
     resetAutoHideTimer();
 };
 
@@ -252,18 +221,7 @@ const startVolumeSliding = (e: MouseEvent | TouchEvent) => {
         endEvent.preventDefault();
         isVolumeSliding.value = false;
 
-        // Apply the final volume
-        const newVolume = volumeSlideValue.value;
-        volume.value = newVolume;
-        if (audioElement.value) {
-            audioElement.value.volume = newVolume;
-
-            // Auto-unmute if volume > 0
-            if (newVolume > 0 && isMuted.value) {
-                isMuted.value = false;
-                audioElement.value.muted = false;
-            }
-        }
+        mediaPlayerService.setVolume(volumeSlideValue.value);
 
         // Remove event listeners
         document.removeEventListener("mousemove", handleMove as EventListener);
@@ -345,10 +303,8 @@ const togglePlay = async () => {
             isLoading.value = true;
             await mediaPlayerService.play();
             isPlaying.value = true;
-            audioError.value = null; // Clear any previous errors
         } catch (err) {
             console.error("Play failed:", err);
-            handleAudioError();
         } finally {
             isLoading.value = false;
         }
@@ -711,7 +667,11 @@ const formatTime = (time: number) => {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 };
 
+let unsubscribeMediaPlayer: (() => void) | undefined;
+
 onMounted(() => {
+    unsubscribeMediaPlayer = mediaPlayerService.onStateChange(applyMediaPlayerState);
+
     // Load available languages
     loadAvailableLanguages();
 
@@ -737,7 +697,6 @@ onMounted(() => {
         // Playback state events
         el.addEventListener("play", () => {
             isPlaying.value = true;
-            audioError.value = null;
         });
 
         el.addEventListener("pause", () => {
@@ -756,10 +715,9 @@ onMounted(() => {
 
         el.addEventListener("loadedmetadata", () => {
             duration.value = el.duration;
-            // Apply stored volume and playback rate
-            el.volume = volume.value;
-            el.muted = isMuted.value;
-            el.playbackRate = playbackRate.value;
+            mediaPlayerService.setVolume(volume.value);
+            mediaPlayerService.setMuted(isMuted.value);
+            mediaPlayerService.setPlaybackRate(playbackRate.value);
 
             // Restore saved progress (rewind 30 seconds as buffer)
             const audioSource = matchAudioFileUrl.value;
@@ -775,7 +733,6 @@ onMounted(() => {
         // Loading events
         el.addEventListener("loadstart", () => {
             isLoading.value = true;
-            audioError.value = null;
             connectionError.value = false;
         });
 
@@ -791,9 +748,6 @@ onMounted(() => {
         el.addEventListener("playing", () => {
             isLoading.value = false;
         });
-
-        // Error handling
-        el.addEventListener("error", handleAudioError);
 
         el.addEventListener("stalled", () => {
             connectionError.value = true;
@@ -828,6 +782,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    unsubscribeMediaPlayer?.();
+
     // Remove keyboard event listeners
     document.removeEventListener("keydown", handleKeyDown);
 
@@ -846,7 +802,7 @@ watch(
             // Reset states when content changes
             currentTime.value = 0;
             duration.value = 0;
-            audioError.value = null;
+            mediaPlayerService.clearError();
             retryCount.value = 0;
             connectionError.value = false;
         }

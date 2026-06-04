@@ -29,12 +29,18 @@ const mockMediaPlayerService: MediaPlayerService = {
     seekTo: () => {},
     seekBy: () => {},
     setPlaybackRate: () => {},
+    setVolume: () => {},
+    setMuted: () => {},
+    clearError: () => {},
     getState: () => ({
         status: "idle",
         isPlaying: false,
         currentTimeSeconds: 0,
         durationSeconds: 0,
         playbackRate: 1,
+        volume: 1,
+        isMuted: false,
+        error: null,
     }),
     onStateChange: () => () => {},
 };
