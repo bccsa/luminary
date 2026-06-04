@@ -801,7 +801,6 @@ watch([isLoading, content, is404], async () => {
                         </p>
                     </div>
 
-                    <!-- Metadata Section (after image) -->
                     <div class="mt-6 flex flex-col items-center gap-4">
                         <div
                             class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
