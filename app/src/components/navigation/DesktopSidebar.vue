@@ -147,7 +147,7 @@ const handleLogin = () => {
         </button>
 
         <!-- Logo -->
-        <div :class="collapsed ? 'flex items-center justify-center px-2 py-5' : 'flex items-center px-4 py-5'">
+        <div :class="collapsed ? 'flex items-center justify-center px-2 py-5' : 'flex items-center px-3 py-5'">
             <RouterLink
                 :to="{ name: 'home' }"
                 class="flex-shrink-0"
