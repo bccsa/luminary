@@ -29,7 +29,10 @@ const tagged = useDexieLiveQueryWithDeps(
         if (!ids || ids.length === 0) return Promise.resolve([] as ContentDto[]);
         return mangoToDexie<ContentDto>(db.docs, {
             selector: {
-                $and: [{ parentId: { $in: ids } }, ...mangoIsPublished(languageIds)],
+                $and: [
+                    { parentId: { $in: ids } },
+                    ...mangoIsPublished(languageIds, { includeScheduled: false }),
+                ],
             },
             $sort: [{ publishDate: "asc" }],
         });

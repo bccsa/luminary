@@ -100,6 +100,7 @@ export type ContentDto = ContentBaseDto & {
     parentTagType?: TagType;
     parentPostType?: PostType;
     parentPublishDateVisible?: boolean;
+    parentShowComingSoon?: boolean;
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
@@ -117,6 +118,7 @@ export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    showComingSoon?: boolean;
     imageBucketId?: Uuid;
     media?: MediaDto;
     mediaBucketId?: Uuid;

@@ -39,6 +39,7 @@ export const mockCategoryDto: TagDto = {
     } as ImageDto,
     tags: [],
     publishDateVisible: false,
+    showComingSoon: false,
 };
 
 export const mockTopicDto: TagDto = {
@@ -64,6 +65,7 @@ export const mockTopicDto: TagDto = {
     } as ImageDto,
     tags: [],
     publishDateVisible: false,
+    showComingSoon: false,
 };
 
 export const mockPostDto: PostDto = {
@@ -87,6 +89,7 @@ export const mockPostDto: PostDto = {
     } as ImageDto,
     tags: ["tag-category1"],
     publishDateVisible: true,
+    showComingSoon: false,
     postType: PostType.Blog,
 };
 
@@ -349,8 +352,9 @@ export const mockLanguageDtoEng: LanguageDto = {
         "explore.title": "Explore",
         "home.newest": "Newest",
         "content.related_title": "Related",
-        "notification.login.title": "Log in",
-        "notification.login.message": "Click here to login / create an account and access more features and/or content",
+        "content.coming_soon": "Coming soon",
+        "notification.login.title": "You are missing out!",
+        "notification.login.message": "Click here to create an account or log in",
         "notification.offline.title": "You are offline.",
         "notification.offline.message":
             "You can still use the app and browse through offline content, but some content (like videos) might not be available.",

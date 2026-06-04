@@ -54,6 +54,28 @@ describe("processPostTagDto", () => {
         expect(contentRes2.docs.length).toBe(0);
     });
 
+    it("cascades showComingSoon from Post to child Content documents", async () => {
+        const postCr = changeRequest_post();
+        postCr.doc._id = "post-cascade-show-coming-soon";
+
+        const contentCr = changeRequest_content();
+        contentCr.doc._id = "content-cascade-show-coming-soon";
+        contentCr.doc.parentId = postCr.doc._id;
+
+        await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
+        await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
+
+        let contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentShowComingSoon).toBeUndefined();
+
+        const postUpdate = JSON.parse(JSON.stringify(postCr)) as ChangeReqDto;
+        postUpdate.doc.showComingSoon = true;
+        await processChangeRequest("test-user", postUpdate, ["group-super-admins"], db);
+
+        contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentShowComingSoon).toBe(true);
+    });
+
     it("accepts a change request for a post with postType 'blog'", async () => {
         const changeRequest: ChangeReqDto = {
             doc: {
@@ -541,6 +563,7 @@ describe("processPostTagDto", () => {
         if (contentDoc.docs.length > 0) {
             expect(contentDoc.docs[0].parentTagType).toBe("category");
             expect(contentDoc.docs[0].parentPinned).toBeFalsy();
+            expect(contentDoc.docs[0].parentShowComingSoon).toBeFalsy();
         }
     });
 
