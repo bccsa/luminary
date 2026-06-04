@@ -627,7 +627,7 @@ watch([isLoading, content, is404], async () => {
 </script>
 
 <template>
-    <BasePage :showBackButton="true">
+    <BasePage :showBackButton="true" desktopTopBar>
         <template
             #quickControls
             v-if="!is404"
@@ -641,7 +641,7 @@ watch([isLoading, content, is404], async () => {
                     <button
                         type="button"
                         name="translationSelector"
-                        class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
+                        class="block cursor-pointer truncate rounded-md px-1.5 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         data-test="translationSelector"
                     >
                         <span class="hidden sm:inline">
@@ -677,21 +677,24 @@ watch([isLoading, content, is404], async () => {
                     />
                 </button>
             </DropdownMenu>
-            <div
-                class="text-zinc-400 dark:text-slate-300"
+            <button
+                type="button"
+                class="cursor-pointer rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                 data-test="themeButton"
+                :aria-label="isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
+                @click="theme = isDarkTheme ? 'light' : 'dark'"
             >
                 <SunIcon
-                    class="h-6 w-6"
                     v-if="isDarkTheme"
-                    @click="theme = 'light'"
+                    class="h-5 w-5"
+                    aria-hidden="true"
                 />
                 <MoonIcon
-                    class="h-6 w-6"
                     v-else
-                    @click="theme = 'dark'"
+                    class="h-5 w-5"
+                    aria-hidden="true"
                 />
-            </div>
+            </button>
         </template>
 
         <NotFoundPage v-if="is404" />

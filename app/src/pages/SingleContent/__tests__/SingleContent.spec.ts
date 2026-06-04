@@ -285,6 +285,9 @@ describe("SingleContent", () => {
     });
 
     it("can add and remove a bookmark", async () => {
+        userPreferencesAsRef.value.bookmarks = [];
+        const notificationStore = useNotificationStore();
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -306,6 +309,16 @@ describe("SingleContent", () => {
                         (b) => b.id === mockEnglishContentDto.parentId,
                     ),
             ).toBe(true);
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "bookmark-added",
+                    title: "Bookmark added",
+                    description: "This content has been added to your bookmarks.",
+                    state: "success",
+                    type: "toast",
+                    timeout: 5000,
+                }),
+            );
         });
 
         await bookmarkButton.trigger("click");
@@ -318,6 +331,8 @@ describe("SingleContent", () => {
                     ),
             ).toBe(false);
         });
+
+        expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
     });
 
     it("displays the author", async () => {

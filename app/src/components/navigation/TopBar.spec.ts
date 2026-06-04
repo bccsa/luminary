@@ -56,14 +56,14 @@ describe("TopBar", () => {
         isAuthPluginInstalled.value = false;
     });
 
-    it("shows menu when logged out", async () => {
+    it("shows the profile menu trigger when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
         });
 
         const wrapper = mount(TopBar);
 
-        expect(wrapper.html()).toContain("Menu");
+        expect(wrapper.find("button[name='profile-menu-btn']").exists()).toBe(true);
     });
 
     it("shows the profile menu when logged out", async () => {
@@ -81,6 +81,9 @@ describe("TopBar", () => {
         const ProfileMenu = wrapper.findComponent({ name: "ProfileMenu" });
 
         expect(ProfileMenu.exists()).toBe(true);
+
+        // The name now lives in the slide-in panel header; open it to assert.
+        await ProfileMenu.find("button[name='profile-menu-btn']").trigger("click");
         expect(ProfileMenu.text()).toContain("Test Person");
     });
 });
