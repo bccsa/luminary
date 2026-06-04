@@ -7,7 +7,15 @@ import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import { DateTime } from "luxon";
-import { db, accessMap, type ContentDto, type RedirectDto, PublishStatus, DocType, RedirectType } from "luminary-shared";
+import {
+    db,
+    accessMap,
+    type ContentDto,
+    type RedirectDto,
+    PublishStatus,
+    DocType,
+    RedirectType,
+} from "luminary-shared";
 import LTextToggle from "../forms/LTextToggle.vue";
 import { Slug } from "@/util/slug";
 import waitForExpect from "wait-for-expect";
@@ -566,5 +574,27 @@ describe("EditContentBasic.vue", () => {
 
         expect(content.value.publishDate).toBeDefined();
         expect(content.value.publishDate).toBe(db.fromIsoDateTime(isoDate));
+    });
+
+    it("fills slug if user unfocuses", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            title: "Some Title",
+            slug: "some-title",
+            status: PublishStatus.Draft,
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+        const slugInput = wrapper.find('[name="slug"]');
+        await slugInput.setValue("");
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("nbiLND!@#$%^&*()  09");
+
+        expect(content.value.slug).toBe("nbilndand-09");
     });
 });

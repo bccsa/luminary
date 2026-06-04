@@ -75,7 +75,6 @@ watch(
         // Auto-update the slug if the title changes when in draft mode (unless the slug has been manually changed)
         if (
             titleChanged &&
-            content.value.status == PublishStatus.Draft &&
             content.value.slug.replace(/-[0-9]*$/g, "") ==
                 Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
         ) {
@@ -95,6 +94,7 @@ watch(
 
 const validateSlug = async () => {
     if (!content.value) return;
+    if (content.value.slug === "") content.value.slug = content.value.title;
     content.value.slug = await Slug.generate(content.value.slug, content.value._id || "");
 };
 
