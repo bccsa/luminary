@@ -24,3 +24,15 @@ declare module "virtual:media-player" {
         options?: { audioPlayerComponent?: Component },
     ): void;
 }
+
+declare module "virtual:demo-banner" {
+    import type { App, Component } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { DemoBannerService } from "@/build-time/contracts/demo-banner/contract";
+
+    export const DemoBannerKey: InjectionKey<DemoBannerService>;
+    export function installDemoBanner(
+        app: App,
+        options?: { bannerComponent?: Component },
+    ): void;
+}
