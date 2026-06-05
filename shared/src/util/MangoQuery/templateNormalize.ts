@@ -211,15 +211,22 @@ function normalizeCriteria(
 }
 
 /**
+ * DJB2 hash of a string → unsigned base-36. Shared by {@link generateTemplateKey}
+ * and HybridQuery's structural response-cache key so both fingerprint identically.
+ */
+export function hashString(str: string): string {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+/**
  * Generate a cache key from a normalized template.
  * Uses JSON.stringify which will include the placeholder structure.
  */
 export function generateTemplateKey(template: MangoSelector, prefix: string): string {
     // Use the same hashing as queryCache but on the template
-    let hash = 5381;
-    const str = JSON.stringify(template);
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
-    }
-    return `${prefix}:${(hash >>> 0).toString(36)}`;
+    return `${prefix}:${hashString(JSON.stringify(template))}`;
 }

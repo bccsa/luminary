@@ -82,6 +82,7 @@ import {
     initHybridQuery,
     postQuery,
 } from "./HybridQuery";
+import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 
 /** Drain pending micro/macrotasks + a tick so the background async work runs. */
 const flush = async () => {
@@ -112,6 +113,7 @@ describe("HybridQuery", () => {
         mocks.validateDeleteCommandMock.mockReturnValue(true);
         mocks.getSocketMock.mockClear();
         mocks.socketDataHandlers.clear();
+        localStorage.clear();
         postHttpMock = vi.fn();
         initHybridQuery({ post: postHttpMock } as any);
     });
@@ -1185,6 +1187,304 @@ describe("HybridQuery", () => {
         // watcher error path (reported to the app error handler), not the
         // constructor — not cleanly assertable in a bare-reactivity harness, so it
         // is documented (README) rather than tested here.
+    });
+
+    describe("response caching (cache: true)", () => {
+        // A Dexie-only synced type keeps the basic tests focused on the seed path (no
+        // POST, no watchers). The seed runs synchronously in the constructor, so an
+        // assertion BEFORE flush() observes the seed; after flush() the merged live
+        // result. Synced types have no remote contribution, so their cached window is
+        // all-local (`remote: []`).
+        const syncedQuery = { selector: { type: "group" } };
+        beforeEach(() => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+        });
+
+        it("default (no cache option) never touches the response cache", async () => {
+            const local = [{ _id: "g1", updatedTimeUtc: 1, type: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+
+            const q = new HybridQuery(syncedQuery);
+            await flush();
+
+            expect(q.output.value).toEqual(local);
+            expect(
+                localStorage.getItem("hqcache:" + structuralCacheKey(syncedQuery)),
+            ).toBeNull();
+        });
+
+        it("seeds output synchronously from a cache hit, before the local read resolves", () => {
+            const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
+            writeResponseCache(structuralCacheKey(syncedQuery), { local: [g1], remote: [] });
+            // Local read stays pending so only the synchronous seed can have run.
+            mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {}));
+
+            const q = new HybridQuery(syncedQuery, { cache: true });
+
+            expect(q.output.value).toEqual([g1]); // painted before any flush
+        });
+
+        it("does NOT reassign output when the live result matches the seed (no re-render)", async () => {
+            const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
+            writeResponseCache(structuralCacheKey(syncedQuery), { local: [g1], remote: [] });
+            // Same _id + updatedTimeUtc ⇒ sameWindow ⇒ output kept.
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "g1", updatedTimeUtc: 5, type: "group" },
+            ]);
+
+            const q = new HybridQuery(syncedQuery, { cache: true });
+            const seededRef = q.output.value;
+            await flush();
+
+            expect(q.output.value).toBe(seededRef); // identical array reference
+        });
+
+        it("reassigns output when the live result differs from the seed", async () => {
+            writeResponseCache(structuralCacheKey(syncedQuery), {
+                local: [{ _id: "g1", updatedTimeUtc: 5, type: "group" }],
+                remote: [],
+            });
+            const fresh = [{ _id: "g1", updatedTimeUtc: 6, type: "group" }]; // newer
+            mocks.mangoToDexieMock.mockResolvedValueOnce(fresh);
+
+            const q = new HybridQuery(syncedQuery, { cache: true });
+            const seededRef = q.output.value;
+            await flush();
+
+            expect(q.output.value).not.toBe(seededRef);
+            expect(q.output.value).toEqual(fresh);
+        });
+
+        it("on a miss, leaves output empty then persists the resolved window split by source", async () => {
+            const local = [{ _id: "g1", updatedTimeUtc: 1, type: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+
+            const q = new HybridQuery(syncedQuery, { cache: true });
+            expect(q.output.value).toEqual([]); // nothing seeded
+            await flush();
+
+            expect(q.output.value).toEqual(local);
+            // Dexie-only ⇒ everything lands in the local bucket.
+            expect(readResponseCache(structuralCacheKey(syncedQuery))).toEqual({
+                local,
+                remote: [],
+            });
+        });
+
+        it("shares one entry across queries that differ only in their values", () => {
+            const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
+            const seedQuery = {
+                selector: { $and: [{ type: "group" }, { _id: { $in: ["g1"] } }] },
+            };
+            const otherQuery = {
+                selector: { $and: [{ type: "group" }, { _id: { $in: ["zz", "yy"] } }] },
+            };
+            writeResponseCache(structuralCacheKey(seedQuery), { local: [g1], remote: [] });
+            mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {})); // keep pending
+
+            const q = new HybridQuery(otherQuery, { cache: true });
+
+            expect(q.output.value).toEqual([g1]); // seeded from the shared structural entry
+        });
+
+        it("a provably-empty query does not seed (and clears output)", async () => {
+            const emptyQuery = {
+                selector: { $and: [{ type: "group" }, { parentTags: { $elemMatch: { $in: [] } } }] },
+            };
+            // The populated form shares this structural key; pre-seed under it.
+            writeResponseCache(structuralCacheKey(emptyQuery), {
+                local: [{ _id: "g1", updatedTimeUtc: 5, type: "group" }],
+                remote: [],
+            });
+
+            const q = new HybridQuery(emptyQuery, { cache: true });
+            expect(q.output.value).toEqual([]); // seed skipped behind the empty guard
+            await flush();
+
+            expect(q.output.value).toEqual([]);
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+        });
+
+        describe("content branch (split seed across local + remote)", () => {
+            // publishDate desc: L (local, above cutoff) heads the window, R (remote
+            // older tail, below cutoff 1000) follows.
+            const contentQuery = {
+                selector: { type: "content" },
+                $sort: [{ publishDate: "desc" as const }],
+            };
+            const L = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+            const R = { _id: "R1", updatedTimeUtc: 3, publishDate: 500, type: "content" };
+
+            it("does NOT collapse to local-only between the Dexie read and the API supplement", async () => {
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]); // real local = L
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // seeded
+
+                await flush(); // local lands; POST still pending
+                // Crucially still BOTH — the seeded remote bridges the gap, no collapse.
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]);
+            });
+
+            it("keeps the output reference when local+remote both match the seed", async () => {
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]);
+                postHttpMock.mockResolvedValueOnce({ docs: [R] });
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                const seededRef = q.output.value;
+                await flush();
+
+                expect(q.output.value).toBe(seededRef); // unchanged through both stages
+            });
+
+            it("supersedes a seeded older-tail doc the POST no longer returns", async () => {
+                // Seed has R (older tail). This session the POST returns R2 instead —
+                // R was unpublished. It must NOT linger in the merged window.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]);
+                const R2 = { _id: "R2", updatedTimeUtc: 4, publishDate: 600, type: "content" };
+                postHttpMock.mockResolvedValueOnce({ docs: [R2] });
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                await flush();
+
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R2"]); // R gone
+            });
+
+            it("persists the settled window split by source (local vs older-tail remote)", async () => {
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]); // cache miss
+                postHttpMock.mockResolvedValueOnce({ docs: [R] });
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                await flush();
+
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]);
+                expect(readResponseCache(structuralCacheKey(contentQuery))).toEqual({
+                    local: [L],
+                    remote: [R],
+                });
+            });
+
+            it("drops the seeded remote when the local read needs no API (id-list fully local)", async () => {
+                const idQuery = {
+                    selector: { $and: [{ type: "content" }, { _id: { $in: ["L1"] } }] },
+                };
+                // Seed carries a stale older-tail doc that the new query won't fetch.
+                writeResponseCache(structuralCacheKey(idQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]); // requested id present locally
+
+                const q = track(new HybridQuery(idQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "R1"]); // seeded
+
+                await flush(); // all ids local ⇒ no POST ⇒ _dropSeededRemote runs
+                expect(postHttpMock).not.toHaveBeenCalled();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // stale R1 gone
+            });
+        });
+
+        describe("live mode", () => {
+            const emit = async (docs: any[]) => {
+                mocks.liveRefs[0]!.ref.value = docs;
+                await flush();
+            };
+            const contentQuery = {
+                selector: { type: "content" },
+                $sort: [{ publishDate: "desc" as const }],
+            };
+            const L = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+            const R = { _id: "R1", updatedTimeUtc: 3, publishDate: 500, type: "content" };
+
+            it("seeds, then a live local emission does not collapse the window before the POST", async () => {
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { live: true, cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // synchronous seed
+
+                await emit([L]); // first live emission lands; POST still pending
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // no collapse
+            });
+
+            it("keeps a socket upsert when the POST supersedes the seeded remote", async () => {
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                let resolvePost!: (v: any) => void;
+                postHttpMock.mockReturnValueOnce(
+                    new Promise((res) => {
+                        resolvePost = res;
+                    }),
+                );
+
+                const q = track(new HybridQuery(contentQuery, { live: true, cache: true }));
+                await emit([L]); // decides API ⇒ POST in flight, socket listener attached
+
+                // A socket upsert (matches the supplement selector) lands before the POST.
+                const R2 = { _id: "R2", updatedTimeUtc: 7, publishDate: 400, type: "content" };
+                mocks.emitSocket([R2]);
+                await flush();
+                expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "R1", "R2"]);
+
+                // POST resolves; R was unpublished server-side and returns R3 instead.
+                const R3 = { _id: "R3", updatedTimeUtc: 8, publishDate: 300, type: "content" };
+                resolvePost({ docs: [R3] });
+                await flush();
+
+                // Seeded R1 dropped; socket R2 kept; POST R3 added.
+                expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "R2", "R3"]);
+            });
+        });
+
+        describe("API-only type", () => {
+            const apiQuery = { selector: { type: "redirect" } };
+
+            it("seeds the remote contribution, then the POST supersedes a stale seeded doc", async () => {
+                const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
+                writeResponseCache(structuralCacheKey(apiQuery), { local: [], remote: [r1] });
+                const r2 = { _id: "r2", updatedTimeUtc: 2, type: "redirect" };
+                postHttpMock.mockResolvedValueOnce({ docs: [r2] });
+
+                const q = track(new HybridQuery(apiQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["r1"]); // synchronous seed
+                expect(mocks.mangoToDexieMock).not.toHaveBeenCalled(); // no Dexie read
+
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["r2"]); // POST superseded r1
+            });
+        });
+
+        describe("reactive thunk", () => {
+            it("re-seeds from each generation's own structural entry on a dep change", async () => {
+                // Two structurally-DIFFERENT shapes ⇒ two cache entries.
+                const unpinnedKey = structuralCacheKey({ selector: { type: "group" } });
+                const pinnedKey = structuralCacheKey({
+                    selector: { $and: [{ type: "group" }, { parentPinned: 1 }] },
+                });
+                const g1 = { _id: "g1", updatedTimeUtc: 1, type: "group" };
+                const g2 = { _id: "g2", updatedTimeUtc: 2, type: "group" };
+                writeResponseCache(unpinnedKey, { local: [g1], remote: [] });
+                writeResponseCache(pinnedKey, { local: [g2], remote: [] });
+                // Dexie reads stay pending so only the synchronous seed is observable.
+                mocks.mangoToDexieMock.mockReturnValue(new Promise(() => {}));
+
+                const pinned = ref(false);
+                const q = track(
+                    new HybridQuery(
+                        () =>
+                            pinned.value
+                                ? { selector: { $and: [{ type: "group" }, { parentPinned: 1 }] } }
+                                : { selector: { type: "group" } },
+                        { cache: true },
+                    ),
+                );
+                expect(q.output.value.map((d) => d._id)).toEqual(["g1"]); // gen 1 seed
+
+                pinned.value = true;
+                await flush(); // dep change ⇒ rebuild ⇒ gen 2
+                expect(q.output.value.map((d) => d._id)).toEqual(["g2"]); // gen 2 seed
+            });
+        });
     });
 });
 
