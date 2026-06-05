@@ -72,8 +72,9 @@ const q = new HybridQuery<ContentDto>({
 const q = new HybridQuery<ContentDto>(query, { live: true });
 ```
 
-`HybridQueryOptions = { live?: boolean }` is a second constructor argument
-(default `live: false` — one-shot, the original behaviour). With `live: true`,
+`HybridQueryOptions = { live?: boolean; cache?: boolean }` is a second constructor
+argument (`cache` is covered under "Response caching" below; default `live: false`
+— one-shot, the original behaviour). With `live: true`,
 the **local Dexie source** is read reactively via `useDexieLiveQuery`: every
 IndexedDB change re-runs the query, replaces the local contribution wholesale
 (so **local deletions drop out of `output`**), and re-applies the same dedup +
@@ -151,6 +152,58 @@ update via the global `bulkPut → Dexie → liveQuery` path.
 - **Re-work `applySocketData`** onto `mangoCompile`-from-sync-queries, retiring the
   deprecated `ApiSearchQuery`/`/search` coupling and aligning the codebase on one
   changefeed-filtering approach.
+
+### Response caching (opt-in)
+
+```ts
+const q = new HybridQuery<ContentDto>(query, { cache: true });
+```
+
+With `{ cache: true }`, `HybridQuery` **seeds its two contributions from the last
+persisted window on (re)build, then persists each new window back** — moving the
+manual "cached initial value, update when the slow query resolves" pattern the
+overview pages hand-roll today into the query layer. Independent of `live`, and
+works for both static and thunk queries.
+
+- **Synchronous first paint.** The seed is read from **`localStorage`** (not
+  IndexedDB) inside `_run`, *before* any local/remote read for the generation —
+  so a remount paints the cached window on the **first frame**, with no race and
+  no race-gating. localStorage also avoids contending with sync on IndexedDB,
+  which is busiest exactly at startup (when the seed matters most).
+- **Seeds the contributions, not `output` — so the seed never collapses.** The
+  persisted window is stored **split by source** (`{ local, remote }`): the `local`
+  docs seed `_local` and the older-tail `remote` docs seed `_remote`, then a
+  `_recompute` paints the merged window. Because the seed flows *through* the normal
+  merge pipeline (not laid on top of `output`), the first real Dexie read —
+  `_setLocal`, which replaces `_local` wholesale — recomputes against the *still-seeded*
+  `_remote`, so the view doesn't shrink to local-only while the API supplement is in
+  flight. The seeded remote is superseded when the POST resolves (`_setRemote` drops
+  seeded docs the POST didn't re-supply, keeping any socket upserts) — or dropped if
+  the local read needs no API (`_dropSeededRemote`). Seeding `output` directly would
+  paint full → local-only → full; seeding the contributions paints full → full.
+- **Auto-fingerprinted by query *shape*.** The cache key is
+  `structuralCacheKey(query)` — the selector is run through `normalizeSelector`
+  so runtime **values** (language / pinned id lists, …) collapse to placeholders,
+  and `$sort`/`$limit`/`use_index` are folded in verbatim. Queries that differ
+  only in their values **share one entry**, so the key space stays small and fixed
+  (~one per call-site shape) — **no eviction/TTL needed**. (This mirrors the fixed
+  hand-named keys the app used before, but derived automatically.)
+  - *Collision caveat:* two **different** call sites with an identical shape but a
+    different constant (e.g. `parentTagType` Category vs Topic) map to the same
+    entry. That only affects the first-paint seed — the live query supersedes it —
+    so the worst case is a brief flash that self-corrects.
+- **Never a needless re-render.** `_recompute`'s `sameWindow` guard compares the
+  recomputed window against the seeded one: when the live result matches (same `_id`
+  + `updatedTimeUtc`), `output` is **not** reassigned, preserving referential
+  identity. Full docs are stored for this reason — a trimmed seed would `sameWindow`
+  -match the live docs and never be replaced, leaving the UI on docs missing
+  `text`/`fts`.
+- **Bounded & safe.** Writes fire only on a real visible change (not every socket
+  batch / live emit) and never from the provably-empty branch (so a transient empty
+  `$in` can't clobber a good entry). Each entry is capped to the query's `$limit`
+  (or 50) docs **total** across both buckets (local kept first), and writes are
+  wrapped against `QuotaExceededError` — on overflow the feature degrades to "no
+  seed", never throwing onto the recompute path.
 
 ### `useHybridQuery<T>(query, options?)` — composable
 

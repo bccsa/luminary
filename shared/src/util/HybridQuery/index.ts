@@ -6,3 +6,4 @@ export {
     postQuery,
 } from "./HybridQuery";
 export { useHybridQuery } from "./useHybridQuery";
+export { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";

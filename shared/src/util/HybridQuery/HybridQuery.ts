@@ -28,6 +28,7 @@ import {
     toDeleteSelector,
     typeIsInSyncList,
 } from "./queryIntrospection";
+import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 
 /**
  * Cap for remote (`/query`) responses when the caller omits `$limit`. Prevents an
@@ -108,6 +109,27 @@ export type HybridQueryOptions = {
      * + socket) or one-shot. See the class docs for the full matrix.
      */
     live?: boolean;
+
+    /**
+     * When `true`, **response caching** is on: each (re)build seeds the local +
+     * remote contributions synchronously from the last persisted window for this
+     * query's *shape* (so a remount paints the merged result instantly, before the
+     * local read resolves — and without collapsing to local-only while the API
+     * supplement is in flight), and every visible change is persisted back. Off by
+     * default.
+     *
+     * The cache key is a **structural fingerprint** — runtime values (language /
+     * pinned id lists, …) are stripped, so queries that differ only in their values
+     * share one entry, keeping the key space small (no eviction needed). Persisted
+     * to `localStorage` (synchronous read, no IndexedDB contention). The seed is a
+     * first-paint accelerant only: live/remote data always supersedes it, and
+     * `sameWindow` skips the re-render when the fresh result matches the seed.
+     *
+     * Caveat: two different call sites with an identical query *shape* but a
+     * different constant collide on one entry — harmless beyond a first-paint flash
+     * that self-corrects. See {@link structuralCacheKey}.
+     */
+    cache?: boolean;
 };
 
 /**
@@ -204,6 +226,16 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _limit?: number;
     private _sort?: MangoQuery["$sort"];
     private readonly _live: boolean;
+    // Response caching (opt-in). `_cacheKey` is the current generation's structural
+    // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
+    private readonly _cache: boolean;
+    private _cacheKey = "";
+    // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
+    // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
+    // holds those ids until the first authoritative remote result supersedes them —
+    // or the local read decides no API supplement is needed (`_dropSeededRemote`).
+    private _seededRemoteIds: Set<string> = new Set();
+    private _remoteFromSeed = false;
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
     // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
@@ -231,6 +263,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
+        this._cache = options.cache ?? false;
         this.output = shallowRef<T[]>([]);
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
@@ -281,11 +314,14 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generation++;
         this._local = [];
         this._remote = [];
+        this._remoteFromSeed = false;
+        this._seededRemoteIds.clear();
         this._apiDecided = false;
         this._tombstones.clear();
         this._query = query;
         this._limit = query.$limit;
         this._sort = query.$sort;
+        if (this._cache) this._cacheKey = structuralCacheKey(query);
 
         this._run();
     }
@@ -335,6 +371,30 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 return;
             }
 
+            // Response cache — first-paint seed. Restore the last persisted window's
+            // two CONTRIBUTIONS into `_local`/`_remote` and recompute, so the merged
+            // window paints synchronously, before any local/remote read for this
+            // generation. Seeding the contributions (not `output` directly) is what
+            // prevents a collapse to local-only when the Dexie read lands while the
+            // POST is still in flight: `_setLocal` replaces the seeded local wholesale
+            // (reflecting deletions), while the seeded remote persists until the POST
+            // supersedes it (`_setRemote`) or the local read needs no API
+            // (`_dropSeededRemote`). A miss leaves `_local`/`_remote`/`output`
+            // untouched (preserving the window kept across a reactive rebuild).
+            // Deliberately AFTER the provably-empty guard so an empty-`$in` query —
+            // which shares a structural key with its populated form — never repaints
+            // stale content.
+            if (this._cache) {
+                const seed = readResponseCache<T>(this._cacheKey);
+                if (seed) {
+                    this._local = seed.local;
+                    this._remote = seed.remote;
+                    this._seededRemoteIds = new Set(seed.remote.map((d) => d._id));
+                    this._remoteFromSeed = seed.remote.length > 0;
+                    this._recompute();
+                }
+            }
+
             const type = readType(this._query);
 
             if (type === DocType.Content) {
@@ -354,6 +414,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                             // Live mode: keep the remote supplement live off the
                             // socket changefeed, filtered by the supplement query.
                             if (this._live) this._startRemoteLive(api, DocType.Content, gen);
+                        } else {
+                            // Local fully satisfies the query — no older tail will be
+                            // fetched, so no POST will arrive to supersede a seeded
+                            // remote. Drop it now so a stale older-tail doc can't linger
+                            // in the merged window.
+                            this._dropSeededRemote();
                         }
                     } catch (err) {
                         console.error("[HybridQuery] local update failed:", err);
@@ -591,9 +657,34 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * Merge — not replace — so a socket upsert that lands BEFORE the one-shot POST
      * resolves is not wiped. One-shot behaviour is unchanged: `_remote` starts
      * `[]`, so the first merge equals the POST result.
+     *
+     * Response-cache seed: when `_remote` was seeded from the cache, this first
+     * authoritative POST drops the seeded older-tail docs it did NOT re-supply (e.g.
+     * since-deleted), while keeping anything a socket upsert added after the seed —
+     * then unions in its own result.
      */
     private _setRemote(remote: T[]): void {
-        this._remote = mergeById(this._remote, remote);
+        if (this._remoteFromSeed) {
+            this._remoteFromSeed = false;
+            const keep = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
+            this._seededRemoteIds.clear();
+            this._remote = mergeById(keep, remote);
+        } else {
+            this._remote = mergeById(this._remote, remote);
+        }
+        this._recompute();
+    }
+
+    /**
+     * Drop response-cache-seeded remote docs once the local read has decided no API
+     * supplement is needed (so no POST will arrive to supersede them), keeping any
+     * socket upserts added since the seed. No-op when nothing was seeded.
+     */
+    private _dropSeededRemote(): void {
+        if (!this._remoteFromSeed) return;
+        this._remoteFromSeed = false;
+        this._remote = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
+        this._seededRemoteIds.clear();
         this._recompute();
     }
 
@@ -631,6 +722,25 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // Mutate the output ref only when the visible window actually changed —
         // saves a Vue re-render for socket batches (and local emissions) that
         // don't affect the sorted/limited view.
-        if (!sameWindow(windowed, this.output.value)) this.output.value = windowed;
+        if (!sameWindow(windowed, this.output.value)) {
+            this.output.value = windowed;
+            // Persist the window for the next mount's first-paint seed, SPLIT by
+            // source: docs backed by `_local` go to `local` (the next real read
+            // replaces them wholesale), the older-tail remainder to `remote` (which
+            // persists across that read so the seed never collapses to local-only).
+            // Bounded to real visible changes, and never reached from the
+            // provably-empty branch (it returns before `_recompute`).
+            if (this._cache) {
+                const localIds = new Set(this._local.map((d) => d._id));
+                writeResponseCache(
+                    this._cacheKey,
+                    {
+                        local: windowed.filter((d) => localIds.has(d._id)),
+                        remote: windowed.filter((d) => !localIds.has(d._id)),
+                    },
+                    this._limit,
+                );
+            }
+        }
     }
 }
