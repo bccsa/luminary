@@ -72,7 +72,7 @@ vi.mock("../useDexieLiveQuery/useDexieLiveQuery", () => ({
     useDexieLiveQuery: mocks.useDexieLiveQueryMock,
 }));
 
-import { effectScope, nextTick } from "vue";
+import { effectScope, nextTick, ref } from "vue";
 import { DocType } from "../../types";
 
 import {
@@ -858,6 +858,333 @@ describe("HybridQuery", () => {
             expect(mocks.getSocketMock).not.toHaveBeenCalled();
             expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
         });
+    });
+
+    describe("reactive deps", () => {
+        const contentDoc = (id: string, tag: string, publishDate = 500, updatedTimeUtc = 1) => ({
+            _id: id,
+            type: "content",
+            parentTags: [tag],
+            publishDate,
+            updatedTimeUtc,
+        });
+        // A reactive content-live query driven by `cats` (a string[] ref). An empty
+        // `cats` makes the selector provably-empty (`$elemMatch $in []`).
+        const setup = async (cats: { value: string[] }) => {
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: {
+                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        },
+                    }),
+                    { live: true },
+                ),
+            );
+            await flush();
+            return q;
+        };
+        // Drive the CURRENT generation's first/next local emission.
+        const emitLocal = async (docs: any[]) => {
+            mocks.liveRefs[mocks.liveRefs.length - 1]!.ref.value = docs;
+            await flush();
+        };
+
+        it("rebuilds on dep change: new local subscription + POST selector, socket listener swapped", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([]); // gen-1 first local ⇒ decides API + attaches socket
+            expect(mocks.liveRefs.length).toBe(1);
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(mocks.socketDataHandlers.size).toBe(1);
+            expect((postHttpMock.mock.calls[0]![1] as any).selector.$and).toContainEqual({
+                parentTags: { $elemMatch: { $in: ["A"] } },
+            });
+
+            cats.value = ["B"];
+            await flush();
+            await emitLocal([]); // gen-2 first local
+            expect(mocks.liveRefs.length).toBe(2); // new local subscription
+            expect(postHttpMock).toHaveBeenCalledTimes(2); // new POST
+            expect(mocks.socketDataHandlers.size).toBe(1); // swapped, not doubled
+            expect((postHttpMock.mock.calls[1]![1] as any).selector.$and).toContainEqual({
+                parentTags: { $elemMatch: { $in: ["B"] } },
+            });
+
+            // socket now filters by the NEW selector.
+            mocks.emitSocket([contentDoc("b1", "B", 500, 5)]);
+            expect(q.output.value.map((d) => d._id)).toContain("b1");
+            mocks.emitSocket([contentDoc("a1", "A", 500, 6)]); // matches only the OLD selector
+            expect(q.output.value.map((d) => d._id)).not.toContain("a1");
+        });
+
+        it("does not rebuild when the serialized query is unchanged (de-dupe)", async () => {
+            const cats = ref(["A"]);
+            await setup(cats);
+            await emitLocal([]);
+            const posts = postHttpMock.mock.calls.length;
+
+            cats.value = ["A"]; // new array identity, same content
+            await flush();
+            expect(mocks.liveRefs.length).toBe(1); // no rebuild
+            expect(postHttpMock.mock.calls.length).toBe(posts);
+        });
+
+        it("keeps previous output across a non-empty rebuild until the new query emits", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([contentDoc("a1", "A", 2000, 5)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
+
+            cats.value = ["B"];
+            await flush(); // rebuilt, but gen-2 local not emitted yet
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]); // KEPT
+
+            await emitLocal([contentDoc("b1", "B", 1500, 7)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]); // replaced
+        });
+
+        it("clears output when the new query is provably-empty, and re-attaches when non-empty again", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([contentDoc("a1", "A", 2000, 5)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
+
+            cats.value = []; // ⇒ parentTags $elemMatch $in [] ⇒ provably empty
+            await flush();
+            expect(q.output.value).toEqual([]); // cleared
+            expect(mocks.liveRefs.length).toBe(1); // short-circuited: no new local subscription
+            expect(mocks.socketDataHandlers.size).toBe(0); // no socket listener
+
+            cats.value = ["C"];
+            await flush();
+            await emitLocal([contentDoc("c1", "C", 1500, 7)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["c1"]);
+            expect(mocks.socketDataHandlers.size).toBe(1); // re-attached
+        });
+
+        it("discards an in-flight POST from a superseded generation", async () => {
+            const cats = ref(["A"]);
+            let resolveA!: (v: any) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((res) => (resolveA = res)));
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: {
+                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        },
+                    }),
+                    { live: true },
+                ),
+            );
+            await flush();
+            await emitLocal([]); // gen-1: POST (pending)
+
+            cats.value = ["B"];
+            await flush();
+            await emitLocal([]); // gen-2: POST resolves []
+
+            resolveA({ docs: [contentDoc("stale", "A", 500, 9)] }); // gen-1's late POST
+            await flush();
+            expect(q.output.value.map((d) => d._id)).not.toContain("stale");
+        });
+
+        it("tears down the old generation's liveQuery (a stale ref emission is dropped by the stopped effectScope)", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([contentDoc("a1", "A", 2000, 5)]);
+            const gen1Ref = mocks.liveRefs[0]!.ref;
+
+            cats.value = ["B"];
+            await flush();
+            await emitLocal([contentDoc("b1", "B", 1500, 7)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]);
+
+            gen1Ref.value = [contentDoc("a2", "A", 2000, 8)]; // drive the OLD generation
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]); // unchanged
+        });
+
+        it("dispose() stops dependency tracking", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([]);
+            const posts = postHttpMock.mock.calls.length;
+
+            q.dispose();
+            cats.value = ["B"];
+            await flush();
+            expect(mocks.liveRefs.length).toBe(1); // no new subscription
+            expect(postHttpMock.mock.calls.length).toBe(posts); // no new POST
+            expect(mocks.socketDataHandlers.size).toBe(0); // listener removed
+        });
+
+        it("one-shot mode + thunk re-queries on dep change (snapshot; no liveQuery/socket)", async () => {
+            const cats = ref(["A"]);
+            mocks.mangoToDexieMock.mockResolvedValue([]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+            track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })),
+            ); // no { live } — reactive, but one-shot reads (no liveQuery/socket)
+            await flush();
+            expect(mocks.useDexieLiveQueryMock).not.toHaveBeenCalled(); // one-shot read, not liveQuery
+            expect(mocks.socketDataHandlers.size).toBe(0); // no socket listener
+            const reads = mocks.mangoToDexieMock.mock.calls.length;
+            const posts = postHttpMock.mock.calls.length;
+
+            cats.value = ["B"]; // dep change ⇒ re-query, still one-shot
+            await flush();
+            expect(mocks.mangoToDexieMock.mock.calls.length).toBeGreaterThan(reads); // re-read
+            expect(postHttpMock.mock.calls.length).toBeGreaterThan(posts); // re-POST
+            expect(mocks.useDexieLiveQueryMock).not.toHaveBeenCalled(); // still no liveQuery
+            expect(mocks.socketDataHandlers.size).toBe(0); // still no socket
+        });
+
+        it("one-shot de-dupes a no-op (equal-content) dep change", async () => {
+            const cats = ref(["A"]);
+            mocks.mangoToDexieMock.mockResolvedValue([]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+            track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })),
+            );
+            await flush();
+            const reads = mocks.mangoToDexieMock.mock.calls.length;
+            const posts = postHttpMock.mock.calls.length;
+
+            cats.value = ["A"]; // new array identity, same content ⇒ serialized query unchanged
+            await flush();
+            expect(mocks.mangoToDexieMock.mock.calls.length).toBe(reads); // no re-read
+            expect(postHttpMock.mock.calls.length).toBe(posts); // no re-POST
+        });
+
+        it("discards a late one-shot local read from a superseded generation (onLocal generation guard)", async () => {
+            const cats = ref(["A"]);
+            let resolveA!: (v: any) => void;
+            mocks.mangoToDexieMock.mockReturnValueOnce(new Promise((res) => (resolveA = res))); // gen-1 read pending
+            mocks.mangoToDexieMock.mockResolvedValue([]); // gen-2 read
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })), // one-shot: the un-cancellable mangoToDexie().then(onLocal) path
+            );
+            await flush(); // gen-1 read pending
+
+            cats.value = ["B"];
+            await flush(); // gen-2: read resolves [] → output []
+            expect(q.output.value).toEqual([]);
+
+            // gen-1's un-cancellable read resolves AFTER the rebuild — the gen guard must drop it.
+            resolveA([contentDoc("a-stale", "A", 2000, 9)]);
+            await flush();
+            expect(q.output.value.map((d) => d._id)).not.toContain("a-stale");
+        });
+
+        it("discards a socket batch from a superseded generation (socket cb generation guard)", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats); // live
+            await emitLocal([]); // gen-1 attaches the socket listener
+            const gen1Cb = Array.from(mocks.socketDataHandlers)[0]!; // gen-1 cb (matchP = $in ["A"])
+
+            cats.value = ["B"];
+            await flush();
+            await emitLocal([]); // gen-2
+
+            // Invoke the OLD generation's cb directly with a doc matching gen-1's selector,
+            // so matchP would accept it — only the generation guard can reject it.
+            gen1Cb({ docs: [contentDoc("a-late", "A", 500, 9)] });
+            expect(q.output.value.map((d) => d._id)).not.toContain("a-late");
+        });
+
+        it("api-only branch rebuilds on dep change (POST + socket, no Dexie read)", async () => {
+            const ids = ref(["a"]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+            track(
+                new HybridQuery(() => ({ selector: { type: "redirect", _id: { $in: ids.value } } }), {
+                    live: true,
+                }),
+            );
+            await flush();
+            expect(mocks.useDexieLiveQueryMock).not.toHaveBeenCalled(); // api-only: no local read
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(mocks.socketDataHandlers.size).toBe(1);
+            expect((postHttpMock.mock.calls[0]![1] as any).selector).toEqual({
+                type: "redirect",
+                _id: { $in: ["a"] },
+            });
+
+            ids.value = ["b"];
+            await flush();
+            expect(postHttpMock).toHaveBeenCalledTimes(2); // re-POST
+            expect(mocks.socketDataHandlers.size).toBe(1); // listener swapped, not doubled
+            expect((postHttpMock.mock.calls[1]![1] as any).selector).toEqual({
+                type: "redirect",
+                _id: { $in: ["b"] },
+            });
+        });
+
+        it("api-only offline rebuild keeps the previous selector's result; the new generation POSTs on reconnect", async () => {
+            const ids = ref(["a"]);
+            postHttpMock.mockResolvedValue({ docs: [{ _id: "a1", type: "redirect", updatedTimeUtc: 1 }] });
+            const q = track(
+                new HybridQuery(() => ({ selector: { type: "redirect", _id: { $in: ids.value } } }), {
+                    live: true,
+                }),
+            );
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
+
+            mocks.isConnected.value = false;
+            await flush();
+            postHttpMock.mockClear();
+            postHttpMock.mockResolvedValue({ docs: [{ _id: "b1", type: "redirect", updatedTimeUtc: 2 }] });
+
+            ids.value = ["b"];
+            await flush();
+            expect(postHttpMock).not.toHaveBeenCalled(); // offline ⇒ POST deferred
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]); // kept (prior selector), keep-last-value
+
+            mocks.isConnected.value = true;
+            await flush();
+            expect(postHttpMock).toHaveBeenCalledTimes(1); // new generation POSTs on reconnect
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]);
+        });
+
+        it("a thunk that throws on its first evaluation throws out of the constructor", () => {
+            const bad = ref<string[] | null>(null);
+            expect(
+                () =>
+                    new HybridQuery(
+                        () => ({
+                            selector: {
+                                $and: [
+                                    { type: "content" },
+                                    { parentTags: { $elemMatch: { $in: bad.value!.slice() } } },
+                                ],
+                            },
+                        }),
+                        { live: true },
+                    ),
+            ).toThrow();
+        });
+
+        // Note: a thunk that throws on a LATER evaluation surfaces through Vue's
+        // watcher error path (reported to the app error handler), not the
+        // constructor — not cleanly assertable in a bare-reactivity harness, so it
+        // is documented (README) rather than tested here.
     });
 });
 

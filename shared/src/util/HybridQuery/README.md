@@ -174,8 +174,10 @@ caveats — as `useDexieLiveQuery`:
 - **`<KeepAlive>`.** Disposal fires on real unmount, not on deactivation, so a
   cached ("recycled") page keeps its instance and **socket listener** alive in
   the background until the cache evicts it.
-- **Static query.** Captured once at construction; a changing query means
-  dispose + reconstruct (reactive `deps` are not wired yet).
+- **Reactive query.** A plain `MangoQuery` object is captured once; pass a
+  `() => MangoQuery` **thunk** (reading `ref.value` inside) for a query that
+  rebuilds when its dependencies change — see "Reactive queries (dependency
+  tracking)" below. There is no `deps` array; the thunk's refs are auto-tracked.
 
 ### Other exports
 
@@ -198,6 +200,72 @@ local query (not just HybridQuery) avoids scanning + filtering every row out for
 result that's empty by construction. The check is sound (never skips a query that
 could match) but intentionally incomplete — it does not detect contradictions or
 `$all: []`.
+
+## Reactive queries (dependency tracking)
+
+The query may be a `() => MangoQuery` **thunk**; read `myRef.value` directly inside
+it. When a ref the thunk reads changes, the whole query rebuilds.
+
+A thunk is reactive **in either mode** — the thunk decides *when the query is
+rebuilt*, `live` decides *how the data stays fresh*:
+
+| query form | `live: false` (one-shot) | `live: true` |
+| --- | --- | --- |
+| static `MangoQuery` object | read once | live Dexie + socket; **query fixed** |
+| `() => MangoQuery` thunk | **re-query on each dep change** (snapshot) | live **+ dependency tracking** |
+
+So a static query never re-queries (any mode), a thunk re-queries on every dep
+change (any mode), and `live` adds the continuous `liveQuery` + socket on top. A
+one-shot thunk is the lighter "re-fetch when the params change, but don't hold a
+live subscription" option (no `liveQuery`/socket between changes).
+
+```ts
+const items = useHybridQuery<ContentDto>(
+    () => ({ selector: { parentTags: { $elemMatch: { $in: pinnedCats.value } } } }),
+    { live: true },   // rebuilds whenever pinnedCats changes
+);
+```
+
+### How it works
+
+When the query is a thunk, the constructor watches the **auto-tracked** thunk (Vue
+watch-getter) — regardless of `live`; every `ref.value` the thunk reads is a
+dependency (re-tracked each run, like `computed`, so conditional reads are fine) —
+**no `deps` array**, so you can't forget one. The watcher compares the
+**serialized** query, so it rebuilds only when the query *actually* changes (a ref
+reassigned to an equal-shaped value → no rebuild). Each rebuild is a "generation":
+the previous generation's local read, API POST and (in live mode) socket predicates
+are torn down and re-created together; in-flight POSTs from the previous query are
+discarded by a generation guard.
+
+### Requirements & caveats
+
+- **The thunk must be pure and must not throw on its first call** — it is called
+  more than once per change. A throw on the *initial* evaluation propagates out of
+  the constructor (breaking `<script setup>`); a throw on a *later* evaluation is
+  surfaced through Vue's watcher error path (your app error handler) rather than
+  crashing, and that rebuild is skipped. So guard refs that can be `null`/undefined
+  on first render, and build the selector deterministically (stable key order —
+  normal object-literal builders are fine).
+- **Read the refs *inside* the thunk** — `() => ({ selector: { x: myRef.value } })`,
+  not `const x = myRef.value` captured outside. Only reads inside the thunk are
+  tracked.
+- **To drop a field, OMIT it — never set it to `undefined`.** `{ x: undefined }`
+  means "x must be missing" to Mango (it is *not* the same as an absent `x`), and
+  the rebuild key now distinguishes the two, so an `undefined`-valued field both
+  changes the result set *and* triggers a rebuild — usually not what you intend.
+- **Output on change is kept until the new query produces data** (no flash) —
+  **except** a provably-empty new query clears `output` immediately. Content /
+  synced queries recompute from local Dexie instantly, so they show the *new*
+  query's results right away (offline included). An **api-only** query (a type with
+  no local copy) is the exception: while offline or if the new POST fails, `output`
+  keeps the **previous selector's** result until the next successful POST/reconnect
+  — i.e. it shows data for the prior query, by design (keep-last-value).
+- **No built-in debounce.** Rapid changes rebuild per *distinct* query (last-wins,
+  safe — old POSTs are discarded). For a fast-typing filter, debounce the ref
+  **upstream** (as `useFtsSearch` does); HybridQuery does not debounce.
+- This auto-track thunk form is the **preferred** reactive pattern — the `deps`
+  option on `useDexieLiveQuery` is `@deprecated` in its favour.
 
 ## Routing
 

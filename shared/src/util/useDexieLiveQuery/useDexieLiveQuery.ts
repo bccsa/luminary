@@ -19,6 +19,14 @@ export type UseDexieLiveQueryOptions<
     /**
      * Reactive dependencies; when they change the query re-runs (forwarded to Vue `watch`).
      * Watch options (`immediate`, `deep`, `flush`, …) apply only when `deps` is provided.
+     *
+     * @deprecated For a reactive **hybrid** query (content / API-supplemented),
+     * prefer auto-tracking: use `HybridQuery` / `useHybridQuery` with a
+     * `() => MangoQuery` thunk that reads `ref.value` directly — its dependencies
+     * are auto-tracked, so there is no `deps` array to keep in sync (a stale-query
+     * footgun). For a **pure-local** Dexie read that doesn't need the hybrid
+     * routing, `deps` is still supported (HybridQuery is not a like-for-like swap
+     * there). Existing callers keep working.
      */
     deps?: any;
 } & WatchOptions<Immediate>;

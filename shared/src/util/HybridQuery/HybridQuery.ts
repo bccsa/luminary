@@ -5,6 +5,7 @@ import {
     shallowRef,
     watch,
     type ShallowRef,
+    type WatchStopHandle,
 } from "vue";
 import { db } from "../../db/database";
 import { HttpReq } from "../../rest/http";
@@ -100,6 +101,11 @@ export type HybridQueryOptions = {
      * contribution is additionally kept live by a Socket.io listener; on reconnect
      * that listener re-attaches but the supplement is **not** re-fetched (offline
      * gaps heal on remount). See the module README for the shortcomings.
+     *
+     * **`live` is independent of dependency tracking.** A `() => MangoQuery` thunk
+     * is reactive in *both* modes — it rebuilds whenever a ref it reads changes;
+     * `live` only controls whether each rebuild reads Dexie continuously (liveQuery
+     * + socket) or one-shot. See the class docs for the full matrix.
      */
     live?: boolean;
 };
@@ -127,6 +133,32 @@ export type HybridQueryOptions = {
  * // Pass { live: true } to keep BOTH sources reactive: the local Dexie source
  * // (re-emits on every IndexedDB change) and the remote supplement (Socket.io
  * // live updates). The default is one-shot.
+ * ```
+ *
+ * **Reactive queries (dependency tracking).** A `() => MangoQuery` **thunk** is
+ * reactive — read `ref.value` directly inside it and the query rebuilds when any
+ * ref it reads changes. This is **independent of `live`**: the thunk decides *when
+ * the query is rebuilt*; `live` decides *how the data stays fresh*.
+ *
+ * | query form | `live: false` (one-shot) | `live: true` |
+ * | --- | --- | --- |
+ * | static `MangoQuery` | read once | live Dexie + socket; **query fixed** |
+ * | `() => MangoQuery` thunk | **re-query on each dep change** (snapshot) | live **+ dependency tracking** |
+ *
+ * The refs the thunk reads are auto-tracked (no `deps` array; a serialized-query
+ * compare dedupes no-op changes). Each dep change rebuilds the local read, and (in
+ * live mode) the API POST + socket predicates, discarding in-flight POSTs from the
+ * previous query. In **one-shot** mode a thunk re-queries on each change but is a
+ * snapshot between changes (no liveQuery/socket). `output` is kept across a rebuild
+ * (no flash) unless the new query is provably-empty. The thunk must be **pure** (it
+ * is called more than once per change). See the README "Reactive queries" section.
+ *
+ * ```ts
+ * // reactive: rebuilds whenever pinnedCats changes
+ * const q = new HybridQuery<ContentDto>(
+ *     () => ({ selector: { parentTags: { $elemMatch: { $in: pinnedCats.value } } } }),
+ *     { live: true },
+ * );
  * ```
  *
  * **Core invariant:** the newest content is always present locally — sync
@@ -163,9 +195,14 @@ export type HybridQueryOptions = {
 export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
 
-    private readonly _query: MangoQuery;
-    private readonly _limit?: number;
-    private readonly _sort?: MangoQuery["$sort"];
+    // The query thunk. A plain MangoQuery is normalized to `() => query`. In live
+    // mode it is auto-tracked (re-evaluated when any ref it reads changes); in
+    // one-shot mode it is evaluated exactly once. See the constructor.
+    private readonly _queryFn: () => MangoQuery;
+    // Per-generation query snapshot (reassigned on each rebuild).
+    private _query!: MangoQuery;
+    private _limit?: number;
+    private _sort?: MangoQuery["$sort"];
     private readonly _live: boolean;
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
@@ -180,13 +217,19 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // global bulkPut has deleted the doc); the tombstone is released in `_setLocal`
     // once the fresh Dexie read no longer holds a stale copy.
     private readonly _tombstones = new Map<string, number>();
-    private readonly _disposers = new Set<() => void>();
+    // Monotonic query-version counter. A rebuild (live, dep change) bumps it; any
+    // async work captured from an older generation is discarded by a generation
+    // guard so it can't mutate the new generation's state.
+    private _generation = 0;
+    // Teardown for the CURRENT generation's local/remote/socket subscriptions —
+    // cleared and re-populated on each rebuild. (The top-level query watch is a
+    // separate, instance-level handle: `_stopQueryWatch`.)
+    private readonly _generationDisposers = new Set<() => void>();
+    private _stopQueryWatch?: WatchStopHandle;
     private _disposed = false;
 
-    constructor(query: MangoQuery, options: HybridQueryOptions = {}) {
-        this._query = query;
-        this._limit = query.$limit;
-        this._sort = query.$sort;
+    constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
+        this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
         this.output = shallowRef<T[]>([]);
 
@@ -197,10 +240,53 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // active scope and must call `dispose()` manually.
         if (getCurrentScope()) onScopeDispose(() => this.dispose());
 
-        // Kick off the routing. `_run()` wraps its synchronous routing in
-        // try/catch, and the per-result async work (local read, POST) carries its
-        // own handlers, so a Dexie/postQuery failure cannot surface as an
-        // unhandled rejection.
+        if (typeof query === "function") {
+            // A query THUNK is reactive — independent of `live`. The getter runs the
+            // thunk in a reactive scope so every `ref.value` it reads is auto-tracked;
+            // serializing the result means we rebuild only when the query ACTUALLY
+            // changes (a ref reassigned to an equal-shaped value → no rebuild). The
+            // `immediate` run is generation 1. `live` independently controls whether
+            // each rebuild reads Dexie continuously (liveQuery + socket) or one-shot.
+            this._stopQueryWatch = watch(
+                // Serialize with a sentinel for `undefined` so an `undefined`-valued
+                // field (which JSON.stringify would DROP) can't collapse to the same
+                // key as an absent field — they mean different things to Mango
+                // (`{ x: undefined }` compiles to "x must be missing"), so they must
+                // not be treated as an equal query and skip a rebuild.
+                () => JSON.stringify(this._queryFn(), (_k, v) => (v === undefined ? "\u0000undef" : v)),
+                () => this._rebuild(this._queryFn()),
+                { immediate: true },
+            );
+        } else {
+            // Static query → build once; nothing to track (no inert watch).
+            this._rebuild(this._queryFn());
+        }
+    }
+
+    /**
+     * (Re)build a generation: tear down the previous generation's subscriptions,
+     * snapshot the new query, reset per-generation state, and route. `output` is
+     * deliberately KEPT across a rebuild (no flash) — the provably-empty branch in
+     * `_run` clears it for the one case that never recomputes.
+     */
+    private _rebuild(query: MangoQuery): void {
+        if (this._disposed) return;
+
+        // Snapshot before running so a disposer that self-removes from the set
+        // (the reconnect watcher) can't mutate it mid-iteration.
+        const ds = Array.from(this._generationDisposers);
+        this._generationDisposers.clear();
+        ds.forEach((fn) => fn());
+
+        this._generation++;
+        this._local = [];
+        this._remote = [];
+        this._apiDecided = false;
+        this._tombstones.clear();
+        this._query = query;
+        this._limit = query.$limit;
+        this._sort = query.$sort;
+
         this._run();
     }
 
@@ -212,25 +298,42 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * automatically when the owning Vue scope disposes.
      */
     dispose(): void {
+        if (this._disposed) return;
         this._disposed = true;
-        this._disposers.forEach((fn) => fn());
-        this._disposers.clear();
+        // Stop the top-level query watch FIRST so a dep write racing teardown can't
+        // start a new generation after we've disposed.
+        this._stopQueryWatch?.();
+        const ds = Array.from(this._generationDisposers);
+        this._generationDisposers.clear();
+        ds.forEach((fn) => fn());
     }
 
     // ── internals ────────────────────────────────────────────────────────────
 
     private _run(): void {
+        // Capture the generation so every async/event callback this method wires up
+        // can bail if a later rebuild (or dispose) has superseded it. Most teardown
+        // is structural (effectScope.stop / socket off / watch stop), but the
+        // un-cancellable one-shot `.then(onLocal)`, the awaited POST, and the
+        // synchronous socket fan-out can still fire post-rebuild — hence the guards.
+        const gen = this._generation;
+
         // Outer try/catch guarantees the synchronous routing (readType,
         // typeIsInSyncList, _startLocal / _runApiWhenOnline / _startRemoteLive
-        // setup) cannot surface an error to the constructor's `this._run()` call.
-        // The per-result work (onLocal / _postAndMerge / the socket callback)
-        // carries its own handlers because it runs on a later tick, outside this try.
+        // setup) cannot surface an error to the caller. The per-result work
+        // (onLocal / _postAndMerge / the socket callback) carries its own handlers
+        // because it runs on a later tick, outside this try.
         try {
-            // Unsatisfiable selector (e.g. an empty `$in`) → `output` stays [] and
-            // we skip the Dexie read, the API supplement POST, and the socket
-            // listener. Judged from the SELECTOR (an empty local read alone looks
-            // the same as "nothing synced yet").
-            if (isProvablyEmpty(this._query.selector)) return;
+            // Unsatisfiable selector (e.g. an empty `$in`) → skip the Dexie read,
+            // the API supplement POST, and the socket listener. This branch never
+            // recomputes, so on a REBUILD we must clear any kept `output` here
+            // (judged from the SELECTOR — an empty local read alone looks the same
+            // as "nothing synced yet"). The length guard avoids a spurious set on
+            // the empty initial build.
+            if (isProvablyEmpty(this._query.selector)) {
+                if (this.output.value.length) this.output.value = [];
+                return;
+            }
 
             const type = readType(this._query);
 
@@ -240,16 +343,17 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // update `_local` only — the `_apiDecided` gate keeps the API
                 // one-shot ("exclude live updates from the API").
                 this._startLocal((local) => {
+                    if (gen !== this._generation || this._disposed) return;
                     try {
                         this._setLocal(local);
                         if (this._apiDecided) return;
                         this._apiDecided = true;
                         const api = decideContentApiQuery(this._query, local);
                         if (api) {
-                            void this._runApiWhenOnline(api);
+                            void this._runApiWhenOnline(api, gen);
                             // Live mode: keep the remote supplement live off the
                             // socket changefeed, filtered by the supplement query.
-                            if (this._live) this._startRemoteLive(api, DocType.Content);
+                            if (this._live) this._startRemoteLive(api, DocType.Content, gen);
                         }
                     } catch (err) {
                         console.error("[HybridQuery] local update failed:", err);
@@ -261,6 +365,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             if (typeIsInSyncList(type)) {
                 // Fully-synced type → Dexie only, no API supplement.
                 this._startLocal((local) => {
+                    if (gen !== this._generation || this._disposed) return;
                     try {
                         this._setLocal(local);
                     } catch (err) {
@@ -271,10 +376,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             }
 
             // Non-content type not in syncList → fetch from API only, no Dexie read.
-            void this._runApiWhenOnline(this._query);
+            void this._runApiWhenOnline(this._query, gen);
             // Live mode: these docs never flow through Dexie, so the socket
             // listener is their only live path. Filter the feed by the whole query.
-            if (this._live) this._startRemoteLive(this._query, type);
+            if (this._live) this._startRemoteLive(this._query, type, gen);
         } catch (err) {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection
@@ -308,8 +413,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
         const scope = effectScope(true);
         // Register teardown BEFORE running so a throw during setup is still
-        // covered by dispose().
-        this._disposers.add(() => scope.stop());
+        // covered by dispose() / the next rebuild.
+        this._generationDisposers.add(() => scope.stop());
         scope.run(() => {
             const source = useDexieLiveQuery<T[]>(
                 () => mangoToDexie<T>(db.docs, this._query),
@@ -333,29 +438,32 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         });
     }
 
-    private async _runApiWhenOnline(api: MangoQuery): Promise<void> {
+    private async _runApiWhenOnline(api: MangoQuery, gen: number): Promise<void> {
         if (isConnected.value) {
-            await this._postAndMerge(api);
+            await this._postAndMerge(api, gen);
             return;
         }
         // Offline — defer the POST until `isConnected` flips true. Run-once
-        // guard makes connection-flapping safe. Stored as a disposer so
-        // `dispose()` can cancel a still-pending watcher (e.g. component
-        // unmounted before reconnect).
+        // guard makes connection-flapping safe. Stored as a generation disposer so
+        // a rebuild or `dispose()` can cancel a still-pending watcher.
         let ran = false;
         const stop = watch(isConnected, (connected) => {
             if (!connected || ran) return;
             ran = true;
             stop();
-            this._disposers.delete(stop);
-            void this._postAndMerge(api);
+            this._generationDisposers.delete(stop);
+            void this._postAndMerge(api, gen);
         });
-        this._disposers.add(stop);
+        this._generationDisposers.add(stop);
     }
 
-    private async _postAndMerge(api: MangoQuery): Promise<void> {
+    private async _postAndMerge(api: MangoQuery, gen: number): Promise<void> {
         try {
-            this._setRemote(await postQuery<T>(api));
+            const remote = await postQuery<T>(api);
+            // A rebuild (dep change) or dispose may have superseded this POST while
+            // it was in flight — its result belongs to a dead generation.
+            if (gen !== this._generation || this._disposed) return;
+            this._setRemote(remote);
         } catch (err) {
             console.error("[HybridQuery] remote query failed:", err);
         }
@@ -371,11 +479,20 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * `_runApiWhenOnline`, and we deliberately do **not** re-POST on reconnect
      * (offline gaps are healed on remount — see the README "Shortcomings").
      */
-    private _startRemoteLive(api: MangoQuery, queryType: DocType | undefined): void {
+    private _startRemoteLive(
+        api: MangoQuery,
+        queryType: DocType | undefined,
+        gen: number,
+    ): void {
         const matchP = mangoCompile(api.selector);
         const deleteP = mangoCompile(toDeleteSelector(api.selector, queryType));
         // Stable reference so off() always matches a prior on() (no dup listeners).
-        const cb = (data: ApiDataResponseDto) => this._applySocketData(data, matchP, deleteP);
+        // The generation guard covers the synchronous-fan-out window where a "data"
+        // batch in flight could still call this cb after off() during a rebuild.
+        const cb = (data: ApiDataResponseDto) => {
+            if (gen !== this._generation || this._disposed) return;
+            this._applySocketData(data, matchP, deleteP);
+        };
 
         const stop = watch(
             isConnected,
@@ -388,8 +505,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             { immediate: true },
         );
 
-        this._disposers.add(stop);
-        this._disposers.add(() => getSocket().off("data", cb));
+        this._generationDisposers.add(stop);
+        this._generationDisposers.add(() => getSocket().off("data", cb));
     }
 
     /**

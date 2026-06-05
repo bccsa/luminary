@@ -21,6 +21,27 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  * unmount: the Dexie live-query subscription, the socket listener, and the
  * reconnect watcher all stop. Same contract as `useDexieLiveQuery`.
  *
+ * **Reactive queries (dependency tracking).** A `() => MangoQuery` thunk is
+ * reactive — read `myRef.value` directly inside it and the query rebuilds when a
+ * ref it reads changes. This is **independent of `live`** (which controls
+ * continuous liveness):
+ *
+ * | query form | `live: false` (one-shot) | `live: true` |
+ * | --- | --- | --- |
+ * | static `MangoQuery` | read once | live Dexie + socket; **query fixed** |
+ * | `() => MangoQuery` thunk | **re-query on each dep change** (snapshot) | live **+ dependency tracking** |
+ *
+ * ```ts
+ * const items = useHybridQuery<ContentDto>(
+ *     () => ({ selector: { parentTags: { $elemMatch: { $in: pinnedCats.value } } } }),
+ *     { live: true },   // rebuilds whenever pinnedCats changes
+ * );
+ * ```
+ *
+ * The refs the thunk reads are auto-tracked (no `deps` array); the thunk must be
+ * **pure** (called more than once per change). See the README for the full
+ * contract and caveats (output-on-change, debouncing, …).
+ *
  * **Caveats:**
  * - **Setup-only.** Called outside an effect scope (event handler, `.then`,
  *   module top-level) it will NOT auto-dispose — there is no `dispose()` handle
@@ -29,11 +50,9 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  * - **`<KeepAlive>`.** Disposal fires on real unmount, not on deactivation, so a
  *   cached/"recycled" page keeps its instance (and socket listener) alive in the
  *   background until the cache evicts it.
- * - **Static query.** The query is captured once at construction; a changing
- *   query means dispose + reconstruct (reactive `deps` are not wired yet).
  */
 export function useHybridQuery<T extends BaseDocumentDto = BaseDocumentDto>(
-    query: MangoQuery,
+    query: MangoQuery | (() => MangoQuery),
     options?: HybridQueryOptions,
 ): ShallowRef<T[]> {
     return new HybridQuery<T>(query, options).output;
