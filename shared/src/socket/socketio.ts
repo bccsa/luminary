@@ -1,7 +1,8 @@
 import { io, Socket } from "socket.io-client";
 import { ref } from "vue";
-import { ApiDataResponseDto, DocType } from "../types";
+import { ApiDataResponseDto } from "../types";
 import { db } from "../db/database";
+import { isSyncableDoc } from "../db/isSyncable";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
@@ -61,28 +62,9 @@ class SocketIO {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            // Filter out the data that is not in the requested docTypes array or language IDs array
-            const filtered = data.docs.filter((doc) => {
-                if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
-                return config.syncList?.some((entry) => {
-                    if (!entry.sync) return false; // Do not save documents to indexedDB that should not be synced
-                    if (!entry.contentOnly && entry.type === doc.type) return true;
-                    if (doc.type == DocType.Content && doc.parentType === entry.type) {
-                        // Include content documents for all languages if no language filter is set
-                        if (
-                            !config.appLanguageIdsAsRef ||
-                            !config.appLanguageIdsAsRef.value ||
-                            !config.appLanguageIdsAsRef.value.length
-                        )
-                            return true;
-
-                        // Filter content documents by language if a language filter is set
-                        if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
-                            return true;
-                    }
-                    return false;
-                });
-            });
+            // Filter to docs the client is allowed to store in IndexedDB (shared with
+            // HybridQuery's offline-persistence path — see isSyncableDoc).
+            const filtered = data.docs.filter(isSyncableDoc);
 
             await db.bulkPut(filtered);
         });

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { initSync, sync, setCancelSync, cancelSync } from "./sync";
 import { HttpReq } from "../http";
 import { db } from "../../db/database";
+import { evictStaleBelowCutoff } from "../../db/retention";
 import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
 import { DocType } from "../../types";
@@ -17,6 +18,10 @@ vi.mock("../../db/database", () => ({
         setSyncList: vi.fn(),
         deleteExpired: vi.fn(),
     },
+}));
+
+vi.mock("../../db/retention", () => ({
+    evictStaleBelowCutoff: vi.fn(),
 }));
 
 vi.mock("./syncBatch", () => ({
@@ -1309,6 +1314,7 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).toHaveBeenCalledOnce();
+            expect(evictStaleBelowCutoff).toHaveBeenCalledOnce();
         });
 
         it("should not call db.deleteExpired for a Content full initial sync (firstSync=true)", async () => {
@@ -1333,6 +1339,7 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
+            expect(evictStaleBelowCutoff).not.toHaveBeenCalled();
         });
 
         it("should not call db.deleteExpired for a non-Content update sync", async () => {
@@ -1353,6 +1360,7 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
+            expect(evictStaleBelowCutoff).not.toHaveBeenCalled();
         });
 
         it("should not call db.deleteExpired for a CMS Content update sync", async () => {
@@ -1378,6 +1386,7 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
+            expect(evictStaleBelowCutoff).not.toHaveBeenCalled();
         });
 
         it("should not call db.deleteExpired when syncResult is undefined (cancelled sync)", async () => {
@@ -1397,6 +1406,7 @@ describe("sync module", () => {
             });
 
             expect(db.deleteExpired).not.toHaveBeenCalled();
+            expect(evictStaleBelowCutoff).not.toHaveBeenCalled();
         });
 
         it("resets degenerate chunkTypes at the top of sync() so runtime drift self-heals", async () => {

@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => {
     return {
         mangoToDexieMock: vi.fn<(...args: any[]) => Promise<any[]>>(),
         docsTable: { _docsTableSentinel: true },
+        bulkPut: vi.fn<(...args: any[]) => Promise<any[]>>(() => Promise.resolve([])),
+        touchRetention: vi.fn<(ids: readonly string[]) => void>(),
+        isSyncableDoc: vi.fn<(doc: any) => boolean>(() => true),
         isConnected: ref(true) as { value: boolean },
         syncList: { value: [] as Array<{ chunkType: string }> },
         cutoff: 1000,
@@ -52,7 +55,19 @@ vi.mock("../MangoQuery/mangoToDexie", () => ({
 }));
 
 vi.mock("../../db/database", () => ({
-    db: { docs: mocks.docsTable, validateDeleteCommand: mocks.validateDeleteCommandMock },
+    db: {
+        docs: mocks.docsTable,
+        validateDeleteCommand: mocks.validateDeleteCommandMock,
+        bulkPut: mocks.bulkPut,
+    },
+}));
+
+vi.mock("../../db/retention", () => ({
+    touchRetention: mocks.touchRetention,
+}));
+
+vi.mock("../../db/isSyncable", () => ({
+    isSyncableDoc: mocks.isSyncableDoc,
 }));
 
 vi.mock("../../rest/sync2/state", () => ({
@@ -83,6 +98,7 @@ import {
     postQuery,
 } from "./HybridQuery";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
+import { OPEN_MIN } from "../../rest/sync2/utils";
 
 /** Drain pending micro/macrotasks + a tick so the background async work runs. */
 const flush = async () => {
@@ -111,6 +127,11 @@ describe("HybridQuery", () => {
         mocks.liveRefs.length = 0;
         mocks.validateDeleteCommandMock.mockReset();
         mocks.validateDeleteCommandMock.mockReturnValue(true);
+        mocks.bulkPut.mockClear();
+        mocks.bulkPut.mockResolvedValue([]);
+        mocks.touchRetention.mockClear();
+        mocks.isSyncableDoc.mockReset();
+        mocks.isSyncableDoc.mockReturnValue(true);
         mocks.getSocketMock.mockClear();
         mocks.socketDataHandlers.clear();
         localStorage.clear();
@@ -1484,6 +1505,270 @@ describe("HybridQuery", () => {
                 await flush(); // dep change ⇒ rebuild ⇒ gen 2
                 expect(q.output.value.map((d) => d._id)).toEqual(["g2"]); // gen 2 seed
             });
+        });
+    });
+
+    describe("offline persistence (persistOffline)", () => {
+        const contentQuery = { selector: { type: "content" } };
+
+        it("persists the syncable subset to IndexedDB and stamps retention", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [
+                    { _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" },
+                    { _id: "old2", updatedTimeUtc: 1, publishDate: 400, type: "content" },
+                ],
+            });
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["old1", "old2"]);
+            expect(mocks.touchRetention).toHaveBeenCalledWith(["old1", "old2"]);
+        });
+
+        it("drops non-syncable docs even with the flag (hard floor)", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            mocks.isSyncableDoc.mockImplementation((d: any) => d._id !== "pii");
+            postHttpMock.mockResolvedValueOnce({
+                docs: [
+                    { _id: "ok", updatedTimeUtc: 1, publishDate: 500, type: "content" },
+                    { _id: "pii", updatedTimeUtc: 1, publishDate: 400, type: "user" },
+                ],
+            });
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["ok"]);
+        });
+
+        it("does not persist when persistOffline is off (default)", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+            });
+
+            new HybridQuery(contentQuery);
+            await flush();
+
+            expect(mocks.bulkPut).not.toHaveBeenCalled();
+        });
+
+        it("stamps below-cutoff local docs on recompute for ANY query (not just persistOffline)", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "below", updatedTimeUtc: 1, publishDate: 500, type: "content" },
+                { _id: "above", updatedTimeUtc: 2, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            new HybridQuery(contentQuery);
+            await flush();
+
+            const stamped = mocks.touchRetention.mock.calls.flat(2);
+            expect(stamped).toContain("below");
+            expect(stamped).not.toContain("above");
+        });
+
+        it("swallows a bulkPut rejection: no unhandled throw, output correct, retention STILL stamped", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+            });
+            // Persist fails — must not block the synchronous retention stamp or the UI.
+            mocks.bulkPut.mockReset();
+            mocks.bulkPut.mockRejectedValueOnce(new Error("quota exceeded"));
+
+            const q = new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+
+            // Output still merges local + remote despite the persist failure.
+            expect(q.output.value.map((d) => d._id).sort()).toEqual(["a", "old1"]);
+            // Retention is stamped synchronously — the rejected bulkPut promise must
+            // not gate it (it is awaited separately, fire-and-forget).
+            expect(mocks.touchRetention).toHaveBeenCalledWith(["old1"]);
+            // The rejection is logged via the .catch handler, not surfaced.
+            expect(errSpy).toHaveBeenCalled();
+        });
+
+        it("empty syncable subset: neither bulkPut nor the persist-path retention stamp runs", async () => {
+            // Local read returns above-cutoff content (so recompute's UNCONDITIONAL
+            // below-cutoff stamp does not fire) and isSyncableDoc rejects everything
+            // the POST returns — so the whole persist block is skipped.
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            mocks.isSyncableDoc.mockReturnValue(false);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+            });
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+
+            expect(mocks.bulkPut).not.toHaveBeenCalled();
+            // No retention stamp at all: the persist path is skipped (empty subset)
+            // and recompute's below-cutoff path has no below-cutoff LOCAL doc.
+            expect(mocks.touchRetention).not.toHaveBeenCalled();
+        });
+
+        it("composes with the response cache: persists docs AND writes a localStorage cache entry", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            const R = { _id: "R1", updatedTimeUtc: 3, publishDate: 500, type: "content" };
+            postHttpMock.mockResolvedValueOnce({ docs: [R] });
+
+            const cacheQuery = {
+                selector: { type: "content" },
+                $sort: [{ publishDate: "desc" as const }],
+            };
+            const q = track(
+                new HybridQuery(cacheQuery, { persistOffline: true, cache: true }),
+            );
+            await flush();
+
+            // persistOffline path ran.
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["R1"]);
+            // cache path ran: a hqcache: entry was written for this query's shape.
+            expect(localStorage.getItem("hqcache:" + structuralCacheKey(cacheQuery))).not.toBeNull();
+            expect(readResponseCache(structuralCacheKey(cacheQuery))).toEqual({
+                local: [{ _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" }],
+                remote: [R],
+            });
+            expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]);
+        });
+
+        it("recompute stamping is gated on cutoff: OPEN_MIN cutoff stamps nothing from recompute", async () => {
+            // OPEN_MIN means "no cutoff configured yet" — the whole below-cutoff
+            // stamping block in _recompute is skipped. A below-cutoff-LOOKING local
+            // doc must NOT be stamped, and (non-persist query) bulkPut never runs.
+            mocks.cutoff = OPEN_MIN;
+            mocks.syncList.value = [{ chunkType: "group" }]; // Dexie-only ⇒ no POST/persist noise
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "g1", updatedTimeUtc: 1, publishDate: 500, type: "content" },
+            ]);
+
+            const q = new HybridQuery({ selector: { type: "group" } });
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+            expect(mocks.touchRetention).not.toHaveBeenCalled();
+        });
+
+        it("recompute does NOT stamp non-Content local docs (type !== content / missing publishDate)", async () => {
+            // A synced non-content type: even with a real cutoff and a publishDate
+            // that is below it, a non-Content doc is not retention-stamped. The
+            // doc without a publishDate is likewise skipped.
+            mocks.syncList.value = [{ chunkType: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "g1", updatedTimeUtc: 1, publishDate: 500, type: "group" },
+                { _id: "g2", updatedTimeUtc: 2, type: "group" }, // no publishDate
+            ]);
+
+            const q = new HybridQuery({ selector: { type: "group" } });
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1", "g2"]);
+            expect(mocks.touchRetention).not.toHaveBeenCalled();
+        });
+
+        it("recompute does NOT stamp a Content local doc with no publishDate (pd !== undefined guard)", async () => {
+            // Isolates the `pd !== undefined` conjunct for a genuine Content doc (passes
+            // the type check, unlike the non-Content case above) so no `< cutoff`
+            // comparison is made against undefined.
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "c1", updatedTimeUtc: 1, type: "content" }, // Content, no publishDate
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(mocks.touchRetention).not.toHaveBeenCalled();
+        });
+
+        it("a stale-generation POST does NOT persist (gen guard returns before the persist block)", async () => {
+            // Reactive content-live query: the first generation's POST is in flight
+            // when a dep change supersedes it. When that stale POST resolves, the
+            // gen guard in _postAndMerge returns BEFORE the persist block ⇒ no bulkPut.
+            const cats = ref(["A"]);
+            let resolveA!: (v: any) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((res) => (resolveA = res))); // gen-1 pending
+            postHttpMock.mockResolvedValue({ docs: [] }); // gen-2
+
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: {
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: cats.value } } },
+                            ],
+                        },
+                    }),
+                    { live: true, persistOffline: true },
+                ),
+            );
+            await flush();
+            mocks.liveRefs[mocks.liveRefs.length - 1]!.ref.value = []; // gen-1 first local ⇒ POST in flight
+            await flush();
+
+            cats.value = ["B"];
+            await flush();
+            mocks.liveRefs[mocks.liveRefs.length - 1]!.ref.value = []; // gen-2 first local ⇒ POST resolves []
+            await flush();
+
+            // gen-1's late POST resolves with persistable docs — but its generation is dead.
+            resolveA({
+                docs: [{ _id: "stale", updatedTimeUtc: 9, publishDate: 100, type: "content" }],
+            });
+            await flush();
+
+            expect(mocks.bulkPut).not.toHaveBeenCalled();
+            expect(q.output.value.map((d) => d._id)).not.toContain("stale");
+        });
+
+        it("persists the POST result, not socket-seeded / live remote docs", async () => {
+            // Live content query: a socket upsert adds a doc to _remote, but persistence
+            // only ever writes the one-shot POST's docs (the `remote` arg to _postAndMerge),
+            // never the _remote contribution that socket batches mutate.
+            const R = { _id: "R1", updatedTimeUtc: 3, publishDate: 500, type: "content" };
+            postHttpMock.mockResolvedValue({ docs: [R] });
+
+            const q = track(
+                new HybridQuery(
+                    { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+                    { live: true, persistOffline: true },
+                ),
+            );
+            await flush();
+            // First live local emission ⇒ API decided, POST runs and persists R1.
+            mocks.liveRefs[0]!.ref.value = [
+                { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ];
+            await flush();
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["R1"]);
+
+            // A socket upsert lands — it changes the merged output but must NOT trigger
+            // another persist (the persist block lives only in the one-shot _postAndMerge).
+            const S = { _id: "S1", updatedTimeUtc: 7, publishDate: 400, type: "content" };
+            mocks.emitSocket([S]);
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toContain("S1");
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1); // still just the POST persist
+            // The single persisted batch is exactly the POST docs, never S1.
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).not.toContain("S1");
         });
     });
 });

@@ -193,6 +193,14 @@ describe("socketio", () => {
                 expect(docs[1].type).toEqual(DocType.Content);
                 expect(docs[1].language).toEqual("en");
                 // The delete command is not added to the database as it is removed in the db.bulkPut function
+
+                const ids = docs.map((d) => d._id);
+                // sync:false PII gate: the User doc must never reach IndexedDB.
+                expect(ids).not.toContain("doc6");
+                // Language filter: the non-active-language (fr) Content is dropped.
+                expect(ids).not.toContain("doc3");
+                // Type not in syncList: the Group doc is dropped.
+                expect(ids).not.toContain("doc5");
             });
         });
 

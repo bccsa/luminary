@@ -49,7 +49,17 @@ export type SharedConfig = {
      * `Date.now() - CONTENT_SYNC_WINDOW_MS`; CMS leaves it unset.
      */
     contentPublishDateCutoff?: number;
+    /**
+     * How long (ms) a below-cutoff Content document is retained in IndexedDB after it
+     * was last viewed / featured / persisted offline, before `evictStaleBelowCutoff`
+     * removes it. Bounds the offline document store as the sync window slides.
+     * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
+     */
+    offlineRetentionTtlMs?: number;
 };
+
+/** Default offline-retention TTL: 30 days. */
+const DEFAULT_OFFLINE_RETENTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export let config: SharedConfig;
 
@@ -72,4 +82,12 @@ export function initConfig(newConfig: SharedConfig) {
  */
 export function getContentPublishDateCutoff(): number {
     return config?.contentPublishDateCutoff ?? OPEN_MIN;
+}
+
+/**
+ * TTL (ms) for offline-persisted below-cutoff Content. Read by the retention buffer
+ * when stamping a doc's keep-alive deadline. Defaults to 30 days when unset.
+ */
+export function getOfflineRetentionTtl(): number {
+    return config?.offlineRetentionTtlMs ?? DEFAULT_OFFLINE_RETENTION_TTL_MS;
 }

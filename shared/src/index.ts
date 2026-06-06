@@ -1,5 +1,7 @@
 export * from "./luminary";
 export * from "./db/database";
+export * from "./db/retention";
+export * from "./db/isSyncable";
 export * from "./types";
 export * from "./permissions/permissions";
 export * from "./socket/socketio";

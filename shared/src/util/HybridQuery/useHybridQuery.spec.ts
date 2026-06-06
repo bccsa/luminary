@@ -46,6 +46,13 @@ describe("useHybridQuery", () => {
         expect(mocks.ctorCalls[0]!.options).toBeUndefined();
     });
 
+    it("forwards persistOffline: true through to the HybridQuery constructor", () => {
+        const query = { selector: { type: "content" } };
+        useHybridQuery(query, { persistOffline: true });
+
+        expect(mocks.ctorCalls).toEqual([{ query, options: { persistOffline: true } }]);
+    });
+
     it("auto-disposes the instance when the owning effect scope stops", () => {
         const scope = effectScope();
         scope.run(() => {
