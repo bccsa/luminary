@@ -206,6 +206,20 @@ describe("retention", () => {
             expect(await db.docs.get("no-pd")).toBeDefined();
         });
 
+        it("reaps an expired ORPHAN retention row (no matching doc), keeps a fresh one", async () => {
+            // A row whose doc isn't in db.docs — e.g. a viewed online-only article that
+            // was stamped but never persisted. The below-cutoff doc pass never sees it
+            // (it iterates db.docs), so the expired-retention sweep is what reaps it.
+            await db.retention.put({ docId: "orphan-expired", retainUntil: Date.now() - 1e9 });
+            await db.retention.put({ docId: "orphan-fresh", retainUntil: Date.now() + 1e9 });
+            // db.docs is empty
+
+            await evictStaleBelowCutoff();
+
+            expect(await db.retention.get("orphan-expired")).toBeUndefined(); // swept
+            expect(await db.retention.get("orphan-fresh")).toBeDefined(); // not yet expired
+        });
+
         it("flushes pending stamps first, so a just-touched below-cutoff doc survives", async () => {
             await db.docs.bulkPut([content("below-touched", 500)]);
             touchRetention(["below-touched"]); // pending, not yet flushed

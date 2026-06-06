@@ -246,5 +246,58 @@ describe("socketio", () => {
                 expect(docs[2].language).toEqual("fr");
             });
         });
+
+        it("persists below-cutoff Content only if it has a retention row", async () => {
+            const CUTOFF = 1_000_000;
+            config.contentPublishDateCutoff = CUTOFF;
+            config.appLanguageIdsAsRef!.value = ["en"];
+            config.syncList = [
+                { type: DocType.Post, contentOnly: false, sync: true } as RestApi.ApiSyncQuery,
+            ];
+            await db.retention.clear();
+            // "kept" is a below-cutoff doc we're keeping offline (has a retention row).
+            await db.retention.put({ docId: "kept", retainUntil: Date.now() + 1e9 });
+
+            const mockData = {
+                docs: [
+                    {
+                        type: DocType.Content,
+                        _id: "above",
+                        parentType: DocType.Post,
+                        language: "en",
+                        publishDate: CUTOFF + 5000,
+                    },
+                    {
+                        type: DocType.Content,
+                        _id: "kept",
+                        parentType: DocType.Post,
+                        language: "en",
+                        publishDate: CUTOFF - 1000,
+                    },
+                    {
+                        type: DocType.Content,
+                        _id: "uncached",
+                        parentType: DocType.Post,
+                        language: "en",
+                        publishDate: CUTOFF - 2000,
+                    },
+                ],
+            };
+
+            socketServer.on("connection", (socket) => {
+                socket.emit("data", mockData);
+            });
+            getSocket({ reconnect: true });
+
+            await waitForExpect(async () => {
+                const ids = (await db.docs.toArray()).map((d) => d._id);
+                expect(ids).toContain("above"); // above-cutoff → always persisted
+                expect(ids).toContain("kept"); // below-cutoff but retention-listed
+                expect(ids).not.toContain("uncached"); // below-cutoff, not kept → dropped
+            });
+
+            await db.retention.clear();
+            config.contentPublishDateCutoff = undefined;
+        });
     });
 });
