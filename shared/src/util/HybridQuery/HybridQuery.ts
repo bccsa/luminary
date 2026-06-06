@@ -29,6 +29,10 @@ import {
     typeIsInSyncList,
 } from "./queryIntrospection";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
+import { isSyncableDoc } from "../../db/isSyncable";
+import { touchRetention } from "../../db/retention";
+import { getContentPublishDateCutoff } from "../../config";
+import { OPEN_MIN } from "../../rest/sync2/utils";
 
 /**
  * Cap for remote (`/query`) responses when the caller omits `$limit`. Prevents an
@@ -130,6 +134,23 @@ export type HybridQueryOptions = {
      * that self-corrects. See {@link structuralCacheKey}.
      */
     cache?: boolean;
+
+    /**
+     * When `true`, **offline document persistence** is on: the API supplement's
+     * older-tail docs are written to IndexedDB (via `db.bulkPut`) so a tile backed by
+     * them is openable offline (e.g. `SingleContent` reads `db.docs` by slug). Off by
+     * default.
+     *
+     * Distinct from {@link cache} (which keeps a localStorage *window* for first
+     * paint): this persists the *documents* themselves, durably. The two compose.
+     *
+     * Privacy: only docs the client's `syncList` permits in IndexedDB are written
+     * (the same `isSyncableDoc` gate the socket feed uses) — so a `persistOffline`
+     * query over a non-syncable type (e.g. the CMS's `user`) persists **nothing**,
+     * regardless of this flag. Persisted docs are retention-managed and evicted once
+     * stale (see `db/retention.ts`).
+     */
+    persistOffline?: boolean;
 };
 
 /**
@@ -226,6 +247,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _limit?: number;
     private _sort?: MangoQuery["$sort"];
     private readonly _live: boolean;
+    // Offline document persistence (opt-in). When true, the supplement's syncable
+    // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
+    private readonly _persistOffline: boolean;
     // Response caching (opt-in). `_cacheKey` is the current generation's structural
     // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
     private readonly _cache: boolean;
@@ -263,6 +287,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
+        this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this.output = shallowRef<T[]>([]);
 
@@ -530,6 +555,21 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // it was in flight — its result belongs to a dead generation.
             if (gen !== this._generation || this._disposed) return;
             this._setRemote(remote);
+
+            // Offline persistence (opt-in): write the syncable subset to IndexedDB so
+            // these older-tail docs are openable offline, and stamp their retention.
+            // Fire-and-forget — the in-memory `_remote` already makes the list correct.
+            // The `isSyncableDoc` floor means a non-syncable type (e.g. CMS `user`) is
+            // never persisted, regardless of the flag.
+            if (this._persistOffline) {
+                const toPersist = remote.filter(isSyncableDoc);
+                if (toPersist.length) {
+                    void db
+                        .bulkPut(toPersist)
+                        .catch((e) => console.error("[HybridQuery] offline persist failed:", e));
+                    touchRetention(toPersist.map((d) => d._id));
+                }
+            }
         } catch (err) {
             console.error("[HybridQuery] remote query failed:", err);
         }
@@ -692,6 +732,24 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // After dispose(), a late POST or a late live emission must NOT mutate
         // output — the consumer has unmounted and treats the ref as dead.
         if (this._disposed) return;
+
+        // Refresh the keep-alive deadline for below-cutoff Content this query serves
+        // from IndexedDB (its `_local` set), so it isn't evicted while featured. This
+        // is UNCONDITIONAL — outside the `sameWindow` guard below — so a stable overview
+        // still re-stamps each session's initial population. The retention buffer
+        // throttles (≈once/day/doc) and batches, so it's cheap on every recompute. Not
+        // gated on `persistOffline`: any query serving a slid-out doc keeps it alive.
+        const cutoff = getContentPublishDateCutoff();
+        if (cutoff !== OPEN_MIN) {
+            const stampIds: string[] = [];
+            for (const d of this._local) {
+                const pd = (d as { publishDate?: number }).publishDate;
+                if (d.type === DocType.Content && pd !== undefined && pd < cutoff) {
+                    stampIds.push(d._id);
+                }
+            }
+            if (stampIds.length) touchRetention(stampIds);
+        }
         // UNION (not replace) across sources — the remote query may fetch only the
         // older tail (publishDate <= cutoff), so fresh local docs above the cutoff
         // must be retained alongside it. Argument order is load-bearing: `_local`

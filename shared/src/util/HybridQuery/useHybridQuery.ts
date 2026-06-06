@@ -42,6 +42,12 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  * **pure** (called more than once per change). See the README for the full
  * contract and caveats (output-on-change, debouncing, …).
  *
+ * **Performance / offline options.** `{ cache: true }` seeds `output` from a
+ * localStorage window for an instant first paint; `{ persistOffline: true }` writes
+ * the supplement's syncable docs to IndexedDB so the tiles are openable offline
+ * (retention-managed; PII never persisted). They are independent and composable —
+ * see {@link HybridQueryOptions} and the README.
+ *
  * **Caveats:**
  * - **Setup-only.** Called outside an effect scope (event handler, `.then`,
  *   module top-level) it will NOT auto-dispose — there is no `dispose()` handle

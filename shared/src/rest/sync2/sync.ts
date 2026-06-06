@@ -22,6 +22,7 @@ import { trim } from "./trim";
 import { syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
 import { getContentPublishDateCutoff } from "../../config";
+import { evictStaleBelowCutoff } from "../../db/retention";
 
 let _httpService: HttpReq<any>;
 
@@ -483,7 +484,10 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
 
     // After an update sync for content documents in APP mode, immediately delete any docs that
     // arrived with an updated (past) expiry date, so they are removed without waiting for app restart.
+    // Eviction of stale below-cutoff content (offline-persisted or slid out of the window) runs here
+    // too: post-sync is the online gate, so evicted-but-still-wanted docs can be re-fetched.
     if (options.type === DocType.Content && !options.cms && syncResult && !syncResult.firstSync) {
         await db.deleteExpired();
+        await evictStaleBelowCutoff();
     }
 }

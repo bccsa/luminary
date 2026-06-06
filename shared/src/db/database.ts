@@ -35,6 +35,17 @@ type LuminaryInternals = {
     value: any;
 };
 
+/**
+ * A row in the `retention` side table: the keep-alive deadline for a below-cutoff
+ * Content doc. Stored separately from `docs` so stamping never rewrites a document
+ * (no liveQuery self-churn / corpus recompute) and a sync/socket doc-rewrite can't
+ * clobber the stamp. See `db/retention.ts`.
+ */
+export type RetentionEntry = {
+    docId: string;
+    retainUntil: number;
+};
+
 export type SyncMapEntry = {
     blockStart: number;
     blockEnd: number;
@@ -58,6 +69,7 @@ type dbIndex = {
     localChanges: string;
     queryCache: string;
     luminaryInternals: string;
+    retention: string;
 };
 
 export type QueryOptions = {
@@ -124,6 +136,7 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
+    retention!: Table<RetentionEntry>;
 
     /**
      * Luminary Shared Database class
@@ -143,6 +156,7 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
+            retention: "docId, retainUntil",
         };
 
         const version: number = bumpDBVersion(

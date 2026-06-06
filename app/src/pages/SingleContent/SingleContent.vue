@@ -12,6 +12,7 @@ import {
     mangoToDexie,
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
+    touchRetention,
     type BaseDocumentDto,
     type ContentDto,
     type RedirectDto,
@@ -215,6 +216,13 @@ const unwatch = watch([idbContent, isConnected], () => {
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
+});
+
+// Keep a viewed article alive in the offline document store: refresh its retention
+// deadline whenever a real content doc is displayed, so a below-cutoff article the
+// user reads isn't evicted as stale. No-op for the placeholder / undefined.
+watch(content, (c) => {
+    if (c && c._id) touchRetention([c._id]);
 });
 
 // Load available languages from IndexedDB immediately (even when online)

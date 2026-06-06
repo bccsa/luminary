@@ -136,8 +136,11 @@ update via the global `bulkPut → Dexie → liveQuery` path.
    `liveQuery` re-emit can't resurrect it; it's released in `_setLocal` once the
    fresh Dexie read no longer holds a stale copy. A copy newer than the delete
    (republish-after-delete) supersedes the tombstone.
-5. **`_remote` is not persisted to Dexie.** Older-tail docs and socket upserts to
-   them live in memory only; a remount re-fetches.
+5. **`_remote` is not persisted to Dexie by default.** Older-tail docs and socket
+   upserts to them live in memory only; a remount re-fetches. Opt into
+   `{ persistOffline: true }` to write the supplement to IndexedDB (see "Offline
+   document persistence" below) — though socket upserts to the older tail remain
+   in-memory only in v1.
 6. **Live mode must be disposed.** A non-component caller that forgets `dispose()`
    leaks the Dexie subscription **and** the socket listener.
 
@@ -204,6 +207,49 @@ works for both static and thunk queries.
   (or 50) docs **total** across both buckets (local kept first), and writes are
   wrapped against `QuotaExceededError` — on overflow the feature degrades to "no
   seed", never throwing onto the recompute path.
+
+### Offline document persistence (opt-in)
+
+```ts
+const items = useHybridQuery<ContentDto>(query, { persistOffline: true });
+```
+
+`{ persistOffline: true }` writes the API supplement's older-tail docs to **IndexedDB**
+(`db.bulkPut`) so a tile backed by them is **openable offline** — `SingleContent` reads
+`db.docs` by slug and, offline, shows nothing for a doc that isn't there, so without
+persistence an online-only tile is a dead link → 404. Off by default; independent of
+`cache` and `live`.
+
+**Not the same as `cache`.** `cache` keeps a localStorage *window* for a fast first
+paint (latency); `persistOffline` keeps the *documents* in IndexedDB (durability). They
+are orthogonal and composable — set both for a list that paints instantly **and** opens
+offline.
+
+- **Privacy hard floor.** Only docs the client's `syncList` permits in IndexedDB are
+  written — the same `isSyncableDoc` gate the socket feed uses. A `persistOffline` query
+  over a non-syncable type (e.g. the CMS's `{ type: user, sync: false }`) persists
+  **nothing**, regardless of the flag. One shared definition of "may this touch
+  IndexedDB?", so the two paths can't drift.
+- **Retention & eviction (unified).** Persisted docs would otherwise accumulate as the
+  sync window slides (sync2 never deletes below-cutoff content — `trim()` only clamps
+  syncList *state*). A keep-alive deadline per doc is kept in a `retention` side table,
+  refreshed whenever the doc is *touched*: persisted by a supplement, **featured in any
+  HybridQuery output** (every recompute stamps the below-cutoff `_local` docs —
+  throttled), or **opened in detail** (`SingleContent` calls `touchRetention`).
+  `evictStaleBelowCutoff` — run after each content sync, so only while **online** —
+  deletes below-cutoff Content whose deadline has passed or was never set. This covers
+  *both* `persistOffline` docs and content that slid out of the sync window. TTL defaults
+  to **30 days** (`SharedConfig.offlineRetentionTtlMs`).
+- **Deferred, batched writes.** `touchRetention` only mutates in-memory state and a doc
+  is re-stamped at most once/day; a single `retention.bulkPut` flushes every ~10s (and
+  before eviction / on page hide). Stamps live in a side table, **not on `docs`**, so
+  stamping never rewrites a document — no liveQuery self-churn, no corpus recompute, and
+  a sync/socket doc-rewrite can't clobber a stamp.
+- **v1 limitations.** Only the POST result is persisted — socket upserts to below-cutoff
+  docs update the in-memory `_remote` but are not written through, so an offline reader
+  sees the doc at its POST-time revision. There is no hard size cap (TTL + eviction is
+  the bound); a `QuotaExceededError` on persist is swallowed, degrading to the
+  no-persistence behaviour.
 
 ### `useHybridQuery<T>(query, options?)` — composable
 
