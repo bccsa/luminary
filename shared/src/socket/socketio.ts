@@ -1,11 +1,11 @@
 import { io, Socket } from "socket.io-client";
 import { ref } from "vue";
-import { ApiDataResponseDto } from "../types";
+import { ApiDataResponseDto, DocType, type BaseDocumentDto, type ContentDto } from "../types";
 import { db } from "../db/database";
 import { isSyncableDoc } from "../db/isSyncable";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
-import { config, SharedConfig } from "../config";
+import { config, SharedConfig, getContentPublishDateCutoff } from "../config";
 
 /**
  * Client configuration type definition
@@ -62,9 +62,32 @@ class SocketIO {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            // Filter to docs the client is allowed to store in IndexedDB (shared with
+            // Docs the client is allowed to store in IndexedDB (shared gate with
             // HybridQuery's offline-persistence path — see isSyncableDoc).
-            const filtered = data.docs.filter(isSyncableDoc);
+            const syncable = data.docs.filter(isSyncableDoc);
+
+            // Below-cutoff Content is written through ONLY if we're already keeping it
+            // offline (a retention row exists) — so a live edit to an offline-cached
+            // older article stays fresh, while a below-cutoff doc we aren't caching is
+            // not persisted (it would otherwise be written here and evicted next sync).
+            // DeleteCmds and above-cutoff/non-Content docs are unaffected.
+            const cutoff = getContentPublishDateCutoff();
+            const isBelowCutoffContent = (d: BaseDocumentDto): boolean => {
+                if (d.type !== DocType.Content) return false;
+                const pd = (d as ContentDto).publishDate;
+                return pd !== undefined && pd < cutoff;
+            };
+
+            const belowIds = syncable.filter(isBelowCutoffContent).map((d) => d._id);
+            let keepBelow = new Set<string>();
+            if (belowIds.length) {
+                const stamps = await db.retention.bulkGet(belowIds);
+                keepBelow = new Set(belowIds.filter((_id, i) => stamps[i] !== undefined));
+            }
+
+            const filtered = syncable.filter(
+                (d) => !isBelowCutoffContent(d) || keepBelow.has(d._id),
+            );
 
             await db.bulkPut(filtered);
         });

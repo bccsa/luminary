@@ -111,6 +111,14 @@ export async function evictStaleBelowCutoff(): Promise<void> {
 
     await flushRetention(); // don't evict a doc that was just touched but not yet written
 
+    const now = DateTime.now().toMillis();
+
+    // Reap expired retention rows, including ORPHANS — rows whose doc isn't in db.docs
+    // (e.g. a viewed online-only article that was stamped but never persisted). The
+    // below-cutoff doc pass below only cleans rows for docs it deletes; this catches the
+    // rest. Indexed delete on retainUntil, so it's cheap.
+    await db.retention.where("retainUntil").belowOrEqual(now).delete();
+
     const ids = (await db.docs
         .where("publishDate")
         .below(cutoff)
@@ -119,7 +127,6 @@ export async function evictStaleBelowCutoff(): Promise<void> {
     if (!ids.length) return;
 
     const stamps = await db.retention.bulkGet(ids);
-    const now = DateTime.now().toMillis();
     const stale = ids.filter((_id, i) => (stamps[i]?.retainUntil ?? 0) <= now);
     if (!stale.length) return;
 
