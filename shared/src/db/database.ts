@@ -18,7 +18,7 @@ import {
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
-import { ref, type Ref, toRaw, watch } from "vue";
+import { type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -45,24 +45,6 @@ export type RetentionEntry = {
     docId: string;
     retainUntil: number;
 };
-
-export type SyncMapEntry = {
-    blockStart: number;
-    blockEnd: number;
-};
-
-export type SyncMap = {
-    blocks: Array<SyncMapEntry>;
-    groups: Array<string>;
-    contentOnly?: boolean;
-    types: Array<string>;
-    languages: Array<string>;
-    skipWaitForLanguageSync?: boolean;
-    id: string;
-    syncPriority: number; // default 0, a higher number is a higher priority
-};
-
-export const syncMap = ref(new Map<string, SyncMap>());
 
 type dbIndex = {
     docs: string;
@@ -191,22 +173,6 @@ class Database extends Dexie {
      */
     uuid() {
         return uuidv4();
-    }
-
-    async getSyncMap() {
-        const _v = await this.getLuminaryInternals("syncMap");
-        if (_v)
-            for (const [k, v] of Object.entries(_v)) {
-                syncMap.value.set(k, v as SyncMap);
-            }
-        return _v;
-    }
-
-    async setSyncMap() {
-        return await this.setLuminaryInternals(
-            "syncMap",
-            cloneDeep(Object.fromEntries(syncMap.value)),
-        );
     }
 
     async getSyncList() {
@@ -881,7 +847,6 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
-        syncMap.value.clear();
         const { syncList } = await import("../rest/sync2/state");
         syncList.value = [];
         await Promise.all([
@@ -937,14 +902,6 @@ export async function initDatabase() {
             db.deleteRevoked();
         },
         { immediate: true },
-    );
-
-    watch(
-        syncMap,
-        () => {
-            db.setSyncMap();
-        },
-        { deep: true },
     );
 
     // Watch syncList for changes and persist to IndexedDB

@@ -10,6 +10,7 @@ import {
 import { db } from "../../db/database";
 import { HttpReq } from "../../rest/http";
 import { getSocket, isConnected } from "../../socket/socketio";
+import { subscribeRooms } from "../../socket/roomSubscriptions";
 import {
     type ApiDataResponseDto,
     type BaseDocumentDto,
@@ -468,9 +469,16 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
             // Non-content type not in syncList → fetch from API only, no Dexie read.
             void this._runApiWhenOnline(this._query, gen);
-            // Live mode: these docs never flow through Dexie, so the socket
-            // listener is their only live path. Filter the feed by the whole query.
-            if (this._live) this._startRemoteLive(this._query, type, gen);
+            // Live mode: these docs never flow through Dexie (sync2 doesn't sync this
+            // type), so the socket listener is their only live path.
+            if (this._live) {
+                // Subscribe to the type's rooms on demand so the server starts pushing
+                // live updates for this non-synced type. Ref-counted and released with
+                // this generation (rebuild/dispose) — the room is left only once the
+                // last HybridQuery using it disposes. Skipped for a typeless query.
+                if (type) this._generationDisposers.add(subscribeRooms([type]));
+                this._startRemoteLive(this._query, type, gen);
+            }
         } catch (err) {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection

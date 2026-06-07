@@ -15,6 +15,7 @@ import { db, initDatabase } from "../../db/database";
 import { flushRetention, resetRetentionBuffer } from "../../db/retention";
 import { initConfig, config } from "../../config";
 import { isConnected } from "../../socket/socketio";
+import { syncList } from "../../rest/sync2/state";
 import { HybridQuery, initHybridQuery } from "./HybridQuery";
 import { DocType, type BaseDocumentDto, type ContentDto } from "../../types";
 
@@ -51,9 +52,13 @@ describe("HybridQuery persistOffline — real Dexie integration", () => {
             apiUrl: "http://localhost:12345",
             contentPublishDateCutoff: CUTOFF,
             appLanguageIdsAsRef: ref(["lang-en"]),
-            syncList: [{ type: DocType.Post, contentOnly: true, sync: true }],
         });
         await initDatabase();
+        // isSyncableDoc derives from sync2's syncList: a content:post column makes
+        // Post content syncable (all languages), while Tag content stays non-syncable.
+        syncList.value = [
+            { chunkType: `${DocType.Content}:${DocType.Post}`, memberOf: ["g1"], blockStart: 1, blockEnd: 0 },
+        ];
     });
 
     beforeEach(async () => {

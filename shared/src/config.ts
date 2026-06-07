@@ -35,7 +35,12 @@ export type SharedConfig = {
      */
     apiUrl: string;
     /**
-     * Array of API Sync queries passed to the shared library, that the client needs to sync down
+     * Transitional "live-only" socket-room declaration. What gets *synced* (and what
+     * may be persisted to IndexedDB) is owned entirely by sync2 — this list no longer
+     * gates persistence. It only declares doc-type rooms to join at the connect
+     * handshake for live-only data served by the soon-to-be-retired `ApiLiveQuery`
+     * (e.g. the CMS's `User` / `AutoGroupMappings`). Leave empty/omitted when every
+     * displayed type is either synced by sync2 or subscribed on demand by HybridQuery.
      */
     syncList?: Array<ApiSyncQuery>;
     /**

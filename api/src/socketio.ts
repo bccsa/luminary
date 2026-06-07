@@ -28,6 +28,15 @@ type ClientDataReq = {
 };
 
 /**
+ * Dynamic room (un)subscription request. Unlike `joinSocketGroups` (which carries
+ * `ApiSyncQuery` objects), this carries a plain array of doc types — the server
+ * expands each to the `${docType}-${group}` rooms the user's accessMap grants.
+ */
+type ClientRoomReq = {
+    docTypes: Array<DocType>;
+};
+
+/**
  * Client configuration type definition
  */
 type ClientConfig = {
@@ -61,6 +70,8 @@ type EmitEvents = {
 interface ReceiveEvents {
     clientDataReq: (a: ClientDataReq) => void;
     changeRequest: (b: ChangeReqDto) => void;
+    joinRooms: (a: ClientRoomReq) => void;
+    leaveRooms: (a: ClientRoomReq) => void;
 }
 
 /**
@@ -209,6 +220,55 @@ export class Socketio implements OnGatewayInit {
         reqData.docTypes.forEach((docType) => {
             if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
         });
+
+        this.joinDocTypeRooms(socket, docTypes);
+    }
+
+    /**
+     * Dynamically subscribe a client to live updates for the given doc types. Used by
+     * sync2 (for synced types) and HybridQuery (for non-synced types it queries) so the
+     * client only receives the change feed it currently needs. Additive to
+     * `joinSocketGroups` — the connect handshake still owns the `clientConfig` reply.
+     * @param reqData
+     * @param socket
+     */
+    @SubscribeMessage("joinRooms")
+    joinRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
+        this.joinDocTypeRooms(socket, reqData?.docTypes ?? []);
+    }
+
+    /**
+     * Unsubscribe a client from a doc type's rooms (e.g. when the last live query for a
+     * non-synced type disposes). `deleteCmd-${group}` rooms are intentionally NOT left —
+     * other still-subscribed doc types share them; they are dropped on disconnect.
+     * @param reqData
+     * @param socket
+     */
+    @SubscribeMessage("leaveRooms")
+    leaveRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
+        const docTypes = reqData?.docTypes ?? [];
+        if (!docTypes.length) return;
+
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            socket.data.userDetails.accessMap,
+            AclPermission.View,
+            docTypes,
+        );
+
+        for (const docType of Object.keys(userViewGroups)) {
+            for (const group of userViewGroups[docType]) {
+                socket.leave(`${docType}-${group}`);
+            }
+        }
+    }
+
+    /**
+     * Join the client to the `${docType}-${group}` rooms its accessMap grants View on for
+     * each requested doc type, plus the matching `deleteCmd-${group}` rooms. Shared by the
+     * connect handshake (`joinSocketGroups`) and dynamic `joinRooms`.
+     */
+    private joinDocTypeRooms(socket: ClientSocket, docTypes: Array<DocType>) {
+        if (!docTypes.length) return;
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
