@@ -1,11 +1,8 @@
 import { io, Socket } from "socket.io-client";
 import { ref } from "vue";
-import { ApiDataResponseDto, DocType, type BaseDocumentDto, type ContentDto } from "../types";
-import { db } from "../db/database";
-import { isSyncableDoc } from "../db/isSyncable";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
-import { config, SharedConfig, getContentPublishDateCutoff } from "../config";
+import { config, SharedConfig } from "../config";
 
 /**
  * Client configuration type definition
@@ -44,7 +41,7 @@ class SocketIO {
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds
             isConnected.value = false;
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
+            this.socket.emit("joinSocketGroups", { docTypes: config.syncList ?? [] });
         });
 
         this.socket.on("disconnect", () => {
@@ -61,36 +58,9 @@ class SocketIO {
             }
         });
 
-        this.socket.on("data", async (data: ApiDataResponseDto) => {
-            // Docs the client is allowed to store in IndexedDB (shared gate with
-            // HybridQuery's offline-persistence path — see isSyncableDoc).
-            const syncable = data.docs.filter(isSyncableDoc);
-
-            // Below-cutoff Content is written through ONLY if we're already keeping it
-            // offline (a retention row exists) — so a live edit to an offline-cached
-            // older article stays fresh, while a below-cutoff doc we aren't caching is
-            // not persisted (it would otherwise be written here and evicted next sync).
-            // DeleteCmds and above-cutoff/non-Content docs are unaffected.
-            const cutoff = getContentPublishDateCutoff();
-            const isBelowCutoffContent = (d: BaseDocumentDto): boolean => {
-                if (d.type !== DocType.Content) return false;
-                const pd = (d as ContentDto).publishDate;
-                return pd !== undefined && pd < cutoff;
-            };
-
-            const belowIds = syncable.filter(isBelowCutoffContent).map((d) => d._id);
-            let keepBelow = new Set<string>();
-            if (belowIds.length) {
-                const stamps = await db.retention.bulkGet(belowIds);
-                keepBelow = new Set(belowIds.filter((_id, i) => stamps[i] !== undefined));
-            }
-
-            const filtered = syncable.filter(
-                (d) => !isBelowCutoffContent(d) || keepBelow.has(d._id),
-            );
-
-            await db.bulkPut(filtered);
-        });
+        // NOTE: live document updates (the `"data"` event) are NOT handled here.
+        // Socket.io is a pure transport; the sync2 live persister subscribes to
+        // `"data"` and owns the persistence decision (see rest/sync2/liveSync.ts).
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
@@ -118,6 +88,17 @@ class SocketIO {
     public off(event: string, callback: (...args: any[]) => void) {
         // Expose socket events
         this.socket.off(event, callback);
+    }
+
+    /**
+     * Emit an event to the server. Thin transport passthrough used by the room
+     * subscription manager (`joinRooms`/`leaveRooms`) and any other service that
+     * needs to talk to the server over the socket.
+     * @param event - Name of the event
+     * @param args - Event payload
+     */
+    public emit(event: string, ...args: any[]) {
+        this.socket.emit(event, ...args);
     }
 
     /**

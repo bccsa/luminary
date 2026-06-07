@@ -19,7 +19,7 @@ import {
     subtractRanges,
 } from "./utils";
 import { trim } from "./trim";
-import { syncList, syncTolerance } from "./state";
+import { syncActive, syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
 import { getContentPublishDateCutoff } from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
@@ -247,9 +247,26 @@ export function setCancelSync(value: boolean): void {
  * updatedTimeUtc (aka blockStart & blockEnd), and horizontally by memberOf groups and languages.
  * The synchronization runs backwards in time from the latest updatedTimeUtc to older data.
  */
+let _activeRunners = 0;
+
+/**
+ * Public sync entry. Tracks in-flight runners so `syncActive` reflects whether any
+ * top-level sync is running (the CMS dashboard "syncing" indicator binds to it).
+ * Delegates the actual work to {@link _runSync}.
+ */
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
+    _activeRunners++;
+    syncActive.value = true;
+    try {
+        await _runSync(options);
+    } finally {
+        if (--_activeRunners === 0) syncActive.value = false;
+    }
+}
+
+async function _runSync(options: SyncRunnerOptions): Promise<void> {
     // publishDate is a Content-only sync dimension. For Content callers, an unspecified
     // floor falls back to the configured cutoff so sync never pulls content older than the
     // app/HybridQuery treat as "remote-only". Non-Content callers (Language, Redirect,

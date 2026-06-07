@@ -5,6 +5,7 @@ export * from "./db/isSyncable";
 export * from "./types";
 export * from "./permissions/permissions";
 export * from "./socket/socketio";
+export * from "./socket/roomSubscriptions";
 export * from "./util";
 export * from "./rest/RestApi";
 export * from "./rest/sync2";

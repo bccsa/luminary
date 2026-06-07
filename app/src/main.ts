@@ -12,7 +12,7 @@ import {
     refreshTokenSilently,
 } from "@/auth";
 import { useNotificationStore } from "./stores/notification";
-import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
+import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
@@ -58,23 +58,11 @@ async function Startup() {
         apiUrl,
         appLanguageIdsAsRef,
         contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
-        syncList: [
-            {
-                type: DocType.AuthProvider,
-                contentOnly: false,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
-            { type: DocType.Post, contentOnly: true, syncPriority: 2 },
-            {
-                type: DocType.Language,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            { type: DocType.Redirect, contentOnly: false, syncPriority: 3 },
-            { type: DocType.Storage, contentOnly: false, syncPriority: 3 },
-        ],
+        // What gets synced is owned by sync2 (see src/sync.ts); the socket rooms for
+        // those types are joined dynamically by sync2. The app has no live-only
+        // ApiLiveQuery types (SingleContent's ApiLiveQuery reads synced content /
+        // language, whose rooms sync2 already joins), so this stays empty.
+        syncList: [],
     }).catch((err) => {
         console.error(err);
         Sentry?.captureException(err);
