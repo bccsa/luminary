@@ -30,6 +30,7 @@ import {
     userPreferencesAsRef,
     cmsUrl,
 } from "@/globalConfig";
+import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
@@ -637,7 +638,7 @@ describe("SingleContent", () => {
     it("can calculate the estimated reading time using a custom language reading speed", async () => {
         const wordCount = 400;
         const readingSpeed = 200;
-        const expectedReadingTime = Math.ceil(wordCount / readingSpeed);
+        const expectedReadingTime = computeEstimatedReadingMinutes(wordCount, readingSpeed);
 
         // Update content with wordCount
         await db.docs.update(mockEnglishContentDto._id, {
@@ -664,7 +665,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("restores reading progress", async () => {
+    it("restores reading progress without overwriting saved progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
         const wrapper = mount(SingleContent, {
@@ -674,8 +675,11 @@ describe("SingleContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(getReadingProgress(mockEnglishContentDto._id)).toBeGreaterThanOrEqual(60);
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
+
+        // Dwell-based tracking should not reset pre-existing progress before the user reads
+        expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
 
         wrapper.unmount();
     });
