@@ -25,6 +25,15 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
+
+// On web/SSG the logo + nav links (DesktopMenu) ARE prerendered (crawlable), but
+// the per-user ProfileMenu (avatar/language/auth → Dexie) is rendered only after
+// mount so it doesn't crash during the Node prerender and the signed-out shell
+// matches the first client render. Native renders it immediately (unchanged).
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const isMounted = ref(false);
+const showProfile = computed(() => !isWeb || isMounted.value);
+
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
@@ -53,6 +62,7 @@ const updateScreenSize = () => {
 let resizeObserver: ResizeObserver | undefined;
 
 onMounted(() => {
+    isMounted.value = true;
     const img = new Image();
     img.src = LOGO;
     img.onload = () => {
@@ -132,7 +142,12 @@ const handleLogin = () => {
                 <div class="flex cursor-pointer items-center gap-2">
                     <slot name="quickControls" />
                 </div>
-                <div class="hidden lg:block"><ProfileMenu /></div>
+                <div
+                    v-if="showProfile"
+                    class="hidden lg:block"
+                >
+                    <ProfileMenu />
+                </div>
                 <div class="lg:hidden">
                     <!-- Same hover/padding treatment as the quick controls (language, theme) so
                          the whole row reacts consistently. -->

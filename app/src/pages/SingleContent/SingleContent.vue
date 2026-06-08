@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {
+    ApiLiveQuery,
+    type ApiSearchQuery,
+    type BaseDocumentDto,
     DocType,
     PostType,
     PublishStatus,
     TagType,
-    db,
     isConnected,
     queryLocal,
     queryRemote,
@@ -18,7 +20,18 @@ import {
     AclPermission,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import {
+    computed,
+    nextTick,
+    onMounted,
+    onServerPrefetch,
+    onUnmounted,
+    ref,
+    watch,
+    type Ref,
+} from "vue";
+import { useHead } from "@unhead/vue";
+import { usePublicContentStore } from "@/stores/publicContent";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -106,6 +119,124 @@ const defaultContent: ContentDto = {
 
 const content = ref<ContentDto | undefined>(defaultContent);
 
+// --- Web / SSG tier -------------------------------------------------------
+// On the web build the public content tier is sourced from the prerender
+// snapshot (filled via onServerPrefetch, fetched through the unauthenticated
+// /search path), NOT from Dexie (which doesn't exist in Node). The native/SPA
+// build is unaffected: `isWeb` is false there and the existing hybrid-query path
+// below runs unchanged.
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const WEB_ORIGIN = import.meta.env.VITE_WEB_ORIGIN || "";
+const publicStore = usePublicContentStore();
+
+if (isWeb) {
+    // Prerender (Node): fill the snapshot before the HTML is rendered.
+    onServerPrefetch(async () => {
+        await publicStore.ensureContentBySlug(props.slug);
+        const doc = publicStore.bySlug[props.slug];
+        if (doc) content.value = doc;
+    });
+
+    // First client render reads the restored snapshot → matches the prerendered
+    // HTML (clean hydration).
+    const snapshot = publicStore.bySlug[props.slug];
+    if (snapshot) content.value = snapshot;
+
+    // Client only: revalidate + go live via the existing ApiLiveQuery, seeded
+    // from the snapshot so the first paint does not change. Use import.meta.env.SSR
+    // (not `typeof window`): with vite-ssg mock:true, window exists during the
+    // Node prerender, so a window check would run this in the build.
+    if (!import.meta.env.SSR) {
+        publicStore.ensureContentBySlug(props.slug);
+        const liveQ = ref<ApiSearchQuery>({ slug: props.slug });
+        const live = new ApiLiveQuery(liveQ, {
+            initialValue: (content.value ? [content.value] : []) as BaseDocumentDto[],
+        });
+        watch(live.liveItem, (v) => {
+            if (v && (v as ContentDto).type === DocType.Content) content.value = v as ContentDto;
+        });
+    }
+
+    // SEO head — driven by the fetched content so it is correct in the raw HTML.
+    useHead(
+        computed(() => {
+            const c = content.value;
+            const hasDoc = !!c?.slug;
+            const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
+            const description = (hasDoc && (c!.seoString || c!.summary)) || "";
+            const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
+            // content.language is a doc id like "lang-eng"; strip the prefix to a
+            // best-effort ISO-639 code. TODO: map to a proper BCP-47 code.
+            const lang = (c?.language || "").replace(/^lang-/, "") || "en";
+
+            // Reciprocal hreflang alternates (other-language versions of this doc),
+            // plus x-default pointing at the English version (or the first available).
+            const alts = publicStore.altsBySlug[props.slug] ?? [];
+            const altLinks = alts.map((a) => ({
+                rel: "alternate",
+                hreflang: a.code,
+                href: `${WEB_ORIGIN}/${a.slug}`,
+            }));
+            const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
+
+            return {
+                title,
+                htmlAttrs: { lang },
+                link: [
+                    { rel: "canonical", href: url },
+                    ...altLinks,
+                    ...(xDefault
+                        ? [
+                              {
+                                  rel: "alternate",
+                                  hreflang: "x-default",
+                                  href: `${WEB_ORIGIN}/${xDefault.slug}`,
+                              },
+                          ]
+                        : []),
+                ],
+                meta: [
+                    { name: "description", content: description },
+                    { property: "og:type", content: "article" },
+                    { property: "og:title", content: c?.seoTitle || c?.title || appName },
+                    { property: "og:description", content: description },
+                    { property: "og:url", content: url },
+                    { name: "twitter:card", content: "summary_large_image" },
+                    { name: "twitter:title", content: c?.seoTitle || c?.title || appName },
+                    { name: "twitter:description", content: description },
+                    { name: "robots", content: "index,follow" },
+                ],
+                script: hasDoc
+                    ? [
+                          {
+                              type: "application/ld+json",
+                              innerHTML: JSON.stringify({
+                                  "@context": "https://schema.org",
+                                  "@type": "Article",
+                                  headline: c!.title,
+                                  description,
+                                  author: c!.author
+                                      ? { "@type": "Person", name: c!.author }
+                                      : undefined,
+                                  datePublished: c!.publishDate
+                                      ? new Date(c!.publishDate).toISOString()
+                                      : undefined,
+                                  // dateModified is overwritten with the real
+                                  // regeneration time in Phase 2.
+                                  dateModified: c!.updatedTimeUtc
+                                      ? new Date(c!.updatedTimeUtc).toISOString()
+                                      : undefined,
+                                  inLanguage: c!.language,
+                              }),
+                          },
+                      ]
+                    : [],
+            };
+        }),
+    );
+}
+// --------------------------------------------------------------------------
+
 const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
 
@@ -133,25 +264,12 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
-// Content by slug. HybridQuery does the local-first Dexie read + the below-cutoff
-// API supplement (incl. deferring the POST until online). The query filters publish
-// state itself (status / publishDate / expiry), so a draft / scheduled / expired slug
-// resolves to nothing → the not-found path. languageFilter is off so a direct link to
-// any translation isn't excluded by the user's language preference. cache:false avoids
-// a first-paint flash of a previously-viewed article (single-doc structural key).
-const contentArr = useContentQuery(() => [{ slug: props.slug }], {
-    includeScheduled: false,
-    languageFilter: false,
-    cache: false,
-    // Seek the single slug doc via the slug-led index instead of scanning the whole
-    // content collection on the publishDate index. The publishDate sort is required
-    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
-    useIndex: "content-slug-publishDate-index",
-    sort: [{ publishDate: "desc" }],
-    // Keep `text` (the article body, rendered below) and `memberOf` (read by
-    // canEdit) — the default strip set would drop both.
-    stripFields: ["fts", "ftsTokenCount", "_rev"],
-});
+// Content by slug. On native the hybrid query (assigned inside the `!isWeb` block
+// below) owns this; it is declared here at component scope as an empty ref so the
+// not-found resolver, the bind watch, and `hasAudioFiles` can read it on both
+// builds. On the web/SSG build it stays empty — `content` is sourced from the
+// prerender snapshot instead (see the Web / SSG tier block above).
+let contentArr: any = ref([]);
 
 // Redirect resolution. A redirect takes precedence over content — but that precedence
 // is enforced on the server (publishing content onto a redirect's slug is forced to
@@ -168,8 +286,11 @@ function routeRedirect(redirect: RedirectDto): boolean {
     return true;
 }
 
-// Loading until the content query produces an answer for the current slug.
-const isLoading = ref(true);
+// Loading until the content query produces an answer for the current slug. The
+// web/SSG build sources `content` synchronously from the prerender snapshot, so
+// there is no loading phase there (isWeb → start false); native starts loading
+// until the hybrid query (or the not-found timer) resolves.
+const isLoading = ref(!isWeb);
 const is404 = ref(false);
 
 let notFoundTimer: ReturnType<typeof setTimeout> | undefined;
@@ -208,117 +329,154 @@ const scheduleNotFound = () => {
     );
 };
 
-watch(
-    () => props.slug,
-    async (slug) => {
-        isLoading.value = true;
-        scheduleNotFound();
-        // Instant local redirect check (synced redirects route immediately).
-        const redirect = (
-            await queryLocal<RedirectDto>({
-                selector: { $and: [{ type: DocType.Redirect }, { slug }] },
-            })
-        )[0];
-        if (props.slug === slug && redirect) routeRedirect(redirect);
-    },
-    { immediate: true },
-);
+// Native/SPA path: the hybrid-query content source plus its redirect / not-found /
+// bind / retention wiring. Entirely skipped on the web build (no Dexie); the
+// Web / SSG tier block above owns `content` there.
+if (!isWeb) {
+    contentArr = useContentQuery(() => [{ slug: props.slug }], {
+        includeScheduled: false,
+        languageFilter: false,
+        cache: false,
+        // Seek the single slug doc via the slug-led index instead of scanning the
+        // whole content collection on the publishDate index. The publishDate sort is
+        // required for CouchDB to engage the index (slug eq alone falls back to a full
+        // scan).
+        useIndex: "content-slug-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+        // Keep `text` (the article body, rendered below) and `memberOf` (read by
+        // canEdit) — the default strip set would drop both.
+        stripFields: ["fts", "ftsTokenCount", "_rev"],
+    });
 
-// Bind the resolved content. A found doc wins immediately and clears loading.
-watch(
-    contentArr,
-    (docs) => {
-        if (docs.length) {
-            content.value = docs[0];
-            isLoading.value = false;
-            clearNotFoundTimer();
-        }
-    },
-    { immediate: true },
-);
+    watch(
+        () => props.slug,
+        async (slug) => {
+            isLoading.value = true;
+            scheduleNotFound();
+            // Instant local redirect check (synced redirects route immediately).
+            const redirect = (
+                await queryLocal<RedirectDto>({
+                    selector: { $and: [{ type: DocType.Redirect }, { slug }] },
+                })
+            )[0];
+            if (props.slug === slug && redirect) routeRedirect(redirect);
+        },
+        { immediate: true },
+    );
 
-// Drop a pending not-found timer on unmount so its remote redirect probe can't fire
-// after the user has navigated away (e.g. via a route-name redirect match).
-onUnmounted(clearNotFoundTimer);
+    // Bind the resolved content. A found doc wins immediately and clears loading.
+    watch(
+        contentArr,
+        (docs) => {
+            if (docs.length) {
+                content.value = docs[0];
+                isLoading.value = false;
+                clearNotFoundTimer();
+            }
+        },
+        { immediate: true },
+    );
 
-// Keep a viewed article alive in the offline document store: refresh its retention
-// deadline whenever a real content doc is displayed, so a below-cutoff article the
-// user reads isn't evicted as stale. No-op for the placeholder / undefined.
-watch(content, (c) => {
-    if (c && c._id) touchRetention([c._id]);
-});
+    // Drop a pending not-found timer on unmount so its remote redirect probe can't fire
+    // after the user has navigated away (e.g. via a route-name redirect match).
+    onUnmounted(clearNotFoundTimer);
+
+    // Keep a viewed article alive in the offline document store: refresh its
+    // retention deadline whenever a real content doc is displayed, so a below-cutoff
+    // article the user reads isn't evicted as stale. No-op for placeholder /
+    // undefined.
+    watch(content, (c) => {
+        if (c && c._id) touchRetention([c._id]);
+    });
+}
 
 // Available translations + their languages. HybridQuery merges the local read with
 // the below-cutoff API supplement; the language list is a fully-synced type read
 // straight from IndexedDB.
 const isLoadingTranslations = ref(false);
 
-// Per-document lookup → response cache stays off (the useContentQuery default). The
-// cache key is the query shape (parentId is stripped to a placeholder), so a seed here
-// would be a previously-viewed post's translations — which feed availableTranslations
-// and drive the auto-navigation below, redirecting this page back to that post.
-const translationsArr = useContentQuery(
-    // Before `content` resolves there is no parent to match siblings against. An
-    // empty `$in` is provably-empty, so HybridQuery short-circuits both the Dexie
-    // read and the API supplement — a `parentId: ""` placeholder instead POSTs a
-    // match-nothing query that full-scans the publishDate index.
-    () =>
-        content.value?.parentId
-            ? [{ parentId: content.value.parentId }]
-            : [{ parentId: { $in: [] } }],
-    {
-        publishedFilter: false,
-        // Seek siblings by parentId rather than scanning the publishDate index. The
-        // provably-empty `$in: []` branch short-circuits before any API call, so the
-        // index/sort only matter on the resolved-parentId (equality) branch.
-        useIndex: "content-parentId-publishDate-index",
-        sort: [{ publishDate: "desc" }],
-        // A language switch binds the chosen translation straight into `content`, so
-        // these docs must retain the same fields as the main content query: `text`
-        // (the article body) and `memberOf` (read by canEdit). The default strip set
-        // would drop both, blanking the body and crashing the edit check.
-        stripFields: ["fts", "ftsTokenCount", "_rev"],
-    },
-);
-const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-    // Only the i18n singleton in globalConfig needs `translations`; this query reads
-    // just id/name/languageCode/averageReadingSpeed, so drop the heavy strings map.
-    stripFields: ["translations", "_rev"],
-});
+// Native/SPA path: translations + the language list from the hybrid query. The web
+// build derives hreflang alternates from the snapshot instead (see the Web / SSG
+// tier block above), so skip these Dexie-backed queries there.
+if (!isWeb) {
+    // Per-document lookup → response cache stays off (the useContentQuery default).
+    // The cache key is the query shape (parentId is stripped to a placeholder), so a
+    // seed here would be a previously-viewed post's translations — which feed
+    // availableTranslations and drive the auto-navigation below, redirecting this page
+    // back to that post.
+    const translationsArr = useContentQuery(
+        // Before `content` resolves there is no parent to match siblings against. An
+        // empty `$in` is provably-empty, so HybridQuery short-circuits both the Dexie
+        // read and the API supplement — a `parentId: ""` placeholder instead POSTs a
+        // match-nothing query that full-scans the publishDate index.
+        () =>
+            content.value?.parentId
+                ? [{ parentId: content.value.parentId }]
+                : [{ parentId: { $in: [] } }],
+        {
+            publishedFilter: false,
+            // Seek siblings by parentId rather than scanning the publishDate index.
+            // The provably-empty `$in: []` branch short-circuits before any API call,
+            // so the index/sort only matter on the resolved-parentId (equality) branch.
+            useIndex: "content-parentId-publishDate-index",
+            sort: [{ publishDate: "desc" }],
+            // A language switch binds the chosen translation straight into `content`,
+            // so these docs must retain the same fields as the main content query:
+            // `text` (the article body) and `memberOf` (read by canEdit). The default
+            // strip set would drop both, blanking the body and crashing the edit check.
+            stripFields: ["fts", "ftsTokenCount", "_rev"],
+        },
+    );
+    const allLanguages = useHybridQuery<LanguageDto>(
+        () => ({ selector: { type: DocType.Language } }),
+        {
+            live: true,
+            // Only the i18n singleton in globalConfig needs `translations`; this query
+            // reads just id/name/languageCode/averageReadingSpeed, so drop the heavy
+            // strings map.
+            stripFields: ["translations", "_rev"],
+        },
+    );
 
-watch(
-    [translationsArr, allLanguages, () => content.value?.parentId],
-    () => {
-        if (!content.value) return;
-        const published = (translationsArr.value as ContentDto[]).filter(
-            (c) => c.status === PublishStatus.Published,
-        );
-        if (published.length > 1) {
-            availableTranslations.value = published;
-            languages.value = allLanguages.value.filter((lang) =>
-                published.some((t) => t.language === lang._id),
+    watch(
+        [translationsArr, allLanguages, () => content.value?.parentId],
+        () => {
+            if (!content.value) return;
+            const published = (translationsArr.value as ContentDto[]).filter(
+                (c) => c.status === PublishStatus.Published,
             );
-        }
-    },
-    { immediate: true },
-);
+            if (published.length > 1) {
+                availableTranslations.value = published;
+                languages.value = allLanguages.value.filter((lang) =>
+                    published.some((t) => t.language === lang._id),
+                );
+            }
+        },
+        { immediate: true },
+    );
+}
 
-const tags = useContentQuery(
-    () => {
-        // Before `content` resolves, match nothing via a provably-empty `$in`
-        // rather than POSTing `{ parentId: { $in: [""] } }`, which full-scans.
-        if (!content.value?.parentId) return [{ parentId: { $in: [] } }];
-        // Include this document's parent ID to show content tagged with this
-        // document's parent (if a TagDto).
-        const parentIds = (content.value.parentTags || []).concat([content.value.parentId]);
-        return [{ parentId: { $in: parentIds } }, { parentType: DocType.Tag }];
-    },
-    // Per-document lookup → response cache stays off (the useContentQuery default): a
-    // shape-keyed seed would carry a previously-viewed post's tags, wrongly setting
-    // selectedCategoryId and RelatedContent.
-    { includeScheduled: false },
-);
+// Tags drive the category chips + RelatedContent. Native reads them via the hybrid
+// query; the web build defers query-driven sections to Phase 2, so it uses an empty
+// list — `tags` stays defined for the template + computeds either way.
+const tags = (isWeb
+    ? ref<ContentDto[]>([])
+    : useContentQuery(
+          () => {
+              // Before `content` resolves, match nothing via a provably-empty
+              // `$in` rather than POSTing `{ parentId: { $in: [""] } }`, which
+              // full-scans.
+              if (!content.value?.parentId) return [{ parentId: { $in: [] } }];
+              // Include this document's parent ID to show content tagged with this
+              // document's parent (if a TagDto).
+              const parentIds = (content.value.parentTags || []).concat([content.value.parentId]);
+              return [{ parentId: { $in: parentIds } }, { parentType: DocType.Tag }];
+          },
+          // Per-document lookup → response cache stays off (the useContentQuery
+          // default): a shape-keyed seed would carry a previously-viewed post's
+          // tags, wrongly setting selectedCategoryId and RelatedContent.
+          { includeScheduled: false },
+      )) as unknown as Ref<ContentDto[]>;
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
@@ -368,29 +526,41 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-watch([content, is404], () => {
-    if (content.value) isLoading.value = false;
+// Native sets the head imperatively. The web build uses useHead() (the Web / SSG
+// tier block above) so the tags are captured into the prerendered HTML; skip the
+// imperative path there.
+if (!isWeb)
+    watch([content, is404], () => {
+        if (content.value) isLoading.value = false;
 
-    // Set document title and meta tags
-    document.title = is404.value
-        ? `Page not found - ${appName}`
-        : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
+        // Set document title and meta tags
+        document.title = is404.value
+            ? `Page not found - ${appName}`
+            : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
 
-    if (is404.value) return;
+        if (is404.value) return;
 
-    // SEO meta tag settings
-    let metaTag = document.querySelector("meta[name='description']");
-    if (!metaTag) {
-        // If the meta tag doesn't exist, create it
-        metaTag = document.createElement("meta");
-        metaTag.setAttribute("name", "description");
-        document.head.appendChild(metaTag);
-    }
-    // Update the content attribute
-    metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
-});
+        // SEO meta tag settings
+        let metaTag = document.querySelector("meta[name='description']");
+        if (!metaTag) {
+            // If the meta tag doesn't exist, create it
+            metaTag = document.createElement("meta");
+            metaTag.setAttribute("name", "description");
+            document.head.appendChild(metaTag);
+        }
+        // Update the content attribute
+        metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
+    });
 
 const text = computed(() => content.value?.text ?? "");
+
+// Format a publish date for display. Kept in setup scope (not inline in the
+// template) so `navigator` resolves to the real global rather than `_ctx.navigator`,
+// and so it never reaches for `db` (absent during the Node prerender).
+const formatPublishDate = (ms: number) =>
+    DateTime.fromMillis(ms)
+        .setLocale(typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US")
+        .toLocaleString(DateTime.DATETIME_MED);
 
 // Select the first category in the content by category list on load
 watch(tags, () => {
@@ -884,9 +1054,7 @@ watch([isLoading, content, is404], async () => {
                             >
                                 {{
                                     content.publishDate
-                                        ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
+                                        ? formatPublishDate(content.publishDate)
                                         : ""
                                 }}
                             </div>

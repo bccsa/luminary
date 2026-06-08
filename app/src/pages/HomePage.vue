@@ -7,7 +7,7 @@ import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
 import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
-import { nextTick, onActivated, ref } from "vue";
+import { computed, nextTick, onActivated, onMounted, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 
 const pinnedResolved = ref(false);
@@ -21,21 +21,34 @@ async function checkReady() {
 }
 
 onActivated(checkReady);
+
+// The home feed sections are query-driven (Dexie) — prerendering them is Phase 2
+// (needs the hybrid Mango query). On the web/SSG build they would crash in Node
+// (no Dexie), so render them only after mount; the prerendered home is a clean
+// shell (header/nav + SEO). On native they render immediately (unchanged).
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const isMounted = ref(false);
+onMounted(() => {
+    isMounted.value = true;
+});
+const showDynamic = computed(() => !isWeb || isMounted.value);
 </script>
 
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
-            <HomePageSearch v-if="isMdScreen" />
-            <Suspense @resolve="pinnedResolved = true; checkReady()">
-                <HomePagePinned />
-            </Suspense>
-            <Suspense @resolve="newestResolved = true; checkReady()">
-                <HomePageNewest />
-            </Suspense>
+            <template v-if="showDynamic">
+                <HomePageSearch v-if="isMdScreen" />
+                <Suspense @resolve="pinnedResolved = true; checkReady()">
+                    <HomePagePinned />
+                </Suspense>
+                <Suspense @resolve="newestResolved = true; checkReady()">
+                    <HomePageNewest />
+                </Suspense>
 
-            <ContinueProgress />
-            <ContinueListening />
+                <ContinueProgress />
+                <ContinueListening />
+            </template>
         </IgnorePagePadding>
     </BasePage>
 </template>
