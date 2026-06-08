@@ -1,8 +1,3 @@
-export type AuthConfig = {
-    jwtSecret: string;
-    jwtMappings: string;
-};
-
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
@@ -56,7 +51,6 @@ export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
     s3Audio?: AudioS3Config;
-    auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
     imageProcessing?: ImageProcessingConfig;
@@ -66,10 +60,6 @@ export type Configuration = {
 
 export default () =>
     ({
-        auth: {
-            jwtSecret: process.env.JWT_SECRET,
-            jwtMappings: process.env.JWT_MAPPINGS,
-        } as AuthConfig,
         database: {
             connectionString: process.env.DB_CONNECTION_STRING,
             database: process.env.DB_DATABASE,

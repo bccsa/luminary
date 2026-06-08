@@ -73,7 +73,7 @@ Multi-provider OIDC. `AuthProvider` documents in the DB define each provider (do
 
 **Failure-reason codes** (`AuthFailureReason`) are critical for client behavior: `provider_not_found` tells the client to evict its cached provider doc and re-pick; `token_invalid` triggers a similar eviction so Dexie can resync. The Socket.io gateway in `socketio.ts` injects these into `connect_error` payloads; the REST `AuthGuard` does the equivalent via `UnauthorizedException`.
 
-The `JwtModule` is registered globally in `app.module.ts`. Group-membership and identity claims are derived from arrow-function strings in `JWT_MAPPINGS` env var — these are `eval`-equivalent so the env value is trusted config.
+The `JwtModule` is registered globally in `app.module.ts` (no signing secret — tokens are verified against each provider's JWKS, not a shared secret). Group-membership and identity claims are derived from the claim/group mappings stored on each `AuthProvider` doc and evaluated by `AuthIdentityService` (plus `AutoGroupMappings` docs) — the legacy `JWT_SECRET`/`JWT_MAPPINGS` env vars are gone.
 
 ### Socket.io (`src/socketio.ts`)
 
