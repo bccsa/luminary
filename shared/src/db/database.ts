@@ -205,7 +205,7 @@ class Database extends Dexie {
 
     /**
      * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
-     * @deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead
+     * @deprecated For document (db.docs) reads use HybridQuery (useHybridQuery). For other Dexie reactivity (e.g. localChanges) use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable.
      * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @returns Vue Ref
@@ -214,9 +214,6 @@ class Database extends Dexie {
         query: () => Promise<T>,
         initialValue?: T,
     ) {
-        console.log(
-            "toRef is deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead",
-        );
         return useObservable(
             liveQuery(async () => {
                 return await query();
@@ -234,22 +231,20 @@ class Database extends Dexie {
 
     /**
      * Get an IndexedDB document as Vue Ref by its id
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
     getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
-        console.log("getAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
     }
 
     /**
      * Get an IndexedDB document by its slug as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param slug - The slug of the document to get
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
     getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
-        console.log("getBySlugAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<T>(
             () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
             initialValue,
@@ -307,10 +302,9 @@ class Database extends Dexie {
 
     /**
      * Return true if there are some documents of the specified DocType as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     someByTypeAsRef(docType: DocType) {
-        console.log("someByTypeAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<boolean>(
             () => this.someByType(docType) as unknown as Promise<boolean>,
             false,
@@ -319,7 +313,7 @@ class Database extends Dexie {
 
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @param postOrTagType - Optional: The tag type or post type to filter by
      * TODO: Add pagination
@@ -329,7 +323,6 @@ class Database extends Dexie {
         initialValue?: T,
         postOrTagType?: TagType | PostType,
     ) {
-        console.log("whereTypeAsRef is deprecated - use useDexieLiveQuery instead");
         if (postOrTagType) {
             // Check if postOrTagType is a TagType by checking if it's included in TagType values
             const isTagType = Object.values(TagType).includes(postOrTagType as TagType);
@@ -379,7 +372,7 @@ class Database extends Dexie {
 
     /**
      * Get IndexedDB documents by their parentId(s) as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param parentId - The parentId(s) to filter by
      * @param parentType - Optional: The parent type to filter by
      * @param initialValue - The initial value of the ref while waiting for the query to complete
@@ -390,7 +383,6 @@ class Database extends Dexie {
         languageId?: Uuid,
         initialValue?: ContentDto[],
     ) {
-        console.log("whereParentAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<ContentDto[]>(
             () => this.whereParent(parentId, parentType, languageId),
             initialValue,
@@ -501,10 +493,9 @@ class Database extends Dexie {
 
     /**
      * Get all tags of a certain tag type as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
-        console.log("tagsWhereTagTypeAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
     }
 
@@ -579,10 +570,9 @@ class Database extends Dexie {
 
     /**
      * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
-        console.log("contentWhereTagAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
@@ -667,7 +657,6 @@ class Database extends Dexie {
      * @deprecated - use useDexieLiveQueryAsEditable instead
      */
     isLocalChangeAsRef(docId: Uuid) {
-        console.log("isLocalChangeAsRef is deprecated - use useDexieLiveQueryAsEditable instead");
         return this.toRef<boolean>(
             () =>
                 this.localChanges
@@ -713,6 +702,7 @@ class Database extends Dexie {
 
     /**
      * Set a query result to the query cache
+     * @deprecated Use HybridQuery's opt-in response cache (the `cache` option on useHybridQuery) instead.
      * @param id - Unique ID for the query
      * @param result - The query result to be stored
      */
@@ -722,6 +712,7 @@ class Database extends Dexie {
 
     /**
      * Get a query result from the query cache
+     * @deprecated Use HybridQuery's opt-in response cache (the `cache` option on useHybridQuery) instead.
      * @param id - Unique ID for the query
      */
     async getQueryCache<T extends BaseDocumentDto[]>(id: string) {
