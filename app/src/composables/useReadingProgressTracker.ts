@@ -1,4 +1,4 @@
-import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
+import { computed, nextTick, onUnmounted, ref, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
 import {
     getReadingProgress,
@@ -90,24 +90,6 @@ export function resolveArticleScrollContainer(): HTMLElement | Window {
 
 function getScrollTop(container: HTMLElement | Window): number {
     return container === window ? window.scrollY : (container as HTMLElement).scrollTop;
-}
-
-function isElementVisibleInRoot(
-    el: Element,
-    root: HTMLElement | Window,
-    intersectionRatio = READING_INTERSECTION_RATIO,
-): boolean {
-    const elRect = el.getBoundingClientRect();
-    if (elRect.height <= 0) return false;
-
-    const rootRect =
-        root === window
-            ? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
-            : (root as HTMLElement).getBoundingClientRect();
-
-    const visibleHeight =
-        Math.min(elRect.bottom, rootRect.bottom) - Math.max(elRect.top, rootRect.top);
-    return visibleHeight / elRect.height >= intersectionRatio;
 }
 
 export function useReadingProgressTracker(options: {
