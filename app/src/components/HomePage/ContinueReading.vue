@@ -1,10 +1,18 @@
 <script setup lang="ts">
 // Import required components and modules
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { type ContentDto, DocType, db, PostType, TagType, type Uuid } from "luminary-shared";
+import {
+    type ContentDto,
+    DocType,
+    db,
+    PostType,
+    TagType,
+    type Uuid,
+    mangoToDexie,
+    useDexieLiveQueryWithDeps,
+} from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { useDexieLiveQueryWithDeps } from "luminary-shared";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import { ref, onMounted, onUnmounted } from "vue";
 
@@ -59,19 +67,24 @@ const watchedContent = useDexieLiveQueryWithDeps(
     async ([appLanguageIds, watched]) => {
         if (watched.length === 0) return [];
 
-        const contentIds = watched.map((entry: any) => entry.contentId);
-        const allDocs = await db.docs.bulkGet(contentIds);
+        const contentIds = watched.map((entry: { contentId: Uuid }) => entry.contentId);
 
-        const validContent = allDocs.filter((c) => {
-            const doc = c as ContentDto;
-            if (!doc || doc.type !== DocType.Content) return false;
-            if (doc.parentPostType === PostType.Page) return false;
-            if (doc.parentTagType === TagType.Category) return false;
-
-            return isPublished(doc, appLanguageIds);
+        const results = await mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { _id: { $in: contentIds } },
+                    { type: DocType.Content },
+                    { parentPostType: { $ne: PostType.Page } },
+                    { parentTagType: { $ne: TagType.Category } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
         });
 
-        return validContent as ContentDto[];
+        const orderMap = new Map<string, number>(contentIds.map((id, i) => [id, i]));
+        results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
+
+        return results;
     },
     {
         initialValue: [],
@@ -86,7 +99,6 @@ const watchedContent = useDexieLiveQueryWithDeps(
         :contentDocs="watchedContent"
         :title="t('home.continue.read')"
         :showPublishDate="true"
-        :showProgress="true"
-        class="pb-1 pt-4"
+        class="pt-4 pb-1"
     />
 </template>
