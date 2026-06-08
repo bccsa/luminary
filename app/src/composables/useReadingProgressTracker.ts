@@ -1,4 +1,4 @@
-import { computed, nextTick, onUnmounted, ref, type Ref } from "vue";
+import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
 import {
     getReadingProgress,
@@ -47,6 +47,7 @@ export function applyScrollVelocitySample(
     deltaY: number,
     deltaMs: number,
 ): { isFast: boolean; justSlowedDown: boolean; state: ScrollVelocityState } {
+    
     const next: ScrollVelocityState = {
         pendingScrollDeltaY: state.pendingScrollDeltaY + deltaY,
         pendingScrollDeltaMs: state.pendingScrollDeltaMs + deltaMs,
