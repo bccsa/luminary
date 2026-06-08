@@ -154,3 +154,7 @@ These upgrades were removed after confirming all production databases were at ve
 ### v13 — FTS backfill (2026-03-09)
 
 Backfills pre-calculated FTS (full-text search) index data on all Content documents. Previously FTS indexing was done client-side; it is now computed server-side and delivered as `fts` and `ftsTokenCount` fields on ContentDto. See ADR 0009 for details.
+
+### v16 — Slug invariant cleanup (2026-06-08)
+
+Enforces the slug invariant — per slug, published Content and a Redirect are mutually exclusive (the redirect wins). For every Redirect, any _published_ Content doc sharing its slug is forced to Draft. Going forward the invariant is held by the change-request pipeline (`processContentDto` blocks publishing over a redirect; `validateChangeRequest` rejects a redirect over published content); this backfills pre-existing collisions.
