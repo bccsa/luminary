@@ -34,8 +34,6 @@ info "Detected platform: $PLATFORM"
 : "${LUMINARY_MINIO_ROOT_USER:=minio}"
 : "${LUMINARY_MINIO_ROOT_PASSWORD:=minio123}"
 
-JWT_MAPPINGS_JSON='{"groups":{"group-super-admins":"(jwt) => true"},"userId":"(jwt) => jwt && jwt[\"https://luminary-dev.com/metadata\"].userId","email":"(jwt) => jwt && jwt[\"https://luminary-dev.com/metadata\"].email","name":"(jwt) => jwt && jwt[\"https://luminary-dev.com/metadata\"].username"}'
-
 # ============================================================
 # PREREQUISITE CHECKS
 # ============================================================
@@ -151,13 +149,6 @@ setup_env_wizard() {
   echo ""
 }
 
-escape_env_value() {
-  python3 -c 'import sys
-value = sys.stdin.read()
-value = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-sys.stdout.write(value)' <<<"$1"
-}
-
 upsert_env_var() {
   local file="$1"
   local key="$2"
@@ -179,88 +170,10 @@ ensure_trailing_newline() {
   fi
 }
 
-remove_env_block() {
-  local file="$1"
-  local key="$2"
-  local end_regex="$3"
-
-  awk -v key="$key" -v end_regex="$end_regex" '
-    BEGIN { skip=0 }
-    $0 ~ "^" key "=" { skip=1; next }
-    skip==1 {
-      if ($0 ~ end_regex) { skip=0 }
-      next
-    }
-    { print }
-  ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
-}
-
-prompt_multiline_value() {
-  local prompt="$1"
-  local value=""
-
-  info "$prompt" >&2
-  info "Paste the value now." >&2
-  info "Finish by typing END on its own line and pressing Enter, or press Ctrl+D." >&2
-
-  while IFS= read -r line; do
-    if [[ "$line" == "END" ]]; then
-      break
-    fi
-    value+="$line"$'\n'
-  done || true
-
-  value="${value%$'\n'}"
-  echo "$value"
-}
-
-prompt_jwt_secret() {
-  local jwt_secret=""
-  local use_multiline=""
-
-  echo "" >&2
-  echo "==================================================================" >&2
-  echo "JWT Secret Configuration" >&2
-  echo "==================================================================" >&2
-  info "JWT_SECRET: The secret key used to sign and verify JWT tokens." >&2
-  info "  This is typically obtained from your Auth0 application settings" >&2
-  info "  under Advanced Settings > Certificates or can be your own secret." >&2
-  info "  Can be a single-line string or a multi-line PEM certificate." >&2
-  warn "Keep this secret secure - never commit it to version control!" >&2
-
-  while [[ ! "$use_multiline" =~ ^[YyNn]$ ]]; do
-    read -rp "Use multiline input? (y/n): " -n 1 -r use_multiline
-    echo "" >&2
-  done
-
-  if [[ "$use_multiline" =~ ^[Yy]$ ]]; then
-    info "Waiting for JWT_SECRET input..." >&2
-    jwt_secret=$(prompt_multiline_value "Paste JWT_SECRET")
-  else
-    read -rp "JWT_SECRET (single line): " jwt_secret
-  fi
-
-  echo "$jwt_secret"
-}
-
 apply_api_env_defaults() {
   local output_file="$1"
 
   sync_credentials_from_docker
-
-  if grep -q "JWT_SECRET" "$output_file"; then
-    remove_env_block "$output_file" "JWT_SECRET" '"$'
-    local jwt_secret=""
-    while [[ -z "$jwt_secret" ]]; do
-      jwt_secret=$(prompt_jwt_secret)
-      if [[ -z "$jwt_secret" ]]; then
-        warn "JWT_SECRET cannot be empty."
-      fi
-    done
-    local jwt_secret_escaped
-    jwt_secret_escaped=$(escape_env_value "$jwt_secret")
-    upsert_env_var "$output_file" "JWT_SECRET" "\"$jwt_secret_escaped\""
-  fi
 
   if grep -q "ENCRYPTION_KEY" "$output_file"; then
     local encryption_key=""
@@ -281,9 +194,6 @@ apply_api_env_defaults() {
     done
     upsert_env_var "$output_file" "ENCRYPTION_KEY" "\"$encryption_key\""
   fi
-
-  remove_env_block "$output_file" "JWT_MAPPINGS" "}'$"
-  upsert_env_var "$output_file" "JWT_MAPPINGS" "'$JWT_MAPPINGS_JSON'"
 
   local db_connection
   db_connection="http://${LUMINARY_COUCHDB_USER}:${LUMINARY_COUCHDB_PASSWORD}@127.0.0.1:5984"
