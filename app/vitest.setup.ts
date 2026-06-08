@@ -92,6 +92,23 @@ class MockResizeObserver {
 }
 window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
+class MockIntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "";
+    readonly thresholds: number[] = [];
+
+    constructor(_callback: IntersectionObserverCallback) {}
+
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords(): IntersectionObserverEntry[] {
+        return [];
+    }
+}
+window.IntersectionObserver =
+    MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
 window.matchMedia = vi.fn().mockImplementation((query) => {
     return {
         matches: false,
