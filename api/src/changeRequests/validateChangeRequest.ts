@@ -7,7 +7,7 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
-import { DocType, Uuid } from "../enums";
+import { DocType, PublishStatus, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
@@ -75,6 +75,19 @@ export async function validateChangeRequest(
                 validated: false,
                 error: `Submitted "${changeRequest.doc.type}" document validation failed:\nSlug already has a redirect`,
             };
+        }
+
+        // Slug invariant: a Redirect may not be created over currently-published
+        // Content (the redirect wins, but we reject rather than silently unpublish —
+        // the editor must unpublish the content first). Draft content is fine.
+        if (!currentDoc.deleteReq) {
+            const colliding = await dbService.getDocsBySlug(currentDoc.slug, DocType.Content);
+            if (colliding.some((c) => (c as ContentDto).status === PublishStatus.Published)) {
+                return {
+                    validated: false,
+                    error: `Submitted "${changeRequest.doc.type}" document validation failed:\nPublished content already exists for slug "${currentDoc.slug}". Unpublish it before creating a redirect.`,
+                };
+            }
         }
     }
 
