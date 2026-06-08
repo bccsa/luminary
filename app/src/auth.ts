@@ -4,7 +4,7 @@ import { type App, ref } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { setCustomHeader, removeCustomHeader, getSocket } from "luminary-shared";
-import { db, DocType } from "luminary-shared";
+import { DocType, queryLocal } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
 const AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
@@ -132,15 +132,23 @@ export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
         if (!clientId) return null;
     }
 
-    const doc = await db.docs
-        .where("type")
-        .equals(DocType.AuthProvider)
-        .filter((d) => (d as AuthProviderDto).clientId === clientId)
-        .first();
+    // One-shot local read of the synced AuthProvider docs via queryLocal — the
+    // awaitable, empty-safe counterpart to useHybridQuery for boot-time / non-Vue code.
+    // Returns [] when nothing is synced yet, so the persisted-provider fallback below
+    // runs. Local-only by design (no auth/network is guaranteed at boot). Matched on
+    // clientId in memory (kept off the selector so it stays a single-index type read).
+    const providers = await queryLocal<AuthProviderDto>({
+        selector: { type: DocType.AuthProvider },
+    });
+    const doc = providers.find((p) => p.clientId === clientId);
     if (doc) {
-        const d = doc as AuthProviderDto;
-        persistActiveProvider(d);
-        return { _id: d._id, domain: d.domain, clientId: d.clientId, audience: d.audience };
+        persistActiveProvider(doc);
+        return {
+            _id: doc._id,
+            domain: doc.domain,
+            clientId: doc.clientId,
+            audience: doc.audience,
+        };
     }
 
     // Dexie evicted: rebuild from the persisted `{ _id, domain }` plus the
