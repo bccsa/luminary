@@ -1,8 +1,6 @@
 import {
-    db,
     DocType,
-    useDexieLiveQuery,
-    mangoToDexie,
+    HybridQuery,
     type LanguageDto,
     type Uuid,
     type ContentDto,
@@ -138,14 +136,17 @@ export const appLanguageAsRef = computed(() => appLanguagesPreferredAsRef.value[
  */
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
-        const _cmsLanguages = useDexieLiveQuery(
-            () => mangoToDexie<LanguageDto>(db.docs, { selector: { type: DocType.Language } }),
-            { initialValue: [] },
+        // Language is a fully-synced type, so this HybridQuery reads from IndexedDB
+        // only. Constructed at app scope (never disposed) — its output ref feeds the
+        // shared cmsLanguages list.
+        const languagesQuery = new HybridQuery<LanguageDto>(
+            { selector: { type: DocType.Language } },
+            { live: true },
         );
 
         // Watch for CMS languages and update cmsLanguages
         watch(
-            _cmsLanguages,
+            languagesQuery.output,
             (newVal) => {
                 // Clear and update cmsLanguages
                 cmsLanguages.value.length = 0;
