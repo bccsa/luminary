@@ -130,18 +130,18 @@ const handleLogin = () => {
         <!-- Collapse toggle — sits on the right edge, vertically centred -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-zinc-500 shadow-sm transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             @click="toggleCollapsed"
         >
             <ChevronLeftIcon
                 v-if="!collapsed"
-                class="h-4 w-4"
+                class="h-4 w-4 -translate-x-0.5"
                 aria-hidden="true"
             />
             <ChevronRightIcon
                 v-else
-                class="h-4 w-4"
+                class="h-4 w-4 translate-x-0.5"
                 aria-hidden="true"
             />
         </button>
@@ -150,7 +150,7 @@ const handleLogin = () => {
         <div :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'">
             <RouterLink
                 :to="{ name: 'home' }"
-                :class="collapsed ? 'flex justify-center p-2.5' : 'flex items-center px-3 py-2'"
+                :class="collapsed ? 'flex justify-center px-3 py-2' : 'flex items-center px-3 py-2'"
                 :title="collapsed ? t('menu.home') : undefined"
             >
                 <template v-if="collapsed">
