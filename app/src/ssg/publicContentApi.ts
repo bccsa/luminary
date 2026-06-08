@@ -1,4 +1,6 @@
 import type { ContentDto } from "luminary-shared";
+import { reportKeys } from "./dependencyCapture";
+import { docKey } from "./dependencyKeys";
 
 /**
  * One-shot, unauthenticated reads of the PUBLIC content tier from the API's
@@ -54,7 +56,12 @@ export async function searchPublic<T = ContentDto>(query: PublicSearchQuery): Pr
  */
 export async function fetchPublicContentBySlug(slug: string): Promise<ContentDto | null> {
     const docs = await searchPublic<ContentDto>({ slug });
-    return docs.find((d) => (d as ContentDto).type === ("content" as ContentDto["type"])) ?? null;
+    const doc = docs.find((d) => (d as ContentDto).type === ("content" as ContentDto["type"])) ?? null;
+    // Dependency capture: this page reads this content item. `doc:` is keyed by
+    // parentId, which all translations share — so a change to any translation
+    // (incl. a sibling's slug, which the hreflang tags depend on) invalidates it.
+    if (doc) reportKeys([docKey(doc.parentId || doc._id)]);
+    return doc;
 }
 
 /**
