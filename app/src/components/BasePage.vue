@@ -13,6 +13,15 @@ import { getRouteHistory } from "@/router";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
+// On the web/SSG build the per-user chrome — the desktop sidebar (profile /
+// language / nav → Dexie + auth) and the notification managers (synced Dexie data)
+// — doesn't exist during the Node prerender. Render it only AFTER mount so the
+// prerendered HTML is the content-only baseline and the first client render still
+// matches (clean hydration). On native this is always true → behaviour unchanged.
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const isMounted = ref(false);
+const showChrome = computed(() => !isWeb || isMounted.value);
+
 defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
@@ -34,6 +43,7 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
+    isMounted.value = true;
     document.addEventListener("keydown", handleArrowKeyFocus);
 });
 
@@ -44,8 +54,9 @@ onUnmounted(() => {
 
 <template>
     <div class="flex h-full w-full scrollbar-hide">
-        <!-- Desktop left sidebar -->
-        <DesktopSidebar />
+        <!-- Desktop left sidebar. Gated post-mount on the web build: its profile /
+             language / auth chrome is Dexie-backed and absent during the prerender. -->
+        <DesktopSidebar v-if="showChrome" />
 
         <!-- Content column -->
         <div class="flex min-w-0 flex-1 flex-col scrollbar-hide">
@@ -57,7 +68,10 @@ onUnmounted(() => {
                 <template #quickControls><slot name="quickControls" /></template>
             </TopBar>
 
-            <Teleport to="body">
+            <Teleport
+                v-if="showChrome"
+                to="body"
+            >
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
@@ -94,7 +108,7 @@ onUnmounted(() => {
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
                         <NotificationBannerManager
-                            v-if="showNotifications"
+                            v-if="showNotifications && showChrome"
                             class="[&>div]:mb-2"
                         />
                     </div>
@@ -102,7 +116,7 @@ onUnmounted(() => {
 
                 <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
                 <NotificationBannerManager
-                    v-if="showNotifications"
+                    v-if="showNotifications && showChrome"
                     :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
                 />
 
@@ -110,7 +124,7 @@ onUnmounted(() => {
             </main>
 
             <div class="sticky bottom-0">
-                <NotificationBottomManager v-if="showNotifications" />
+                <NotificationBottomManager v-if="showNotifications && showChrome" />
                 <slot name="footer" />
             </div>
         </div>
