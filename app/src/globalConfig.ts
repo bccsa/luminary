@@ -571,9 +571,41 @@ export type ReadingProgress = {
 
 export const readingProgressAsRef = ref<ReadingProgress[]>([]);
 
-const _readingProgress = JSON.parse(
-    localStorage.getItem("readingProgress") || "[]",
-) as ReadingProgress[];
+function readReadingProgressFromStorage(): ReadingProgress[] {
+    try {
+        const list = JSON.parse(localStorage.getItem("readingProgress") || "[]");
+        return Array.isArray(list) ? list : [];
+    } catch {
+        return [];
+    }
+}
+
+function applyReadingProgressList(list: ReadingProgress[]) {
+    _readingProgress.length = 0;
+    _readingProgress.push(...list);
+    readingProgressAsRef.value = [..._readingProgress];
+}
+
+const _readingProgress: ReadingProgress[] = readReadingProgressFromStorage();
+
+readingProgressAsRef.value = [..._readingProgress];
+
+/** Reload reading progress from localStorage into the reactive ref (e.g. after cross-tab updates). */
+export function syncReadingProgressFromStorage(): void {
+    applyReadingProgressList(readReadingProgressFromStorage());
+}
+
+/** Listen for `storage` events on the readingProgress key. Returns a cleanup function. */
+export function watchReadingProgressStorage(): () => void {
+    const onStorage = (e: StorageEvent) => {
+        if (e.key === "readingProgress" || e.key === null) {
+            syncReadingProgressFromStorage();
+        }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+}
 
 /**
  * Get the reading progress of a content item.
@@ -601,9 +633,8 @@ export const setReadingProgress = (contentId: Uuid, progress: number) => {
         _readingProgress.push({ contentId, progress: clampedProgress });
     }
 
-    readingProgressAsRef.value = [..._readingProgress];
+    applyReadingProgressList([..._readingProgress]);
 
-    // Persist to localStorage
     localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
 };
 
@@ -611,15 +642,12 @@ export const setReadingProgress = (contentId: Uuid, progress: number) => {
  * Remove reading progress for a given content.
  */
 export const removeReadingProgress = (contentId: Uuid) => {
-    // Remove from _readingProgress
     const index = _readingProgress.findIndex((p) => p.contentId === contentId);
     if (index !== -1) {
         _readingProgress.splice(index, 1);
     }
 
-    // Remove from reactive ref
-    readingProgressAsRef.value = _readingProgress;
+    applyReadingProgressList([..._readingProgress]);
 
-    // Sync localStorage
     localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
 };
