@@ -1,4 +1,4 @@
-import { defineComponent, nextTick, ref, watch, watchEffect } from "vue";
+import { defineComponent, nextTick, ref, watchEffect } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -188,7 +188,7 @@ describe("applyScrollVelocitySample", () => {
     });
 
     it("reports when scrolling slows after a fast burst", () => {
-        let state = {
+        const state = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
             wasScrollingFast: true,
