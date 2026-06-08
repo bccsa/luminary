@@ -44,7 +44,7 @@ initSentry(app);
  * fetched on demand by `HybridQuery`. ~12 months — adjust if product wants a
  * different window.
  */
-const CONTENT_SYNC_WINDOW_MS = 12 * 30 * 24 * 60 * 60 * 1000; // ~12 months
+const CONTENT_SYNC_WINDOW_MS = 2 * 12 * 30 * 24 * 60 * 60 * 1000; // ~24 months
 
 async function Startup() {
     // Pre-warm Mango query caches from localStorage before any queries run.
