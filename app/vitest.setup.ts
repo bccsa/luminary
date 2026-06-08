@@ -97,7 +97,7 @@ class MockIntersectionObserver {
     readonly rootMargin = "";
     readonly thresholds: number[] = [];
 
-    constructor(_callback: IntersectionObserverCallback) {}
+    constructor() {}
 
     observe() {}
     unobserve() {}
