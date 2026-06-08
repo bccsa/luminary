@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-    readResponseCache,
-    structuralCacheKey,
-    writeResponseCache,
-} from "./responseCache";
+import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 
 // The internal localStorage namespace — kept in sync with responseCache.ts so a
@@ -36,6 +32,16 @@ describe("responseCache", () => {
             const cat: MangoQuery = { selector: { type: "content", parentTagType: "category" } };
             const topic: MangoQuery = { selector: { type: "content", parentTagType: "topic" } };
             expect(structuralCacheKey(cat)).toBe(structuralCacheKey(topic));
+        });
+
+        it("separates an otherwise-colliding shape when a cacheId is supplied", () => {
+            const q: MangoQuery = { selector: { type: "content", parentTagType: "topic" } };
+            // Same query, different cacheId ⇒ different keys.
+            expect(structuralCacheKey(q, "watching")).not.toBe(structuralCacheKey(q, "listening"));
+            // A cacheId also separates from the no-cacheId default.
+            expect(structuralCacheKey(q, "watching")).not.toBe(structuralCacheKey(q));
+            // The same cacheId is stable.
+            expect(structuralCacheKey(q, "watching")).toBe(structuralCacheKey(q, "watching"));
         });
 
         it("distinguishes different shapes", () => {

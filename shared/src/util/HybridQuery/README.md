@@ -195,6 +195,10 @@ works for both static and thunk queries.
     different constant (e.g. `parentTagType` Category vs Topic) map to the same
     entry. That only affects the first-paint seed — the live query supersedes it —
     so the worst case is a brief flash that self-corrects.
+  - *Disambiguating a harmful collision:* when two cached feeds share a shape and
+    are mounted **at the same time** (so they'd seed from each other), pass a distinct
+    `{ cacheId }` per call site — it is folded into `structuralCacheKey` to give each
+    its own entry. See `ContinueWatching` / `ContinueListening` in the app.
 - **Never a needless re-render.** `_recompute`'s `sameWindow` guard compares the
   recomputed window against the seeded one: when the live result matches (same `_id`
   + `updatedTimeUtc`), `output` is **not** reassigned, preserving referential
@@ -284,9 +288,13 @@ caveats — as `useDexieLiveQuery`:
 
 ### Other exports
 
-- `postQuery<T>(query)` — bare network call against `/query`. Applies the
-  `DEFAULT_REMOTE_QUERY_LIMIT` (500) as the **default** when `$limit` is omitted
-  (caller-supplied limits are forwarded unchanged, not clamped).
+- `queryLocal<T>(query)` — awaitable one-shot read of the **local** IndexedDB
+  document cache (`db.docs`). Resolves the matches (possibly empty); never hits the
+  API. The imperative counterpart to `useHybridQuery`, for boot-time / non-Vue code.
+- `queryRemote<T>(query)` — awaitable one-shot read of the **remote** API
+  (`POST /query`). Applies the `DEFAULT_REMOTE_QUERY_LIMIT` (500) as the **default**
+  when `$limit` is omitted (caller-supplied limits are forwarded unchanged, not
+  clamped). (`HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.)
 - `initHybridQuery(http)` — wire the HTTP service once at app startup
   (`shared/src/luminary.ts`).
 - `DEFAULT_REMOTE_QUERY_LIMIT = 500`.

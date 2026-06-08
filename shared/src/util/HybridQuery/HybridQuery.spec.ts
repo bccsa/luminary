@@ -102,7 +102,7 @@ import {
     DEFAULT_REMOTE_QUERY_LIMIT,
     HybridQuery,
     initHybridQuery,
-    postQuery,
+    queryRemote,
 } from "./HybridQuery";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 import { OPEN_MIN } from "../../rest/sync2/utils";
@@ -424,7 +424,7 @@ describe("HybridQuery", () => {
 
         it("dispose() during an in-flight POST prevents the late merge from mutating output", async () => {
             // Setup: online, content branch ⇒ local read merges first, then API
-            // POST is pending. dispose() before postQuery resolves must prevent
+            // POST is pending. dispose() before queryRemote resolves must prevent
             // the late _merge from touching output.
             const local = [{ _id: "local", updatedTimeUtc: 1, type: "content" }];
             mocks.mangoToDexieMock.mockResolvedValueOnce(local);
@@ -1804,7 +1804,7 @@ describe("HybridQuery", () => {
     });
 });
 
-describe("postQuery", () => {
+describe("queryRemote", () => {
     let postHttpMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
@@ -1817,7 +1817,7 @@ describe("postQuery", () => {
     });
 
     it("throws if initHybridQuery has not been called", async () => {
-        await expect(postQuery({ selector: { type: "post" } })).rejects.toThrow(
+        await expect(queryRemote({ selector: { type: "post" } })).rejects.toThrow(
             /not initialized with HTTP service/,
         );
     });
@@ -1826,7 +1826,7 @@ describe("postQuery", () => {
         postHttpMock.mockResolvedValueOnce({ docs: [{ _id: "x" }] });
         initHybridQuery({ post: postHttpMock } as any);
 
-        const docs = await postQuery({ selector: { type: "post" } });
+        const docs = await queryRemote({ selector: { type: "post" } });
 
         expect(postHttpMock).toHaveBeenCalledWith("query", {
             selector: { type: "post" },
@@ -1840,7 +1840,7 @@ describe("postQuery", () => {
         postHttpMock.mockResolvedValueOnce({ docs: [] });
         initHybridQuery({ post: postHttpMock } as any);
 
-        await postQuery({
+        await queryRemote({
             selector: { type: "post" },
             $limit: 25,
             $sort: [{ updatedTimeUtc: "desc" as const }],
@@ -1858,7 +1858,7 @@ describe("postQuery", () => {
         postHttpMock.mockResolvedValueOnce({});
         initHybridQuery({ post: postHttpMock } as any);
 
-        const docs = await postQuery({ selector: { type: "post" } });
+        const docs = await queryRemote({ selector: { type: "post" } });
         expect(docs).toEqual([]);
     });
 });

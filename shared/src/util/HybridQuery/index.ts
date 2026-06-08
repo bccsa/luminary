@@ -3,7 +3,8 @@ export {
     HybridQuery,
     type HybridQueryOptions,
     initHybridQuery,
-    postQuery,
+    queryLocal,
+    queryRemote,
 } from "./HybridQuery";
 export { useHybridQuery } from "./useHybridQuery";
 export { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";

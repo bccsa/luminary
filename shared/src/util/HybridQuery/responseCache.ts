@@ -53,16 +53,24 @@ export interface CachedWindow<T extends BaseDocumentDto> {
  * differ only in their variable values therefore share a key.
  *
  * Caveat: two DIFFERENT call sites with an identical shape but a different constant
- * (e.g. `parentTagType` Category vs Topic) collide. That only affects the
- * first-paint seed — the live query supersedes it via `sameWindow`.
+ * (e.g. `parentTagType` Category vs Topic) collide. That normally only affects the
+ * first-paint seed — the live query supersedes it via `sameWindow`. When the
+ * collision is harmful (two simultaneously-mounted feeds that differ only by a
+ * stripped constant, or where the seed drives behaviour), pass a `cacheId`: it is
+ * folded into the fingerprint so otherwise-identical shapes get distinct entries.
+ *
+ * @param cacheId Optional caller-supplied discriminator to separate the fingerprints
+ *   of structurally-identical queries. Omit it and same-shape queries share a key
+ *   (the default, which keeps the key space small).
  */
-export function structuralCacheKey(query: MangoQuery): string {
+export function structuralCacheKey(query: MangoQuery, cacheId?: string): string {
     const { template } = normalizeSelector(query.selector);
     const skeleton = JSON.stringify({
         t: template,
         s: query.$sort ?? null,
         l: query.$limit ?? null,
         i: query.use_index ?? null,
+        c: cacheId ?? null,
     });
     return hashString(skeleton);
 }
