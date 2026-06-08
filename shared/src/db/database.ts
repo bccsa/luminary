@@ -10,7 +10,6 @@ import {
     LocalChangeDto,
     PostType,
     PublishStatus,
-    queryCacheDto,
     TagDto,
     TagType,
     Uuid,
@@ -49,7 +48,6 @@ export type RetentionEntry = {
 type dbIndex = {
     docs: string;
     localChanges: string;
-    queryCache: string;
     luminaryInternals: string;
     retention: string;
 };
@@ -116,7 +114,6 @@ export type UpsertOptions<T> = {
 class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
-    queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
 
@@ -136,7 +133,6 @@ class Database extends Dexie {
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
-            queryCache: "id",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
         };
@@ -701,25 +697,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Set a query result to the query cache
-     * @deprecated Use HybridQuery's opt-in response cache (the `cache` option on useHybridQuery) instead.
-     * @param id - Unique ID for the query
-     * @param result - The query result to be stored
-     */
-    async setQueryCache<T extends BaseDocumentDto[]>(id: string, result: T) {
-        return await this.queryCache.put({ id, result: toRaw(result) });
-    }
-
-    /**
-     * Get a query result from the query cache
-     * @deprecated Use HybridQuery's opt-in response cache (the `cache` option on useHybridQuery) instead.
-     * @param id - Unique ID for the query
-     */
-    async getQueryCache<T extends BaseDocumentDto[]>(id: string) {
-        return ((await this.queryCache.get(id))?.result as T) || Array<T>();
-    }
-
-    /**
      * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds as a Dexie collection
      */
     private whereNotMemberOfAsCollection(
@@ -781,7 +758,6 @@ class Database extends Dexie {
                 const revokedIds = (await revokedDocs.primaryKeys()) as string[];
 
                 if (revokedIds.length > 0) {
-                    await this.queryCache.clear();
                     await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
                 }
             });
@@ -843,7 +819,6 @@ class Database extends Dexie {
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
-            this.queryCache.clear(),
             this.luminaryInternals.clear(),
         ]);
     }

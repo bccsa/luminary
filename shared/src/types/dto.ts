@@ -227,11 +227,6 @@ export type LocalChangeDto = {
     docId: Uuid;
 };
 
-export type queryCacheDto<T extends BaseDocumentDto> = {
-    id: string;
-    result: T[];
-};
-
 export type RedirectDto = ContentBaseDto & {
     redirectType: RedirectType;
     slug: string;
