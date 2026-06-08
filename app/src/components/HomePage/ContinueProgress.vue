@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { type ContentDto, DocType, db, PostType, TagType, type Uuid } from "luminary-shared";
+import {
+    type ContentDto,
+    DocType,
+    db,
+    PostType,
+    TagType,
+    type Uuid,
+    mangoToDexie,
+    useDexieLiveQueryWithDeps,
+} from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { useDexieLiveQueryWithDeps } from "luminary-shared";
-import { isPublished } from "@/util/isPublished";
+import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import { ref, onMounted, onUnmounted } from "vue";
 
@@ -55,17 +63,24 @@ const progressContent = useDexieLiveQueryWithDeps(
     async ([appLanguageIds, progress]) => {
         if (progress.length === 0) return [];
 
-        const contentIds = progress.map((entry: any) => entry.contentId);
-        const allDocs = await db.docs.bulkGet(contentIds);
+        const contentIds = progress.map((entry: { contentId: Uuid }) => entry.contentId);
 
-        return allDocs.filter((c) => {
-            const doc = c as ContentDto;
-            if (!doc || doc.type !== DocType.Content) return false;
-            if (doc.parentPostType === PostType.Page) return false;
-            if (doc.parentTagType === TagType.Category) return false;
+        const results = await mangoToDexie<ContentDto>(db.docs, {
+            selector: {
+                $and: [
+                    { _id: { $in: contentIds } },
+                    { type: DocType.Content },
+                    { parentPostType: { $ne: PostType.Page } },
+                    { parentTagType: { $ne: TagType.Category } },
+                    ...mangoIsPublished(appLanguageIds),
+                ],
+            },
+        });
 
-            return isPublished(doc, appLanguageIds);
-        }) as ContentDto[];
+        const orderMap = new Map<string, number>(contentIds.map((id, i) => [id, i]));
+        results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
+
+        return results;
     },
     {
         initialValue: [],
@@ -80,7 +95,6 @@ const progressContent = useDexieLiveQueryWithDeps(
         :contentDocs="progressContent"
         :title="mode === 'watching' ? t('home.continue.watch') : t('home.continue.read')"
         :showPublishDate="true"
-        :showProgress="mode === 'reading'"
         class="pt-4 pb-1"
     />
 </template>
