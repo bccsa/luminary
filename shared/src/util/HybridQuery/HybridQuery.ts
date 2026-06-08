@@ -46,7 +46,7 @@ export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
 let _httpService: HttpReq<any> | undefined;
 
 /**
- * Wire the HTTP service used by `HybridQuery` / `postQuery` for the remote path.
+ * Wire the HTTP service used by `HybridQuery` / `queryRemote` for the remote path.
  * Called once at app startup from `shared/src/luminary.ts`, alongside `initSync`.
  */
 export function initHybridQuery(httpService: HttpReq<any>): void {
@@ -66,13 +66,15 @@ export function _resetHybridQueryForTests(): void {
 }
 
 /**
- * POST a MangoQuery to the `/query` endpoint and return its docs. Bare network
- * call — no local read, no merging. Applies the remote `$limit` cap
- * (`DEFAULT_REMOTE_QUERY_LIMIT`) when the query omits one. Throws if
- * `initHybridQuery` has not wired an HTTP service — a programmer error, not a
- * runtime condition.
+ * One-shot read against the **remote API** (`POST /query`) — the remote counterpart
+ * to {@link queryLocal}. Bare network call: no local read, no merging. Applies the
+ * remote `$limit` cap ({@link DEFAULT_REMOTE_QUERY_LIMIT}) when the query omits one.
+ * Throws if `initHybridQuery` has not wired an HTTP service — a programmer error, not
+ * a runtime condition.
+ *
+ * `HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.
  */
-export async function postQuery<T = unknown>(query: MangoQuery): Promise<T[]> {
+export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> {
     if (!_httpService) {
         throw new Error(
             "hybridQuery module not initialized with HTTP service. Call initHybridQuery(http) first.",
@@ -92,6 +94,23 @@ export async function postQuery<T = unknown>(query: MangoQuery): Promise<T[]> {
 
     const res = await _httpService.post("query", payload as any);
     return (res?.docs ?? []) as T[];
+}
+
+/**
+ * One-shot read against the **local IndexedDB document cache** (`db.docs`) — the local
+ * counterpart to {@link queryRemote}. Resolves the matching documents (possibly empty)
+ * and **never touches the API**: the imperative counterpart to the reactive
+ * {@link useHybridQuery} / {@link HybridQuery}, for boot-time, event-handler, or other
+ * non-Vue code where the reactive output (change-gated: an empty result never emits)
+ * cannot be awaited.
+ *
+ * Local-only by design. Callers that need the below-cutoff API supplement should use
+ * {@link queryRemote} (or a reactive HybridQuery).
+ */
+export function queryLocal<T extends BaseDocumentDto = BaseDocumentDto>(
+    query: MangoQuery,
+): Promise<T[]> {
+    return mangoToDexie<T>(db.docs, query);
 }
 
 /** Options for {@link HybridQuery}. */
@@ -132,9 +151,23 @@ export type HybridQueryOptions = {
      *
      * Caveat: two different call sites with an identical query *shape* but a
      * different constant collide on one entry — harmless beyond a first-paint flash
-     * that self-corrects. See {@link structuralCacheKey}.
+     * that self-corrects. When the collision IS harmful (two simultaneously-mounted
+     * feeds that differ only by a stripped constant), pass {@link cacheId} to give
+     * them distinct entries. See {@link structuralCacheKey}.
      */
     cache?: boolean;
+
+    /**
+     * Optional discriminator folded into the response-cache fingerprint. Only
+     * meaningful with `cache: true`. The cache key is a structural fingerprint that
+     * strips runtime values, so two call sites whose queries differ only by a
+     * stripped constant (e.g. a `$ne` enum, an id list) share one entry. That is
+     * usually fine (a self-correcting first-paint flash), but for two feeds mounted
+     * at the same time it means they seed from each other. Pass a stable, unique
+     * `cacheId` per such call site to separate their fingerprints. No effect when
+     * `cache` is off.
+     */
+    cacheId?: string;
 
     /**
      * When `true`, **offline document persistence** is on: the API supplement's
@@ -254,6 +287,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Response caching (opt-in). `_cacheKey` is the current generation's structural
     // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
     private readonly _cache: boolean;
+    // Optional caller-supplied discriminator folded into `_cacheKey` so two
+    // structurally-identical queries can be given distinct cache entries.
+    private readonly _cacheId?: string;
     private _cacheKey = "";
     // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
     // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
@@ -290,6 +326,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._live = options.live ?? false;
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
+        this._cacheId = options.cacheId;
         this.output = shallowRef<T[]>([]);
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
@@ -312,7 +349,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // key as an absent field — they mean different things to Mango
                 // (`{ x: undefined }` compiles to "x must be missing"), so they must
                 // not be treated as an equal query and skip a rebuild.
-                () => JSON.stringify(this._queryFn(), (_k, v) => (v === undefined ? "\u0000undef" : v)),
+                () =>
+                    JSON.stringify(this._queryFn(), (_k, v) =>
+                        v === undefined ? "\u0000undef" : v,
+                    ),
                 () => this._rebuild(this._queryFn()),
                 { immediate: true },
             );
@@ -347,7 +387,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._query = query;
         this._limit = query.$limit;
         this._sort = query.$sort;
-        if (this._cache) this._cacheKey = structuralCacheKey(query);
+        if (this._cache) this._cacheKey = structuralCacheKey(query, this._cacheId);
 
         this._run();
     }
@@ -515,13 +555,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // covered by dispose() / the next rebuild.
         this._generationDisposers.add(() => scope.stop());
         scope.run(() => {
-            const source = useDexieLiveQuery<T[]>(
-                () => mangoToDexie<T>(db.docs, this._query),
-                {
-                    onError: (err) =>
-                        console.error("[HybridQuery] live local read failed:", err),
-                },
-            );
+            const source = useDexieLiveQuery<T[]>(() => mangoToDexie<T>(db.docs, this._query), {
+                onError: (err) => console.error("[HybridQuery] live local read failed:", err),
+            });
             // `immediate: true` fires synchronously with the ref's initial value
             // (`undefined`) — guarded out so we never pass `undefined` to
             // `mergeById` and never decide the API off a synthetic empty snapshot.
@@ -558,7 +594,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     private async _postAndMerge(api: MangoQuery, gen: number): Promise<void> {
         try {
-            const remote = await postQuery<T>(api);
+            const remote = await queryRemote<T>(api);
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
             if (gen !== this._generation || this._disposed) return;
@@ -593,11 +629,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * `_runApiWhenOnline`, and we deliberately do **not** re-POST on reconnect
      * (offline gaps are healed on remount — see the README "Shortcomings").
      */
-    private _startRemoteLive(
-        api: MangoQuery,
-        queryType: DocType | undefined,
-        gen: number,
-    ): void {
+    private _startRemoteLive(api: MangoQuery, queryType: DocType | undefined, gen: number): void {
         const matchP = mangoCompile(api.selector);
         const deleteP = mangoCompile(toDeleteSelector(api.selector, queryType));
         // Stable reference so off() always matches a prior on() (no dup listeners).
@@ -675,9 +707,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     /** First copy of `id` across the remote then local contributions, if any. */
     private _findById(id: string): T | undefined {
-        return (
-            this._remote.find((d) => d._id === id) ?? this._local.find((d) => d._id === id)
-        );
+        return this._remote.find((d) => d._id === id) ?? this._local.find((d) => d._id === id);
     }
 
     /** Replace the local contribution (the live emission may have dropped docs). */
@@ -689,9 +719,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (this._tombstones.size) {
             const release: string[] = [];
             this._tombstones.forEach((ts, id) => {
-                const staleStillPresent = local.some(
-                    (d) => d._id === id && d.updatedTimeUtc <= ts,
-                );
+                const staleStillPresent = local.some((d) => d._id === id && d.updatedTimeUtc <= ts);
                 if (!staleStillPresent) release.push(id);
             });
             release.forEach((id) => this._tombstones.delete(id));

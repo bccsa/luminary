@@ -46,7 +46,8 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  * localStorage window for an instant first paint; `{ persistOffline: true }` writes
  * the supplement's syncable docs to IndexedDB so the tiles are openable offline
  * (retention-managed; PII never persisted). They are independent and composable —
- * see {@link HybridQueryOptions} and the README.
+ * see {@link HybridQueryOptions} and the README. When two cached queries share a
+ * structural shape and must not collide, give each a distinct `{ cacheId }`.
  *
  * **Caveats:**
  * - **Setup-only.** Called outside an effect scope (event handler, `.then`,
