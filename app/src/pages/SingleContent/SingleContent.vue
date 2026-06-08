@@ -38,9 +38,6 @@ import {
     queryParams,
     addToMediaQueue,
     cmsUrl,
-    setReadingProgress,
-    getReadingProgress,
-    removeReadingProgress,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -67,6 +64,14 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
+import {
+    computeEstimatedReadingMinutes,
+    resolveReadingSpeedWpm,
+} from "@/util/readingTime";
+import {
+    resolveArticleScrollContainer,
+    useReadingProgressTracker,
+} from "@/composables/useReadingProgressTracker";
 
 const router = useRouter();
 
@@ -471,110 +476,44 @@ watch(
 );
 
 const openedFromExternalLink = ref(false);
-
-const scrollPosition = ref(0);
-const maxScrollPosition = ref(0);
+const articleProseRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
-let ticking = false;
 
-const storedScrollKey = computed(() => `scrollPosition-${content.value?._id}`);
+const readingTrackerEnabled = computed(
+    () => !!content.value?._id && !content.value?.video && !!content.value?.text,
+);
 
-const restoreScrollPosition = () => {
-    if (!content.value) return;
-    const percent = getReadingProgress(content.value._id);
-    if (percent && percent < 100) {
-        setTimeout(() => {
-            const maxScroll =
-                scrollContainer.value === window
-                    ? document.documentElement.scrollHeight - window.innerHeight
-                    : (scrollContainer.value as HTMLElement).scrollHeight -
-                      (scrollContainer.value as HTMLElement).clientHeight;
+const contentId = computed(() => content.value?._id);
 
-            const targetY = Math.round((percent / 100) * maxScroll);
+const contentLanguage = computed(() =>
+    languages.value.find((l) => l._id === content.value?.language),
+);
 
-            if (scrollContainer.value === window) {
-                window.scrollTo({ top: targetY });
-            } else {
-                (scrollContainer.value as HTMLElement).scrollTo({ top: targetY });
-            }
+const averageReadingSpeed = computed(() =>
+    resolveReadingSpeedWpm(contentLanguage.value?.averageReadingSpeed),
+);
 
-            maxScrollPosition.value = targetY;
-        }, 300);
-    }
-};
+function setScrollContainer() {
+    scrollContainer.value = resolveArticleScrollContainer();
+}
 
-const updateScrollPosition = () => {
-    const scrollY =
-        scrollContainer.value === window
-            ? window.scrollY
-            : (scrollContainer.value as HTMLElement).scrollTop;
-
-    scrollPosition.value = scrollY;
-
-    if (scrollY > maxScrollPosition.value) {
-        maxScrollPosition.value = scrollY;
-    }
-
-    if (!ticking) {
-        window.requestAnimationFrame(() => {
-            if (content.value && content.value._id) {
-                const maxScroll =
-                    scrollContainer.value === window
-                        ? document.documentElement.scrollHeight - window.innerHeight
-                        : (scrollContainer.value as HTMLElement).scrollHeight -
-                          (scrollContainer.value as HTMLElement).clientHeight;
-
-                const percentScrolled =
-                    maxScroll > 0 ? (maxScrollPosition.value / maxScroll) * 100 : 0;
-                const rounded = Math.round(percentScrolled);
-
-                if (rounded < 100) {
-                    setReadingProgress(content.value._id, rounded);
-                    localStorage.setItem(storedScrollKey.value, maxScrollPosition.value.toString());
-                } else {
-                    removeReadingProgress(content.value._id);
-                    localStorage.removeItem(storedScrollKey.value);
-                }
-            }
-            ticking = false;
-        });
-        ticking = true;
-    }
-};
-
-const setScrollContainer = () => {
-    const basePage = document.querySelector("main, .scroll-container, [data-scroll-container]");
-    scrollContainer.value =
-        basePage && basePage.scrollHeight > basePage.clientHeight
-            ? (basePage as HTMLElement)
-            : window;
-};
-
-const addScrollListener = () => {
-    scrollContainer.value.addEventListener("scroll", updateScrollPosition, { passive: true });
-};
-
-const removeScrollListener = () => {
-    scrollContainer.value.removeEventListener("scroll", updateScrollPosition);
-};
+useReadingProgressTracker({
+    contentId,
+    articleRoot: articleProseRef,
+    scrollContainer,
+    enabled: readingTrackerEnabled,
+    averageReadingSpeed,
+});
 
 onMounted(() => {
     openedFromExternalLink.value = isExternalNavigation();
     setScrollContainer();
-    addScrollListener();
-    restoreScrollPosition();
-
-    watch(content, () => {
-        removeScrollListener();
-        setScrollContainer();
-        addScrollListener();
-        maxScrollPosition.value = 0;
-        restoreScrollPosition();
-    });
 });
 
-onUnmounted(() => {
-    removeScrollListener();
+watch([isLoading, text], () => {
+    if (!isLoading.value && text.value) {
+        nextTick(setScrollContainer);
+    }
 });
 
 // Track whether the user explicitly switched language via the quick selector
@@ -684,14 +623,9 @@ const playAudio = () => {
     }
 };
 
-const readingTime = computed<number>(() => {
-    if (!content.value) return 0;
-    const wordCount = content.value.wordCount!;
-    const currentLanguage = languages.value.find((l) => l._id === content.value?.language);
-    const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
-
-    return Math.ceil(wordCount / readingSpeed);
-});
+const readingTime = computed<number>(() =>
+    computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
+);
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -991,6 +925,7 @@ watch([isLoading, content, is404], async () => {
                         :content-id="content._id"
                     >
                         <div
+                            ref="articleProseRef"
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{
