@@ -17,6 +17,8 @@ import {
     readingProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
+    syncReadingProgressFromStorage,
+    watchReadingProgressStorage,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -228,6 +230,37 @@ describe("globalConfig.ts", () => {
             expect(
                 readingProgressAsRef.value.find((p) => p.contentId === testContentId),
             ).toBeUndefined();
+        });
+
+        it("syncReadingProgressFromStorage reloads from localStorage", () => {
+            localStorage.setItem(
+                "readingProgress",
+                JSON.stringify([{ contentId: testContentId, progress: 33 }]),
+            );
+
+            syncReadingProgressFromStorage();
+
+            expect(getReadingProgress(testContentId)).toBe(33);
+            expect(readingProgressAsRef.value).toEqual([
+                { contentId: testContentId, progress: 33 },
+            ]);
+        });
+
+        it("watchReadingProgressStorage reacts to storage events", () => {
+            const stop = watchReadingProgressStorage();
+
+            localStorage.setItem(
+                "readingProgress",
+                JSON.stringify([{ contentId: testContentId, progress: 72 }]),
+            );
+            window.dispatchEvent(new StorageEvent("storage", { key: "readingProgress" }));
+
+            expect(getReadingProgress(testContentId)).toBe(72);
+            expect(readingProgressAsRef.value).toEqual([
+                { contentId: testContentId, progress: 72 },
+            ]);
+
+            stop();
         });
     });
 });
