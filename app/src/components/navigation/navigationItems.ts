@@ -11,7 +11,7 @@ import {
  * computed/watcher (outside a setup context), where `useI18n()` would throw.
  */
 export function getNavigationItems(t: (key: string) => string) {
-    const navigationItems = [
+    return [
         {
             name: t("menu.home"),
             defaultIcon: HomeIcon,
@@ -37,9 +37,4 @@ export function getNavigationItems(t: (key: string) => string) {
             to: {},
         },
     ];
-
-    // Exclude the "Explore" navigation item if the env variable "VITE_HIDE_EXPLORE" is set to "true"
-    return import.meta.env.VITE_HIDE_EXPLORE === "true"
-        ? navigationItems.filter((item) => item.name !== t("menu.explore"))
-        : navigationItems;
 }
