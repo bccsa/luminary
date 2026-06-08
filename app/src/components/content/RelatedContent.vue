@@ -1,18 +1,10 @@
 <script setup lang="ts">
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import {
-    db,
-    TagType,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-    type ContentDto,
-    type Uuid,
-} from "luminary-shared";
+import { TagType, type ContentDto } from "luminary-shared";
 import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -31,22 +23,9 @@ const contentIds = computed(() =>
         .filter((e, i, self) => i === self.indexOf(e)),
 );
 
-const contentDocs = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, contentIds],
-    ([languageIds, ids]: [Uuid[], Uuid[]]) => {
-        if (ids.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: { $in: ids } },
-                    ...mangoIsPublished(languageIds),
-                ],
-            },
-            $sort: [{ publishDate: "asc" }],
-        });
-    },
-    { initialValue: [] as ContentDto[] },
-);
+const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
+    sort: [{ publishDate: "asc" }],
+});
 
 const filtered = computed(() =>
     contentDocs.value.filter((item) => item._id !== props.selectedContent._id),

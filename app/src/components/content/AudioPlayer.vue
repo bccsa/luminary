@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { type ContentDto, db, type LanguageDto, useDexieLiveQueryWithDeps } from "luminary-shared";
+import { type ContentDto, db } from "luminary-shared";
+import { useContentQuery } from "@/composables/useContentQuery";
 import {
     PlayIcon,
     PauseIcon,
@@ -22,6 +23,7 @@ import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
 import {
     clearMediaQueue,
+    cmsLanguages,
     getMediaProgress,
     isMobileScreen,
     mediaQueue,
@@ -66,35 +68,33 @@ const showVolumeSlider = ref(false);
 
 const content = defineModel<ContentDto>("content", { required: true });
 
-// Create a live query to keep the content up-to-date with database changes
-// This ensures the image and other data stay fresh even if the parent post/tag is updated
-// We watch the content ID so the query updates when switching tracks AND when content is updated
-const liveContent = useDexieLiveQueryWithDeps(
-    () => content.value._id,
-    (contentId: string) => db.get<ContentDto>(contentId),
-    {
-        initialValue: content.value,
-    },
-);
+// Keep the content fresh with database changes (image, etc.) and openable when
+// switching tracks. The `_id: { $in: [...] }` form takes HybridQuery's id-diff
+// path, which short-circuits when the doc is already local (no needless API call).
+// cache:false avoids a first-paint flash of a previously-cached track (single-doc
+// queries share one structural cache key).
+const liveContentArr = useContentQuery(() => [{ _id: { $in: [content.value._id] } }], {
+    publishedFilter: false,
+    cache: false,
+});
 
 // Use live content if available, otherwise fall back to model
 // This ensures we always have the latest data from the database
-const currentContent = computed(() => liveContent.value || content.value);
+const currentContent = computed(() => liveContentArr.value[0] || content.value);
 
 // Language switcher state
 const showLanguageDropdown = ref(false);
 const selectedLanguageId = ref(currentContent.value.language);
 const isLanguageSwitching = ref(false);
 
-// Available languages for this content
-const availableLanguages = ref<LanguageDto[]>([]);
+// Available languages for this content (from the shared CMS languages list)
 const availableAudioLanguages = computed(() => {
     if (!currentContent.value?.parentMedia?.fileCollections) return [];
 
     const audioLanguageIds = currentContent.value.parentMedia.fileCollections.map(
         (fc) => fc.languageId,
     );
-    return availableLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
+    return cmsLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
 });
 
 // Enhanced error handling
@@ -599,16 +599,6 @@ const switchLanguage = (languageId: string) => {
     }
 };
 
-// Load available languages
-const loadAvailableLanguages = async () => {
-    try {
-        const languages = await db.docs.where("type").equals("language").toArray();
-        availableLanguages.value = languages as LanguageDto[];
-    } catch (error) {
-        console.error("Failed to load languages:", error);
-    }
-};
-
 // skip forward/back
 const skip = (seconds: number) => {
     if (audioElement.value) {
@@ -688,9 +678,6 @@ const formatTime = (time: number) => {
 };
 
 onMounted(() => {
-    // Load available languages
-    loadAvailableLanguages();
-
     // Add keyboard event listeners
     document.addEventListener("keydown", handleKeyDown);
 

@@ -122,7 +122,10 @@ describe("SingleContent", () => {
         // By default, mock as internal navigation (not external)
         mockIsExternalNavigation.mockReturnValue(false);
 
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
+        // Reset (not append) so the language-priority selector doesn't grow across
+        // tests — accumulation bloats mangoIsPublished and slows the real HybridQuery
+        // reads enough to time out the heavier multi-query tests.
+        appLanguageIdsAsRef.value = ["lang-eng"];
 
         await db.docs.bulkPut([
             mockPostDto,
@@ -346,7 +349,13 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.author);
         });
 
-        const mockContent = { ...mockEnglishContentDto, author: "" };
+        // Bump updatedTimeUtc: HybridQuery's window dedup (sameWindow) keys on
+        // _id + updatedTimeUtc, mirroring production where every update bumps it.
+        const mockContent = {
+            ...mockEnglishContentDto,
+            author: "",
+            updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+        };
         await db.docs.update(mockContent._id, mockContent);
 
         await waitForExpect(() => {

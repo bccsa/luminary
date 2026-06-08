@@ -1,22 +1,13 @@
 <script lang="ts" setup>
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
-import { useDexieLiveQuery, db, mangoToDexie, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const copyright = useDexieLiveQuery(() =>
-    mangoToDexie<ContentDto>(db.docs, {
-        selector: {
-            $and: [
-                { parentId: import.meta.env.VITE_COPYRIGHT_ID },
-                ...mangoIsPublished(appLanguageIdsAsRef.value, { includeScheduled: false }),
-            ],
-        },
-        $limit: 1,
-    }).then((docs) => docs[0] as ContentDto | undefined),
-);
+const copyright = useContentQuery(() => [{ parentId: import.meta.env.VITE_COPYRIGHT_ID }], {
+    includeScheduled: false,
+    limit: 1,
+});
 
-const copyrightContent = computed(() => copyright.value?.text ?? "");
+const copyrightContent = computed(() => copyright.value[0]?.text ?? "");
 </script>
 
 <template>
