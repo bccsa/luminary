@@ -5,7 +5,15 @@ import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
 
-type AspectRatio = "original" | "video" | "square" | "vertical" | "portrait" | "wide" | "classic" | "smallSquare";
+type AspectRatio =
+    | "original"
+    | "video"
+    | "square"
+    | "vertical"
+    | "portrait"
+    | "wide"
+    | "classic"
+    | "smallSquare";
 type ImageSize = "thumbnail" | "thumbnailFeatured" | "thumbnailCompact";
 
 type Props = {
@@ -80,9 +88,15 @@ useInfiniteScroll(
 
 <template>
     <div class="select-none">
-        <h2 v-if="title" class="truncate px-4">
+        <h2
+            v-if="title"
+            class="truncate px-4"
+        >
             {{ title }}
-            <span v-if="summary" class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200">
+            <span
+                v-if="summary"
+                class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200"
+            >
                 {{ summary }}
             </span>
         </h2>
@@ -94,7 +108,10 @@ useInfiniteScroll(
             >
                 <ArrowLeftCircleIcon
                     v-if="showLeftSpin"
-                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                    :class="[
+                        'mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:h-14 md:w-14',
+                        contentTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                    ]"
                     @click="spinLeft()"
                 />
             </div>
@@ -104,7 +121,11 @@ useInfiniteScroll(
             >
                 <ArrowRightCircleIcon
                     v-if="showRightSpin"
-                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                    :class="[
+                        'h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14',
+                        contentTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                    ]"
+                    @click="spinRight()"
                 />
             </div>
 
@@ -113,7 +134,10 @@ useInfiniteScroll(
                 class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
-                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
+                <div
+                    ref="scrollContent"
+                    class="flex flex-row gap-4 px-4"
+                >
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"

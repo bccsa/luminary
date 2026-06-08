@@ -56,8 +56,8 @@ const hasAudio = computed(
 
 const mediaIconClass = computed(() =>
     props.titlePosition === "overlay"
-        ? "relative h-7 w-7 text-white/50 lg:h-8 lg:w-8"
-        : "relative h-8 w-8 text-white lg:h-12 lg:w-12",
+        ? "absolute text-white/80 md:bottom-1.5 md:right-1 md:h-6 md:w-6 max-md:hidden"
+        : "relative z-20 h-8 w-8 text-white lg:h-12 lg:w-12",
 );
 
 const media = ref<{ progress: number; duration: number }>({
@@ -166,33 +166,44 @@ if (allMedia) {
                                 {{ t("content.coming_soon") }}
                             </span>
                         </div>
-                        <template v-if="titlePosition !== 'center'">
+                        <div v-if="titlePosition !== 'center'">
                             <div
                                 v-if="hasVideo"
-                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
-                                <PlayIcon :class="[mediaIconClass, 'text-black blur-sm']" />
+                                <PlayIcon
+                                    :class="[
+                                        mediaIconClass,
+                                        'text-black',
+                                        titlePosition === 'overlay' ? ' blur-[1.5px]' : 'blur-sm',
+                                    ]"
+                                />
                             </div>
                             <div
                                 v-if="hasVideo"
-                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
                                 <PlayIcon :class="mediaIconClass" />
                             </div>
                             <div
                                 v-if="hasAudio"
-                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
-                                <SpeakerWaveIcon :class="[mediaIconClass, 'text-black blur-sm']" />
+                                <SpeakerWaveIcon
+                                    :class="[
+                                        mediaIconClass,
+                                        'text-black',
+                                        titlePosition === 'overlay' ? ' blur-[1.5px]' : 'blur-sm',
+                                    ]"
+                                />
                             </div>
                             <div
                                 v-if="hasAudio"
-                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
                                 <SpeakerWaveIcon :class="mediaIconClass" />
                             </div>
-                        </template>
-
+                        </div>
                         <div
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
@@ -209,11 +220,19 @@ if (allMedia) {
 
                         <div
                             v-if="titlePosition === 'overlay'"
-                            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end rounded-lg bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-16"
+                            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end rounded-lg bg-gradient-to-t from-black via-black/65 to-transparent px-3 pb-3 pt-4"
                         >
-                            <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-white">
-                                {{ content.title }}
-                            </h3>
+                            <div class="flex items-start justify-between gap-1.5">
+                                <h3
+                                    class="line-clamp-2 text-sm font-semibold leading-snug text-white"
+                                >
+                                    {{ content.title }}
+                                </h3>
+                                <PlayIcon
+                                    v-if="hasVideo"
+                                    class="text mt-5 h-4 w-4 flex-shrink-0 text-white md:hidden"
+                                />
+                            </div>
                             <p
                                 v-if="overlayLabel"
                                 class="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-white/80"
