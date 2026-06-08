@@ -1,10 +1,23 @@
 import "fake-indexeddb/auto";
-import { RouterLinkStub, config } from "@vue/test-utils";
+import { RouterLinkStub, config, enableAutoUnmount } from "@vue/test-utils";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
-import { initConfig, initDatabase } from "luminary-shared";
+
+// Auto-unmount mounted components after each test so their HybridQuery live Dexie
+// subscriptions are disposed. Without this, leaked subscriptions accumulate across
+// a file's tests and re-run real mangoToDexie on every beforeEach mutation, which
+// compounds badly under parallel load (the old mocked mangoToDexie hid this cost).
+enableAutoUnmount(afterEach);
+import { db, initConfig, initDatabase } from "luminary-shared";
 import { APP_DOCS_INDEX } from "./src/docsIndex";
 import { createI18n } from "vue-i18n";
 import { mockLanguageDtoEng } from "./src/tests/mockdata";
+import waitForExpect from "wait-for-expect";
+
+// HybridQuery's real (un-mocked) Dexie reads make the multi-query page chains
+// heavier than the old mocked path; under parallel test load they can exceed
+// wait-for-expect's 4.5s default. Give them more headroom — passing assertions
+// still resolve as soon as they become true, so green suites aren't slowed.
+waitForExpect.defaults.timeout = 15000;
 
 // ============================================================================
 // Indexing warning detection — fail tests that trigger missing index warnings
@@ -22,6 +35,15 @@ let interceptedWarnings: string[] = [];
 const originalWarn = console.warn;
 
 beforeEach(() => {
+    // Clear HybridQuery's response cache between tests. It persists to localStorage
+    // ("hqcache:") keyed by structural query shape, so same-shaped queries across
+    // tests would otherwise seed each other with stale first-paint data — harmless
+    // in production (live data supersedes it) but a cross-test flake here.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("hqcache:")) localStorage.removeItem(k);
+    }
+
     interceptedWarnings = [];
     console.warn = (...args: unknown[]) => {
         const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
@@ -113,4 +135,30 @@ beforeAll(async () => {
     });
 
     await initDatabase();
+
+    // Seed sync2's syncList so HybridQuery routes fully-synced types (AuthProvider,
+    // Language, Storage, Redirect, Content) to IndexedDB rather than the API — the
+    // state a real client is in after its first sync (restored from IndexedDB by
+    // initSync in production). Without this, typeIsInSyncList() is false in tests
+    // and non-content reads would incorrectly route API-only.
+    await db.setLuminaryInternals(
+        "syncList",
+        [
+            "authProvider",
+            "language",
+            "storage",
+            "redirect",
+            "group",
+            "content:post",
+            "content:tag",
+        ].map((chunkType) => ({
+            chunkType,
+            memberOf: ["group-public-content"],
+            languages: [],
+            blockStart: Number.MAX_SAFE_INTEGER,
+            blockEnd: 0,
+            eof: true,
+        })),
+    );
+    await db.getSyncList();
 });

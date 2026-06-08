@@ -8,6 +8,23 @@ export default mergeConfig(
         test: {
             globals: true,
             environment: "jsdom",
+            // HybridQuery exercises the real (un-mocked) mangoToDexie, making the
+            // multi-query page chains heavier than the old mocked path. Under full
+            // parallel load these can exceed vitest's 5s default; give them headroom
+            // so wait-for-expect (not the test timeout) governs.
+            testTimeout: 20000,
+            hookTimeout: 20000,
+            // Cap worker concurrency (~half this host's 8 cores). HybridQuery's real
+            // (un-mocked) mangoToDexie read path is heavier than the old mock, and at
+            // full parallelism the contention occasionally pushed a heavy content-list
+            // test past its timeout (an intermittent flake). Trades a little suite
+            // wall-time for deterministic runs. Set on both pools since vitest's default
+            // is "threads"; a top-level `maxWorkers: "50%"` tripped a tinypool
+            // RangeError on 1.6.1.
+            poolOptions: {
+                threads: { maxThreads: 4, minThreads: 1 },
+                forks: { maxForks: 4, minForks: 1 },
+            },
             exclude: [...configDefaults.exclude, "e2e/*"],
             root: fileURLToPath(new URL("./", import.meta.url)),
             setupFiles: ["vitest.setup.ts"],
