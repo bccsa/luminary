@@ -6,6 +6,7 @@
         "dev": "vite --host",
         "build": "run-p type-check \"build-only {@}\" --",
         "build:web": "VITE_BUILD_TARGET=web vite-ssg build --config vite.config.web.ts",
+        "build:affected": "VITE_BUILD_TARGET=web vite-ssg build --config vite.config.web.ts",
         "preview": "vite preview",
         "preview:web": "vite preview --outDir dist-web",
         "test:unit": "vitest",
