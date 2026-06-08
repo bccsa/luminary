@@ -3,3 +3,6 @@ node_modules
 *.bkp
 
 stats.html
+
+# Throwaway SSG proof-of-concept (kept locally for reference, not part of the repo)
+vite-ssg_poc/

@@ -19,7 +19,7 @@ const handleSearchClick = () => {
             v-for="item in getNavigationItems(t)"
             :key="item.name"
             :to="item.to"
-            v-slot="{ isActive, navigate }"
+            v-slot="{ isActive, navigate, href }"
             custom
         >
             <span
@@ -38,9 +38,12 @@ const handleSearchClick = () => {
                     </span>
                 </span>
             </span>
-            <span
+            <!-- Real <a href> so the nav is crawlable in the prerendered HTML
+                 (JS-off) and accessible; @click.prevent keeps SPA navigation. -->
+            <a
                 v-else
-                @click="navigate"
+                :href="href"
+                @click.prevent="navigate"
                 class="flex cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-200 dark:hover:bg-slate-700"
             >
                 <span class="flex items-center justify-center gap-1.5">
@@ -62,7 +65,7 @@ const handleSearchClick = () => {
                         {{ item.name }}
                     </span>
                 </span>
-            </span>
+            </a>
         </RouterLink>
     </nav>
 </template>

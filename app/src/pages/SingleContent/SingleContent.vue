@@ -20,7 +20,9 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onServerPrefetch, ref, watch, type Ref } from "vue";
+import { useHead } from "@unhead/vue";
+import { usePublicContentStore } from "@/stores/publicContent";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -100,6 +102,124 @@ const defaultContent: ContentDto = {
 
 const content = ref<ContentDto | undefined>(defaultContent);
 
+// --- Web / SSG tier -------------------------------------------------------
+// On the web build the public content tier is sourced from the prerender
+// snapshot (filled via onServerPrefetch, fetched through the unauthenticated
+// /search path), NOT from Dexie (which doesn't exist in Node). The native/SPA
+// build is unaffected: `isWeb` is false there and the existing Dexie path below
+// runs unchanged.
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const WEB_ORIGIN = import.meta.env.VITE_WEB_ORIGIN || "";
+const publicStore = usePublicContentStore();
+
+if (isWeb) {
+    // Prerender (Node): fill the snapshot before the HTML is rendered.
+    onServerPrefetch(async () => {
+        await publicStore.ensureContentBySlug(props.slug);
+        const doc = publicStore.bySlug[props.slug];
+        if (doc) content.value = doc;
+    });
+
+    // First client render reads the restored snapshot → matches the prerendered
+    // HTML (clean hydration).
+    const snapshot = publicStore.bySlug[props.slug];
+    if (snapshot) content.value = snapshot;
+
+    // Client only: revalidate + go live via the existing ApiLiveQuery, seeded
+    // from the snapshot so the first paint does not change. Use import.meta.env.SSR
+    // (not `typeof window`): with vite-ssg mock:true, window exists during the
+    // Node prerender, so a window check would run this in the build.
+    if (!import.meta.env.SSR) {
+        publicStore.ensureContentBySlug(props.slug);
+        const liveQ = ref<ApiSearchQuery>({ slug: props.slug });
+        const live = new ApiLiveQuery(liveQ, {
+            initialValue: (content.value ? [content.value] : []) as BaseDocumentDto[],
+        });
+        watch(live.liveItem, (v) => {
+            if (v && (v as ContentDto).type === DocType.Content) content.value = v as ContentDto;
+        });
+    }
+
+    // SEO head — driven by the fetched content so it is correct in the raw HTML.
+    useHead(
+        computed(() => {
+            const c = content.value;
+            const hasDoc = !!c?.slug;
+            const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
+            const description = (hasDoc && (c!.seoString || c!.summary)) || "";
+            const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
+            // content.language is a doc id like "lang-eng"; strip the prefix to a
+            // best-effort ISO-639 code. TODO: map to a proper BCP-47 code.
+            const lang = (c?.language || "").replace(/^lang-/, "") || "en";
+
+            // Reciprocal hreflang alternates (other-language versions of this doc),
+            // plus x-default pointing at the English version (or the first available).
+            const alts = publicStore.altsBySlug[props.slug] ?? [];
+            const altLinks = alts.map((a) => ({
+                rel: "alternate",
+                hreflang: a.code,
+                href: `${WEB_ORIGIN}/${a.slug}`,
+            }));
+            const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
+
+            return {
+                title,
+                htmlAttrs: { lang },
+                link: [
+                    { rel: "canonical", href: url },
+                    ...altLinks,
+                    ...(xDefault
+                        ? [
+                              {
+                                  rel: "alternate",
+                                  hreflang: "x-default",
+                                  href: `${WEB_ORIGIN}/${xDefault.slug}`,
+                              },
+                          ]
+                        : []),
+                ],
+                meta: [
+                    { name: "description", content: description },
+                    { property: "og:type", content: "article" },
+                    { property: "og:title", content: c?.seoTitle || c?.title || appName },
+                    { property: "og:description", content: description },
+                    { property: "og:url", content: url },
+                    { name: "twitter:card", content: "summary_large_image" },
+                    { name: "twitter:title", content: c?.seoTitle || c?.title || appName },
+                    { name: "twitter:description", content: description },
+                    { name: "robots", content: "index,follow" },
+                ],
+                script: hasDoc
+                    ? [
+                          {
+                              type: "application/ld+json",
+                              innerHTML: JSON.stringify({
+                                  "@context": "https://schema.org",
+                                  "@type": "Article",
+                                  headline: c!.title,
+                                  description,
+                                  author: c!.author
+                                      ? { "@type": "Person", name: c!.author }
+                                      : undefined,
+                                  datePublished: c!.publishDate
+                                      ? new Date(c!.publishDate).toISOString()
+                                      : undefined,
+                                  // dateModified is overwritten with the real
+                                  // regeneration time in Phase 2.
+                                  dateModified: c!.updatedTimeUtc
+                                      ? new Date(c!.updatedTimeUtc).toISOString()
+                                      : undefined,
+                                  inLanguage: c!.language,
+                              }),
+                          },
+                      ]
+                    : [],
+            };
+        }),
+    );
+}
+// --------------------------------------------------------------------------
+
 const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
 
@@ -127,7 +247,13 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
-const idbContent = useDexieLiveQuery(
+// Native/SPA path: read content from Dexie + ApiLiveQuery. Entirely skipped on
+// the web/SSG build, which uses the prerender snapshot instead (see above).
+// Declared at component scope (read by computeds below); only populated from
+// Dexie on the native build.
+let idbContent: any = ref(undefined);
+if (!isWeb) {
+idbContent = useDexieLiveQuery(
     () =>
         mangoToDexie(db.docs, {
             selector: {
@@ -216,12 +342,16 @@ const unwatch = watch([idbContent, isConnected], () => {
         content.value = apiContent.value as ContentDto;
     });
 });
+}
 
 // Load available languages from IndexedDB immediately (even when online)
 const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
-watch([content, isConnected], async () => {
+// Translations come from Dexie/API on native. On the web build they are derived
+// later (hreflang follow-up); skip the Dexie query here.
+if (!isWeb)
+    watch([content, isConnected], async () => {
     if (!content.value) return;
 
     // Only reload translations if we're viewing a different parent content
@@ -300,7 +430,9 @@ watch([content, isConnected], async () => {
     }
 });
 
-const tags = useDexieLiveQueryWithDeps(
+const tags = (isWeb
+    ? ref<ContentDto[]>([])
+    : useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
     ([content, appLanguageIds]: [ContentDto, Uuid[]]) => {
         const parentIds = (content?.parentTags || []).concat([content?.parentId || ""]); // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
@@ -316,7 +448,7 @@ const tags = useDexieLiveQueryWithDeps(
         }) as unknown as Promise<ContentDto[]>;
     },
     { initialValue: [] as ContentDto[] },
-);
+)) as unknown as Ref<ContentDto[]>;
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
@@ -380,7 +512,10 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-watch([content, is404], () => {
+// Native sets the head imperatively. The web build uses useHead() (above) so the
+// tags are captured into the prerendered HTML; skip the imperative path there.
+if (!isWeb)
+    watch([content, is404], () => {
     if (content.value) isLoading.value = false;
 
     // Set document title and meta tags
@@ -403,6 +538,13 @@ watch([content, is404], () => {
 });
 
 const text = computed(() => content.value?.text ?? "");
+
+// Format a publish date for display. Kept in setup scope (not inline in the
+// template) so `navigator` resolves to the real global rather than `_ctx.navigator`.
+const formatPublishDate = (ms: number) =>
+    DateTime.fromMillis(ms)
+        .setLocale(typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US")
+        .toLocaleString(DateTime.DATETIME_MED);
 
 // Select the first category in the content by category list on load
 watch(tags, () => {
@@ -808,11 +950,7 @@ watch([isLoading, content, is404], async () => {
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                             >
                                 {{
-                                    content.publishDate
-                                        ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
-                                        : ""
+                                    content.publishDate ? formatPublishDate(content.publishDate) : ""
                                 }}
                             </div>
                             <div class="items-center">
