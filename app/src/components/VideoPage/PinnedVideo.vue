@@ -1,80 +1,30 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPinned: 1 }, // 1 = true
-                    { parentTagType: TagType.Category },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories"),
-        deep: true,
-    },
+const pinnedCategories = useContentQuery(
+    () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],
+    { cache: true },
 );
 
-watch(pinnedCategories, async (value) => {
-    db.setQueryCache<ContentDto[]>("videopage_pinnedCategories", value);
-});
-
-const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { video: { $exists: true, $ne: "" } },
-                    {
-                        $or: [
-                            { parentPostType: { $exists: false } },
-                            { parentPostType: { $ne: PostType.Page } },
-                        ],
-                    },
-                    {
-                        $or: [
-                            { parentTagType: { $exists: false } },
-                            { parentTagType: TagType.Topic },
-                        ],
-                    },
-                    {
-                        parentTags: {
-                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
-                        },
-                    },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedContent") },
+// Reads pinnedCategories.value inside the thunk so this query auto-rebuilds when
+// the pinned categories change.
+const pinnedCategoryContent = useContentQuery(
+    () => [
+        { video: { $exists: true, $ne: "" } },
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+        { parentTags: { $elemMatch: { $in: pinnedCategories.value.map((c) => c.parentId) } } },
+    ],
+    { cache: true },
 );
-
-watch(pinnedCategoryContent, async (value) => {
-    db.setQueryCache<ContentDto[]>("videopage_pinnedContent", value);
-});
 
 // sort pinned content by category
 const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);

@@ -4,10 +4,10 @@ import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/2
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef, isMac, isMobileScreen } from "@/globalConfig";
+import { appLanguageIdsAsRef, cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { useFtsSearch, db, stripHtml } from "luminary-shared";
+import { useFtsSearch, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 
@@ -266,32 +266,15 @@ type EnrichedResult = ContentDto & {
     languageName: string;
 };
 
-const languageNames = ref<Map<string, string>>(new Map());
-
-watch(
-    () => ftsResults.value as FtsSearchResult[],
-    async (newResults) => {
-        if (!newResults.length) return;
-
-        const langIds = new Set<string>();
-        for (const r of newResults) {
-            if (r.doc.language) langIds.add(r.doc.language);
-        }
-
-        if (langIds.size) {
-            const langs = await db.docs
-                .where("_id")
-                .anyOf([...langIds])
-                .toArray();
-            const langMap = new Map<string, string>();
-            for (const lang of langs) {
-                const name = (lang as any).name;
-                if (name) langMap.set(lang._id, name);
-            }
-            languageNames.value = langMap;
-        }
-    },
-);
+// Map of languageId → display name, sourced from the shared CMS languages list
+// (kept up to date by HybridQuery via globalConfig).
+const languageNames = computed(() => {
+    const map = new Map<string, string>();
+    for (const lang of cmsLanguages.value) {
+        if (lang.name) map.set(lang._id, lang.name);
+    }
+    return map;
+});
 
 const trimmedQuery = computed(() => searchQuery.value.trim());
 

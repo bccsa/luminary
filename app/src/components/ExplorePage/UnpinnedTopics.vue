@@ -1,73 +1,24 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
-const topics = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { status: "published" },
-                    { parentTagType: TagType.Topic },
-                    { parentTaggedDocs: { $exists: true, $ne: [] } },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_unpinnedTopics"),
-        deep: true,
-    },
+const topics = useContentQuery(
+    () => [{ parentTagType: TagType.Topic }, { parentTaggedDocs: { $exists: true, $ne: [] } }],
+    { cache: true },
 );
 
-const categories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { status: "published" },
-                    { parentTagType: TagType.Category },
-                    {
-                        $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }],
-                    },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_unpinnedCategories"),
-        deep: true,
-    },
+const categories = useContentQuery(
+    () => [
+        { parentTagType: TagType.Category },
+        { $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }] },
+    ],
+    { cache: true },
 );
-
-watch(topics, async (value) => {
-    db.setQueryCache<ContentDto[]>("explorepage_unpinnedTopics", value);
-});
-
-watch(categories, async (value) => {
-    db.setQueryCache<ContentDto[]>("explorepage_unpinnedCategories", value);
-});
 
 const topicsByCategory = contentByTag(topics, categories, { includeUntagged: true });
 </script>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { DocType, type LanguageDto, useHybridQuery } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
@@ -18,7 +18,11 @@ defineProps<Props>();
 
 const { t } = useI18n();
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+// Language is a fully-synced type, so HybridQuery reads from IndexedDB only.
+const languages = useHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
 
 const emit = defineEmits(["close"]);
 

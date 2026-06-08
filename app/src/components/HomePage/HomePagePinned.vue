@@ -1,80 +1,33 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        // Build query inside callback so it uses current appLanguageIds
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPinned: 1 }, // 1 = true
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
+const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], { cache: true });
+
+// Reads pinnedCategories.value inside the thunk so this query auto-rebuilds when
+// the pinned categories change.
+const pinnedCategoryContent = useContentQuery(
+    () => [
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        {
+            $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }],
+        },
+        {
+            parentTags: { $elemMatch: { $in: pinnedCategories.value.map((c) => c.parentId) } },
+        },
+    ],
+    { cache: true },
 );
-
-watch(pinnedCategories as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
-});
-
-const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
-        // Build query inside callback so it uses current values
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    {
-                        $or: [
-                            { parentPostType: { $exists: false } },
-                            { parentPostType: { $ne: PostType.Page } },
-                        ],
-                    },
-                    {
-                        $or: [
-                            { parentTagType: { $exists: false } },
-                            { parentTagType: TagType.Topic },
-                        ],
-                    },
-                    {
-                        parentTags: {
-                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
-                        },
-                    },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
-);
-
-watch(pinnedCategoryContent as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
-});
 
 // sort pinned content by category
-const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinnedCategories as any);
+const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
 </script>
 
 <template>
