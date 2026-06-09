@@ -699,7 +699,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("restores reading progress without overwriting saved progress on mount", async () => {
+    it("preserves saved reading progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
         const wrapper = mount(SingleContent, {
@@ -712,9 +712,7 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
 
-        // Dwell-based tracking should not reset pre-existing progress before the user reads
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
-
         wrapper.unmount();
     });
 });
