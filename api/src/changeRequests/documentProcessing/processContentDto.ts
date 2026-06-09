@@ -41,6 +41,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         }
         doc.parentPublishDateVisible = parentDoc.publishDateVisible;
         doc.parentShowComingSoon = parentDoc.showComingSoon;
+        doc.parentVerticalTile = parentDoc.verticalTile;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property

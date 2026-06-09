@@ -26,9 +26,25 @@ type Props = {
     contentTitlePosition?: "bottom" | "center" | "overlay";
     tileOverlayLabel?: string;
     showProgress?: boolean;
+    verticalTile?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
+});
+
+const computedAspectRatio = computed(() => {
+    if (props.verticalTile) return "portrait";
+    return props.aspectRatio;
+});
+
+const computedImageSize = computed(() => {
+    if (props.verticalTile) return "thumbnailCompact";
+    return props.imageSize;
+});
+
+const computedTitlePosition = computed(() => {
+    if (props.verticalTile) return "overlay";
+    return props.contentTitlePosition;
 });
 
 const spinLeft = () => {
@@ -110,7 +126,7 @@ useInfiniteScroll(
                     v-if="showLeftSpin"
                     :class="[
                         'mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:h-14 md:w-14',
-                        contentTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
                     ]"
                     @click="spinLeft()"
                 />
@@ -123,7 +139,7 @@ useInfiniteScroll(
                     v-if="showRightSpin"
                     :class="[
                         'h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14',
-                        contentTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
                     ]"
                     @click="spinRight()"
                 />
@@ -143,10 +159,10 @@ useInfiniteScroll(
                         :key="content._id"
                         v-memo="[content]"
                         :content="content"
-                        :aspectRatio="aspectRatio"
-                        :imageSize="imageSize"
+                        :aspectRatio="computedAspectRatio"
+                        :imageSize="computedImageSize"
                         :show-publish-date="showPublishDate"
-                        :titlePosition="contentTitlePosition"
+                        :titlePosition="computedTitlePosition"
                         :overlayLabel="tileOverlayLabel"
                         :showProgress="showProgress"
                     />
