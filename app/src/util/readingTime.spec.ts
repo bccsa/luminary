@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_READING_SPEED_WPM,
+    READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
     READING_MAX_DWELL_MS,
     READING_MIN_DWELL_MS,
     computeBlockDwellMs,
     computeEstimatedReadingMinutes,
+    computeMaxScrollVelocityPxS,
     countWords,
     resolveReadingSpeedWpm,
 } from "./readingTime";
@@ -52,5 +54,17 @@ describe("computeBlockDwellMs", () => {
     it("falls back when WPM is missing or invalid", () => {
         expect(computeBlockDwellMs(2, 0)).toBe(600);
         expect(computeBlockDwellMs(2)).toBe(600);
+    });
+});
+
+describe("computeMaxScrollVelocityPxS", () => {
+    it("returns the base cap at default WPM", () => {
+        expect(computeMaxScrollVelocityPxS(200)).toBe(READING_BASE_MAX_SCROLL_VELOCITY_PX_S);
+        expect(computeMaxScrollVelocityPxS()).toBe(READING_BASE_MAX_SCROLL_VELOCITY_PX_S);
+    });
+
+    it("scales the skim cap with language reading speed", () => {
+        expect(computeMaxScrollVelocityPxS(300)).toBe(1800);
+        expect(computeMaxScrollVelocityPxS(100)).toBe(600);
     });
 });
