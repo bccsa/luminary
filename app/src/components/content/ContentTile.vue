@@ -56,7 +56,7 @@ const hasAudio = computed(
 
 const mediaIconClass = computed(() =>
     props.titlePosition === "overlay"
-        ? "absolute text-white/80 md:bottom-1.5 md:right-1 md:h-6 md:w-6 max-md:hidden"
+        ? "absolute text-white/80 md:bottom-2 md:right-1 md:h-6 md:w-6 max-md:hidden"
         : "relative z-20 h-8 w-8 text-white lg:h-12 lg:w-12",
 );
 
