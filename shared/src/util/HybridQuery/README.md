@@ -415,6 +415,11 @@ Content is the only **partially synced** type — sync only pulls content with
 
 1. Run Dexie via `mangoToDexie`, merge the result into `output` (instant render).
 2. `decideContentApiQuery(query, local)` chooses one of:
+   - **No cutoff configured** (`getContentPublishDateCutoff() === OPEN_MIN`) →
+     done, no API, for **every** branch below. sync2 syncs all content, so the
+     local read is already complete and a supplement POST (`publishDate <=
+     OPEN_MIN`) would match nothing. Returning `undefined` here also means the
+     live supplement listener is never attached.
    - **Has `$limit`** and `local.length === $limit` → done, no API.
      Otherwise POST with selector `+ publishDate <= cutoff` and
      `$limit = $limit − local.length`.

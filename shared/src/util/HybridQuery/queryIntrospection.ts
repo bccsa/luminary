@@ -1,6 +1,6 @@
 import type { BaseDocumentDto, DocType } from "../../types";
 import { syncList } from "../../rest/sync2/state";
-import { splitChunkTypeString } from "../../rest/sync2/utils";
+import { splitChunkTypeString, OPEN_MIN } from "../../rest/sync2/utils";
 import { getContentPublishDateCutoff } from "../../config";
 import { expandMangoSelector } from "../MangoQuery/expandMangoQuery";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
@@ -100,6 +100,13 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
     localDocs: readonly T[],
 ): MangoQuery | undefined {
     const cutoff = getContentPublishDateCutoff();
+
+    // No cutoff configured ⇒ sync2 syncs all content, so the local read is
+    // complete and the API has no older tail to supply. The supplement POST
+    // would carry `publishDate <= OPEN_MIN` and match nothing — skip it. The
+    // caller then drops any stale response-cache seed (same end state as an
+    // empty POST) and, in live mode, skips the no-op supplement listener.
+    if (cutoff === OPEN_MIN) return undefined;
 
     // 1. limit-shortfall
     if (typeof query.$limit === "number") {
