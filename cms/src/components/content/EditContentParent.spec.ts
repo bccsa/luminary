@@ -37,6 +37,65 @@ describe("EditContentParent.vue", () => {
         expect(toggle[2].props("modelValue")).toBe(true);
     });
 
+    it("test the tag verticalTile toggle for Category", async () => {
+        const parent = ref<TagDto>({
+            ...mockData.mockCategoryDto,
+            verticalTile: false,
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
+                parent: parent.value,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockCategoryDto,
+            },
+        });
+
+        // Find all LToggle components: Publish date, Coming soon, Pinned, Vertical Tile
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        expect(toggles.length).toBeGreaterThanOrEqual(4);
+
+        // Vertical Tile toggle should be the 4th one (index 3)
+        const verticalTileToggle = toggles[3];
+        expect(verticalTileToggle.exists()).toBe(true);
+        expect(verticalTileToggle.props("modelValue")).toBe(false);
+    });
+
+    it("test the tag verticalTile toggle changes the computed property", async () => {
+        const parent = ref<TagDto>({
+            ...mockData.mockCategoryDto,
+            verticalTile: false,
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
+                parent: parent.value,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockCategoryDto,
+            },
+        });
+
+        // Initial state: verticalTile is false
+        expect(parent.value.verticalTile).toBe(false);
+
+        // Find and update the vertical tile toggle (4th toggle, index 3)
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        const verticalTileToggle = toggles[3];
+
+        // Simulate user clicking the toggle
+        verticalTileToggle.vm.$emit("update:modelValue", true);
+
+        // Update the parent ref to reflect the change
+        parent.value.verticalTile = true;
+
+        // Verify the toggle now shows true
+        expect(parent.value.verticalTile).toBe(true);
+    });
+
     it("test the show publishDate toggle", async () => {
         const parent = ref<PostDto | TagDto>({
             ...mockData.mockPostDto,

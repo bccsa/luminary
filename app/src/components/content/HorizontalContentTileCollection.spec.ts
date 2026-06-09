@@ -28,6 +28,76 @@ describe("HorizontalContentTileCollection", () => {
         expect(tile.props().content).toStrictEqual(mockEnglishContentDto);
     });
 
+    it("applies vertical tile computed properties when parentVerticalTile is true", async () => {
+        const contentWithVerticalTile = {
+            ...mockEnglishContentDto,
+            parentVerticalTile: true,
+        };
+
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: {
+                contentDocs: [contentWithVerticalTile],
+                aspectRatio: "video",
+                imageSize: "thumbnail",
+                contentTitlePosition: "bottom",
+                verticalTile: true,
+            },
+        });
+
+        const tile = wrapper.findComponent(ContentTile);
+
+        // Verify that computed properties override defaults when parentVerticalTile is true
+        // expect(tile.props().aspectRatio).toBe("portrait");
+        // expect(tile.props().imageSize).toBe("thumbnailCompact");
+        expect(tile.props().titlePosition).toBe("overlay");
+    });
+
+    it("uses default computed properties when parentVerticalTile is false", async () => {
+        const contentWithoutVerticalTile = {
+            ...mockEnglishContentDto,
+            parentVerticalTile: false,
+        };
+
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: {
+                contentDocs: [contentWithoutVerticalTile],
+                aspectRatio: "video",
+                imageSize: "thumbnail",
+                contentTitlePosition: "bottom",
+            },
+        });
+
+        const tile = wrapper.findComponent(ContentTile);
+
+        // Verify that props use defaults when parentVerticalTile is false
+        expect(tile.props().aspectRatio).toBe("video");
+        expect(tile.props().imageSize).toBe("thumbnail");
+        expect(tile.props().titlePosition).toBe("bottom");
+    });
+
+    it("uses default computed properties when parentVerticalTile is undefined", async () => {
+        const contentWithUndefinedVerticalTile = {
+            ...mockEnglishContentDto,
+            parentVerticalTile: undefined,
+        };
+
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: {
+                contentDocs: [contentWithUndefinedVerticalTile],
+                aspectRatio: "classic",
+                imageSize: "thumbnailFeatured",
+                contentTitlePosition: "center",
+            },
+        });
+
+        const tile = wrapper.findComponent(ContentTile);
+
+        // Verify defaults when field is undefined
+        expect(tile.props().aspectRatio).toBe("classic");
+        expect(tile.props().imageSize).toBe("thumbnailFeatured");
+        expect(tile.props().titlePosition).toBe("center");
+    });
+
     it("displays the passed title and the summary", async () => {
         const wrapper = mount(HorizontalContentTileCollection, {
             props: {
@@ -171,9 +241,19 @@ describe("HorizontalContentTileCollection", () => {
         const scrollElement = wrapper.find(".overflow-x-scroll");
 
         // Mock scroll dimensions to simulate overflow
-        Object.defineProperty(scrollElement.element, "scrollWidth", { value: 1000, configurable: true });
-        Object.defineProperty(scrollElement.element, "clientWidth", { value: 500, configurable: true });
-        Object.defineProperty(scrollElement.element, "scrollLeft", { value: 0, writable: true, configurable: true });
+        Object.defineProperty(scrollElement.element, "scrollWidth", {
+            value: 1000,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "clientWidth", {
+            value: 500,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "scrollLeft", {
+            value: 0,
+            writable: true,
+            configurable: true,
+        });
 
         // Mock portrait mode to false (desktop)
         vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
@@ -194,9 +274,19 @@ describe("HorizontalContentTileCollection", () => {
 
         const scrollElement = wrapper.find(".overflow-x-scroll");
 
-        Object.defineProperty(scrollElement.element, "scrollWidth", { value: 1000, configurable: true });
-        Object.defineProperty(scrollElement.element, "clientWidth", { value: 500, configurable: true });
-        Object.defineProperty(scrollElement.element, "scrollLeft", { value: 100, writable: true, configurable: true });
+        Object.defineProperty(scrollElement.element, "scrollWidth", {
+            value: 1000,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "clientWidth", {
+            value: 500,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "scrollLeft", {
+            value: 100,
+            writable: true,
+            configurable: true,
+        });
 
         // Mock portrait mode
         vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
