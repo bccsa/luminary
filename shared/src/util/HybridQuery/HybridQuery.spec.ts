@@ -306,6 +306,69 @@ describe("HybridQuery", () => {
             expect(sel.$and).toContainEqual({ _id: { $in: ["b", "c"] } });
             expect(sel.$and).toContainEqual({ publishDate: { $lte: 1000 } });
         });
+
+        it("cutoff === OPEN_MIN ⇒ no POST (full sync, local read is complete)", async () => {
+            // No cutoff configured: sync2 syncs all content, so the local read is
+            // complete and the supplement POST (publishDate <= OPEN_MIN) would match
+            // nothing. decideContentApiQuery short-circuits before the always-post
+            // branch — no wasted round-trip.
+            mocks.cutoff = OPEN_MIN;
+            const local = [
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ];
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
+        });
+
+        it("cutoff === 0 ⇒ literal cutoff honored (POSTs publishDate <= 0)", async () => {
+            // 0 is NOT the OPEN_MIN sentinel — it's a real cutoff. The guard
+            // (=== OPEN_MIN) must NOT fire: the supplement still POSTs publishDate
+            // <= 0 verbatim, and the local + remote sets merge into a complete view.
+            mocks.cutoff = 0;
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "tail", updatedTimeUtc: 1, publishDate: -50, type: "content" }],
+            });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(postHttpMock).toHaveBeenCalledWith("query", {
+                selector: { $and: [{ type: "content" }, { publishDate: { $lte: 0 } }] },
+                identifier: "hybridQuery",
+                limit: DEFAULT_REMOTE_QUERY_LIMIT,
+            });
+            expect(q.output.value.map((d) => d._id).sort()).toEqual(["a", "tail"]);
+        });
+
+        it("cutoff negative (not OPEN_MIN) ⇒ literal cutoff honored (POSTs publishDate <= -1)", async () => {
+            // A negative-but-not-sentinel cutoff is still a real cutoff. Pins that
+            // only the exact OPEN_MIN sentinel short-circuits the supplement.
+            mocks.cutoff = -1;
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(postHttpMock).toHaveBeenCalledWith("query", {
+                selector: { $and: [{ type: "content" }, { publishDate: { $lte: -1 } }] },
+                identifier: "hybridQuery",
+                limit: DEFAULT_REMOTE_QUERY_LIMIT,
+            });
+            expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
+        });
     });
 
     describe("non-content routing", () => {
@@ -646,6 +709,28 @@ describe("HybridQuery", () => {
 
             expect(mocks.useDexieLiveQueryMock).toHaveBeenCalledTimes(1);
             expect(mocks.mangoToDexieMock).not.toHaveBeenCalled(); // the querier is held by the mock, not invoked
+        });
+
+        it("cutoff === OPEN_MIN ⇒ no POST and no live supplement listener (full sync)", async () => {
+            // Full sync: decideContentApiQuery returns undefined, so the content
+            // branch takes the `_dropSeededRemote` path — _startRemoteLive (which
+            // is guarded behind a supplement query) never attaches. Live reactivity
+            // still flows through useDexieLiveQuery on the local source.
+            mocks.cutoff = OPEN_MIN;
+
+            const q = track(new HybridQuery({ selector: { type: "content" } }, { live: true }));
+            await emit([{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }]);
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(mocks.socketDataHandlers.size).toBe(0); // no supplement listener
+            expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
+
+            // A later local emission still re-merges (local source stays reactive).
+            await emit([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+                { _id: "b", updatedTimeUtc: 6, publishDate: 3000, type: "content" },
+            ]);
+            expect(q.output.value.map((d) => d._id).sort()).toEqual(["a", "b"]);
         });
 
         it("content: first emission decides the API once; later emissions re-merge without re-POST; deletions drop", async () => {
@@ -1432,6 +1517,21 @@ describe("HybridQuery", () => {
                 expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "R1"]); // seeded
 
                 await flush(); // all ids local ⇒ no POST ⇒ _dropSeededRemote runs
+                expect(postHttpMock).not.toHaveBeenCalled();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // stale R1 gone
+            });
+
+            it("drops the seeded remote under OPEN_MIN (open-ended query, full sync)", async () => {
+                // No cutoff: the open-ended content query needs no API, so the stale
+                // seeded older-tail doc must not linger — same drop path as id-list.
+                mocks.cutoff = OPEN_MIN;
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // seeded
+
+                await flush(); // OPEN_MIN ⇒ no POST ⇒ _dropSeededRemote runs
                 expect(postHttpMock).not.toHaveBeenCalled();
                 expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // stale R1 gone
             });
