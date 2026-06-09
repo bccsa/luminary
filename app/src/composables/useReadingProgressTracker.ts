@@ -5,7 +5,14 @@ import {
     removeReadingProgress,
     setReadingProgress,
 } from "@/globalConfig";
-import { computeBlockDwellMs, countWords } from "@/util/readingTime";
+import {
+    READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
+    READING_IDLE_MS,
+    READING_MIN_SCROLL_SAMPLE_MS,
+    computeBlockDwellMs,
+    computeMaxScrollVelocityPxS,
+    countWords,
+} from "@/util/readingTime";
 import type { Uuid } from "luminary-shared";
 
 /**
@@ -21,14 +28,53 @@ const BLOCK_SELECTOR = "p, h1, h2, h3, h4, li, blockquote, pre";
 /** Block must be at least this fraction visible within the scroll root. */
 export const READING_INTERSECTION_RATIO = 0.5;
 
-/** Above this scroll speed (px/s), dwell timers are paused — user is skimming. */
-export const READING_MAX_SCROLL_VELOCITY_PX_S = 1200;
+/** @deprecated Use {@link READING_BASE_MAX_SCROLL_VELOCITY_PX_S} or computeMaxScrollVelocityPxS. */
+export const READING_MAX_SCROLL_VELOCITY_PX_S = READING_BASE_MAX_SCROLL_VELOCITY_PX_S;
 
 /** Ignore velocity samples shorter than this (trackpad / layout jitter). */
-export const READING_MIN_SCROLL_SAMPLE_MS = 50;
+export { READING_MIN_SCROLL_SAMPLE_MS };
 
 /** Suppress velocity sampling and dwell while restoreScrollPosition runs. */
 export const READING_RESTORE_GUARD_MS = 400;
+
+/** Subpixel tolerance when comparing block bottom to viewport bottom. */
+export const READING_BLOCK_END_TOLERANCE_PX = 4;
+
+export type ViewportBounds = { top: number; bottom: number };
+
+export function isBlockEndInViewport(
+    blockBottom: number,
+    viewport: ViewportBounds,
+    tolerancePx = READING_BLOCK_END_TOLERANCE_PX,
+): boolean {
+    return (
+        blockBottom <= viewport.bottom + tolerancePx && blockBottom >= viewport.top - tolerancePx
+    );
+}
+
+export function isBlockEndVisibleInEntry(
+    entry: Pick<IntersectionObserverEntry, "boundingClientRect" | "rootBounds" | "isIntersecting">,
+): boolean {
+    if (!entry.isIntersecting) return false;
+
+    const rect = entry.boundingClientRect;
+    const root = entry.rootBounds;
+    const viewport: ViewportBounds = root
+        ? { top: root.top, bottom: root.bottom }
+        : { top: 0, bottom: window.innerHeight };
+
+    return isBlockEndInViewport(rect.bottom, viewport);
+}
+
+export function isBlockEligibleForDwell(
+    entry: IntersectionObserverEntry,
+): boolean {
+    return (
+        entry.isIntersecting &&
+        entry.intersectionRatio >= READING_INTERSECTION_RATIO &&
+        isBlockEndVisibleInEntry(entry)
+    );
+}
 
 export function computeScrollVelocity(deltaY: number, deltaMs: number): number {
     if (deltaMs < READING_MIN_SCROLL_SAMPLE_MS) return 0;
@@ -46,8 +92,8 @@ export function applyScrollVelocitySample(
     state: ScrollVelocityState,
     deltaY: number,
     deltaMs: number,
+    maxVelocityPxS: number = READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
 ): { isFast: boolean; justSlowedDown: boolean; state: ScrollVelocityState } {
-    
     const next: ScrollVelocityState = {
         pendingScrollDeltaY: state.pendingScrollDeltaY + deltaY,
         pendingScrollDeltaMs: state.pendingScrollDeltaMs + deltaMs,
@@ -65,7 +111,7 @@ export function applyScrollVelocitySample(
     next.pendingScrollDeltaY = 0;
     next.pendingScrollDeltaMs = 0;
 
-    if (velocity > READING_MAX_SCROLL_VELOCITY_PX_S) {
+    if (velocity > maxVelocityPxS) {
         next.wasScrollingFast = true;
         return { isFast: true, justSlowedDown: false, state: next };
     }
@@ -108,6 +154,7 @@ export function useReadingProgressTracker(options: {
     let lastSavedProgress = -1;
     let lastScrollY = 0;
     let lastScrollTime = 0;
+    let lastActivityMs: number | null = null;
     let scrollVelocityState: ScrollVelocityState = {
         pendingScrollDeltaY: 0,
         pendingScrollDeltaMs: 0,
@@ -120,11 +167,30 @@ export function useReadingProgressTracker(options: {
 
     const isRestoring = ref(false);
 
+    const maxScrollVelocityPxS = computed(() =>
+        computeMaxScrollVelocityPxS(options.averageReadingSpeed.value),
+    );
+
+    const savedProgressPercent = computed(() => {
+        const id = options.contentId.value;
+        if (!id) return 0;
+        return getReadingProgress(id);
+    });
+
+    const hasResumableProgress = computed(() => {
+        const p = savedProgressPercent.value;
+        return p > 0 && p < 100;
+    });
+
     const observerRoot = computed(() =>
         options.scrollContainer.value === window
             ? null
             : (options.scrollContainer.value as HTMLElement),
     );
+
+    function touchActivity(timestamp = performance.now()) {
+        lastActivityMs = timestamp;
+    }
 
     function stopDwellLoop() {
         if (dwellRafId != null) {
@@ -146,6 +212,7 @@ export function useReadingProgressTracker(options: {
         lastSavedProgress = -1;
         lastScrollY = 0;
         lastScrollTime = 0;
+        lastActivityMs = null;
         scrollVelocityState = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
@@ -232,6 +299,13 @@ export function useReadingProgressTracker(options: {
             return;
         }
 
+        const now = performance.now();
+        if (lastActivityMs !== null && now - lastActivityMs >= READING_IDLE_MS) {
+            clearDwellAccumulation();
+            lastDwellFrameTime = timestamp;
+            return;
+        }
+
         if (lastDwellFrameTime === 0) {
             lastDwellFrameTime = timestamp;
             return;
@@ -260,6 +334,9 @@ export function useReadingProgressTracker(options: {
         if (dwellRafId == null && options.enabled.value) {
             if (lastDwellFrameTime === 0) {
                 lastDwellFrameTime = performance.now();
+            }
+            if (lastActivityMs === null) {
+                touchActivity();
             }
             dwellRafId = requestAnimationFrame(tickDwell);
         }
@@ -293,12 +370,14 @@ export function useReadingProgressTracker(options: {
         const container = options.scrollContainer.value;
         const scrollY = getScrollTop(container);
         const now = performance.now();
+        touchActivity(now);
 
         if (lastScrollTime > 0) {
             const { isFast, justSlowedDown, state } = applyScrollVelocitySample(
                 scrollVelocityState,
                 scrollY - lastScrollY,
                 now - lastScrollTime,
+                maxScrollVelocityPxS.value,
             );
             scrollVelocityState = state;
 
@@ -320,12 +399,12 @@ export function useReadingProgressTracker(options: {
     }
 
     function handleIntersection(entries: IntersectionObserverEntry[]) {
+        touchActivity();
         for (const entry of entries) {
             const el = entry.target as MaybeElement;
-            const visible =
-                entry.isIntersecting && entry.intersectionRatio >= READING_INTERSECTION_RATIO;
+            const eligible = isBlockEligibleForDwell(entry);
 
-            if (visible) {
+            if (eligible) {
                 visibleBlocks.add(el);
                 startDwellIfEligible(el);
             } else {
@@ -384,6 +463,7 @@ export function useReadingProgressTracker(options: {
                     wasScrollingFast: false,
                 };
                 lastScrollY = getScrollTop(container);
+                touchActivity();
             }, READING_RESTORE_GUARD_MS);
         }, 300);
     }
@@ -391,12 +471,17 @@ export function useReadingProgressTracker(options: {
     function setup(contentChanged: boolean) {
         collectBlocks();
 
-        if (!options.enabled.value || blocks.value.length === 0) return;
+        if (!options.enabled.value) return;
 
         if (contentChanged) {
-            seedConfirmedFromSavedProgress();
+            if (blocks.value.length > 0) {
+                seedConfirmedFromSavedProgress();
+            }
+            touchActivity();
             restoreScrollPosition();
         }
+
+        if (blocks.value.length === 0) return;
     }
 
     watch(options.averageReadingSpeed, () => {
@@ -435,5 +520,12 @@ export function useReadingProgressTracker(options: {
         stopObserver();
     });
 
-    return { blocks, restoreScrollPosition, setup };
+    return {
+        blocks,
+        isRestoring,
+        savedProgressPercent,
+        hasResumableProgress,
+        restoreScrollPosition,
+        setup,
+    };
 }
