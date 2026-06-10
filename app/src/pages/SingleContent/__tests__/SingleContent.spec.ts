@@ -647,6 +647,8 @@ describe("SingleContent", () => {
             averageReadingSpeed: readingSpeed,
         } as any);
 
+        await flushPromises();
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
