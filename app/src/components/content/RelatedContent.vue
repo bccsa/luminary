@@ -23,8 +23,13 @@ const contentIds = computed(() =>
         .filter((e, i, self) => i === self.indexOf(e)),
 );
 
+// parentId $in can't use a sorted Mango index, so the API supplement scans the older
+// tail. Cap at 50 so the limit-shortfall branch skips the API POST once local Dexie
+// already holds 50 matches (the common warm case); 50 also comfortably covers what the
+// horizontal related-content row displays.
 const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
     sort: [{ publishDate: "asc" }],
+    limit: 50,
 });
 
 const filtered = computed(() =>

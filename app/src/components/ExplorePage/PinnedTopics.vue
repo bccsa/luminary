@@ -23,7 +23,11 @@ const topics = useContentQuery(
         { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
         { parentTags: { $elemMatch: { $in: categories.value.map((p) => p.parentId) } } },
     ],
-    { cache: true },
+    // parentTags $elemMatch can't use a sorted Mango index, so the API supplement scans
+    // the older tail. Cap at the newest 50 so the limit-shortfall branch skips the API
+    // POST once local Dexie already holds 50 matches. contentByTag re-sorts per category
+    // downstream, so this sort only governs which 50 are fetched, not display order.
+    { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
 
 // sort pinned content by category
