@@ -28,10 +28,10 @@ describe("HorizontalContentTileCollection", () => {
         expect(tile.props().content).toStrictEqual(mockEnglishContentDto);
     });
 
-    it("applies vertical tile computed properties when parentVerticalTile is true", async () => {
+    it("applies vertical tile computed properties when parentUseVerticalTileLayout is true", async () => {
         const contentWithVerticalTile = {
             ...mockEnglishContentDto,
-            parentVerticalTile: true,
+            parentUseVerticalTileLayout: true,
         };
 
         const wrapper = mount(HorizontalContentTileCollection, {
@@ -40,22 +40,22 @@ describe("HorizontalContentTileCollection", () => {
                 aspectRatio: "video",
                 imageSize: "thumbnail",
                 contentTitlePosition: "bottom",
-                verticalTile: true,
+                useVerticalTileLayout: true,
             },
         });
 
         const tile = wrapper.findComponent(ContentTile);
 
-        // Verify that computed properties override defaults when parentVerticalTile is true
+        // Verify that computed properties override defaults when parentUseVerticalTileLayout is true
         // expect(tile.props().aspectRatio).toBe("portrait");
         // expect(tile.props().imageSize).toBe("thumbnailCompact");
         expect(tile.props().titlePosition).toBe("overlay");
     });
 
-    it("uses default computed properties when parentVerticalTile is false", async () => {
+    it("uses default computed properties when parentUseVerticalTileLayout is false", async () => {
         const contentWithoutVerticalTile = {
             ...mockEnglishContentDto,
-            parentVerticalTile: false,
+            parentUseVerticalTileLayout: false,
         };
 
         const wrapper = mount(HorizontalContentTileCollection, {
@@ -69,16 +69,16 @@ describe("HorizontalContentTileCollection", () => {
 
         const tile = wrapper.findComponent(ContentTile);
 
-        // Verify that props use defaults when parentVerticalTile is false
+        // Verify that props use defaults when parentUseVerticalTileLayout is false
         expect(tile.props().aspectRatio).toBe("video");
         expect(tile.props().imageSize).toBe("thumbnail");
         expect(tile.props().titlePosition).toBe("bottom");
     });
 
-    it("uses default computed properties when parentVerticalTile is undefined", async () => {
+    it("uses default computed properties when parentUseVerticalTileLayout is undefined", async () => {
         const contentWithUndefinedVerticalTile = {
             ...mockEnglishContentDto,
-            parentVerticalTile: undefined,
+            parentUseVerticalTileLayout: undefined,
         };
 
         const wrapper = mount(HorizontalContentTileCollection, {

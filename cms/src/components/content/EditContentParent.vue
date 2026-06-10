@@ -94,13 +94,13 @@ const showComingSoon = computed({
     },
 });
 
-const verticalTile = computed({
+const useVerticalTileLayout = computed({
     get() {
-        return parent.value?.verticalTile ?? false;
+        return parent.value?.useVerticalTileLayout ?? false;
     },
     set(value: boolean) {
         if (parent.value) {
-            parent.value.verticalTile = value;
+            parent.value.useVerticalTileLayout = value;
         }
     },
 });
@@ -208,7 +208,7 @@ const verticalTile = computed({
             class="mt-2 flex items-center justify-between gap-1"
         >
             <FormLabel>Vertical Tile</FormLabel>
-            <LToggle v-model="verticalTile" :disabled="disabled" class="mr-[4px]" />
+            <LToggle v-model="useVerticalTileLayout" :disabled="disabled" class="mr-[4px]" />
         </div>
 
         <slot name="supplementary" />

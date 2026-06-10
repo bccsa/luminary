@@ -71,7 +71,7 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
                     :contentDocs="topic.content"
                     :title="topic.tag.title"
                     :summary="topic.tag.summary"
-                    :verticalTile="topic.tag.parentVerticalTile"
+                    :useVerticalTileLayout="topic.tag.parentUseVerticalTileLayout"
                     :showPublishDate="false"
                 />
             </div>

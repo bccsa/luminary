@@ -102,7 +102,7 @@ export type ContentDto = ContentBaseDto & {
     parentPublishDateVisible?: boolean;
     parentShowComingSoon?: boolean;
     parentPinned?: number;
-    parentVerticalTile?: boolean;
+    parentUseVerticalTileLayout?: boolean;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
@@ -123,7 +123,7 @@ export type ContentParentDto = ContentBaseDto & {
     imageBucketId?: Uuid;
     media?: MediaDto;
     mediaBucketId?: Uuid;
-    verticalTile?: boolean;
+    useVerticalTileLayout?: boolean;
 };
 
 export type PostDto = ContentParentDto & {
@@ -134,7 +134,7 @@ export type TagDto = ContentParentDto & {
     tagType: TagType;
     pinned: number;
     taggedDocs?: Uuid[]; // This field is set by the API
-    verticalTile?: boolean;
+    useVerticalTileLayout?: boolean;
 };
 
 export type GroupDto = BaseDocumentDto & {

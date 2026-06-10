@@ -32,7 +32,7 @@ export class _contentParentDto extends _contentBaseDto {
     @IsOptional()
     @IsBoolean()
     @Expose()
-    verticalTile?: boolean;
+    useVerticalTileLayout?: boolean;
 
     @IsOptional()
     @IsString()

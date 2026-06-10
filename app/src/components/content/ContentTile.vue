@@ -2,23 +2,13 @@
 import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
+import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress } from "@/globalConfig";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
-
-type ImageSize = "thumbnail" | "thumbnailFeatured" | "thumbnailCompact";
-type AspectRatio =
-    | "original"
-    | "video"
-    | "square"
-    | "vertical"
-    | "portrait"
-    | "wide"
-    | "classic"
-    | "smallSquare";
 
 type Props = {
     content: ContentDto;

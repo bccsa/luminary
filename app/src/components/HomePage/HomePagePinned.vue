@@ -80,7 +80,7 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinne
         :title="c.tag.title"
         :summary="c.tag.summary"
         :showPublishDate="false"
-        :verticalTile="c.tag.parentVerticalTile"
+        :useVerticalTileLayout="c.tag.parentUseVerticalTileLayout"
         class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
         :class="[
             index == 0 ? 'pt-4' : 'pt-2',

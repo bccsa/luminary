@@ -1,20 +1,10 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
+import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
-
-type AspectRatio =
-    | "original"
-    | "video"
-    | "square"
-    | "vertical"
-    | "portrait"
-    | "wide"
-    | "classic"
-    | "smallSquare";
-type ImageSize = "thumbnail" | "thumbnailFeatured" | "thumbnailCompact";
 
 type Props = {
     contentDocs: ContentDto[];
@@ -26,24 +16,24 @@ type Props = {
     contentTitlePosition?: "bottom" | "center" | "overlay";
     tileOverlayLabel?: string;
     showProgress?: boolean;
-    verticalTile?: boolean;
+    useVerticalTileLayout?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
 });
 
 const computedAspectRatio = computed(() => {
-    if (props.verticalTile) return "portrait";
+    if (props.useVerticalTileLayout) return "portrait";
     return props.aspectRatio;
 });
 
 const computedImageSize = computed(() => {
-    if (props.verticalTile) return "thumbnailCompact";
+    if (props.useVerticalTileLayout) return "thumbnailCompact";
     return props.imageSize;
 });
 
 const computedTitlePosition = computed(() => {
-    if (props.verticalTile) return "overlay";
+    if (props.useVerticalTileLayout) return "overlay";
     return props.contentTitlePosition;
 });
 

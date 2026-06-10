@@ -148,7 +148,7 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsBoolean()
     @Expose()
-    parentVerticalTile?: boolean;
+    parentUseVerticalTileLayout?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()

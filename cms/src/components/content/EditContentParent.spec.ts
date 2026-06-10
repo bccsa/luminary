@@ -37,10 +37,10 @@ describe("EditContentParent.vue", () => {
         expect(toggle[2].props("modelValue")).toBe(true);
     });
 
-    it("test the tag verticalTile toggle for Category", async () => {
+    it("test the tag Vertical Tile toggle for Category", async () => {
         const parent = ref<TagDto>({
             ...mockData.mockCategoryDto,
-            verticalTile: false,
+            useVerticalTileLayout: false,
         });
         const wrapper = mount(EditContentParent, {
             props: {
@@ -58,15 +58,15 @@ describe("EditContentParent.vue", () => {
         expect(toggles.length).toBeGreaterThanOrEqual(4);
 
         // Vertical Tile toggle should be the 4th one (index 3)
-        const verticalTileToggle = toggles[3];
-        expect(verticalTileToggle.exists()).toBe(true);
-        expect(verticalTileToggle.props("modelValue")).toBe(false);
+        const useVerticalTileLayoutToggle = toggles[3];
+        expect(useVerticalTileLayoutToggle.exists()).toBe(true);
+        expect(useVerticalTileLayoutToggle.props("modelValue")).toBe(false);
     });
 
-    it("test the tag verticalTile toggle changes the computed property", async () => {
+    it("test the tag Vertical Tile toggle changes the computed property", async () => {
         const parent = ref<TagDto>({
             ...mockData.mockCategoryDto,
-            verticalTile: false,
+            useVerticalTileLayout: false,
         });
         const wrapper = mount(EditContentParent, {
             props: {
@@ -79,21 +79,21 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Initial state: verticalTile is false
-        expect(parent.value.verticalTile).toBe(false);
+        // Initial state: useVerticalTileLayout is false
+        expect(parent.value.useVerticalTileLayout).toBe(false);
 
         // Find and update the vertical tile toggle (4th toggle, index 3)
         const toggles = wrapper.findAllComponents({ name: "LToggle" });
-        const verticalTileToggle = toggles[3];
+        const useVerticalTileLayoutToggle = toggles[3];
 
         // Simulate user clicking the toggle
-        verticalTileToggle.vm.$emit("update:modelValue", true);
+        useVerticalTileLayoutToggle.vm.$emit("update:modelValue", true);
 
         // Update the parent ref to reflect the change
-        parent.value.verticalTile = true;
+        parent.value.useVerticalTileLayout = true;
 
         // Verify the toggle now shows true
-        expect(parent.value.verticalTile).toBe(true);
+        expect(parent.value.useVerticalTileLayout).toBe(true);
     });
 
     it("test the show publishDate toggle", async () => {
