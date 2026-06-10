@@ -29,6 +29,13 @@ describe("processPostTagDto", () => {
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (deleteImage as jest.Mock).mockResolvedValue([]);
+        (processImage as jest.Mock).mockResolvedValue({ warnings: [] });
+        (processMedia as jest.Mock).mockResolvedValue({ warnings: [] });
+    });
+
     it("should cascade Post/Tag delete request to content documents", async () => {
         const postChangeRequest = changeRequest_post();
         postChangeRequest.doc._id = "test-delete-cascade-post";
@@ -324,8 +331,6 @@ describe("processPostTagDto", () => {
     });
 
     it("warns when image processing returns warnings during deletion", async () => {
-        (deleteImage as jest.Mock).mockResolvedValueOnce(["Image cleanup warning"]);
-
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-delete-img-warn";
         (changeRequest.doc as PostDto).imageData = {
@@ -333,11 +338,16 @@ describe("processPostTagDto", () => {
                 { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
             ],
         };
-        changeRequest.doc.deleteReq = 1;
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
+        deleteRequest.doc.deleteReq = 1;
+        (deleteImage as jest.Mock).mockResolvedValueOnce(["Image cleanup warning"]);
 
         const result = await processChangeRequest(
             "test-user",
-            changeRequest,
+            deleteRequest,
             ["group-super-admins"],
             db,
         );
