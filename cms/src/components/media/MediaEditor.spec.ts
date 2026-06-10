@@ -64,7 +64,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
         ...(actual as any),
         cmsLanguageIdAsRef: ref("lang-eng"),
         isSmallScreen: ref(false),
-        isMobileScreen: ref(false),
+        isLargeScreen: ref(false),
     };
 });
 
@@ -192,7 +192,13 @@ describe("MediaEditor.vue", () => {
         const origBuckets = [...mockMediaBuckets.value];
         mockMediaBuckets.value = [
             ...origBuckets,
-            { _id: "bucket-media-2", name: "Second Media", publicUrl: "http://test2.com", storageType: "media", mimeTypes: ["audio/*"] },
+            {
+                _id: "bucket-media-2",
+                name: "Second Media",
+                publicUrl: "http://test2.com",
+                storageType: "media",
+                mimeTypes: ["audio/*"],
+            },
         ];
 
         parent.mediaBucketId = undefined;
@@ -202,7 +208,11 @@ describe("MediaEditor.vue", () => {
         });
 
         const mockFile = new File(["audio"], "test.mp3", { type: "audio/mp3" });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -245,7 +255,9 @@ describe("MediaEditor.vue", () => {
 
         // Language selector dialog should open
         const dialogs = wrapper.findAllComponents(LDialog);
-        const languageDialog = dialogs.find((d) => d.props("title") === "Select Language for Audio");
+        const languageDialog = dialogs.find(
+            (d) => d.props("title") === "Select Language for Audio",
+        );
         expect(languageDialog).toBeDefined();
         expect(languageDialog?.props("open")).toBe(true);
     });
@@ -260,7 +272,11 @@ describe("MediaEditor.vue", () => {
 
         // Open language selector
         const mockFile = new File(["audio"], "test.mp3", { type: "audio/mp3" });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -268,7 +284,9 @@ describe("MediaEditor.vue", () => {
 
         // Cancel
         const dialogs = wrapper.findAllComponents(LDialog);
-        const languageDialog = dialogs.find((d) => d.props("title") === "Select Language for Audio");
+        const languageDialog = dialogs.find(
+            (d) => d.props("title") === "Select Language for Audio",
+        );
         const cancelAction = languageDialog?.props("secondaryAction") as Function;
         cancelAction();
         await wrapper.vm.$nextTick();
@@ -314,7 +332,11 @@ describe("MediaEditor.vue", () => {
 
         // Open language selector
         const mockFile = new File(["audio"], "test.mp3", { type: "audio/mp3" });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
