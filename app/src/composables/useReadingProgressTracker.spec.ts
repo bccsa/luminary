@@ -1,6 +1,6 @@
 import { defineComponent, nextTick, ref, watchEffect } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import {
     READING_INTERSECTION_RATIO,
     READING_MAX_SCROLL_VELOCITY_PX_S,
@@ -171,7 +171,7 @@ function latestObserver() {
 let rafTime = 0;
 let perfTime = 0;
 let rafId = 0;
-let performanceNowSpy: ReturnType<typeof vi.spyOn> | undefined;
+let performanceNowSpy: MockInstance<[], number> | undefined;
 const pendingRafCallbacks = new Map<number, FrameRequestCallback>();
 
 function advancePerfTime(ms: number) {
