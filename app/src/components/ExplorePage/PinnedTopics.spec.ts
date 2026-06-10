@@ -50,7 +50,7 @@ function makePinnedCategory(overrides: Partial<ContentDto> = {}): ContentDto {
         slug: "pinned-cat1",
         title: "Pinned Category 1",
         summary: "A pinned category",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;
@@ -74,7 +74,7 @@ function makeTopicUnderCategory(
         slug: "topic-under-cat",
         title: "Topic Under Pinned Category",
         summary: "A topic",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;
@@ -288,7 +288,7 @@ describe("PinnedTopics", () => {
             status: PublishStatus.Published,
             slug: "topic-no-tagtype",
             title: "Topic Without TagType",
-            publishDate: Date.now() - 100_000,
+            publishDate: 1704114000000,
             availableTranslations: ["lang-eng"],
         } as ContentDto;
 
