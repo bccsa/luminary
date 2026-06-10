@@ -1,0 +1,31 @@
+{
+    "_id": "_design/content-slug-publishDate-index",
+    "language": "query",
+    "views": {
+        "content-slug-publishDate-index": {
+            "map": {
+                "fields": {
+                    "slug": "asc",
+                    "publishDate": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": [
+                        "slug",
+                        "publishDate"
+                    ],
+                    "partial_filter_selector": {
+                        "type": "content"
+                    }
+                }
+            }
+        }
+    }
+}

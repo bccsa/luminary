@@ -30,7 +30,13 @@ const show = defineModel<boolean>("show");
 // API supplement). The injected { type: Content } is required for that routing.
 const privacyPolicyArr = useContentQuery(
     () => [{ parentId: import.meta.env.VITE_PRIVACY_POLICY_ID }],
-    { includeScheduled: false, limit: 1 },
+    {
+        includeScheduled: false,
+        limit: 1,
+        // Seek by parentId; the publishDate sort is required to engage the index.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 const privacyPolicy = computed(() => privacyPolicyArr.value[0]);
 
