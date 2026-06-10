@@ -240,7 +240,14 @@ const isLoadingTranslations = ref(false);
 // would be a previously-viewed post's translations — which feed availableTranslations
 // and drive the auto-navigation below, redirecting this page back to that post.
 const translationsArr = useContentQuery(
-    () => (content.value?.parentId ? [{ parentId: content.value.parentId }] : [{ parentId: "" }]),
+    // Before `content` resolves there is no parent to match siblings against. An
+    // empty `$in` is provably-empty, so HybridQuery short-circuits both the Dexie
+    // read and the API supplement — a `parentId: ""` placeholder instead POSTs a
+    // match-nothing query that full-scans the publishDate index.
+    () =>
+        content.value?.parentId
+            ? [{ parentId: content.value.parentId }]
+            : [{ parentId: { $in: [] } }],
     { publishedFilter: false },
 );
 const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
@@ -266,9 +273,12 @@ watch(
 
 const tags = useContentQuery(
     () => {
+        // Before `content` resolves, match nothing via a provably-empty `$in`
+        // rather than POSTing `{ parentId: { $in: [""] } }`, which full-scans.
+        if (!content.value?.parentId) return [{ parentId: { $in: [] } }];
         // Include this document's parent ID to show content tagged with this
         // document's parent (if a TagDto).
-        const parentIds = (content.value?.parentTags || []).concat([content.value?.parentId || ""]);
+        const parentIds = (content.value.parentTags || []).concat([content.value.parentId]);
         return [{ parentId: { $in: parentIds } }, { parentType: DocType.Tag }];
     },
     // Per-document lookup → response cache stays off (the useContentQuery default): a
