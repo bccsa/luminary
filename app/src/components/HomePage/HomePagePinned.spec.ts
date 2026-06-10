@@ -53,7 +53,7 @@ function makePinnedCategoryContent(overrides: Partial<ContentDto> = {}): Content
         slug: "pinned-cat1",
         title: "Pinned Category",
         summary: "A pinned category",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;
@@ -70,7 +70,7 @@ function makePinnedCategoryChild(overrides: Partial<ContentDto> = {}): ContentDt
         parentTags: ["tag-pinned-cat1"],
         parentTagType: TagType.Topic,
         title: "Child Content 1",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     };
