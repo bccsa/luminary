@@ -6,7 +6,13 @@ import { useContentQuery } from "@/composables/useContentQuery";
 
 const categories = useContentQuery(
     () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],
-    { cache: true },
+    {
+        cache: true,
+        // Seek via the parentPinned-led index; publishDate sort required to engage it
+        // (order is irrelevant — contentByTag re-sorts downstream).
+        useIndex: "content-parentPinned-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 
 // Reads categories.value inside the thunk so this query auto-rebuilds when the

@@ -5,6 +5,9 @@ import { useContentQuery } from "@/composables/useContentQuery";
 const copyright = useContentQuery(() => [{ parentId: import.meta.env.VITE_COPYRIGHT_ID }], {
     includeScheduled: false,
     limit: 1,
+    // Seek by parentId; the publishDate sort is required to engage the index.
+    useIndex: "content-parentId-publishDate-index",
+    sort: [{ publishDate: "desc" }],
 });
 
 const copyrightContent = computed(() => copyright.value[0]?.text ?? "");

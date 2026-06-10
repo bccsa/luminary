@@ -17,7 +17,20 @@
 // matching (e.g. anything starting with `content-`) would let a buggy / malicious
 // client steer CouchDB onto unintended indexes. Add entries here when a new
 // caller needs one.
-const ALLOWED_USE_INDEX = new Set<string>(["content-publishDate-index"]);
+//
+// The `content-<field>-publishDate-index` entries are per-shape indexes: each
+// leads with a selective equality field (parentId / slug / parentPinned /
+// parentTagType) then publishDate, so a content query that pins one AND sorts by
+// publishDate seeks directly instead of scanning the whole content collection.
+// Note: these only engage when the query carries a `publishDate` $sort — without
+// it CouchDB falls back to a full scan (see the design-doc JSON in db/designDocs).
+const ALLOWED_USE_INDEX = new Set<string>([
+    "content-publishDate-index",
+    "content-parentId-publishDate-index",
+    "content-slug-publishDate-index",
+    "content-parentPinned-publishDate-index",
+    "content-parentTagType-publishDate-index",
+]);
 
 export default (query: any): boolean => {
     if (!query || typeof query !== "object") return false;

@@ -7,9 +7,15 @@ import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
+// Seek by parentTagType via the parentTagType-led index; the publishDate sort is
+// required to engage it (order is irrelevant — contentByTag re-sorts downstream).
 const topics = useContentQuery(
     () => [{ parentTagType: TagType.Topic }, { parentTaggedDocs: { $exists: true, $ne: [] } }],
-    { cache: true },
+    {
+        cache: true,
+        useIndex: "content-parentTagType-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 
 const categories = useContentQuery(
@@ -17,7 +23,11 @@ const categories = useContentQuery(
         { parentTagType: TagType.Category },
         { $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }] },
     ],
-    { cache: true },
+    {
+        cache: true,
+        useIndex: "content-parentTagType-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 
 const topicsByCategory = contentByTag(topics, categories, { includeUntagged: true });

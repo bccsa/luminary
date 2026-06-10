@@ -133,6 +133,11 @@ const contentArr = useContentQuery(() => [{ slug: props.slug }], {
     includeScheduled: false,
     languageFilter: false,
     cache: false,
+    // Seek the single slug doc via the slug-led index instead of scanning the whole
+    // content collection on the publishDate index. The publishDate sort is required
+    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
+    useIndex: "content-slug-publishDate-index",
+    sort: [{ publishDate: "desc" }],
 });
 
 // Redirect resolution. A redirect takes precedence over content — but that precedence
@@ -248,7 +253,14 @@ const translationsArr = useContentQuery(
         content.value?.parentId
             ? [{ parentId: content.value.parentId }]
             : [{ parentId: { $in: [] } }],
-    { publishedFilter: false },
+    {
+        publishedFilter: false,
+        // Seek siblings by parentId rather than scanning the publishDate index. The
+        // provably-empty `$in: []` branch short-circuits before any API call, so the
+        // index/sort only matter on the resolved-parentId (equality) branch.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
     live: true,

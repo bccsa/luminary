@@ -4,7 +4,14 @@ import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 
-const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], { cache: true });
+const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
+    cache: true,
+    // Seek pinned category docs via the parentPinned-led index. Order is irrelevant
+    // here (contentByTag re-sorts downstream), but the publishDate sort is required
+    // for CouchDB to engage the index instead of full-scanning the content collection.
+    useIndex: "content-parentPinned-publishDate-index",
+    sort: [{ publishDate: "desc" }],
+});
 
 // Reads pinnedCategories.value inside the thunk so this query auto-rebuilds when
 // the pinned categories change.
