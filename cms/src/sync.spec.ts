@@ -305,7 +305,7 @@ describe("sync.ts", () => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Post,
                     memberOf: ["group1"],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 });
 
@@ -313,7 +313,7 @@ describe("sync.ts", () => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Tag,
                     memberOf: ["group2"],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 });
 
@@ -334,7 +334,7 @@ describe("sync.ts", () => {
                     subType: DocType.Tag,
                     memberOf: ["group2"],
                     languages: ["lang1", "lang2"],
-                    limit: 1000,
+                    limit: 100,
                     cms: true,
                     includeDeleteCmds: false,
                 });
@@ -366,7 +366,7 @@ describe("sync.ts", () => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Redirect,
                     memberOf: ["group1"],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 });
             });
@@ -397,7 +397,7 @@ describe("sync.ts", () => {
                 expect(sync).toHaveBeenCalledWith({
                     type: DocType.Group,
                     memberOf: ["group1"],
-                    limit: 1000,
+                    limit: 500,
                     cms: true,
                 });
             });
