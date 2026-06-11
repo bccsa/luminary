@@ -112,7 +112,7 @@
                                 <b>
                                     useReadingProgressTracker
                                 </b>
-                                (composable)  collectBlocks() IntersectionObserver (visibility + block end) scroll → applyScrollVelocitySample() rAF dwell accumulation (idle pause) restoreScrollPosition() on open
+                                (composable)  collectBlocks() IntersectionObserver (visibility + block end) scroll → applyScrollVelocitySample() (words/s) rAF dwell on active block only (idle pause) restoreScrollPosition() on open
                             </div>
                         </div>
                     </div>
@@ -146,13 +146,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 390px; margin-left: 651px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: none; white-space: normal; overflow-wrap: normal;">
-                                scroll listener  ≤ WPM-scaled px/s
+                                scroll listener  ≤ WPM-scaled words/s
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="710" y="394" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    scroll listener  ≤ WP...
+                    scroll listener  ≤ words/s
                 </text>
             </switch>
         </g>
@@ -296,11 +296,11 @@
                                 <b>
                                     Shared reading math
                                 </b>
-                                (util/readingTime.ts)  resolveReadingSpeedWpm · computeEstimatedReadingMinutes computeBlockDwellMs — (blockWords ÷ WPM) × 60 s, clamped 500 ms–8 s computeMaxScrollVelocityPxS — scales 1200 px/s with language WPM
+                                (util/readingTime.ts)  resolveReadingSpeedWpm · computeEstimatedReadingMinutes computeBlockDwellMs — (blockWords ÷ WPM) × 60 s, clamped 500 ms–8 s estimateWordsPerPixel · computeMaxScrollWordsPerSec — (WPM ÷ 60) × 3 skim multiplier
                                 <b>
                                     Tracker tuning
                                 </b>
-                                (useReadingProgressTracker.ts) READING_INTERSECTION_RATIO = 0.5 READING_IDLE_MS = 45 000 · READING_RESTORE_GUARD_MS = 400 MIN_SCROLL_SAMPLE_MS = 50 (batch before velocity check)
+                                (useReadingProgressTracker.ts) READING_INTERSECTION_RATIO = 0.5 READING_SKIM_WPM_MULTIPLIER = 3 READING_IDLE_MS = 45 000 · READING_RESTORE_GUARD_MS = 400 MIN_SCROLL_SAMPLE_MS = 50 (batch before words/s check) · active block dwell only
                             </div>
                         </div>
                     </div>
