@@ -1,6 +1,6 @@
 # Reading progress tracker
 
-The app tracks how far a user has read through a **text article** and saves that progress locally. The homepage **Continue Reading** row shows articles that are still in progress.
+The app tracks how far a user has read through the **text body** of a content page and saves that progress locally. The homepage **Continue Reading** row shows articles that are still in progress. Video (or audio) on the same page does not disable tracking when text is present.
 
 Progress is measured **block by block**. A block is only counted as read when the user has actually spent time on it — not when they scroll past quickly.
 
@@ -10,11 +10,12 @@ Visual overview: [`reading-progress-tracker.drawio.svg`](reading-progress-tracke
 
 ## When tracking runs
 
-Tracking is enabled on **SingleContent** when all of the following are true:
+Tracking is enabled on **SingleContent** when:
 
 - The content has **text** (`content.text`)
-- The content has **no video**
 - A content id is present
+
+This applies to text-only posts and to posts that also have a video — only the article body blocks are measured, not video playback.
 
 The tracker watches `articleProseRef` — the `<div v-html="text">` that renders the CMS article body.
 
@@ -190,7 +191,7 @@ When the user reopens an in-progress article:
 
 | File | Role |
 |------|------|
-| `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker on text articles |
+| `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker when content has text |
 | `app/src/composables/useReadingProgressTracker.ts` | Gates, dwell loop, scroll restore |
 | `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
 | `app/src/globalConfig.ts` | `localStorage` read/write |
