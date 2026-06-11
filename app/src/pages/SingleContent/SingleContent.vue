@@ -504,7 +504,7 @@ const articleProseRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
 const readingTrackerEnabled = computed(
-    () => !!content.value?._id && !content.value?.video && !!content.value?.text,
+    () => !!content.value?._id && !!content.value?.text,
 );
 
 const contentId = computed(() => content.value?._id);
