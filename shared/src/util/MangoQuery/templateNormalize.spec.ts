@@ -3,7 +3,24 @@ import {
     isPlaceholder,
     normalizeSelector,
     generateTemplateKey,
+    hashString,
 } from "./templateNormalize";
+
+describe("hashString", () => {
+    it("is deterministic for the same input", () => {
+        expect(hashString("the quick brown fox")).toBe(hashString("the quick brown fox"));
+    });
+
+    it("produces different hashes for different inputs", () => {
+        expect(hashString("a")).not.toBe(hashString("b"));
+        expect(hashString("ab")).not.toBe(hashString("ba"));
+    });
+
+    it("returns a non-empty base-36 string", () => {
+        expect(hashString("anything")).toMatch(/^[0-9a-z]+$/);
+        expect(hashString("")).toMatch(/^[0-9a-z]+$/); // empty string still hashes (seed)
+    });
+});
 
 describe("isPlaceholder", () => {
     it("returns true for valid placeholder object", () => {

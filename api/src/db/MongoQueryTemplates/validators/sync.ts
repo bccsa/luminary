@@ -42,6 +42,16 @@ export default (query: any): boolean => {
         return false;
     if (selector.docType !== undefined && typeof selector.docType !== "string") return false;
 
+    // Optional publishDate range selector (Content sync only).
+    // Accepts { $gte?: number, $lte?: number } with no extra keys.
+    if (selector.publishDate !== undefined) {
+        if (typeof selector.publishDate !== "object" || selector.publishDate === null) return false;
+        const { $gte, $lte, ...rest } = selector.publishDate;
+        if (Object.keys(rest).length) return false;
+        if ($gte !== undefined && typeof $gte !== "number") return false;
+        if ($lte !== undefined && typeof $lte !== "number") return false;
+    }
+
     // Check for extra keys in selector
     const allowedSelectorKeys = [
         "updatedTimeUtc",
@@ -50,6 +60,7 @@ export default (query: any): boolean => {
         "parentType",
         "language",
         "docType",
+        "publishDate",
     ];
     const actualSelectorKeys = Object.keys(selector);
     for (const key of actualSelectorKeys) {
@@ -58,7 +69,8 @@ export default (query: any): boolean => {
 
     // Optional top-level fields
     if (query.cms !== undefined && typeof query.cms !== "boolean") return false;
-    if (query.includeExpired !== undefined && typeof query.includeExpired !== "boolean") return false;
+    if (query.includeExpired !== undefined && typeof query.includeExpired !== "boolean")
+        return false;
 
     // Check for extra top-level keys
     const allowedTopLevelKeys = ["selector", "limit", "sort", "use_index", "cms", "includeExpired"];

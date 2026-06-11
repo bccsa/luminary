@@ -1,46 +1,23 @@
 <script setup lang="ts">
-import { watch, computed } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { computed } from "vue";
+import { DocType, PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const newest100Content = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { video: { $exists: true, $ne: "" } },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-            $sort: [{ publishDate: "desc" }],
-            $limit: 100,
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("videopage_newest100Content"),
-        deep: true,
-    },
+const newest100Content = useContentQuery(
+    () => [
+        { video: { $exists: true, $ne: "" } },
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+    ],
+    { sort: [{ publishDate: "desc" }], limit: 100, cache: true },
 );
-
-watch(newest100Content, async (value) => {
-    db.setQueryCache<ContentDto[]>("videopage_newest100Content", value);
-});
 
 const categoryIds = computed(() =>
     newest100Content.value
@@ -51,33 +28,14 @@ const categoryIds = computed(() =>
         }),
 );
 
-const categories = useDexieLiveQueryWithDeps(
-    [categoryIds, appLanguageIdsAsRef],
-    ([_categoryIds, appLanguageIds]: [Uuid[], Uuid[]]) => {
-        if (_categoryIds.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: { $in: _categoryIds } },
-                    { parentType: DocType.Tag },
-                    { parentTagType: TagType.Category },
-                    { parentPinned: { $ne: 1 } },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("videopage_unpinnedCategories"),
-        deep: true,
-    },
-);
-
-watch(
-    () => categories.value,
-    (value) => {
-        db.setQueryCache<ContentDto[]>("videopage_unpinnedCategories", value);
-    },
+const categories = useContentQuery(
+    () => [
+        { parentId: { $in: categoryIds.value } },
+        { parentType: DocType.Tag },
+        { parentTagType: TagType.Category },
+        { $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }] },
+    ],
+    { cache: true },
 );
 
 const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);

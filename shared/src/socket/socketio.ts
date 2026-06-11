@@ -1,7 +1,5 @@
 import { io, Socket } from "socket.io-client";
 import { ref } from "vue";
-import { ApiDataResponseDto, DocType } from "../types";
-import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
@@ -43,7 +41,7 @@ class SocketIO {
         this.socket.on("connect", () => {
             // Always request fresh config/access map on connect; stay offline until server responds
             isConnected.value = false;
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
+            this.socket.emit("joinSocketGroups", { docTypes: config.syncList ?? [] });
         });
 
         this.socket.on("disconnect", () => {
@@ -60,32 +58,9 @@ class SocketIO {
             }
         });
 
-        this.socket.on("data", async (data: ApiDataResponseDto) => {
-            // Filter out the data that is not in the requested docTypes array or language IDs array
-            const filtered = data.docs.filter((doc) => {
-                if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
-                return config.syncList?.some((entry) => {
-                    if (!entry.sync) return false; // Do not save documents to indexedDB that should not be synced
-                    if (!entry.contentOnly && entry.type === doc.type) return true;
-                    if (doc.type == DocType.Content && doc.parentType === entry.type) {
-                        // Include content documents for all languages if no language filter is set
-                        if (
-                            !config.appLanguageIdsAsRef ||
-                            !config.appLanguageIdsAsRef.value ||
-                            !config.appLanguageIdsAsRef.value.length
-                        )
-                            return true;
-
-                        // Filter content documents by language if a language filter is set
-                        if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
-                            return true;
-                    }
-                    return false;
-                });
-            });
-
-            await db.bulkPut(filtered);
-        });
+        // NOTE: live document updates (the `"data"` event) are NOT handled here.
+        // Socket.io is a pure transport; the sync2 live persister subscribes to
+        // `"data"` and owns the persistence decision (see rest/sync2/liveSync.ts).
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
@@ -113,6 +88,17 @@ class SocketIO {
     public off(event: string, callback: (...args: any[]) => void) {
         // Expose socket events
         this.socket.off(event, callback);
+    }
+
+    /**
+     * Emit an event to the server. Thin transport passthrough used by the room
+     * subscription manager (`joinRooms`/`leaveRooms`) and any other service that
+     * needs to talk to the server over the socket.
+     * @param event - Name of the event
+     * @param args - Event payload
+     */
+    public emit(event: string, ...args: any[]) {
+        this.socket.emit(event, ...args);
     }
 
     /**

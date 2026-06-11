@@ -1044,6 +1044,20 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Get all documents of a given type that have a given slug (via the `slug`
+     * design-doc view). Unlike {@link checkUniqueSlug} (which returns a boolean), this
+     * returns the documents so callers can inspect fields such as `status`.
+     */
+    async getDocsBySlug(slug: string, docType: DocType): Promise<_baseDto[]> {
+        await this.ensureConnected();
+        const res = await this.db.view("slug", "slug", {
+            key: [docType, slug],
+            include_docs: true,
+        });
+        return res.rows.map((row: any) => row.doc).filter((doc: any) => !!doc) as _baseDto[];
+    }
+
+    /**
      * Provides a method to process all documents of given type(s) in the database one at a time.
      * @param docTypes - Array of document types to be included in the query result
      * @param callback - Function to be called for each document

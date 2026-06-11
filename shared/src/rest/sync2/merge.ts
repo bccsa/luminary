@@ -1,6 +1,12 @@
 import { DocType } from "../../types";
 import { syncList } from "./state";
-import { filterByTypeMemberOf, getChunkTypeString } from "./utils";
+import {
+    filterByTypeMemberOf,
+    getChunkTypeString,
+    mergeRanges,
+    rangesAdjacentOrOverlap,
+    resolveRange,
+} from "./utils";
 import type { SyncBaseOptions } from "./types";
 
 /**
@@ -22,7 +28,14 @@ export function mergeVertical(options: SyncBaseOptions) {
         if (
             current.blockEnd <= next.blockStart ||
             // handle responses which did not return any data
-            next.blockStart === 0
+            next.blockStart === 0 ||
+            // Same-key (same chunkType + memberOf-multiset + languages + publishDate
+            // bounds — already enforced by filterByTypeMemberOf above) entries that
+            // BOTH carry eof:true necessarily describe the same column. Any gap
+            // between them is an artifact of premature sealing (e.g. markColumnEof
+            // firing on a wide-inversion calcChunk output that was never actually
+            // queried). Consolidate so downstream sees one column instead of two.
+            (current.eof === true && next.eof === true)
         ) {
             // Merge chunks — use the older chunk's blockEnd to extend the range.
             // Only preserve current blockEnd for legacy {0, 0} entries (truly empty chunks
@@ -76,13 +89,22 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
     if (list.length === 1) return { blockStart: list[0].blockStart, blockEnd: list[0].blockEnd };
 
     // Do horizontal merge for adjacent chunks.
-    // Only columns that have reached eof can be merged.
+    // Only columns that have reached eof can be merged. Two EOF chunks may merge
+    // horizontally only if their publishDate ranges are adjacent-or-overlapping —
+    // unioning memberOf/languages across non-mergeable date windows would silently
+    // mix data from incompatible columns.
     for (let i = 0; i < list.length; i++) {
         const base = list[i];
 
         for (let j = 0; j < list.length; j++) {
             if (i === j) continue;
             const compare = list[j];
+
+            const baseRange = resolveRange(base.publishDateMin, base.publishDateMax);
+            const compareRange = resolveRange(compare.publishDateMin, compare.publishDateMax);
+            if (!rangesAdjacentOrOverlap(baseRange, compareRange)) {
+                continue;
+            }
 
             // Merge memberOf groups
             const mergedGroups = Array.from(
@@ -97,6 +119,11 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
                 ).sort();
                 base.languages = mergedLanguages;
             }
+
+            // Merge publishDate range (concrete numbers after resolveRange)
+            const mergedRange = mergeRanges(baseRange, compareRange);
+            base.publishDateMin = mergedRange.min;
+            base.publishDateMax = mergedRange.max;
 
             // Update blockStart and blockEnd
             base.blockStart = Math.max(base.blockStart, compare.blockStart);

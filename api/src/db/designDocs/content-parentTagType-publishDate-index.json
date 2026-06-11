@@ -1,0 +1,31 @@
+{
+    "_id": "_design/content-parentTagType-publishDate-index",
+    "language": "query",
+    "views": {
+        "content-parentTagType-publishDate-index": {
+            "map": {
+                "fields": {
+                    "parentTagType": "asc",
+                    "publishDate": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": [
+                        "parentTagType",
+                        "publishDate"
+                    ],
+                    "partial_filter_selector": {
+                        "type": "content"
+                    }
+                }
+            }
+        }
+    }
+}

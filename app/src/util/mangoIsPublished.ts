@@ -1,4 +1,5 @@
 import { type Uuid, type MangoSelector, PublishStatus } from "luminary-shared";
+import { sessionNow } from "./sessionNow";
 
 export type MangoIsPublishedOptions = {
     /**
@@ -34,7 +35,11 @@ export type MangoIsPublishedOptions = {
  * ```
  */
 export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
-    const now = Date.now();
+    // Frozen session reference time (captured once on page load) — NOT a live
+    // `Date.now()`. The bound is embedded in the selector, which HybridQuery uses
+    // as its reactive dedup key; a live clock would re-key the query on every
+    // tracked-ref change and re-fire the API supplement POST. See sessionNow.ts.
+    const now = sessionNow();
     const includeScheduled = options?.includeScheduled !== false;
 
     const publishDateSelector: MangoSelector = includeScheduled

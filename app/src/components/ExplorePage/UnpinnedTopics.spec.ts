@@ -50,7 +50,7 @@ function makeUnpinnedCategory(overrides: Partial<ContentDto> = {}): ContentDto {
         slug: "unpinned-cat1",
         title: "Unpinned Category 1",
         summary: "An unpinned category",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;
@@ -72,7 +72,7 @@ function makeTopic(overrides: Partial<ContentDto> = {}): ContentDto {
         slug: "topic1",
         title: "Topic 1",
         summary: "A topic",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;

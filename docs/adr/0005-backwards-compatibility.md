@@ -17,3 +17,5 @@ The app should be able to handle missing data, which could be caused by the user
 ## Consequences
 
 Backwards compatibility will become a part of every (data) design decision. The frontend code should never assume certain data is available.
+
+This principle also governs the Socket.io contract. New messages must be **additive**: the dynamic room subscription added in [ADR 0010](0010-live-updates-via-sync2-and-socket-transport.md) introduces `joinRooms`/`leaveRooms` while retaining the original `joinSocketGroups` handshake — so a new client against an old API still functions (without dynamic rooms) and an old deployed client against the new API is unaffected.

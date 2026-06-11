@@ -161,13 +161,18 @@ describe("PrivacyPolicyModal.vue", () => {
                 _id: "mock-privacy-policy-id",
                 parentId: import.meta.env.VITE_PRIVACY_POLICY_ID,
                 language: "lang-eng",
-                publishDate: Date.now(),
+                // Must be a fixed past date, NOT Date.now(): mangoIsPublished filters on
+                // the frozen sessionNow() (captured once per run), so a publishDate after
+                // that bound is filtered out and the query returns nothing. This value is
+                // after the acceptance ts below (so the policy reads as "outdated") but
+                // safely before sessionNow().
+                publishDate: 1704114000000, // 2024-01-01
             } as ContentDto,
         ]);
 
         userPreferencesAsRef.value.privacyPolicy = {
             status: "accepted",
-            ts: 1000004000000,
+            ts: 1000004000000, // 2001-09-08 — before the policy's publishDate above
         };
 
         const wrapper = mount(PrivacyPolicyModal, {

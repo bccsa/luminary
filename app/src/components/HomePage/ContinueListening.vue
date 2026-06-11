@@ -1,46 +1,50 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { type ContentDto, DocType, db, PostType, TagType, mangoToDexie, useDexieLiveQueryWithDeps } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { PostType, TagType } from "luminary-shared";
+import { computed } from "vue";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
-// TODO: Replace with central watch/listen/read service when implemented (separate ticket)
-const listenedContent = useDexieLiveQueryWithDeps(
-    () => [appLanguageIdsAsRef.value],
-    async ([appLanguageIds]) => {
-        const contentIds: string[] = [];
-        if (contentIds.length === 0) return [];
+// TODO: Replace with central watch/listen/read service when implemented (separate ticket).
+// No id source is wired yet, so this resolves to an empty list (behaviour unchanged
+// from the previous implementation). The query + filter below are kept symmetric with
+// ContinueWatching so it works once an id source is provided.
+const contentIds = computed<string[]>(() => []);
 
-        const results = await mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { _id: { $in: contentIds } },
-                    { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-
-        const orderMap = new Map<string, number>(contentIds.map((id: string, i: number) => [id, i]));
-        results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
-
-        return results.filter(
-            (c) =>
-                c.parentMedia?.fileCollections?.length &&
-                !c.video &&
-                !c.parentMedia?.hlsUrl,
-        );
-    },
-    {
-        initialValue: [],
-        deep: true,
-    },
+const content = useContentQuery(
+    () => [
+        { _id: { $in: contentIds.value } },
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        {
+            $or: [
+                { parentTagType: { $exists: false } },
+                { parentTagType: { $ne: TagType.Category } },
+            ],
+        },
+    ],
+    // cacheId disambiguates from ContinueWatching: both query the same shape
+    // (`_id $in` + the same $or filters), so without it they would share one cache
+    // entry and seed from each other on first paint.
+    { cache: true, cacheId: "continue-listening" },
 );
+
+// Re-sort to match the listened order, then keep only audio content (has audio
+// file collections but no video / HLS stream).
+const listenedContent = computed(() => {
+    const orderMap = new Map(contentIds.value.map((id, i) => [id, i]));
+    return [...content.value]
+        .sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0))
+        .filter(
+            (c) => c.parentMedia?.fileCollections?.length && !c.video && !c.parentMedia?.hlsUrl,
+        );
+});
 </script>
 
 <template>

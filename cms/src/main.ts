@@ -44,52 +44,19 @@ async function Startup() {
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
+        // CMS editors need the full content set — omit any publishDate cutoff so
+        // sync2 keeps its OPEN_MIN default (full content sync) and HybridQuery's
+        // older-tail supplement never fires.
+        contentPublishDateCutoff: undefined,
+        // What gets synced (and may be persisted to IndexedDB) is owned by sync2
+        // (see src/sync.ts); sync2 joins the socket rooms for those types. This list
+        // is now ONLY the transitional live-only types served by ApiLiveQuery — docs
+        // we display live but never sync. Their rooms are joined at the connect
+        // handshake so ApiLiveQuery receives updates. Remove once the CMS migrates
+        // these to HybridQuery (which subscribes to rooms on demand).
         syncList: [
-            {
-                type: DocType.AuthProvider,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.AutoGroupMappings,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.Tag,
-                syncPriority: 2,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.Post,
-                syncPriority: 2,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.Redirect,
-                syncPriority: 2,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.Language,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.Group,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            {
-                type: DocType.User,
-                sync: false,
-            },
-            {
-                type: DocType.Storage,
-                sync: true,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
+            { type: DocType.User },
+            { type: DocType.AutoGroupMappings },
         ],
     }).catch((err) => {
         console.error(err);

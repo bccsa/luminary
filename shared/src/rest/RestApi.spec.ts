@@ -26,10 +26,6 @@ vi.mock("../db/database", () => ({
     },
 }));
 
-vi.mock("./sync", () => ({
-    syncActive: { value: false },
-}));
-
 // We need to control the config module. Use a mutable object.
 let mockConfig: any = null;
 
@@ -66,11 +62,6 @@ describe("RestApi", () => {
     it("throws without apiUrl", () => {
         mockConfig = { apiUrl: "", syncList: [{ type: "post" }] };
         expect(() => getRest({ reset: true })).toThrow("API URL");
-    });
-
-    it("throws without syncList", () => {
-        mockConfig = { apiUrl: "https://api.example.com", syncList: [] };
-        expect(() => getRest({ reset: true })).toThrow("DocTypes");
     });
 
     it("returns a singleton instance", () => {

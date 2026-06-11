@@ -10,8 +10,107 @@ type ValidationResult = {
     error: string;
 };
 
+export type ValidateMongoQueryOptions = {
+    /** Maximum allowed `limit` (rejected above this). Defaults to DEFAULT_MAX_LIMIT. */
+    maxLimit?: number;
+    /** Override the templates directory (used by tests). */
+    templatesDir?: string;
+};
+
+/** Fallback cap when the caller doesn't supply one (mirrors the API config default). */
+export const DEFAULT_MAX_LIMIT = 500;
+
 // Cache for validated templates, keyed by identifier
 const templateCache = new Map<string, any>();
+
+/**
+ * Global query policy applied to EVERY identifier (sync, hybridQuery, …) before
+ * per-identifier template validation. Centralizes two protections so individual
+ * templates don't have to (and can't forget to) enforce them:
+ *  1. A maximum `limit` (DoS guard against materializing huge result sets).
+ *  2. An operator policy: reject `$regex` and `$where` anywhere in the selector,
+ *     and `$elemMatch` on any field other than the array fields it legitimately
+ *     targets (`memberOf`, `availableTranslations`, `parentTags`, `tags`).
+ *
+ * Runs on the raw client selector, before query.service.ts injects its own
+ * `memberOf $elemMatch` permission filter — so the injected filter is never
+ * subject to this policy (and it targets `memberOf` anyway).
+ */
+export function enforceGlobalQueryPolicy(
+    query: any,
+    maxLimit: number = DEFAULT_MAX_LIMIT,
+): ValidationResult {
+    if (query && query.limit !== undefined) {
+        if (typeof query.limit === "number" && query.limit > maxLimit) {
+            return { valid: false, error: `limit exceeds maximum (${maxLimit})` };
+        }
+    }
+
+    const operatorError = checkOperatorPolicy(query?.selector, undefined);
+    if (operatorError) return { valid: false, error: operatorError };
+
+    return { valid: true, error: "" };
+}
+
+const LOGICAL_OPERATORS = new Set(["$and", "$or", "$nor", "$not"]);
+
+/**
+ * Array fields on which `$elemMatch` is permitted:
+ *  - `memberOf` — group permission filter (injected server-side).
+ *  - `availableTranslations` — language-priority filtering in hybrid queries.
+ *  - `parentTags` — content-by-category filters (e.g. homepage pinned categories);
+ *    a HybridQuery content selector tests parent-tag membership with `$elemMatch`.
+ *  - `tags` — a document's own tag-membership filters.
+ *
+ * `$elemMatch` on any other field is rejected as a data-mining vector. These four
+ * are safe because `/query` results are always permission-filtered server-side
+ * (query.service.ts injects the `memberOf` filter), so an array-membership test
+ * can never surface a document the caller couldn't already see.
+ */
+const ELEM_MATCH_ALLOWED_FIELDS = new Set([
+    "memberOf",
+    "availableTranslations",
+    "parentTags",
+    "tags",
+]);
+
+/**
+ * Recursively walk a selector node rejecting disallowed operators. `owningField`
+ * is the nearest enclosing document field name (not a logical/comparison operator),
+ * so we can allow `$elemMatch` only when it sits directly under an allowed field.
+ * Returns an error string on the first violation, or null when the node is clean.
+ */
+function checkOperatorPolicy(node: any, owningField: string | undefined): string | null {
+    if (node === null || typeof node !== "object") return null;
+
+    if (Array.isArray(node)) {
+        for (const item of node) {
+            const err = checkOperatorPolicy(item, owningField);
+            if (err) return err;
+        }
+        return null;
+    }
+
+    for (const key of Object.keys(node)) {
+        if (key === "$regex") return "operator '$regex' is not allowed";
+        if (key === "$where") return "operator '$where' is not allowed";
+        if (key === "$elemMatch" && !ELEM_MATCH_ALLOWED_FIELDS.has(owningField ?? "")) {
+            // Build the message from the allowlist so it can't drift out of sync.
+            const allowed = [...ELEM_MATCH_ALLOWED_FIELDS].map((f) => `'${f}'`).join(", ");
+            return `operator '$elemMatch' is only allowed on the ${allowed} fields`;
+        }
+
+        // Logical operators ($and/$or/$nor/$not) and comparison operators ($in, $gte, …)
+        // don't introduce a new owning field; a plain field key does.
+        const nextOwningField =
+            LOGICAL_OPERATORS.has(key) || key.startsWith("$") ? owningField : key;
+
+        const err = checkOperatorPolicy(node[key], nextOwningField);
+        if (err) return err;
+    }
+
+    return null;
+}
 
 /**
  * Verify a Mongo/Mango query against a template JSON identified by query.identifier.
@@ -26,8 +125,14 @@ const templateCache = new Map<string, any>();
  */
 export function validateMongoQuery(
     query: any,
-    templatesDir = path.resolve(__dirname),
+    options: ValidateMongoQueryOptions = {},
 ): ValidationResult {
+    const { maxLimit = DEFAULT_MAX_LIMIT, templatesDir = path.resolve(__dirname) } = options;
+
+    // Global policy first — applies to every identifier (limit cap + operator policy).
+    const policy = enforceGlobalQueryPolicy(query, maxLimit);
+    if (!policy.valid) return policy;
+
     const identifier = query?.identifier;
     if (!identifier || typeof identifier !== "string") {
         return {

@@ -299,6 +299,66 @@ describe("mergeVertical", () => {
         expect(syncList.value).toHaveLength(2);
     });
 
+    it("DOES merge same-key non-adjacent chunks when BOTH have eof:true (consolidate prematurely-sealed columns)", () => {
+        // Companion to the prior test: identical shape, but both eof:true. Two EOF
+        // stamps for the same key necessarily describe the same column — any gap
+        // between them is an artifact of premature sealing (e.g. markColumnEof
+        // firing on a wide-inversion calcChunk output that was never actually
+        // queried). Consolidate so downstream sees one column instead of two.
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: 6000,
+                blockEnd: 5000,
+                eof: true,
+            },
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: 4000,
+                blockEnd: 3000,
+                eof: true,
+            },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        // Merged window: newest blockStart, oldest blockEnd.
+        expect(syncList.value[0]).toMatchObject({
+            chunkType: "post",
+            memberOf: ["group1"],
+            blockStart: 6000,
+            blockEnd: 3000,
+            eof: true,
+        });
+    });
+
+    it("does NOT merge non-adjacent chunks when only ONE has eof:true (asymmetric eof is not a same-column signal)", () => {
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: 6000,
+                blockEnd: 5000,
+                eof: true, // newer is sealed
+            },
+            {
+                chunkType: "post",
+                memberOf: ["group1"],
+                blockStart: 4000,
+                blockEnd: 3000,
+                eof: false, // older still syncing
+            },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["group1"] });
+
+        // Stays split — only one has eof, so we can't safely treat them as the same column.
+        expect(syncList.value).toHaveLength(2);
+    });
+
     it("should handle chunks with blockStart=0 (no data returned)", () => {
         syncList.value = [
             {
