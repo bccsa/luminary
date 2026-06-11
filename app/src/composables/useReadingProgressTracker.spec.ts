@@ -3,21 +3,22 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import {
     READING_INTERSECTION_RATIO,
-    READING_MAX_SCROLL_VELOCITY_PX_S,
     READING_RESTORE_GUARD_MS,
     applyScrollVelocitySample,
-    computeScrollVelocity,
     isBlockEndInViewport,
     isBlockEligibleForDwell,
+    resolveActiveBlock,
     useReadingProgressTracker,
 } from "./useReadingProgressTracker";
 import {
     DEFAULT_READING_SPEED_WPM,
-    READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
     READING_IDLE_MS,
+    READING_SKIM_WPM_MULTIPLIER,
     computeBlockDwellMs,
-    computeMaxScrollVelocityPxS,
+    computeMaxScrollWordsPerSec,
+    computeScrollVelocityWordsPerSec,
     countWords,
+    estimateWordsPerPixel,
 } from "@/util/readingTime";
 import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/globalConfig";
 
@@ -241,58 +242,84 @@ describe("isBlockEligibleForDwell", () => {
     });
 });
 
-describe("computeScrollVelocity", () => {
-    it("returns px/s from delta and elapsed time", () => {
-        expect(computeScrollVelocity(120, 100)).toBe(1200);
-        expect(computeScrollVelocity(-120, 100)).toBe(1200);
-    });
+describe("resolveActiveBlock", () => {
+    it("returns the topmost unread visible block in reading order", () => {
+        const blocks = [{ id: 0 }, { id: 1 }, { id: 2 }] as unknown as Element[];
+        const visible = new Set([blocks[1], blocks[2]]);
+        const confirmed = new Set([blocks[0]]);
 
-    it("returns 0 when sample window is too short (jitter)", () => {
-        expect(computeScrollVelocity(100, 49)).toBe(0);
+        expect(resolveActiveBlock(blocks, visible, confirmed)).toBe(blocks[1]);
     });
 });
 
 describe("applyScrollVelocitySample", () => {
+    const defaultMaxWordsPerSec = computeMaxScrollWordsPerSec(DEFAULT_READING_SPEED_WPM);
+    const wordsPerPixel = estimateWordsPerPixel(100, 500);
+
     it("detects fast scroll once batched samples exceed the jitter window", () => {
         let state = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
-            wasScrollingFast: false,
+            isSkimming: false,
         };
 
-        state = applyScrollVelocitySample(state, 10, 30).state;
-        expect(state.wasScrollingFast).toBe(false);
+        state = applyScrollVelocitySample(state, 10, 30, wordsPerPixel, defaultMaxWordsPerSec).state;
+        expect(state.isSkimming).toBe(false);
 
-        const result = applyScrollVelocitySample(state, 80, 30);
-        expect(result.isFast).toBe(true);
-        expect(result.state.wasScrollingFast).toBe(true);
+        const result = applyScrollVelocitySample(state, 80, 30, wordsPerPixel, defaultMaxWordsPerSec);
+        expect(result.isSkimming).toBe(true);
+        expect(result.state.isSkimming).toBe(true);
     });
 
     it("reports when scrolling slows after a fast burst", () => {
         const state = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
-            wasScrollingFast: true,
+            isSkimming: true,
         };
 
-        const result = applyScrollVelocitySample(state, 10, 100);
-        expect(result.isFast).toBe(false);
-        expect(result.justSlowedDown).toBe(true);
-        expect(result.state.wasScrollingFast).toBe(false);
+        const result = applyScrollVelocitySample(state, 1, 100, wordsPerPixel, defaultMaxWordsPerSec);
+        expect(result.isSkimming).toBe(false);
+        expect(result.justStoppedSkimming).toBe(true);
+        expect(result.state.isSkimming).toBe(false);
     });
 
-    it("uses a WPM-scaled velocity cap", () => {
-        const slowLanguageCap = computeMaxScrollVelocityPxS(100);
-        expect(slowLanguageCap).toBe(600);
+    it("uses a WPM-scaled words-per-second cap", () => {
+        const slowLanguageCap = computeMaxScrollWordsPerSec(100);
+        expect(slowLanguageCap).toBeCloseTo((100 / 60) * READING_SKIM_WPM_MULTIPLIER);
 
         let state = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
-            wasScrollingFast: false,
+            isSkimming: false,
         };
-        state = applyScrollVelocitySample(state, 40, 30, slowLanguageCap).state;
-        const result = applyScrollVelocitySample(state, 40, 30, slowLanguageCap);
-        expect(result.isFast).toBe(true);
+        state = applyScrollVelocitySample(state, 40, 30, wordsPerPixel, slowLanguageCap).state;
+        const result = applyScrollVelocitySample(state, 40, 30, wordsPerPixel, slowLanguageCap);
+        expect(result.isSkimming).toBe(true);
+    });
+
+    it("does not flag skimming when wordsPerPixel is zero", () => {
+        const state = {
+            pendingScrollDeltaY: 0,
+            pendingScrollDeltaMs: 0,
+            isSkimming: false,
+        };
+
+        const result = applyScrollVelocitySample(state, 5000, 100, 0, defaultMaxWordsPerSec);
+        expect(result.isSkimming).toBe(false);
+    });
+
+    it("flags the same px/s delta as skim on a dense block but not on a tall sparse block at slow scroll", () => {
+        const tallBlockDensity = estimateWordsPerPixel(100, 800);
+        const shortBlockDensity = estimateWordsPerPixel(100, 300);
+        const deltaY = 50;
+        const deltaMs = 1000;
+
+        const tallVelocity = computeScrollVelocityWordsPerSec(deltaY, deltaMs, tallBlockDensity);
+        const shortVelocity = computeScrollVelocityWordsPerSec(deltaY, deltaMs, shortBlockDensity);
+
+        expect(tallVelocity).toBeLessThan(defaultMaxWordsPerSec);
+        expect(shortVelocity).toBeGreaterThan(defaultMaxWordsPerSec);
     });
 });
 
@@ -424,9 +451,19 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
-    it("identifies fast scroll speeds for velocity gating", () => {
-        expect(computeScrollVelocity(5000, 100)).toBeGreaterThan(READING_MAX_SCROLL_VELOCITY_PX_S);
-        expect(computeScrollVelocity(100, 100)).toBeLessThan(READING_BASE_MAX_SCROLL_VELOCITY_PX_S);
+    it("accumulates dwell only for the active block when multiple blocks are visible", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        observer.trigger(observer.elements[1], true);
+
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        wrapper.unmount();
     });
 
     it("saves progress after velocity drops and dwell completes at low speed", async () => {
