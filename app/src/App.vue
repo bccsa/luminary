@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, inject, onErrorCaptured, watch } from "vue";
+import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { appName, isAppLoading, userPreferencesAsRef, mediaQueue } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -10,13 +10,13 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
-import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
@@ -110,11 +110,6 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
-const mediaPlayerService = inject(MediaPlayerKey);
-if (!mediaPlayerService) {
-    throw new Error("MediaPlayerService not provided");
-}
-
 onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
@@ -156,7 +151,7 @@ onErrorCaptured((err) => {
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
         <div v-if="mediaQueue.length > 0">
-            <component :is="mediaPlayerService.getGlobalAudioPlayerComponent()" :content="mediaQueue[0]" />
+            <AudioPlayer :content="mediaQueue[0]" />
         </div>
 
         <!-- Mobile Navigation (mobile only) -->

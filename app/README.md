@@ -6,7 +6,7 @@ This is the frontend of the Luminary app. It's an offline-first Vue app that run
 
 Cross-cutting services follow a **contract + injection key + build-time virtual module** pattern: Vite resolves each `virtual:…` id to an entry under **`src/build-time/plugins/<name>/`**, and **`src/build-time/contracts/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** under **`src/build-time/contracts/`**, not direct imports of adapter code.
 
-**Example in this repo:** the global **audio player** (`virtual:media-player`, `src/build-time/plugins/media-player/`). Full pattern and diagrams: **[docs/vue-plugin-architecture/README.md](../docs/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin: **[Adding another build-swapped plugin](../docs/vue-plugin-architecture/README.md#adding-another-plugin)**.
+**Example in this repo:** the **demo banner** (`virtual:demo-banner`, `src/build-time/plugins/demo-banner/`). Full pattern and diagrams: **[docs/vue-plugin-architecture/README.md](../docs/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin: **[Adding another build-swapped plugin](../docs/vue-plugin-architecture/README.md#adding-another-plugin)**.
 
 ## Project structure
 
@@ -30,7 +30,7 @@ app/
 ├── src/
 │   ├── build-time/               # Build-swapped services (contracts + implementations)
 │   │   ├── contracts/            # plugin-registry.ts, <name>/contract.ts, token.ts
-│   │   └── plugins/              # e.g. media-player/: index.ts, *-web.ts, plugin UI bits
+│   │   └── plugins/              # e.g. demo-banner/: index.ts, *-web.ts, plugin UI bits
 │   ├── analytics/                # Analytics tracking and integration
 │   ├── assets/                   # Images, styles, and static resources
 │   ├── components/               # Vue components

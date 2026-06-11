@@ -8,7 +8,6 @@ import type { Plugin } from "vite";
 export function buildTargetVirtuals(): Plugin {
     const root = fileURLToPath(new URL("../src", import.meta.url));
     const virtualTargets: Record<string, string> = {
-        "virtual:media-player": `${root}/build-time/plugins/media-player/index.ts`,
         "virtual:demo-banner": `${root}/build-time/plugins/demo-banner/index.ts`,
     };
 

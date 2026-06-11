@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { defineComponent, ref } from "vue";
+import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -15,51 +15,11 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
-import { MediaPlayerKey } from "@/build-time/contracts/media-player/token";
-import type { MediaPlayerService } from "@/build-time/contracts/media-player/contract";
-
-const mockMediaPlayerService: MediaPlayerService = {
-    supportsBackgroundPlayback: false,
-    getGlobalAudioPlayerComponent: () =>
-        defineComponent({ name: "MockGlobalAudioPlayer", template: "<div />" }),
-    attachAudioElement: () => {},
-    detachAudioElement: () => {},
-    play: async () => {},
-    pause: () => {},
-    seekTo: () => {},
-    seekBy: () => {},
-    setPlaybackRate: () => {},
-    setVolume: () => {},
-    setMuted: () => {},
-    clearError: () => {},
-    getState: () => ({
-        status: "idle",
-        isPlaying: false,
-        currentTimeSeconds: 0,
-        durationSeconds: 0,
-        playbackRate: 1,
-        volume: 1,
-        isMuted: false,
-        error: null,
-    }),
-    onStateChange: () => () => {},
-};
 
 const routeReplaceMock = vi.fn();
 const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function mountApp() {
-    return mount(App, {
-        shallow: true,
-        global: {
-            provide: {
-                [MediaPlayerKey]: mockMediaPlayerService,
-            },
-        },
-    });
-}
 
 describe("App", () => {
     beforeEach(() => {
@@ -96,7 +56,7 @@ describe("App", () => {
         it("displays the splash screen while the app is loading", () => {
             isAppLoading.value = true;
 
-            const wrapper = mountApp();
+            const wrapper = mount(App, { shallow: true });
 
             expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
         });
@@ -104,7 +64,7 @@ describe("App", () => {
         it("displays the app content once loading is complete", () => {
             isAppLoading.value = false;
 
-            const wrapper = mountApp();
+            const wrapper = mount(App, { shallow: true });
 
             expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
             expect(wrapper.find("router-view-stub").exists()).toBe(true);
@@ -121,7 +81,9 @@ describe("App", () => {
             const notificationStore = useNotificationStore();
             isConnected.value = false;
 
-            mountApp();
+            mount(App, {
+                shallow: true,
+            });
 
             await wait(4000);
 
@@ -153,7 +115,9 @@ describe("App", () => {
 
             const notificationStore = useNotificationStore();
 
-            mountApp();
+            mount(App, {
+                shallow: true,
+            });
 
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
@@ -171,7 +135,9 @@ describe("App", () => {
         it("applies the correct theme class on mount - dark mode", () => {
             theme.value = "dark";
 
-            mountApp();
+            mount(App, {
+                shallow: true,
+            });
 
             expect(document.documentElement.classList.contains("dark")).toBe(true);
         });
@@ -179,7 +145,9 @@ describe("App", () => {
         it("applies the correct theme class on mount - light mode", () => {
             theme.value = "light";
 
-            mountApp();
+            mount(App, {
+                shallow: true,
+            });
 
             expect(document.documentElement.classList.contains("dark")).toBe(false);
         });

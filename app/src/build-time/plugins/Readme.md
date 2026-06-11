@@ -1,17 +1,17 @@
 # Build-time plugins
 
-This folder holds **implementations** of app services that depend on the build target (for example web vs native). Each subfolder is one plugin (e.g. `media-player`).
+This folder holds **implementations** of app services that depend on the build target (for example web vs native). Each subfolder is one plugin (e.g. `demo-banner`).
 
 ## How it fits together
 
-- **`../contracts`** defines the stable surface: types, `MediaPlayerKey`, and anything else components should import without pulling in platform code.
-- **`virtual:*` modules** (see `vite-plugins/buildTargetVirtuals.ts`) point each build flavor at the right `index.ts` here. The app installs plugins through `../contracts/plugin-registry.ts`, which imports from `virtual:media-player` (not from this path directly), so swapping targets does not require changing application code.
-- **Vue components and adapters** that belong to a plugin live next to that plugin’s service code (e.g. DOM `<audio>` wiring under `media-player/`).
+- **`../contracts`** defines the stable surface: types, injection keys, and anything else components should import without pulling in platform code.
+- **`virtual:*` modules** (see `vite-plugins/buildTargetVirtuals.ts`) point each build flavor at the right `index.ts` here. The app installs plugins through `../contracts/plugin-registry.ts`, which imports from `virtual:demo-banner` (not from this path directly), so swapping targets does not require changing application code.
+- **Vue components and adapters** that belong to a plugin live next to that plugin’s service code.
 
 ## Conventions
 
 - One directory per plugin; export `install*` helpers and re-export contract types/keys as needed from `index.ts`.
-- Keep **platform-specific logic** inside the plugin. App and shared components should use **`inject(MediaPlayerKey)`** (and other keys from contracts), not import web or native adapters directly unless unavoidable.
+- Keep **platform-specific logic** inside the plugin. App and shared components should use **`inject(DemoBannerKey)`** (and other keys from contracts), not import web or native adapters directly unless unavoidable.
 
 ## Adding a plugin
 
