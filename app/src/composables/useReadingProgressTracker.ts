@@ -6,30 +6,33 @@ import {
     setReadingProgress,
 } from "@/globalConfig";
 import {
-    READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
     READING_IDLE_MS,
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,
-    computeMaxScrollVelocityPxS,
+    computeMaxScrollWordsPerSec,
+    computeScrollVelocityWordsPerSec,
     countWords,
+    estimateWordsPerPixel,
 } from "@/util/readingTime";
 import type { Uuid } from "luminary-shared";
 
 /**
  * Tracks article reading progress for the "Continue reading" homepage row.
  *
- * Uses per-block dwell time (scaled by word count and language reading speed),
- * plus scroll velocity gating so users who skim through an article are not
- * recorded as having read it.
+ * A block is confirmed only when all gates pass:
+ *  1. ≥50% visible in the scroll container
+ *  1b. Block bottom edge inside the viewport
+ *  2. Scroll speed below skim cap (words/s, from rendered block density)
+ *  3. Dwell time reached (active block only — topmost unread eligible block)
+ *  4. User not idle (45 s without scroll or intersection activity)
+ *
+ * @see docs/reading-progress-tracker.md
  */
 
 const BLOCK_SELECTOR = "p, h1, h2, h3, h4, li, blockquote, pre";
 
 /** Block must be at least this fraction visible within the scroll root. */
 export const READING_INTERSECTION_RATIO = 0.5;
-
-/** @deprecated Use {@link READING_BASE_MAX_SCROLL_VELOCITY_PX_S} or computeMaxScrollVelocityPxS. */
-export const READING_MAX_SCROLL_VELOCITY_PX_S = READING_BASE_MAX_SCROLL_VELOCITY_PX_S;
 
 /** Ignore velocity samples shorter than this (trackpad / layout jitter). */
 export { READING_MIN_SCROLL_SAMPLE_MS };
@@ -76,49 +79,65 @@ export function isBlockEligibleForDwell(
     );
 }
 
-export function computeScrollVelocity(deltaY: number, deltaMs: number): number {
-    if (deltaMs < READING_MIN_SCROLL_SAMPLE_MS) return 0;
-    return Math.abs(deltaY) / (deltaMs / 1000);
+/** Topmost unread block that is currently eligible for dwell (reading order). */
+export function resolveActiveBlock(
+    blocks: MaybeElement[],
+    visibleBlocks: Set<MaybeElement>,
+    confirmedBlocks: Set<MaybeElement>,
+): MaybeElement | null {
+    for (const el of blocks) {
+        if (el && visibleBlocks.has(el) && !confirmedBlocks.has(el)) {
+            return el;
+        }
+    }
+    return null;
 }
 
-export type ScrollVelocityState = {
+/** Batched scroll samples for gate 2 (skim detection). */
+export type SkimScrollState = {
     pendingScrollDeltaY: number;
     pendingScrollDeltaMs: number;
-    wasScrollingFast: boolean;
+    /** True while the latest measured scroll speed exceeds the skim cap. */
+    isSkimming: boolean;
 };
 
-/** Batch short scroll samples, then decide whether the user is skimming. */
+/**
+ * Batch short scroll samples, then compare words/s to the skim cap.
+ * Caller must pass wordsPerPixel from the active block (> 0).
+ */
 export function applyScrollVelocitySample(
-    state: ScrollVelocityState,
+    state: SkimScrollState,
     deltaY: number,
     deltaMs: number,
-    maxVelocityPxS: number = READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
-): { isFast: boolean; justSlowedDown: boolean; state: ScrollVelocityState } {
-    const next: ScrollVelocityState = {
+    wordsPerPixel: number,
+    maxWordsPerSec: number,
+): { isSkimming: boolean; justStoppedSkimming: boolean; state: SkimScrollState } {
+    const next: SkimScrollState = {
         pendingScrollDeltaY: state.pendingScrollDeltaY + deltaY,
         pendingScrollDeltaMs: state.pendingScrollDeltaMs + deltaMs,
-        wasScrollingFast: state.wasScrollingFast,
+        isSkimming: state.isSkimming,
     };
 
     if (next.pendingScrollDeltaMs < READING_MIN_SCROLL_SAMPLE_MS) {
-        return { isFast: next.wasScrollingFast, justSlowedDown: false, state: next };
+        return { isSkimming: next.isSkimming, justStoppedSkimming: false, state: next };
     }
 
-    const velocity = computeScrollVelocity(
+    const wordsPerSecond = computeScrollVelocityWordsPerSec(
         next.pendingScrollDeltaY,
         next.pendingScrollDeltaMs,
+        wordsPerPixel,
     );
     next.pendingScrollDeltaY = 0;
     next.pendingScrollDeltaMs = 0;
 
-    if (velocity > maxVelocityPxS) {
-        next.wasScrollingFast = true;
-        return { isFast: true, justSlowedDown: false, state: next };
+    if (wordsPerPixel > 0 && wordsPerSecond > maxWordsPerSec) {
+        next.isSkimming = true;
+        return { isSkimming: true, justStoppedSkimming: false, state: next };
     }
 
-    const justSlowedDown = next.wasScrollingFast;
-    next.wasScrollingFast = false;
-    return { isFast: false, justSlowedDown, state: next };
+    const justStoppedSkimming = next.isSkimming;
+    next.isSkimming = false;
+    return { isSkimming: false, justStoppedSkimming, state: next };
 }
 
 /** Prefer BasePage `<main>` — it scrolls, not the window. */
@@ -150,15 +169,16 @@ export function useReadingProgressTracker(options: {
     const blocks = ref<MaybeElement[]>([]);
     const confirmedBlocks = new Set<MaybeElement>();
     const visibleBlocks = new Set<MaybeElement>();
+    const blockWordsPerPixel = new WeakMap<Element, number>();
     const dwellAccumulatedMs = new Map<MaybeElement, number>();
     let lastSavedProgress = -1;
     let lastScrollY = 0;
     let lastScrollTime = 0;
     let lastActivityMs: number | null = null;
-    let scrollVelocityState: ScrollVelocityState = {
+    let skimScrollState: SkimScrollState = {
         pendingScrollDeltaY: 0,
         pendingScrollDeltaMs: 0,
-        wasScrollingFast: false,
+        isSkimming: false,
     };
     let scrollRafPending = false;
     let dwellRafId: number | null = null;
@@ -167,8 +187,8 @@ export function useReadingProgressTracker(options: {
 
     const isRestoring = ref(false);
 
-    const maxScrollVelocityPxS = computed(() =>
-        computeMaxScrollVelocityPxS(options.averageReadingSpeed.value),
+    const maxScrollWordsPerSec = computed(() =>
+        computeMaxScrollWordsPerSec(options.averageReadingSpeed.value),
     );
 
     const savedProgressPercent = computed(() => {
@@ -213,10 +233,10 @@ export function useReadingProgressTracker(options: {
         lastScrollY = 0;
         lastScrollTime = 0;
         lastActivityMs = null;
-        scrollVelocityState = {
+        skimScrollState = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
-            wasScrollingFast: false,
+            isSkimming: false,
         };
         scrollRafPending = false;
         isRestoring.value = false;
@@ -231,6 +251,19 @@ export function useReadingProgressTracker(options: {
         blocks.value = Array.from(
             options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
         ).filter((el) => el.textContent?.trim()) as MaybeElement[];
+    }
+
+    function cacheBlockWordsPerPixel(el: MaybeElement) {
+        if (!(el instanceof Element)) return;
+        const height = el.getBoundingClientRect().height;
+        const words = countWords(el.textContent ?? "");
+        blockWordsPerPixel.set(el, estimateWordsPerPixel(words, height));
+    }
+
+    function activeBlockWordsPerPixel(): number {
+        const active = resolveActiveBlock(blocks.value, visibleBlocks, confirmedBlocks);
+        if (!(active instanceof Element)) return 0;
+        return blockWordsPerPixel.get(active) ?? 0;
     }
 
     /** Restore in-memory confirmed set from saved % so progress never drops on re-setup. */
@@ -291,15 +324,27 @@ export function useReadingProgressTracker(options: {
         dwellAccumulatedMs.delete(el);
     }
 
+    /** Gate 2: stationary reading after a skim burst should resume dwell. */
+    function clearSkimmingIfScrollStopped(now: number) {
+        if (
+            skimScrollState.isSkimming &&
+            lastScrollTime > 0 &&
+            now - lastScrollTime >= READING_MIN_SCROLL_SAMPLE_MS
+        ) {
+            skimScrollState = { ...skimScrollState, isSkimming: false };
+        }
+    }
+
     function tickDwell(timestamp: number) {
         dwellRafId = requestAnimationFrame(tickDwell);
 
-        if (!options.enabled.value || isRestoring.value || scrollVelocityState.wasScrollingFast) {
+        const now = performance.now();
+        clearSkimmingIfScrollStopped(now);
+
+        if (!options.enabled.value || isRestoring.value || skimScrollState.isSkimming) {
             lastDwellFrameTime = timestamp;
             return;
         }
-
-        const now = performance.now();
         if (lastActivityMs !== null && now - lastActivityMs >= READING_IDLE_MS) {
             clearDwellAccumulation();
             lastDwellFrameTime = timestamp;
@@ -315,18 +360,17 @@ export function useReadingProgressTracker(options: {
         lastDwellFrameTime = timestamp;
         if (elapsed <= 0) return;
 
-        for (const el of visibleBlocks) {
-            if (!el || confirmedBlocks.has(el)) continue;
+        const activeBlock = resolveActiveBlock(blocks.value, visibleBlocks, confirmedBlocks);
+        if (!activeBlock || confirmedBlocks.has(activeBlock)) return;
 
-            const requiredMs = blockDwellMs(el);
-            const accumulated = (dwellAccumulatedMs.get(el) ?? 0) + elapsed;
+        const requiredMs = blockDwellMs(activeBlock);
+        const accumulated = (dwellAccumulatedMs.get(activeBlock) ?? 0) + elapsed;
 
-            if (accumulated >= requiredMs) {
-                dwellAccumulatedMs.delete(el);
-                markBlockRead(el);
-            } else {
-                dwellAccumulatedMs.set(el, accumulated);
-            }
+        if (accumulated >= requiredMs) {
+            dwellAccumulatedMs.delete(activeBlock);
+            markBlockRead(activeBlock);
+        } else {
+            dwellAccumulatedMs.set(activeBlock, accumulated);
         }
     }
 
@@ -344,7 +388,7 @@ export function useReadingProgressTracker(options: {
 
     function startDwellIfEligible(el: MaybeElement) {
         if (!el || confirmedBlocks.has(el)) return;
-        if (!visibleBlocks.has(el) || isRestoring.value || scrollVelocityState.wasScrollingFast) return;
+        if (!visibleBlocks.has(el) || isRestoring.value || skimScrollState.isSkimming) return;
         ensureDwellLoop();
     }
 
@@ -359,9 +403,9 @@ export function useReadingProgressTracker(options: {
         }
     }
 
-    function onFastScrollDetected() {
+    function onSkimmingDetected() {
         clearDwellAccumulation();
-        scrollVelocityState.wasScrollingFast = true;
+        skimScrollState = { ...skimScrollState, isSkimming: true };
     }
 
     function onScroll() {
@@ -373,23 +417,28 @@ export function useReadingProgressTracker(options: {
         touchActivity(now);
 
         if (lastScrollTime > 0) {
-            const { isFast, justSlowedDown, state } = applyScrollVelocitySample(
-                scrollVelocityState,
-                scrollY - lastScrollY,
-                now - lastScrollTime,
-                maxScrollVelocityPxS.value,
-            );
-            scrollVelocityState = state;
+            const wordsPerPixel = activeBlockWordsPerPixel();
 
-            if (isFast) {
-                onFastScrollDetected();
-            } else if (justSlowedDown) {
-                if (!scrollRafPending) {
-                    scrollRafPending = true;
-                    requestAnimationFrame(() => {
-                        scrollRafPending = false;
-                        ensureDwellLoop();
-                    });
+            if (wordsPerPixel > 0) {
+                const { isSkimming, justStoppedSkimming, state } = applyScrollVelocitySample(
+                    skimScrollState,
+                    scrollY - lastScrollY,
+                    now - lastScrollTime,
+                    wordsPerPixel,
+                    maxScrollWordsPerSec.value,
+                );
+                skimScrollState = state;
+
+                if (isSkimming) {
+                    onSkimmingDetected();
+                } else if (justStoppedSkimming) {
+                    if (!scrollRafPending) {
+                        scrollRafPending = true;
+                        requestAnimationFrame(() => {
+                            scrollRafPending = false;
+                            ensureDwellLoop();
+                        });
+                    }
                 }
             }
         }
@@ -405,6 +454,7 @@ export function useReadingProgressTracker(options: {
             const eligible = isBlockEligibleForDwell(entry);
 
             if (eligible) {
+                cacheBlockWordsPerPixel(el);
                 visibleBlocks.add(el);
                 startDwellIfEligible(el);
             } else {
@@ -457,10 +507,10 @@ export function useReadingProgressTracker(options: {
             setTimeout(() => {
                 isRestoring.value = false;
                 lastScrollTime = 0;
-                scrollVelocityState = {
+                skimScrollState = {
                     pendingScrollDeltaY: 0,
                     pendingScrollDeltaMs: 0,
-                    wasScrollingFast: false,
+                    isSkimming: false,
                 };
                 lastScrollY = getScrollTop(container);
                 touchActivity();
