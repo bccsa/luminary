@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_READING_SPEED_WPM,
-    READING_BASE_MAX_SCROLL_VELOCITY_PX_S,
     READING_MAX_DWELL_MS,
     READING_MIN_DWELL_MS,
+    READING_SKIM_WPM_MULTIPLIER,
     computeBlockDwellMs,
     computeEstimatedReadingMinutes,
-    computeMaxScrollVelocityPxS,
+    computeMaxScrollWordsPerSec,
+    computeScrollVelocityWordsPerSec,
     countWords,
+    estimateWordsPerPixel,
     resolveReadingSpeedWpm,
 } from "./readingTime";
 
@@ -57,14 +59,53 @@ describe("computeBlockDwellMs", () => {
     });
 });
 
-describe("computeMaxScrollVelocityPxS", () => {
-    it("returns the base cap at default WPM", () => {
-        expect(computeMaxScrollVelocityPxS(200)).toBe(READING_BASE_MAX_SCROLL_VELOCITY_PX_S);
-        expect(computeMaxScrollVelocityPxS()).toBe(READING_BASE_MAX_SCROLL_VELOCITY_PX_S);
+describe("estimateWordsPerPixel", () => {
+    it("returns word density from count and rendered height", () => {
+        expect(estimateWordsPerPixel(100, 500)).toBe(0.2);
+        expect(estimateWordsPerPixel(50, 250)).toBe(0.2);
+    });
+
+    it("returns 0 for invalid inputs", () => {
+        expect(estimateWordsPerPixel(0, 100)).toBe(0);
+        expect(estimateWordsPerPixel(10, 0)).toBe(0);
+    });
+});
+
+describe("computeMaxScrollWordsPerSec", () => {
+    it("returns WPM/60 × skim multiplier at default WPM", () => {
+        expect(computeMaxScrollWordsPerSec(200)).toBeCloseTo((200 / 60) * READING_SKIM_WPM_MULTIPLIER);
+        expect(computeMaxScrollWordsPerSec()).toBeCloseTo((200 / 60) * READING_SKIM_WPM_MULTIPLIER);
     });
 
     it("scales the skim cap with language reading speed", () => {
-        expect(computeMaxScrollVelocityPxS(300)).toBe(1800);
-        expect(computeMaxScrollVelocityPxS(100)).toBe(600);
+        expect(computeMaxScrollWordsPerSec(300)).toBeCloseTo((300 / 60) * READING_SKIM_WPM_MULTIPLIER);
+        expect(computeMaxScrollWordsPerSec(100)).toBeCloseTo((100 / 60) * READING_SKIM_WPM_MULTIPLIER);
+    });
+});
+
+describe("computeScrollVelocityWordsPerSec", () => {
+    it("converts scroll delta to words per second", () => {
+        // 100 px in 100 ms at 0.2 words/px → 20 words in 0.1 s → 200 w/s
+        expect(computeScrollVelocityWordsPerSec(100, 100, 0.2)).toBe(200);
+        expect(computeScrollVelocityWordsPerSec(-100, 100, 0.2)).toBe(200);
+    });
+
+    it("returns 0 when sample window is too short or density is zero", () => {
+        expect(computeScrollVelocityWordsPerSec(100, 49, 0.2)).toBe(0);
+        expect(computeScrollVelocityWordsPerSec(100, 100, 0)).toBe(0);
+    });
+
+    it("treats the same px/s differently by block density", () => {
+        const tallBlockDensity = 100 / 800; // phone-like tall block
+        const shortBlockDensity = 100 / 300; // desktop-like short block
+        const deltaY = 500;
+        const deltaMs = 500;
+
+        const tallVelocity = computeScrollVelocityWordsPerSec(deltaY, deltaMs, tallBlockDensity);
+        const shortVelocity = computeScrollVelocityWordsPerSec(deltaY, deltaMs, shortBlockDensity);
+
+        expect(shortVelocity).toBeGreaterThan(tallVelocity);
+        expect(tallVelocity).toBeCloseTo(125);
+        expect(shortVelocity).toBeCloseTo((deltaY * shortBlockDensity) / (deltaMs / 1000));
     });
 });
