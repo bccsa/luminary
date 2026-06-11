@@ -1,3 +1,4 @@
+import type { MaybeElement } from "@vueuse/core";
 import { defineComponent, nextTick, ref, watchEffect } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
@@ -244,9 +245,9 @@ describe("isBlockEligibleForDwell", () => {
 
 describe("resolveActiveBlock", () => {
     it("returns the topmost unread visible block in reading order", () => {
-        const blocks = [{ id: 0 }, { id: 1 }, { id: 2 }] as unknown as Element[];
-        const visible = new Set([blocks[1], blocks[2]]);
-        const confirmed = new Set([blocks[0]]);
+        const blocks = [{ id: 0 }, { id: 1 }, { id: 2 }] as unknown as MaybeElement[];
+        const visible = new Set<MaybeElement>([blocks[1], blocks[2]]);
+        const confirmed = new Set<MaybeElement>([blocks[0]]);
 
         expect(resolveActiveBlock(blocks, visible, confirmed)).toBe(blocks[1]);
     });
