@@ -48,6 +48,10 @@ export class SearchService {
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
+        // Crypto docs (encrypted S3 credentials) are strictly internal and never searchable.
+        if (query.types.includes(DocType.Crypto))
+            throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,

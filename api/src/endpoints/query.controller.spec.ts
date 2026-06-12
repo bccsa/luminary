@@ -18,6 +18,20 @@ describe("QueryController", () => {
         return { user } as any;
     }
 
+    /** Config mock keyed by config path. `bypass` toggles template-validation bypass. */
+    function configFor(bypass: boolean) {
+        return (key: string) => {
+            switch (key) {
+                case "validation.bypassTemplateValidation":
+                    return bypass;
+                case "query.maxLimit":
+                    return 500;
+                default:
+                    return undefined;
+            }
+        };
+    }
+
     beforeEach(async () => {
         queryService = { query: jest.fn() };
         configService = { get: jest.fn() };
@@ -40,8 +54,8 @@ describe("QueryController", () => {
         controller = module.get<QueryController>(QueryController);
     });
 
-    it("should pass query to QueryService with user from request", async () => {
-        configService.get.mockReturnValue(true); // bypass validation
+    it("passes the query and user through to QueryService (bypass mode)", async () => {
+        configService.get.mockImplementation(configFor(true));
         queryService.query.mockResolvedValue({ docs: [] });
 
         const body = { selector: { type: "post" } };
@@ -50,48 +64,32 @@ describe("QueryController", () => {
         expect(queryService.query).toHaveBeenCalledWith(body, mockUser);
     });
 
-    it("should pass user details from request to query service", async () => {
-        configService.get.mockReturnValue(true);
+    it("passes a valid query when validation is enabled", async () => {
+        configService.get.mockImplementation(configFor(false));
         queryService.query.mockResolvedValue({ docs: [] });
 
-        await controller.processPostReq({}, mockRequest());
+        const body = { identifier: "hybridQuery", selector: { type: "content" } };
+        await controller.processPostReq(body, mockRequest());
 
-        expect(queryService.query).toHaveBeenCalledWith({}, mockUser);
+        expect(queryService.query).toHaveBeenCalled();
     });
 
-    it("should validate query when bypassValidation is false", async () => {
-        configService.get.mockReturnValue(false);
+    it("throws BadRequestException for an invalid query when validation is enabled", async () => {
+        configService.get.mockImplementation(configFor(false));
 
-        // Provide a body with a valid identifier to pass validateMongoQuery
-        const body = { identifier: "sync", selector: { type: "post" } };
-        queryService.query.mockResolvedValue({ docs: [] });
-
-        // This will run validateMongoQuery which may pass or fail depending on the template
-        // We just verify the flow doesn't crash with bypass = false
-        try {
-            await controller.processPostReq(body, mockRequest());
-        } catch (e) {
-            // If validation fails, it should be a BadRequestException
-            expect(e).toBeInstanceOf(BadRequestException);
-        }
-    });
-
-    it("should throw BadRequestException for invalid query when validation is enabled", async () => {
-        configService.get.mockReturnValue(false);
-
-        // Provide invalid body that should fail validation
-        const body = { identifier: "nonexistent-template-xyz", selector: {} };
-
+        // Unknown top-level key — rejected by the universal validator.
+        const body = { selector: { type: "content" }, bogusKey: 1 };
         await expect(controller.processPostReq(body, mockRequest())).rejects.toThrow(
             BadRequestException,
         );
+        expect(queryService.query).not.toHaveBeenCalled();
     });
 
-    it("should remove identifier from body before passing to service", async () => {
-        configService.get.mockReturnValue(true);
+    it("removes identifier from the body before passing to the service", async () => {
+        configService.get.mockImplementation(configFor(true));
         queryService.query.mockResolvedValue({ docs: [] });
 
-        const body = { identifier: "sync", selector: { type: "post" } };
+        const body: any = { identifier: "sync", selector: { type: "post" } };
         await controller.processPostReq(body, mockRequest());
 
         expect(body.identifier).toBeUndefined();

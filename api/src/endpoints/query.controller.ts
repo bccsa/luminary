@@ -8,12 +8,9 @@ import {
     UseGuards,
     Req,
 } from "@nestjs/common";
-// import { validateApiVersion } from "../validation/apiVersion";
 import { QueryService } from "./query.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-// import { FindReqDto } from "../dto/FindReqDto";
-// import { plainToClass } from "class-transformer";
-import validateMongoQuery from "../db/MongoQueryTemplates/validateMongoQuery";
+import { validateQuery } from "../validation/query/validateQuery";
 import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -42,14 +39,15 @@ export class QueryController {
         const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
 
         let validationResult = { valid: true, error: "" };
-        if (!bypassValidation)
-            validationResult = validateMongoQuery(body as MongoQueryDto, { maxLimit });
+        if (!bypassValidation) validationResult = validateQuery(body, { maxLimit });
 
         if (!validationResult.valid) {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);
         }
 
+        // `identifier` is an observability label only; strip it before the query runs.
         delete body.identifier;
+
         return this.queryService.query(body as MongoQueryDto, request.user);
     }
 }
