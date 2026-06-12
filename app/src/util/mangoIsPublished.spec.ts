@@ -120,19 +120,22 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(false);
         });
 
-        it("matches a document with no publishDate (treated as published)", () => {
+        // Published content always carries a numeric publishDate (API-enforced), so the
+        // filter no longer matches missing/null publishDate — those branches were dead
+        // weight that defeated CouchDB's publishDate index range.
+        it("rejects a document with no publishDate (published content always has one)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc();
             delete (doc as any).publishDate;
 
-            expect(pred(doc)).toBe(true);
+            expect(pred(doc)).toBe(false);
         });
 
-        it("matches a document with publishDate set to null (treated as published)", () => {
+        it("rejects a document with publishDate set to null", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc({ publishDate: null });
 
-            expect(pred(doc)).toBe(true);
+            expect(pred(doc)).toBe(false);
         });
 
         it("rejects a document with status draft", () => {
