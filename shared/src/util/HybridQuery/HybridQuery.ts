@@ -25,6 +25,7 @@ import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
 import {
     decideContentApiQuery,
+    planRemoteContentQueries,
     readType,
     toDeleteSelector,
     typeIsInSyncList,
@@ -594,10 +595,36 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     private async _postAndMerge(api: MangoQuery, gen: number): Promise<void> {
         try {
-            const remote = await queryRemote<T>(api);
+            // A multi-parent content supplement is fanned into per-parent POSTs so each
+            // seeks the parentId index instead of forcing one publishDate-window scan;
+            // results are merged by id. Non-fan-out queries return a single [api].
+            //
+            // allSettled (not all): one parent's transient failure must not blank the
+            // whole fan-out — keep the parents that succeeded. If EVERY query fails we
+            // leave `_remote` untouched (preserving any cache seed, healing on remount),
+            // matching the pre-fan-out single-POST behaviour.
+            const queries = planRemoteContentQueries(api);
+            const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
             if (gen !== this._generation || this._disposed) return;
+
+            const fulfilled = settled.filter(
+                (s): s is PromiseFulfilledResult<T[]> => s.status === "fulfilled",
+            );
+            if (fulfilled.length < settled.length) {
+                const firstErr = settled.find((s) => s.status === "rejected") as
+                    | PromiseRejectedResult
+                    | undefined;
+                console.error(
+                    `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
+                    firstErr?.reason,
+                );
+            }
+            // Total failure: keep the current `_remote` (and its seed) and heal later.
+            if (fulfilled.length === 0) return;
+
+            const remote = fulfilled.reduce<T[]>((acc, s) => mergeById(acc, s.value), []);
             this._setRemote(remote);
 
             // Offline persistence (opt-in): write the syncable subset to IndexedDB so

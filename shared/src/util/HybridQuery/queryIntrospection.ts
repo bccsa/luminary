@@ -1,4 +1,5 @@
-import type { BaseDocumentDto, DocType } from "../../types";
+import type { BaseDocumentDto } from "../../types";
+import { DocType } from "../../types";
 import { syncList } from "../../rest/sync2/state";
 import { splitChunkTypeString, OPEN_MIN } from "../../rest/sync2/utils";
 import { getContentPublishDateCutoff } from "../../config";
@@ -42,6 +43,26 @@ export function typeIsInSyncList(type: DocType | undefined): boolean {
 }
 
 /**
+ * Locate a top-level `<field>: { $in: [...] }` constraint and return its (string)
+ * value list + its position within the expanded `$and`. Shared by the id-diff and
+ * fan-out paths.
+ */
+function findInList(
+    conditions: MangoSelector[],
+    field: string,
+): { index: number; ids: string[] } | undefined {
+    for (let i = 0; i < conditions.length; i++) {
+        const criteria = (conditions[i] as Record<string, unknown>)[field];
+        if (!criteria || typeof criteria !== "object" || Array.isArray(criteria)) continue;
+        const inVal = (criteria as Record<string, unknown>).$in;
+        if (!Array.isArray(inVal)) continue;
+        const ids = inVal.filter((v): v is string => typeof v === "string");
+        return { index: i, ids };
+    }
+    return undefined;
+}
+
+/**
  * Locate a top-level `_id: { $in: [...] }` constraint and return its id list +
  * its position within the expanded `$and`. The caller can then rebuild the
  * selector with a narrowed id list. Returns `undefined` when the query isn't an
@@ -50,16 +71,7 @@ export function typeIsInSyncList(type: DocType | undefined): boolean {
 export function findIdInList(
     conditions: MangoSelector[],
 ): { index: number; ids: string[] } | undefined {
-    for (let i = 0; i < conditions.length; i++) {
-        const cond = conditions[i];
-        const criteria = (cond as Record<string, unknown>)._id;
-        if (!criteria || typeof criteria !== "object" || Array.isArray(criteria)) continue;
-        const inVal = (criteria as Record<string, unknown>).$in;
-        if (!Array.isArray(inVal)) continue;
-        const ids = inVal.filter((v): v is string => typeof v === "string");
-        return { index: i, ids };
-    }
-    return undefined;
+    return findInList(conditions, "_id");
 }
 
 /**
@@ -145,6 +157,56 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
         $sort: query.$sort,
         use_index: query.use_index,
     };
+}
+
+/**
+ * Cap on parents to fan out. Beyond this, a burst of N concurrent POSTs (e.g. a
+ * large bookmark list) costs more than one scan query, so we fall back to a single
+ * query rather than flooding the API.
+ */
+export const FANOUT_MAX_PARENTS = 25;
+
+/**
+ * Fan a multi-parent Content supplement into per-parent queries so each can SEEK
+ * `content-parentId-publishDate-index` (parentId equality + publishDate) instead of
+ * forcing one publishDate-window scan — CouchDB can't index an `$in`-on-parentId
+ * combined with a global `publishDate` sort, so the single query degrades to a full
+ * scan of the window.
+ *
+ * Returns one query per id when `api` is a Content query with a top-level
+ * `parentId: { $in: [...] }` of 2..{@link FANOUT_MAX_PARENTS} ids: each clone
+ * replaces the `$in` with a `parentId` equality and repoints `use_index` to the
+ * parentId index, carrying `$sort`/`$limit` unchanged (the per-parent over-fetch is
+ * corrected when `HybridQuery` re-applies sort+limit to the merged result via
+ * {@link applySortLimit}). Otherwise returns `[api]` unchanged — non-Content, no
+ * `$in`, a single id, or too many parents.
+ *
+ * Pure. Runs AFTER {@link decideContentApiQuery} (which decides whether/what to
+ * POST); this decides how many. The content gate keeps a non-Content query from
+ * being repointed at the content-only parentId index.
+ */
+export function planRemoteContentQueries(api: MangoQuery): MangoQuery[] {
+    if (!api?.selector || typeof api.selector !== "object") return [api];
+    if (readType(api) !== DocType.Content) return [api];
+
+    const conditions = expandMangoSelector(api.selector).$and ?? [];
+    const hit = findInList(conditions, "parentId");
+    if (!hit) return [api];
+    // Dedup so a repeated parent id (e.g. an un-deduped tagged-docs list) never fires
+    // a redundant POST. Output is unaffected — mergeById would collapse it anyway.
+    const uniqueIds = Array.from(new Set(hit.ids));
+    if (uniqueIds.length < 2 || uniqueIds.length > FANOUT_MAX_PARENTS) return [api];
+
+    return uniqueIds.map((id) => {
+        const narrowed = conditions.map((c, i) =>
+            i === hit.index ? ({ parentId: id } as MangoSelector) : c,
+        );
+        return {
+            ...api,
+            selector: { $and: narrowed },
+            use_index: "content-parentId-publishDate-index",
+        };
+    });
 }
 
 /**
