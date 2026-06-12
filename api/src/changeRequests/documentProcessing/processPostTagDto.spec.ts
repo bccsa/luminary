@@ -6,12 +6,13 @@ import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType, MediaType } from "../../enums";
-import { processImage } from "./processImageDto";
+import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 
-// Mock processImage
+// Mock processImage / deleteImage
 jest.mock("./processImageDto", () => ({
     processImage: jest.fn(),
+    deleteImage: jest.fn(),
 }));
 
 // Mock processMedia
@@ -26,6 +27,13 @@ describe("processPostTagDto", () => {
         const testingModule = await createTestingModule("process-post-tag-dto");
         db = testingModule.dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (deleteImage as jest.Mock).mockResolvedValue([]);
+        (processImage as jest.Mock).mockResolvedValue({ warnings: [] });
+        (processMedia as jest.Mock).mockResolvedValue({ warnings: [] });
     });
 
     it("should cascade Post/Tag delete request to content documents", async () => {
@@ -262,11 +270,10 @@ describe("processPostTagDto", () => {
         deleteRequest.doc.deleteReq = 1;
         await processChangeRequest("test-user", deleteRequest, ["group-super-admins"], db);
 
-        expect(processImage).toHaveBeenCalledWith(
-            { fileCollections: [] }, // Empty fileCollections to remove the image from S3
+        expect(deleteImage).toHaveBeenCalledWith(
             (changeRequest.doc as PostDto).imageData,
-            db,
             (changeRequest.doc as PostDto).imageBucketId,
+            db,
         );
     });
 
@@ -324,10 +331,6 @@ describe("processPostTagDto", () => {
     });
 
     it("warns when image processing returns warnings during deletion", async () => {
-        (processImage as jest.Mock).mockResolvedValueOnce({
-            warnings: ["Image cleanup warning"],
-        });
-
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-delete-img-warn";
         (changeRequest.doc as PostDto).imageData = {
@@ -335,11 +338,16 @@ describe("processPostTagDto", () => {
                 { aspectRatio: 1, imageFiles: [{ filename: "img.jpg", height: 1, width: 1 }] },
             ],
         };
-        changeRequest.doc.deleteReq = 1;
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
+        deleteRequest.doc.deleteReq = 1;
+        (deleteImage as jest.Mock).mockResolvedValueOnce(["Image cleanup warning"]);
 
         const result = await processChangeRequest(
             "test-user",
-            changeRequest,
+            deleteRequest,
             ["group-super-admins"],
             db,
         );

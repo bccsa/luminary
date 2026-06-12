@@ -1,6 +1,6 @@
 import { AuthProviderDto } from "../../dto/AuthProviderDto";
 import { DbService } from "../../db/db.service";
-import { processImage } from "./processImageDto";
+import { deleteImage, processImage } from "./processImageDto";
 
 /**
  * Process AuthProvider DTO — handles image uploads for provider icons.
@@ -15,15 +15,8 @@ export default async function processAuthProviderDto(
     // On delete, remove images from S3
     if (doc.deleteReq) {
         if (doc.imageData && prevDoc?.imageData) {
-            const imageResult = await processImage(
-                { fileCollections: [] },
-                prevDoc.imageData,
-                db,
-                prevDoc.imageBucketId,
-            );
-            if (imageResult?.warnings?.length) {
-                warnings.push(...imageResult.warnings);
-            }
+            const imageWarnings = await deleteImage(prevDoc.imageData, prevDoc.imageBucketId, db);
+            warnings.push(...imageWarnings);
         }
         return warnings;
     }
