@@ -10,7 +10,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...(actual as any),
-        isMobileScreen: ref(false),
+        isLargeScreen: ref(false),
         isSmallScreen: ref(false),
     };
 });

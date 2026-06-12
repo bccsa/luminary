@@ -33,7 +33,7 @@ const router = useRouter();
 const isEditContentPage = computed(() => router.currentRoute.value.name === "edit");
 const isEditLanguagePage = computed(() => router.currentRoute.value.name === "language");
 const breakpoints = useBreakpoints(breakpointsTailwind);
-const isMobileScreen = breakpoints.smaller("lg");
+const isLargeScreen = breakpoints.smaller("lg");
 
 const handleMobileSidebarToggle = () => {
     if (isEditContentPage.value) router.push({ name: "overview" });
@@ -54,7 +54,7 @@ const handleMobileSidebarToggle = () => {
                 ]"
             >
                 <button
-                    v-if="isEditContentPage || isMobileScreen || isEditLanguagePage"
+                    v-if="isEditContentPage || isLargeScreen || isEditLanguagePage"
                     type="button"
                     data-test="chevron-icon"
                     class="text-zinc-500 max-sm:ml-5"
@@ -62,7 +62,7 @@ const handleMobileSidebarToggle = () => {
                 >
                     <span class="sr-only">Open sidebar</span>
                     <Bars3Icon
-                        v-if="!isEditContentPage && !isEditLanguagePage && isMobileScreen"
+                        v-if="!isEditContentPage && !isEditLanguagePage && isLargeScreen"
                         class="h-6 w-6"
                         aria-hidden="true"
                     />

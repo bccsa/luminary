@@ -44,7 +44,7 @@ watch(modalRef, (el) => {
 });
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
-const isMobileScreen = breakpoints.smaller("sm");
+const isLargeScreen = breakpoints.smaller("sm");
 </script>
 
 <template>
@@ -52,7 +52,7 @@ const isMobileScreen = breakpoints.smaller("sm");
         <div
             :class="[
                 'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
-                stickToEdges && isMobileScreen ? '' : 'p-2',
+                stickToEdges && isLargeScreen ? '' : 'p-2',
             ]"
             @mousedown.self="tryDismiss()"
             data-test="modal-backdrop"
@@ -66,7 +66,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                 data-test="modal-content"
                 :class="[
                     'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
-                    isMobileScreen && stickToEdges
+                    isLargeScreen && stickToEdges
                         ? 'w-[100vw] max-w-none rounded-none'
                         : largeModal
                           ? 'w-fit min-w-[448px] max-w-[100%]'

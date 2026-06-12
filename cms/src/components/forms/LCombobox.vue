@@ -60,7 +60,7 @@ const selectedOptions = defineModel<Array<string | number>>("selectedOptions", {
 const showEditModal = defineModel<boolean>("showEditModal", { default: false });
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
-const isMobileScreen = breakpoints.smaller("sm");
+const isLargeScreen = breakpoints.smaller("sm");
 
 // Reference to the combobox input element and parent wrapper
 const inputElement = ref<HTMLInputElement>();
@@ -295,9 +295,7 @@ const onInlineBackspace = () => {
                             type="button"
                             tabindex="-1"
                         >
-                            <ChevronUpDownIcon
-                                class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
-                            />
+                            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
                         </button>
                     </div>
 
@@ -307,8 +305,8 @@ const onInlineBackspace = () => {
                         class="relative flex w-full justify-between gap-2 rounded-md bg-white focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
                         :class="{
                             'border-[1px] border-zinc-300': !noBorder,
-                            'pl-1 pr-3': smallInput && isMobileScreen,
-                            'pl-3 pr-3': !smallInput || !isMobileScreen,
+                            'pl-1 pr-3': smallInput && isLargeScreen,
+                            'pl-3 pr-3': !smallInput || !isLargeScreen,
                         }"
                         tabindex="0"
                         v-bind="attrsWithoutStyles"
@@ -329,9 +327,7 @@ const onInlineBackspace = () => {
                                 ref="inputElement"
                                 class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
                                 :class="[
-                                    smallInput && isMobileScreen
-                                        ? 'h-[30px] text-sm'
-                                        : 'h-[38px]',
+                                    smallInput && isLargeScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },
                                 ]"
                                 :placeholder="placeholder ?? 'Type to select...'"

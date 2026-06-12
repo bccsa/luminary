@@ -6,7 +6,7 @@ import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-sh
 import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
 import { validDocTypes, isPermissionAvailable } from "./permissions";
 import _ from "lodash";
-import { isMobileScreen } from "@/globalConfig";
+import { isLargeScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LModal from "../modals/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -119,7 +119,7 @@ onMounted(() => {
             <div class="flex items-center justify-between">
                 <div
                     class="flex-shrink-0 whitespace-nowrap pl-3 font-medium"
-                    :class="isMobileScreen ? 'text-xs' : 'text-sm'"
+                    :class="isLargeScreen ? 'text-xs' : 'text-sm'"
                 >
                     {{ assignedGroup.name }}
                 </div>
@@ -220,7 +220,7 @@ onMounted(() => {
                     <LButton
                         variant="secondary"
                         size="sm"
-                        :class="isMobileScreen ? '!px-2 !py-2 text-xs' : ''"
+                        :class="isLargeScreen ? '!px-2 !py-2 text-xs' : ''"
                         mainDynamicCss="text-zinc-600"
                     >
                         Add / Remove
