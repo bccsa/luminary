@@ -16,12 +16,13 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 
 const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
-const contentIds = computed(() =>
-    props.tags
-        .map((tag) => tag.parentTaggedDocs)
-        .flat()
-        .filter((e, i, self) => i === self.indexOf(e)),
-);
+// `parentTaggedDocs` is optional and may itself contain null/undefined ids, and
+// `.flat()` keeps those holes. Drop them before they become `{ parentId: { $in:
+// [null] } }`, which crashes CouchDB's _find (function_clause / 500). `new Set`
+// dedupes the remainder.
+const contentIds = computed(() => [
+    ...new Set(props.tags.flatMap((tag) => tag.parentTaggedDocs ?? []).filter((id) => id != null)),
+]);
 
 // parentId $in can't use a sorted Mango index, so the API supplement scans the older
 // tail. Cap at 50 so the limit-shortfall branch skips the API POST once local Dexie

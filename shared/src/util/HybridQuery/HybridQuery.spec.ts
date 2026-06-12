@@ -182,6 +182,27 @@ describe("HybridQuery", () => {
         expect(mocks.socketDataHandlers.size).toBe(0);
     });
 
+    it("sanitizes a $in containing null so it never reaches Dexie or the API (would crash CouchDB)", async () => {
+        // { parentId: { $in: [null] } } reaches CouchDB as $in:[null] and crashes
+        // _find (function_clause / 500). _rebuild strips the null → $in:[] → the
+        // provably-empty short-circuit above. No Dexie read, no POST.
+        const q = track(
+            new HybridQuery(
+                {
+                    selector: {
+                        $and: [{ type: "content" }, { parentId: { $in: [null] } }],
+                    },
+                },
+                { live: true },
+            ),
+        );
+        await flush();
+
+        expect(q.output.value).toEqual([]);
+        expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+        expect(postHttpMock).not.toHaveBeenCalled();
+    });
+
     describe("content routing", () => {
         it("no $limit + no _id list ⇒ always POSTs with publishDate <= cutoff", async () => {
             const local = [

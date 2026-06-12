@@ -18,6 +18,7 @@ import {
     DocType,
 } from "../../types";
 import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
+import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { mangoToDexie } from "../MangoQuery/mangoToDexie";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
@@ -385,7 +386,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._seededRemoteIds.clear();
         this._apiDecided = false;
         this._tombstones.clear();
-        this._query = query;
+        // Strip null/undefined from any $in/$nin/$all BEFORE the selector forks into
+        // the local Dexie read and the remote API POST — a null member crashes
+        // CouchDB's _find (function_clause / 500). One choke point keeps both legs
+        // consistent; see sanitizeArrayOperators.
+        this._query = { ...query, selector: sanitizeArrayOperators(query.selector) };
         this._limit = query.$limit;
         this._sort = query.$sort;
         if (this._cache) this._cacheKey = structuralCacheKey(query, this._cacheId);

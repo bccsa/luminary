@@ -17,6 +17,7 @@ import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { RedirectDto } from "../dto/RedirectDto";
 import { calcGroups, type SearchOptions } from "./db.searchFunctions";
+import { assertNoNullInArrayOperators } from "./assertNoNullInArrayOperators";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -703,6 +704,11 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the query result
      */
     async executeFindQuery(query: nano.MangoQuery): Promise<DbQueryResult> {
+        // Defense-in-depth: a null member of an $in/$nin/$all array crashes CouchDB's
+        // _find with an opaque function_clause. Fail loud and clear here — this is the
+        // only path to nano.db.find, so it also covers the search/sync/languages
+        // callers that don't pass through /query's validateQuery.
+        assertNoNullInArrayOperators(query);
         await this.ensureConnected();
         const res: DbQueryResult = await this.db.find(query);
 

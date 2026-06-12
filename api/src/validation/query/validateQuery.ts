@@ -27,6 +27,9 @@ export const MAX_SELECTOR_CLAUSES = 256;
 
 const LOGICAL_OPERATORS = new Set(["$and", "$or", "$nor", "$not"]);
 
+/** Operators whose value is an array of candidate field values (checked for null members). */
+const ARRAY_OPERATORS = new Set(["$in", "$nin", "$all"]);
+
 /**
  * Array fields on which `$elemMatch` is permitted:
  *  - `memberOf` — group permission filter (injected server-side).
@@ -72,7 +75,9 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
  *  - a `limit` cap (DoS guard against materializing huge result sets),
  *  - `use_index` membership in the design-doc registry (no steering CouchDB onto
  *    unintended / non-existent indexes),
- *  - an operator policy (no `$regex` / `$where`; `$elemMatch` only on array fields),
+ *  - an operator policy (no `$regex` / `$where`; `$elemMatch` only on array fields;
+ *    no `null` member in an `$in` / `$nin` / `$all` array — it crashes CouchDB's
+ *    `_find` with an unhandled `function_clause`),
  *  - selector depth / clause-count caps.
  *
  * Never mutates the input query.
@@ -176,6 +181,13 @@ function walkSelector(selector: any): string | null {
                 // Build the message from the allowlist so it can't drift out of sync.
                 const allowed = [...ELEM_MATCH_ALLOWED_FIELDS].map((f) => `'${f}'`).join(", ");
                 return `operator '$elemMatch' is only allowed on the ${allowed} fields`;
+            }
+            // A null/undefined member of $in/$nin/$all crashes CouchDB's _find with an
+            // unhandled function_clause (HTTP 500). Reject it as a 400 instead.
+            if (ARRAY_OPERATORS.has(key) && Array.isArray(node[key])) {
+                if (node[key].some((v: unknown) => v === null || v === undefined)) {
+                    return `operator '${key}' array must not contain null`;
+                }
             }
 
             // Logical operators ($and/$or/$nor/$not) and comparison operators ($in, $gte, …)
