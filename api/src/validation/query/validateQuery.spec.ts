@@ -248,6 +248,39 @@ describe("validateQuery", () => {
             ];
             expect(validateQuery(q).valid).toBe(true);
         });
+
+        // A null member of $in/$nin/$all crashes CouchDB's _find (function_clause / 500).
+        it("rejects $in/$nin/$all arrays containing null", () => {
+            for (const op of ["$in", "$nin", "$all"]) {
+                const q: any = validHybridQuery();
+                q.selector.parentId = { [op]: ["a", null, "b"] };
+                const res = validateQuery(q);
+                expect(res.valid).toBe(false);
+                expect(res.error).toMatch(
+                    new RegExp(`operator '\\${op}' array must not contain null`),
+                );
+            }
+        });
+
+        it("rejects a $in containing only null (the reported crash shape)", () => {
+            const q: any = validHybridQuery();
+            q.selector.parentId = { $in: [null] };
+            expect(validateQuery(q).error).toMatch(/must not contain null/);
+        });
+
+        it("rejects null in a $in nested inside $and/$or (recursive walk)", () => {
+            const q: any = validHybridQuery();
+            q.selector.$or = [{ slug: "a" }, { parentId: { $in: ["x", null] } }];
+            expect(validateQuery(q).error).toMatch(/must not contain null/);
+        });
+
+        it("accepts $in/$nin/$all arrays without null (incl. empty)", () => {
+            for (const arr of [["a", "b"], []]) {
+                const q: any = validHybridQuery();
+                q.selector.parentId = { $in: arr };
+                expect(validateQuery(q).valid).toBe(true);
+            }
+        });
     });
 
     describe("DoS guards", () => {
