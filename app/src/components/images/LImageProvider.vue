@@ -1,4 +1,41 @@
 <script lang="ts">
+import { computed } from "vue";
+import { type ContentDto } from "luminary-shared";
+
+export const aspectRatiosCSS = {
+    original: "aspect-auto",
+    video: "aspect-video",
+    square: "aspect-square",
+    vertical: "aspect-[9/16]",
+    portrait: "aspect-[3/4]",
+    wide: "aspect-[18/9]",
+    classic: "aspect-[4/3]",
+    smallSquare: "aspect-[3/2]",
+};
+export type AspectRatio = keyof typeof aspectRatiosCSS;
+
+export const aspectRatioNumbers = {
+    original: 0,
+    video: 1.78,
+    square: 1,
+    vertical: 0.56,
+    portrait: 0.75,
+    wide: 2,
+    classic: 1.33,
+    smallSquare: 0.5,
+};
+
+export const sizes = {
+    small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
+    thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
+    thumbnailFeatured: "w-[165px] max-w-[165px] min-w-[165px] md:w-56 md:max-w-56 md:min-w-56",
+    thumbnailCompact: "w-32 max-w-32 min-w-32 md:w-44 md:max-w-44 md:min-w-44",
+    post: "w-full max-w-full",
+    smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
+    icon: "",
+};
+export type ImageSize = keyof typeof sizes;
+
 export const activeImageCollection = computed(() => (content: ContentDto) => {
     if (!content.parentImageData?.fileCollections?.length) return 0;
 
@@ -24,19 +61,18 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
     isConnected,
-    type ContentDto,
     type ImageDto,
     type ImageFileCollectionDto,
     type ImageFileDto,
     type Uuid,
 } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, ref } from "vue";
+import { ref } from "vue";
 
 type Props = {
     image?: ImageDto;
-    aspectRatio?: keyof typeof aspectRatiosCSS;
-    size?: keyof typeof sizes;
+    aspectRatio?: AspectRatio;
+    size?: ImageSize;
     rounded?: boolean;
     parentWidth: number;
     parentId: Uuid;
@@ -48,34 +84,6 @@ type Props = {
      * so screen readers will skip them (WCAG-compliant).
      */
     alt?: string;
-};
-
-const aspectRatiosCSS = {
-    original: "aspect-auto",
-    video: "aspect-video",
-    square: "aspect-square",
-    vertical: "aspect-[9/16]",
-    wide: "aspect-[18/9]",
-    classic: "aspect-[4/3]",
-    smallSquare: "aspect-[3/2]",
-};
-
-const aspectRatioNumbers = {
-    original: 0, // placeholder for type safety, not used in calculations
-    video: 1.78,
-    square: 1,
-    vertical: 0.56,
-    wide: 2,
-    classic: 1.33,
-    smallSquare: 0.5,
-};
-
-const sizes = {
-    small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
-    thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
-    post: "w-full max-w-full",
-    smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
-    icon: "",
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -289,7 +297,6 @@ const modalSrcset = computed(() => {
     if (!files.length) return "";
     return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
 });
-
 </script>
 
 <template>

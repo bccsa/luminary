@@ -46,6 +46,10 @@ watch(newest10Content, async (value) => {
 </script>
 
 <template>
-    <HorizontalContentTileCollection :contentDocs="newest10Content" :title="t('home.newest')" :showPublishDate="true"
-        class="pb-1 pt-4" />
+    <HorizontalContentTileCollection
+        :contentDocs="newest10Content"
+        :title="t('home.newest')"
+        :showPublishDate="true"
+        class="pb-1 pt-4"
+    />
 </template>

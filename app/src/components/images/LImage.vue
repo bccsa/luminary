@@ -2,15 +2,20 @@
 // Image component with automatic aspect ratio selection and fallback image
 import { onMounted, ref, watch, toRef } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
-import LImageProvider from "./LImageProvider.vue";
+import LImageProvider, {
+    aspectRatiosCSS,
+    sizes,
+    type AspectRatio,
+    type ImageSize,
+} from "./LImageProvider.vue";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 
 type Props = {
     image?: ImageDto;
     contentParentId?: Uuid;
     parentImageBucketId?: Uuid;
-    aspectRatio?: keyof typeof aspectRatiosCSS;
-    size?: keyof typeof sizes;
+    aspectRatio?: AspectRatio;
+    size?: ImageSize;
     rounded?: boolean;
     isModal?: boolean;
     /** Direct image URL for simple rendering (e.g. icons). Bypasses responsive image logic. */
@@ -29,28 +34,12 @@ const props = withDefaults(defineProps<Props>(), {
 const bucketIdRef = toRef(props, "parentImageBucketId");
 const { bucketBaseUrl } = useBucketInfo(bucketIdRef);
 
-const aspectRatiosCSS = {
-    original: "aspect-auto",
-    video: "aspect-video",
-    square: "aspect-square",
-    vertical: "aspect-[9/16]",
-    wide: "aspect-[18/9]",
-    classic: "aspect-[4/3]",
-    smallSquare: "aspect-[3/2]",
-};
-
-const sizes = {
-    small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
-    thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
-    post: "w-full max-w-full",
-    smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
-    icon: "",
-};
-
 const rounding = {
     smallSquare: "rounded-md",
     small: "rounded-md",
     thumbnail: "rounded-lg",
+    thumbnailFeatured: "rounded-xl",
+    thumbnailCompact: "rounded-lg",
     post: "md:rounded-lg",
     icon: "rounded-none",
 };

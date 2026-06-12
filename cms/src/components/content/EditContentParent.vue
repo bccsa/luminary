@@ -93,6 +93,17 @@ const showComingSoon = computed({
         }
     },
 });
+
+const useVerticalTileLayout = computed({
+    get() {
+        return parent.value?.useVerticalTileLayout ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.useVerticalTileLayout = value;
+        }
+    },
+});
 </script>
 
 <template>
@@ -166,9 +177,7 @@ const showComingSoon = computed({
         />
 
         <!-- Toggle for Publish Date Visibility -->
-        <div
-            class="mt-2 flex items-center justify-between gap-1"
-        >
+        <div class="mt-2 flex items-center justify-between gap-1">
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
         </div>
@@ -182,7 +191,6 @@ const showComingSoon = computed({
             <LToggle v-model="showComingSoon" :disabled="disabled" class="mr-[4px]" />
         </div>
 
-
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mt-3 flex items-center justify-between"
@@ -190,6 +198,17 @@ const showComingSoon = computed({
         >
             <FormLabel>Pinned</FormLabel>
             <LToggle v-model="pinned" :disabled="disabled" class="mr-[4px]" />
+        </div>
+
+        <div
+            v-if="
+                docType == DocType.Tag &&
+                (tagOrPostType === TagType.Category || tagOrPostType === TagType.Topic)
+            "
+            class="mt-2 flex items-center justify-between gap-1"
+        >
+            <FormLabel>Vertical Tile</FormLabel>
+            <LToggle v-model="useVerticalTileLayout" :disabled="disabled" class="mr-[4px]" />
         </div>
 
         <slot name="supplementary" />

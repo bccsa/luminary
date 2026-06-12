@@ -1,22 +1,40 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
+import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
-import LImage from "../images/LImage.vue";
 
 type Props = {
     contentDocs: ContentDto[];
     title?: string;
     summary?: string;
     showPublishDate?: boolean;
-    aspectRatio?: typeof LImage.aspectRatios;
-    contentTitlePosition?: "bottom" | "center";
+    aspectRatio?: AspectRatio;
+    imageSize?: ImageSize;
+    contentTitlePosition?: "bottom" | "center" | "overlay";
+    tileOverlayLabel?: string;
     showProgress?: boolean;
+    useVerticalTileLayout?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
+});
+
+const computedAspectRatio = computed(() => {
+    if (props.useVerticalTileLayout) return "portrait";
+    return props.aspectRatio;
+});
+
+const computedImageSize = computed(() => {
+    if (props.useVerticalTileLayout) return "thumbnailCompact";
+    return props.imageSize;
+});
+
+const computedTitlePosition = computed(() => {
+    if (props.useVerticalTileLayout) return "overlay";
+    return props.contentTitlePosition;
 });
 
 const spinLeft = () => {
@@ -76,9 +94,15 @@ useInfiniteScroll(
 
 <template>
     <div class="select-none">
-        <h2 v-if="title" class="truncate px-4">
+        <h2
+            v-if="title"
+            class="truncate px-4"
+        >
             {{ title }}
-            <span v-if="summary" class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200">
+            <span
+                v-if="summary"
+                class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200"
+            >
                 {{ summary }}
             </span>
         </h2>
@@ -90,7 +114,10 @@ useInfiniteScroll(
             >
                 <ArrowLeftCircleIcon
                     v-if="showLeftSpin"
-                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                    :class="[
+                        'mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:h-14 md:w-14',
+                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                    ]"
                     @click="spinLeft()"
                 />
             </div>
@@ -100,7 +127,11 @@ useInfiniteScroll(
             >
                 <ArrowRightCircleIcon
                     v-if="showRightSpin"
-                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                    :class="[
+                        'h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14',
+                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
+                    ]"
+                    @click="spinRight()"
                 />
             </div>
 
@@ -109,15 +140,20 @@ useInfiniteScroll(
                 class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
-                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
+                <div
+                    ref="scrollContent"
+                    class="flex flex-row gap-4 px-4"
+                >
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"
                         v-memo="[content]"
                         :content="content"
-                        :aspectRatio="aspectRatio"
+                        :aspectRatio="computedAspectRatio"
+                        :imageSize="computedImageSize"
                         :show-publish-date="showPublishDate"
-                        :titlePosition="contentTitlePosition"
+                        :titlePosition="computedTitlePosition"
+                        :overlayLabel="tileOverlayLabel"
                         :showProgress="showProgress"
                     />
                 </div>

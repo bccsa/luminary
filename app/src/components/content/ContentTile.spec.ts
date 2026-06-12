@@ -261,4 +261,48 @@ describe("ContentTile", () => {
         expect(wrapper.html()).toContain("5:00");
         expect(wrapper.html()).toContain('style="width: 40%');
     });
+
+    it("renders title on the image in overlay mode without text below", () => {
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockEnglishContentDto,
+                titlePosition: "overlay",
+                aspectRatio: "portrait",
+                imageSize: "thumbnailCompact",
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain("Post 1");
+        expect(wrapper.text()).toContain("Jan 1, 2024");
+        expect(wrapper.find(".mt-1.truncate.text-sm").exists()).toBe(false);
+        expect(wrapper.find(".line-clamp-2").exists()).toBe(true);
+    });
+
+    it("renders overlay label instead of publish date when provided", () => {
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockEnglishContentDto,
+                titlePosition: "overlay",
+                overlayLabel: "SERMONS",
+                showPublishDate: true,
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain("SERMONS");
+        expect(wrapper.text()).not.toContain("Jan 1, 2024");
+    });
 });

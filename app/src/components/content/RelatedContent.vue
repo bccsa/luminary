@@ -37,10 +37,7 @@ const contentDocs = useDexieLiveQueryWithDeps(
         if (ids.length === 0) return Promise.resolve([] as ContentDto[]);
         return mangoToDexie<ContentDto>(db.docs, {
             selector: {
-                $and: [
-                    { parentId: { $in: ids } },
-                    ...mangoIsPublished(languageIds),
-                ],
+                $and: [{ parentId: { $in: ids } }, ...mangoIsPublished(languageIds)],
             },
             $sort: [{ publishDate: "asc" }],
         });
@@ -64,13 +61,17 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
             {{ t("content.related_title") }}
         </h1>
         <div class="mb-2 flex max-w-full flex-wrap">
-            <div class="max-w-full" ref="scrollElement">
+            <div
+                class="max-w-full"
+                ref="scrollElement"
+            >
                 <HorizontalContentTileCollection
                     v-for="topic in contentByTopic.tagged.value"
                     :key="topic.tag._id"
                     :contentDocs="topic.content"
                     :title="topic.tag.title"
                     :summary="topic.tag.summary"
+                    :useVerticalTileLayout="topic.tag.parentUseVerticalTileLayout"
                     :showPublishDate="false"
                 />
             </div>

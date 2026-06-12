@@ -30,6 +30,11 @@ export class _contentParentDto extends _contentBaseDto {
     showComingSoon?: boolean;
 
     @IsOptional()
+    @IsBoolean()
+    @Expose()
+    useVerticalTileLayout?: boolean;
+
+    @IsOptional()
     @IsString()
     @Expose()
     imageBucketId?: string; // S3 bucket ID for image storage
