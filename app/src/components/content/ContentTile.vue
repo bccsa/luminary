@@ -134,7 +134,7 @@ if (allMedia) {
                             class="w-full"
                             v-if="titlePosition === 'bottom'"
                         >
-                            <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
+                            <h3 class="mt-2 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>
                             <div
