@@ -482,12 +482,13 @@ index. That produces either:
 - a `documents examined is high` warning + slow scan on **unsorted** queries.
 
 The API validator
-([`api/src/db/MongoQueryTemplates/validators/hybridQuery.ts`](../../../../api/src/db/MongoQueryTemplates/validators/hybridQuery.ts))
-enforces a hard-coded allowlist of permitted `use_index` values — today that's
-exactly **`"content-publishDate-index"`** (backed by
-[`api/src/db/designDocs/content-publishDate-index.json`](../../../../api/src/db/designDocs/content-publishDate-index.json)).
-Any other value 400s. To add a new index: create the design doc, then add the
-name to `ALLOWED_USE_INDEX`.
+([`api/src/validation/query/validateQuery.ts`](../../../../api/src/validation/query/validateQuery.ts))
+accepts a `use_index` only if it names a real Mango index — the allowlist is the
+registry built at boot from the design-doc JSON files
+([`api/src/db/indexNameRegistry.ts`](../../../../api/src/db/indexNameRegistry.ts)),
+e.g. [`content-publishDate-index`](../../../../api/src/db/designDocs/content-publishDate-index.json).
+Any unknown value 400s (`Unknown index`). To add a new index: just create the
+design doc — the registry picks it up automatically (no separate allowlist edit).
 
 ### When you add a new index, plan for the auto-appended `publishDate`
 

@@ -93,6 +93,19 @@ export class QueryService {
                 HttpStatus.BAD_REQUEST,
             );
 
+        // Doc-type gate. `type`/`docType` are extracted post-expansion, so this catches
+        // nested selectors, hybridQuery's unrestricted selector, AND the
+        // BYPASS_TEMPLATE_VALIDATION escape hatch. Unknown types already fail closed
+        // (empty viewGroups → Forbidden); this just returns a clearer error. Crypto docs
+        // (encrypted S3 credentials) are strictly internal and never queryable.
+        if (!(Object.values(DocType) as string[]).includes(type))
+            throw new HttpException(
+                `'${type}' is not a valid document type`,
+                HttpStatus.BAD_REQUEST,
+            );
+        if (type === DocType.Crypto || docType === DocType.Crypto)
+            throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+
         if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(
                 "'docType' field is required for DeleteCmd type",
@@ -243,10 +256,10 @@ export class QueryService {
             });
         }
 
-        // `use_index` (when present) is forwarded to CouchDB as-is. The
-        // hybridQuery validator allowlists the permitted names; index selection
-        // is a client-side concern (see shared/src/util/hybridQuery — same pattern
-        // as sync2/syncBatch.ts).
+        // `use_index` (when present) is forwarded to CouchDB as-is. The query
+        // validator allowlists the permitted names against the design-doc registry;
+        // index selection is a client-side concern (see shared/src/util/hybridQuery —
+        // same pattern as sync2/syncBatch.ts).
         return this.db.executeFindQuery(query);
     }
 }

@@ -66,7 +66,7 @@ If the field is on `ContentDto`, also check:
 - `api/src/util/ftsIndexing.ts` — if the new field is text content, it may need to be indexed. Search the file for the existing fields (title/summary/text/author) to find the field config.
 - `shared/src/fts/ftsSearch.ts` — same config must match (ADR 0009).
 
-If the field affects sync filtering, check the `sync.ts` validator (`api/src/db/MongoQueryTemplates/validators/sync.ts`) — new selector fields require allowlist updates.
+If the field affects sync filtering, no `/query` validator change is needed — `api/src/validation/query/validateQuery.ts` is a single universal ruleset that does not allowlist selector keys (it enforces only shape, the operator policy, `limit`, and `use_index` registry membership). New equality filters pass as-is.
 
 ### 5. Report
 

@@ -10,6 +10,7 @@ import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
+import { warmIndexNameRegistry } from "./db/indexNameRegistry";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
@@ -32,6 +33,11 @@ export async function bootstrap() {
 
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
+
+    // Build the use_index allowlist from the design-doc files now, so a packaging
+    // mistake that drops the JSON assets fails loudly here instead of silently
+    // rejecting every `use_index` at request time.
+    warmIndexNameRegistry();
 
     // Seed database with default data if requested
     if (process.argv.length >= 3 && process.argv[2] === "seed") {
