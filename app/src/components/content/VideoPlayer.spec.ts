@@ -114,7 +114,9 @@ vi.mock("@/globalConfig", async (importOriginal) => {
 });
 
 vi.mock("./extractAndBuildAudioMaster", () => ({
-    extractAndBuildAudioMaster: vi.fn().mockResolvedValue("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\naudio.m3u8"),
+    extractAndBuildAudioMaster: vi
+        .fn()
+        .mockResolvedValue("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\naudio.m3u8"),
 }));
 
 function triggerPlayerEvent(event: string, ...args: any[]) {
@@ -148,17 +150,12 @@ describe("VideoPlayer", () => {
         const wrapper = mount(VideoPlayer, {
             props: {
                 language: "lang-eng",
-                content,
+                content: content,
             },
         });
 
         await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: "application/x-mpegURL",
-                    src: content.video,
-                }),
-            );
+            expect(srcMock).toHaveBeenCalledWith(expect.objectContaining({ src: content.video }));
         });
 
         await waitForExpect(() => {

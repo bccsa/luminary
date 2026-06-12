@@ -12,8 +12,8 @@ import {
     refreshTokenSilently,
 } from "@/auth";
 import { useNotificationStore } from "./stores/notification";
+import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { DocType, getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
-import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
@@ -148,12 +148,12 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
+    app.use(appPluginsManager);
     app.mount("#app");
 
     initAuthLangSync();
     await initLanguage();
     initSync();
-    await loadPlugins();
 
     isAppLoading.value = false;
     initAppTitle(i18n);
