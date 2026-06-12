@@ -16,6 +16,7 @@ import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
+import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -63,6 +64,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         S3Service,
         SearchService,
         QueryService,
+        QueryRateLimiterService,
         ChangeRequestService,
         AuthIdentityService,
     ],

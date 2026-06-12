@@ -13,9 +13,15 @@ import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
 
 export async function bootstrap() {
-    const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-        bufferLogs: true,
-    });
+    const app = await NestFactory.create<NestFastifyApplication>(
+        AppModule,
+        // trustProxy: derive the client IP from X-Forwarded-For (used to key the
+        // anonymous rate-limit bucket). Enable ONLY behind a trusted reverse proxy.
+        new FastifyAdapter({ trustProxy: process.env.TRUST_PROXY === "true" }),
+        {
+            bufferLogs: true,
+        },
+    );
 
     // Register multipart plugin for file uploads
     await app.register(multipart, {

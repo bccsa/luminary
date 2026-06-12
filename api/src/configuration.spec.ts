@@ -87,4 +87,38 @@ describe("configuration", () => {
         const config = configuration();
         expect(config.s3Audio.endpoint).toBe("media.example.com");
     });
+
+    it("should default the query cost/rate-limit config", () => {
+        delete process.env.QUERY_MAX_LIMIT;
+        delete process.env.QUERY_EXPENSIVE_DOCS_EXAMINED;
+        delete process.env.QUERY_EXPENSIVE_EXAMINED_RATIO;
+        delete process.env.QUERY_RATE_LIMIT_ENABLED;
+        delete process.env.QUERY_RATE_LIMIT_FREE_STRIKES;
+        delete process.env.QUERY_RATE_LIMIT_BASE_BACKOFF_MS;
+        delete process.env.QUERY_RATE_LIMIT_MAX_BACKOFF_MS;
+        delete process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS;
+
+        const config = configuration();
+        expect(config.query.maxLimit).toBe(500);
+        expect(config.query.expensiveDocsExamined).toBe(1000);
+        expect(config.query.expensiveExaminedRatio).toBe(10);
+        expect(config.query.rateLimit).toEqual({
+            enabled: false,
+            freeStrikes: 3,
+            baseBackoffMs: 5000,
+            maxBackoffMs: 300000,
+            strikeDecayMs: 600000,
+        });
+    });
+
+    it("should read query rate-limit config from env vars", () => {
+        process.env.QUERY_RATE_LIMIT_ENABLED = "true";
+        process.env.QUERY_RATE_LIMIT_FREE_STRIKES = "5";
+        process.env.QUERY_EXPENSIVE_DOCS_EXAMINED = "2000";
+
+        const config = configuration();
+        expect(config.query.rateLimit.enabled).toBe(true);
+        expect(config.query.rateLimit.freeStrikes).toBe(5);
+        expect(config.query.expensiveDocsExamined).toBe(2000);
+    });
 });
