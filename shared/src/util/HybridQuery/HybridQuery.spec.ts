@@ -205,6 +205,121 @@ describe("HybridQuery", () => {
             expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
         });
 
+        it("multi-parent $in ⇒ fans out into per-parent indexed POSTs and merges", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]); // local empty
+            postHttpMock
+                .mockResolvedValueOnce({
+                    docs: [
+                        {
+                            _id: "c1",
+                            updatedTimeUtc: 1,
+                            publishDate: 300,
+                            type: "content",
+                            parentId: "p1",
+                        },
+                    ],
+                })
+                .mockResolvedValueOnce({
+                    docs: [
+                        {
+                            _id: "c2",
+                            updatedTimeUtc: 2,
+                            publishDate: 200,
+                            type: "content",
+                            parentId: "p2",
+                        },
+                    ],
+                });
+
+            const q = new HybridQuery({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+                $sort: [{ publishDate: "desc" as const }],
+            });
+            await flush();
+
+            // One POST per parent, each pinned to the parentId index with a single-parent
+            // (equality, not $in) selector.
+            expect(postHttpMock).toHaveBeenCalledTimes(2);
+            const payloads = postHttpMock.mock.calls.map((c) => c[1] as any);
+            const postedParents: string[] = [];
+            for (const p of payloads) {
+                expect(p.use_index).toBe("content-parentId-publishDate-index");
+                const parentCond = (p.selector.$and as any[]).find((c) => "parentId" in c);
+                expect(typeof parentCond.parentId).toBe("string");
+                postedParents.push(parentCond.parentId);
+            }
+            expect(postedParents.sort()).toEqual(["p1", "p2"]);
+
+            // Merged by id and sorted publishDate-desc.
+            expect(q.output.value.map((d) => d._id)).toEqual(["c1", "c2"]);
+        });
+
+        it("more than the fan-out cap ⇒ falls back to a single $in POST", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            const many = Array.from({ length: 30 }, (_, i) => "p" + i);
+
+            new HybridQuery({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: many } }] },
+            });
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            const payload = postHttpMock.mock.calls[0]![1] as any;
+            // use_index left as-is (not repointed) and the $in preserved.
+            expect(payload.use_index).toBeUndefined();
+            const parentCond = (payload.selector.$and as any[]).find((c) => "parentId" in c);
+            expect(parentCond.parentId).toEqual({ $in: many });
+        });
+
+        it("one fan-out POST failing ⇒ keeps the parents that succeeded (allSettled)", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]); // local empty
+            postHttpMock.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
+                docs: [
+                    {
+                        _id: "c2",
+                        updatedTimeUtc: 2,
+                        publishDate: 200,
+                        type: "content",
+                        parentId: "p2",
+                    },
+                ],
+            });
+
+            const q = new HybridQuery({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+                $sort: [{ publishDate: "desc" as const }],
+            });
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(2);
+            // The surviving parent's doc is present despite the other POST failing.
+            expect(q.output.value.map((d) => d._id)).toEqual(["c2"]);
+            expect(errSpy).toHaveBeenCalled();
+            errSpy.mockRestore();
+        });
+
+        it("all fan-out POSTs failing ⇒ preserves local, no crash", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "L", updatedTimeUtc: 9, publishDate: 500, type: "content" },
+            ]);
+            postHttpMock
+                .mockRejectedValueOnce(new Error("boom1"))
+                .mockRejectedValueOnce(new Error("boom2"));
+
+            const q = new HybridQuery({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+                $sort: [{ publishDate: "desc" as const }],
+            });
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(2);
+            expect(q.output.value.map((d) => d._id)).toEqual(["L"]);
+            errSpy.mockRestore();
+        });
+
         it("$limit satisfied locally ⇒ no POST", async () => {
             const local = Array.from({ length: 10 }, (_, i) => ({
                 _id: String(i),
