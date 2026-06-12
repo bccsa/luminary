@@ -716,7 +716,25 @@ watch([isLoading, content, is404], async () => {
                     class="w-full lg:w-3/4 lg:max-w-3xl"
                     v-else-if="!isLoading && content"
                 >
-                    <div class="flex w-full flex-col items-center">
+                    <!-- Desktop: title row originates at the top of the page, level with the pinned
+                         topbar chrome, and scrolls away with the content like normal. -->
+                    <div class="hidden h-9 items-center justify-center gap-2 lg:flex">
+                        <h1
+                            class="truncate text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
+                        >
+                            {{ content.title }}
+                        </h1>
+                        <button
+                            v-if="canEdit() && cmsUrl"
+                            @click="openCmsEditor"
+                            class="flex flex-shrink-0 cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
+                            data-test="editButton"
+                        >
+                            <PencilIcon class="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    <div class="flex w-full flex-col items-center lg:hidden">
                         <div class="mt-1 flex flex-col gap-4 text-center md:mt-4">
                             <div class="flex flex-row items-start justify-center gap-2">
                                 <h1
@@ -736,7 +754,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
                     </div>
 
-                    <div class="mt-5">
+                    <div class="mt-5 lg:mt-2">
                         <IgnorePagePadding
                             :mobileOnly="true"
                             :ignoreTop="true"

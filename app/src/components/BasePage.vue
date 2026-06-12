@@ -67,10 +67,11 @@ onUnmounted(() => {
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     pointer-events-none lets clicks fall through the empty centre to the notification. -->
+                     -mb-9 collapses its flow height so page content originates at the top of the page,
+                     sharing this row; pointer-events-none lets clicks fall through the empty centre. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 hidden h-9 items-center lg:flex"
+                    class="pointer-events-none sticky top-0 z-20 -mb-9 hidden h-9 items-center lg:flex"
                 >
                     <button
                         v-if="showBackButton"
@@ -85,17 +86,16 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Desktop notification: scrolls with the content. Pulled up to sit on the same row
-                     as the pinned chrome at scroll-top; min-height reserves the row when empty so the
-                     article never slides under the pinned controls. Width matches the article column. -->
+                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
+                     [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
                 <div
                     v-if="desktopTopBar"
-                    class="-mt-9 mb-6 hidden min-h-[2.25rem] justify-center lg:flex"
+                    class="hidden justify-center lg:flex"
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
                         <NotificationBannerManager
                             v-if="showNotifications"
-                            class="[&>div]:mb-0"
+                            class="[&>div]:mb-2"
                         />
                     </div>
                 </div>

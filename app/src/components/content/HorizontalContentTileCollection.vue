@@ -96,12 +96,16 @@ useInfiniteScroll(
     <div class="select-none">
         <h2
             v-if="title"
-            class="truncate px-4"
+            class="flex min-w-0 items-baseline gap-2 px-4 text-lg font-medium text-zinc-800 dark:text-slate-50"
         >
-            {{ title }}
+            <span
+                class="h-4 w-1 shrink-0 self-center rounded-l-full bg-yellow-400/50"
+                aria-hidden="true"
+            ></span>
+            <span class="truncate">{{ title }}</span>
             <span
                 v-if="summary"
-                class="ml-1 text-xs font-normal text-zinc-500 dark:text-slate-200"
+                class="truncate text-xs font-normal text-zinc-500 dark:text-slate-200"
             >
                 {{ summary }}
             </span>
