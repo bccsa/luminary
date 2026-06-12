@@ -5,7 +5,7 @@ export type MangoIsPublishedOptions = {
     /**
      * When true, also matches scheduled content: `publishDate` in the future is allowed
      * if `parentShowComingSoon === true` (for list/carousel "Coming soon" tiles).
-     * Default true: set to false to require publishDate to be missing, null, or <= now.
+     * Default true: set to false to require publishDate <= now.
      */
     includeScheduled?: boolean;
 };
@@ -16,7 +16,8 @@ export type MangoIsPublishedOptions = {
  *
  * The conditions check:
  * 1. status === "published"
- * 2. publishDate: by default missing, null, or <= now; with `includeScheduled`, also future dates when `parentShowComingSoon`
+ * 2. publishDate: by default <= now; with `includeScheduled`, also future dates when `parentShowComingSoon`
+ *    (published content always has a publishDate, so missing/null is not matched)
  * 3. expiryDate is either missing, null, or >= now (not expired)
  * 4. language matches the first available language from the user's preferences
  *
@@ -42,24 +43,16 @@ export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublished
     const now = sessionNow();
     const includeScheduled = options?.includeScheduled !== false;
 
+    // Published content always carries a numeric publishDate (API-enforced via
+    // @IsOptionalIf(status===Draft) on ContentDto.publishDate, and these clauses are
+    // always AND-ed with status===Published below). So we test publishDate directly
+    // rather than also matching missing/null — those branches could never co-occur
+    // with status===Published and only defeated CouchDB's publishDate index range.
     const publishDateSelector: MangoSelector = includeScheduled
-        ? {
-              // Include already-published docs and allow scheduled docs for "coming soon".
-              $or: [
-                  { publishDate: { $exists: false } },
-                  { publishDate: null },
-                  { publishDate: { $lte: now } },
-                  { parentShowComingSoon: true },
-              ],
-          }
-        : {
-              // Publish date: missing/null = considered published; otherwise must be <= now
-              $or: [
-                  { publishDate: { $exists: false } },
-                  { publishDate: null },
-                  { publishDate: { $lte: now } },
-              ],
-          };
+        ? // Already-published (publishDate <= now) OR a scheduled "coming soon" doc.
+          { $or: [{ publishDate: { $lte: now } }, { parentShowComingSoon: true }] }
+        : // Publish date must be at/before now.
+          { publishDate: { $lte: now } };
 
     return [
         // Draft documents are synced to app clients (for future preview functionality),
