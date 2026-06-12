@@ -260,6 +260,11 @@ export class QueryService {
         // validator allowlists the permitted names against the design-doc registry;
         // index selection is a client-side concern (see shared/src/util/hybridQuery —
         // same pattern as sync2/syncBatch.ts).
+        //
+        // Request execution stats so the controller can classify scans (the cost is
+        // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
+        // languages / search callers of that method are unaffected.
+        (query as any).execution_stats = true;
         return this.db.executeFindQuery(query);
     }
 }
