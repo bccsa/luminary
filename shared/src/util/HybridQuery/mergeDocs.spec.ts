@@ -82,4 +82,35 @@ describe("applySortLimit", () => {
         applySortLimit(input, [{ publishDate: "desc" }], 1);
         expect(input.map((d) => d._id)).toEqual(snapshot);
     });
+
+    it("breaks ties on the sort field deterministically by _id, independent of input order", () => {
+        // All three share publishDate=10 ⇒ order is decided purely by the _id tie-break.
+        const tied: Doc[] = [
+            { _id: "c", updatedTimeUtc: 1, publishDate: 10 },
+            { _id: "a", updatedTimeUtc: 1, publishDate: 10 },
+            { _id: "b", updatedTimeUtc: 1, publishDate: 10 },
+        ];
+        const asc = applySortLimit([...tied], [{ publishDate: "asc" }]).map((d) => d._id);
+        const desc = applySortLimit([...tied], [{ publishDate: "desc" }]).map((d) => d._id);
+        // Same _id order regardless of sort direction (desc flips only the primary key).
+        expect(asc).toEqual(["a", "b", "c"]);
+        expect(desc).toEqual(["a", "b", "c"]);
+
+        // A different input permutation yields the identical result — the property that
+        // stops the response-cache seed and the live read disagreeing on tie order.
+        const shuffled = applySortLimit([tied[2], tied[0], tied[1]], [{ publishDate: "desc" }]).map(
+            (d) => d._id,
+        );
+        expect(shuffled).toEqual(["a", "b", "c"]);
+    });
+
+    it("keeps a mixed sort+tie order stable across input permutations", () => {
+        const mk = (id: string, pd: number): Doc => ({ _id: id, updatedTimeUtc: 1, publishDate: pd });
+        const a = [mk("z", 30), mk("m", 20), mk("a", 20), mk("q", 10)];
+        const b = [mk("a", 20), mk("q", 10), mk("z", 30), mk("m", 20)];
+        const orderA = applySortLimit(a, [{ publishDate: "desc" }]).map((d) => d._id);
+        const orderB = applySortLimit(b, [{ publishDate: "desc" }]).map((d) => d._id);
+        expect(orderA).toEqual(["z", "a", "m", "q"]); // 30, then 20s by _id, then 10
+        expect(orderB).toEqual(orderA);
+    });
 });

@@ -81,6 +81,12 @@ export function useContentQuery(
         live = true,
         cache = false,
         persistOffline = true,
+        // Strip heavy, never-rendered fields from cached docs so the response cache
+        // can hold the FULL window (first paint matches the settled result, no
+        // grow-in). Tiles read none of these off the feed doc; the search engine
+        // reads `fts`/`ftsTokenCount` from Dexie, and SingleContent loads `text` via
+        // its own slug query. Override per call site if a feed renders one of them.
+        cacheStripFields = ["fts", "ftsTokenCount", "text"],
         ...rest
     } = options;
 
@@ -101,6 +107,6 @@ export function useContentQuery(
             ...(limit !== undefined ? { $limit: limit } : {}),
             use_index: useIndex,
         }),
-        { live, cache, persistOffline, ...rest },
+        { live, cache, persistOffline, cacheStripFields, ...rest },
     );
 }

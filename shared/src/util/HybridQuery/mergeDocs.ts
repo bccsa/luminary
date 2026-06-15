@@ -26,8 +26,20 @@ export function mergeById<T extends BaseDocumentDto>(a: readonly T[], b: readonl
  *
  * Null/undefined sort values sort first (ascending), mirroring the comparator in
  * `mangoToDexie`'s bulkGet path.
+ *
+ * Ties on the sort field are broken by `_id` (ascending) so the order is **total
+ * and source-independent**: the response-cache seed and the live Dexie/API result
+ * resolve equal-`publishDate` docs identically, instead of falling back to each
+ * source's `mergeById` insertion order (which differs and caused a visible
+ * reorder between first paint and the live read). `desc` is folded into the
+ * comparator (rather than a trailing `reverse()`) so it flips only the primary
+ * key, leaving the `_id` tie-break stable.
  */
-export function applySortLimit<T>(docs: T[], sort?: MangoQuery["$sort"], limit?: number): T[] {
+export function applySortLimit<T extends BaseDocumentDto>(
+    docs: T[],
+    sort?: MangoQuery["$sort"],
+    limit?: number,
+): T[] {
     let result = docs;
 
     if (sort && sort.length > 0) {
@@ -50,14 +62,18 @@ export function applySortLimit<T>(docs: T[], sort?: MangoQuery["$sort"], limit?:
                 | string
                 | null
                 | undefined;
-            if (av == null && bv == null) return 0;
-            if (av == null) return -1;
-            if (bv == null) return 1;
-            if (av < bv) return -1;
-            if (av > bv) return 1;
-            return 0;
+            let cmp: number;
+            if (av == null && bv == null) cmp = 0;
+            else if (av == null) cmp = -1;
+            else if (bv == null) cmp = 1;
+            else if (av < bv) cmp = -1;
+            else if (av > bv) cmp = 1;
+            else cmp = 0;
+            if (desc) cmp = -cmp;
+            if (cmp !== 0) return cmp;
+            // Deterministic, source-independent tie-break (always ascending by _id).
+            return a._id < b._id ? -1 : a._id > b._id ? 1 : 0;
         });
-        if (desc) result.reverse();
     }
 
     if (typeof limit === "number") {

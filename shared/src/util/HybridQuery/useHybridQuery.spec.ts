@@ -53,6 +53,15 @@ describe("useHybridQuery", () => {
         expect(mocks.ctorCalls).toEqual([{ query, options: { persistOffline: true } }]);
     });
 
+    it("forwards cacheStripFields through to the HybridQuery constructor", () => {
+        const query = { selector: { type: "content" } };
+        useHybridQuery(query, { cache: true, cacheStripFields: ["fts", "text"] });
+
+        expect(mocks.ctorCalls).toEqual([
+            { query, options: { cache: true, cacheStripFields: ["fts", "text"] } },
+        ]);
+    });
+
     it("auto-disposes the instance when the owning effect scope stops", () => {
         const scope = effectScope();
         scope.run(() => {

@@ -172,6 +172,19 @@ export type HybridQueryOptions = {
     cacheId?: string;
 
     /**
+     * Field names omitted from each doc before it is persisted to the response
+     * cache. The seed aims to hold the FULL settled window (so first paint matches
+     * the live result, with no grow-in); stripping heavy fields (e.g. `fts`,
+     * `ftsTokenCount`, `text`) keeps that within `localStorage`'s budget.
+     *
+     * Only safe for fields the feed's rendered output never reads off the doc: once
+     * the seed equals the live window, `sameWindow` suppresses the `output`
+     * reassignment, so the stripped seed docs remain in `output` for the session.
+     * Defaults to `[]` (strip nothing). No effect when `cache` is off.
+     */
+    cacheStripFields?: string[];
+
+    /**
      * When `true`, **offline document persistence** is on: the API supplement's
      * older-tail docs are written to IndexedDB (via `db.bulkPut`) so a tile backed by
      * them is openable offline (e.g. `SingleContent` reads `db.docs` by slug). Off by
@@ -292,6 +305,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Optional caller-supplied discriminator folded into `_cacheKey` so two
     // structurally-identical queries can be given distinct cache entries.
     private readonly _cacheId?: string;
+    // Fields stripped from each doc before persisting to the response cache (heavy,
+    // never-rendered fields), so the full window fits. See {@link HybridQueryOptions.cacheStripFields}.
+    private readonly _cacheStripFields: string[];
     private _cacheKey = "";
     // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
     // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
@@ -329,6 +345,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
+        this._cacheStripFields = options.cacheStripFields ?? [];
         this.output = shallowRef<T[]>([]);
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
@@ -865,6 +882,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         remote: windowed.filter((d) => !localIds.has(d._id)),
                     },
                     this._limit,
+                    this._cacheStripFields,
                 );
             }
         }

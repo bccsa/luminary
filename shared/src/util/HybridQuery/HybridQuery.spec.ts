@@ -1641,6 +1641,52 @@ describe("HybridQuery", () => {
                 });
             });
 
+            it("strips configured fields from the persisted window but keeps full docs in output", async () => {
+                const Lheavy = { ...L, fts: ["aaa:1"], text: "body" };
+                const Rheavy = { ...R, fts: ["bbb:1"], text: "body" };
+                mocks.mangoToDexieMock.mockResolvedValueOnce([Lheavy]); // cache miss
+                postHttpMock.mockResolvedValueOnce({ docs: [Rheavy] });
+
+                const q = track(
+                    new HybridQuery(contentQuery, { cache: true, cacheStripFields: ["fts", "text"] }),
+                );
+                await flush();
+
+                // Stripping only affects what is persisted — output keeps the full docs.
+                expect(q.output.value.find((d) => d._id === "L1")).toHaveProperty("text", "body");
+
+                const persisted = readResponseCache(structuralCacheKey(contentQuery))!;
+                for (const d of [...persisted.local, ...persisted.remote]) {
+                    expect(d).not.toHaveProperty("fts");
+                    expect(d).not.toHaveProperty("text");
+                }
+                expect(persisted.local[0]).toMatchObject({ _id: "L1", publishDate: 2000 });
+                expect(persisted.remote[0]).toMatchObject({ _id: "R1", publishDate: 500 });
+            });
+
+            it("a stripped seed stays in output when the live read matches (sameWindow holds)", async () => {
+                // Seed persisted WITH stripping, as a prior session would have written it.
+                writeResponseCache(
+                    structuralCacheKey(contentQuery),
+                    { local: [L], remote: [R] },
+                    undefined,
+                    ["text"],
+                );
+                // The live read returns the FULL docs (text present).
+                mocks.mangoToDexieMock.mockResolvedValueOnce([{ ...L, text: "body" }]);
+                postHttpMock.mockResolvedValueOnce({ docs: [{ ...R, text: "body" }] });
+
+                const q = track(
+                    new HybridQuery(contentQuery, { cache: true, cacheStripFields: ["text"] }),
+                );
+                const seededRef = q.output.value;
+                expect(seededRef.find((d) => d._id === "L1")).not.toHaveProperty("text");
+                await flush();
+
+                // id + updatedTimeUtc match ⇒ sameWindow keeps the (stripped) seed array.
+                expect(q.output.value).toBe(seededRef);
+            });
+
             it("drops the seeded remote when the local read needs no API (id-list fully local)", async () => {
                 const idQuery = {
                     selector: { $and: [{ type: "content" }, { _id: { $in: ["L1"] } }] },
