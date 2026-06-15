@@ -74,6 +74,12 @@ See [docs/translations.md](../docs/translations.md) for details on:
 - Strings that are shown only under specific UI conditions
 - Strings reserved for future use
 
+## Reading progress
+
+The app tracks how far a user has read through article text and surfaces in-progress posts on the homepage **Continue Reading** row. Segment-based gates (visibility, skim detection, dwell time) ensure progress reflects actual reading, including long paragraphs on small screens.
+
+Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md](../docs/reading-progress-tracker/README.md)**.
+
 ## Local setup
 
 Refer to the [setup guide](../docs/setup-vue-app.md).
