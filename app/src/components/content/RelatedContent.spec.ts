@@ -122,7 +122,7 @@ describe("RelatedContent", () => {
                 _id: "content-post2-eng",
                 title: "Post 2",
                 parentTags: [mockTopicContentDto.parentId],
-            },
+            } as ContentDto,
         ]);
 
         const wrapper = mount(RelatedContent, {
