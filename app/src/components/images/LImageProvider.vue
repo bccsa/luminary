@@ -87,7 +87,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, isSaveDataEnabled } from "@/globalConfig";
+import { fallbackImageUrls, isDataSaverEnabled } from "@/globalConfig";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
@@ -129,7 +129,7 @@ const baseUrl = computed(() => props.bucketPublicUrl);
 
 // Read once at setup — Data Saver toggling mid-session is rare, and the declarative media query
 // below covers browsers that change it live.
-const saveData = isSaveDataEnabled();
+const saveData = isDataSaverEnabled();
 
 // The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src).
 // Honours the user's data-saving preference two ways:
