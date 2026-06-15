@@ -6,7 +6,6 @@ import {
     setReadingProgress,
 } from "@/globalConfig";
 import {
-    READING_IDLE_MS,
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,
     computeMaxScrollWordsPerSec,
@@ -19,12 +18,13 @@ import type { Uuid } from "luminary-shared";
 /**
  * Tracks article reading progress for the "Continue reading" homepage row.
  *
- * A block is confirmed only when all gates pass:
+ * A segment is confirmed only when all gates pass:
  *  1. ≥50% visible in the scroll container
- *  1b. Block bottom edge inside the viewport
- *  2. Scroll speed below skim cap (words/s, from rendered block density)
- *  3. Dwell time reached (active block only — topmost unread eligible block)
- *  4. User not idle (45 s without scroll or intersection activity)
+ *  1b. Segment bottom edge inside the viewport
+ *  2. Scroll speed below skim cap (words/s, from rendered segment density)
+ *  3. Dwell time reached (active segment only — topmost unread eligible segment)
+ *
+ * Long prose blocks are split into viewport-height segments so gate 1b can pass.
  *
  * @see docs/reading-progress-tracker.md
  */
@@ -44,6 +44,15 @@ export const READING_RESTORE_GUARD_MS = 400;
 export const READING_BLOCK_END_TOLERANCE_PX = 4;
 
 export type ViewportBounds = { top: number; bottom: number };
+
+export type ReadingSegment = {
+    id: string;
+    sourceEl: Element;
+    segmentIndex: number;
+    segmentCount: number;
+    topPx: number;
+    bottomPx: number;
+};
 
 export function isBlockEndInViewport(
     blockBottom: number,
@@ -79,6 +88,69 @@ export function isBlockEligibleForDwell(
     );
 }
 
+/** Split a prose element into viewport-height tracking segments. */
+export function splitElementIntoSegments(
+    sourceEl: Element,
+    maxSegmentHeight: number,
+    elementIndex: number,
+    elementHeightPx?: number,
+): ReadingSegment[] {
+    const height = elementHeightPx ?? sourceEl.getBoundingClientRect().height;
+    if (height <= 0) return [];
+
+    const effectiveMax = Math.max(1, maxSegmentHeight);
+    const segmentCount = height <= effectiveMax ? 1 : Math.ceil(height / effectiveMax);
+    const segmentHeight = height / segmentCount;
+
+    const segments: ReadingSegment[] = [];
+    for (let i = 0; i < segmentCount; i++) {
+        segments.push({
+            id: `reading-segment-${elementIndex}-${i}`,
+            sourceEl,
+            segmentIndex: i,
+            segmentCount,
+            topPx: i * segmentHeight,
+            bottomPx: (i + 1) * segmentHeight,
+        });
+    }
+    return segments;
+}
+
+/** Word count for a segment — proportional share of the parent element. */
+export function segmentWordCount(
+    segment: ReadingSegment,
+    elementHeightPx?: number,
+): number {
+    const totalWords = countWords(segment.sourceEl.textContent ?? "");
+    if (totalWords <= 0) return 0;
+
+    const totalHeight = elementHeightPx ?? segment.sourceEl.getBoundingClientRect().height;
+    if (totalHeight <= 0) return 0;
+
+    const segmentHeight = segment.bottomPx - segment.topPx;
+    return Math.round((segmentHeight / totalHeight) * totalWords);
+}
+
+export function isSegmentEligible(
+    segment: ReadingSegment,
+    elementRect: Pick<DOMRectReadOnly, "top">,
+    viewport: ViewportBounds,
+): boolean {
+    const segmentTop = elementRect.top + segment.topPx;
+    const segmentBottom = elementRect.top + segment.bottomPx;
+    const segmentHeight = segment.bottomPx - segment.topPx;
+
+    if (segmentHeight <= 0) return false;
+
+    const visibleTop = Math.max(segmentTop, viewport.top);
+    const visibleBottom = Math.min(segmentBottom, viewport.bottom);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+    if (visibleHeight / segmentHeight < READING_INTERSECTION_RATIO) return false;
+
+    return isBlockEndInViewport(segmentBottom, viewport);
+}
+
 /** Topmost unread block that is currently eligible for dwell (reading order). */
 export function resolveActiveBlock(
     blocks: MaybeElement[],
@@ -88,6 +160,20 @@ export function resolveActiveBlock(
     for (const el of blocks) {
         if (el && visibleBlocks.has(el) && !confirmedBlocks.has(el)) {
             return el;
+        }
+    }
+    return null;
+}
+
+/** Topmost unread segment that is currently eligible for dwell (reading order). */
+export function resolveActiveSegment(
+    segments: ReadingSegment[],
+    visibleSegments: Set<string>,
+    confirmedSegments: Set<string>,
+): ReadingSegment | null {
+    for (const segment of segments) {
+        if (visibleSegments.has(segment.id) && !confirmedSegments.has(segment.id)) {
+            return segment;
         }
     }
     return null;
@@ -103,7 +189,7 @@ export type SkimScrollState = {
 
 /**
  * Batch short scroll samples, then compare words/s to the skim cap.
- * Caller must pass wordsPerPixel from the active block (> 0).
+ * Caller must pass wordsPerPixel from the active segment (> 0).
  */
 export function applyScrollVelocitySample(
     state: SkimScrollState,
@@ -158,6 +244,14 @@ function getScrollTop(container: HTMLElement | Window): number {
     return container === window ? window.scrollY : (container as HTMLElement).scrollTop;
 }
 
+function getMaxSegmentHeight(container: HTMLElement | Window): number {
+    const height =
+        container === window
+            ? window.innerHeight
+            : (container as HTMLElement).clientHeight;
+    return height > 0 ? height : window.innerHeight;
+}
+
 export function useReadingProgressTracker(options: {
     contentId: Ref<Uuid | undefined>;
     articleRoot: Ref<HTMLElement | null>;
@@ -166,15 +260,15 @@ export function useReadingProgressTracker(options: {
     /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
     averageReadingSpeed: Ref<number | undefined>;
 }) {
-    const blocks = ref<MaybeElement[]>([]);
-    const confirmedBlocks = new Set<MaybeElement>();
-    const visibleBlocks = new Set<MaybeElement>();
-    const blockWordsPerPixel = new WeakMap<Element, number>();
-    const dwellAccumulatedMs = new Map<MaybeElement, number>();
+    const segments = ref<ReadingSegment[]>([]);
+    const sourceElements = ref<MaybeElement[]>([]);
+    const confirmedSegments = new Set<string>();
+    const visibleSegments = new Set<string>();
+    const segmentWordsPerPixel = new Map<string, number>();
+    const dwellAccumulatedMs = new Map<string, number>();
     let lastSavedProgress = -1;
     let lastScrollY = 0;
     let lastScrollTime = 0;
-    let lastActivityMs: number | null = null;
     let skimScrollState: SkimScrollState = {
         pendingScrollDeltaY: 0,
         pendingScrollDeltaMs: 0,
@@ -184,6 +278,7 @@ export function useReadingProgressTracker(options: {
     let dwellRafId: number | null = null;
     let lastDwellFrameTime = 0;
     let trackedContentId: Uuid | undefined;
+    let resizeObserver: ResizeObserver | null = null;
 
     const isRestoring = ref(false);
 
@@ -208,10 +303,6 @@ export function useReadingProgressTracker(options: {
             : (options.scrollContainer.value as HTMLElement),
     );
 
-    function touchActivity(timestamp = performance.now()) {
-        lastActivityMs = timestamp;
-    }
-
     function stopDwellLoop() {
         if (dwellRafId != null) {
             cancelAnimationFrame(dwellRafId);
@@ -227,12 +318,12 @@ export function useReadingProgressTracker(options: {
     function resetTrackingState() {
         stopDwellLoop();
         clearDwellAccumulation();
-        confirmedBlocks.clear();
-        visibleBlocks.clear();
+        confirmedSegments.clear();
+        visibleSegments.clear();
+        segmentWordsPerPixel.clear();
         lastSavedProgress = -1;
         lastScrollY = 0;
         lastScrollTime = 0;
-        lastActivityMs = null;
         skimScrollState = {
             pendingScrollDeltaY: 0,
             pendingScrollDeltaMs: 0,
@@ -242,59 +333,130 @@ export function useReadingProgressTracker(options: {
         isRestoring.value = false;
     }
 
-    function collectBlocks() {
+    function collectSegments() {
         if (!options.articleRoot.value) {
-            blocks.value = [];
+            segments.value = [];
+            sourceElements.value = [];
             return;
         }
 
-        blocks.value = Array.from(
+        const maxSegmentHeight = getMaxSegmentHeight(options.scrollContainer.value);
+        const elements = Array.from(
             options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
-        ).filter((el) => el.textContent?.trim()) as MaybeElement[];
+        ).filter((el) => el.textContent?.trim()) as Element[];
+
+        const allSegments: ReadingSegment[] = [];
+        elements.forEach((el, index) => {
+            allSegments.push(...splitElementIntoSegments(el, maxSegmentHeight, index));
+        });
+
+        segments.value = allSegments;
+        sourceElements.value = elements as MaybeElement[];
     }
 
-    function cacheBlockWordsPerPixel(el: MaybeElement) {
-        if (!(el instanceof Element)) return;
-        const height = el.getBoundingClientRect().height;
-        const words = countWords(el.textContent ?? "");
-        blockWordsPerPixel.set(el, estimateWordsPerPixel(words, height));
+    function getViewportBounds(
+        entry?: Pick<IntersectionObserverEntry, "rootBounds">,
+    ): ViewportBounds {
+        if (entry?.rootBounds) {
+            return { top: entry.rootBounds.top, bottom: entry.rootBounds.bottom };
+        }
+
+        const container = options.scrollContainer.value;
+        if (container === window) {
+            return { top: 0, bottom: window.innerHeight };
+        }
+
+        const rect = (container as HTMLElement).getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom };
     }
 
-    function activeBlockWordsPerPixel(): number {
-        const active = resolveActiveBlock(blocks.value, visibleBlocks, confirmedBlocks);
-        if (!(active instanceof Element)) return 0;
-        return blockWordsPerPixel.get(active) ?? 0;
+    function cacheSegmentWordsPerPixel(segment: ReadingSegment) {
+        const segmentHeight = segment.bottomPx - segment.topPx;
+        const words = segmentWordCount(segment);
+        segmentWordsPerPixel.set(segment.id, estimateWordsPerPixel(words, segmentHeight));
+    }
+
+    function activeSegmentWordsPerPixel(): number {
+        const active = resolveActiveSegment(segments.value, visibleSegments, confirmedSegments);
+        if (!active) return 0;
+        return segmentWordsPerPixel.get(active.id) ?? 0;
+    }
+
+    function updateVisibilityForElement(
+        el: Element,
+        entry?: IntersectionObserverEntry,
+    ) {
+        if (entry && !entry.isIntersecting) {
+            for (const segment of segments.value) {
+                if (segment.sourceEl !== el) continue;
+                visibleSegments.delete(segment.id);
+                cancelDwell(segment.id);
+            }
+            return;
+        }
+
+        const viewport = getViewportBounds(entry);
+        const rect = entry?.boundingClientRect ?? el.getBoundingClientRect();
+        let startedDwell = false;
+
+        for (const segment of segments.value) {
+            if (segment.sourceEl !== el) continue;
+
+            if (isSegmentEligible(segment, rect, viewport)) {
+                cacheSegmentWordsPerPixel(segment);
+                visibleSegments.add(segment.id);
+                startedDwell = true;
+            } else {
+                visibleSegments.delete(segment.id);
+                cancelDwell(segment.id);
+            }
+        }
+
+        if (startedDwell && !isRestoring.value && !skimScrollState.isSkimming) {
+            ensureDwellLoop();
+        }
+    }
+
+    function refreshAllSegmentVisibility() {
+        for (const el of sourceElements.value) {
+            if (el instanceof Element) {
+                updateVisibilityForElement(el);
+            }
+        }
     }
 
     /** Restore in-memory confirmed set from saved % so progress never drops on re-setup. */
     function seedConfirmedFromSavedProgress() {
         const id = options.contentId.value;
-        if (!id || blocks.value.length === 0) return;
+        if (!id || segments.value.length === 0) return;
 
         const saved = getReadingProgress(id);
         if (saved <= 0) return;
 
+        confirmedSegments.clear();
+
         if (saved >= 100) {
-            for (const el of blocks.value) {
-                if (el instanceof Element) confirmedBlocks.add(el);
+            for (const segment of segments.value) {
+                confirmedSegments.add(segment.id);
             }
             lastSavedProgress = 100;
             return;
         }
 
-        const count = Math.round((saved / 100) * blocks.value.length);
-        for (let i = 0; i < count && i < blocks.value.length; i++) {
-            const el = blocks.value[i];
-            if (el instanceof Element) confirmedBlocks.add(el);
+        const count = Math.round((saved / 100) * segments.value.length);
+        for (let i = 0; i < count && i < segments.value.length; i++) {
+            confirmedSegments.add(segments.value[i].id);
         }
         lastSavedProgress = saved;
     }
 
     function persistProgress() {
         const id = options.contentId.value;
-        if (!id || blocks.value.length === 0) return;
+        if (!id || segments.value.length === 0) return;
 
-        const computedProgress = Math.round((confirmedBlocks.size / blocks.value.length) * 100);
+        const computedProgress = Math.round(
+            (confirmedSegments.size / segments.value.length) * 100,
+        );
         const existing = getReadingProgress(id);
         const progress = Math.max(existing, computedProgress);
 
@@ -308,20 +470,19 @@ export function useReadingProgressTracker(options: {
         }
     }
 
-    function markBlockRead(el: MaybeElement) {
-        if (!el || confirmedBlocks.has(el)) return;
-        confirmedBlocks.add(el);
+    function markSegmentRead(segmentId: string) {
+        if (confirmedSegments.has(segmentId)) return;
+        confirmedSegments.add(segmentId);
         persistProgress();
     }
 
-    function blockDwellMs(el: MaybeElement): number {
-        if (!(el instanceof Element)) return computeBlockDwellMs(0);
-        const words = countWords(el.textContent ?? "");
+    function segmentDwellMs(segment: ReadingSegment): number {
+        const words = segmentWordCount(segment);
         return computeBlockDwellMs(words, options.averageReadingSpeed.value);
     }
 
-    function cancelDwell(el: MaybeElement) {
-        dwellAccumulatedMs.delete(el);
+    function cancelDwell(segmentId: string) {
+        dwellAccumulatedMs.delete(segmentId);
     }
 
     /** Gate 2: stationary reading after a skim burst should resume dwell. */
@@ -345,11 +506,6 @@ export function useReadingProgressTracker(options: {
             lastDwellFrameTime = timestamp;
             return;
         }
-        if (lastActivityMs !== null && now - lastActivityMs >= READING_IDLE_MS) {
-            clearDwellAccumulation();
-            lastDwellFrameTime = timestamp;
-            return;
-        }
 
         if (lastDwellFrameTime === 0) {
             lastDwellFrameTime = timestamp;
@@ -360,17 +516,21 @@ export function useReadingProgressTracker(options: {
         lastDwellFrameTime = timestamp;
         if (elapsed <= 0) return;
 
-        const activeBlock = resolveActiveBlock(blocks.value, visibleBlocks, confirmedBlocks);
-        if (!activeBlock || confirmedBlocks.has(activeBlock)) return;
+        const activeSegment = resolveActiveSegment(
+            segments.value,
+            visibleSegments,
+            confirmedSegments,
+        );
+        if (!activeSegment || confirmedSegments.has(activeSegment.id)) return;
 
-        const requiredMs = blockDwellMs(activeBlock);
-        const accumulated = (dwellAccumulatedMs.get(activeBlock) ?? 0) + elapsed;
+        const requiredMs = segmentDwellMs(activeSegment);
+        const accumulated = (dwellAccumulatedMs.get(activeSegment.id) ?? 0) + elapsed;
 
         if (accumulated >= requiredMs) {
-            dwellAccumulatedMs.delete(activeBlock);
-            markBlockRead(activeBlock);
+            dwellAccumulatedMs.delete(activeSegment.id);
+            markSegmentRead(activeSegment.id);
         } else {
-            dwellAccumulatedMs.set(activeBlock, accumulated);
+            dwellAccumulatedMs.set(activeSegment.id, accumulated);
         }
     }
 
@@ -379,17 +539,8 @@ export function useReadingProgressTracker(options: {
             if (lastDwellFrameTime === 0) {
                 lastDwellFrameTime = performance.now();
             }
-            if (lastActivityMs === null) {
-                touchActivity();
-            }
             dwellRafId = requestAnimationFrame(tickDwell);
         }
-    }
-
-    function startDwellIfEligible(el: MaybeElement) {
-        if (!el || confirmedBlocks.has(el)) return;
-        if (!visibleBlocks.has(el) || isRestoring.value || skimScrollState.isSkimming) return;
-        ensureDwellLoop();
     }
 
     function restartDwellForVisibleBlocksAfterSpeedChange() {
@@ -397,9 +548,9 @@ export function useReadingProgressTracker(options: {
         ensureDwellLoop();
     }
 
-    function cancelDwellForVisibleBlocks() {
-        for (const el of visibleBlocks) {
-            cancelDwell(el);
+    function cancelDwellForVisibleSegments() {
+        for (const segmentId of visibleSegments) {
+            cancelDwell(segmentId);
         }
     }
 
@@ -414,10 +565,9 @@ export function useReadingProgressTracker(options: {
         const container = options.scrollContainer.value;
         const scrollY = getScrollTop(container);
         const now = performance.now();
-        touchActivity(now);
 
         if (lastScrollTime > 0) {
-            const wordsPerPixel = activeBlockWordsPerPixel();
+            const wordsPerPixel = activeSegmentWordsPerPixel();
 
             if (wordsPerPixel > 0) {
                 const { isSkimming, justStoppedSkimming, state } = applyScrollVelocitySample(
@@ -445,31 +595,50 @@ export function useReadingProgressTracker(options: {
 
         lastScrollY = scrollY;
         lastScrollTime = now;
+        refreshAllSegmentVisibility();
     }
 
     function handleIntersection(entries: IntersectionObserverEntry[]) {
-        touchActivity();
         for (const entry of entries) {
-            const el = entry.target as MaybeElement;
-            const eligible = isBlockEligibleForDwell(entry);
-
-            if (eligible) {
-                cacheBlockWordsPerPixel(el);
-                visibleBlocks.add(el);
-                startDwellIfEligible(el);
-            } else {
-                visibleBlocks.delete(el);
-                cancelDwell(el);
-            }
+            updateVisibilityForElement(entry.target as Element, entry);
         }
     }
 
-    const { stop: stopObserver } = useIntersectionObserver(blocks, handleIntersection, {
+    const { stop: stopObserver } = useIntersectionObserver(sourceElements, handleIntersection, {
         root: observerRoot,
         threshold: [0, READING_INTERSECTION_RATIO, 1],
     });
 
     useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
+
+    function setupResizeObserver() {
+        resizeObserver?.disconnect();
+        resizeObserver = null;
+
+        const container = options.scrollContainer.value;
+        const target =
+            container === window
+                ? document.documentElement
+                : container instanceof HTMLElement
+                  ? container
+                  : null;
+
+        if (!target || typeof ResizeObserver === "undefined") return;
+
+        resizeObserver = new ResizeObserver(() => {
+            if (!options.enabled.value) return;
+            const prevLength = segments.value.length;
+            collectSegments();
+            if (segments.value.length !== prevLength) {
+                visibleSegments.clear();
+                segmentWordsPerPixel.clear();
+                clearDwellAccumulation();
+                seedConfirmedFromSavedProgress();
+                refreshAllSegmentVisibility();
+            }
+        });
+        resizeObserver.observe(target);
+    }
 
     function restoreScrollPosition() {
         const id = options.contentId.value;
@@ -491,7 +660,7 @@ export function useReadingProgressTracker(options: {
             const targetY = Math.round((percent / 100) * maxScroll);
 
             isRestoring.value = true;
-            cancelDwellForVisibleBlocks();
+            cancelDwellForVisibleSegments();
 
             if (container === window) {
                 window.scrollTo({ top: targetY });
@@ -513,25 +682,24 @@ export function useReadingProgressTracker(options: {
                     isSkimming: false,
                 };
                 lastScrollY = getScrollTop(container);
-                touchActivity();
+                refreshAllSegmentVisibility();
             }, READING_RESTORE_GUARD_MS);
         }, 300);
     }
 
     function setup(contentChanged: boolean) {
-        collectBlocks();
+        collectSegments();
+        setupResizeObserver();
 
         if (!options.enabled.value) return;
 
         if (contentChanged) {
-            if (blocks.value.length > 0) {
+            if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();
             }
-            touchActivity();
-            restoreScrollPosition();
         }
 
-        if (blocks.value.length === 0) return;
+        if (segments.value.length === 0) return;
     }
 
     watch(options.averageReadingSpeed, () => {
@@ -544,7 +712,10 @@ export function useReadingProgressTracker(options: {
         ([enabled, id], oldValues) => {
             if (!enabled) {
                 resetTrackingState();
-                blocks.value = [];
+                segments.value = [];
+                sourceElements.value = [];
+                resizeObserver?.disconnect();
+                resizeObserver = null;
                 trackedContentId = undefined;
                 return;
             }
@@ -568,10 +739,13 @@ export function useReadingProgressTracker(options: {
     onUnmounted(() => {
         resetTrackingState();
         stopObserver();
+        resizeObserver?.disconnect();
+        resizeObserver = null;
     });
 
     return {
-        blocks,
+        segments,
+        sourceElements,
         isRestoring,
         savedProgressPercent,
         hasResumableProgress,
