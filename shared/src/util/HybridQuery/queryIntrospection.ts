@@ -166,47 +166,81 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
  */
 export const FANOUT_MAX_PARENTS = 25;
 
+const PARENT_ID_INDEX = "content-parentId-publishDate-index";
+
+/** Default sort synthesized for a fan-out clone that had none — see {@link fanOut}. */
+const PUBLISH_DATE_DESC = [{ publishDate: "desc" }] as MangoQuery["$sort"];
+
+/**
+ * Per-value fan-out core. Given a located `{ index, ids }` hit on `conditions`, dedups +
+ * range-checks the ids and clones the selector once per id, replacing the matched
+ * condition via `rewrite(id)` and pinning `use_index = indexName`. Returns `undefined`
+ * (so the caller can fall through to `[api]`) when the hit doesn't qualify — 0 ids (a
+ * provably-empty `$in`) or more than {@link FANOUT_MAX_PARENTS}.
+ *
+ * Each clone carries `$sort`/`$limit` unchanged, EXCEPT a query with no `$sort` gets a
+ * synthesized `publishDate desc` so the `[parentId, publishDate]` index reliably engages
+ * (a scalar equality + a `publishDate` sort is what makes it seek instead of scan — the
+ * same pattern the parentPinned feeds already rely on). This is display-safe:
+ * `HybridQuery` re-applies the ORIGINAL query's sort+limit to the merged local+remote
+ * window via {@link applySortLimit}, so a per-clone sort only governs which docs are
+ * fetched under a limit, never final order.
+ */
+function fanOut(
+    api: MangoQuery,
+    conditions: MangoSelector[],
+    hit: { index: number; ids: string[] },
+    indexName: string,
+    rewrite: (id: string) => MangoSelector,
+): MangoQuery[] | undefined {
+    // Dedup so a repeated value (e.g. an un-deduped tagged-docs list) never fires a
+    // redundant POST. Output is unaffected — mergeById would collapse it anyway.
+    const uniqueIds = Array.from(new Set(hit.ids));
+    if (uniqueIds.length < 1 || uniqueIds.length > FANOUT_MAX_PARENTS) return undefined;
+
+    const $sort = api.$sort ?? PUBLISH_DATE_DESC;
+    return uniqueIds.map((id) => {
+        const narrowed = conditions.map((c, i) => (i === hit.index ? rewrite(id) : c));
+        return { ...api, selector: { $and: narrowed }, $sort, use_index: indexName };
+    });
+}
+
 /**
  * Fan a multi-parent Content supplement into per-parent queries so each can SEEK
  * `content-parentId-publishDate-index` (parentId equality + publishDate) instead of
- * forcing one publishDate-window scan — CouchDB can't index an `$in`-on-parentId
- * combined with a global `publishDate` sort, so the single query degrades to a full
- * scan of the window.
+ * forcing one publishDate-window scan — CouchDB can't combine an `$in`-on-parentId with
+ * a global `publishDate` sort, so the single query degrades to a full scan of the window.
  *
  * Returns one query per id when `api` is a Content query with a top-level
- * `parentId: { $in: [...] }` of 2..{@link FANOUT_MAX_PARENTS} ids: each clone
- * replaces the `$in` with a `parentId` equality and repoints `use_index` to the
- * parentId index, carrying `$sort`/`$limit` unchanged (the per-parent over-fetch is
- * corrected when `HybridQuery` re-applies sort+limit to the merged result via
- * {@link applySortLimit}). Otherwise returns `[api]` unchanged — non-Content, no
- * `$in`, a single id, or too many parents.
+ * `parentId: { $in: [...] }` of 1..{@link FANOUT_MAX_PARENTS} ids: each clone replaces
+ * the `$in` with a `parentId` equality and repoints `use_index` to the parentId index,
+ * carrying `$sort`/`$limit` (synthesizing `publishDate desc` when absent — see
+ * {@link fanOut}). The per-parent over-fetch is corrected when `HybridQuery` re-applies
+ * sort+limit to the merged result via {@link applySortLimit}. Returns `[api]` unchanged
+ * otherwise — non-Content, no `$in`, an empty `$in`, or more than
+ * {@link FANOUT_MAX_PARENTS} (the full-scan fallback avoids a request storm).
  *
- * Pure. Runs AFTER {@link decideContentApiQuery} (which decides whether/what to
- * POST); this decides how many. The content gate keeps a non-Content query from
- * being repointed at the content-only parentId index.
+ * NOTE: there is intentionally no `parentTags` fan-out. A `parentTags $elemMatch:$in`
+ * targets a multikey (array) index, and CouchDB cannot serve a `publishDate` sort from a
+ * multikey index even for a single-value `$elemMatch` ("No index exists for this sort").
+ * Tag-filtered feeds therefore keep their `content-publishDate-index` scan; see the
+ * call-site comments in HomePagePinned / PinnedTopics / PinnedVideo.
+ *
+ * Pure. Runs AFTER {@link decideContentApiQuery} (which decides whether/what to POST);
+ * this decides how many. The content gate keeps a non-Content query from being repointed
+ * at the content-only parentId index.
  */
 export function planRemoteContentQueries(api: MangoQuery): MangoQuery[] {
     if (!api?.selector || typeof api.selector !== "object") return [api];
     if (readType(api) !== DocType.Content) return [api];
 
     const conditions = expandMangoSelector(api.selector).$and ?? [];
-    const hit = findInList(conditions, "parentId");
-    if (!hit) return [api];
-    // Dedup so a repeated parent id (e.g. an un-deduped tagged-docs list) never fires
-    // a redundant POST. Output is unaffected — mergeById would collapse it anyway.
-    const uniqueIds = Array.from(new Set(hit.ids));
-    if (uniqueIds.length < 2 || uniqueIds.length > FANOUT_MAX_PARENTS) return [api];
+    const idHit = findInList(conditions, "parentId");
+    if (!idHit) return [api];
 
-    return uniqueIds.map((id) => {
-        const narrowed = conditions.map((c, i) =>
-            i === hit.index ? ({ parentId: id } as MangoSelector) : c,
-        );
-        return {
-            ...api,
-            selector: { $and: narrowed },
-            use_index: "content-parentId-publishDate-index",
-        };
-    });
+    return (
+        fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api]
+    );
 }
 
 /**

@@ -21,12 +21,16 @@ const topics = useContentQuery(
     () => [
         { parentType: DocType.Tag },
         { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-        { parentTags: { $elemMatch: { $in: categories.value.map((p) => p.parentId) } } },
+        { parentId: { $in: categories.value.flatMap((p) => p.parentTaggedDocs ?? []) } },
     ],
-    // parentTags $elemMatch can't use a sorted Mango index, so the API supplement scans
-    // the older tail. Cap at the newest 50 so the limit-shortfall branch skips the API
-    // POST once local Dexie already holds 50 matches. contentByTag re-sorts per category
-    // downstream, so this sort only governs which 50 are fetched, not display order.
+    // Resolve each pinned category to the post ids tagged with it (parentTaggedDocs — the
+    // server-mirrored copy of the tag's taggedDocs) and seek child content by parentId.
+    // This indexes the local Dexie read and lets the API older-tail supplement fan out to
+    // per-parent index seeks when the combined parentId set is within the fan-out cap.
+    // Featured content can predate the sync cutoff, so the supplement is REQUIRED to surface
+    // it (it is not in the local window); when the combined set exceeds the cap the
+    // supplement falls back to a content-partition scan. sort+limit bound the window;
+    // contentByTag re-sorts per category for display.
     { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
 
