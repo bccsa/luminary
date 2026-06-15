@@ -27,11 +27,6 @@ export const READING_SKIM_WPM_MULTIPLIER = 3;
 /** Batch scroll events shorter than this before measuring words/s (trackpad jitter). */
 export const READING_MIN_SCROLL_SAMPLE_MS = 50;
 
-// --- Gate 4: idle pause ----------------------------------------------------------
-
-/** Pause dwell when the user has not scrolled or changed visibility for this long. */
-export const READING_IDLE_MS = 45_000;
-
 // --- Language WPM ----------------------------------------------------------------
 
 export function resolveReadingSpeedWpm(wordsPerMinute?: number | null): number {

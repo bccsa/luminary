@@ -61,6 +61,7 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
@@ -497,7 +498,12 @@ function setScrollContainer() {
     scrollContainer.value = resolveArticleScrollContainer();
 }
 
-useReadingProgressTracker({
+const {
+    hasResumableProgress,
+    savedProgressPercent,
+    isRestoring,
+    restoreScrollPosition,
+} = useReadingProgressTracker({
     contentId,
     articleRoot: articleProseRef,
     scrollContainer,
@@ -955,6 +961,13 @@ watch([isLoading, content, is404], async () => {
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
+
+            <ContinueReadingPrompt
+                v-if="readingTrackerEnabled"
+                :visible="hasResumableProgress && !isRestoring"
+                :progress-percent="savedProgressPercent"
+                @continue="restoreScrollPosition"
+            />
         </div>
     </BasePage>
 
