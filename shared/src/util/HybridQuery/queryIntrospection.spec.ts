@@ -3,7 +3,8 @@ import { planRemoteContentQueries, FANOUT_MAX_PARENTS } from "./queryIntrospecti
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 
 /** A content supplement query (as decideContentApiQuery would produce it) with a parentId $in. */
-function contentApi(parentIds: string[]): MangoQuery {
+function contentApi(parentIds: string[], opts: { sort?: boolean } = {}): MangoQuery {
+    const { sort = true } = opts;
     return {
         selector: {
             $and: [
@@ -14,7 +15,7 @@ function contentApi(parentIds: string[]): MangoQuery {
                 { publishDate: { $lte: 1000 } },
             ],
         },
-        $sort: [{ publishDate: "desc" }],
+        ...(sort ? { $sort: [{ publishDate: "desc" }] } : {}),
         $limit: 50,
         use_index: "content-publishDate-index",
     } as MangoQuery;
@@ -23,7 +24,7 @@ function contentApi(parentIds: string[]): MangoQuery {
 const parentIdOf = (q: MangoQuery): unknown =>
     ((q.selector as any).$and as any[]).find((c) => "parentId" in c)?.parentId;
 
-describe("planRemoteContentQueries", () => {
+describe("planRemoteContentQueries — parentId fan-out", () => {
     it("fans a multi-parent content query into one query per parent", () => {
         const out = planRemoteContentQueries(contentApi(["p1", "p2", "p3"]));
         expect(out).toHaveLength(3);
@@ -59,10 +60,32 @@ describe("planRemoteContentQueries", () => {
         expect(api).toEqual(before);
     });
 
-    it("passes through a single-element $in (nothing to fan out)", () => {
-        const api = contentApi(["only"]);
+    it("repoints a single-element parentId $in to the parentId index (single-parent seek)", () => {
+        const out = planRemoteContentQueries(contentApi(["only"]));
+        expect(out).toHaveLength(1);
+        expect(parentIdOf(out[0])).toBe("only"); // equality, not { $in }
+        expect(out[0].use_index).toBe("content-parentId-publishDate-index");
+        expect(out[0].$sort).toEqual([{ publishDate: "desc" }]);
+        expect(out[0].$limit).toBe(50);
+    });
+
+    it("does NOT fan out an empty parentId $in (provably-empty guard)", () => {
+        const api = contentApi([]);
+        expect(planRemoteContentQueries(api)).toEqual([api]);
+    });
+
+    it("synthesizes publishDate desc when the source has no $sort", () => {
+        const out = planRemoteContentQueries(contentApi(["solo"], { sort: false }));
+        expect(out).toHaveLength(1);
+        expect(out[0].$sort).toEqual([{ publishDate: "desc" }]);
+        expect(out[0].use_index).toBe("content-parentId-publishDate-index");
+    });
+
+    it("carries an existing $sort unchanged rather than overriding it", () => {
+        const api = contentApi(["solo"]);
+        api.$sort = [{ publishDate: "asc" }];
         const out = planRemoteContentQueries(api);
-        expect(out).toEqual([api]);
+        expect(out[0].$sort).toEqual([{ publishDate: "asc" }]);
     });
 
     it("passes through a content query with no parentId $in", () => {
@@ -103,9 +126,11 @@ describe("planRemoteContentQueries", () => {
         expect(out.map(parentIdOf).sort()).toEqual(["p1", "p2"]);
     });
 
-    it("does not fan out when duplicates collapse to a single unique parent", () => {
-        const api = contentApi(["p1", "p1"]);
-        expect(planRemoteContentQueries(api)).toEqual([api]);
+    it("dedups to a single unique parent and repoints it", () => {
+        const out = planRemoteContentQueries(contentApi(["p1", "p1"]));
+        expect(out).toHaveLength(1);
+        expect(parentIdOf(out[0])).toBe("p1");
+        expect(out[0].use_index).toBe("content-parentId-publishDate-index");
     });
 
     it("handles type expressed as { $eq: 'content' }", () => {

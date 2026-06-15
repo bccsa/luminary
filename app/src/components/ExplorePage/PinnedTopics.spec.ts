@@ -45,6 +45,10 @@ function makePinnedCategory(overrides: Partial<ContentDto> = {}): ContentDto {
         updatedTimeUtc: 1704114000000,
         memberOf: [],
         parentTags: [],
+        // The server mirrors the category tag's taggedDocs onto its content as
+        // parentTaggedDocs; the feed seeks topics by parentId ∈ this list. The default
+        // topic's parent tag is "tag-topic1".
+        parentTaggedDocs: ["tag-topic1"],
         language: "lang-eng",
         status: PublishStatus.Published,
         slug: "pinned-cat1",
@@ -115,6 +119,7 @@ describe("PinnedTopics", () => {
         const pinnedCat2 = makePinnedCategory({
             _id: "content-pinned-cat2",
             parentId: "tag-pinned-cat2",
+            parentTaggedDocs: ["tag-topic2"],
             slug: "pinned-cat2",
             title: "Pinned Category 2",
             summary: "Second pinned category",
@@ -273,7 +278,7 @@ describe("PinnedTopics", () => {
     });
 
     it("includes topics without parentTagType (defaults to topic)", async () => {
-        const pinnedCat = makePinnedCategory();
+        const pinnedCat = makePinnedCategory({ parentTaggedDocs: ["tag-topic-no-type"] });
         // Topic without parentTagType should still be included per the query:
         // { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] }
         const topicNoTagType: ContentDto = {
