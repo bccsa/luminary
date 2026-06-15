@@ -11,9 +11,9 @@ import {
 } from "luminary-shared";
 import {
     appLanguageIdsAsRef,
-    readingProgressAsRef,
-    watchReadingProgressStorage,
-    type ReadingProgress,
+    contentProgressAsRef,
+    watchContentProgressStorage,
+    type ContentProgressEntry,
 } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
@@ -22,15 +22,15 @@ import { onMounted, onUnmounted } from "vue";
 const { t } = useI18n();
 
 onMounted(() => {
-    onUnmounted(watchReadingProgressStorage());
+    onUnmounted(watchContentProgressStorage());
 });
 
-const watchedContent = useDexieLiveQueryWithDeps(
-    () => [appLanguageIdsAsRef.value, readingProgressAsRef.value],
+const continuedContent = useDexieLiveQueryWithDeps(
+    () => [appLanguageIdsAsRef.value, contentProgressAsRef.value],
     async ([appLanguageIds, progressList]) => {
         if (progressList.length === 0) return [];
 
-        const contentIds = progressList.map((entry: ReadingProgress) => entry.contentId);
+        const contentIds = progressList.map((entry: ContentProgressEntry) => entry.contentId);
 
         const results = await mangoToDexie<ContentDto>(db.docs, {
             selector: {
@@ -60,10 +60,11 @@ const watchedContent = useDexieLiveQueryWithDeps(
 
 <template>
     <HorizontalContentTileCollection
-        v-if="watchedContent.length > 0"
-        :contentDocs="watchedContent"
-        :title="t('home.continue.read')"
+        v-if="continuedContent.length > 0"
+        :contentDocs="continuedContent"
+        :title="t('home.continue')"
         :showPublishDate="true"
+        :showProgress="true"
         class="pt-4 pb-1"
     />
 </template>

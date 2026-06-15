@@ -455,7 +455,7 @@ describe("applyScrollVelocitySample", () => {
 describe("useReadingProgressTracker", () => {
     beforeEach(() => {
         observerInstances.length = 0;
-        localStorage.removeItem("readingProgress");
+        localStorage.removeItem("contentProgress");
         vi.useFakeTimers({ shouldAdvanceTime: true });
         perfTime = 0;
         performanceNowSpy = vi.spyOn(performance, "now").mockImplementation(() => perfTime);
@@ -482,7 +482,7 @@ describe("useReadingProgressTracker", () => {
 
     afterEach(() => {
         removeReadingProgress(TEST_CONTENT_ID);
-        localStorage.removeItem("readingProgress");
+        localStorage.removeItem("contentProgress");
         performanceNowSpy?.mockRestore();
         performanceNowSpy = undefined;
         vi.restoreAllMocks();
@@ -728,7 +728,7 @@ describe("useReadingProgressTracker", () => {
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
         expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
-        expect(localStorage.getItem("readingProgress")).toBe("[]");
+        expect(localStorage.getItem("contentProgress")).toBe("[]");
         wrapper.unmount();
     });
 

@@ -24,8 +24,8 @@ import {
     readingProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
-    syncReadingProgressFromStorage,
-    watchReadingProgressStorage,
+    syncContentProgressFromStorage,
+    watchContentProgressStorage,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -41,6 +41,8 @@ describe("globalConfig.ts", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await db.docs.bulkPut([mockEnglishContentDto]);
+        localStorage.clear();
+        syncContentProgressFromStorage();
         await initLanguage();
     });
 
@@ -356,7 +358,7 @@ describe("globalConfig.ts", () => {
 
         afterEach(() => {
             removeReadingProgress(testContentId);
-            localStorage.removeItem("readingProgress");
+            localStorage.removeItem("contentProgress");
         });
 
         it("sets and gets reading progress correctly", () => {
@@ -385,13 +387,19 @@ describe("globalConfig.ts", () => {
             ).toBeUndefined();
         });
 
-        it("syncReadingProgressFromStorage reloads from localStorage", () => {
+        it("syncContentProgressFromStorage reloads from localStorage", () => {
             localStorage.setItem(
-                "readingProgress",
-                JSON.stringify([{ contentId: testContentId, progress: 33 }]),
+                "contentProgress",
+                JSON.stringify([
+                    {
+                        contentId: testContentId,
+                        updatedAt: Date.now(),
+                        reading: { progress: 33 },
+                    },
+                ]),
             );
 
-            syncReadingProgressFromStorage();
+            syncContentProgressFromStorage();
 
             expect(getReadingProgress(testContentId)).toBe(33);
             expect(readingProgressAsRef.value).toEqual([
@@ -399,14 +407,20 @@ describe("globalConfig.ts", () => {
             ]);
         });
 
-        it("watchReadingProgressStorage reacts to storage events", () => {
-            const stop = watchReadingProgressStorage();
+        it("watchContentProgressStorage reacts to storage events", () => {
+            const stop = watchContentProgressStorage();
 
             localStorage.setItem(
-                "readingProgress",
-                JSON.stringify([{ contentId: testContentId, progress: 72 }]),
+                "contentProgress",
+                JSON.stringify([
+                    {
+                        contentId: testContentId,
+                        updatedAt: Date.now(),
+                        reading: { progress: 72 },
+                    },
+                ]),
             );
-            window.dispatchEvent(new StorageEvent("storage", { key: "readingProgress" }));
+            window.dispatchEvent(new StorageEvent("storage", { key: "contentProgress" }));
 
             expect(getReadingProgress(testContentId)).toBe(72);
             expect(readingProgressAsRef.value).toEqual([
@@ -414,6 +428,31 @@ describe("globalConfig.ts", () => {
             ]);
 
             stop();
+        });
+
+        it("migrates legacy readingProgress and mediaProgress keys on first load", () => {
+            localStorage.setItem(
+                "readingProgress",
+                JSON.stringify([{ contentId: "legacy-read", progress: 55 }]),
+            );
+            localStorage.setItem(
+                "mediaProgress",
+                JSON.stringify([
+                    {
+                        mediaId: "legacy-media",
+                        contentId: "legacy-watch",
+                        progress: 90,
+                        duration: 180,
+                    },
+                ]),
+            );
+
+            syncContentProgressFromStorage();
+
+            expect(localStorage.getItem("readingProgress")).toBeNull();
+            expect(localStorage.getItem("mediaProgress")).toBeNull();
+            expect(getReadingProgress("legacy-read")).toBe(55);
+            expect(getMediaProgress("legacy-media", "legacy-watch")).toBe(90);
         });
     });
 });

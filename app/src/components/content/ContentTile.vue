@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     imageSize: "thumbnail",
     titlePosition: "bottom",
+    showProgress: false,
 });
 
 const publishDateText = computed(() => {
@@ -78,10 +79,9 @@ function formatDuration(seconds: number): string {
 }
 
 const durationText = ref("");
-const hasProgress = ref(false);
-const allMedia = localStorage.getItem("mediaProgress");
+const hasMediaProgress = ref(false);
 
-if (allMedia) {
+if (props.showProgress) {
     const mediaIds = props.content.video
         ? [props.content.video]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
@@ -91,7 +91,7 @@ if (allMedia) {
         const mediaDuration = getMediaDuration(mediaId, props.content._id);
 
         if (mediaProgress > 0 && mediaDuration > 0) {
-            hasProgress.value = true;
+            hasMediaProgress.value = true;
             media.value.progress = Math.min(100, (mediaProgress / mediaDuration) * 100);
             media.value.duration = mediaDuration;
             durationText.value = formatDuration(mediaDuration);
@@ -237,10 +237,7 @@ if (allMedia) {
                         </div>
 
                         <div
-                            v-if="
-                                (content.video || content.parentMedia?.fileCollections?.length) &&
-                                hasProgress
-                            "
+                            v-if="showProgress && hasMediaProgress"
                             class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1"
                             :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
                         >
