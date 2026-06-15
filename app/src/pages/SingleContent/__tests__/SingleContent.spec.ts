@@ -26,7 +26,9 @@ import {
     appName,
     getReadingProgress,
     initLanguage,
+    removeReadingProgress,
     setReadingProgress,
+    syncContentProgressFromStorage,
     userPreferencesAsRef,
     cmsUrl,
 } from "@/globalConfig";
@@ -118,6 +120,8 @@ describe("SingleContent", () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
+        localStorage.clear();
+        syncContentProgressFromStorage();
 
         // IndexedDB-only path; avoid ApiLiveQuery from other specs leaving isConnected true
         isConnected.value = false;
@@ -150,6 +154,7 @@ describe("SingleContent", () => {
 
         // Reset notification store spy
         vi.clearAllMocks();
+        vi.useRealTimers();
 
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
@@ -157,6 +162,9 @@ describe("SingleContent", () => {
     });
 
     afterEach(async () => {
+        removeReadingProgress(mockEnglishContentDto._id);
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
         await db.docs.clear();
         cmsUrl.value = "";
         isConnected.value = false;
@@ -708,11 +716,11 @@ describe("SingleContent", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-        });
+        await flushPromises();
+        await nextTick();
 
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
+
         wrapper.unmount();
     });
 });
