@@ -128,10 +128,34 @@ describe("responseCache", () => {
             expect(read?.remote).toHaveLength(0);
         });
 
-        it("defaults the cap to 50", () => {
+        it("defaults the cap to 500 (stores the full window for realistic feeds)", () => {
             const local = Array.from({ length: 80 }, (_, i) => doc(`L${i}`));
             writeResponseCache("k", win(local, []));
-            expect(readResponseCache("k")?.local).toHaveLength(50);
+            // 80 ≤ 500 default ⇒ the full window is kept, not truncated.
+            expect(readResponseCache("k")?.local).toHaveLength(80);
+
+            const tooMany = Array.from({ length: 600 }, (_, i) => doc(`L${i}`));
+            writeResponseCache("k2", win(tooMany, []));
+            expect(readResponseCache("k2")?.local).toHaveLength(500);
+        });
+
+        it("strips the listed fields from each cached doc, both buckets", () => {
+            const heavy = (id: string) =>
+                ({ _id: id, updatedTimeUtc: 1, title: `t-${id}`, fts: ["aaa:1"], text: "body" }) as any;
+            writeResponseCache("k", win([heavy("L0")], [heavy("R0")]), undefined, ["fts", "text"]);
+
+            const read = readResponseCache("k");
+            for (const d of [...(read?.local ?? []), ...(read?.remote ?? [])]) {
+                expect(d).not.toHaveProperty("fts");
+                expect(d).not.toHaveProperty("text");
+                expect(d).toHaveProperty("title"); // untouched fields survive
+            }
+        });
+
+        it("is a no-op when stripFields is empty/omitted", () => {
+            const heavy = { _id: "a", updatedTimeUtc: 1, fts: ["aaa:1"], text: "body" } as any;
+            writeResponseCache("k", win([heavy], []));
+            expect(readResponseCache("k")?.local[0]).toEqual(heavy);
         });
 
         it("swallows a thrown setItem (e.g. QuotaExceededError) without propagating", () => {

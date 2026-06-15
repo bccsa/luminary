@@ -8,6 +8,12 @@
  * contends with sync on IndexedDB (busiest exactly at startup, when the seed
  * matters most).
  *
+ * The goal is for the seed to hold the **full** settled window, so first paint
+ * matches the result the live read converges on (no spurious grow-in / layout
+ * shift). To keep that within localStorage's budget, callers pass `stripFields` —
+ * heavy fields (e.g. `fts`/`ftsTokenCount`/`text`) the feed's rendered output never
+ * reads off the doc — which {@link writeResponseCache} omits from each cached doc.
+ *
  * The window is stored **split by source** ({@link CachedWindow}): the `local`
  * docs seed `_local` (which the real Dexie read replaces wholesale), and the
  * older-tail `remote` docs seed `_remote` (which persists until the POST supersedes
@@ -30,10 +36,12 @@ const STORAGE_PREFIX = "hqcache:";
 /**
  * Cap on docs stored per entry (across both buckets), bounding it against
  * localStorage's ~5MB origin budget. Callers pass the query's `$limit`; this is the
- * fallback for unlimited queries. The seed is a first-paint accelerant, so a
- * partial window is fine — the live read fills in the rest.
+ * fallback for unlimited queries — set generously so the seed holds the FULL window
+ * for realistic feeds (heavy fields are stripped via `stripFields`, so each doc is
+ * small). Beyond this backstop (or on quota overflow) the entry degrades to no-seed,
+ * i.e. the partial-window behaviour of old.
  */
-const DEFAULT_MAX_DOCS = 50;
+const DEFAULT_MAX_DOCS = 500;
 
 /**
  * A persisted window, split by the contribution each doc came from so a remount can
@@ -103,16 +111,37 @@ export function readResponseCache<T extends BaseDocumentDto>(
 }
 
 /**
+ * Return a shallow copy of `doc` without any of `fields`, or `doc` itself when none
+ * of them are present (so a no-op strip allocates nothing). Used to drop heavy
+ * fields the feed's rendered output never reads, so the full window fits in the
+ * cache — see the module doc comment.
+ */
+function omitFields<T extends BaseDocumentDto>(doc: T, fields: readonly string[]): T {
+    if (!fields.length) return doc;
+    let copy: Record<string, unknown> | undefined;
+    for (const f of fields) {
+        if (f in doc) {
+            copy ??= { ...doc };
+            delete copy[f];
+        }
+    }
+    return (copy as T | undefined) ?? doc;
+}
+
+/**
  * Quota-safe write of a window, capped to `maxDocs` TOTAL across both buckets
  * (defaults to {@link DEFAULT_MAX_DOCS}; pass the query's `$limit`). The local
- * bucket is kept first (it heads the window). On `QuotaExceededError` or a
- * serialization failure it skips caching and drops any stale entry for the key, so
- * the feature degrades to "no seed" and never throws onto the recompute path.
+ * bucket is kept first (it heads the window). Each cached doc has `stripFields`
+ * omitted (heavy, never-rendered fields like `fts`/`text`) to keep the full window
+ * within budget. On `QuotaExceededError` or a serialization failure it skips caching
+ * and drops any stale entry for the key, so the feature degrades to "no seed" and
+ * never throws onto the recompute path.
  */
 export function writeResponseCache<T extends BaseDocumentDto>(
     key: string,
     window: CachedWindow<T>,
     maxDocs: number | undefined = DEFAULT_MAX_DOCS,
+    stripFields: readonly string[] = [],
 ): void {
     try {
         const cap = maxDocs ?? DEFAULT_MAX_DOCS;
@@ -122,7 +151,11 @@ export function writeResponseCache<T extends BaseDocumentDto>(
             window.remote.length > remoteBudget
                 ? window.remote.slice(0, remoteBudget)
                 : window.remote;
-        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify({ local, remote }));
+        const payload = {
+            local: stripFields.length ? local.map((d) => omitFields(d, stripFields)) : local,
+            remote: stripFields.length ? remote.map((d) => omitFields(d, stripFields)) : remote,
+        };
+        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(payload));
     } catch {
         try {
             localStorage.removeItem(STORAGE_PREFIX + key);

@@ -240,18 +240,25 @@ describe("UnpinnedTopics", () => {
             title: "Future Category",
             publishDate: Date.now() + 1_000_000_000,
         });
+        // Its topic is itself published, so it renders under "Other" once the future
+        // category is filtered out. Title deliberately avoids the "Future Category"
+        // substring so the category-exclusion assertion below can't false-pass on it.
         const topic = makeTopic({
             parentTags: ["tag-future-cat"],
-            title: "Topic Under Future Category",
+            title: "Orphaned Topic",
         });
 
         await db.docs.bulkPut([futureCategory, topic]);
 
         const wrapper = mountWithSuspense();
 
+        // Wait for a positive render signal (the orphaned topic) before asserting the
+        // absence — otherwise the negative assertion races the async Suspense mount and
+        // false-passes on the empty first frame.
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain("Future Category");
+            expect(wrapper.text()).toContain("Orphaned Topic");
         });
+        expect(wrapper.text()).not.toContain("Future Category");
     });
 
     it("renders nothing when no unpinned categories or topics exist", async () => {
