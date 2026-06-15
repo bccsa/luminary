@@ -14,7 +14,12 @@ import {
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
-import { appLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
+import {
+    appLanguageIdsAsRef,
+    initLanguage,
+    isAppLoading,
+    isInstalledStandalone,
+} from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
@@ -39,12 +44,13 @@ if (import.meta.env.VITE_FAV_ICON) {
 initSentry(app);
 
 /**
- * Rolling window for partial content sync. Content with `publishDate` older than
- * `Date.now() - CONTENT_SYNC_WINDOW_MS` is not synced into IndexedDB and is
- * fetched on demand by `HybridQuery`. ~12 months — adjust if product wants a
- * different window.
+ * Content sync window. Installed (standalone) sessions sync the full corpus (no
+ * cutoff). Browser-tab sessions sync only the last ~1 month; content with
+ * `publishDate` older than `Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS` is not
+ * synced into IndexedDB and is fetched on demand by `HybridQuery`. The tier is
+ * decided once per launch — installing takes effect on the next app open.
  */
-const CONTENT_SYNC_WINDOW_MS = 2 * 12 * 30 * 24 * 60 * 60 * 1000; // ~24 months
+const BROWSER_CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
 
 async function Startup() {
     // Pre-warm Mango query caches from localStorage before any queries run.
@@ -52,12 +58,18 @@ async function Startup() {
     // cold-start compilation latency for IndexedDB queries.
     warmMangoCaches();
 
+    // Installed (standalone) users sync the full corpus; browser-tab users get a
+    // rolling ~1 month window (older content is fetched on demand by HybridQuery).
+    const installedStandalone = isInstalledStandalone();
+
     await init({
         cms: false,
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
         appLanguageIdsAsRef,
-        contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
+        contentPublishDateCutoff: installedStandalone
+            ? undefined // no cutoff → full corpus
+            : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
         // What gets synced is owned by sync (see src/sync.ts); the socket rooms for
         // those types are joined dynamically by sync. The app has no live-only
         // ApiLiveQuery types (SingleContent's ApiLiveQuery reads synced content /

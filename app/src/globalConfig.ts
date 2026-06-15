@@ -77,6 +77,21 @@ export const isMac = computed(() => {
 });
 
 /**
+ * True when the app is running as an installed PWA (launched from the home-screen
+ * icon in standalone mode), as opposed to a normal browser tab. Used to widen the
+ * content sync window for installed users. Evaluated once at startup in main.ts.
+ */
+export const isInstalledStandalone = (): boolean => {
+    if (typeof window === "undefined") return false;
+    // iOS Safari home-screen apps (non-standard, predates display-mode support).
+    if ((window.navigator as any).standalone === true) return true;
+    if (typeof window.matchMedia !== "function") return false;
+    return ["standalone", "minimal-ui", "fullscreen"].some(
+        (mode) => window.matchMedia(`(display-mode: ${mode})`).matches,
+    );
+};
+
+/**
  * The list of CMS defined languages as Vue ref.
  */
 export const cmsLanguages = ref<LanguageDto[]>([]);

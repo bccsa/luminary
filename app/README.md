@@ -128,6 +128,21 @@ Why it's frozen: the publish/expiry bounds are embedded directly in the Mango qu
 
 > Note: the "coming soon" badge styling on a content tile ([`src/components/content/ContentTile.vue`](src/components/content/ContentTile.vue)) is a render-time check using a live `Date.now()`, not a query, so it is unaffected by the frozen session clock.
 
+## PWA install state & content sync tiering
+
+How much content is pre-synced into IndexedDB depends on whether the app is running as an **installed PWA** (launched from the home-screen icon, in `display-mode: standalone`) or in a normal **browser tab**. The tier is decided **once per launch** in [`src/main.ts`](src/main.ts) from [`isInstalledStandalone()`](src/globalConfig.ts) (which checks the `standalone`/`minimal-ui`/`fullscreen` display modes and iOS `navigator.standalone`):
+
+- **Installed (standalone):** no `publishDate` cutoff — the full corpus syncs for offline use.
+- **Browser tab:** only the last ~1 month (`BROWSER_CONTENT_SYNC_WINDOW_MS`) is pre-synced; older content is fetched on demand by `HybridQuery` (see [`shared/src/util/HybridQuery/README.md`](../shared/src/util/HybridQuery/README.md)).
+
+Because the tier is captured at startup (like the frozen session clock above), installing the app takes effect on the **next** launch.
+
+### Matomo analytics
+
+`initAnalytics()` ([`src/analytics.ts`](src/analytics.ts)) tags each Matomo session with its display mode (`installed` vs `browser`) so install adoption and its effect on the sync window can be measured.
+
+To enable **per-pageview segmentation** in Matomo, create the custom dimension in Matomo admin and set `VITE_ANALYTICS_PWA_DIMENSION_ID` in the app's env. Until then the fallback `["trackEvent", "PWA", "displayMode", …]` event fires automatically — so the signal is captured either way, no config required to ship.
+
 ## Build for production
 
 The web version of the app can be deployed as a Docker container by building the `Dockerfile`:
