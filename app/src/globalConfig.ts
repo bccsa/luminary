@@ -224,16 +224,192 @@ export const initLanguage = () => {
     });
 };
 
-export type mediaProgressEntry = {
+const CONTENT_PROGRESS_KEY = "contentProgress";
+const MAX_CONTENT_PROGRESS_ENTRIES = 10;
+
+export type ContentProgressWatching = {
     mediaId: string;
-    contentId: Uuid;
     progress: number;
     duration: number;
 };
 
-const _mediaProgress = JSON.parse(localStorage.getItem("mediaProgress") || "[]").filter(
-    (item: mediaProgressEntry) => item.duration !== Infinity,
-) as mediaProgressEntry[];
+export type ContentProgressReading = {
+    progress: number;
+};
+
+export type ContentProgressEntry = {
+    contentId: Uuid;
+    updatedAt: number;
+    watching?: ContentProgressWatching;
+    reading?: ContentProgressReading;
+};
+
+/** @deprecated Legacy shape — used only when migrating from `mediaProgress`. */
+export type mediaProgressEntry = ContentProgressWatching & {
+    contentId: Uuid;
+};
+
+export type ReadingProgress = {
+    contentId: Uuid;
+    progress: number;
+};
+
+function isContentProgressEntry(item: unknown): item is ContentProgressEntry {
+    return (
+        typeof item === "object" &&
+        item !== null &&
+        "contentId" in item &&
+        typeof (item as ContentProgressEntry).contentId === "string"
+    );
+}
+
+function migrateLegacyProgressStorage(): ContentProgressEntry[] {
+    const byContentId = new Map<string, ContentProgressEntry>();
+    const now = Date.now();
+
+    try {
+        const mediaList = JSON.parse(localStorage.getItem("mediaProgress") || "[]");
+        if (Array.isArray(mediaList)) {
+            mediaList.forEach((item: mediaProgressEntry, index: number) => {
+                if (!item?.contentId || item.duration === Infinity) return;
+                const existing = byContentId.get(item.contentId);
+                const entry: ContentProgressEntry = existing ?? {
+                    contentId: item.contentId,
+                    updatedAt: now - index,
+                };
+                entry.watching = {
+                    mediaId: item.mediaId,
+                    progress: item.progress,
+                    duration: item.duration,
+                };
+                entry.updatedAt = Math.max(entry.updatedAt, now - index);
+                byContentId.set(item.contentId, entry);
+            });
+        }
+    } catch {
+        // ignore invalid legacy data
+    }
+
+    try {
+        const readingList = JSON.parse(localStorage.getItem("readingProgress") || "[]");
+        if (Array.isArray(readingList)) {
+            readingList.forEach((item: ReadingProgress, index: number) => {
+                if (!item?.contentId) return;
+                const existing = byContentId.get(item.contentId);
+                const entry: ContentProgressEntry = existing ?? {
+                    contentId: item.contentId,
+                    updatedAt: now - 10_000 - index,
+                };
+                entry.reading = { progress: item.progress };
+                if (!existing) {
+                    entry.updatedAt = now - 10_000 - index;
+                }
+                byContentId.set(item.contentId, entry);
+            });
+        }
+    } catch {
+        // ignore invalid legacy data
+    }
+
+    const migrated = Array.from(byContentId.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (migrated.length > 0) {
+        localStorage.setItem(CONTENT_PROGRESS_KEY, JSON.stringify(migrated));
+        localStorage.removeItem("mediaProgress");
+        localStorage.removeItem("readingProgress");
+    }
+    return migrated;
+}
+
+function readContentProgressFromStorage(): ContentProgressEntry[] {
+    try {
+        const list = JSON.parse(localStorage.getItem(CONTENT_PROGRESS_KEY) || "[]");
+        if (Array.isArray(list) && list.length > 0) {
+            return list.filter(isContentProgressEntry);
+        }
+    } catch {
+        // fall through to migration
+    }
+    return migrateLegacyProgressStorage();
+}
+
+const _contentProgress: ContentProgressEntry[] = readContentProgressFromStorage();
+
+export const contentProgressAsRef = ref<ContentProgressEntry[]>([..._contentProgress]);
+
+export const readingProgressAsRef = ref<ReadingProgress[]>([]);
+
+function updateReadingProgressRef() {
+    readingProgressAsRef.value = _contentProgress
+        .filter((entry) => entry.reading !== undefined)
+        .map((entry) => ({
+            contentId: entry.contentId,
+            progress: entry.reading!.progress,
+        }));
+}
+
+function applyContentProgressList(list: ContentProgressEntry[]) {
+    _contentProgress.length = 0;
+    _contentProgress.push(...list);
+    contentProgressAsRef.value = [..._contentProgress];
+    updateReadingProgressRef();
+}
+
+updateReadingProgressRef();
+
+function persistContentProgress() {
+    localStorage.setItem(CONTENT_PROGRESS_KEY, JSON.stringify(_contentProgress));
+}
+
+function findContentProgressEntry(contentId: Uuid): ContentProgressEntry | undefined {
+    return _contentProgress.find((entry) => entry.contentId === contentId);
+}
+
+function touchContentProgressEntry(contentId: Uuid): ContentProgressEntry {
+    const index = _contentProgress.findIndex((entry) => entry.contentId === contentId);
+    const entry: ContentProgressEntry =
+        index >= 0 ? _contentProgress[index] : { contentId, updatedAt: Date.now() };
+    entry.updatedAt = Date.now();
+    if (index >= 0) {
+        _contentProgress.splice(index, 1);
+    }
+    _contentProgress.unshift(entry);
+    if (_contentProgress.length > MAX_CONTENT_PROGRESS_ENTRIES) {
+        _contentProgress.splice(MAX_CONTENT_PROGRESS_ENTRIES);
+    }
+    return entry;
+}
+
+function pruneEmptyContentProgressEntry(contentId: Uuid) {
+    const index = _contentProgress.findIndex((entry) => entry.contentId === contentId);
+    if (index < 0) return;
+    const entry = _contentProgress[index];
+    if (!entry.watching && !entry.reading) {
+        _contentProgress.splice(index, 1);
+    }
+}
+
+/** Reload content progress from localStorage into the reactive ref (e.g. after cross-tab updates). */
+export function syncContentProgressFromStorage(): void {
+    applyContentProgressList(readContentProgressFromStorage());
+}
+
+/** Listen for `storage` events on the contentProgress key. Returns a cleanup function. */
+export function watchContentProgressStorage(): () => void {
+    const onStorage = (e: StorageEvent) => {
+        if (e.key === CONTENT_PROGRESS_KEY || e.key === null) {
+            syncContentProgressFromStorage();
+        }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+}
+
+/** @deprecated Use syncContentProgressFromStorage */
+export const syncReadingProgressFromStorage = syncContentProgressFromStorage;
+
+/** @deprecated Use watchContentProgressStorage */
+export const watchReadingProgressStorage = watchContentProgressStorage;
 
 /**
  * Get the playback progress of a media item.
@@ -242,10 +418,9 @@ const _mediaProgress = JSON.parse(localStorage.getItem("mediaProgress") || "[]")
  * @returns - Playback progress in seconds
  */
 export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
-    return (
-        _mediaProgress.find((p) => p.mediaId === mediaId && p.contentId === contentId)?.progress ||
-        0
-    );
+    const watching = findContentProgressEntry(contentId)?.watching;
+    if (!watching || watching.mediaId !== mediaId) return 0;
+    return watching.progress;
 };
 
 /**
@@ -255,10 +430,9 @@ export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
  * @returns - Duration time in seconds
  */
 export const getMediaDuration = (mediaId: string, contentId: Uuid): number => {
-    return (
-        _mediaProgress.find((p) => p.mediaId === mediaId && p.contentId === contentId)?.duration ||
-        0
-    );
+    const watching = findContentProgressEntry(contentId)?.watching;
+    if (!watching || watching.mediaId !== mediaId) return 0;
+    return watching.duration;
 };
 
 /**
@@ -276,21 +450,10 @@ export const setMediaProgress = (
 ) => {
     if (duration === Infinity) return;
 
-    const index = _mediaProgress.findIndex(
-        (p) => p.mediaId === mediaId && p.contentId === contentId,
-    );
-    if (index >= 0) {
-        _mediaProgress.splice(index, 1);
-    }
-
-    _mediaProgress.unshift({ mediaId, contentId, progress, duration });
-
-    // Only keep the last 10 progress entries
-    if (_mediaProgress.length > 10) {
-        _mediaProgress.splice(10);
-    }
-
-    localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
+    const entry = touchContentProgressEntry(contentId);
+    entry.watching = { mediaId, progress, duration };
+    applyContentProgressList([..._contentProgress]);
+    persistContentProgress();
 };
 
 /**
@@ -299,13 +462,13 @@ export const setMediaProgress = (
  * @param contentId - The content document ID.
  */
 export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
-    const index = _mediaProgress.findIndex(
-        (p) => p.mediaId === mediaId && p.contentId === contentId,
-    );
-    if (index >= 0) {
-        _mediaProgress.splice(index, 1);
-        localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
-    }
+    const entry = findContentProgressEntry(contentId);
+    if (!entry?.watching || entry.watching.mediaId !== mediaId) return;
+
+    delete entry.watching;
+    pruneEmptyContentProgressEntry(contentId);
+    applyContentProgressList([..._contentProgress]);
+    persistContentProgress();
 };
 
 /**
@@ -452,57 +615,13 @@ export const fallbackImageUrls = loadFallbackImageUrls();
  */
 export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
 
-export type ReadingProgress = {
-    contentId: Uuid;
-    progress: number; // Progress in percentage (0–100)
-};
-
-export const readingProgressAsRef = ref<ReadingProgress[]>([]);
-
-function readReadingProgressFromStorage(): ReadingProgress[] {
-    try {
-        const list = JSON.parse(localStorage.getItem("readingProgress") || "[]");
-        return Array.isArray(list) ? list : [];
-    } catch {
-        return [];
-    }
-}
-
-function applyReadingProgressList(list: ReadingProgress[]) {
-    _readingProgress.length = 0;
-    _readingProgress.push(...list);
-    readingProgressAsRef.value = [..._readingProgress];
-}
-
-const _readingProgress: ReadingProgress[] = readReadingProgressFromStorage();
-
-readingProgressAsRef.value = [..._readingProgress];
-
-/** Reload reading progress from localStorage into the reactive ref (e.g. after cross-tab updates). */
-export function syncReadingProgressFromStorage(): void {
-    applyReadingProgressList(readReadingProgressFromStorage());
-}
-
-/** Listen for `storage` events on the readingProgress key. Returns a cleanup function. */
-export function watchReadingProgressStorage(): () => void {
-    const onStorage = (e: StorageEvent) => {
-        if (e.key === "readingProgress" || e.key === null) {
-            syncReadingProgressFromStorage();
-        }
-    };
-
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-}
-
 /**
  * Get the reading progress of a content item.
  * @param contentId - The content document ID.
  * @returns - Reading progress in percentage (0–100)
  */
 export const getReadingProgress = (contentId: Uuid): number => {
-    const entry = _readingProgress.find((p) => p.contentId === contentId);
-    return entry ? entry.progress : 0;
+    return findContentProgressEntry(contentId)?.reading?.progress ?? 0;
 };
 
 /**
@@ -513,29 +632,21 @@ export const getReadingProgress = (contentId: Uuid): number => {
  */
 export const setReadingProgress = (contentId: Uuid, progress: number) => {
     const clampedProgress = Math.min(Math.max(progress, 0), 100);
-    const index = _readingProgress.findIndex((p) => p.contentId === contentId);
-
-    if (index !== -1) {
-        _readingProgress[index].progress = clampedProgress;
-    } else {
-        _readingProgress.push({ contentId, progress: clampedProgress });
-    }
-
-    applyReadingProgressList([..._readingProgress]);
-
-    localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
+    const entry = touchContentProgressEntry(contentId);
+    entry.reading = { progress: clampedProgress };
+    applyContentProgressList([..._contentProgress]);
+    persistContentProgress();
 };
 
 /**
  * Remove reading progress for a given content.
  */
 export const removeReadingProgress = (contentId: Uuid) => {
-    const index = _readingProgress.findIndex((p) => p.contentId === contentId);
-    if (index !== -1) {
-        _readingProgress.splice(index, 1);
+    const entry = findContentProgressEntry(contentId);
+    if (entry?.reading) {
+        delete entry.reading;
+        pruneEmptyContentProgressEntry(contentId);
+        applyContentProgressList([..._contentProgress]);
     }
-
-    applyReadingProgressList([..._readingProgress]);
-
-    localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
+    persistContentProgress();
 };

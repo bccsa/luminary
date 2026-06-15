@@ -5,7 +5,7 @@
 - App handbook (setup and env): [`app/README.md`](../../../app/README.md)
 - Implementation: [`app/src/composables/useReadingProgressTracker.ts`](../../../app/src/composables/useReadingProgressTracker.ts)
 
-The app tracks how far a user has read through the **text body** of a content page and saves that progress locally. The homepage **Continue Reading** row shows articles that are still in progress. Video (or audio) on the same page does not disable tracking when text is present.
+The app tracks how far a user has read through the **text body** of a content page and saves that progress locally. The homepage **Continue** row shows content still in progress (reading and/or video). Video (or audio) on the same page does not disable tracking when text is present.
 
 Progress is measured **segment by segment**. A segment is only counted as read when the user has actually spent time on it — not when they scroll past quickly.
 
@@ -53,7 +53,7 @@ progress % = round(confirmed segments ÷ total segments × 100)
 
 1. On article open, the tracker collects segments from the prose root.
 2. Each segment must pass **three gates** before it is added to the `confirmed` set.
-3. When the confirmed count changes, the percentage is saved to `localStorage` (`readingProgress` key).
+3. When the confirmed count changes, the percentage is saved to `localStorage` (`contentProgress` key, `reading` field on the content entry).
 4. At **100%**, the entry is **removed** — the article is finished, not “in progress”.
 5. Progress **never decreases** for a given article (`Math.max(existing, computed)`).
 
@@ -173,21 +173,33 @@ It drives both **skim detection** (whose `wordsPerPixel` to use) and **dwell acc
 
 ## Storage
 
-**Key:** `localStorage.readingProgress`
+**Key:** `localStorage.contentProgress`
 
 **Shape:**
 
 ```json
-[{ "contentId": "…", "progress": 42 }]
+[
+  {
+    "contentId": "…",
+    "updatedAt": 1710000000000,
+    "watching": { "mediaId": "…", "progress": 90, "duration": 180 },
+    "reading": { "progress": 42 }
+  }
+]
 ```
+
+Each entry is keyed by `contentId`. `watching` tracks video/audio playback (seconds); `reading` tracks article progress (0–100%). Both can be present on the same content. Entries are ordered by most recently updated; at most **10** are kept.
+
+On first load, legacy `readingProgress` and `mediaProgress` keys are merged into `contentProgress` and removed.
 
 **API** (`app/src/globalConfig.ts`):
 
-- `setReadingProgress(contentId, progress)` — save or update
-- `getReadingProgress(contentId)` — read percentage (0 if missing)
-- `removeReadingProgress(contentId)` — called automatically at 100%
+- `setReadingProgress(contentId, progress)` / `getReadingProgress(contentId)` / `removeReadingProgress(contentId)`
+- `setMediaProgress(mediaId, contentId, progress, duration)` / `getMediaProgress` / `removeMediaProgress`
+- `contentProgressAsRef` — reactive list for the homepage row
+- `syncContentProgressFromStorage()` / `watchContentProgressStorage()`
 
-**Homepage:** `ContinueReading.vue` reads this list, queries published content by id, and renders a horizontal tile row.
+**Homepage:** `Continue.vue` reads `contentProgressAsRef`, queries published content by id, and renders a horizontal tile row (video and reading in progress together).
 
 ---
 
@@ -215,8 +227,8 @@ Recording how long a user spends on an article (idle pause, total read time) is 
 | `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker and continue prompt |
 | `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore |
 | `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
-| `app/src/globalConfig.ts` | `localStorage` read/write |
-| `app/src/components/HomePage/ContinueReading.vue` | Homepage row |
+| `app/src/globalConfig.ts` | `localStorage` read/write (`contentProgress`) |
+| `app/src/components/HomePage/Continue.vue` | Homepage row |
 | `app/src/components/content/ContinueReadingPrompt.vue` | In-article resume prompt |
 
 ---

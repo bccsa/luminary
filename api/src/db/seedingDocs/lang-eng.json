@@ -53,7 +53,7 @@
         "settings.data_saver.browser_note": "Your browser's Data Saver is on, so reduced data use is controlled by your browser.",
         "settings.data_saver.slow_connection_note": "Your connection seems slow, so reduced data use will be applied automatically.",
         "home.title": "Home",
-        "home.continue": "Continue Watching",
+        "home.continue": "Continue",
         "home.continue.watch": "Continue Watching",
         "home.continue.read": "Continue Reading",
         "home.continueListening": "Continue Listening",

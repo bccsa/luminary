@@ -53,7 +53,7 @@
         "settings.data_saver.browser_note": "L'économiseur de données de votre navigateur est activé. Votre navigateur contrôle donc l'utilisation réduite des données.",
         "settings.data_saver.slow_connection_note": "Votre connexion semble lente. L'utilisation réduite des données sera donc appliquée automatiquement.",
         "home.title": "Accueil",
-        "home.continue": "Continuer à regarder",
+        "home.continue": "Continuer",
         "home.continue.watch": "Continuer à regarder",
         "home.continue.read": "Continuer la lecture",
         "home.continueListening": "Continuer à écouter",
