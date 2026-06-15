@@ -96,7 +96,7 @@ useInfiniteScroll(
     <div class="select-none">
         <h2
             v-if="title"
-            class="flex min-w-0 items-baseline gap-2 px-4 text-lg font-medium text-zinc-800 dark:text-slate-50"
+            class="flex min-w-0 items-baseline gap-2 px-4 text-lg text-zinc-800 dark:text-slate-50"
         >
             <span
                 class="h-4 w-1 shrink-0 self-center rounded-l-full bg-yellow-400/50"
