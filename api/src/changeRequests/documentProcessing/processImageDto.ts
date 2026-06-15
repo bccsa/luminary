@@ -10,6 +10,7 @@ import { StorageDto } from "../../dto/StorageDto";
 import { DocType } from "../../enums";
 import configuration from "../../configuration";
 import { extname } from "path";
+import { generateThumbHash } from "./thumbHash";
 
 async function deleteImageFilesFromBucket(
     files: ImageFileDto[],
@@ -333,6 +334,7 @@ async function duplicateImageFilesWithoutReencoding(
         for (const collection of image.fileCollections) {
             const copiedCollection = new ImageFileCollectionDto();
             copiedCollection.aspectRatio = collection.aspectRatio;
+            copiedCollection.thumbHash = collection.thumbHash; // carry the placeholder over unchanged
             copiedCollection.imageFiles = [];
 
             for (const imageFile of collection.imageFiles) {
@@ -398,6 +400,9 @@ async function processImageUpload(
         const resultImageCollection = new ImageFileCollectionDto();
         resultImageCollection.aspectRatio =
             Math.round((metadata.width / metadata.height) * 100) / 100;
+
+        // Blurred placeholder the client shows instantly (and offline) while the full image loads.
+        resultImageCollection.thumbHash = await generateThumbHash(uploadData.fileData);
 
         // Bucket ID is required
         if (!bucketId) {
