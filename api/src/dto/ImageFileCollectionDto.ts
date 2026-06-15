@@ -1,5 +1,5 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsNotEmpty, IsNumber, ValidateNested } from "class-validator";
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageFileDto } from "./ImageFileDto";
 
@@ -17,4 +17,13 @@ export class ImageFileCollectionDto {
     @Type(() => ImageFileDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
     imageFiles: ImageFileDto[] = [];
+
+    /**
+     * Base64-encoded ThumbHash — a ~25-byte blurred preview the client decodes and shows instantly
+     * while the full image loads. Server-set during image processing.
+     */
+    @IsOptional()
+    @IsString()
+    @Expose()
+    thumbHash?: string;
 }
