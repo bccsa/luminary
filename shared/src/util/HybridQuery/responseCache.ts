@@ -112,11 +112,12 @@ export function readResponseCache<T extends BaseDocumentDto>(
 
 /**
  * Return a shallow copy of `doc` without any of `fields`, or `doc` itself when none
- * of them are present (so a no-op strip allocates nothing). Used to drop heavy
- * fields the feed's rendered output never reads, so the full window fits in the
- * cache — see the module doc comment.
+ * of them are present (so a no-op strip allocates nothing). Used both to drop heavy
+ * fields the feed's rendered output never reads so the full window fits in the cache
+ * (see the module doc comment), and by {@link HybridQuery}'s `stripFields` to drop
+ * them from the live `output` (heap) as docs are ingested.
  */
-function omitFields<T extends BaseDocumentDto>(doc: T, fields: readonly string[]): T {
+export function omitFields<T extends BaseDocumentDto>(doc: T, fields: readonly string[]): T {
     if (!fields.length) return doc;
     let copy: Record<string, unknown> | undefined;
     for (const f of fields) {

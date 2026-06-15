@@ -31,7 +31,12 @@ import {
     toDeleteSelector,
     typeIsInSyncList,
 } from "./queryIntrospection";
-import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
+import {
+    omitFields,
+    readResponseCache,
+    structuralCacheKey,
+    writeResponseCache,
+} from "./responseCache";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { touchRetention } from "../../db/retention";
 import { getContentPublishDateCutoff } from "../../config";
@@ -185,6 +190,38 @@ export type HybridQueryOptions = {
     cacheStripFields?: string[];
 
     /**
+     * Field names dropped from every doc **as it is ingested** into the query's
+     * `_local` / `_remote` contributions — from the local read, the API supplement,
+     * socket upserts, and the cache seed alike — so they never reach the live
+     * `output` array. Defaults to `[]` (strip nothing).
+     *
+     * **Purpose — reduce the in-memory (JS heap) footprint.** A live query holds its
+     * entire result window resident in `output` for as long as the consumer is
+     * mounted, and a `live` query re-materialises it on every change. When a doc type
+     * carries heavy fields the consumer never reads off a *result* doc — a full text
+     * / HTML body, a serialized search index, a large translations/strings map, a
+     * revision token — those fields can dominate the retained size of a big window.
+     * Listing them here keeps them out of the heap entirely: each doc is shallow-
+     * copied without them at ingest, so the originals are freed and only the slim
+     * copies are retained. The win scales with window size and field weight; for a
+     * doc whose listed fields are absent the copy is skipped, so a no-op costs
+     * nothing. Strip only fields the rendered output genuinely does not read — a
+     * stripped field is simply not present on `output` docs.
+     *
+     * **Relationship to the cache.** Because stripped docs are what `output` holds,
+     * they are also what the response cache persists — so `stripFields` shrinks the
+     * cache footprint too. {@link cacheStripFields} is the narrower tool: it removes
+     * *additional* fields from the cache **only**, leaving them in `output`.
+     *
+     * **Safety.** The merge / sort / dedup / live-update machinery reads only `_id`
+     * and `updatedTimeUtc`, so stripping any other field is correctness-neutral —
+     * but never strip those two. {@link persistOffline} is unaffected: the full,
+     * unstripped docs are written to IndexedDB before the strip is applied, so an
+     * offline read still sees every field.
+     */
+    stripFields?: string[];
+
+    /**
      * When `true`, **offline document persistence** is on: the API supplement's
      * older-tail docs are written to IndexedDB (via `db.bulkPut`) so a tile backed by
      * them is openable offline (e.g. `SingleContent` reads `db.docs` by slug). Off by
@@ -308,6 +345,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Fields stripped from each doc before persisting to the response cache (heavy,
     // never-rendered fields), so the full window fits. See {@link HybridQueryOptions.cacheStripFields}.
     private readonly _cacheStripFields: string[];
+    // Fields stripped from each doc as it enters `_local`/`_remote`, so they never
+    // reach the live `output` (heap). See {@link HybridQueryOptions.stripFields}.
+    private readonly _stripFields: string[];
     private _cacheKey = "";
     // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
     // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
@@ -346,6 +386,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
         this._cacheStripFields = options.cacheStripFields ?? [];
+        this._stripFields = options.stripFields ?? [];
         this.output = shallowRef<T[]>([]);
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
@@ -476,10 +517,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             if (this._cache) {
                 const seed = readResponseCache<T>(this._cacheKey);
                 if (seed) {
-                    this._local = seed.local;
-                    this._remote = seed.remote;
-                    this._seededRemoteIds = new Set(seed.remote.map((d) => d._id));
-                    this._remoteFromSeed = seed.remote.length > 0;
+                    // Strip defensively: a cache written before `stripFields` grew
+                    // could still carry a now-stripped field — keep `output` uniform.
+                    this._local = this._strip(seed.local);
+                    this._remote = this._strip(seed.remote);
+                    this._seededRemoteIds = new Set(this._remote.map((d) => d._id));
+                    this._remoteFromSeed = this._remote.length > 0;
                     this._recompute();
                 }
             }
@@ -746,7 +789,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // Nothing relevant in this batch → skip the merge/sort/recompute entirely.
         if (upserts.length === 0 && deleteIds.size === 0) return;
 
-        if (upserts.length) this._remote = mergeById(this._remote, upserts);
+        if (upserts.length) this._remote = mergeById(this._remote, this._strip(upserts));
         // Durable removal from the remote contribution. Local copies are handled by
         // the tombstone (don't filter `_local` here — a filter would let the next
         // Dexie re-emit resurrect the doc with no tombstone left to suppress it).
@@ -759,8 +802,19 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         return this._remote.find((d) => d._id === id) ?? this._local.find((d) => d._id === id);
     }
 
+    /**
+     * Drop `_stripFields` from each doc so they never reach `_local`/`_remote`/
+     * `output` (the heap). Returns the array unchanged when nothing is configured,
+     * and `omitFields` returns each doc unchanged when it has none of the fields —
+     * so a no-op strip allocates nothing.
+     */
+    private _strip(docs: T[]): T[] {
+        return this._stripFields.length ? docs.map((d) => omitFields(d, this._stripFields)) : docs;
+    }
+
     /** Replace the local contribution (the live emission may have dropped docs). */
     private _setLocal(local: T[]): void {
+        local = this._strip(local);
         // Prune tombstones the fresh Dexie read has caught up on: the id is gone,
         // or present with a copy NEWER than the delete (republished). A still-
         // present at-or-older copy keeps its tombstone so `_recompute` suppresses
@@ -789,6 +843,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * then unions in its own result.
      */
     private _setRemote(remote: T[]): void {
+        // Strip here (not at the call site) so the caller's pre-strip array can
+        // still be written to IndexedDB by `persistOffline` with all fields intact.
+        remote = this._strip(remote);
         if (this._remoteFromSeed) {
             this._remoteFromSeed = false;
             const keep = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));

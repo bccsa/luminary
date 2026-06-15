@@ -8,6 +8,8 @@ const copyright = useContentQuery(() => [{ parentId: import.meta.env.VITE_COPYRI
     // Seek by parentId; the publishDate sort is required to engage the index.
     useIndex: "content-parentId-publishDate-index",
     sort: [{ publishDate: "desc" }],
+    // Keep `text` — the copyright body is rendered below; the default strips it.
+    stripFields: ["fts", "ftsTokenCount", "memberOf", "_rev"],
 });
 
 const copyrightContent = computed(() => copyright.value[0]?.text ?? "");

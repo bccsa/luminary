@@ -24,14 +24,20 @@ describe("useContentQuery", () => {
     const lastOptions = () =>
         (useHybridQueryMock.mock.calls.at(-1)![1] ?? {}) as Record<string, unknown>;
 
-    it("defaults cacheStripFields to the heavy, never-rendered content fields", () => {
+    it("defaults stripFields to the heavy / never-rendered content fields (heap + cache)", () => {
         useContentQuery(() => [], { cache: true });
-        expect(lastOptions().cacheStripFields).toEqual(["fts", "ftsTokenCount", "text"]);
+        expect(lastOptions().stripFields).toEqual([
+            "fts",
+            "ftsTokenCount",
+            "text",
+            "memberOf",
+            "_rev",
+        ]);
     });
 
-    it("forwards an explicit cacheStripFields override", () => {
-        useContentQuery(() => [], { cache: true, cacheStripFields: ["fts"] });
-        expect(lastOptions().cacheStripFields).toEqual(["fts"]);
+    it("forwards an explicit stripFields override", () => {
+        useContentQuery(() => [], { stripFields: ["fts", "ftsTokenCount", "_rev"] });
+        expect(lastOptions().stripFields).toEqual(["fts", "ftsTokenCount", "_rev"]);
     });
 
     it("keeps the live / cache / persistOffline defaults", () => {

@@ -2084,6 +2084,98 @@ describe("HybridQuery", () => {
             expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).not.toContain("S1");
         });
     });
+
+    describe("field stripping (stripFields)", () => {
+        const contentQuery = { selector: { type: "content" } };
+
+        it("omits stripFields from the local and remote contributions in output", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content", text: "body-a", fts: ["x:1"] },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [
+                    { _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content", text: "body-old", fts: ["y:1"] },
+                ],
+            });
+
+            const q = new HybridQuery(contentQuery, { stripFields: ["text", "fts"] });
+            await flush();
+
+            const out = q.output.value as any[];
+            expect(out.map((d) => d._id).sort()).toEqual(["a", "old1"]);
+            for (const d of out) {
+                expect(d).not.toHaveProperty("text");
+                expect(d).not.toHaveProperty("fts");
+                // Untouched fields survive; merge/sort/dedup keys are never stripped.
+                expect(d._id).toBeDefined();
+                expect(d.updatedTimeUtc).toBeDefined();
+            }
+        });
+
+        it("persistOffline writes the FULL doc even when those fields are stripped from output", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [
+                    { _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content", text: "FULL", fts: ["t:1"] },
+                ],
+            });
+
+            const q = new HybridQuery(contentQuery, {
+                stripFields: ["text", "fts"],
+                persistOffline: true,
+            });
+            await flush();
+
+            // Output is stripped...
+            const remoteOut = (q.output.value as any[]).find((d) => d._id === "old1");
+            expect(remoteOut).not.toHaveProperty("text");
+            // ...but the offline-persisted doc keeps every field.
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
+            const persisted = mocks.bulkPut.mock.calls[0][0][0];
+            expect(persisted._id).toBe("old1");
+            expect(persisted.text).toBe("FULL");
+            expect(persisted.fts).toEqual(["t:1"]);
+        });
+
+        it("strips socket upserts before they enter the remote contribution", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = track(
+                new HybridQuery(
+                    { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+                    { live: true, stripFields: ["text"] },
+                ),
+            );
+            await flush();
+            // Drive the first local emission so the API supplement is decided.
+            mocks.liveRefs[0]!.ref.value = [];
+            await flush();
+
+            mocks.emitSocket([
+                { _id: "S1", updatedTimeUtc: 7, publishDate: 400, type: "content", text: "socket-body" },
+            ]);
+            await flush();
+
+            const s1 = (q.output.value as any[]).find((d) => d._id === "S1");
+            expect(s1).toBeDefined();
+            expect(s1).not.toHaveProperty("text");
+        });
+
+        it("default (no stripFields) leaves docs untouched", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content", text: "keep" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery(contentQuery);
+            await flush();
+
+            expect((q.output.value as any[])[0]).toHaveProperty("text", "keep");
+        });
+    });
 });
 
 describe("queryRemote", () => {

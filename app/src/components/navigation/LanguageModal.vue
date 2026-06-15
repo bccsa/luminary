@@ -19,10 +19,12 @@ defineProps<Props>();
 const { t } = useI18n();
 
 // Language is a fully-synced type, so HybridQuery reads from IndexedDB only.
-const languages = useHybridQuery<LanguageDto>(
-    () => ({ selector: { type: DocType.Language } }),
-    { live: true },
-);
+// Only the i18n singleton in globalConfig needs `translations`; the modal reads
+// just id/name/default, so drop the heavy strings map to keep it off the heap.
+const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+    stripFields: ["translations", "_rev"],
+});
 
 const emit = defineEmits(["close"]);
 

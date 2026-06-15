@@ -138,6 +138,9 @@ const contentArr = useContentQuery(() => [{ slug: props.slug }], {
     // for CouchDB to engage the index (slug eq alone falls back to a full scan).
     useIndex: "content-slug-publishDate-index",
     sort: [{ publishDate: "desc" }],
+    // Keep `text` (the article body, rendered below) and `memberOf` (read by
+    // canEdit) — the default strip set would drop both.
+    stripFields: ["fts", "ftsTokenCount", "_rev"],
 });
 
 // Redirect resolution. A redirect takes precedence over content — but that precedence
@@ -264,6 +267,9 @@ const translationsArr = useContentQuery(
 );
 const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
     live: true,
+    // Only the i18n singleton in globalConfig needs `translations`; this query reads
+    // just id/name/languageCode/averageReadingSpeed, so drop the heavy strings map.
+    stripFields: ["translations", "_rev"],
 });
 
 watch(
