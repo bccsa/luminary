@@ -86,6 +86,12 @@ describe("S3ImageHandler", () => {
         const res = await Promise.all(pList);
         expect(res.some((r) => r == undefined)).toBeFalsy();
 
+        // Each processed collection carries a ThumbHash placeholder.
+        for (const collection of image.fileCollections) {
+            expect(typeof collection.thumbHash).toBe("string");
+            expect((collection.thumbHash as string).length).toBeGreaterThan(0);
+        }
+
         resImages.push(image);
     });
 

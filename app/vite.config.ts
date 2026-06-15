@@ -39,29 +39,12 @@ export default defineConfig({
                 ],
             },
             workbox: {
-                globPatterns: ["**/*.{ico,png,webp,jpg,jpeg,svg}"],
-                runtimeCaching: [
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-                        handler: "CacheFirst",
-                        options: {
-                            cacheName: "external-images",
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
-                    },
-                    {
-                        urlPattern: ({ request }) => request.destination === "image",
-                        handler: "CacheFirst",
-                        options: {
-                            cacheName: "external-images",
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
-                    },
-                ],
+                // No image runtimeCaching: content images rely on the browser's native HTTP cache
+                // (api serves them with `Cache-Control: ...immutable`). A service-worker image cache
+                // can't run under Capacitor's WKWebView/Android WebView anyway. globPatterns keeps
+                // only app-identity assets (favicon/logo/icons); bundled content images are left to
+                // the browser HTTP cache too.
+                globPatterns: ["**/*.{ico,png,svg}"],
             },
         }),
         movePreloadScriptsToBody(),
