@@ -501,7 +501,6 @@ function setScrollContainer() {
 const {
     hasResumableProgress,
     savedProgressPercent,
-    isRestoring,
     restoreScrollPosition,
 } = useReadingProgressTracker({
     contentId,
@@ -510,6 +509,18 @@ const {
     enabled: readingTrackerEnabled,
     averageReadingSpeed,
 });
+
+/** Hide the resume prompt for this visit after the user continues or dismisses. */
+const continuePromptHandled = ref(false);
+
+watch(contentId, () => {
+    continuePromptHandled.value = false;
+});
+
+function onContinueReading() {
+    continuePromptHandled.value = true;
+    restoreScrollPosition();
+}
 
 onMounted(() => {
     openedFromExternalLink.value = isExternalNavigation();
@@ -964,9 +975,10 @@ watch([isLoading, content, is404], async () => {
 
             <ContinueReadingPrompt
                 v-if="readingTrackerEnabled"
-                :visible="hasResumableProgress && !isRestoring"
+                :visible="hasResumableProgress && !continuePromptHandled"
                 :progress-percent="savedProgressPercent"
-                @continue="restoreScrollPosition"
+                @continue="onContinueReading"
+                @dismiss="continuePromptHandled = true"
             />
         </div>
     </BasePage>

@@ -23,7 +23,7 @@ describe("ContinueReadingPrompt", () => {
         expect(wrapper.emitted("continue")).toHaveLength(1);
     });
 
-    it("hides after dismiss without emitting continue", async () => {
+    it("emits dismiss without emitting continue", async () => {
         const wrapper = mount(ContinueReadingPrompt, {
             props: {
                 visible: true,
@@ -39,7 +39,7 @@ describe("ContinueReadingPrompt", () => {
         const buttons = wrapper.findAll("button");
         await buttons[1].trigger("click");
 
+        expect(wrapper.emitted("dismiss")).toHaveLength(1);
         expect(wrapper.emitted("continue")).toBeUndefined();
-        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });
 });
