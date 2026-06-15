@@ -74,7 +74,7 @@ const q = new HybridQuery<ContentDto>(query, { live: true });
 
 `HybridQueryOptions = { live?: boolean; cache?: boolean }` is a second constructor
 argument (`cache` is covered under "Response caching" below; default `live: false`
-— one-shot, the original behaviour). With `live: true`,
+— one-shot). With `live: true`,
 the **local Dexie source** is read reactively via `useDexieLiveQuery`: every
 IndexedDB change re-runs the query, replaces the local contribution wholesale
 (so **local deletions drop out of `output`**), and re-applies the same dedup +
@@ -189,8 +189,7 @@ works for both static and thunk queries.
   so runtime **values** (language / pinned id lists, …) collapse to placeholders,
   and `$sort`/`$limit`/`use_index` are folded in verbatim. Queries that differ
   only in their values **share one entry**, so the key space stays small and fixed
-  (~one per call-site shape) — **no eviction/TTL needed**. (This mirrors the fixed
-  hand-named keys the app used before, but derived automatically.)
+  (~one per call-site shape) — **no eviction/TTL needed**.
   - *Collision caveat:* two **different** call sites with an identical shape but a
     different constant (e.g. `parentTagType` Category vs Topic) map to the same
     entry. That only affects the first-paint seed — the live query supersedes it —
@@ -198,7 +197,7 @@ works for both static and thunk queries.
   - *Disambiguating a harmful collision:* when two cached feeds share a shape and
     are mounted **at the same time** (so they'd seed from each other), pass a distinct
     `{ cacheId }` per call site — it is folded into `structuralCacheKey` to give each
-    its own entry. See `ContinueWatching` / `ContinueListening` in the app.
+    its own entry.
 - **Never a needless re-render.** `_recompute`'s `sameWindow` guard compares the
   recomputed window against the seeded one: when the live result matches (same `_id`
   + `updatedTimeUtc`), `output` is **not** reassigned, preserving referential
@@ -231,7 +230,7 @@ offline.
 
 - **Privacy hard floor.** Only docs the client's `syncList` permits in IndexedDB are
   written — the same `isSyncableDoc` gate the socket feed uses. A `persistOffline` query
-  over a non-syncable type (e.g. the CMS's `{ type: user, sync: false }`) persists
+  over a non-syncable type (e.g. a `{ type: user, sync: false }` entry) persists
   **nothing**, regardless of the flag. One shared definition of "may this touch
   IndexedDB?", so the two paths can't drift.
 - **Retention & eviction (unified).** Persisted docs would otherwise accumulate as the
@@ -295,7 +294,7 @@ caveats — as `useDexieLiveQuery`:
   (`POST /query`). Applies the `DEFAULT_REMOTE_QUERY_LIMIT` (500) as the **default**
   when `$limit` is omitted (caller-supplied limits are forwarded unchanged, not
   clamped). (`HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.)
-- `initHybridQuery(http)` — wire the HTTP service once at app startup
+- `initHybridQuery(http)` — wire the HTTP service once at startup
   (`shared/src/luminary.ts`).
 - `DEFAULT_REMOTE_QUERY_LIMIT = 500`.
 
@@ -354,7 +353,7 @@ discarded by a generation guard.
 - **The thunk must be pure and must not throw on its first call** — it is called
   more than once per change. A throw on the *initial* evaluation propagates out of
   the constructor (breaking `<script setup>`); a throw on a *later* evaluation is
-  surfaced through Vue's watcher error path (your app error handler) rather than
+  surfaced through Vue's watcher error path (the consumer's error handler) rather than
   crashing, and that rebuild is skipped. So guard refs that can be `null`/undefined
   on first render, and build the selector deterministically (stable key order —
   normal object-literal builders are fine).
@@ -457,12 +456,12 @@ source of truth** that bounds both:
    remote query — the API supplies only the older tail.
 
 Because `config` is set once at `init(...)`, the cutoff is effectively static
-for the app lifecycle (and is re-read on each app open).
+for the application lifecycle (and is re-read on each load).
 
-| Caller | Value passed at `init(...)` |
+| Use case | Value passed at `init(...)` |
 | --- | --- |
-| **App** | Rolling: `Date.now() - CONTENT_SYNC_WINDOW_MS` (define `CONTENT_SYNC_WINDOW_MS` in app config — e.g. ~12 months). |
-| **CMS** | Omit (or pass `OPEN_MIN`) — editors need the full content set. |
+| Bounded local cache | A rolling lower bound (e.g. `Date.now()` minus a fixed window) so only recent content syncs locally; older content is fetched on demand. |
+| Full local set | Omit (or pass `OPEN_MIN`). |
 
 Sentinels: `OPEN_MIN` means *no cutoff* (full sync; routing fetches nothing
 older). `OPEN_MAX` is only used internally by sync as an upper bound.
@@ -562,25 +561,17 @@ The watcher's `stop` handle is registered as a class disposer, so:
 - **View shape.** `$sort` and `$limit` from the original query are re-applied on
   every recompute so the truncated view always reflects the current merged set.
 
-## What's deliberately out of scope (for now)
+## Not implemented / known limitations
 
-- **Dexie live-query reactivity** — now **opt-in** via `{ live: true }` (see "Live
-  mode" above). In the **default one-shot mode**, `output` still updates at most
-  twice (local read, then merged remote) and local IndexedDB changes after the
-  initial read do not flow in.
-- **Live socket updates** are now **wired in live mode** (see "Live socket updates
-  (live mode)" above) — the remote contribution stays live off the global
-  changefeed. What remains out of scope is **offline-gap healing**: on reconnect
-  the listener only re-attaches, so changes (especially deletes) that happened
-  while offline are not re-fetched until remount. See that section's "Shortcomings"
-  and "Planned future work". In the **default one-shot mode** there is no socket
-  listener at all.
-- **Persisting remote-supplement docs to Dexie.** Older docs fetched on demand
-  live in `output` only; they're not written back to IndexedDB. A new mount
-  will re-fetch on demand. Consequence in live mode: if a doc was also fetched
-  into `_remote` (the older tail), deleting it locally lets `mergeById`
-  **resurrect the remote copy** — consistent with the documented union
-  semantics; a true fix needs remote invalidation (out of scope).
+- **Reconnect / offline-gap healing (live mode).** On socket reconnect the live
+  listener only re-attaches — it does not re-fetch the supplement, so changes
+  (especially deletes) made while offline are missed until the next remount. See
+  "Live socket updates (live mode)" → Shortcomings / Planned future work.
+- **No remote invalidation (local-delete resurrection).** Deleting a doc locally
+  that is also held in `_remote` (the older tail) lets `mergeById` **resurrect the
+  remote copy** — consistent with the union semantics in "Merge semantics". A true
+  fix needs remote invalidation; `{ persistOffline: true }` keeps the docs in
+  IndexedDB but does not change this merge behaviour.
 - **Read-failure parity in live mode.** `useDexieLiveQuery` retries a failing
   Dexie read silently every 100ms and never emits, so on a *persistent* local
   read failure in live mode `onLocal` never runs and the one-shot API supplement
@@ -588,36 +579,6 @@ The watcher's `stop` handle is registered as a class disposer, so:
   API with an empty local set.
 - **Re-running on syncList changes.** `syncList` is a reactive ref, but
   `HybridQuery` reads it exactly once at construction (via `typeIsInSyncList`)
-  and never re-evaluates. Similarly the cutoff is read once per merge — but
-  it comes from `config`, which is set once at init, so it's effectively
-  static for the lifecycle.
-
-## Migration note
-
-Compared to the previous committed state of this module:
-
-- **`hybridQuery(query)` (function) → `new HybridQuery(query)` (class).** The
-  return shape changed from `{ result, source, isLoading, isRemotePending }` to
-  `{ output, dispose() }`. Consumers should bind to `q.output.value` and rely on
-  Vue scope teardown (`onScopeDispose` is wired automatically inside the
-  constructor) rather than tracking `isLoading` / `isRemotePending` manually.
-- **`HybridQueryResult` type is gone.** The class instance *is* the result.
-- **`isQueryCovered` is no longer exported.** Routing decisions are now
-  per-query (inside `decideContentApiQuery`) rather than a separate boolean.
-- **`useHybridQuery(query, options?)` composable** is now provided (on top of
-  `HybridQuery`) — it returns just the `output` ref and auto-disposes via the
-  caller's effect scope. Prefer it in components; use the class directly only when
-  you need a manual `dispose()` handle (non-setup callers). See "Public API".
-- **Coverage-based routing removed.** The previous per-`(memberOf × language ×
-  publishDate)` coverage analysis was replaced with the much simpler routing
-  described above: `readType` chooses a branch, `decideContentApiQuery` picks
-  one of three content sub-strategies, and a single global
-  `getContentPublishDateCutoff()` reads from `SharedConfig`. The helpers in
-  `queryIntrospection.ts` (`readType`, `typeIsInSyncList`, `findIdInList`,
-  `withPublishDate`, `decideContentApiQuery`) are individually testable; the
-  class just wires them.
-- **New `SharedConfig.contentPublishDateCutoff`** is the single source of truth
-  for partial content sync — sync reads it as the default content
-  `publishDateMin`, and `HybridQuery` reads it for the remote `publishDate <=
-  cutoff` clause. App/CMS pass it at `init(...)` (see "The content cutoff"
-  above).
+  and never re-evaluates. Similarly the cutoff is read once per merge — but it
+  comes from `config`, which is set once at init, so it's effectively static for
+  the lifecycle.

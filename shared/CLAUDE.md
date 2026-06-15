@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
+Because it's a standalone published library, its documentation (this file and the `README`s under `src/**`) must stay generic and self-contained: describe the library's own contract/API, never how a consumer (the app or CMS) computes values or wires things up. No narrative references to "the app"/"the CMS"/editors, consumer components or constants, or links into `app/`/`cms/` docs. Generic "caller"/"consumer"/"application" wording and the library's own API (e.g. the `SharedConfig.cms` flag) are fine. Document consumer-specific behavior in that consumer's own docs instead.
+
 ## Common commands
 
 ```sh
