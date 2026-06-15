@@ -27,11 +27,10 @@ export async function init(config: SharedConfig) {
 
     // Create HTTP service instance for use in sync operations
     const http = new HttpReq(config.apiUrl || "");
-    // MUST be awaited: initSync's body (db.getSyncList load → validation →
-    // legacy publishDate resolve → findDegenerateChunkTypes reset) has to
-    // complete before consumers register their {immediate:true} sync
-    // watchers — otherwise the first sync() races the degenerate-state
-    // reset and persists fresh entries that re-introduce the broken shape.
+    // MUST be awaited before consumers register their {immediate:true} sync
+    // watchers: initSync loads and validates the syncList and resets degenerate
+    // chunk types. Otherwise the first sync() races that reset and persists fresh
+    // entries that re-introduce the broken shape.
     await initSync(http);
 
     // Socket.io is a pure change-feed transport; the sync live persister owns the

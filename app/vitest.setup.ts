@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 // Auto-unmount mounted components after each test so their HybridQuery live Dexie
 // subscriptions are disposed. Without this, leaked subscriptions accumulate across
 // a file's tests and re-run real mangoToDexie on every beforeEach mutation, which
-// compounds badly under parallel load (the old mocked mangoToDexie hid this cost).
+// compounds badly under parallel load.
 enableAutoUnmount(afterEach);
 import { db, initConfig, initDatabase } from "luminary-shared";
 import { APP_DOCS_INDEX } from "./src/docsIndex";
@@ -14,9 +14,9 @@ import { mockLanguageDtoEng } from "./src/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 
 // HybridQuery's real (un-mocked) Dexie reads make the multi-query page chains
-// heavier than the old mocked path; under parallel test load they can exceed
-// wait-for-expect's 4.5s default. Give them more headroom — passing assertions
-// still resolve as soon as they become true, so green suites aren't slowed.
+// heavy; under parallel test load they can exceed wait-for-expect's 4.5s default.
+// Give them more headroom — passing assertions still resolve as soon as they
+// become true, so green suites aren't slowed.
 waitForExpect.defaults.timeout = 15000;
 
 // ============================================================================
