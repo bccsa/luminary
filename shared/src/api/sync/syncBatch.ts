@@ -146,7 +146,7 @@ export async function syncBatch(options: SyncOptions) {
             resultCount: res.docs.length,
         };
         for (const w of apiWarnings) {
-            console.warn("[sync2] API warning received:", w, queryDetails);
+            console.warn("[sync] API warning received:", w, queryDetails);
         }
     }
 

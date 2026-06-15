@@ -1,20 +1,20 @@
 import { DocType, type BaseDocumentDto } from "../types";
-import { syncList } from "../rest/sync2/state";
-import { splitChunkTypeString } from "../rest/sync2/utils";
-import type { SyncListEntry } from "../rest/sync2/types";
+import { syncList } from "../api/sync/state";
+import { splitChunkTypeString } from "../api/sync/utils";
+import type { SyncListEntry } from "../api/sync/types";
 import { mangoCompile } from "../util/MangoQuery/mangoCompile";
 import type { MangoSelector, Predicate } from "../util/MangoQuery/MangoTypes";
 
 /**
  * The single, authoritative "may this document be persisted to IndexedDB?" gate.
- * Derived from **sync2's `syncList`** (the live source of truth for what this
- * client syncs) — NOT the static `config.syncList`. Used by the sync2 live
- * persister (`rest/sync2/liveSync.ts`) and by HybridQuery's offline-persistence
+ * Derived from **sync's `syncList`** (the live source of truth for what this
+ * client syncs) — NOT the static `config.syncList`. Used by the sync live
+ * persister (`api/sync/liveSync.ts`) and by HybridQuery's offline-persistence
  * path so neither can drift from the other.
  *
  * A doc is syncable iff it is a `DeleteCmd` (always applied so deletions
  * propagate), or it matches the **subscription selector** of at least one
- * `syncList` entry. The subscription selector is the sync2 query stripped of its
+ * `syncList` entry. The subscription selector is the sync query stripped of its
  * fetch-progress bounds (`updatedTimeUtc`) and `publishDate` window — i.e. the
  * identity of what the entry subscribes to: `{ type }`, plus for Content the
  * `parentType` (the chunk's subType) and, when the entry pins languages,

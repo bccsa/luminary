@@ -2,7 +2,7 @@
 
 Audit date: 2026-05-26
 Scope: the changes that introduced `publishDate` as a sync column dimension
-(Part A — `shared/src/rest/sync2/`) and the `hybridQuery` module
+(Part A — `shared/src/api/sync/`) and the `hybridQuery` module
 (Part B — `shared/src/util/hybridQuery/`).
 
 This is a point-in-time review against budget-device constraints (limited RAM,
@@ -20,7 +20,7 @@ low-memory ChromeOS devices.
 ## Open items (Medium severity)
 
 ### 9. Column explosion on broaden + many dimensions
-[sync.ts:186-234](../../rest/sync2/sync.ts#L186-L234)
+[sync.ts:186-234](../../api/sync/sync.ts#L186-L234)
 
 `N_groups × N_languages × N_publishDate_windows` is the upper bound on
 simultaneously-active columns. Each `await _sync({...})` is sequential, so
@@ -31,7 +31,7 @@ collapses them. The pre-existing `mergeHorizontal` is `O(N²)` in EOF chunks,
 so the cleanup cost also grows.
 
 ### 10. `subtractRanges` allocates 3 intermediate arrays per call
-[utils.ts:63-97](../../rest/sync2/utils.ts#L63-L97)
+[utils.ts:63-97](../../api/sync/utils.ts#L63-L97)
 
 Called from `_sync` on each publishDate evaluation. Fine for the current rate
 (once per sync invocation), but `_sync` recurses for each column, so it fires
@@ -39,7 +39,7 @@ repeatedly during column expansion. Could be inlined / pooled if it shows up
 in profiles.
 
 ### 11. `mergeHorizontal` allocates inside the nested loop
-[merge.ts:96-119](../../rest/sync2/merge.ts#L96-L119)
+[merge.ts:96-119](../../api/sync/merge.ts#L96-L119)
 
 Adds two `resolveRange` calls per inner iteration, plus the existing
 `new Set([...])` for memberOf/language union, plus `mergeRanges`. With many
@@ -53,7 +53,7 @@ Flaky network = permanent `isLoading=true`. The `.catch` logs and does
 nothing. Pre-existing for `ApiLiveQuery`; new code follows the same pattern.
 
 ### 13. `initSync` rewrites the whole syncList on every cold start with legacy entries
-[sync.ts:79-86](../../rest/sync2/sync.ts#L79-L86)
+[sync.ts:79-86](../../api/sync/sync.ts#L79-L86)
 
 One-time per upgrade per device. Listed for completeness.
 
@@ -64,7 +64,7 @@ One-time per upgrade per device. Listed for completeness.
 Listed so future audits don't re-investigate:
 
 - **Wire format unchanged for default callers** — confirmed at
-  [syncBatch.ts:73-83](../../rest/sync2/syncBatch.ts#L73-L83). No extra bytes
+  [syncBatch.ts:73-83](../../api/sync/syncBatch.ts#L73-L83). No extra bytes
   on the request for users without a publishDate cutoff. Good for metered
   connections.
 - **No new full-table Dexie scans** — local path goes through existing

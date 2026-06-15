@@ -36,7 +36,7 @@ function roomDocTypesFromSyncList(): DocType[] {
  *
  * Socket.io is a pure transport — it does not decide what to persist. This is
  * where that decision lives: incoming live updates are filtered through
- * `isSyncableDoc` (the sync2-`syncList`-derived gate), and the result is written
+ * `isSyncableDoc` (the sync-`syncList`-derived gate), and the result is written
  * via `db.bulkPut` (which resolves `DeleteCmd`s with its own stale-delete guard).
  *
  * Below-cutoff Content is written through ONLY if we're already keeping it offline
@@ -72,7 +72,7 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
 }
 
 /**
- * Subscribe the sync2 live persister to the Socket.io change feed. Registered once
+ * Subscribe the sync live persister to the Socket.io change feed. Registered once
  * at startup from {@link initSync}/`luminary.ts` — the socket re-fires its
  * listeners across reconnects, so a single registration is sufficient.
  */
@@ -81,9 +81,9 @@ export function initLiveSync(): void {
     _initialized = true;
     getSocket().on("data", applyLiveData);
 
-    // Drive Socket.io room subscriptions from what sync2 actually syncs. As syncList
+    // Drive Socket.io room subscriptions from what sync actually syncs. As syncList
     // grows (new groups/languages/types), the set of subscribed rooms widens to match;
-    // held under sync2's stable base token so it composes with HybridQuery's per-query
+    // held under sync's stable base token so it composes with HybridQuery's per-query
     // subscriptions for non-synced types.
     watch(syncList, () => setBaseRooms(roomDocTypesFromSyncList()), {
         immediate: true,

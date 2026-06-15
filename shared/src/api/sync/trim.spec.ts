@@ -8,7 +8,7 @@ import { OPEN_MAX, OPEN_MIN } from "./utils";
  * Tests for trim.ts
  */
 
-describe("sync2 trim", () => {
+describe("sync trim", () => {
     beforeEach(() => {
         syncList.value = [];
     });

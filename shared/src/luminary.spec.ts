@@ -16,19 +16,19 @@ vi.mock("./db/database", () => ({
     initDatabase: () => mockInitDatabase(),
 }));
 
-vi.mock("./rest/RestApi", () => ({
+vi.mock("./api/RestApi", () => ({
     getRest: () => mockGetRest(),
 }));
 
-vi.mock("./rest/http", () => ({
+vi.mock("./api/http", () => ({
     HttpReq: vi.fn().mockImplementation(() => ({})),
 }));
 
-vi.mock("./rest/sync2/sync", () => ({
+vi.mock("./api/sync/sync", () => ({
     initSync: (...args: any[]) => mockInitSync(...args),
 }));
 
-vi.mock("./rest/sync2/liveSync", () => ({
+vi.mock("./api/sync/liveSync", () => ({
     initLiveSync: () => mockInitLiveSync(),
 }));
 

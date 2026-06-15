@@ -136,7 +136,7 @@ beforeAll(async () => {
 
     await initDatabase();
 
-    // Seed sync2's syncList so HybridQuery routes fully-synced types (AuthProvider,
+    // Seed sync's syncList so HybridQuery routes fully-synced types (AuthProvider,
     // Language, Storage, Redirect, Content) to IndexedDB rather than the API — the
     // state a real client is in after its first sync (restored from IndexedDB by
     // initSync in production). Without this, typeIsInSyncList() is false in tests

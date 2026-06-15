@@ -228,7 +228,7 @@ async function removeStaleSubsetEntries(): Promise<void> {
  *
  * @example
  * ```typescript
- * import { setCancelSync } from "./sync2";
+ * import { setCancelSync } from "./sync";
  *
  * // Cancel sync when going offline
  * setCancelSync(true);

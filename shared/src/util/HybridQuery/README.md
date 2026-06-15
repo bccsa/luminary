@@ -149,8 +149,8 @@ update via the global `bulkPut → Dexie → liveQuery` path.
 - **Reconnect gap-fetch / offline-gap healing.** The gap is *temporal*: track the
   max `updatedTimeUtc` seen and, on a **debounced** reconnect, fetch only
   `supplementSelector + updatedTimeUtc > lastSeen` (upserts). Offline-delete
-  healing needs a "DeleteCmds since lastSeen" query — which is what sync2 already
-  does — so this likely belongs as a **sync2 extension**, not a per-instance
+  healing needs a "DeleteCmds since lastSeen" query — which is what sync already
+  does — so this likely belongs as a **sync extension**, not a per-instance
   mini-sync.
 - **Re-work `applySocketData`** onto `mangoCompile`-from-sync-queries, retiring the
   deprecated `ApiSearchQuery`/`/search` coupling and aligning the codebase on one
@@ -235,7 +235,7 @@ offline.
   **nothing**, regardless of the flag. One shared definition of "may this touch
   IndexedDB?", so the two paths can't drift.
 - **Retention & eviction (unified).** Persisted docs would otherwise accumulate as the
-  sync window slides (sync2 never deletes below-cutoff content — `trim()` only clamps
+  sync window slides (sync never deletes below-cutoff content — `trim()` only clamps
   syncList *state*). A keep-alive deadline per doc is kept in a `retention` side table,
   refreshed whenever the doc is *touched*: persisted by a supplement, **featured in any
   HybridQuery output** (every recompute stamps the below-cutoff `_local` docs —
@@ -416,7 +416,7 @@ Content is the only **partially synced** type — sync only pulls content with
 1. Run Dexie via `mangoToDexie`, merge the result into `output` (instant render).
 2. `decideContentApiQuery(query, local)` chooses one of:
    - **No cutoff configured** (`getContentPublishDateCutoff() === OPEN_MIN`) →
-     done, no API, for **every** branch below. sync2 syncs all content, so the
+     done, no API, for **every** branch below. sync syncs all content, so the
      local read is already complete and a supplement POST (`publishDate <=
      OPEN_MIN`) would match nothing. Returning `undefined` here also means the
      live supplement listener is never attached.
@@ -449,7 +449,7 @@ The cutoff lives on `SharedConfig.contentPublishDateCutoff` and is read via
 `getContentPublishDateCutoff()` (`shared/src/config.ts`). It is the **single
 source of truth** that bounds both:
 
-1. **Sync depth.** `shared/src/rest/sync2/sync.ts` **defaults** content
+1. **Sync depth.** `shared/src/api/sync/sync.ts` **defaults** content
    `publishDateMin` to `getContentPublishDateCutoff()` when the caller omits
    one (a caller-supplied bound is preserved unchanged) — content older than
    the cutoff is **not synced** and `trim` keeps IndexedDB bounded accordingly.
@@ -465,7 +465,7 @@ for the app lifecycle (and is re-read on each app open).
 | **CMS** | Omit (or pass `OPEN_MIN`) — editors need the full content set. |
 
 Sentinels: `OPEN_MIN` means *no cutoff* (full sync; routing fetches nothing
-older). `OPEN_MAX` is only used internally by sync2 as an upper bound.
+older). `OPEN_MAX` is only used internally by sync as an upper bound.
 
 ## Pinning the CouchDB index
 
@@ -522,7 +522,7 @@ request before it ever reaches CouchDB.
 (an `_id` lookup uses the built-in `_id` index — a sort-oriented hint would be
 wrong for that shape). So setting `use_index` on every Content query is safe.
 
-Pattern matches sync2 (`shared/src/rest/sync2/syncBatch.ts`) — index selection
+Pattern matches sync (`shared/src/api/sync/syncBatch.ts`) — index selection
 is a client-side concern, keeping the API lean.
 
 ## Offline / reconnect
@@ -617,7 +617,7 @@ Compared to the previous committed state of this module:
   `withPublishDate`, `decideContentApiQuery`) are individually testable; the
   class just wires them.
 - **New `SharedConfig.contentPublishDateCutoff`** is the single source of truth
-  for partial content sync — sync2 reads it as the default content
+  for partial content sync — sync reads it as the default content
   `publishDateMin`, and `HybridQuery` reads it for the remote `publishDate <=
   cutoff` clause. App/CMS pass it at `init(...)` (see "The content cutoff"
   above).

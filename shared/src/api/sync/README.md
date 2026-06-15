@@ -46,7 +46,7 @@ The sync system spawns autonomous runners that:
 Initialize the sync module with an HTTP service before using any sync functions. (this is called internally in the Luminary Shared library)
 
 ```typescript
-import { initSync } from "./sync2";
+import { initSync } from "./sync";
 import { httpService } from "./http";
 
 initSync(httpService);
@@ -67,7 +67,7 @@ Start an autonomous sync runner for a specific document type.
 **Example:**
 
 ```typescript
-import { sync } from "./sync2";
+import { sync } from "./sync";
 
 // Sync basic document type
 await sync({
@@ -105,7 +105,7 @@ Control the cancellation flag to stop or allow sync operations. The implementing
 **Example:**
 
 ```typescript
-import { setCancelSync, sync } from "./sync2";
+import { setCancelSync, sync } from "./sync";
 import { isConnected } from "./socket/socketio";
 import { watch } from "vue";
 
@@ -152,7 +152,7 @@ Remove unused memberOf groups and languages from all syncList entries to prevent
 **Example:**
 
 ```typescript
-import { trim } from "./sync2";
+import { trim } from "./sync";
 
 // Trim to keep only active groups and languages
 trim({
@@ -250,7 +250,7 @@ The sync system constructs Mango queries in this format:
 ### Basic Document Sync
 
 ```typescript
-import { initSync, sync } from "./sync2";
+import { initSync, sync } from "./sync";
 
 // Initialize once at app startup
 initSync(httpService);
@@ -300,7 +300,7 @@ await sync({
 Use `setCancelSync()` to control synchronization based on connectivity state:
 
 ```typescript
-import { sync, setCancelSync } from "./sync2";
+import { sync, setCancelSync } from "./sync";
 import { isConnected } from "./socket/socketio";
 import { watch } from "vue";
 

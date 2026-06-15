@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { isSyncableDoc } from "./isSyncable";
-import { syncList } from "../rest/sync2/state";
-import type { SyncListEntry } from "../rest/sync2/types";
+import { syncList } from "../api/sync/state";
+import type { SyncListEntry } from "../api/sync/types";
 import { DocType, type BaseDocumentDto } from "../types";
 
 const doc = (over: Partial<BaseDocumentDto>): BaseDocumentDto =>

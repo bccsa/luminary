@@ -226,7 +226,7 @@ export class Socketio implements OnGatewayInit {
 
     /**
      * Dynamically subscribe a client to live updates for the given doc types. Used by
-     * sync2 (for synced types) and HybridQuery (for non-synced types it queries) so the
+     * sync (for synced types) and HybridQuery (for non-synced types it queries) so the
      * client only receives the change feed it currently needs. Additive to
      * `joinSocketGroups` — the connect handshake still owns the `clientConfig` reply.
      * @param reqData

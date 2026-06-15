@@ -59,8 +59,8 @@ class SocketIO {
         });
 
         // NOTE: live document updates (the `"data"` event) are NOT handled here.
-        // Socket.io is a pure transport; the sync2 live persister subscribes to
-        // `"data"` and owns the persistence decision (see rest/sync2/liveSync.ts).
+        // Socket.io is a pure transport; the sync live persister subscribes to
+        // `"data"` and owns the persistence decision (see api/sync/liveSync.ts).
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;

@@ -29,7 +29,7 @@ These files achieved full statement, branch, function, and line coverage:
 | `mangoCompile.ts` | Already at 100% |
 | `trim.ts` | Already at 100% |
 | `state.ts` | Already at 100% (trivial constants) |
-| `utils.ts` (sync2) | **Extended tests** — added `getLanguageSets` |
+| `utils.ts` (sync) | **Extended tests** — added `getLanguageSets` |
 | `useStorageStatus.ts` | **New tests** — all status mappings, error paths, computed |
 | `useDexieLiveQuery.ts` | **New tests** — subscription, error retry, scope dispose (98.33%) |
 | All `types/` files | Pure types, no logic |
@@ -42,7 +42,7 @@ These files achieved full statement, branch, function, and line coverage:
 |------|----------|-----|
 | `src/index.ts` | 0% stmts | **Barrel re-export file.** Importing it triggers side effects from all modules (socket.io, database, etc.) that require full runtime setup. Not worth testing — it's just `export * from` statements. Should be excluded from coverage. |
 | `src/fts/index.ts` | 0% stmts | Same as above — barrel re-export. |
-| `src/rest/sync2/index.ts` | 0% stmts | Same as above — barrel re-export. |
+| `src/api/sync/index.ts` | 0% stmts | Same as above — barrel re-export. |
 | `src/util/useDexieLiveQueryAsEditable/index.ts` | 0% stmts | Single line re-export. |
 | `database.ts` | 92.72% | Uncovered lines involve IndexedDB version upgrade logic (`dbVersion` changes) and `deleteExpiredDocs` edge cases. These require complex Dexie lifecycle events that are hard to simulate in unit tests. The upgrade and blocked-database paths (lines 970-977, 1014-1017) involve async Dexie internals. |
 | `socketio.ts` | 93.03% | Uncovered: `reconnect()` method (lines 148-152), `on()/off()` wrapper methods. The `SocketIO` constructor binds real `socket.io-client` events — the mock in `socketio.spec.ts` can't easily cover `reconnect` without triggering actual disconnection flows. Functions coverage is 71% because `on`, `off`, `disconnect`, `reconnect` are simple pass-through wrappers. |
@@ -82,14 +82,14 @@ These files achieved full statement, branch, function, and line coverage:
 6. `src/util/useDexieLiveQuery/useDexieLiveQuery.spec.ts` — 13 tests
 7. `src/fts/useFtsSearch.spec.ts` — 14 tests
 8. `src/s3/useStorageStatus.spec.ts` — 12 tests
-9. `src/rest/http.spec.ts` — 21 tests
-10. `src/rest/RestApi.spec.ts` — 8 tests
+9. `src/api/http.spec.ts` — 21 tests
+10. `src/api/RestApi.spec.ts` — 8 tests
 11. `src/luminary.spec.ts` — 2 tests
 
 ### Extended test files (3):
 12. `src/fts/fts.spec.ts` — added scheduleCorpusStatsRecompute + ftsSearch edge cases (+7 tests)
 13. `src/util/LFormData/LFormData.spec.ts` — added primitive append, merge, prototype pollution, mixed arrays (+10 tests)
-14. `src/rest/sync2/utils.spec.ts` — added getLanguageSets tests (+6 tests)
+14. `src/api/sync/utils.spec.ts` — added getLanguageSets tests (+6 tests)
 
 ### Config change:
 15. `vitest.config.ts` — added `.eslintrc.cjs` to coverage exclusions

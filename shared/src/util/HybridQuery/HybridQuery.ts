@@ -8,7 +8,7 @@ import {
     type WatchStopHandle,
 } from "vue";
 import { db } from "../../db/database";
-import { HttpReq } from "../../rest/http";
+import { HttpReq } from "../../api/http";
 import { getSocket, isConnected } from "../../socket/socketio";
 import { subscribeRooms } from "../../socket/roomSubscriptions";
 import {
@@ -35,7 +35,7 @@ import { readResponseCache, structuralCacheKey, writeResponseCache } from "./res
 import { isSyncableDoc } from "../../db/isSyncable";
 import { touchRetention } from "../../db/retention";
 import { getContentPublishDateCutoff } from "../../config";
-import { OPEN_MIN } from "../../rest/sync2/utils";
+import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
  * Cap for remote (`/query`) responses when the caller omits `$limit`. Prevents an
@@ -90,7 +90,7 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
     };
     if (Array.isArray(query.$sort)) payload.sort = query.$sort;
     // Forward the client-chosen index hint to the API (validated against an
-    // allowlist there). Same pattern as sync2/syncBatch.ts — index selection
+    // allowlist there). Same pattern as sync/syncBatch.ts — index selection
     // is a client concern.
     if (typeof query.use_index === "string") payload.use_index = query.use_index;
 
@@ -532,7 +532,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
             // Non-content type not in syncList → fetch from API only, no Dexie read.
             void this._runApiWhenOnline(this._query, gen);
-            // Live mode: these docs never flow through Dexie (sync2 doesn't sync this
+            // Live mode: these docs never flow through Dexie (sync doesn't sync this
             // type), so the socket listener is their only live path.
             if (this._live) {
                 // Subscribe to the type's rooms on demand so the server starts pushing

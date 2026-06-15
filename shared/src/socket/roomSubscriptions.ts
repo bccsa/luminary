@@ -10,11 +10,11 @@ import { getSocket, isConnected } from "./socketio";
  * grants (plus the matching `deleteCmd-${group}` rooms). This manager tracks
  * **which subscriber wants which docType** (not a bare ref-count) so a room is
  * left only when its *last* subscriber releases it: one HybridQuery disposing can
- * never cut off another query (or sync2) still using the same docType.
+ * never cut off another query (or sync) still using the same docType.
  *
  * - `subscribeRooms(types)` — used by HybridQuery for non-synced query types; one
  *   fresh token per live generation, released on rebuild/dispose.
- * - `setBaseRooms(types)` — used by sync2 under one stable token; the reactive set
+ * - `setBaseRooms(types)` — used by sync under one stable token; the reactive set
  *   of synced-type rooms, diffed on every `syncList` change.
  * - `initRoomSubscriptions()` — re-joins every still-wanted room on (re)connect,
  *   since the server drops room memberships on disconnect.
@@ -22,8 +22,8 @@ import { getSocket, isConnected } from "./socketio";
 
 // Per docType, the set of subscriber tokens currently wanting live updates for it.
 const _wanted = new Map<DocType, Set<symbol>>();
-// sync2's single stable token (its room set is replaced wholesale via setBaseRooms).
-const BASE_TOKEN = Symbol("sync2-base");
+// sync's single stable token (its room set is replaced wholesale via setBaseRooms).
+const BASE_TOKEN = Symbol("sync-base");
 
 function joinedDocTypes(): DocType[] {
     const out: DocType[] = [];
@@ -79,7 +79,7 @@ export function subscribeRooms(types: DocType[]): () => void {
 let _baseTypes: DocType[] = [];
 
 /**
- * Replace sync2's set of subscribed docTypes (held under one stable token). Diffs
+ * Replace sync's set of subscribed docTypes (held under one stable token). Diffs
  * against the previous set — joins newly-added docTypes, leaves removed ones —
  * emitting only as a room's subscriber set crosses empty↔non-empty (so a docType
  * also held by a HybridQuery stays joined).

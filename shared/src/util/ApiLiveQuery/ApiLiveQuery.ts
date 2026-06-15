@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref, watch } from "vue";
-import { ApiSearchQuery, getRest } from "../../rest/RestApi";
+import { ApiSearchQuery, getRest } from "../../api/RestApi";
 import { getSocket, isConnected } from "../../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto } from "../../types";
 import { applySocketData } from "./applySocketData";

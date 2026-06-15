@@ -2,7 +2,7 @@
  * Retention bookkeeping for offline-persisted below-cutoff Content.
  *
  * As the content sync window slides forward, docs fall below the cutoff and would
- * otherwise accumulate in IndexedDB forever (sync2 only clamps syncList *state*, it
+ * otherwise accumulate in IndexedDB forever (sync only clamps syncList *state*, it
  * never deletes docs). This module keeps a per-doc keep-alive deadline in the
  * `retention` side table and evicts the stale tail.
  *
@@ -27,7 +27,7 @@ import { DateTime } from "luxon";
 import { db, type RetentionEntry } from "./database";
 import { config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "../config";
 import { DocType } from "../types";
-import { OPEN_MIN } from "../rest/sync2/utils";
+import { OPEN_MIN } from "../api/sync/utils";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 
 /** How often the pending batch is written to the `retention` table. */

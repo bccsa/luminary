@@ -6,7 +6,7 @@ import {
 } from "./validateQuery";
 
 describe("validateQuery", () => {
-    // A real sync-client payload (shared/src/rest/sync2/syncBatch.ts).
+    // A real sync-client payload (shared/src/api/sync/syncBatch.ts).
     const validSyncQuery = () => ({
         identifier: "sync",
         selector: {

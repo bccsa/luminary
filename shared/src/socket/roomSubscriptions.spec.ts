@@ -25,7 +25,7 @@ describe("roomSubscriptions", () => {
     });
 
     afterEach(() => {
-        setBaseRooms([]); // release sync2's token
+        setBaseRooms([]); // release sync's token
         emitSpy.mockClear();
     });
 

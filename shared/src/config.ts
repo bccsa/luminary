@@ -1,7 +1,7 @@
 import { ref, Ref } from "vue";
 import { Uuid } from "./types";
-import { ApiSyncQuery } from "./rest/RestApi";
-import { OPEN_MIN } from "./rest/sync2/utils";
+import { ApiSyncQuery } from "./api/RestApi";
+import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
@@ -36,11 +36,11 @@ export type SharedConfig = {
     apiUrl: string;
     /**
      * Transitional "live-only" socket-room declaration. What gets *synced* (and what
-     * may be persisted to IndexedDB) is owned entirely by sync2 — this list no longer
+     * may be persisted to IndexedDB) is owned entirely by sync — this list no longer
      * gates persistence. It only declares doc-type rooms to join at the connect
      * handshake for live-only data served by the soon-to-be-retired `ApiLiveQuery`
      * (e.g. the CMS's `User` / `AutoGroupMappings`). Leave empty/omitted when every
-     * displayed type is either synced by sync2 or subscribed on demand by HybridQuery.
+     * displayed type is either synced by sync or subscribed on demand by HybridQuery.
      */
     syncList?: Array<ApiSyncQuery>;
     /**
@@ -79,7 +79,7 @@ export function initConfig(newConfig: SharedConfig) {
 }
 
 /**
- * Single source of truth for the content publishDate cutoff. Read by sync2
+ * Single source of truth for the content publishDate cutoff. Read by sync
  * (which floors content `publishDateMin` to this value) and by `HybridQuery`
  * (which fetches `publishDate <= cutoff` from the API for the older tail).
  * Defaults to `OPEN_MIN` when unset — i.e. no cutoff, full content sync,

@@ -174,14 +174,14 @@ class Database extends Dexie {
     async getSyncList() {
         const _v = await this.getLuminaryInternals("syncList");
         if (_v && Array.isArray(_v)) {
-            const { syncList } = await import("../rest/sync2/state");
+            const { syncList } = await import("../api/sync/state");
             syncList.value = _v;
         }
         return _v;
     }
 
     async setSyncList() {
-        const { syncList } = await import("../rest/sync2/state");
+        const { syncList } = await import("../api/sync/state");
         return await this.setLuminaryInternals("syncList", cloneDeep(syncList.value));
     }
 
@@ -814,7 +814,7 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
-        const { syncList } = await import("../rest/sync2/state");
+        const { syncList } = await import("../api/sync/state");
         syncList.value = [];
         await Promise.all([
             this.docs.clear(),
@@ -871,7 +871,7 @@ export async function initDatabase() {
     );
 
     // Watch syncList for changes and persist to IndexedDB
-    import("../rest/sync2/state").then(({ syncList }) => {
+    import("../api/sync/state").then(({ syncList }) => {
         watch(
             syncList,
             () => {

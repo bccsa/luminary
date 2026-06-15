@@ -52,7 +52,7 @@ This monorepo has known seams that break silently when one side changes without 
 | `api/src/auth/**` `AuthFailureReason` codes / payloads | `app/src/main.ts` + `cms/src/main.ts` `connect_error` handler | Failure codes drive client-side eviction / silent refresh. |
 | `shared/src/**` (any) | App/CMS rebuild + re-install with `--install-links` | Consumers link against `shared/dist`; stale dist = stale behavior. Flag if a shared change exists and `app/package-lock.json`/`cms/package-lock.json` weren't touched, OR remind user to rebuild + reinstall before testing. |
 | `api/src/db/schemaUpgrade/**` | `_schemas.schemaVersion` bump (visible in the same file) | Schema upgrades must bump the version on success. |
-| `api/src/validation/query/validateQuery.ts` (validation rule change) | `shared/src/rest/sync2/syncBatch.ts` + `shared/src/util/hybridQuery/HybridQuery.ts` payload shapes | Tightening the universal validator can reject deployed-client queries (ADR 0005). |
+| `api/src/validation/query/validateQuery.ts` (validation rule change) | `shared/src/api/sync/syncBatch.ts` + `shared/src/util/hybridQuery/HybridQuery.ts` payload shapes | Tightening the universal validator can reject deployed-client queries (ADR 0005). |
 
 Don't invent additional contracts — only flag the ones in this table.
 

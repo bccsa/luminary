@@ -56,16 +56,16 @@ The exported singleton is `db`, available after `initDatabase()` resolves. `db.u
 
 `db.deleteRevoked()` watches `accessMap` and removes any docs the user no longer has access to. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
 
-### Sync — `src/rest/sync2/`
+### Sync — `src/api/sync/`
 
-The sync system is documented in detail in `src/rest/sync2/README.md`. Read it before changing sync code. Quick model:
+The sync system is documented in detail in `src/api/sync/README.md`. Read it before changing sync code. Quick model:
 
 - Walks backwards in time per `(type, memberOf-set, languages-set)` "column," storing block ranges in `syncList`.
 - Splits into multiple autonomous runners when new groups/languages are added; recombines via **vertical merge** (adjacent time ranges, same key) and **horizontal merge** (overlapping ranges, different groups/languages, both EOF).
 - `setCancelSync(true/false)` is a kill switch the consumer must drive based on connectivity — it does not auto-reset.
 - `DeleteCmd` documents are synced as a sibling column to each content/post/tag column so deletions propagate even past the initial sync window.
 
-`src/rest/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
+`src/api/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
 
 ### Socket.io live updates — `src/socket/socketio.ts`
 

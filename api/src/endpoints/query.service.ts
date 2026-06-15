@@ -259,7 +259,7 @@ export class QueryService {
         // `use_index` (when present) is forwarded to CouchDB as-is. The query
         // validator allowlists the permitted names against the design-doc registry;
         // index selection is a client-side concern (see shared/src/util/hybridQuery —
-        // same pattern as sync2/syncBatch.ts).
+        // same pattern as sync/syncBatch.ts).
         //
         // Request execution stats so the controller can classify scans (the cost is
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /

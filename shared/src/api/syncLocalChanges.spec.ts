@@ -7,7 +7,7 @@ import { getSocket, isConnected } from "../socket/socketio";
 import { changeReqErrors, initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
-import * as RestApi from "../rest/RestApi";
+import * as RestApi from "../api/RestApi";
 import { useDexieLiveQuery } from "../util";
 import { syncLocalChanges, type SyncLocalChangesHandle } from "./syncLocalChanges";
 

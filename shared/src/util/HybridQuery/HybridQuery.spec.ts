@@ -77,7 +77,7 @@ vi.mock("../../db/isSyncable", () => ({
     isSyncableDoc: mocks.isSyncableDoc,
 }));
 
-vi.mock("../../rest/sync2/state", () => ({
+vi.mock("../../api/sync/state", () => ({
     syncList: mocks.syncList,
 }));
 
@@ -105,7 +105,7 @@ import {
     queryRemote,
 } from "./HybridQuery";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
-import { OPEN_MIN } from "../../rest/sync2/utils";
+import { OPEN_MIN } from "../../api/sync/utils";
 
 /** Drain pending micro/macrotasks + a tick so the background async work runs. */
 const flush = async () => {
@@ -444,7 +444,7 @@ describe("HybridQuery", () => {
         });
 
         it("cutoff === OPEN_MIN ⇒ no POST (full sync, local read is complete)", async () => {
-            // No cutoff configured: sync2 syncs all content, so the local read is
+            // No cutoff configured: sync syncs all content, so the local read is
             // complete and the supplement POST (publishDate <= OPEN_MIN) would match
             // nothing. decideContentApiQuery short-circuits before the always-post
             // branch — no wasted round-trip.
@@ -1127,7 +1127,7 @@ describe("HybridQuery", () => {
         });
 
         it("synced + content live types do NOT drive dynamic room subscriptions", async () => {
-            // Synced types (Dexie) and content (rooms joined by sync2) must not subscribe.
+            // Synced types (Dexie) and content (rooms joined by sync) must not subscribe.
             mocks.syncList.value = [{ chunkType: "group" }];
             track(new HybridQuery({ selector: { type: "group" } }, { live: true }));
             await flush();

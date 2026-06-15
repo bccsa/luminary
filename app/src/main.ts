@@ -58,10 +58,10 @@ async function Startup() {
         apiUrl,
         appLanguageIdsAsRef,
         contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
-        // What gets synced is owned by sync2 (see src/sync.ts); the socket rooms for
-        // those types are joined dynamically by sync2. The app has no live-only
+        // What gets synced is owned by sync (see src/sync.ts); the socket rooms for
+        // those types are joined dynamically by sync. The app has no live-only
         // ApiLiveQuery types (SingleContent's ApiLiveQuery reads synced content /
-        // language, whose rooms sync2 already joins), so this stays empty.
+        // language, whose rooms sync already joins), so this stays empty.
         syncList: [],
     }).catch((err) => {
         console.error(err);

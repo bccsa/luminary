@@ -123,5 +123,5 @@ Run these in parallel via the shell:
 ## What this skill is NOT
 
 - Not a query author. The user provides the query intent; this skill is the wiring.
-- Not a perf review. If the user expects high-volume sync, point them at `shared/src/rest/sync2/README.md`.
+- Not a perf review. If the user expects high-volume sync, point them at `shared/src/api/sync/README.md`.
 - Not a Vitest harness. Sync tests touch CouchDB and are user-driven.

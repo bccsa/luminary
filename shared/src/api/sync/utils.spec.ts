@@ -19,7 +19,7 @@ import {
     subtractRanges,
 } from "./utils";
 
-describe("sync2 utils", () => {
+describe("sync utils", () => {
     beforeEach(() => {
         // Clear syncList before each test
         syncList.value = [];

@@ -45,11 +45,11 @@ async function Startup() {
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
         // CMS editors need the full content set — omit any publishDate cutoff so
-        // sync2 keeps its OPEN_MIN default (full content sync) and HybridQuery's
+        // sync keeps its OPEN_MIN default (full content sync) and HybridQuery's
         // older-tail supplement never fires.
         contentPublishDateCutoff: undefined,
-        // What gets synced (and may be persisted to IndexedDB) is owned by sync2
-        // (see src/sync.ts); sync2 joins the socket rooms for those types. This list
+        // What gets synced (and may be persisted to IndexedDB) is owned by sync
+        // (see src/sync.ts); sync joins the socket rooms for those types. This list
         // is now ONLY the transitional live-only types served by ApiLiveQuery — docs
         // we display live but never sync. Their rooms are joined at the connect
         // handshake so ApiLiveQuery receives updates. Remove once the CMS migrates

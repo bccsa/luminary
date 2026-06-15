@@ -8,7 +8,7 @@ import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initConfig } from "../config";
 import { ref } from "vue";
-import * as RestApi from "../rest/RestApi";
+import * as RestApi from "../api/RestApi";
 
 const changeRequestMock = vi.fn();
 vi.spyOn(RestApi, "getRest").mockReturnValue({
@@ -150,6 +150,6 @@ describe("socketio", () => {
     });
 
     // NOTE: the live-update persistence path (filter → retention gate → bulkPut) moved
-    // to the sync2 live persister — its tests live in `rest/sync2/liveSync.spec.ts`.
+    // to the sync live persister — its tests live in `api/sync/liveSync.spec.ts`.
     // Socket.io is now a pure transport; only its connection lifecycle is tested here.
 });

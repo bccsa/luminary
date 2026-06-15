@@ -1,7 +1,7 @@
 import type { BaseDocumentDto } from "../../types";
 import { DocType } from "../../types";
-import { syncList } from "../../rest/sync2/state";
-import { splitChunkTypeString, OPEN_MIN } from "../../rest/sync2/utils";
+import { syncList } from "../../api/sync/state";
+import { splitChunkTypeString, OPEN_MIN } from "../../api/sync/utils";
 import { getContentPublishDateCutoff } from "../../config";
 import { expandMangoSelector } from "../MangoQuery/expandMangoQuery";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
@@ -105,7 +105,7 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
  *    for the older tail).
  *
  * Cutoff comes from `getContentPublishDateCutoff()` (`SharedConfig`), so this
- * function reflects the same global value sync2 uses to floor content sync depth.
+ * function reflects the same global value sync uses to floor content sync depth.
  */
 export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
@@ -113,7 +113,7 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
 ): MangoQuery | undefined {
     const cutoff = getContentPublishDateCutoff();
 
-    // No cutoff configured ⇒ sync2 syncs all content, so the local read is
+    // No cutoff configured ⇒ sync syncs all content, so the local read is
     // complete and the API has no older tail to supply. The supplement POST
     // would carry `publishDate <= OPEN_MIN` and match nothing — skip it. The
     // caller then drops any stale response-cache seed (same end state as an

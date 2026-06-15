@@ -80,7 +80,7 @@ class RestApi {
             throw new Error("The REST API connection requires an API URL");
         }
         // NOTE: `config.syncList` is no longer required. What gets synced is owned by
-        // sync2 (the consumer's `sync()` calls); `config.syncList` only declares the
+        // sync (the consumer's `sync()` calls); `config.syncList` only declares the
         // transitional live-only socket rooms (e.g. CMS User / AutoGroupMappings).
 
         this.http = new HttpReq(config.apiUrl || "");

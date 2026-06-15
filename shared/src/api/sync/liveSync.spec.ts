@@ -14,7 +14,7 @@ const entry = (over: Partial<SyncListEntry> & { chunkType: string }): SyncListEn
     ...over,
 });
 
-describe("liveSync.applyLiveData (sync2 live persister)", () => {
+describe("liveSync.applyLiveData (sync live persister)", () => {
     beforeAll(async () => {
         initConfig({ cms: false, docsIndex: "", apiUrl: "" });
         await initDatabase();
@@ -27,7 +27,7 @@ describe("liveSync.applyLiveData (sync2 live persister)", () => {
         await db.retention.clear();
     });
 
-    it("persists only docs in the sync2 syncList scope (type + parentType + language)", async () => {
+    it("persists only docs in the sync syncList scope (type + parentType + language)", async () => {
         syncList.value = [
             entry({ chunkType: DocType.Post }),
             entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["en"] }),

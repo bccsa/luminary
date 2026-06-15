@@ -6,7 +6,7 @@ import {
     getOfflineRetentionTtl,
 } from "./config";
 import type { SharedConfig } from "./config";
-import { OPEN_MIN } from "./rest/sync2/utils";
+import { OPEN_MIN } from "./api/sync/utils";
 
 describe("initConfig", () => {
     it("sets the config object", () => {
