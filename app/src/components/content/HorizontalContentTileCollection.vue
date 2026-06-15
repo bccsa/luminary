@@ -113,7 +113,7 @@ useInfiniteScroll(
 
         <div class="relative">
             <div
-                class="group absolute left-0 top-0 z-10 h-full cursor-pointer px-6"
+                class="group absolute top-0 left-0 z-10 h-full cursor-pointer px-6"
                 @click="spinLeft()"
             >
                 <ArrowLeftCircleIcon
@@ -126,7 +126,7 @@ useInfiniteScroll(
                 />
             </div>
             <div
-                class="group absolute right-0 top-0 z-10 h-full cursor-pointer px-6"
+                class="group absolute top-0 right-0 z-10 h-full cursor-pointer px-6"
                 @click="spinRight()"
             >
                 <ArrowRightCircleIcon
@@ -141,7 +141,7 @@ useInfiniteScroll(
 
             <div
                 ref="scrollElement"
-                class="flex overflow-x-scroll py-2 scrollbar-hide"
+                class="scrollbar-hide flex overflow-x-scroll py-2"
                 @scroll="setSpinBtnVisibility"
             >
                 <div

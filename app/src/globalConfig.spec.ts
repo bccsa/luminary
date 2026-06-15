@@ -13,6 +13,12 @@ import {
     removeFromMediaQueue,
     clearMediaQueue,
     nextInMediaQueue,
+    getReadingProgress,
+    readingProgressAsRef,
+    removeReadingProgress,
+    setReadingProgress,
+    syncContentProgressFromStorage,
+    watchContentProgressStorage,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -28,6 +34,8 @@ describe("globalConfig.ts", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await db.docs.bulkPut([mockEnglishContentDto]);
+        localStorage.clear();
+        syncContentProgressFromStorage();
         await initLanguage();
     });
 
@@ -189,6 +197,109 @@ describe("globalConfig.ts", () => {
 
             nextInMediaQueue();
             expect(mediaQueue.value).toHaveLength(0);
+        });
+    });
+
+    describe("Reading Progress", () => {
+        const testContentId = "test-content-id";
+
+        afterEach(() => {
+            removeReadingProgress(testContentId);
+            localStorage.removeItem("contentProgress");
+        });
+
+        it("sets and gets reading progress correctly", () => {
+            setReadingProgress(testContentId, 45);
+            expect(getReadingProgress(testContentId)).toBe(45);
+        });
+
+        it("clamps progress to 100 max", () => {
+            setReadingProgress(testContentId, 120);
+            expect(getReadingProgress(testContentId)).toBe(100);
+        });
+
+        it("clamps progress to 0 min", () => {
+            setReadingProgress(testContentId, -10);
+            expect(getReadingProgress(testContentId)).toBe(0);
+        });
+
+        it("removes reading progress correctly", () => {
+            setReadingProgress(testContentId, 50);
+            expect(getReadingProgress(testContentId)).toBe(50);
+
+            removeReadingProgress(testContentId);
+            expect(getReadingProgress(testContentId)).toBe(0);
+            expect(
+                readingProgressAsRef.value.find((p) => p.contentId === testContentId),
+            ).toBeUndefined();
+        });
+
+        it("syncContentProgressFromStorage reloads from localStorage", () => {
+            localStorage.setItem(
+                "contentProgress",
+                JSON.stringify([
+                    {
+                        contentId: testContentId,
+                        updatedAt: Date.now(),
+                        reading: { progress: 33 },
+                    },
+                ]),
+            );
+
+            syncContentProgressFromStorage();
+
+            expect(getReadingProgress(testContentId)).toBe(33);
+            expect(readingProgressAsRef.value).toEqual([
+                { contentId: testContentId, progress: 33 },
+            ]);
+        });
+
+        it("watchContentProgressStorage reacts to storage events", () => {
+            const stop = watchContentProgressStorage();
+
+            localStorage.setItem(
+                "contentProgress",
+                JSON.stringify([
+                    {
+                        contentId: testContentId,
+                        updatedAt: Date.now(),
+                        reading: { progress: 72 },
+                    },
+                ]),
+            );
+            window.dispatchEvent(new StorageEvent("storage", { key: "contentProgress" }));
+
+            expect(getReadingProgress(testContentId)).toBe(72);
+            expect(readingProgressAsRef.value).toEqual([
+                { contentId: testContentId, progress: 72 },
+            ]);
+
+            stop();
+        });
+
+        it("migrates legacy readingProgress and mediaProgress keys on first load", () => {
+            localStorage.setItem(
+                "readingProgress",
+                JSON.stringify([{ contentId: "legacy-read", progress: 55 }]),
+            );
+            localStorage.setItem(
+                "mediaProgress",
+                JSON.stringify([
+                    {
+                        mediaId: "legacy-media",
+                        contentId: "legacy-watch",
+                        progress: 90,
+                        duration: 180,
+                    },
+                ]),
+            );
+
+            syncContentProgressFromStorage();
+
+            expect(localStorage.getItem("readingProgress")).toBeNull();
+            expect(localStorage.getItem("mediaProgress")).toBeNull();
+            expect(getReadingProgress("legacy-read")).toBe(55);
+            expect(getMediaProgress("legacy-media", "legacy-watch")).toBe(90);
         });
     });
 });

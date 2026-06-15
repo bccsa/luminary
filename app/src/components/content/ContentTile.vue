@@ -79,10 +79,9 @@ function formatDuration(seconds: number): string {
 }
 
 const durationText = ref("");
-const hasProgress = ref(false);
-const allMedia = localStorage.getItem("mediaProgress");
+const hasMediaProgress = ref(false);
 
-if (allMedia) {
+if (props.showProgress) {
     const mediaIds = props.content.video
         ? [props.content.video]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
@@ -92,7 +91,7 @@ if (allMedia) {
         const mediaDuration = getMediaDuration(mediaId, props.content._id);
 
         if (mediaProgress > 0 && mediaDuration > 0) {
-            hasProgress.value = true;
+            hasMediaProgress.value = true;
             media.value.progress = Math.min(100, (mediaProgress / mediaDuration) * 100);
             media.value.duration = mediaDuration;
             durationText.value = formatDuration(mediaDuration);
@@ -198,11 +197,11 @@ if (allMedia) {
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
                         >
-                            <p class="absolute m-2 text-pretty text-center text-black blur-sm">
+                            <p class="absolute m-2 text-center text-pretty text-black blur-sm">
                                 {{ content.title }}
                             </p>
                             <p
-                                class="absolute m-2 text-pretty text-center text-white dark:text-slate-200"
+                                class="absolute m-2 text-center text-pretty text-white dark:text-slate-200"
                             >
                                 {{ content.title }}
                             </p>
@@ -238,11 +237,7 @@ if (allMedia) {
                         </div>
 
                         <div
-                            v-if="
-                                showProgress &&
-                                (content.video || content.parentMedia?.fileCollections?.length) &&
-                                hasProgress
-                            "
+                            v-if="showProgress && hasMediaProgress"
                             class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1"
                             :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
                         >
@@ -251,7 +246,7 @@ if (allMedia) {
                                     class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
                                 >
                                     <div
-                                        class="absolute left-0 top-0 h-full bg-white"
+                                        class="absolute top-0 left-0 h-full bg-white"
                                         :style="{ width: `${media.progress}%` }"
                                     ></div>
                                 </div>

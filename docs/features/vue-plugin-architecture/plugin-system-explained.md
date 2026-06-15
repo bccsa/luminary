@@ -134,7 +134,7 @@ See **[Adding another plugin](./README.md#adding-another-plugin)** in the README
 - **Folder tree (file-level):** [`plugin-system-folders.drawio`](./plugin-system-folders.drawio)
 - **Architecture (swimlanes):** [`vue-plugin-architecture.drawio`](./vue-plugin-architecture.drawio)
 - **End-to-end flow (steps 1→5):** [`vue-plugin-architecture-flow.drawio`](./vue-plugin-architecture-flow.drawio)
-- **App handbook:** [`app/README.md`](../../../app/README.md)
+- **App handbook:** [`app/README.md`](../../../../app/README.md)
 - **Code-heavy walkthrough:** [`starter-code.md`](./starter-code.md)
 
 ---

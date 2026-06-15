@@ -683,7 +683,7 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Update upstream inherited permissions on the parent group's map for a given ACL entry (referring to (1) in permissionSystem.drawio.svg)
+     * Update upstream inherited permissions on the parent group's map for a given ACL entry (referring to (1) in docs/architecture/diagrams/permissionSystem.drawio.svg)
      * This function is an event handler for the AclEntryUpdatedEvent, and should only be called from within a group (PermissionSystem) object (i.e. do not call it on parent or child groups)
      */
     private upsertUpstreamInheritedMap(event: AclEntryUpdatedEvent) {
@@ -697,7 +697,7 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Update downstream inherited group maps for a given DocType in the passed ACL group map (referring to (3) in permissionSystem.drawio.svg)
+     * Update downstream inherited group maps for a given DocType in the passed ACL group map (referring to (3) in docs/architecture/diagrams/permissionSystem.drawio.svg)
      */
     private upsertDownstreamInheritedMap(aclGroup: AclGroupMap, type: DocType) {
         const parentGroup = aclGroup.ref;
@@ -740,7 +740,7 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Iteratively forward inherited group maps until the top level parent has been reached (referring to (3) in permissionSystem.drawio.svg)
+     * Iteratively forward inherited group maps until the top level parent has been reached (referring to (3) in docs/architecture/diagrams/permissionSystem.drawio.svg)
      */
     private forwardInheritedMap(
         target: Uuid,
