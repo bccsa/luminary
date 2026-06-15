@@ -279,6 +279,11 @@ export class S3Service {
         this.touch();
         const metadata = {
             "Content-Type": mimetype,
+            // Object keys are UUIDs whose bytes are never rewritten, so they're safe to cache
+            // forever and mark immutable. This lets the browser's HTTP cache reuse images across
+            // views and offline with no revalidation round-trip (we no longer cache images in a
+            // service worker — the browser does it).
+            "Cache-Control": "public, max-age=31536000, immutable",
         };
         return this.client.putObject(this.bucketName, key, file, file.length, metadata);
     }

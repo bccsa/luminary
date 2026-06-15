@@ -36,6 +36,35 @@ export const sizes = {
 };
 export type ImageSize = keyof typeof sizes;
 
+// HTML `sizes` attribute (CSS px) per slot, mirroring the rendered widths in `sizes` above. This is
+// what lets the browser pick the right srcset variant for the slot AND the device pixel ratio — the
+// browser applies DPR itself, so these values are intentionally NOT multiplied by devicePixelRatio.
+// `md` = 768px, `lg` = 1024px (Tailwind defaults). The hero (`post`) is full-width on mobile and
+// capped by the article's `lg:max-w-3xl` (768px) wrapper on desktop, with a little headroom.
+export const sizesMap: Record<ImageSize, string> = {
+    small: "(min-width: 768px) 96px, 80px",
+    thumbnail: "(min-width: 768px) 208px, 144px",
+    thumbnailFeatured: "(min-width: 768px) 224px, 165px",
+    thumbnailCompact: "(min-width: 768px) 176px, 128px",
+    post: "(min-width: 1024px) 800px, 100vw",
+    smallSquare: "48px",
+    icon: "",
+};
+
+// Reduced-data `sizes` per slot: a deliberately smaller advertised width so the browser fetches a
+// lower variant (roughly one ladder rung down, ~1x instead of retina) when the user has Data Saver
+// on. Small slots already serve tiny variants, so their reduced value just drops the desktop bump;
+// the hero saves the most (half-resolution). Used via `prefers-reduced-data` and the `saveData` flag.
+export const sizesReducedMap: Record<ImageSize, string> = {
+    small: "80px",
+    thumbnail: "144px",
+    thumbnailFeatured: "165px",
+    thumbnailCompact: "128px",
+    post: "50vw",
+    smallSquare: "48px",
+    icon: "",
+};
+
 export const activeImageCollection = computed(() => (content: ContentDto) => {
     if (!content.parentImageData?.fileCollections?.length) return 0;
 
@@ -58,15 +87,10 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
-import {
-    isConnected,
-    type ImageDto,
-    type ImageFileCollectionDto,
-    type ImageFileDto,
-    type Uuid,
-} from "luminary-shared";
+import { fallbackImageUrls, isSaveDataEnabled } from "@/globalConfig";
+import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
+import { thumbHashToDataURL } from "thumbhash";
 import { ref } from "vue";
 
 type Props = {
@@ -74,7 +98,6 @@ type Props = {
     aspectRatio?: AspectRatio;
     size?: ImageSize;
     rounded?: boolean;
-    parentWidth: number;
     parentId: Uuid;
     isModal?: boolean;
     isIcon?: boolean;
@@ -104,58 +127,41 @@ const resolvedAlt = computed(() => {
 
 const baseUrl = computed(() => props.bucketPublicUrl);
 
-const connectionSpeed = getConnectionSpeed();
-const isDesktop = window.innerWidth >= 768;
+// Read once at setup — Data Saver toggling mid-session is rare, and the declarative media query
+// below covers browsers that change it live.
+const saveData = isSaveDataEnabled();
 
-const calcImageLoadingTime = (imageFile: ImageFileDto) => {
-    // This calculation is using data from https://developers.google.com/speed/webp/docs/webp_study calculated to an average size per pixel for webp images comparable to JPEG Q=75 images.
-    const sizePerPixel = 0.0000000368804; // 9.9 KB / (512 x 512 pixels) = 0.00966797 MB / 262144 pixels = 3.68804E-08 MB per pixel
-    const imageFileSize = imageFile.width * imageFile.height * sizePerPixel;
-    return imageFileSize / (connectionSpeed / 8); // Convert connection speed from Mbps to MBps
-};
-
-// Filter out images that would take more than 1 second to load on mobile devices or that are bigger than the parent element width plus 50%
-const filteredFileCollections = computed(() => {
-    const res: Array<ImageFileCollectionDto> = [];
-    if (!props.image?.fileCollections) return res;
-
-    // When displayed in a modal, we should not filter the images based on size
-    // to ensure high quality on zoom.
-    if (props.isModal) return props.image.fileCollections;
-
-    props.image.fileCollections.forEach((collection) => {
-        const images = collection.imageFiles.filter(
-            (imgFile) =>
-                !isConnected.value || // Bypass filtering when not connected, allowing the image element to select any available image from cache
-                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
-        );
-
-        // add the smallest image from collection.imageFiles to images if images is empty
-        if (images.length == 0) {
-            if (collection.imageFiles.length == 0) return;
-            images.push(collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b)));
-        }
-
-        res.push({
-            ...collection,
-            imageFiles: images,
-        });
-    });
-
-    return res;
+// The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src).
+// Honours the user's data-saving preference two ways:
+//   1. `saveData` (Network Information API flag): force the smaller slot — covers Chromium browsers
+//      that expose the flag but not the media query.
+//   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
+//      browsers downshift live; everyone else falls through to the full slot.
+const sizesAttr = computed(() => {
+    const base = sizesMap[props.size];
+    if (!base) return undefined; // icon mode
+    const reduced = sizesReducedMap[props.size];
+    if (!reduced) return base;
+    if (saveData) return reduced;
+    return `(prefers-reduced-data: reduce) ${reduced}, ${base}`;
 });
+
+// All collections for this image, unfiltered. We deliberately do NOT pre-filter variants by width
+// or connection speed here: handing the browser the full srcset ladder plus a correct `sizes`
+// attribute lets it pick the variant that fits the slot AND the device pixel ratio. (Selecting in JS
+// was DPR-blind and dropped the high-res variants before the browser ever saw them.)
+const allFileCollections = computed(() => props.image?.fileCollections ?? []);
 
 // Calculate the closest aspect ratio to the desired one
 const closestAspectRatio = computed(() => {
-    if (!filteredFileCollections.value.length) return 0;
+    if (!allFileCollections.value.length) return 0;
 
     // In modal mode, don't filter by aspect ratio - use the first available
-    if (props.isModal && filteredFileCollections.value.length > 0) {
-        return filteredFileCollections.value[0].aspectRatio;
+    if (props.isModal && allFileCollections.value.length > 0) {
+        return allFileCollections.value[0].aspectRatio;
     }
 
-    const aspectRatios = filteredFileCollections.value
+    const aspectRatios = allFileCollections.value
         .map((collection) => collection.aspectRatio)
         .reduce((acc, cur) => {
             if (!acc.includes(cur)) acc.push(cur);
@@ -168,6 +174,28 @@ const closestAspectRatio = computed(() => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
 });
+
+// The collection the display image (element1) renders — the closest-aspect one. Used to source the
+// ThumbHash blur for that same photo.
+const displayCollection = computed(() =>
+    allFileCollections.value.find((c) => c.aspectRatio === closestAspectRatio.value),
+);
+
+// Decode the collection's base64 ThumbHash into a blurred data URL, shown as the <img> background so
+// a preview of the *correct* photo appears instantly (and offline) until the real image paints over.
+const decodeThumbHash = (base64?: string): string | undefined => {
+    if (!base64) return undefined;
+    try {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        return thumbHashToDataURL(bytes);
+    } catch {
+        return undefined;
+    }
+};
+const thumbHashDataUrl = computed(() => decodeThumbHash(displayCollection.value?.thumbHash));
+const thumbHashStyle = computed(() =>
+    thumbHashDataUrl.value ? { backgroundImage: `url("${thumbHashDataUrl.value}")` } : undefined,
+);
 
 // Direct src for icon mode: pick the smallest available image file (no srcset needed)
 const iconSrc = computed(() => {
@@ -204,19 +232,19 @@ const srcset1 = computed(() => {
         );
     }
 
-    if (!filteredFileCollections.value.length || !baseUrl.value) return "";
+    if (!allFileCollections.value.length || !baseUrl.value) return "";
 
     // In icon/modal mode, use all available images without aspect ratio filtering
     const collectionsToUse =
         props.isIcon || props.isModal
-            ? filteredFileCollections.value
-            : filteredFileCollections.value.filter(
+            ? allFileCollections.value
+            : allFileCollections.value.filter(
                   (collection) => collection.aspectRatio == closestAspectRatio.value,
               );
 
     return collectionsToUse
         .map((collection) => {
-            return collection.imageFiles
+            return [...collection.imageFiles]
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
@@ -224,24 +252,19 @@ const srcset1 = computed(() => {
         .join(", ");
 });
 
-// Source set for the secondary image element (used if the primary image element fails to load)
+// Source set for the secondary image element (used if the primary image element fails to load, or
+// for `original` aspect ratio). Lists the full ladder of the OTHER aspect-ratio collections; the
+// browser picks the right variant via the `sizes` attribute.
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections?.length || !baseUrl.value) return "";
+    if (!allFileCollections.value.length || !baseUrl.value) return "";
 
-    // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
-    // 400 is a conservative default that avoids excluding all images due to 0 width,
-    // and works well across mobile, modal, and early-render scenarios.
-    const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
-
-    return props.image.fileCollections
+    return allFileCollections.value
         .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
-            // fallback: smallest image if all are too large
-            const files = images.length
-                ? images
-                : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            return files.map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`).join(", ");
+            return [...collection.imageFiles]
+                .sort((a, b) => a.width - b.width)
+                .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
+                .join(", ");
         })
         .join(", ");
 });
@@ -305,6 +328,7 @@ const modalSrcset = computed(() => {
         v-if="isModal && modalSrc && !modalImageError"
         :src="modalSrc"
         :srcset="modalSrcset || undefined"
+        sizes="90vw"
         :alt="resolvedAlt"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
@@ -335,6 +359,8 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
+        :sizes="sizesAttr"
+        :style="thumbHashStyle"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -349,8 +375,8 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
-        src=""
         :srcset="srcset2"
+        :sizes="sizesAttr"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
