@@ -53,7 +53,7 @@ export const getConnectionSpeed = () => {
  * Network Information API's `saveData` flag, which Chromium-based browsers expose even when they
  * don't yet support the `prefers-reduced-data` media query. Returns false when unknown (Safari/iOS).
  */
-export const isSaveDataEnabled = (): boolean => {
+export const isDataSaverEnabled = (): boolean => {
     if (isTestEnv) return false;
 
     return !!(
