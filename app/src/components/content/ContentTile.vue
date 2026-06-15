@@ -25,7 +25,6 @@ const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     imageSize: "thumbnail",
     titlePosition: "bottom",
-    showProgress: false,
 });
 
 const publishDateText = computed(() => {
@@ -198,11 +197,11 @@ if (allMedia) {
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
                         >
-                            <p class="absolute m-2 text-pretty text-center text-black blur-sm">
+                            <p class="absolute m-2 text-center text-pretty text-black blur-sm">
                                 {{ content.title }}
                             </p>
                             <p
-                                class="absolute m-2 text-pretty text-center text-white dark:text-slate-200"
+                                class="absolute m-2 text-center text-pretty text-white dark:text-slate-200"
                             >
                                 {{ content.title }}
                             </p>
@@ -239,7 +238,6 @@ if (allMedia) {
 
                         <div
                             v-if="
-                                showProgress &&
                                 (content.video || content.parentMedia?.fileCollections?.length) &&
                                 hasProgress
                             "
@@ -251,7 +249,7 @@ if (allMedia) {
                                     class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
                                 >
                                     <div
-                                        class="absolute left-0 top-0 h-full bg-white"
+                                        class="absolute top-0 left-0 h-full bg-white"
                                         :style="{ width: `${media.progress}%` }"
                                     ></div>
                                 </div>
