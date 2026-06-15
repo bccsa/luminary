@@ -26,7 +26,7 @@ import type { Uuid } from "luminary-shared";
  *
  * Long prose blocks are split into viewport-height segments so gate 1b can pass.
  *
- * @see docs/reading-progress-tracker.md
+ * @see docs/reading-progress-tracker/README.md
  */
 
 const BLOCK_SELECTOR = "p, h1, h2, h3, h4, li, blockquote, pre";
