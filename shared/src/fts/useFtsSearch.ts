@@ -1,6 +1,10 @@
 import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
 import { ftsSearch } from "./ftsSearch";
-import type { FtsSearchResult } from "./types";
+import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
+import { getContentPublishDateCutoff } from "../config";
+import { isConnected } from "../socket/socketio";
+import { OPEN_MIN } from "../api/sync/utils";
+import type { FtsSearchOptions, FtsSearchResult } from "./types";
 
 export type UseFtsSearchOptions = {
     languageId?: Ref<string | undefined>;
@@ -21,6 +25,15 @@ export type UseFtsSearchReturn = {
     runSearch: () => void;
     /** Invalidate any in-flight search and cancel a pending debounced run. Does not clear results. */
     cancel: () => void;
+    /** Where the current results came from: "local" (offline index) or "api" (server-side /fts). */
+    source: Ref<"local" | "api">;
+    /**
+     * True when the showing results are an incomplete (recent-only) view: local search while a
+     * `publishDate` sync cutoff is in effect — i.e. offline with selective sync, or an API-failure
+     * fallback. False when full sync, or when complete API results are shown. UI can surface this
+     * (e.g. "showing offline results — connect for full search").
+     */
+    isPartial: Ref<boolean>;
 };
 
 /**
@@ -42,12 +55,52 @@ export function useFtsSearch(
     const isSearching = ref(false);
     const totalLoaded = ref(0);
     const hasMore = ref(false);
+    const source = ref<"local" | "api">("local");
+    const isPartial = ref(false);
     /** When using triggerOnly, this is the query last passed to doSearch (so UI can show "no results" vs "press Go"). */
     const lastSearchedQuery = ref("");
 
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let currentQuery = "";
     let searchGeneration = 0;
+    /** Route chosen at the start of the current search (offset 0); reused by loadMore so pages don't split across sources. */
+    let activeUseApi = false;
+
+    const cutoffSet = () => getContentPublishDateCutoff() !== OPEN_MIN;
+
+    /**
+     * Run one page against the chosen engine. On the initial search (offset 0) an API failure
+     * falls back to local results; on load-more pages it does not (to avoid mixing sources within
+     * one result list) and instead yields an empty page.
+     */
+    async function runEngine(
+        query: string,
+        offset: number,
+        useApi: boolean,
+        allowFallback: boolean,
+    ): Promise<{ results: FtsSearchResult[]; usedLocal: boolean }> {
+        const opts: FtsSearchOptions = {
+            query,
+            languageId: options.languageId?.value,
+            limit: pageSize,
+            offset,
+            maxTrigramDocPercent,
+        };
+        if (useApi) {
+            try {
+                return { results: await ftsSearchApi(opts), usedLocal: false };
+            } catch (e) {
+                if (!allowFallback) {
+                    // load-more API failure: stop paginating rather than mix in local results
+                    console.warn("FTS API load-more failed:", e);
+                    return { results: [], usedLocal: false };
+                }
+                console.warn("FTS API search failed, falling back to local:", e);
+                return { results: await ftsSearch(opts), usedLocal: true };
+            }
+        }
+        return { results: await ftsSearch(opts), usedLocal: true };
+    }
 
     async function doSearch(query: string, offset: number, append: boolean) {
         if (!query || query.length < 3) {
@@ -55,26 +108,30 @@ export function useFtsSearch(
                 results.value = [];
                 totalLoaded.value = 0;
                 hasMore.value = false;
+                isPartial.value = false;
                 lastSearchedQuery.value = "";
             }
             isSearching.value = false;
             return;
         }
 
-        if (!append) lastSearchedQuery.value = query;
+        if (!append) {
+            lastSearchedQuery.value = query;
+            // Decide the route once per fresh search; loadMore reuses it.
+            activeUseApi = shouldUseApiFts();
+        }
 
         // Track generation to discard stale results from superseded searches
         const generation = ++searchGeneration;
 
         isSearching.value = true;
         try {
-            const searchResults = await ftsSearch({
+            const { results: searchResults, usedLocal } = await runEngine(
                 query,
-                languageId: options.languageId?.value,
-                limit: pageSize,
                 offset,
-                maxTrigramDocPercent,
-            });
+                activeUseApi,
+                !append,
+            );
 
             // Discard if a newer search was started while this one was running
             if (generation !== searchGeneration) return;
@@ -86,6 +143,9 @@ export function useFtsSearch(
             }
             totalLoaded.value = offset + searchResults.length;
             hasMore.value = searchResults.length === pageSize;
+            source.value = usedLocal ? "local" : "api";
+            // Local results are an incomplete view only when a sync cutoff is in effect.
+            isPartial.value = usedLocal && cutoffSet();
         } catch (e) {
             console.error("FTS search error:", e);
         } finally {
@@ -157,6 +217,14 @@ export function useFtsSearch(
         });
     }
 
+    // Upgrade partial (offline/fallback) results when connectivity returns: re-run the
+    // current search so it routes to the API and replaces the incomplete local view.
+    watch(isConnected, (online) => {
+        if (online && currentQuery && isPartial.value) {
+            doSearch(currentQuery, 0, false);
+        }
+    });
+
     // Cleanup timer on scope dispose
     if (getCurrentScope()) {
         onScopeDispose(() => {
@@ -174,5 +242,7 @@ export function useFtsSearch(
         lastSearchedQuery,
         runSearch,
         cancel,
+        source,
+        isPartial,
     };
 }

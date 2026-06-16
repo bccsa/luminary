@@ -5,11 +5,25 @@ vi.mock("./ftsSearch", () => ({
     ftsSearch: vi.fn(),
 }));
 
+// Keep the real shouldUseApiFts (drives routing from real config + isConnected);
+// only stub the network call.
+vi.mock("./ftsSearchApi", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("./ftsSearchApi")>();
+    return { ...actual, ftsSearchApi: vi.fn() };
+});
+
 import { useFtsSearch } from "./useFtsSearch";
 import { ftsSearch } from "./ftsSearch";
+import { ftsSearchApi } from "./ftsSearchApi";
+import { isConnected } from "../socket/socketio";
+import { initConfig } from "../config";
 import type { FtsSearchResult } from "./types";
 
 const mockFtsSearch = vi.mocked(ftsSearch);
+const mockFtsSearchApi = vi.mocked(ftsSearchApi);
+
+const CUTOFF = { cms: false, docsIndex: "", apiUrl: "http://x", contentPublishDateCutoff: 12345 };
+const NO_CUTOFF = { cms: false, docsIndex: "", apiUrl: "http://x" };
 
 function makeResult(docId: string, score = 1, wordMatchScore = 0): FtsSearchResult {
     return { docId, score, wordMatchScore, doc: { _id: docId } as any };
@@ -20,6 +34,9 @@ describe("useFtsSearch", () => {
         vi.clearAllMocks();
         vi.useFakeTimers();
         mockFtsSearch.mockResolvedValue([]);
+        mockFtsSearchApi.mockResolvedValue([]);
+        isConnected.value = false;
+        initConfig({ ...NO_CUTOFF } as any);
     });
 
     afterEach(() => {
@@ -329,6 +346,133 @@ describe("useFtsSearch", () => {
         // Now it should fire after debounce
         await vi.advanceTimersByTimeAsync(100);
         expect(mockFtsSearch).toHaveBeenCalled();
+        scope.stop();
+    });
+
+    // ── Routing (local vs server-side /fts) ────────────────────────────────────
+
+    async function runOnce(setup: () => any) {
+        const scope = effectScope();
+        let result: any;
+        scope.run(() => {
+            result = setup();
+        });
+        await vi.advanceTimersByTimeAsync(60);
+        await vi.advanceTimersByTimeAsync(10);
+        return { result, scope };
+    }
+
+    it("offline routes to local and flags partial when a cutoff is set", async () => {
+        isConnected.value = false;
+        initConfig({ ...CUTOFF } as any);
+        mockFtsSearch.mockResolvedValue([makeResult("1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearch).toHaveBeenCalled();
+        expect(mockFtsSearchApi).not.toHaveBeenCalled();
+        expect(result.source.value).toBe("local");
+        expect(result.isPartial.value).toBe(true);
+        scope.stop();
+    });
+
+    it("online with no cutoff routes to local and is not partial (full sync)", async () => {
+        isConnected.value = true;
+        initConfig({ ...NO_CUTOFF } as any);
+        mockFtsSearch.mockResolvedValue([makeResult("1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearch).toHaveBeenCalled();
+        expect(mockFtsSearchApi).not.toHaveBeenCalled();
+        expect(result.source.value).toBe("local");
+        expect(result.isPartial.value).toBe(false);
+        scope.stop();
+    });
+
+    it("online with a cutoff routes to the API", async () => {
+        isConnected.value = true;
+        initConfig({ ...CUTOFF } as any);
+        mockFtsSearchApi.mockResolvedValue([makeResult("a1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearchApi).toHaveBeenCalled();
+        expect(mockFtsSearch).not.toHaveBeenCalled();
+        expect(result.source.value).toBe("api");
+        expect(result.isPartial.value).toBe(false);
+        scope.stop();
+    });
+
+    it("CMS routes to the API when online even without a cutoff", async () => {
+        isConnected.value = true;
+        initConfig({ ...NO_CUTOFF, cms: true } as any);
+        mockFtsSearchApi.mockResolvedValue([makeResult("a1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearchApi).toHaveBeenCalled();
+        expect(result.source.value).toBe("api");
+        expect(result.isPartial.value).toBe(false);
+        scope.stop();
+    });
+
+    it("falls back to local (partial) when the API search fails", async () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        isConnected.value = true;
+        initConfig({ ...CUTOFF } as any);
+        mockFtsSearchApi.mockRejectedValue(new Error("boom"));
+        mockFtsSearch.mockResolvedValue([makeResult("local1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearchApi).toHaveBeenCalled();
+        expect(mockFtsSearch).toHaveBeenCalled();
+        expect(result.source.value).toBe("local");
+        expect(result.isPartial.value).toBe(true);
+        expect(result.results.value).toEqual([makeResult("local1")]);
+        warnSpy.mockRestore();
+        scope.stop();
+    });
+
+    it("re-runs against the API when connectivity returns (upgrades partial)", async () => {
+        isConnected.value = false;
+        initConfig({ ...CUTOFF } as any);
+        mockFtsSearch.mockResolvedValue([makeResult("local1")]);
+        mockFtsSearchApi.mockResolvedValue([makeResult("api1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(result.source.value).toBe("local");
+        expect(result.isPartial.value).toBe(true);
+
+        // Come online → reconnect watcher re-runs the search against the API
+        isConnected.value = true;
+        await nextTick();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(mockFtsSearchApi).toHaveBeenCalled();
+        expect(result.source.value).toBe("api");
+        expect(result.isPartial.value).toBe(false);
+        scope.stop();
+    });
+
+    it("loadMore stays on the API source for the current search", async () => {
+        isConnected.value = true;
+        initConfig({ ...CUTOFF } as any);
+        const fullPage = Array.from({ length: 20 }, (_, i) => makeResult(`a-${i}`));
+        mockFtsSearchApi.mockResolvedValue(fullPage);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50, pageSize: 20 }),
+        );
+        expect(result.hasMore.value).toBe(true);
+
+        mockFtsSearchApi.mockResolvedValue([makeResult("a-20")]);
+        result.loadMore();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(result.totalLoaded.value).toBe(21);
+        expect(mockFtsSearch).not.toHaveBeenCalled(); // never fell back to local
         scope.stop();
     });
 });

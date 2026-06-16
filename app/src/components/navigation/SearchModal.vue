@@ -112,7 +112,13 @@ const {
     lastSearchedQuery,
     runSearch,
     cancel,
+    isPartial,
 } = ftsRet;
+
+// Show the "offline / partial results" hint only once a search has produced output.
+const showPartialHint = computed(
+    () => isPartial.value && !isSearching.value && ftsResults.value.length > 0,
+);
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
 useInfiniteScroll(
@@ -632,6 +638,13 @@ defineExpose({ toggleSearch: () => (isSearchOpen.value = !isSearchOpen.value) })
                     ref="searchResultsContainerRef"
                     class="flex-1 overflow-y-auto scrollbar-hide"
                 >
+                    <div
+                        v-if="showPartialHint"
+                        class="bg-amber-50 px-4 py-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 md:px-5"
+                    >
+                        {{ t("search.partialResults") }}
+                    </div>
+
                     <div
                         v-if="isSearching && results.length === 0"
                         class="p-4 md:p-5"
