@@ -1,0 +1,9 @@
+{
+    "_id": "_design/fts-corpus-stats",
+    "views": {
+        "fts-corpus-stats": {
+            "map": "function (doc) {\n  if (doc.type === \"content\" && typeof doc.ftsTokenCount === \"number\") {\n    emit(null, doc.ftsTokenCount);\n  }\n}",
+            "reduce": "_stats"
+        }
+    }
+}

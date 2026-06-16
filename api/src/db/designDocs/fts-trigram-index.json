@@ -1,0 +1,9 @@
+{
+    "_id": "_design/fts-trigram-index",
+    "views": {
+        "fts-trigram-index": {
+            "map": "function (doc) {\n  if (doc.type === \"content\" && doc.fts) {\n    for (var i = 0; i < doc.fts.length; i++) {\n      var e = doc.fts[i];\n      var c = e.indexOf(\":\", 3);\n      emit(e.substring(0, c), [\n        parseFloat(e.substring(c + 1)),\n        doc.parentType,\n        doc.status,\n        doc.publishDate || null,\n        doc.expiryDate || null,\n        doc.language,\n        doc.memberOf,\n        doc.parentTags || []\n      ]);\n    }\n  }\n}",
+            "reduce": "_count"
+        }
+    }
+}

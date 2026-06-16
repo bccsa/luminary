@@ -75,6 +75,30 @@ export type DbUpsertResult = {
 };
 
 /**
+ * Embedded value of a row in the `fts-trigram-index` CouchDB view.
+ * Carries the document's term frequency for the row's trigram plus the doc-level
+ * metadata needed to permission/visibility-filter candidates without loading the
+ * documents. See ADR 0010.
+ */
+export type FtsCandidateValue = [
+    number, // [0] tf (boosted term frequency)
+    DocType, // [1] parentType
+    PublishStatus, // [2] status
+    number | null, // [3] publishDate
+    number | null, // [4] expiryDate
+    Uuid, // [5] language
+    Uuid[], // [6] memberOf
+    Uuid[], // [7] parentTags
+];
+
+/** A single candidate row returned by {@link DbService.ftsTrigramCandidates}. */
+export type FtsCandidateRow = {
+    trigram: string;
+    docId: Uuid;
+    value: FtsCandidateValue;
+};
+
+/**
  * Database service for interacting with CouchDB.
  * Provides methods for CRUD operations, document synchronization, and query execution.
  *
@@ -718,6 +742,63 @@ export class DbService extends EventEmitter {
         res.blockStart = blockStart;
         res.blockEnd = blockEnd;
         return res;
+    }
+
+    /**
+     * FTS: corpus-level statistics for BM25 scoring, served by the
+     * `fts-corpus-stats` view's `_stats` reduce.
+     * @returns the number of indexed Content documents (`docCount`) and the sum of
+     * their `ftsTokenCount` (`totalTokenCount`, used to derive average doc length).
+     */
+    async ftsCorpusStats(): Promise<{ docCount: number; totalTokenCount: number }> {
+        await this.ensureConnected();
+        const res = await this.db.view("fts-corpus-stats", "fts-corpus-stats", {
+            reduce: true,
+            group: false,
+        });
+        const stats = res.rows && res.rows[0] && res.rows[0].value;
+        if (!stats) return { docCount: 0, totalTokenCount: 0 };
+        return { docCount: stats.count || 0, totalTokenCount: stats.sum || 0 };
+    }
+
+    /**
+     * FTS: document frequency (number of Content docs containing each trigram),
+     * served by the `fts-trigram-index` view's `_count` reduce with `group=true`.
+     * Used to drop over-common trigrams and to compute IDF.
+     */
+    async ftsTrigramDf(trigrams: string[]): Promise<Map<string, number>> {
+        await this.ensureConnected();
+        const df = new Map<string, number>();
+        if (!trigrams || trigrams.length === 0) return df;
+        const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            keys: trigrams,
+            group: true,
+            reduce: true,
+        });
+        for (const row of res.rows) {
+            df.set(row.key, row.value);
+        }
+        return df;
+    }
+
+    /**
+     * FTS: candidate rows for the given trigrams (non-reduced view query).
+     * Each row carries the document's term frequency for that trigram plus the
+     * doc-level metadata embedded in the view value, so permission/visibility
+     * filtering can be done without loading the documents. See {@link FtsCandidateValue}.
+     */
+    async ftsTrigramCandidates(trigrams: string[]): Promise<FtsCandidateRow[]> {
+        await this.ensureConnected();
+        if (!trigrams || trigrams.length === 0) return [];
+        const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            keys: trigrams,
+            reduce: false,
+        });
+        return res.rows.map((row: any) => ({
+            trigram: row.key,
+            docId: row.id,
+            value: row.value as FtsCandidateValue,
+        }));
     }
 
     /**
