@@ -26,7 +26,7 @@ A traditional CouchDB **view** (`fts-trigram-index`) whose JavaScript map splits
 
 The trigram view value is a tuple `[tf, parentType, status, publishDate, expiryDate, language, memberOf, parentTags]`. This lets the service apply permission and visibility filtering — and optional CMS filters (tags, status, publishDate range) — **in JS directly from the index rows**, with no per-query Mango `_find`. Consequences:
 
-- **Filtering happens before the top-K cap.** Candidates are pre-ranked by `Σ idf·tf` and capped (top-K = 500) only after permission/visibility/optional filters, so a narrow-access user's results are never truncated by higher-scoring documents they can't see.
+- **Filtering happens before the top-K cap.** Candidates are pre-ranked by `Σ idf·tf` and capped (top-K = `max(150, offset + limit)`) only after permission/visibility/optional filters, so a narrow-access user's results are never truncated by higher-scoring documents they can't see.
 - **IDF uses the accessible document frequency** (distinct surviving docIds), not the global corpus — arguably more correct than the client's synced-subset df, but a documented source of minor ranking divergence.
 - **Index value bloat:** embedding doc metadata per trigram row makes the view ~10–15× larger by value size (row count unchanged) than a bare `tf`. This is the deliberate cost of avoiding a per-query Mango `_find`, getting a correct accessible-set top-K, and serving CMS filters from the index.
 
@@ -39,6 +39,17 @@ Permissions are enforced from the embedded `memberOf` against the user's View gr
 Scoring is reimplemented in `api/src/util/ftsScoring.ts`, reusing the API-side `FTS_FIELDS` from `ftsIndexing.ts`. The BM25 parameters (`k1 = 1.2`, `b = 0.75`), the over-common-trigram threshold (50%), and the boost-weighted full-word **word-match bonus** mirror `shared/src/fts/ftsSearch.ts`. The word-match bonus needs the original field text (it cannot be derived from the lossy trigram data), which is why the service fetches the top-K documents (a by-key `_all_docs` fetch, not Mango) before the final scoring pass. **If you change BM25 params or field boosts on one side, change the other**, or server and client relevance silently diverge — the same forcing function as ADR 0009.
 
 Word-match (and therefore final ranking and pagination) is computed server-side rather than pushed to the client: it does not save the doc fetch (bodies are needed for display either way), and a client-side approach would force a larger BM25-ranked top-N response with client-side pagination, penalizing the mobile/partial-sync clients this targets.
+
+### Performance
+
+The query path is several CouchDB reads plus an in-JS filter over the candidate rows. The following tuning brought a representative query from ~600–800ms to ~200ms (warm), and matters because the candidate scan and doc fetch dominate:
+
+- **Connection reuse.** The `nano` HTTP agent uses `keepAlive: true` so the multiple sequential CouchDB round trips in one query don't each pay TCP connection setup.
+- **Parallel + cached reads.** The independent corpus-stats and document-frequency reads run concurrently (`Promise.all`); corpus stats are cached in `DbService` for 60s (they change slowly), removing a round trip from most queries.
+- **Stale view reads.** The FTS view reads use `{ stable: true, update: "lazy" }` — return immediately from the current index instead of blocking the read to update it, then update in the background. FTS tolerates slight staleness, and `lazy` keeps the index converging even if the background indexer is off.
+- **High-df trigram pruning.** After the over-common-trigram filter, only the most discriminative (lowest-df) trigrams are kept, within a candidate-row budget (`Σ df ≤ FTS_CANDIDATE_ROW_BUDGET`, floor `FTS_MIN_TRIGRAMS`). A trigram's df ≈ the candidate rows it contributes; common trigrams add many rows but little ranking signal (low IDF), so dropping them ~halved the candidate scan with negligible change to surviving documents.
+- **Dynamic top-K.** The exact-scored set is `max(FTS_TOP_K_MIN=150, offset + limit)` rather than a fixed 500 — each fetched doc drags its large `fts` array, so a smaller K means a much smaller doc fetch while the `Σ idf·tf` pre-rank keeps page ordering stable.
+- **Doc fetch uses `_all_docs` by keys, NOT Mango `_find`.** A Mango `selector: { _id: { $in } }` range-scans the primary index between the min/max id in the set — with random UUIDs that scans most of the database (~6× slower, scaling with corpus size, not the K ids). `_all_docs` with `keys` does direct point lookups. The `fts` array is stripped from the response regardless, so the client payload is lean either way; a leaner *internal* fetch would require a docid-keyed projection **view** (Mango is not an option), which was judged not worth a second view to maintain.
 
 ### Response: ranked page bodies, not persistable
 
@@ -53,4 +64,4 @@ The endpoint returns `[{ docId, score, wordMatchScore, doc }]` for the requested
 - BM25 params + `FTS_FIELDS` are now mirrored in three places (`api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, `shared/src/fts/ftsSearch.ts`). The API cannot import from `luminary-shared`, so this remains a documented mirror (extends ADR 0009).
 - Corpus stats served here cover the full server corpus (including drafts) vs. the client's synced-subset stats — minor BM25 differences, acceptable. Serving API corpus stats to clients for unified scoring is a possible future step.
 - The trigram view is large (embedded per-trigram metadata); this is an accepted storage cost for query performance and correctness.
-- The client-side merge/de-duplication of server + local results, and the rule that server results are not persisted, are handled in a separate client-implementation change.
+- The client-side routing between this endpoint and local search — and the rule that server results are not persisted — landed as a separate change; see ADR 0011. That change chose **single-source routing (no local+server merge)**: because this endpoint's corpus is a superset of the locally-synced subset, its result is already complete, so merging local results would only add duplicates and df-scope ranking inconsistency.

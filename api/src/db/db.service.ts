@@ -99,6 +99,17 @@ export type FtsCandidateRow = {
 };
 
 /**
+ * View-read options for the FTS path. `update: "lazy"` returns immediately from the
+ * current index instead of blocking the read to bring the view up to date, then
+ * schedules an update afterwards so the index keeps converging (so newly-ingested
+ * content becomes searchable shortly after, without each search paying the index-update
+ * cost). `stable: true` reads from a consistent shard snapshot so the multiple FTS view
+ * reads in one query score against the same index state. FTS tolerates slight staleness
+ * (ADR 0010).
+ */
+const FTS_STALE_READ = { stable: true, update: "lazy" as const };
+
+/**
  * Database service for interacting with CouchDB.
  * Provides methods for CRUD operations, document synchronization, and query execution.
  *
@@ -134,6 +145,12 @@ export class DbService extends EventEmitter {
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
+    /** Short-lived cache of FTS corpus stats; recomputing per search is wasteful as it changes slowly. */
+    private ftsCorpusStatsCache?: {
+        value: { docCount: number; totalTokenCount: number };
+        expiresAt: number;
+    };
+    private readonly ftsCorpusStatsTtlMs = 60000;
 
     /**
      * Sequence cursor of the last change delivered to listeners. Passed as
@@ -179,6 +196,10 @@ export class DbService extends EventEmitter {
             requestDefaults: {
                 agent: new http.Agent({
                     maxSockets: this.dbConfig.maxSockets,
+                    // Reuse TCP connections across requests so each CouchDB round trip
+                    // doesn't pay connection-setup latency (notably the multi-round-trip
+                    // FTS search path).
+                    keepAlive: true,
                 }),
             },
         }).use(this.dbConfig.database);
@@ -751,14 +772,21 @@ export class DbService extends EventEmitter {
      * their `ftsTokenCount` (`totalTokenCount`, used to derive average doc length).
      */
     async ftsCorpusStats(): Promise<{ docCount: number; totalTokenCount: number }> {
+        const cached = this.ftsCorpusStatsCache;
+        if (cached && cached.expiresAt > Date.now()) return cached.value;
+
         await this.ensureConnected();
         const res = await this.db.view("fts-corpus-stats", "fts-corpus-stats", {
+            ...FTS_STALE_READ,
             reduce: true,
             group: false,
         });
         const stats = res.rows && res.rows[0] && res.rows[0].value;
-        if (!stats) return { docCount: 0, totalTokenCount: 0 };
-        return { docCount: stats.count || 0, totalTokenCount: stats.sum || 0 };
+        const value = stats
+            ? { docCount: stats.count || 0, totalTokenCount: stats.sum || 0 }
+            : { docCount: 0, totalTokenCount: 0 };
+        this.ftsCorpusStatsCache = { value, expiresAt: Date.now() + this.ftsCorpusStatsTtlMs };
+        return value;
     }
 
     /**
@@ -771,6 +799,7 @@ export class DbService extends EventEmitter {
         const df = new Map<string, number>();
         if (!trigrams || trigrams.length === 0) return df;
         const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            ...FTS_STALE_READ,
             keys: trigrams,
             group: true,
             reduce: true,
@@ -791,6 +820,7 @@ export class DbService extends EventEmitter {
         await this.ensureConnected();
         if (!trigrams || trigrams.length === 0) return [];
         const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            ...FTS_STALE_READ,
             keys: trigrams,
             reduce: false,
         });

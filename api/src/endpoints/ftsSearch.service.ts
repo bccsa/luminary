@@ -22,12 +22,29 @@ import {
 } from "../util/ftsScoring";
 
 /**
- * Maximum number of candidate documents fetched and scored per query. Candidates
- * are pre-ranked by `Σ idf·tf` (length-norm-free) and capped here before the full
- * BM25 + word-match pass. Filtering happens before this cap, so the cap only ever
- * drops the lowest-scoring accessible candidates.
+ * Minimum number of candidate documents fetched and exact-scored per query. The
+ * effective cap is `max(FTS_TOP_K_MIN, offset + limit)` so deep pages still work.
+ * Candidates are pre-ranked by `Σ idf·tf` (length-norm-free, strongly correlated with
+ * final BM25) and capped before the full BM25 + word-match pass; filtering happens
+ * before the cap, so it only ever drops the lowest-scoring accessible candidates.
+ * Kept modest because each fetched doc carries its large `fts` array (stripped before
+ * returning) — a smaller K means a much smaller `_all_docs` fetch.
  */
-const FTS_TOP_K = 500;
+const FTS_TOP_K_MIN = 150;
+
+/**
+ * High-df trigram pruning. After dropping over-common trigrams (`maxTrigramDocPercent`),
+ * keep only the most discriminative (lowest-df) remaining trigrams within a candidate-row
+ * budget — the number of candidate rows a trigram contributes is ≈ its document frequency.
+ * Common trigrams add many rows but little ranking signal (low IDF), so dropping them
+ * shrinks the candidate scan and the JS filter loop with minimal ranking impact.
+ *
+ * `FTS_CANDIDATE_ROW_BUDGET` caps the summed df of kept trigrams (≈ candidate rows fetched).
+ * `FTS_MIN_TRIGRAMS` is a floor: always keep at least this many of the rarest trigrams even
+ * if that exceeds the budget, so short/uncommon queries still match.
+ */
+const FTS_CANDIDATE_ROW_BUDGET = 3000;
+const FTS_MIN_TRIGRAMS = 3;
 
 /**
  * Server-side full-text search.
@@ -110,22 +127,18 @@ export class FtsSearchService {
         const trigrams = generateSearchTrigrams(req.queryString);
         if (trigrams.length === 0) return [];
 
-        // Step 2: corpus stats → average document length
-        const { docCount: N, totalTokenCount } = await this.db.ftsCorpusStats();
-        if (N === 0) return [];
-        const avgdl = totalTokenCount / N || 1;
-
-        // Step 3: permission context. NOTE: accessMapToGroups returns a Map-typed value
-        // that is used as a plain object via property access (see PermissionSystem).
+        // Step 2: permission context (in-memory). NOTE: accessMapToGroups returns a
+        // Map-typed value that is used as a plain object via property access.
         const userViewGroups = PermissionSystem.accessMapToGroups(userDetails.accessMap, AclPermission.View, [
             DocType.Post,
             DocType.Tag,
             DocType.Language,
         ]);
 
-        const groupsByParentType: Record<string, Uuid[]> = {};
-        for (const t of types) groupsByParentType[t] = userViewGroups[t] || [];
-        if (!types.some((t) => groupsByParentType[t].length > 0))
+        // Per-parentType View groups as Sets for O(1) membership checks in the hot filter loop.
+        const groupsByParentType: Record<string, Set<Uuid>> = {};
+        for (const t of types) groupsByParentType[t] = new Set(userViewGroups[t] || []);
+        if (!types.some((t) => groupsByParentType[t].size > 0))
             throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
         // Accessible languages (visibility filter on the non-CMS path)
@@ -144,8 +157,15 @@ export class FtsSearchService {
             req.languages && req.languages.length ? new Set(req.languages) : null;
         const requestedTags = req.tags && req.tags.length ? new Set(req.tags) : null;
 
-        // Step 4: document frequency → drop over-common trigrams
-        const df = await this.db.ftsTrigramDf(trigrams);
+        // Step 3: corpus stats + document frequency — independent reads, run in parallel.
+        const [{ docCount: N, totalTokenCount }, df] = await Promise.all([
+            this.db.ftsCorpusStats(),
+            this.db.ftsTrigramDf(trigrams),
+        ]);
+        if (N === 0) return [];
+        const avgdl = totalTokenCount / N || 1;
+
+        // Drop over-common trigrams
         const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
         const usableTrigrams = trigrams.filter((t) => {
             const d = df.get(t) || 0;
@@ -153,8 +173,26 @@ export class FtsSearchService {
         });
         if (usableTrigrams.length === 0) return [];
 
-        // Step 5: fetch candidate rows and filter in JS straight from the embedded metadata
-        const candidates = await this.db.ftsTrigramCandidates(usableTrigrams);
+        // High-df pruning: keep the most discriminative (lowest-df) trigrams within a
+        // candidate-row budget. Sort rarest-first and greedily add until the summed df
+        // would exceed the budget (but always keep at least FTS_MIN_TRIGRAMS).
+        const rankedByDf = usableTrigrams
+            .map((t) => ({ t, d: df.get(t) || 0 }))
+            .sort((a, b2) => a.d - b2.d);
+        let rowBudget = 0;
+        const keptTrigrams: string[] = [];
+        for (const { t, d } of rankedByDf) {
+            if (
+                keptTrigrams.length >= FTS_MIN_TRIGRAMS &&
+                rowBudget + d > FTS_CANDIDATE_ROW_BUDGET
+            )
+                break;
+            keptTrigrams.push(t);
+            rowBudget += d;
+        }
+
+        // Step 4: fetch candidate rows and filter in JS straight from the embedded metadata
+        const candidates = await this.db.ftsTrigramCandidates(keptTrigrams);
         const perDocTf = new Map<string, Map<string, number>>();
         const accessibleDfDocs = new Map<string, Set<string>>(); // trigram → distinct surviving docIds
 
@@ -167,8 +205,8 @@ export class FtsSearchService {
 
             // permission: doc's groups ∩ user's View groups for this parentType
             const groups = groupsByParentType[parentType];
-            if (!groups || groups.length === 0) continue;
-            if (!memberOf || !memberOf.some((g) => groups.includes(g))) continue;
+            if (!groups || groups.size === 0) continue;
+            if (!memberOf || !memberOf.some((g) => groups.has(g))) continue;
 
             // visibility (non-CMS): published, not scheduled, not expired, accessible language
             if (!cms) {
@@ -209,7 +247,7 @@ export class FtsSearchService {
 
         // IDF over the accessible/visible subset (distinct surviving docIds)
         const idfMap = new Map<string, number>();
-        for (const t of usableTrigrams) {
+        for (const t of keptTrigrams) {
             const adf = accessibleDfDocs.get(t)?.size || 0;
             if (adf > 0) idfMap.set(t, idf(N, adf));
         }
@@ -225,16 +263,22 @@ export class FtsSearchService {
             prelim.push({ docId, proxy });
         }
         prelim.sort((a, b2) => b2.proxy - a.proxy);
+        // Effective cap honors pagination depth but stays small otherwise, since each
+        // fetched doc drags its large `fts` array.
+        const topKCap = Math.max(FTS_TOP_K_MIN, offset + limit);
         let topK = prelim;
-        if (prelim.length > FTS_TOP_K) {
-            this.logger.warn(
-                `FTS: ${prelim.length} candidates exceed top-K (${FTS_TOP_K}); truncating to highest-scoring`,
-            );
-            topK = prelim.slice(0, FTS_TOP_K);
+        if (prelim.length > topKCap) {
+            topK = prelim.slice(0, topKCap);
         }
         const topKIds = topK.map((c) => c.docId);
 
-        // Step 7: fetch the top-K docs (by-key _all_docs, not Mango) → full BM25 + word-match
+        // Step 7: fetch the top-K docs for the full BM25 + word-match pass and the
+        // returned doc body.
+        // NOTE: use `_all_docs` by keys (getDocs), NOT a Mango `_find` with `_id: {$in}`.
+        // Mango `$in` on `_id` range-scans the primary index between the min/max id in
+        // the set — with random UUIDs that scans most of the DB and is ~6x slower.
+        // `_all_docs` does direct point lookups. The `fts` array is stripped from the
+        // response anyway (stripFtsFields), so the client payload is lean regardless.
         const fetched = await this.db.getDocs(topKIds, [DocType.Content]);
         const docMap = new Map<string, ContentDto>(
             (fetched.docs as ContentDto[]).map((d) => [d._id, d]),

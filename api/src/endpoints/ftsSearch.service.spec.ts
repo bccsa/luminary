@@ -216,4 +216,39 @@ describe("FtsSearchService", () => {
             expect((r.doc as any).ftsTokenCount).toBeUndefined();
         }
     });
+
+    it("prunes high-df trigrams, keeping the lowest-df within the budget", async () => {
+        // Large corpus so the high-df trigrams still pass the maxTrigramDocPercent (50%)
+        // filter but their summed df exceeds the candidate-row budget (3000).
+        dbService.ftsCorpusStats.mockResolvedValue({ docCount: 10000, totalTokenCount: 100000 });
+        dbService.ftsTrigramDf.mockResolvedValue(
+            new Map([
+                ["gar", 500],
+                ["ard", 800],
+                ["rde", 1200],
+                ["den", 4000], // highest df — pushes the running budget over 3000, so dropped
+            ]),
+        );
+        dbService.ftsTrigramCandidates.mockResolvedValue([]); // empty → search returns []
+
+        await service.search(makeReq({ queryString: "garden" }), mockUser);
+
+        // Only the three lowest-df trigrams are fetched (sorted rarest-first); "den" is pruned.
+        expect(dbService.ftsTrigramCandidates).toHaveBeenCalledWith(["gar", "ard", "rde"]);
+    });
+
+    it("caps the exact-scored set at max(150, offset + limit)", async () => {
+        const rows = Array.from({ length: 200 }, (_, i) => row(`d${i}`, "gar", value()));
+        dbService.ftsTrigramCandidates.mockResolvedValue(rows);
+        dbService.getDocs.mockResolvedValue({ docs: [] });
+
+        // Default page (limit 20) → cap of 150.
+        await service.search(makeReq(), mockUser);
+        expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(150);
+
+        // Deep page (offset 140 + limit 20 = 160) → cap grows to 160.
+        dbService.getDocs.mockClear();
+        await service.search(makeReq({ offset: 140, limit: 20 }), mockUser);
+        expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(160);
+    });
 });
