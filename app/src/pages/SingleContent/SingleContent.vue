@@ -222,7 +222,7 @@ const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
 watch([content, isConnected], async () => {
-    if (!content.value) return;
+    if (!content.value || content.value === defaultContent) return;
 
     // Only reload translations if we're viewing a different parent content
     // This prevents flash when switching between translations of the same content
@@ -255,14 +255,13 @@ watch([content, isConnected], async () => {
         mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
     ]);
 
-    if (availableContentTranslations.length > 1) {
-        availableTranslations.value = availableContentTranslations as ContentDto[];
-        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((t) => t.language === lang._id),
-        );
-    }
+    availableTranslations.value = availableContentTranslations as ContentDto[];
+    languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
+        availableTranslations.value.some((t) => t.language === lang._id),
+    );
 
     isLoadingTranslations.value = false;
+    isLoading.value = false;
 
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
@@ -322,7 +321,7 @@ const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == 
 const selectedCategoryId = ref<Uuid | undefined>();
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
-const isLoading = ref(isConnected.value);
+const isLoading = ref(true);
 const is404 = ref(false);
 
 // Compiled Mango filter to check if content is published (recompiles reactively when content changes)
@@ -350,6 +349,7 @@ const check404 = () => {
 
 watch(content, () => {
     is404.value = check404();
+    if (is404.value) isLoading.value = false;
 });
 
 // Function to toggle bookmark for the current content
@@ -384,8 +384,6 @@ const isBookmarked = computed(() => {
 });
 
 watch([content, is404], () => {
-    if (content.value) isLoading.value = false;
-
     // Set document title and meta tags
     document.title = is404.value
         ? `Page not found - ${appName}`
@@ -627,7 +625,10 @@ watch([isLoading, content, is404], async () => {
 </script>
 
 <template>
-    <BasePage :showBackButton="true" desktopTopBar>
+    <BasePage
+        :showBackButton="true"
+        desktopTopBar
+    >
         <template
             #quickControls
             v-if="!is404"
