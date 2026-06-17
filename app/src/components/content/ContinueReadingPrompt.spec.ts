@@ -16,14 +16,17 @@ describe("ContinueReadingPrompt", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("content.continueReading.prompt");
-        expect(wrapper.text()).toContain("42%");
+        expect(wrapper.text()).toContain("content.continueReading.action");
+        expect(wrapper.text()).not.toContain("42%");
+        expect(wrapper.find('[role="progressbar"]').attributes("aria-valuenow")).toBe("42");
+        expect(wrapper.find('[style*="width: 42%"]').exists()).toBe(true);
 
-        await wrapper.get("button").trigger("click");
+        const continueButton = wrapper.findAll("button")[0];
+        await continueButton.trigger("click");
         expect(wrapper.emitted("continue")).toHaveLength(1);
     });
 
-    it("emits dismiss without emitting continue", async () => {
+    it("emits dismiss via the X button without emitting continue", async () => {
         const wrapper = mount(ContinueReadingPrompt, {
             props: {
                 visible: true,
@@ -36,10 +39,35 @@ describe("ContinueReadingPrompt", () => {
             },
         });
 
-        const buttons = wrapper.findAll("button");
-        await buttons[1].trigger("click");
+        const dismissButton = wrapper.findAll("button")[1];
+        expect(dismissButton.attributes("aria-label")).toBe("content.continueReading.dismiss");
+
+        await dismissButton.trigger("click");
 
         expect(wrapper.emitted("dismiss")).toHaveLength(1);
         expect(wrapper.emitted("continue")).toBeUndefined();
+    });
+
+    it("grows for long translation strings without clipping the action label", () => {
+        const longLabel =
+            "Continue where you left off in this very long article title that keeps going";
+
+        const wrapper = mount(ContinueReadingPrompt, {
+            props: {
+                visible: true,
+                progressPercent: 75,
+            },
+            global: {
+                mocks: {
+                    t: (key: string) =>
+                        key === "content.continueReading.action" ? longLabel : key,
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain(longLabel);
+        expect(wrapper.find(".max-w-\\[min\\(24rem\\,calc\\(100vw-2rem\\)\\)\\]").exists()).toBe(
+            true,
+        );
     });
 });

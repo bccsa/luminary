@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { XMarkIcon } from "@heroicons/vue/20/solid";
 import { useI18n } from "vue-i18n";
 
 defineProps<{
@@ -17,41 +18,48 @@ const { t } = useI18n();
 <template>
     <Transition
         enter-active-class="transition duration-300 ease-out"
-        enter-from-class="translate-x-full opacity-0"
-        enter-to-class="translate-x-0 opacity-100"
+        enter-from-class="translate-y-full opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
         leave-active-class="transition duration-200 ease-in"
-        leave-from-class="translate-x-0 opacity-100"
-        leave-to-class="translate-x-full opacity-0"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-full opacity-0"
     >
         <div
             v-if="visible"
-            class="fixed bottom-[76px] right-0 z-40 w-full max-w-sm px-4 lg:bottom-5 lg:right-5 lg:px-0"
+            class="fixed z-40 w-max min-w-[12rem] max-w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 px-4 max-lg:left-1/2 max-lg:bottom-[calc(var(--mobile-menu-h,78px)+0.75rem)] lg:bottom-5 lg:left-[calc(50%+var(--desktop-sidebar-w,16rem)/2)]"
             role="dialog"
             :aria-label="t('content.continueReading.prompt')"
         >
             <div
-                class="flex flex-col gap-3 rounded-lg bg-white p-4 shadow-lg ring-1 ring-zinc-200 dark:bg-slate-800 dark:ring-slate-600"
+                class="overflow-hidden rounded-lg bg-zinc-100 shadow-lg ring-1 ring-zinc-900/10 dark:bg-slate-700 dark:ring-slate-600"
             >
-                <p class="text-sm font-medium text-zinc-900 dark:text-slate-100">
-                    {{ t("content.continueReading.prompt") }}
-                </p>
-                <p class="text-xs text-zinc-600 dark:text-slate-400">
-                    {{ progressPercent }}%
-                </p>
-                <div class="flex gap-2">
+                <div
+                    class="h-1 bg-zinc-200 dark:bg-slate-600"
+                    role="progressbar"
+                    :aria-valuenow="progressPercent"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                >
+                    <div
+                        class="h-full bg-yellow-500 transition-[width] duration-300"
+                        :style="{ width: `${progressPercent}%` }"
+                    />
+                </div>
+                <div class="flex items-center gap-1 p-1.5">
                     <button
                         type="button"
-                        class="flex-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-zinc-900 hover:bg-yellow-400"
+                        class="min-w-0 flex-1 rounded-md px-3 py-2 text-left text-sm font-semibold text-zinc-900 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600"
                         @click="emit('continue')"
                     >
                         {{ t("content.continueReading.action") }}
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700"
+                        class="flex-shrink-0 rounded-md p-2 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                        :aria-label="t('content.continueReading.dismiss')"
                         @click="emit('dismiss')"
                     >
-                        {{ t("content.continueReading.dismiss") }}
+                        <XMarkIcon class="h-5 w-5" />
                     </button>
                 </div>
             </div>
