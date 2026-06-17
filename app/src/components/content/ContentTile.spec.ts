@@ -224,7 +224,7 @@ describe("ContentTile", () => {
         expect(playIconOutline.exists()).toBe(false);
     });
 
-    it("shows the progress and duration if the content has a video", () => {
+    it("shows the progress bar if the content has a video", () => {
         const content = {
             _id: "sample-content-id",
             title: "Sample Content",
@@ -257,9 +257,8 @@ describe("ContentTile", () => {
             },
         });
 
-        // Duration 300s = 5:00
-        expect(wrapper.html()).toContain("5:00");
         expect(wrapper.html()).toContain('style="width: 40%');
+        expect(wrapper.html()).not.toContain("5:00");
     });
 
     it("does not show media progress when showProgress is false", () => {
@@ -297,7 +296,7 @@ describe("ContentTile", () => {
         expect(wrapper.html()).not.toContain('style="width: 40%');
     });
 
-    it("does not show a progress bar for reading-only content even when showProgress is true", () => {
+    it("shows a progress bar for reading-only content when showProgress is true", () => {
         const content = {
             _id: "sample-reading-id",
             title: "Reading Article",
@@ -326,8 +325,79 @@ describe("ContentTile", () => {
             },
         });
 
-        expect(wrapper.html()).not.toContain("45%");
-        expect(wrapper.html()).not.toContain('style="width: 45%');
+        expect(wrapper.html()).toContain('style="width: 45%');
+    });
+
+    it("shows reading progress when it is higher than video progress", () => {
+        const content = {
+            _id: "sample-mixed-id",
+            title: "Mixed Content",
+            slug: "mixed-content",
+            parentImageData: {},
+            publishDate: 1,
+            parentPublishDateVisible: false,
+            video: "sample-mixed-media-id",
+            text: "<p>Hello</p>",
+            parentId: "post-blog1",
+        } as unknown as ContentDto;
+
+        setMediaProgress("sample-mixed-media-id", content._id, 120, 300); // 40%
+        setReadingProgress(content._id, 60);
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content,
+                showProgress: true,
+                titlePosition: "center",
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                    PlayIcon,
+                    PlayIconOutline,
+                },
+            },
+        });
+
+        expect(wrapper.html()).toContain('style="width: 60%');
+    });
+
+    it("shows video progress when it is higher than reading progress", () => {
+        const content = {
+            _id: "sample-mixed-id-2",
+            title: "Mixed Content 2",
+            slug: "mixed-content-2",
+            parentImageData: {},
+            publishDate: 1,
+            parentPublishDateVisible: false,
+            video: "sample-mixed-media-id-2",
+            text: "<p>Hello</p>",
+            parentId: "post-blog1",
+        } as unknown as ContentDto;
+
+        setMediaProgress("sample-mixed-media-id-2", content._id, 210, 300); // 70%
+        setReadingProgress(content._id, 30);
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content,
+                showProgress: true,
+                titlePosition: "center",
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                    PlayIcon,
+                    PlayIconOutline,
+                },
+            },
+        });
+
+        expect(wrapper.html()).toContain('style="width: 70%');
     });
 
     it("renders title on the image in overlay mode without text below", () => {

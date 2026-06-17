@@ -4,8 +4,8 @@ import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
-import { getMediaDuration, getMediaProgress } from "@/globalConfig";
-import { computed, ref } from "vue";
+import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/globalConfig";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -50,11 +50,6 @@ const mediaIconClass = computed(() =>
         : "relative z-20 h-8 w-8 text-white lg:h-12 lg:w-12",
 );
 
-const media = ref<{ progress: number; duration: number }>({
-    progress: 0,
-    duration: 0,
-});
-
 const isComingSoon = computed(() => {
     const publishDate = props.content.publishDate;
     // "Coming soon" = published doc with a future publishDate AND the opt-in flag set.
@@ -65,23 +60,10 @@ const isComingSoon = computed(() => {
     );
 });
 
-function formatDuration(seconds: number): string {
-    const totalSeconds = Math.floor(seconds);
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
+const displayProgress = computed(() => {
+    if (!props.showProgress) return 0;
 
-    if (hrs > 0) {
-        return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    } else {
-        return `${mins.toString().padStart(1, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-}
-
-const durationText = ref("");
-const hasMediaProgress = ref(false);
-
-if (props.showProgress) {
+    let mediaProgressPercent = 0;
     const mediaIds = props.content.video
         ? [props.content.video]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
@@ -91,14 +73,16 @@ if (props.showProgress) {
         const mediaDuration = getMediaDuration(mediaId, props.content._id);
 
         if (mediaProgress > 0 && mediaDuration > 0) {
-            hasMediaProgress.value = true;
-            media.value.progress = Math.min(100, (mediaProgress / mediaDuration) * 100);
-            media.value.duration = mediaDuration;
-            durationText.value = formatDuration(mediaDuration);
+            mediaProgressPercent = Math.min(100, (mediaProgress / mediaDuration) * 100);
             break;
         }
     }
-}
+
+    const readingProgressPercent = getReadingProgress(props.content._id);
+    return Math.max(mediaProgressPercent, readingProgressPercent);
+});
+
+const hasProgress = computed(() => displayProgress.value > 0);
 </script>
 
 <template>
@@ -237,22 +221,17 @@ if (props.showProgress) {
                         </div>
 
                         <div
-                            v-if="showProgress && hasMediaProgress"
-                            class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1"
+                            v-if="showProgress && hasProgress"
+                            class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1 py-1"
                             :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
                         >
-                            <div class="flex h-4 w-full items-center gap-2">
+                            <div
+                                class="relative h-1.5 w-full overflow-hidden rounded bg-zinc-600"
+                            >
                                 <div
-                                    class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
-                                >
-                                    <div
-                                        class="absolute top-0 left-0 h-full bg-white"
-                                        :style="{ width: `${media.progress}%` }"
-                                    ></div>
-                                </div>
-                                <span class="whitespace-nowrap text-xs text-white">
-                                    {{ durationText }}
-                                </span>
+                                    class="absolute top-0 left-0 h-full bg-white"
+                                    :style="{ width: `${displayProgress}%` }"
+                                ></div>
                             </div>
                         </div>
                     </template>
