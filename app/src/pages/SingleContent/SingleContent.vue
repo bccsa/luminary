@@ -100,6 +100,34 @@ const defaultContent: ContentDto = {
 
 const content = ref<ContentDto | undefined>(defaultContent);
 
+// If connected, we are waiting for data to load from the API, unless found in IndexedDB
+const isLoading = ref(true);
+const is404 = ref(false);
+
+// Compiled Mango filter to check if content is published (recompiles reactively when content changes)
+const isPublishedFilter = computed(() => {
+    if (!content.value?.language) return () => false;
+    return mangoCompile({
+        $and: [
+            { status: PublishStatus.Published },
+            ...mangoIsPublished([content.value.language], { includeScheduled: false }),
+        ],
+    });
+});
+
+const check404 = () => {
+    if (isLoading.value && (content.value === undefined || content.value === defaultContent))
+        return false; // Don't show 404 during loading
+
+    // If content is undefined (not found), show 404
+    if (!content.value) return true;
+
+    // If content is still the default loading content, don't show 404 yet
+    if (content.value === defaultContent) return false;
+
+    return !isPublishedFilter.value(content.value);
+};
+
 const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
 
@@ -222,7 +250,11 @@ const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
 watch([content, isConnected], async () => {
-    if (!content.value || content.value === defaultContent) return;
+    if (content.value === undefined) {
+        isLoading.value = false;
+        return;
+    }
+    if (content.value === defaultContent) return;
 
     // Only reload translations if we're viewing a different parent content
     // This prevents flash when switching between translations of the same content
@@ -320,36 +352,8 @@ const tags = useDexieLiveQueryWithDeps(
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
-// If connected, we are waiting for data to load from the API, unless found in IndexedDB
-const isLoading = ref(true);
-const is404 = ref(false);
-
-// Compiled Mango filter to check if content is published (recompiles reactively when content changes)
-const isPublishedFilter = computed(() => {
-    if (!content.value?.language) return () => false;
-    return mangoCompile({
-        $and: [
-            { status: PublishStatus.Published },
-            ...mangoIsPublished([content.value.language], { includeScheduled: false }),
-        ],
-    });
-});
-
-const check404 = () => {
-    if (isLoading.value) return false; // Don't show 404 during loading
-
-    // If content is undefined (not found), show 404
-    if (!content.value) return true;
-
-    // If content is still the default loading content, don't show 404 yet
-    if (content.value === defaultContent) return false;
-
-    return !isPublishedFilter.value(content.value);
-};
-
-watch(content, () => {
+watch([content, isLoading], () => {
     is404.value = check404();
-    if (is404.value) isLoading.value = false;
 });
 
 // Function to toggle bookmark for the current content
