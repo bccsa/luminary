@@ -3,12 +3,12 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 
-// Mock only `isSaveDataEnabled` so we can simulate Data Saver; everything else is the real module.
+// Mock only `isDataSaverEnabled` so we can simulate Data Saver; everything else is the real module.
 vi.mock("@/globalConfig", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/globalConfig")>();
-    return { ...actual, isSaveDataEnabled: vi.fn(() => false) };
+    return { ...actual, isDataSaverEnabled: vi.fn(() => false) };
 });
-import { isSaveDataEnabled } from "@/globalConfig";
+import { isDataSaverEnabled } from "@/globalConfig";
 import LImageProvider from "./LImageProvider.vue";
 
 const mockImage = {
@@ -123,7 +123,7 @@ describe("LImageProvider", () => {
     });
 
     it("advertises only the reduced slot when Data Saver is enabled", async () => {
-        vi.mocked(isSaveDataEnabled).mockReturnValueOnce(true);
+        vi.mocked(isDataSaverEnabled).mockReturnValueOnce(true);
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id-savedata",
