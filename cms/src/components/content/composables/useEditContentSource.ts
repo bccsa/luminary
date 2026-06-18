@@ -54,11 +54,10 @@ export type UseEditContentSource = {
 };
 
 /**
- * Owns the data layer of the content editor: local-first reactive loading (parent via
- * a live Dexie read, content children via {@link useHybridQuery}), editable copies with
- * dirty tracking via {@link toEditable}, and the persistence + revert + duplicate
- * primitives. UI concerns (permissions, notifications, routing, language selection)
- * stay with the caller, which orchestrates them around these primitives.
+ * Owns the data layer of the content editor: local-first reactive loading (parent and
+ * content children via {@link useHybridQuery}), editable copies with dirty tracking via
+ * {@link toEditable}, and the persistence + revert + duplicate primitives. UI concerns
+ * (permissions, notifications, routing, language selection) stay with the caller.
  *
  * Must be called synchronously in a component `setup` so the live subscriptions tear
  * down on unmount.
@@ -73,13 +72,9 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const currentId = ref<Uuid>(initialId === "new" ? db.uuid() : initialId);
     const waitForUpdate = ref(false);
 
-    // Live sources.
-    // Both go through HybridQuery (local-first Dexie read + live socket path, plus an
-    // API supplement for anything not synced locally). Routing keys off the top-level
-    // `type`: the parent (Post/Tag) is in the syncList so it serves from Dexie; content
-    // children additionally pull the older-tail / non-synced-language supplement
-    // (dormant under the CMS's OPEN_MIN config). The `[type+_id]` / parentId indexes
-    // keep the Dexie reads off a full table scan.
+    // Live sources — both via HybridQuery (Dexie-first + live socket). With the CMS's
+    // full-content sync (OPEN_MIN cutoff), the API supplement does not run; parentId /
+    // [type+_id] indexes keep Dexie reads off a full table scan.
     const liveParent = useHybridQuery<ContentParentDto>(
         () => ({ selector: { type: docType, _id: currentId.value }, $limit: 1 }),
         { live: true, persistOffline: true },
@@ -87,16 +82,17 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const liveContent = useHybridQuery<ContentDto>(
         () => ({
             selector: { type: DocType.Content, parentId: currentId.value },
+            $sort: [{ publishDate: "desc" }],
             use_index: "content-parentId-publishDate-index",
         }),
         { live: true, persistOffline: true },
     );
 
-    // toEditable sources. Hydrated EAGERLY by `load()` (a prompt one-shot read that
-    // doesn't wait on liveQuery scheduling) and then kept fresh by the live queries —
-    // but LATCHED: a transient or late empty emission (re-subscription on an id change,
-    // a reconnect) never wipes already-loaded data and the in-progress edits toEditable
-    // derives from it. `load()` resets + reloads them when the id changes.
+    // toEditable sources. Hydrated eagerly by `load()` (`db.get` + `queryLocal`) and then
+    // kept fresh by the HybridQuery watchers — but LATCHED: a transient or late empty
+    // emission (re-subscription on an id change, a reconnect) never wipes already-loaded
+    // data and the in-progress edits toEditable derives from it. `load()` resets + reloads
+    // them when the id changes.
     const parentSource = ref<ContentParentDto[]>([]);
     const contentSource = ref<ContentDto[]>([]);
     watch(
