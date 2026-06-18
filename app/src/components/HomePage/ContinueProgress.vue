@@ -37,8 +37,18 @@ const continuedContent = useDexieLiveQueryWithDeps(
                 $and: [
                     { _id: { $in: contentIds } },
                     { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
+                    {
+                        $or: [
+                            { parentPostType: { $exists: false } },
+                            { parentPostType: { $ne: PostType.Page } },
+                        ],
+                    },
+                    {
+                        $or: [
+                            { parentTagType: { $exists: false } },
+                            { parentTagType: { $ne: TagType.Category } },
+                        ],
+                    },
                     ...mangoIsPublished(appLanguageIds),
                 ],
             },
