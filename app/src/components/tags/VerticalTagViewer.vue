@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { db, mangoToDexie, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
+import {
+    db,
+    mangoToDexie,
+    useDexieLiveQueryWithDeps,
+    type ContentDto,
+    type Uuid,
+} from "luminary-shared";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
@@ -76,7 +82,10 @@ const tagged = useDexieLiveQueryWithDeps(
                             {{ content.title }}
                         </h1>
                         <!-- publish date -->
-                        <div class="text-xs text-gray-500" v-if="showPublishDate">
+                        <div
+                            class="text-xs text-gray-500"
+                            v-if="showPublishDate"
+                        >
                             <!-- {{ new Date(content.publishDate).toLocaleDateString() }} -->
                             {{
                                 content.publishDate

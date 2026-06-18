@@ -131,21 +131,6 @@ const baseUrl = computed(() => props.bucketPublicUrl);
 // below covers browsers that change it live.
 const saveData = isDataSaverEnabled();
 
-// The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src).
-// Honours the user's data-saving preference two ways:
-//   1. `saveData` (Network Information API flag): force the smaller slot — covers Chromium browsers
-//      that expose the flag but not the media query.
-//   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
-//      browsers downshift live; everyone else falls through to the full slot.
-const sizesAttr = computed(() => {
-    const base = sizesMap[props.size];
-    if (!base) return undefined; // icon mode
-    const reduced = sizesReducedMap[props.size];
-    if (!reduced) return base;
-    if (saveData) return reduced;
-    return `(prefers-reduced-data: reduce) ${reduced}, ${base}`;
-});
-
 // All collections for this image, unfiltered. We deliberately do NOT pre-filter variants by width
 // or connection speed here: handing the browser the full srcset ladder plus a correct `sizes`
 // attribute lets it pick the variant that fits the slot AND the device pixel ratio. (Selecting in JS
@@ -180,6 +165,54 @@ const closestAspectRatio = computed(() => {
 const displayCollection = computed(() =>
     allFileCollections.value.find((c) => c.aspectRatio === closestAspectRatio.value),
 );
+
+// `object-cover` scales the source up until it fills the slot's aspect-ratio box, cropping the
+// overflow. When the displayed collection is WIDER than the box (e.g. a landscape image in a
+// portrait/vertical tile), the browser still picks a srcset variant from the slot WIDTH alone and
+// under-fetches, so the cover-cropped image is upscaled and looks soft. Inflate the advertised
+// `sizes` width by how much the cover-crop over-scales — `sourceAspect / containerAspect` — so the
+// browser fetches a high-enough variant. Ratio ≤ 1 (source same/narrower than the box) → no change.
+const coverScaleFactor = computed(() => {
+    const containerAspect = aspectRatioNumbers[props.aspectRatio];
+    const sourceAspect = closestAspectRatio.value;
+    if (!containerAspect || !sourceAspect) return 1; // `original` aspect / no collections
+    return Math.max(1, sourceAspect / containerAspect);
+});
+
+// Multiply only the length values (not media-query breakpoints) in a `sizes` string by `factor`.
+// Each comma-separated segment is `[<media-condition>] <length>`; only the trailing length scales,
+// so `(min-width: 768px)` breakpoints are left untouched. Non-px lengths (e.g. `vw`) pass through.
+const inflateSizes = (sizesStr: string, factor: number): string => {
+    if (factor <= 1) return sizesStr;
+    return sizesStr
+        .split(",")
+        .map((part) =>
+            part.replace(
+                /(\d+(?:\.\d+)?)px(\s*)$/,
+                (_full, n, ws) => `${Math.round(Number(n) * factor)}px${ws}`,
+            ),
+        )
+        .join(",");
+};
+
+// The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src),
+// inflated for cover-crop over-scaling (see `coverScaleFactor`). Honours the user's data-saving
+// preference two ways:
+//   1. `saveData` (Network Information API flag): force the smaller slot — covers Chromium browsers
+//      that expose the flag but not the media query.
+//   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
+//      browsers downshift live; everyone else falls through to the full slot.
+const sizesAttr = computed(() => {
+    const base = sizesMap[props.size];
+    if (!base) return undefined; // icon mode
+    const baseInflated = inflateSizes(base, coverScaleFactor.value);
+    const reduced = sizesReducedMap[props.size];
+    if (!reduced) return baseInflated;
+    // Data Saver deliberately fetches a smaller variant to save bytes — don't inflate it even for
+    // cover-cropped slots; the user opted into lower quality, so some softness is the trade.
+    if (saveData) return reduced;
+    return `(prefers-reduced-data: reduce) ${reduced}, ${baseInflated}`;
+});
 
 // Decode the collection's base64 ThumbHash into a blurred data URL, shown as the <img> background so
 // a preview of the *correct* photo appears instantly (and offline) until the real image paints over.

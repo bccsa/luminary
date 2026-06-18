@@ -122,6 +122,45 @@ describe("LImageProvider", () => {
         );
     });
 
+    it("inflates `sizes` when a wide source is cover-cropped into a narrower (portrait) box", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-portrait",
+                image: mockImage,
+                aspectRatio: "portrait", // 0.75 box; closest source collection is 1.33 (wider)
+                size: "thumbnailCompact",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.exists()).toBe(true);
+        // object-cover over-scales the 1.33 source to fill the 0.75 box by 1.33/0.75 = 1.773x, so the
+        // full-quality base lengths are inflated by that factor (176->312, 128->227) to make the
+        // browser fetch a high-enough variant. The 768px media-query breakpoint is left untouched, and
+        // the reduced-data slot (128px) is NOT inflated — Data Saver users keep the smaller variant.
+        expect(img1.attributes("sizes")).toBe(
+            "(prefers-reduced-data: reduce) 128px, (min-width: 768px) 312px, 227px",
+        );
+    });
+
+    it("does not inflate the reduced slot under Data Saver, even for a cover-cropped box", async () => {
+        vi.mocked(isDataSaverEnabled).mockReturnValueOnce(true);
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-portrait-savedata",
+                image: mockImage,
+                aspectRatio: "portrait", // wide source cover-cropped into a narrow box
+                size: "thumbnailCompact",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        // Data Saver wins over cover-crop inflation: the original small slot is advertised, unscaled.
+        expect(img1.attributes("sizes")).toBe("128px");
+    });
+
     it("advertises only the reduced slot when Data Saver is enabled", async () => {
         vi.mocked(isDataSaverEnabled).mockReturnValueOnce(true);
         const wrapper = mount(LImageProvider, {
