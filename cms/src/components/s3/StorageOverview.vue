@@ -8,6 +8,7 @@ import {
     type StorageDto,
     type S3CredentialDto,
     useDexieLiveQuery,
+    useHybridQuery,
     type GroupDto,
     AclPermission,
     verifyAccess,
@@ -37,9 +38,9 @@ const availableGroups = computed(() => {
     });
 });
 
-const buckets = useDexieLiveQuery(
-    () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<StorageDto[]>,
-    { initialValue: [] as StorageDto[] },
+const buckets = useHybridQuery<StorageDto>(
+    () => ({ selector: { type: DocType.Storage } }),
+    { live: true },
 );
 
 // Delete permission check

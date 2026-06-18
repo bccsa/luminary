@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import { type StorageDto, db, useDexieLiveQuery, StorageType } from "luminary-shared";
+import { type StorageDto, DocType, useHybridQuery, StorageType } from "luminary-shared";
 
 /**
  * Storage Selection Composable
@@ -16,10 +16,9 @@ export function storageSelection() {
     const selectedImageBucket = ref<string | undefined>(undefined);
     const selectedMediaBucket = ref<string | undefined>(undefined);
 
-    // Get buckets directly from the database (already available in CMS)
-    const buckets = useDexieLiveQuery(
-        () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<StorageDto[]>,
-        { initialValue: [] as StorageDto[] },
+    const buckets = useHybridQuery<StorageDto>(
+        () => ({ selector: { type: DocType.Storage } }),
+        { live: true },
     );
 
     /**

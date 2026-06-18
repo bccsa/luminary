@@ -1,8 +1,12 @@
 import "fake-indexeddb/auto";
-import { RouterLinkStub, config } from "@vue/test-utils";
-import { initDatabase, initConfig } from "luminary-shared";
+import { RouterLinkStub, config, enableAutoUnmount } from "@vue/test-utils";
+import { initDatabase, initConfig, db } from "luminary-shared";
 import { CMS_DOCS_INDEX } from "./src/docsIndex";
 import { afterEach, beforeAll, beforeEach } from "vitest";
+
+// Mounted components with live queries keep subscriptions until unmount; dispose
+// them after each test so state does not leak across cases.
+enableAutoUnmount(afterEach);
 
 // ============================================================================
 // Indexing warning detection — fail tests that trigger missing index warnings
@@ -20,6 +24,13 @@ let interceptedWarnings: string[] = [];
 const originalWarn = console.warn;
 
 beforeEach(() => {
+    // Response-cache keys are structural and persist in localStorage; clear them
+    // so same-shaped queries in different tests do not seed each other.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("hqcache:")) localStorage.removeItem(k);
+    }
+
     interceptedWarnings = [];
     console.warn = (...args: unknown[]) => {
         const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
@@ -58,4 +69,32 @@ beforeAll(async () => {
     });
 
     await initDatabase();
+
+    // A running CMS client restores syncList from IndexedDB once sync has run.
+    // Component tests mount views without that bootstrap, but HybridQuery (and
+    // isSyncableDoc) consult syncList to decide how each doc type is served.
+    // Seed the CMS sync columns here so queries over synced types (storage,
+    // group, post, …) read the docs tests bulkPut into IndexedDB.
+    await db.setLuminaryInternals(
+        "syncList",
+        [
+            "authProvider",
+            "language",
+            "storage",
+            "redirect",
+            "group",
+            "post",
+            "tag",
+            "content:post",
+            "content:tag",
+        ].map((chunkType) => ({
+            chunkType,
+            memberOf: ["group-public-content"],
+            languages: [],
+            blockStart: Number.MAX_SAFE_INTEGER,
+            blockEnd: 0,
+            eof: true,
+        })),
+    );
+    await db.getSyncList();
 });
