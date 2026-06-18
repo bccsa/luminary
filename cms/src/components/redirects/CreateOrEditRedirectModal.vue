@@ -104,7 +104,7 @@ const isTemporary = computed(() => {
 const originalDocs = useHybridQuery<RedirectDto>(
     () =>
         props.redirect
-            ? { selector: { _id: props.redirect._id } }
+            ? { selector: { type: DocType.Redirect, _id: props.redirect._id } }
             : { selector: { _id: { $in: [] } } },
     { live: true },
 );
