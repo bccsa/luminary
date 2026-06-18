@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
-import { mount, enableAutoUnmount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 
@@ -56,8 +56,6 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 });
 
 describe("ContentOverview.vue", () => {
-    enableAutoUnmount(afterEach);
-
     beforeAll(async () => {
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
