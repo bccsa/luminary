@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `ApiLiveQuery`, `createEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
+`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `ApiLiveQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
@@ -84,8 +84,8 @@ The socket emits `joinSocketGroups` on connect with the configured `syncList`, t
 The library's "public composable" surface:
 
 - **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the **preferred** way to read from IndexedDB; the older `db.toRef`, `db.getAsRef`, `db.whereTypeAsRef`, etc. on the `Database` class are deprecated and log a warning when called.
-- **`useDexieLiveQueryAsEditable`** — same but wraps the result with `createEditable` so the UI can edit a copy and diff against the source.
-- **`createEditable`** — produces a clone of a source ref that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits.
+- **`useDexieLiveQueryAsEditable`** *(deprecated)* — same but wraps the result with `toEditable` so the UI can edit a copy and diff against the source.
+- **`toEditable`** — converts a source ref into a clone that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits. (Formerly `createEditable`, which remains as a deprecated alias.)
 - **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** (`util/ApiLiveQuery/`) — same idea but talks to the REST API + Socket.io directly instead of IndexedDB. Used for queries that can't or shouldn't be cached locally (e.g. CMS searches).
 - **`MangoQuery/`** — Mango-syntax query helpers. `mangoCompile(selector)` returns an in-memory predicate; `mangoToDexie(table, query)` translates a Mango query into a Dexie `Collection` with index pushdown where possible and an in-memory filter for the rest. Both use template-based caching (structure normalized, values extracted) with `localStorage` persistence via `warmMangoCaches()`. See `mangoCompile.md` and `mangoToDexie.md`.
 - **`LFormData`** — `FormData` subclass that serializes nested objects + binary attachments into the multipart format the API expects.

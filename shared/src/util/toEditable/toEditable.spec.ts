@@ -1,7 +1,7 @@
 import { describe, expect, beforeEach, test } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { ref, nextTick, Ref } from "vue";
-import { createEditable } from "./createEditable";
+import { toEditable } from "./toEditable";
 import { BaseDocumentDto } from "../../types";
 
 type TestDoc = BaseDocumentDto & {
@@ -18,7 +18,7 @@ function makeDoc(id: string, value: number) {
     } as TestDoc;
 }
 
-describe("createEditable", () => {
+describe("toEditable", () => {
     let source: Ref<Array<TestDoc>>;
 
     beforeEach(() => {
@@ -26,41 +26,41 @@ describe("createEditable", () => {
     });
 
     test("throws if source is undefined", () => {
-        expect(() => createEditable(undefined)).toThrow();
+        expect(() => toEditable(undefined)).toThrow();
     });
 
     test("throws if source is not a ref of array", () => {
         // @ts-expect-error
-        expect(() => createEditable(ref(null))).toThrow();
+        expect(() => toEditable(ref(null))).toThrow();
         // @ts-expect-error
-        expect(() => createEditable(ref({}))).toThrow();
+        expect(() => toEditable(ref({}))).toThrow();
     });
 
     test("returns editable", () => {
-        const { editable } = createEditable(source);
+        const { editable } = toEditable(source);
         expect(Array.isArray(editable.value)).toBe(true);
     });
 
     test("editable is a deep clone of source", () => {
-        const { editable } = createEditable(source);
+        const { editable } = toEditable(source);
         expect(editable.value).toEqual(source.value);
         expect(editable.value).not.toBe(source.value);
     });
 
     test("edited is empty when nothing is changed", () => {
-        const { isEdited } = createEditable(source);
+        const { isEdited } = toEditable(source);
         expect(isEdited.value("a")).toBe(false);
     });
 
     test("isEdited detects changed items", async () => {
-        const { editable, isEdited } = createEditable(source);
+        const { editable, isEdited } = toEditable(source);
         editable.value[0].value = 42;
         await nextTick();
         expect(isEdited.value("a")).toBe(true);
     });
 
     test("isEdited ignores changes to _rev, updatedTimeUtc, updatedBy", async () => {
-        const { editable, isEdited } = createEditable(source);
+        const { editable, isEdited } = toEditable(source);
         editable.value[0]._rev = "2";
         editable.value[0].updatedTimeUtc = 123;
         editable.value[0].updatedBy = "someone";
@@ -69,7 +69,7 @@ describe("createEditable", () => {
     });
 
     test("modified contains items changed in source if a user edit exists", async () => {
-        const { isModified, editable } = createEditable(source);
+        const { isModified, editable } = toEditable(source);
         editable.value[0].value = 42; // User edit
         await nextTick();
         source.value[0].value = 99;
@@ -79,7 +79,7 @@ describe("createEditable", () => {
     });
 
     test("adding an item to source updates editable and shadow", async () => {
-        const { editable, isModified, isEdited } = createEditable(source);
+        const { editable, isModified, isEdited } = toEditable(source);
         await nextTick(); // Ensure initial state is set
         source.value.push(makeDoc("c", 3));
         await nextTick();
@@ -89,7 +89,7 @@ describe("createEditable", () => {
     });
 
     test("removing an item from source updates editable and shadow", async () => {
-        const { editable, isModified, isEdited } = createEditable(source);
+        const { editable, isModified, isEdited } = toEditable(source);
         source.value.splice(0, 1);
         await nextTick();
         expect(editable.value.some((d) => d._id === "a")).toBe(false);
@@ -98,7 +98,7 @@ describe("createEditable", () => {
     });
 
     test("modifying an item in source updates editable if no user edits exist", async () => {
-        const { editable, isModified, isEdited } = createEditable(source);
+        const { editable, isModified, isEdited } = toEditable(source);
         await nextTick(); // Ensure initial state is set
         source.value[0].value = 100;
         await nextTick();
@@ -108,7 +108,7 @@ describe("createEditable", () => {
     });
 
     test("isEdited and isModified are reactive to changes", async () => {
-        const { editable, isEdited, isModified } = createEditable(source);
+        const { editable, isEdited, isModified } = toEditable(source);
         const _isEdited = isEdited.value;
         const _isModified = isModified.value;
 
@@ -127,7 +127,7 @@ describe("createEditable", () => {
     });
 
     test("handles simultaneous add and remove in source", async () => {
-        const { editable } = createEditable(source);
+        const { editable } = toEditable(source);
         source.value.splice(0, 1, makeDoc("c", 10));
         await nextTick();
         expect(editable.value.some((d) => d._id === "a")).toBe(false);
@@ -135,7 +135,7 @@ describe("createEditable", () => {
     });
 
     test("reverts changes to an item", async () => {
-        const { editable, isEdited, revert } = createEditable(source);
+        const { editable, isEdited, revert } = toEditable(source);
         editable.value[0].value = 42; // User edit
 
         expect(isEdited.value("a")).toBe(true);
@@ -148,7 +148,7 @@ describe("createEditable", () => {
     });
 
     test("revert does nothing if item not found in editable", async () => {
-        const { editable, revert } = createEditable(source);
+        const { editable, revert } = toEditable(source);
         const originalLength = editable.value.length;
 
         revert("nonexistent");
@@ -157,7 +157,7 @@ describe("createEditable", () => {
     });
 
     test("revert does nothing if item not found in source", async () => {
-        const { editable, revert } = createEditable(source);
+        const { editable, revert } = toEditable(source);
         editable.value.push(makeDoc("d", 4)); // Add a new item
 
         const originalLength = editable.value.length;
@@ -169,7 +169,7 @@ describe("createEditable", () => {
     test("filterFn applies to editable items", () => {
         // Create a filter function that changes the value of an item from 3 to 2
         const filterFn = (item: TestDoc) => (item.value == 3 ? { ...item, value: 2 } : item);
-        const e = createEditable(source, { filterFn });
+        const e = toEditable(source, { filterFn });
 
         // Change all items with value 2 to 3
         e.editable.value = e.editable.value.map((item) =>
@@ -184,7 +184,7 @@ describe("createEditable", () => {
     test("filterFn applies to source changes", async () => {
         // Create a filter function that changes the value of an item from 3 to 2
         const filterFn = (item: TestDoc) => (item.value == 3 ? { ...item, value: 2 } : item);
-        const e = createEditable(source, { filterFn });
+        const e = toEditable(source, { filterFn });
 
         // Change all in the source with value 2 to 3
         source.value = source.value.map((item) =>
@@ -199,7 +199,7 @@ describe("createEditable", () => {
     test("modifyFn applies to editable items", () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
-        const e = createEditable(source, { modifyFn });
+        const e = toEditable(source, { modifyFn });
 
         expect(e.editable.value[1].value).toBe(3); // The modify function modifies the value internally to 3
     });
@@ -207,7 +207,7 @@ describe("createEditable", () => {
     test("modifyFn is applied to changes to the source array", async () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
-        const e = createEditable(source, { modifyFn });
+        const e = toEditable(source, { modifyFn });
 
         // add a new item to the source array
         source.value.push(makeDoc("c", 2));
@@ -220,7 +220,7 @@ describe("createEditable", () => {
     test("modifyFn is applied to revert changes", async () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
-        const e = createEditable(source, { modifyFn });
+        const e = toEditable(source, { modifyFn });
 
         // Change the value of the second item
         e.editable.value[1].value = 42;
@@ -234,7 +234,7 @@ describe("createEditable", () => {
     test("modifyFn is applied to new items added to the editable array", async () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
-        const e = createEditable(source, { modifyFn });
+        const e = toEditable(source, { modifyFn });
 
         // Add a new item to the editable array
         e.editable.value.push(makeDoc("d", 2));
@@ -247,7 +247,7 @@ describe("createEditable", () => {
     test("modifyFn is applied to updated items in the editable array", async () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
-        const e = createEditable(source, { modifyFn });
+        const e = toEditable(source, { modifyFn });
         await nextTick();
 
         // Change the value of the first item

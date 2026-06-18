@@ -2,7 +2,7 @@ import { computed, Ref, ref, toRaw, watch } from "vue";
 import { BaseDocumentDto, Uuid } from "../../types";
 import _ from "lodash";
 
-export type CreateEditableOptions<T> = {
+export type ToEditableOptions<T> = {
     /**
      * @param filterFn Optional filter function to apply to the editable array before comparing or saving.
      * This is useful if e.g. empty items should be ignored. The filter function is applied on each item of the editable array before comparing it to the source array.
@@ -18,15 +18,15 @@ export type CreateEditableOptions<T> = {
 };
 
 /**
- * Creates an editable version of the source array, allowing modifications while keeping track of user and source modifications.
+ * Converts a source array ref into an editable version, allowing modifications while keeping track of user and source modifications.
  * The editable array is kept up to date with changes to the source array, unless the user has made modifications.
  * @param source
  * @param options Optional options to customize the behavior of the editable array.
  * @returns
  */
-export function createEditable<T extends BaseDocumentDto>(
+export function toEditable<T extends BaseDocumentDto>(
     source: Ref<Array<T>> | undefined,
-    options: CreateEditableOptions<T> = {},
+    options: ToEditableOptions<T> = {},
 ) {
     if (!source || !Array.isArray(source.value)) {
         throw new Error("Source must be a ref of an array of BaseDocumentDto");
@@ -245,3 +245,15 @@ function isEqualBase<T>(obj1: T, obj2: T): boolean {
         { ...obj2, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
     );
 }
+
+/**
+ * @deprecated Use {@link toEditable} instead. Renamed for naming consistency with the `to*`
+ * conversion helpers (e.g. `toRef`, `toRefs`); this forwarding export will be removed in a
+ * future release.
+ */
+export const createEditable = toEditable;
+
+/**
+ * @deprecated Use {@link ToEditableOptions} instead. This alias will be removed in a future release.
+ */
+export type CreateEditableOptions<T> = ToEditableOptions<T>;

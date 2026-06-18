@@ -1,7 +1,7 @@
 import { Ref, toRaw } from "vue";
 import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../api/RestApi";
 import { AckStatus, BaseDocumentDto, Uuid } from "../../types";
-import { createEditable, CreateEditableOptions } from "../createEditable";
+import { createEditable, CreateEditableOptions } from "../toEditable";
 import { ApiLiveQuery, ApiLiveQueryOptions } from "./ApiLiveQuery";
 import { LFormData } from "../LFormData";
 

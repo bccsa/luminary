@@ -1,6 +1,6 @@
 import { Ref } from "vue";
 import { useDexieLiveQuery, UseDexieLiveQueryOptions } from "../useDexieLiveQuery";
-import { createEditable } from "../createEditable";
+import { createEditable } from "../toEditable";
 import { BaseDocumentDto, Uuid } from "../../types";
 import { db, UpsertOptions } from "../../db/database";
 
@@ -41,6 +41,8 @@ import { db, UpsertOptions } from "../../db/database";
  * // Save the changes
  * await save(editable.value[0]._id);
  * ```
+ *
+ * @deprecated This composable will be removed in a future release.
  */
 export function useDexieLiveQueryAsEditable<
     T extends BaseDocumentDto,

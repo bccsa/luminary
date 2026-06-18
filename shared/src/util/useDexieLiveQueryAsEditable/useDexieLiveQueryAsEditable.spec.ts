@@ -9,7 +9,7 @@ vi.mock("../useDexieLiveQuery", () => ({
     useDexieLiveQuery: vi.fn(),
 }));
 
-vi.mock("../createEditable", () => ({
+vi.mock("../toEditable", () => ({
     createEditable: vi.fn(),
 }));
 
@@ -26,7 +26,7 @@ type TestDocType = BaseDocumentDto & { name: string; value: number };
 
 describe("useDexieLiveQueryAsEditable", async () => {
     const mockUseDexieLiveQuery = vi.mocked(await import("../useDexieLiveQuery")).useDexieLiveQuery;
-    const mockCreateEditable = vi.mocked(await import("../createEditable")).createEditable;
+    const mockCreateEditable = vi.mocked(await import("../toEditable")).createEditable;
     const mockDb = vi.mocked(await import("../../db/database")).db;
 
     const mockDocs: TestDocType[] = [
