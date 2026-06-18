@@ -45,6 +45,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
     afterEach(() => {
         vi.clearAllMocks();
+        vi.unstubAllEnvs();
         db.docs.clear();
         isAuthPluginInstalled.value = false;
     });
@@ -153,6 +154,13 @@ describe("PrivacyPolicyModal.vue", () => {
             isAuthenticated: ref(true),
             logout: vi.fn(),
         });
+
+        // The component reads VITE_PRIVACY_POLICY_ID at setup time to build its
+        // query. Locally this comes from .env, but CI has no .env, leaving it
+        // undefined — which makes the query short-circuit to match nothing and
+        // the policy never reads as "outdated". Stub it so the test is
+        // self-sufficient regardless of environment.
+        vi.stubEnv("VITE_PRIVACY_POLICY_ID", "page-privacy-policy");
 
         await db.docs.clear();
         await db.docs.bulkPut([
