@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
-import { type Component, computed } from "vue";
+import { type Component, computed, provide, ref } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import LoadingBar from "./LoadingBar.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+import { basePageScrollKey } from "@/keys/basePageScroll";
 
 type Props = {
     title?: string;
@@ -34,6 +35,9 @@ const isEditContentPage = computed(() => router.currentRoute.value.name === "edi
 const isEditLanguagePage = computed(() => router.currentRoute.value.name === "language");
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("lg");
+
+const scrollContainer = ref<HTMLElement | null>(null);
+provide(basePageScrollKey, scrollContainer);
 
 const handleMobileSidebarToggle = () => {
     if (isEditContentPage.value) router.push({ name: "overview" });
@@ -148,6 +152,7 @@ const handleMobileSidebarToggle = () => {
                 <slot name="internalPageHeader" />
             </div>
             <div
+                ref="scrollContainer"
                 class="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
                 :class="[
                     isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',
