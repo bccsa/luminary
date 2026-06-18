@@ -4,3 +4,6 @@ node_modules
 *.bkp
 
 stats.html
+
+# graphify knowledge-graph output (generated locally via `graphify`; not committed for now)
+graphify-out/
