@@ -5,7 +5,6 @@ import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
-import backfillThumbHashes from "./db/backfillThumbHashes";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
@@ -38,14 +37,6 @@ export async function bootstrap() {
     if (process.argv.length >= 3 && process.argv[2] === "seed") {
         await upsertSeedingDocs(dbService);
         console.log("Database seeded with default data.");
-        process.exit(0);
-    }
-
-    // Standalone, on-demand ThumbHash backfill for pre-existing images (not a schema upgrade — see
-    // db/backfillThumbHashes.ts). Run after the API is up; it uses S3 and can be long-running.
-    if (process.argv.length >= 3 && process.argv[2] === "backfill-thumbhashes") {
-        await backfillThumbHashes(dbService);
-        console.log("ThumbHash backfill finished.");
         process.exit(0);
     }
 

@@ -122,7 +122,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 13 (as of 2026-03-09)
+**Current Schema Version**: 17 (as of 2026-06-18)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -154,3 +154,7 @@ These upgrades were removed after confirming all production databases were at ve
 ### v13 — FTS backfill (2026-03-09)
 
 Backfills pre-calculated FTS (full-text search) index data on all Content documents. Previously FTS indexing was done client-side; it is now computed server-side and delivered as `fts` and `ftsTokenCount` fields on ContentDto. See ADR 0009 for details.
+
+### v17 — ThumbHash backfill (2026-06-18)
+
+Backfills ThumbHash placeholders (`ImageFileCollectionDto.thumbHash`, a ~25-byte base64 blurred preview) for pre-existing images. ThumbHash is only generated at image-upload time, so older images lack it. For each Post/Tag whose image collections are missing a ThumbHash, it fetches the smallest stored variant from that doc's bucket (S3), encodes the hash, re-saves the parent, and re-denormalises `imageData` onto child Content docs' `parentImageData`. Each save bumps `updatedTimeUtc` so clients re-sync and show blurs for old content. Per-image fetch/encode failures are logged and skipped (a missing S3 object must not block startup); a DB-level failure re-throws so the version stays put and the next startup retries (the per-collection `thumbHash` skip makes that idempotent). Accepts version 15 or 16 — v16 is reserved by a parallel branch.
