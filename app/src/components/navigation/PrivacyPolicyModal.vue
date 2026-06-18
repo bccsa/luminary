@@ -28,8 +28,14 @@ const show = defineModel<boolean>("show");
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
 // Content is partially synced, so this routes through HybridQuery (IndexedDB +
 // API supplement). The injected { type: Content } is required for that routing.
+// When VITE_PRIVACY_POLICY_ID is unset there is no policy page to seek. A
+// `{ parentId: undefined }` clause serializes to `{}` over the wire, leaving the
+// parentId index pinned with a publishDate sort but no parentId equality — which
+// CouchDB rejects ("No index exists for this sort"). Match nothing via a
+// provably-empty `$in` so HybridQuery short-circuits before any Dexie read or POST.
+const privacyPolicyId = import.meta.env.VITE_PRIVACY_POLICY_ID;
 const privacyPolicyArr = useContentQuery(
-    () => [{ parentId: import.meta.env.VITE_PRIVACY_POLICY_ID }],
+    () => (privacyPolicyId ? [{ parentId: privacyPolicyId }] : [{ parentId: { $in: [] } }]),
     {
         includeScheduled: false,
         limit: 1,
