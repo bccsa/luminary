@@ -14,6 +14,7 @@ import type { FtsSearchResult } from "luminary-shared";
 const routePushMock = vi.hoisted(() => vi.fn());
 const loadMoreMock = vi.hoisted(() => vi.fn());
 const cancelMock = vi.hoisted(() => vi.fn());
+const resetMock = vi.hoisted(() => vi.fn());
 
 /** Doc returned by db mock; _id/slug/title must match mockEnglishContentDto for assertions. */
 const searchMockDoc = vi.hoisted(() => ({
@@ -98,6 +99,7 @@ function setupFts(
         lastSearchedQuery: lastSearchedQueryRef,
         runSearch: runSearchMock,
         cancel: cancelMock,
+        reset: resetMock,
         isPartial: ref(false),
     } as any);
 
@@ -142,6 +144,7 @@ describe("SearchButton", () => {
         setupFts();
         loadMoreMock.mockReset();
         cancelMock.mockReset();
+        resetMock.mockReset();
         routePushMock.mockReset();
         window.localStorage.clear();
         window.sessionStorage.clear();
@@ -436,6 +439,10 @@ describe("SearchButton", () => {
 
         it("clears results when query is cleared to empty", async () => {
             const { resultsRef, lastSearchedQueryRef } = setupFts();
+            resetMock.mockImplementation(() => {
+                resultsRef.value = [];
+                lastSearchedQueryRef.value = "";
+            });
             const wrapper = mountComponent();
             await openOverlay();
 
@@ -656,6 +663,34 @@ describe("SearchButton", () => {
             await nextTick();
 
             expect((input.element as HTMLInputElement).value).toBe("");
+        });
+
+        it("resets FTS state when the clear button is clicked after a search", async () => {
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
+            resetMock.mockImplementation(() => {
+                resultsRef.value = [];
+                lastSearchedQueryRef.value = "";
+            });
+
+            const wrapper = mountComponent();
+            await openOverlay();
+
+            await wrapper.find("input").setValue("Willowdale");
+            await nextTick();
+            lastSearchedQueryRef.value = "Willowdale";
+            resultsRef.value = [fakeResult];
+            await flushPromises();
+            expect(wrapper.findAll("[role='option']")).toHaveLength(1);
+
+            const clearBtn = wrapper
+                .findAll("button")
+                .find((b) => b.attributes("aria-label") === "Clear search query");
+            await clearBtn!.trigger("click");
+            await flushPromises();
+
+            expect(resetMock).toHaveBeenCalled();
+            expect(wrapper.findAll("[role='option']")).toHaveLength(0);
+            expect(wrapper.html()).toContain("Search by title, summary, or content");
         });
     });
 
