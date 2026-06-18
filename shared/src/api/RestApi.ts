@@ -1,10 +1,32 @@
-import { DocType, LocalChangeDto } from "../types";
+import { DocType, LocalChangeDto, PublishStatus } from "../types";
 import { HttpReq } from "./http";
 import { config } from "../config";
 import { LFormData } from "../util/LFormData";
 import { db } from "../db/database";
 import { useDexieLiveQuery } from "../util";
 import { syncLocalChanges } from "./syncLocalChanges";
+import type { ApiFtsResult } from "../fts/types";
+
+/**
+ * Query for the server-side full-text search endpoint (`POST /fts`).
+ * Mirrors the API's `FtsSearchReqDto`. Only `queryString` is required.
+ */
+export type ApiFtsQuery = {
+    apiVersion?: string;
+    queryString: string;
+    types?: Array<DocType>;
+    languages?: Array<string>;
+    limit?: number;
+    offset?: number;
+    cms?: boolean;
+    tags?: Array<string>;
+    status?: PublishStatus;
+    publishedAfter?: number;
+    publishedBefore?: number;
+    bm25k1?: number;
+    bm25b?: number;
+    maxTrigramDocPercent?: number;
+};
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -95,6 +117,15 @@ class RestApi {
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
         return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
+    }
+
+    /**
+     * Server-side full-text search (`POST /fts`). Returns `undefined` on an HTTP error
+     * (4xx/5xx; 5xx also raises the `serverError` ref) and throws on a network failure.
+     */
+    async fts(query: ApiFtsQuery): Promise<ApiFtsResult[] | undefined> {
+        query.apiVersion = "0.0.0";
+        return await this.http.post("fts", query);
     }
 
     async changeRequest(query: ChangeRequestQuery | FormData) {

@@ -98,8 +98,10 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 - FTS data is computed server-side and shipped on `ContentDto.fts` as `string[]` of `"trigram:tf"` entries; Dexie indexes the array via the `*fts` MultiEntry index.
 - Searches use `db.docs.where("fts").between(trigram + ":", trigram + ";")` per trigram, parse TF, compute BM25 against `corpusStats` (stored under `luminaryInternals["corpusStats"]`).
 - `scheduleCorpusStatsRecompute()` is debounced (10s) and called from every doc-mutation path (`bulkPut` with content, `deleteRevoked`, `deleteExpired`, `purge`) plus on startup.
-- The field config (title=3.0, summary=1.5, text=1.0, author=1.0) is **hard-coded identically** in `api/src/util/ftsIndexing.ts` and `shared/src/fts/ftsSearch.ts` — if you change one, change both.
-- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` (direct call).
+- The field config (title=3.0, summary=1.5, text=1.0, author=1.0) and BM25 params are **hard-coded identically** in `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts` — if you change one, change all (ADR 0009/0010).
+- **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline / full-sync) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set, or CMS) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
+- Local search optimizations (perf): high-df trigram pruning, a language pre-filter before loading docs, and top-K-only word-match. See `README.md`.
+- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls).
 
 ### Types — `src/types/`
 

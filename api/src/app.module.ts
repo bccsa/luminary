@@ -14,6 +14,8 @@ import { ChangeRequestController } from "./endpoints/changeRequest.controller";
 import * as winston from "winston";
 import { QueryService } from "./endpoints/query.service";
 import { QueryController } from "./endpoints/query.controller";
+import { FtsSearchService } from "./endpoints/ftsSearch.service";
+import { FtsSearchController } from "./endpoints/ftsSearch.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
@@ -56,6 +58,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         SearchController,
         ChangeRequestController,
         QueryController,
+        FtsSearchController,
         StorageStatusController,
     ],
     providers: [
@@ -65,6 +68,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         SearchService,
         QueryService,
         QueryRateLimiterService,
+        FtsSearchService,
         ChangeRequestService,
         AuthIdentityService,
     ],

@@ -19,6 +19,24 @@ export type FtsSearchResult = {
     wordMatchScore: number;
     /** The matched document. Loaded by ftsSearch during scoring; returned so callers don't have to refetch. */
     doc: ContentDto;
+    /**
+     * Where this result came from. "local" = offline IndexedDB search; "api" = server-side
+     * `/fts` search. NOTE: "api" results carry a trimmed `doc` (no `fts`/`ftsTokenCount`) and
+     * are display-only — they must never be written to Dexie (would break offline FTS; ADR 0010).
+     */
+    source?: "local" | "api";
+};
+
+/**
+ * Server-side `/fts` result item (mirrors the API's `FtsSearchResultDto`).
+ * The `doc` is trimmed of the FTS index fields (`fts`, `ftsTokenCount`) and is display-only —
+ * never persist it to Dexie (ADR 0010).
+ */
+export type ApiFtsResult = {
+    docId: Uuid;
+    score: number;
+    wordMatchScore: number;
+    doc: Partial<ContentDto>;
 };
 
 /** Search options */

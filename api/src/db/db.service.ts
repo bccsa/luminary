@@ -75,6 +75,41 @@ export type DbUpsertResult = {
 };
 
 /**
+ * Embedded value of a row in the `fts-trigram-index` CouchDB view.
+ * Carries the document's term frequency for the row's trigram plus the doc-level
+ * metadata needed to permission/visibility-filter candidates without loading the
+ * documents. See ADR 0010.
+ */
+export type FtsCandidateValue = [
+    number, // [0] tf (boosted term frequency)
+    DocType, // [1] parentType
+    PublishStatus, // [2] status
+    number | null, // [3] publishDate
+    number | null, // [4] expiryDate
+    Uuid, // [5] language
+    Uuid[], // [6] memberOf
+    Uuid[], // [7] parentTags
+];
+
+/** A single candidate row returned by {@link DbService.ftsTrigramCandidates}. */
+export type FtsCandidateRow = {
+    trigram: string;
+    docId: Uuid;
+    value: FtsCandidateValue;
+};
+
+/**
+ * View-read options for the FTS path. `update: "lazy"` returns immediately from the
+ * current index instead of blocking the read to bring the view up to date, then
+ * schedules an update afterwards so the index keeps converging (so newly-ingested
+ * content becomes searchable shortly after, without each search paying the index-update
+ * cost). `stable: true` reads from a consistent shard snapshot so the multiple FTS view
+ * reads in one query score against the same index state. FTS tolerates slight staleness
+ * (ADR 0010).
+ */
+const FTS_STALE_READ = { stable: true, update: "lazy" as const };
+
+/**
  * Database service for interacting with CouchDB.
  * Provides methods for CRUD operations, document synchronization, and query execution.
  *
@@ -110,6 +145,12 @@ export class DbService extends EventEmitter {
     private dbConfig: DatabaseConfig;
     private reconnecting = false;
     private readonly maxReconnectDelay = 30000;
+    /** Short-lived cache of FTS corpus stats; recomputing per search is wasteful as it changes slowly. */
+    private ftsCorpusStatsCache?: {
+        value: { docCount: number; totalTokenCount: number };
+        expiresAt: number;
+    };
+    private readonly ftsCorpusStatsTtlMs = 60000;
 
     /**
      * Sequence cursor of the last change delivered to listeners. Passed as
@@ -155,6 +196,10 @@ export class DbService extends EventEmitter {
             requestDefaults: {
                 agent: new http.Agent({
                     maxSockets: this.dbConfig.maxSockets,
+                    // Reuse TCP connections across requests so each CouchDB round trip
+                    // doesn't pay connection-setup latency (notably the multi-round-trip
+                    // FTS search path).
+                    keepAlive: true,
                 }),
             },
         }).use(this.dbConfig.database);
@@ -718,6 +763,72 @@ export class DbService extends EventEmitter {
         res.blockStart = blockStart;
         res.blockEnd = blockEnd;
         return res;
+    }
+
+    /**
+     * FTS: corpus-level statistics for BM25 scoring, served by the
+     * `fts-corpus-stats` view's `_stats` reduce.
+     * @returns the number of indexed Content documents (`docCount`) and the sum of
+     * their `ftsTokenCount` (`totalTokenCount`, used to derive average doc length).
+     */
+    async ftsCorpusStats(): Promise<{ docCount: number; totalTokenCount: number }> {
+        const cached = this.ftsCorpusStatsCache;
+        if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+        await this.ensureConnected();
+        const res = await this.db.view("fts-corpus-stats", "fts-corpus-stats", {
+            ...FTS_STALE_READ,
+            reduce: true,
+            group: false,
+        });
+        const stats = res.rows && res.rows[0] && res.rows[0].value;
+        const value = stats
+            ? { docCount: stats.count || 0, totalTokenCount: stats.sum || 0 }
+            : { docCount: 0, totalTokenCount: 0 };
+        this.ftsCorpusStatsCache = { value, expiresAt: Date.now() + this.ftsCorpusStatsTtlMs };
+        return value;
+    }
+
+    /**
+     * FTS: document frequency (number of Content docs containing each trigram),
+     * served by the `fts-trigram-index` view's `_count` reduce with `group=true`.
+     * Used to drop over-common trigrams and to compute IDF.
+     */
+    async ftsTrigramDf(trigrams: string[]): Promise<Map<string, number>> {
+        await this.ensureConnected();
+        const df = new Map<string, number>();
+        if (!trigrams || trigrams.length === 0) return df;
+        const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            group: true,
+            reduce: true,
+        });
+        for (const row of res.rows) {
+            df.set(row.key, row.value);
+        }
+        return df;
+    }
+
+    /**
+     * FTS: candidate rows for the given trigrams (non-reduced view query).
+     * Each row carries the document's term frequency for that trigram plus the
+     * doc-level metadata embedded in the view value, so permission/visibility
+     * filtering can be done without loading the documents. See {@link FtsCandidateValue}.
+     */
+    async ftsTrigramCandidates(trigrams: string[]): Promise<FtsCandidateRow[]> {
+        await this.ensureConnected();
+        if (!trigrams || trigrams.length === 0) return [];
+        const res = await this.db.view("fts-trigram-index", "fts-trigram-index", {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            reduce: false,
+        });
+        return res.rows.map((row: any) => ({
+            trigram: row.key,
+            docId: row.id,
+            value: row.value as FtsCandidateValue,
+        }));
     }
 
     /**
