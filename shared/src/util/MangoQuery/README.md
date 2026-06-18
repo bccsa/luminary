@@ -7,6 +7,7 @@ This folder contains two complementary utilities for working with Mango selector
 
 Use the links below for the full docs:
 
+- **New to Mango selectors? Start here:** [guide.md](./guide.md) — an example-led tour of the selector syntax.
 - mangoCompile: ./mangoCompile.md
 - mangoToDexie: ./mangoToDexie.md
 

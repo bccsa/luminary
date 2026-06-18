@@ -88,7 +88,6 @@ The library's "public composable" surface:
 - **`toEditable`** — converts a source ref into a clone that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits. (Formerly `createEditable`, which remains as a deprecated alias.)
 - **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** (`util/ApiLiveQuery/`) — same idea but talks to the REST API + Socket.io directly instead of IndexedDB. Used for queries that can't or shouldn't be cached locally (e.g. CMS searches).
 - **`MangoQuery/`** — Mango-syntax query helpers. `mangoCompile(selector)` returns an in-memory predicate; `mangoToDexie(table, query)` translates a Mango query into a Dexie `Collection` with index pushdown where possible and an in-memory filter for the rest. Both use template-based caching (structure normalized, values extracted) with `localStorage` persistence via `warmMangoCaches()`. See `mangoCompile.md` and `mangoToDexie.md`.
-- **`LFormData`** — `FormData` subclass that serializes nested objects + binary attachments into the multipart format the API expects.
 - **`asyncArray`** (`filterAsync`, `someAsync`), **`watchValue`** — small async/reactivity utilities used across the lib.
 
 ### Full-text search — `src/fts/`

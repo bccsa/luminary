@@ -164,8 +164,8 @@ const q = new HybridQuery<ContentDto>(query, { cache: true });
 
 With `{ cache: true }`, `HybridQuery` **seeds its two contributions from the last
 persisted window on (re)build, then persists each new window back** — moving the
-manual "cached initial value, update when the slow query resolves" pattern the
-overview pages hand-roll today into the query layer. Independent of `live`, and
+manual "cached initial value, update when the slow query resolves" pattern a
+caller would otherwise hand-roll into the query layer. Independent of `live`, and
 works for both static and thunk queries.
 
 - **Synchronous first paint.** The seed is read from **`localStorage`** (not
@@ -218,9 +218,9 @@ const items = useHybridQuery<ContentDto>(query, { persistOffline: true });
 ```
 
 `{ persistOffline: true }` writes the API supplement's older-tail docs to **IndexedDB**
-(`db.bulkPut`) so a tile backed by them is **openable offline** — `SingleContent` reads
-`db.docs` by slug and, offline, shows nothing for a doc that isn't there, so without
-persistence an online-only tile is a dead link → 404. Off by default; independent of
+(`db.bulkPut`) so an item backed by them is **openable offline** — a detail view that
+reads `db.docs` by slug shows nothing, offline, for a doc that isn't there, so without
+persistence an online-only item is a dead link → 404. Off by default; independent of
 `cache` and `live`.
 
 **Not the same as `cache`.** `cache` keeps a localStorage *window* for a fast first
@@ -238,7 +238,7 @@ offline.
   syncList *state*). A keep-alive deadline per doc is kept in a `retention` side table,
   refreshed whenever the doc is *touched*: persisted by a supplement, **featured in any
   HybridQuery output** (every recompute stamps the below-cutoff `_local` docs —
-  throttled), or **opened in detail** (`SingleContent` calls `touchRetention`).
+  throttled), or **opened in detail** (the consumer calls `touchRetention`).
   `evictStaleBelowCutoff` — run after each content sync, so only while **online** —
   deletes below-cutoff Content whose deadline has passed or was never set, and reaps
   expired `retention` rows (including **orphans** — rows whose doc was stamped but never
