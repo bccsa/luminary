@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AclPermission, DocType, hasAnyPermission, db, type RedirectDto } from "luminary-shared";
+import { AclPermission, DocType, hasAnyPermission, type RedirectDto, useHybridQuery } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
@@ -10,7 +10,10 @@ import { isSmallScreen } from "@/globalConfig";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
-const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
+const redirects = useHybridQuery<RedirectDto>(
+    () => ({ selector: { type: DocType.Redirect } }),
+    { live: true },
+);
 
 const isLoading = ref(true);
 const stopLoadingWatcher = watch(redirects, () => {

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { db, DocType, type RedirectDto } from "luminary-shared";
+import { DocType, type RedirectDto, useHybridQuery } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import RedirectRow from "./RedirectRow.vue";
-const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
+const redirects = useHybridQuery<RedirectDto>(
+    () => ({ selector: { type: DocType.Redirect } }),
+    { live: true },
+);
 </script>
 
 <template>
