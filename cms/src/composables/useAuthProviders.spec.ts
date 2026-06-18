@@ -53,7 +53,6 @@ const randomPort = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 const port = randomPort();
 
 let providerSearchDocs: AuthProviderDto[] = [];
-let lastChangeRequest: any = null;
 
 expressApp.get("/search", (req, res) => {
     const query = JSON.parse(req.headers["x-query"] as string);
@@ -65,8 +64,7 @@ expressApp.get("/search", (req, res) => {
     }
 });
 
-expressApp.post("/changerequest", (req, res) => {
-    lastChangeRequest = req.body;
+expressApp.post("/changerequest", (_req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ack: AckStatus.Accepted }));
 });
@@ -115,7 +113,6 @@ describe("useAuthProviders", () => {
         await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
         isConnected.value = true;
         providerSearchDocs = [mockProvider];
-        lastChangeRequest = null;
     });
 
     afterEach(async () => {
