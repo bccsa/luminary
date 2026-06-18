@@ -20,7 +20,7 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch, onBeforeMount } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -221,8 +221,8 @@ const unwatch = watch([idbContent, isConnected], () => {
 const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
-watch([content, isConnected], async () => {
-    if (!content.value) return;
+const loadLocalTranlations = async () => {
+    if (!content.value || content.value === defaultContent) return;
 
     // Only reload translations if we're viewing a different parent content
     // This prevents flash when switching between translations of the same content
@@ -263,6 +263,16 @@ watch([content, isConnected], async () => {
     }
 
     isLoadingTranslations.value = false;
+};
+
+onBeforeMount(() => {
+    loadLocalTranlations();
+});
+
+watch([content, isConnected], async () => {
+    if (!content.value) return;
+
+    await loadLocalTranlations();
 
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
@@ -627,7 +637,10 @@ watch([isLoading, content, is404], async () => {
 </script>
 
 <template>
-    <BasePage :showBackButton="true" desktopTopBar>
+    <BasePage
+        :showBackButton="true"
+        desktopTopBar
+    >
         <template
             #quickControls
             v-if="!is404"
