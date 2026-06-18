@@ -1,6 +1,5 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
-import { S3Service } from "../../s3/s3.service";
 import { generateThumbHash } from "../../changeRequests/documentProcessing/thumbHash";
 
 /**
@@ -9,18 +8,21 @@ import { generateThumbHash } from "../../changeRequests/documentProcessing/thumb
  * Backfills ThumbHash placeholders for pre-existing images. ThumbHash (a ~25-byte base64 blurred
  * preview, see `ImageFileCollectionDto.thumbHash`) is only generated at image-upload time
  * (`processImageDto`), so images created before that feature shipped have none. Re-encoding needs the
- * actual image bytes, which are pulled from S3 per bucket.
+ * actual image bytes, which are fetched over HTTP from each image's public URL
+ * (`${StorageDto.publicUrl}/${filename}`, the same URL the clients render from) — so the upgrade needs
+ * no S3 credentials and can't be blocked by a bucket whose keys have since rotated.
  *
  * For each Post/Tag whose image collections are missing a ThumbHash, it fetches the smallest stored
- * variant from that doc's bucket (smallest is enough — `generateThumbHash` downscales to ≤100×100),
- * encodes the hash, re-saves the parent, and re-denormalises `imageData` onto every child Content
- * doc's `parentImageData` (mirroring `processPostTagDto`). Each `upsertDoc` bumps `updatedTimeUtc`,
- * so clients re-sync and finally show blurs for old content.
+ * variant from that doc's storage bucket (smallest is enough — `generateThumbHash` downscales to
+ * ≤100×100), encodes the hash, re-saves the parent, and re-denormalises `imageData` onto every child
+ * Content doc's `parentImageData` (mirroring `processPostTagDto`). Each `upsertDoc` bumps
+ * `updatedTimeUtc`, so clients re-sync and finally show blurs for old content.
  *
  * Resilience: a single image that can't be fetched/encoded is logged and skipped — it must not brick
- * API startup forever (an object could be missing from S3). A DB-level failure (querying/writing
- * docs) is re-thrown to halt the upgrade so the version stays at the prior value and the next startup
- * retries. The per-collection `thumbHash` skip keeps that retry cheap and idempotent.
+ * API startup forever (an object could be missing from storage or the URL unreachable). A DB-level
+ * failure (querying/writing docs) is re-thrown to halt the upgrade so the version stays at the prior
+ * value and the next startup retries. The per-collection `thumbHash` skip keeps that retry cheap and
+ * idempotent.
  *
  * Accepts version 15 or 16: v16 is reserved by a parallel branch. Until that lands and bumps the
  * schema to 16, v17 runs straight after v15; once it does, v17 picks up from 16.
@@ -46,6 +48,21 @@ export default async function (db: DbService) {
             failures: 0,
         };
 
+        // Resolve a bucket's public base URL once and reuse it across the (typically many) parents
+        // that share the same image bucket. A bucket with no public URL maps to undefined and is
+        // skipped — there's nowhere to fetch its pixels from.
+        const publicUrlCache = new Map<string, string | undefined>();
+        const getPublicUrl = async (bucketId: string): Promise<string | undefined> => {
+            if (publicUrlCache.has(bucketId)) return publicUrlCache.get(bucketId);
+            const result = await db.getDoc(bucketId);
+            const publicUrl: string | undefined = result.docs?.[0]?.publicUrl
+                ? // Strip trailing slash(es) so the join below never yields a "//".
+                  result.docs[0].publicUrl.replace(/\/+$/, "")
+                : undefined;
+            publicUrlCache.set(bucketId, publicUrl);
+            return publicUrl;
+        };
+
         for (const docType of [DocType.Post, DocType.Tag]) {
             const { docs } = await db.getDocsByType(docType);
 
@@ -67,14 +84,12 @@ export default async function (db: DbService) {
                     continue;
                 }
 
-                let s3: S3Service;
-                try {
-                    s3 = await S3Service.create(parent.imageBucketId, db);
-                } catch (err) {
-                    console.error(
-                        `Skipping ${parent._id}: could not open bucket ${parent.imageBucketId}: ${err.message}`,
+                const baseUrl = await getPublicUrl(parent.imageBucketId);
+                if (!baseUrl) {
+                    console.warn(
+                        `Skipping ${parent._id}: storage bucket ${parent.imageBucketId} has no public URL to fetch images from`,
                     );
-                    stats.failures++;
+                    stats.skippedNoBucket++;
                     continue;
                 }
 
@@ -85,8 +100,20 @@ export default async function (db: DbService) {
                         (a: any, b: any) => a.width - b.width,
                     )[0];
 
+                    // Same public URL the clients render from: `${publicUrl}/${filename}`.
+                    const url = `${baseUrl}/${smallest.filename}`;
+
                     try {
-                        const buffer = await streamToBuffer(await s3.getObject(smallest.filename));
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            console.error(
+                                `Failed to fetch image for ${parent._id} from ${url}: HTTP ${response.status} ${response.statusText}`,
+                            );
+                            stats.failures++;
+                            continue;
+                        }
+
+                        const buffer = Buffer.from(await response.arrayBuffer());
                         const hash = await generateThumbHash(buffer);
                         if (!hash) {
                             console.warn(
@@ -100,7 +127,7 @@ export default async function (db: DbService) {
                         stats.collectionsFilled++;
                     } catch (err) {
                         console.error(
-                            `Failed to generate ThumbHash for ${parent._id} / ${smallest.filename}: ${err.message}`,
+                            `Failed to generate ThumbHash for ${parent._id} from ${url}: ${err.message}`,
                         );
                         stats.failures++;
                     }
@@ -134,15 +161,4 @@ export default async function (db: DbService) {
         console.error("Database schema upgrade to version 17 failed:", error);
         throw error;
     }
-}
-
-/** Collect a Minio object stream into a single Buffer. */
-async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
-    const chunks: Uint8Array[] = [];
-    await new Promise<void>((resolve, reject) => {
-        stream.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-        stream.on("end", () => resolve());
-        stream.on("error", (err) => reject(err));
-    });
-    return Buffer.concat(chunks);
 }
