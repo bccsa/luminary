@@ -263,6 +263,11 @@ const translationsArr = useContentQuery(
         // index/sort only matter on the resolved-parentId (equality) branch.
         useIndex: "content-parentId-publishDate-index",
         sort: [{ publishDate: "desc" }],
+        // A language switch binds the chosen translation straight into `content`, so
+        // these docs must retain the same fields as the main content query: `text`
+        // (the article body) and `memberOf` (read by canEdit). The default strip set
+        // would drop both, blanking the body and crashing the edit check.
+        stripFields: ["fts", "ftsTokenCount", "_rev"],
     },
 );
 const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
