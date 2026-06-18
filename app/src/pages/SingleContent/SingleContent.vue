@@ -221,7 +221,7 @@ const unwatch = watch([idbContent, isConnected], () => {
 const currentParentId = ref<string>("");
 const isLoadingTranslations = ref(false);
 
-const loadLocalTranlations = async () => {
+const loadLocalTranslations = async () => {
     if (!content.value || content.value === defaultContent) return;
 
     // Only reload translations if we're viewing a different parent content
@@ -266,13 +266,13 @@ const loadLocalTranlations = async () => {
 };
 
 onBeforeMount(() => {
-    loadLocalTranlations();
+    loadLocalTranslations();
 });
 
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    await loadLocalTranlations();
+    await loadLocalTranslations();
 
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
