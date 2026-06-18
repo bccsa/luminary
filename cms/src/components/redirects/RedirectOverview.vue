@@ -7,13 +7,20 @@ import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { isSmallScreen } from "@/globalConfig";
+import { useInfiniteScrollList } from "@/composables/useInfiniteScrollList";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
+
 const redirects = useHybridQuery<RedirectDto>(
-    () => ({ selector: { type: DocType.Redirect } }),
+    () => ({
+        selector: { type: DocType.Redirect },
+        $sort: [{ updatedTimeUtc: "desc" }],
+    }),
     { live: true },
 );
+
+const { visible: visibleRedirects } = useInfiniteScrollList(redirects, { pageSize: 20 });
 
 const isLoading = ref(true);
 const stopLoadingWatcher = watch(redirects, () => {
@@ -44,7 +51,7 @@ const stopLoadingWatcher = watch(redirects, () => {
         </template>
 
         <RedirectDisplaycard
-            v-for="redirect in redirects"
+            v-for="redirect in visibleRedirects"
             :key="redirect._id"
             :redirectDoc="redirect"
         />
