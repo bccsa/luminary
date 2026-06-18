@@ -375,9 +375,11 @@ describe("EditContent.vue", () => {
             },
         });
 
-        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
-        expect(triggerButton.exists()).toBe(true);
-        await triggerButton.trigger("click");
+        // The parent loads asynchronously, so wait for the empty-state button.
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="add-translation-button"]').exists()).toBe(true);
+        });
+        await wrapper.find('[data-test="add-translation-button"]').trigger("click");
 
         // Wait for component to load and language selector to appear
         await waitForExpect(() => {
@@ -427,6 +429,14 @@ describe("EditContent.vue", () => {
     });
 
     it("renders an empty state when no language is selected", async () => {
+        // Remove every translation so no content is selected for the default language
+        // → the "select a language" empty state renders deterministically.
+        await db.docs.bulkDelete([
+            mockData.mockEnglishContentDto._id,
+            mockData.mockFrenchContentDto._id,
+            mockData.mockSwahiliContentDto._id,
+        ]);
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,

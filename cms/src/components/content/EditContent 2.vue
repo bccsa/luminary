@@ -12,17 +12,16 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type PostDto,
     type TagDto,
     type Uuid,
     verifyAccess,
+    type ContentParentDto,
     PostType,
+    type RedirectDto,
+    RedirectType,
     useDexieLiveQuery,
 } from "luminary-shared";
-import { useEditContentSource } from "./composables/useEditContentSource";
-import { useContentLanguage } from "./composables/useContentLanguage";
-import { useContentPermissions } from "./composables/useContentPermissions";
-import { buildContentDuplicate } from "./util/buildContentDuplicate";
-import { buildRedirects } from "./util/buildRedirects";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
@@ -32,11 +31,14 @@ import EditContentParentValidation from "@/components/content/EditContentParentV
 import EmptyState from "@/components/EmptyState.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
+import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
-import { clientAppUrl, cmsLanguages } from "@/globalConfig";
+import { clientAppUrl } from "@/globalConfig";
+import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentMedia from "./EditContentMedia.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
@@ -55,63 +57,145 @@ const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
 
-// Data layer — local-first loading, editable copies + dirty tracking, and the
-// save / revert / duplicate primitives — lives in the composable. UI orchestration
-// (permissions, notifications, routing, language selection) stays here.
-const source = useEditContentSource({
-    id: () => props.id,
-    docType: props.docType,
-    tagOrPostType: props.tagOrPostType,
-    onParentNotFound: () => {
-        addNotification({
-            title: "Parent not found",
-            description: "The parent document was not found in the database",
-            state: "error",
-            timer: 5000,
-        });
-        router.push({
-            name: "overview",
-            params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
-        });
-    },
-});
-const {
-    currentId,
-    newDocument,
-    editableParent,
-    editableContent,
-    existingParent,
-    existingContent,
-    isDirty,
-    isLoading,
-} = source;
+// Generate new parent id if it is a new document
+const parentId = props.id === "new" ? db.uuid() : props.id;
+const newDocument = props.id === "new";
+const waitForUpdate = ref(false);
 
+// Refs
+const editableParent = ref<ContentParentDto>({
+    _id: parentId,
+    type: props.docType,
+    updatedTimeUtc: 0,
+    memberOf: [],
+    tags: [],
+    publishDateVisible: true,
+});
+const isLoading = computed(() => editableParent.value == undefined);
+const existingParent = ref<ContentParentDto>();
+const liveParent = useDexieLiveQuery(
+    async () =>
+        (await db.get(
+            editableParent.value?._id || parentId,
+        )) as unknown as Promise<ContentParentDto>,
+    { initialValue: editableParent.value },
+);
+const editableContent = ref<ContentDto[]>([]);
+const existingContent = ref<ContentDto[]>();
 const showDeleteModal = ref(false);
 
-const icon = props.docType === DocType.Tag ? TagIcon : DocumentIcon;
+watch(liveParent, (parent) => {
+    if (
+        waitForUpdate.value &&
+        parent &&
+        editableParent.value.imageData &&
+        !parent.imageData?.uploadData
+    ) {
+        editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
 
-const notify = (state: "success" | "error" | "info", title: string, description: string) =>
-    addNotification({ title, description, state });
-
-// Which translation is being edited (driven by the route), + the language lists.
-const {
-    selectedLanguageId,
-    selectedLanguage,
-    selectedContent,
-    selectedContentExisting,
-    untranslatedLanguages,
-} = useContentLanguage({
-    languageCode: () => props.languageCode,
-    editableContent,
-    existingContent,
+    if (waitForUpdate.value && parent && editableParent.value.media && !parent.media?.uploadData) {
+        editableParent.value.media = (parent as ContentParentDto).media;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
 });
 
-// ACL-derived capability flags for the current parent + selected language.
-const { canTranslate, canPublish, canEditParent, canDelete } = useContentPermissions({
-    editableParent,
-    docType: props.docType,
-    selectedLanguage,
-    selectedContent,
+let icon = DocumentIcon;
+if (props.docType === DocType.Tag) {
+    icon = TagIcon;
+}
+
+const loadData = (id: string, isNew: boolean) => {
+    if (isNew) {
+        if (props.docType === DocType.Tag) {
+            (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
+            (editableParent.value as TagDto).pinned = 0;
+            (editableParent.value as TagDto).publishDateVisible = false;
+        } else {
+            (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
+            (editableParent.value as PostDto).publishDateVisible = true;
+        }
+    } else {
+        db.get<PostDto | TagDto>(id).then((p) => {
+            if (!p) {
+                addNotification({
+                    title: "Parent not found",
+                    description: "The parent document was not found in the database",
+                    state: "error",
+                    timer: 5000,
+                });
+                router.push({
+                    name: "overview",
+                    params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
+                });
+            }
+            editableParent.value = _.cloneDeep(p!);
+            existingParent.value = _.cloneDeep(p!);
+        });
+
+        db.whereParent(id, props.docType).then((doc) => {
+            // we must replace the array, not push to it, to avoid old items when reloading
+            editableContent.value = doc;
+            existingContent.value = _.cloneDeep(doc);
+        });
+    }
+};
+
+loadData(parentId, newDocument);
+
+watch(
+    () => props.id,
+    (newId) => {
+        // Only fetch from DB if the ID actually changed to a different document
+        if (newId !== editableParent.value?._id && newId !== "new") {
+            loadData(newId, false);
+        } else if (newId === "new") {
+            loadData(db.uuid(), true);
+        }
+    },
+);
+
+const untranslatedLanguages = computed(() => {
+    if (!editableContent.value) return [];
+    return translatableLanguagesAsRef.value
+        .filter((l) => !editableContent.value?.find((c) => c.language === l._id && !c.deleteReq))
+        .sort(sortByName);
+});
+
+let _selectedLanguageId = ref<Uuid | undefined>(undefined);
+const selectedLanguageId = computed({
+    get() {
+        if (!cmsLanguages.value) return undefined;
+        if (props.languageCode) {
+            const preferred = cmsLanguages.value.find((l) => l.languageCode === props.languageCode);
+            if (preferred) return preferred._id;
+        }
+        return cmsLanguages.value.length > 0 ? cmsLanguages.value[0]._id : undefined;
+    },
+    set(val) {
+        _selectedLanguageId.value = val;
+    },
+});
+
+const selectedLanguage = computed(() => {
+    return cmsLanguages.value.find((l) => l._id === selectedLanguageId.value);
+});
+
+const selectedContent = computed(() => {
+    if (editableContent.value.length === 0) return undefined;
+    return editableContent.value.find(
+        (c) => c.language === selectedLanguageId.value && !c.deleteReq,
+    );
+});
+
+const selectedContent_Existing = computed(() => {
+    if (existingContent.value?.length === 0) return undefined;
+    return existingContent.value?.find(
+        (c) => c.language === selectedLanguageId.value && !c.deleteReq,
+    );
 });
 
 const createTranslation = (language: LanguageDto) => {
@@ -128,8 +212,8 @@ const createTranslation = (language: LanguageDto) => {
         slug: "",
         parentTags: [],
     };
-    editableContent.value.push(newContent);
-    // Navigate to the new translation — the route's languageCode drives selection.
+    editableContent.value?.push(newContent);
+    selectedLanguageId.value = language._id;
     router.replace({
         name: "edit",
         params: {
@@ -144,26 +228,117 @@ const createTranslation = (language: LanguageDto) => {
     });
 };
 
+const canTranslate = computed(() => {
+    if (editableParent.value.memberOf.length === 0) return true;
+    if (!editableParent.value || !selectedLanguage.value) return false;
+    if (!canPublish.value && selectedContent.value?.status === PublishStatus.Published)
+        return false;
+    if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
+        return false;
+    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
+        return false;
+    return true;
+});
+
+const canPublish = computed(() => {
+    if (!editableParent.value) return false;
+    if (editableParent.value.memberOf.length === 0) return true;
+    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish);
+});
+
+const canEditParent = computed(() => {
+    if (editableParent.value) {
+        if (editableParent.value.memberOf.length === 0) return true;
+        return verifyAccess(
+            editableParent.value.memberOf,
+            props.docType,
+            AclPermission.Edit,
+            "all",
+        );
+    }
+    return false;
+});
+
+const canDelete = computed(() => {
+    if (!editableParent.value) return false;
+    if (editableParent.value.memberOf.length === 0) return true;
+    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
+});
+
+const isDirty = computed(() => {
+    const parentDirty = !_.isEqual(
+        { ...editableParent.value, updatedBy: "" },
+        { ...existingParent.value, updatedBy: "" },
+    );
+    const contentDirty = !_.isEqual(
+        { ...editableContent.value, updatedBy: "" },
+        { ...existingContent.value, updatedBy: "" },
+    );
+    return parentDirty || contentDirty;
+});
+
 const isValid = ref(true);
 
-// Create redirects (old slug → new slug) for any published translation whose slug
-// changed and the user has redirect-edit access to.
 const createRedirect = async () => {
-    if (!existingContent.value) return;
-    const redirects = buildRedirects(editableContent.value, existingContent.value);
-    await Promise.all(redirects.map((redirect) => db.upsert({ doc: redirect })));
-    redirects.forEach((redirect) =>
-        notify(
-            "info",
-            "Redirect created",
-            `A redirect was created from ${redirect.slug} to ${redirect.toSlug}`,
-        ),
-    );
+    if (!editableContent.value || !existingContent.value) return;
+
+    const redirectsToCreate: RedirectDto[] = [];
+
+    for (const content of editableContent.value) {
+        if (content.deleteReq) continue;
+
+        const existingContentDoc = existingContent.value.find(
+            (c) => c._id === content._id && !c.deleteReq,
+        );
+
+        if (!existingContentDoc) continue;
+        if (content.slug === existingContentDoc.slug) continue;
+        if (!verifyAccess(content.memberOf, DocType.Redirect, AclPermission.Edit)) continue;
+        if (
+            existingContentDoc.status !== PublishStatus.Published ||
+            content.status !== PublishStatus.Published
+        )
+            continue;
+        if (
+            (content.publishDate && content.publishDate > Date.now()) ||
+            (existingContentDoc.publishDate && existingContentDoc.publishDate > Date.now())
+        )
+            continue;
+        if (
+            (content.expiryDate && content.expiryDate <= Date.now()) ||
+            (existingContentDoc.expiryDate && existingContentDoc.expiryDate <= Date.now())
+        )
+            continue;
+
+        redirectsToCreate.push({
+            _id: db.uuid(),
+            type: DocType.Redirect,
+            updatedTimeUtc: Date.now(),
+            memberOf: [...content.memberOf],
+            slug: existingContentDoc.slug,
+            redirectType: RedirectType.Permanent,
+            toSlug: content.slug,
+        });
+    }
+
+    await Promise.all(redirectsToCreate.map((redirect) => db.upsert({ doc: redirect })));
+
+    redirectsToCreate.forEach((redirect) => {
+        addNotification({
+            title: "Redirect created",
+            description: `A redirect was created from ${redirect.slug} to ${redirect.toSlug}`,
+            state: "info",
+        });
+    });
 };
 
 const saveChanges = async () => {
     if (!isValid.value) {
-        notify("error", "Changes not saved", "There are validation errors that prevent saving");
+        addNotification({
+            title: "Changes not saved",
+            description: "There are validation errors that prevent saving",
+            state: "error",
+        });
         return;
     }
     const prevContentDoc = existingContent.value?.find(
@@ -174,57 +349,101 @@ const saveChanges = async () => {
         isPublished &&
         !verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)
     ) {
-        notify(
-            "error",
-            "Insufficient Permissions",
-            "You cannot modify a published document without publish access.",
-        );
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You cannot modify a published document without publish access.",
+            state: "error",
+        });
         return;
     }
     if (!canTranslate.value) {
-        notify(
-            "error",
-            "Insufficient Permissions",
-            "You need translate access to save this content.",
-        );
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You need translate access to save this content.",
+            state: "error",
+        });
         return;
     }
 
+    /**
+     * Create a redirect if neccessary
+     * This is done if the content document is currently published,
+     * was already published, the slug has changed
+     * and the user has edit access to redirect documents.
+     */
     await createRedirect();
-    await source.save();
-    notify(
-        "success",
-        `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-        `The ${props.tagOrPostType} was saved successfully`,
-    );
+    await save();
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+        description: `The ${props.tagOrPostType} was saved successfully`,
+        state: "success",
+    });
+    existingParent.value = _.cloneDeep(editableParent.value);
+    existingContent.value = _.cloneDeep(editableContent.value);
+};
+
+const save = async () => {
+    if (
+        existingParent.value?.imageData?.uploadData !==
+            editableParent.value.imageData?.uploadData ||
+        existingParent.value?.media?.uploadData !== editableParent.value.media?.uploadData
+    ) {
+        waitForUpdate.value = true;
+    }
+    if (!existingContent.value && editableParent.value.deleteReq) return;
+    await db.upsert({ doc: editableParent.value });
+    if (!editableParent.value.deleteReq) {
+        const pList: Promise<any>[] = [];
+        editableContent.value.forEach((c) => {
+            const prevContentDoc = existingContent.value?.find((d) => d._id === c._id);
+            if (_.isEqual(c, prevContentDoc)) return;
+            if (c.deleteReq && !prevContentDoc) return;
+            pList.push(db.upsert({ doc: c }));
+        });
+        await Promise.all(pList);
+    }
 };
 
 const revertChanges = () => {
-    if (!isDirty.value) {
-        notify("error", "No changes", "There were no changes to revert");
+    if (
+        (_.isEqual(editableContent.value, existingContent.value) &&
+            _.isEqual(editableParent.value, existingParent.value)) ||
+        editableContent.value.length < 1 ||
+        !existingContent.value
+    ) {
+        addNotification({
+            title: "No changes",
+            description: `There were no changes to revert`,
+            state: "error",
+        });
         return;
     }
-    source.revert();
-    notify(
-        "success",
-        `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
-        `The changes to the ${props.tagOrPostType} have been reverted`,
-    );
+    editableParent.value = _.cloneDeep(existingParent.value!);
+    editableContent.value = _.cloneDeep(existingContent.value!);
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
+        description: `The changes to the ${props.tagOrPostType} have been reverted`,
+        state: "success",
+    });
 };
 
 const deleteParent = async () => {
     if (!editableParent.value) return;
     if (!canDelete.value) {
-        notify("error", "Insufficient Permissions", "You do not have delete permission");
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
         return;
     }
     editableParent.value.deleteReq = 1;
-    source.save();
-    notify(
-        "success",
-        `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
-        `The ${props.tagOrPostType} was successfully deleted`,
-    );
+    save();
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
+        description: `The ${props.tagOrPostType} was successfully deleted`,
+        state: "success",
+    });
     router.push({
         name: "overview",
         params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
@@ -234,7 +453,7 @@ const deleteParent = async () => {
 router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 
 watch(selectedLanguage, () => {
-    if (selectedLanguage.value && editableParent.value) {
+    if (selectedLanguage.value) {
         router.replace(
             `/${props.docType}/edit/${props.tagOrPostType}/${editableParent.value._id}/${selectedLanguage.value?.languageCode}`,
         );
@@ -259,12 +478,42 @@ watch(showDuplicateModal, (open) => {
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
-    const { parent: clonedParent, content: clonedContent } = buildContentDuplicate(
-        editableParent.value,
-        editableContent.value,
-        { duplicateImage: duplicateImageOnCopy.value },
-    );
-    source.installClones(clonedParent, clonedContent);
+    const clonedParent = _.cloneDeep(editableParent.value);
+    clonedParent._id = db.uuid();
+    delete (clonedParent as any)._rev;
+    if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
+    if (clonedParent.imageData) {
+        const imageData = clonedParent.imageData as typeof clonedParent.imageData & {
+            duplicate?: boolean;
+        };
+        delete clonedParent.imageData.uploadData;
+        delete imageData.duplicate;
+        if (duplicateImageOnCopy.value && imageData.fileCollections?.length > 0) {
+            if (editableParent.value.imageBucketId) {
+                imageData.duplicate = true;
+            } else {
+                imageData.fileCollections = [];
+            }
+        } else if (imageData.fileCollections) {
+            imageData.fileCollections = [];
+        }
+    }
+    const clonedContent = editableContent.value.map((c) => {
+        const newContent = _.cloneDeep(c);
+        newContent._id = db.uuid();
+        delete (newContent as any)._rev;
+        newContent.updatedTimeUtc = Date.now();
+        newContent.title += " (Copy)";
+        newContent.slug += "-copy";
+        newContent.parentId = clonedParent._id;
+        newContent.parentType = editableParent.value.type;
+        newContent.status = PublishStatus.Draft;
+        newContent.parentTags = [];
+        newContent.parentTaggedDocs = [];
+        return newContent;
+    });
+    editableParent.value = clonedParent;
+    editableContent.value = clonedContent;
     if (import.meta.env.MODE !== "test") {
         await router.replace({
             name: "edit",
@@ -277,11 +526,11 @@ const duplicate = async () => {
             },
         });
     }
-    notify(
-        "success",
-        "Successfully duplicated",
-        `This ${props.tagOrPostType} has successfully been duplicated`,
-    );
+    addNotification({
+        title: "Successfully duplicated",
+        description: `This ${props.tagOrPostType} has successfully been duplicated`,
+        state: "success",
+    });
 };
 
 const showLanguageSelector = ref(false);
@@ -314,7 +563,9 @@ const contentActions = computed(() => {
 
 const isLocalChange = useDexieLiveQuery(
     async () => {
-        const res = await db.localChanges.where({ docId: currentId.value }).first();
+        const res = await db.localChanges
+            .where({ docId: editableParent.value?._id || parentId })
+            .first();
         return res ? true : false;
     },
     { initialValue: false },
@@ -330,21 +581,6 @@ const onSelectorCollapsedUpdate = (val: boolean) => {
 const onSelectorHeightUpdate = (val: number) => {
     languageSelectorHeight.value = val;
 };
-
-// Shared props for the mobile + desktop action bars (they differ only by `mobile`).
-const actionsWrapperProps = computed(() => ({
-    revert: revertChanges,
-    save: saveChanges,
-    delete: deleteParent,
-    duplicate,
-    parentId: editableParent.value?._id,
-    liveUrl: liveUrl.value,
-    isPublished: selectedContentExisting.value?.status === PublishStatus.Published,
-    newDocument,
-    isDirty: isDirty.value,
-    isLocalChange: isLocalChange.value,
-    actions: contentActions.value,
-}));
 </script>
 
 <template>
@@ -380,11 +616,37 @@ const actionsWrapperProps = computed(() => ({
         </template>
 
         <template #topBarActionsMobile>
-            <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="true" />
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="saveChanges"
+                :delete="deleteParent"
+                :duplicate="duplicate"
+                :parentId="editableParent._id"
+                :liveUrl="liveUrl"
+                :isPublished="selectedContent_Existing?.status === PublishStatus.Published"
+                :mobile="true"
+                :newDocument="newDocument"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+            />
         </template>
         <!-- desktop actions -->
         <template #topBarActionsDesktop>
-            <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
+            <EditContentActionsWrapper
+                :revert="revertChanges"
+                :save="saveChanges"
+                :delete="deleteParent"
+                :duplicate="duplicate"
+                :parentId="editableParent._id"
+                :liveUrl="liveUrl"
+                :isPublished="selectedContent_Existing?.status === PublishStatus.Published"
+                :mobile="false"
+                :newDocument="newDocument"
+                :isDirty="isDirty"
+                :isLocalChange="isLocalChange"
+                :actions="contentActions"
+            />
         </template>
         <div class="flex flex-col gap-0 lg:h-full lg:flex-row lg:gap-2 lg:overflow-y-hidden">
             <!-- sidebar -->
@@ -524,7 +786,7 @@ const actionsWrapperProps = computed(() => ({
     </BasePage>
 
     <!-- modals -->
-    <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent?.deleteReq" />
+    <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${props.tagOrPostType} and all translations`"

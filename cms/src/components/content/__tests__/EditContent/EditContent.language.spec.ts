@@ -74,9 +74,11 @@ describe("EditContent - Language & Translations", () => {
             publish: true,
         };
 
+        // No content is seeded, so every language is still "untranslated" and the
+        // add-translation selector lists exactly the languages the user may translate
+        // to (English in group-languages; Français/Swahili are excluded by access).
         await db.docs.bulkPut([
             mockPostDto,
-            mockEnglishContentDto,
             { ...mockLanguageDtoEng, memberOf: ["group-languages"] },
             { ...mockLanguageDtoFra, memberOf: ["group-public-content"] },
             { ...mockLanguageDtoSwa, memberOf: ["group-public-content"] },
@@ -91,10 +93,12 @@ describe("EditContent - Language & Translations", () => {
             },
         });
 
-        // Wait for component to load and language selector to appear
-        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
-        expect(triggerButton.exists()).toBe(true);
-        await triggerButton.trigger("click");
+        // Wait for the component to load (parent loads asynchronously), then open
+        // the language selector.
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="add-translation-button"]').exists()).toBe(true);
+        });
+        await wrapper.find('[data-test="add-translation-button"]').trigger("click");
         await waitForExpect(() => {
             const languageSelector = wrapper.findComponent(LanguageSelector);
             expect(languageSelector.exists()).toBe(true);
