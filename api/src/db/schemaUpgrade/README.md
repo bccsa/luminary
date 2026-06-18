@@ -122,7 +122,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 13 (as of 2026-03-09)
+**Current Schema Version**: 17 (as of 2026-06-18)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -158,3 +158,7 @@ Backfills pre-calculated FTS (full-text search) index data on all Content docume
 ### v16 — Slug invariant cleanup (2026-06-08)
 
 Enforces the slug invariant — per slug, published Content and a Redirect are mutually exclusive (the redirect wins). For every Redirect, any _published_ Content doc sharing its slug is forced to Draft. Going forward the invariant is held by the change-request pipeline (`processContentDto` blocks publishing over a redirect; `validateChangeRequest` rejects a redirect over published content); this backfills pre-existing collisions.
+
+### v17 — ThumbHash backfill (2026-06-18)
+
+Backfills ThumbHash placeholders (`ImageFileCollectionDto.thumbHash`, a ~25-byte base64 blurred preview) for pre-existing images. ThumbHash is only generated at image-upload time, so older images lack it. For each Post/Tag whose image collections are missing a ThumbHash, it fetches the smallest stored variant from that doc's bucket (S3), encodes the hash, re-saves the parent, and re-denormalises `imageData` onto child Content docs' `parentImageData`. Each save bumps `updatedTimeUtc` so clients re-sync and show blurs for old content. Per-image fetch/encode failures are logged and skipped (a missing S3 object must not block startup); a DB-level failure re-throws so the version stays put and the next startup retries (the per-collection `thumbHash` skip makes that idempotent).

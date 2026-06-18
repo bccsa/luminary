@@ -152,6 +152,11 @@ export type ImageDto = {
 export type ImageFileCollectionDto = {
     aspectRatio: number;
     imageFiles: ImageFileDto[];
+    /**
+     * Base64-encoded ThumbHash of this collection's image — a ~25-byte blurred preview the client
+     * decodes and shows instantly (offline-safe) while the full image loads. Server-set.
+     */
+    thumbHash?: string;
 };
 
 export type ImageFileDto = {

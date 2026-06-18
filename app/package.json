@@ -29,6 +29,7 @@
         "rand-seed": "^2.1.7",
         "tailwind-scrollbar-hide": "^4.0.0",
         "tailwindcss": "^3.4.17",
+        "thumbhash": "^0.1.1",
         "video.js": "^8.10.0",
         "videojs-mobile-ui": "^1.1.1",
         "videojs-youtube": "^3.0.1",

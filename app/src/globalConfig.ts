@@ -47,6 +47,21 @@ export const getConnectionSpeed = () => {
 };
 
 /**
+ * Whether the user has opted into reduced data usage (OS/browser "Data Saver"). Read from the
+ * Network Information API's `saveData` flag, which Chromium-based browsers expose even when they
+ * don't yet support the `prefers-reduced-data` media query. Returns false when unknown (Safari/iOS).
+ */
+export const isDataSaverEnabled = (): boolean => {
+    if (isTestEnv) return false;
+
+    return !!(
+        (navigator as any).connection ||
+        (navigator as any).mozConnection ||
+        (navigator as any).webkitConnection
+    )?.saveData;
+};
+
+/**
  * Get device information.
  * @returns
  */
