@@ -8,9 +8,7 @@ import {
     RedirectType,
     verifyAccess,
     type GroupDto,
-    type ApiSearchQuery,
-    useDexieLiveQuery,
-    ApiLiveQuery,
+    useHybridQuery,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -103,19 +101,21 @@ const isTemporary = computed(() => {
     return editable.value.redirectType == RedirectType.Temporary;
 });
 
-const redirectQuery = ref<ApiSearchQuery>({
-    types: [DocType.Redirect],
-    docId: props.redirect ? props.redirect._id : undefined,
-});
-const apiLiveQuery = new ApiLiveQuery<RedirectDto>(redirectQuery);
-const original = apiLiveQuery.toRef();
+const originalDocs = useHybridQuery<RedirectDto>(
+    () =>
+        props.redirect
+            ? { selector: { _id: props.redirect._id } }
+            : { selector: { _id: { $in: [] } } },
+    { live: true },
+);
+const original = computed(() => originalDocs.value[0]);
 
 const isDirty = ref(false);
 watch(
     [editable, original, () => props.redirect],
     () => {
         // In edit mode, use `previous` (set synchronously when modal opens) to avoid
-        // briefly showing "Revert" while original from ApiLiveQuery is still loading.
+        // briefly showing "Revert" while original is still loading.
         const reference = props.redirect && previous.value ? previous.value : original.value;
         if (!reference) {
             isDirty.value = true;
@@ -136,9 +136,9 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
+const groups = useHybridQuery<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    { live: true },
 );
 
 watch(
