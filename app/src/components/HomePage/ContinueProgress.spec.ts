@@ -18,7 +18,7 @@ import {
     setReadingProgress,
     syncContentProgressFromStorage,
 } from "@/globalConfig";
-import Continue from "./Continue.vue";
+import ContinueProgress from "./ContinueProgress.vue";
 
 vi.mock("vue-router");
 vi.mock("vue-i18n", () => ({
@@ -33,7 +33,7 @@ function setWatchingProgress(contentIds: string[]) {
     });
 }
 
-describe("Continue", () => {
+describe("ContinueProgress", () => {
     beforeEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
@@ -56,7 +56,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         setWatchingProgress([mockEnglishContentDto._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -74,7 +74,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([textContent]);
         setReadingProgress(textContent._id, 42);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Reading Article");
@@ -84,7 +84,7 @@ describe("Continue", () => {
     it("does not render when there is no content progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
@@ -101,7 +101,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto, pageContent]);
         setWatchingProgress([mockEnglishContentDto._id, pageContent._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -117,7 +117,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto, categoryContent]);
         setWatchingProgress([mockEnglishContentDto._id, categoryContent._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -135,7 +135,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto, futureContent]);
         setWatchingProgress([mockEnglishContentDto._id, futureContent._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -153,7 +153,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto, expiredContent]);
         setWatchingProgress([mockEnglishContentDto._id, expiredContent._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -171,7 +171,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto, nonContent as any]);
         setWatchingProgress([mockEnglishContentDto._id, nonContent._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -183,7 +183,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         setWatchingProgress([mockEnglishContentDto._id, "nonexistent-id"]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -194,7 +194,7 @@ describe("Continue", () => {
         localStorage.setItem("contentProgress", "not-valid-json");
         syncContentProgressFromStorage();
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.html()).toBeDefined();
@@ -204,7 +204,7 @@ describe("Continue", () => {
     it("cleans up storage listeners on unmount", () => {
         const removeEventSpy = vi.spyOn(window, "removeEventListener");
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
         wrapper.unmount();
 
         expect(removeEventSpy).toHaveBeenCalledWith("storage", expect.any(Function));
@@ -233,7 +233,7 @@ describe("Continue", () => {
         await db.docs.bulkPut([contentA, contentB, contentC]);
         setWatchingProgress([contentC._id, contentB._id, contentA._id]);
 
-        const wrapper = mount(Continue);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Alpha Content");

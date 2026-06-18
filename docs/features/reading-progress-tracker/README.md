@@ -199,7 +199,7 @@ On first load, legacy `readingProgress` and `mediaProgress` keys are merged into
 - `contentProgressAsRef` — reactive list for the homepage row
 - `syncContentProgressFromStorage()` / `watchContentProgressStorage()`
 
-**Homepage:** `Continue.vue` reads `contentProgressAsRef`, queries published content by id, and renders a horizontal tile row (video and reading in progress together).
+**Homepage:** `ContinueProgress.vue` reads `contentProgressAsRef`, queries published content by id, and renders a horizontal tile row (video and reading in progress together).
 
 ---
 
@@ -228,7 +228,7 @@ Recording how long a user spends on an article (idle pause, total read time) is 
 | `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore |
 | `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
 | `app/src/globalConfig.ts` | `localStorage` read/write (`contentProgress`) |
-| `app/src/components/HomePage/Continue.vue` | Homepage row |
+| `app/src/components/HomePage/ContinueProgress.vue` | Homepage row |
 | `app/src/components/content/ContinueReadingPrompt.vue` | In-article resume prompt |
 
 ---
