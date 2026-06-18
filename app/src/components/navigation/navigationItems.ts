@@ -39,6 +39,5 @@ export function getNavigationItems(t: (key: string) => string) {
     ];
 
     // Exclude the "Explore" navigation item if the env variable "VITE_HIDE_EXPLORE" is set to "true"
-    return navigationItems.filter((item) => item.name !== t("menu.explore"));
-    navigationItems;
+    return navigationItems
 }
