@@ -1,10 +1,12 @@
 # MangoQuery guide
 
 A practical, example-led introduction to the **Mango selector** syntax used to
-query data in this project. It is meant to be friendlier than the
-[official CouchDB Mango docs](https://docs.couchdb.org/en/stable/ddocs/mango.html):
-read this first to learn the syntax by example, then reach for the reference docs
-when you need exhaustive detail.
+query data in this project. The
+[official CouchDB Mango docs](https://docs.couchdb.org/en/stable/ddocs/mango.html)
+are the authoritative reference. This guide is an on-ramp for using MangoQuery in
+Luminary: it teaches the syntax by example and frames everything around how
+queries are actually written here. Read it first, then reach for the reference
+docs when you need exhaustive detail.
 
 > **Already know Mango?** Skip to the reference docs:
 > [mangoCompile](./mangoCompile.md) (in-memory filtering, full operator list),
@@ -33,7 +35,8 @@ type MangoQuery = {
 };
 ```
 
-> **Note:** an empty selector `{}` matches **every** document. Field values are
+> **Note:** an empty selector `{}` matches **every** document; a non-object
+> selector (`null`, a number, a string) matches **nothing**. Field values are
 > matched with CouchDB type-aware semantics (type order: `null` < boolean <
 > number < string < array < object).
 
@@ -126,9 +129,16 @@ Combine two operators on the same field to express a **range** (they're AND-ed):
 { status: { $nin: ["archived", "deleted"] } } // status is none of these (field must exist)
 ```
 
-### Querying an array field — `$all`, `$elemMatch`, `$size`
+### Querying an array field — `$all`, `$elemMatch`, `$allMatch`, `$size`
 
 When the field itself is an **array**, use array operators:
+
+| Operator | Matches when the array… |
+| --- | --- |
+| `$all` | contains **all** of the given elements (order/extra elements don't matter) |
+| `$elemMatch` | has **at least one** element matching the sub-selector |
+| `$allMatch` | has **every** element matching the sub-selector (an empty array never matches) |
+| `$size` | has exactly this many elements |
 
 ```ts
 // the array contains ALL of these elements
@@ -140,6 +150,9 @@ When the field itself is an **array**, use array operators:
 // for an array of primitives, match elements with $eq
 { genres: { $elemMatch: { $eq: "Horror" } } }
 
+// EVERY element must match (e.g. all scores are passing)
+{ scores: { $allMatch: { $gte: 50 } } }
+
 // exact array length
 { tags: { $size: 3 } }
 ```
@@ -150,7 +163,12 @@ When the field itself is an **array**, use array operators:
 > **Tip:** there is no `$contains` operator. To check "array contains value `v`",
 > write `{ field: { $elemMatch: { $eq: v } } }`.
 
-## Existence & type
+> **API limit:** against the server, `$elemMatch` is only allowed on `memberOf`,
+> `availableTranslations`, `parentTags`, and `tags`. On any other field it works
+> locally but is rejected by the API — see
+> [What the API rejects](#what-the-api-rejects).
+
+## Existence, type & maps
 
 ```ts
 { summary: { $exists: true } } // doc has a `summary` field
@@ -160,6 +178,48 @@ When the field itself is an **array**, use array operators:
 
 `$type` accepts `"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, or
 `"object"`. `$exists` is the escape hatch for the missing-field gotcha below.
+
+When a field holds a **map** (an object used as a key→value dictionary rather
+than a fixed-shape record), `$keyMapMatch` tests whether **any key** matches a
+sub-selector:
+
+```ts
+// matches if the `cameras` map has any key equal to "secondary"
+{ cameras: { $keyMapMatch: { $eq: "secondary" } } }
+```
+
+## String & pattern operators
+
+For text fields, match by pattern instead of exact value:
+
+| Operator | Matches when the field… |
+| --- | --- |
+| `$beginsWith` | starts with the given prefix (**case-sensitive**) |
+| `$regex` | matches the given regular-expression pattern (an invalid pattern matches nothing) |
+
+```ts
+{ slug: { $beginsWith: "blog-" } } // "blog-intro", "blog-2024", …
+{ title: { $regex: "^The" } } // title starts with "The"
+{ email: { $regex: "@gmail\\.com$" } } // email ends with @gmail.com
+```
+
+> **Note:** `$beginsWith` is the one pattern operator the local Dexie path can
+> push down to an index (as a prefix scan); `$regex` is always evaluated in
+> memory. Prefer `$beginsWith` for prefix matches on indexed fields.
+
+> **API limit:** `$regex` is **rejected by the API** — it only works on local
+> reads. For a query that can hit the server, use `$beginsWith` or filter in
+> memory instead. See [What the API rejects](#what-the-api-rejects).
+
+## Numeric operators
+
+`$mod` matches on a modulo (remainder) operation. Both the field value and the
+two arguments must be integers:
+
+```ts
+// value % 10 === 1  →  matches 1, 11, 21, 31, …
+{ value: { $mod: [10, 1] } } // [divisor, remainder]
+```
 
 ## Combining conditions
 
@@ -224,6 +284,37 @@ design doc that materialises the index; the API only accepts an allowlisted name
 queries should pin one. See
 [HybridQuery › Pinning the CouchDB index](../HybridQuery/README.md#pinning-the-couchdb-index).
 
+## What the API rejects
+
+Everything above is accepted by the **local** query engine — `mangoCompile`,
+`mangoToDexie`, `queryLocal`, and the local Dexie read inside `HybridQuery`. The
+**API** that backs remote reads is stricter: `queryRemote`, and the API
+supplement `HybridQuery` fires for older / missing / non-synced docs, both go
+through a server-side validator that **rejects** disallowed syntax with a
+`400 Bad Request` (`Invalid query: <reason>`).
+
+A selector can therefore pass locally but be rejected once it reaches the server.
+**Write to the stricter rules whenever a query can hit the API** (anything using
+`queryRemote`, or a `HybridQuery`/`useHybridQuery` over Content or a non-synced
+type):
+
+| Not allowed | Use instead | Rejected example |
+| --- | --- | --- |
+| `$regex` | `$beginsWith` for prefixes, or filter in memory | `{ title: { $regex: "^The" } }` |
+| `$where` | — (no server-side JS) | `{ $where: "…" }` |
+| `$elemMatch` **except** on `memberOf`, `availableTranslations`, `parentTags`, `tags` | restructure, or filter the field locally | `{ items: { $elemMatch: { price: { $gt: 1 } } } }` |
+| `null` / `undefined` inside `$in` / `$nin` / `$all` | strip them first (HybridQuery does this for you) | `{ tags: { $in: ["a", null] } }` |
+| `$limit` above **500** | request ≤ 500 (the cap is rejected, **not** clamped) | `$limit: 1000` |
+| `use_index` not in the design-doc allowlist | an existing index name (see below) | `use_index: "made-up-index"` |
+| selector nesting deeper than **12** levels | flatten the logic | deeply nested `$and` / `$or` |
+| selector with more than **256** clauses | (array elements don't count) | hundreds of `$or` branches |
+
+> **Note:** these checks are about query *shape* only — they are **not** the
+> permission boundary. The server always injects permission and
+> published/expiry filters on top of your selector, so a shape-valid selector can
+> still only ever narrow what you're already allowed to see. The internal
+> `crypto` doc type is never queryable.
+
 ## Gotchas
 
 These are the behaviours the CouchDB docs gloss over but that bite in practice.
@@ -254,10 +345,11 @@ Full detail: [mangoCompile › Missing fields](./mangoCompile.md#missing-fields-
 ### `null` inside `$in` / `$nin` / `$all` crashes the server
 
 A `null` (or `undefined`) member of `$in`/`$nin`/`$all` makes CouchDB's `_find`
-return a 500. `HybridQuery` strips them automatically before a query forks to the
-local read and the remote POST, so `{ $in: ["a", null, "b"] }` becomes
-`{ $in: ["a", "b"] }`. Don't construct such arrays in raw server-bound queries
-elsewhere.
+return a 500. Two layers protect you: `HybridQuery` strips them automatically
+before a query forks to the local read and the remote POST (so
+`{ $in: ["a", null, "b"] }` becomes `{ $in: ["a", "b"] }`), and the API validator
+rejects any that slip through with a `400` instead of letting CouchDB 500. Still,
+don't construct such arrays in raw `queryRemote` calls — strip them yourself.
 
 ### An empty `$in` matches nothing — and short-circuits
 
@@ -329,10 +421,52 @@ If `pinnedCats.value` is `[]`, the `$in: []` makes this
 [provably empty](#an-empty-in-matches-nothing--and-short-circuits) and the query
 yields `[]` without doing any work.
 
+## Operator quick reference
+
+Every operator the selector syntax supports, in one place.
+
+**Combination** (top-level keys):
+
+| Operator | Argument | Matches when |
+| --- | --- | --- |
+| `$and` | selector[] | every selector matches |
+| `$or` | selector[] | at least one selector matches |
+| `$not` | selector | the selector does not match |
+| `$nor` | selector[] | none of the selectors match |
+
+**Field conditions** (under a field name) — all require the field to **exist**:
+
+| Operator | Argument | Matches when the field… |
+| --- | --- | --- |
+| `$eq` | any | equals the value (also the implicit `{ field: value }` form) |
+| `$ne` | any | exists and does not equal the value |
+| `$gt` / `$gte` | number/string | is greater than / greater-or-equal |
+| `$lt` / `$lte` | number/string | is less than / less-or-equal |
+| `$in` | any[] | value is one of the array |
+| `$nin` | any[] | value is none of the array |
+| `$all` | any[] | array field contains all of the elements |
+| `$elemMatch` | selector | array field has ≥1 element matching |
+| `$allMatch` | selector | array field has every element matching |
+| `$size` | number | array field has exactly this length |
+| `$exists` | boolean | field is present (`true`) / absent (`false`) |
+| `$type` | string | value is of this type (`"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, `"object"`) |
+| `$keyMapMatch` | selector | map field has any key matching |
+| `$beginsWith` | string | string field starts with the prefix (case-sensitive) |
+| `$regex` | string | string field matches the regex pattern |
+| `$mod` | [div, rem] | `value % div === rem` (integers only) |
+
+**Envelope** (siblings of `selector`): `$sort`, `$limit`, `use_index` — see
+[Sorting & limiting](#sorting--limiting).
+
+> **Note:** these are the operators the local engine implements. Anything else
+> (e.g. `$contains`) is unsupported — see [Unknown operators silently fail](#unknown-operators-silently-fail).
+> Some of these are further restricted when a query hits the server (`$regex`,
+> `$where`, `$elemMatch`) — see [What the API rejects](#what-the-api-rejects).
+
 ## Where to go next
 
 | Doc | Covers |
 | --- | --- |
-| [mangoCompile](./mangoCompile.md) | The full operator list and exact in-memory matching semantics (`$keyMapMatch`, `$beginsWith`, `$mod`, `$allMatch`, `$regex`, edge cases). |
+| [mangoCompile](./mangoCompile.md) | Exact in-memory matching semantics and edge cases (type-aware equality, `localeCompare` string ordering, cache internals). |
 | [mangoToDexie](./mangoToDexie.md) | How selectors are pushed down to IndexedDB indexes, and which operators fall back to in-memory filtering. |
 | [HybridQuery](../HybridQuery/README.md) | Local-vs-remote routing, live mode, response caching, offline persistence, and the content cutoff. |
