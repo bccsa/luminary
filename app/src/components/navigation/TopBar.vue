@@ -130,7 +130,7 @@ const handleLogin = () => {
                     </div>
                 </div>
 
-                <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
+                <div class="ml-2 mr-0 flex cursor-pointer items-center gap-4 lg:mr-5">
                     <slot name="quickControls" />
                 </div>
                 <div class="hidden lg:block"><ProfileMenu /></div>

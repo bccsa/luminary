@@ -405,7 +405,10 @@ watch(isSearchOpen, (open) => {
         const q = searchQuery.value.trim();
         // Only fetch when the current query has not already been searched (covers live + manual,
         // including "no results" where ftsResults is empty but lastSearchedQuery matches).
-        if (q.length >= 3 && lastSearchedQuery.value !== q) runSearch();
+        // In live mode useFtsSearch's query watcher (immediate: true) already triggered
+        // doSearch; only call runSearch explicitly in manual mode where the watcher is inactive.
+        if (isManualSearchMode.value && q.length >= 3 && lastSearchedQuery.value !== q)
+            runSearch();
     });
 }, { immediate: true });
 
