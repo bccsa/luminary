@@ -10,7 +10,6 @@ import {
     LocalChangeDto,
     PostType,
     PublishStatus,
-    queryCacheDto,
     TagDto,
     TagType,
     Uuid,
@@ -18,7 +17,7 @@ import {
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
-import { ref, type Ref, toRaw, watch } from "vue";
+import { type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -35,29 +34,22 @@ type LuminaryInternals = {
     value: any;
 };
 
-export type SyncMapEntry = {
-    blockStart: number;
-    blockEnd: number;
+/**
+ * A row in the `retention` side table: the keep-alive deadline for a below-cutoff
+ * Content doc. Stored separately from `docs` so stamping never rewrites a document
+ * (no liveQuery self-churn / corpus recompute) and a sync/socket doc-rewrite can't
+ * clobber the stamp. See `db/retention.ts`.
+ */
+export type RetentionEntry = {
+    docId: string;
+    retainUntil: number;
 };
-
-export type SyncMap = {
-    blocks: Array<SyncMapEntry>;
-    groups: Array<string>;
-    contentOnly?: boolean;
-    types: Array<string>;
-    languages: Array<string>;
-    skipWaitForLanguageSync?: boolean;
-    id: string;
-    syncPriority: number; // default 0, a higher number is a higher priority
-};
-
-export const syncMap = ref(new Map<string, SyncMap>());
 
 type dbIndex = {
     docs: string;
     localChanges: string;
-    queryCache: string;
     luminaryInternals: string;
+    retention: string;
 };
 
 export type QueryOptions = {
@@ -122,8 +114,8 @@ export type UpsertOptions<T> = {
 class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
-    queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
+    retention!: Table<RetentionEntry>;
 
     /**
      * Luminary Shared Database class
@@ -141,8 +133,8 @@ class Database extends Dexie {
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
-            queryCache: "id",
             luminaryInternals: "id",
+            retention: "docId, retainUntil",
         };
 
         const version: number = bumpDBVersion(
@@ -179,33 +171,17 @@ class Database extends Dexie {
         return uuidv4();
     }
 
-    async getSyncMap() {
-        const _v = await this.getLuminaryInternals("syncMap");
-        if (_v)
-            for (const [k, v] of Object.entries(_v)) {
-                syncMap.value.set(k, v as SyncMap);
-            }
-        return _v;
-    }
-
-    async setSyncMap() {
-        return await this.setLuminaryInternals(
-            "syncMap",
-            cloneDeep(Object.fromEntries(syncMap.value)),
-        );
-    }
-
     async getSyncList() {
         const _v = await this.getLuminaryInternals("syncList");
         if (_v && Array.isArray(_v)) {
-            const { syncList } = await import("../rest/sync2/state");
+            const { syncList } = await import("../api/sync/state");
             syncList.value = _v;
         }
         return _v;
     }
 
     async setSyncList() {
-        const { syncList } = await import("../rest/sync2/state");
+        const { syncList } = await import("../api/sync/state");
         return await this.setLuminaryInternals("syncList", cloneDeep(syncList.value));
     }
 
@@ -225,7 +201,7 @@ class Database extends Dexie {
 
     /**
      * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
-     * @deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead
+     * @deprecated For document (db.docs) reads use HybridQuery (useHybridQuery). For other Dexie reactivity (e.g. localChanges) use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable.
      * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @returns Vue Ref
@@ -234,9 +210,6 @@ class Database extends Dexie {
         query: () => Promise<T>,
         initialValue?: T,
     ) {
-        console.log(
-            "toRef is deprecated - use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable instead",
-        );
         return useObservable(
             liveQuery(async () => {
                 return await query();
@@ -254,22 +227,20 @@ class Database extends Dexie {
 
     /**
      * Get an IndexedDB document as Vue Ref by its id
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
     getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
-        console.log("getAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
     }
 
     /**
      * Get an IndexedDB document by its slug as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param slug - The slug of the document to get
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
     getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
-        console.log("getBySlugAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<T>(
             () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
             initialValue,
@@ -327,10 +298,9 @@ class Database extends Dexie {
 
     /**
      * Return true if there are some documents of the specified DocType as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     someByTypeAsRef(docType: DocType) {
-        console.log("someByTypeAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<boolean>(
             () => this.someByType(docType) as unknown as Promise<boolean>,
             false,
@@ -339,7 +309,7 @@ class Database extends Dexie {
 
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @param postOrTagType - Optional: The tag type or post type to filter by
      * TODO: Add pagination
@@ -349,7 +319,6 @@ class Database extends Dexie {
         initialValue?: T,
         postOrTagType?: TagType | PostType,
     ) {
-        console.log("whereTypeAsRef is deprecated - use useDexieLiveQuery instead");
         if (postOrTagType) {
             // Check if postOrTagType is a TagType by checking if it's included in TagType values
             const isTagType = Object.values(TagType).includes(postOrTagType as TagType);
@@ -399,7 +368,7 @@ class Database extends Dexie {
 
     /**
      * Get IndexedDB documents by their parentId(s) as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      * @param parentId - The parentId(s) to filter by
      * @param parentType - Optional: The parent type to filter by
      * @param initialValue - The initial value of the ref while waiting for the query to complete
@@ -410,7 +379,6 @@ class Database extends Dexie {
         languageId?: Uuid,
         initialValue?: ContentDto[],
     ) {
-        console.log("whereParentAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<ContentDto[]>(
             () => this.whereParent(parentId, parentType, languageId),
             initialValue,
@@ -521,10 +489,9 @@ class Database extends Dexie {
 
     /**
      * Get all tags of a certain tag type as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
-        console.log("tagsWhereTagTypeAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
     }
 
@@ -599,10 +566,9 @@ class Database extends Dexie {
 
     /**
      * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
-     * @deprecated Use useDexieLiveQuery instead
+     * @deprecated Use HybridQuery (useHybridQuery) instead
      */
     contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
-        console.log("contentWhereTagAsRef is deprecated - use useDexieLiveQuery instead");
         return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
@@ -687,7 +653,6 @@ class Database extends Dexie {
      * @deprecated - use useDexieLiveQueryAsEditable instead
      */
     isLocalChangeAsRef(docId: Uuid) {
-        console.log("isLocalChangeAsRef is deprecated - use useDexieLiveQueryAsEditable instead");
         return this.toRef<boolean>(
             () =>
                 this.localChanges
@@ -729,23 +694,6 @@ class Database extends Dexie {
         }
 
         await this.localChanges.delete(localChange.id);
-    }
-
-    /**
-     * Set a query result to the query cache
-     * @param id - Unique ID for the query
-     * @param result - The query result to be stored
-     */
-    async setQueryCache<T extends BaseDocumentDto[]>(id: string, result: T) {
-        return await this.queryCache.put({ id, result: toRaw(result) });
-    }
-
-    /**
-     * Get a query result from the query cache
-     * @param id - Unique ID for the query
-     */
-    async getQueryCache<T extends BaseDocumentDto[]>(id: string) {
-        return ((await this.queryCache.get(id))?.result as T) || Array<T>();
     }
 
     /**
@@ -810,7 +758,6 @@ class Database extends Dexie {
                 const revokedIds = (await revokedDocs.primaryKeys()) as string[];
 
                 if (revokedIds.length > 0) {
-                    await this.queryCache.clear();
                     await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
                 }
             });
@@ -867,13 +814,11 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
-        syncMap.value.clear();
-        const { syncList } = await import("../rest/sync2/state");
+        const { syncList } = await import("../api/sync/state");
         syncList.value = [];
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
-            this.queryCache.clear(),
             this.luminaryInternals.clear(),
         ]);
     }
@@ -925,16 +870,8 @@ export async function initDatabase() {
         { immediate: true },
     );
 
-    watch(
-        syncMap,
-        () => {
-            db.setSyncMap();
-        },
-        { deep: true },
-    );
-
     // Watch syncList for changes and persist to IndexedDB
-    import("../rest/sync2/state").then(({ syncList }) => {
+    import("../api/sync/state").then(({ syncList }) => {
         watch(
             syncList,
             () => {

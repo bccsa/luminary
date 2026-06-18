@@ -13,6 +13,47 @@ export type SyncConfig = {
     tolerance: number;
 };
 
+export type QueryRateLimitConfig = {
+    /**
+     * Master switch for the per-identity expensive-query rate limiter. Ships OFF —
+     * enable per environment only after the expensive-query logs show sane thresholds.
+     * Environment variable: QUERY_RATE_LIMIT_ENABLED (default false).
+     */
+    enabled: boolean;
+    /** Expensive-query strikes tolerated before the first block. QUERY_RATE_LIMIT_FREE_STRIKES (default 3). */
+    freeStrikes: number;
+    /** First block duration in ms; doubles per extra strike. QUERY_RATE_LIMIT_BASE_BACKOFF_MS (default 5000). */
+    baseBackoffMs: number;
+    /** Cap on a single block window in ms. QUERY_RATE_LIMIT_MAX_BACKOFF_MS (default 300000). */
+    maxBackoffMs: number;
+    /** One strike forgiven per this many ms. QUERY_RATE_LIMIT_STRIKE_DECAY_MS (default 600000). */
+    strikeDecayMs: number;
+};
+
+export type QueryConfig = {
+    /**
+     * Maximum `limit` accepted on a POST /query request, enforced centrally for every
+     * query identifier (sync, hybridQuery, …). Requests above this are rejected with 400.
+     * Guards against a single authenticated client forcing CouchDB to materialize a huge
+     * result set. Environment variable: QUERY_MAX_LIMIT (default 500).
+     */
+    maxLimit: number;
+    /**
+     * A completed query examining more than this many docs is logged as expensive
+     * (likely a full / large table scan). Environment variable:
+     * QUERY_EXPENSIVE_DOCS_EXAMINED (default 1000).
+     */
+    expensiveDocsExamined: number;
+    /**
+     * A completed query whose examined/returned ratio exceeds this (above an internal
+     * floor) is logged as expensive. Environment variable:
+     * QUERY_EXPENSIVE_EXAMINED_RATIO (default 10).
+     */
+    expensiveExaminedRatio: number;
+    /** Per-identity expensive-query rate limiter (default off). */
+    rateLimit: QueryRateLimitConfig;
+};
+
 export type ValidationConfig = {
     /**
      * When set to true, query template validation will log warnings instead of throwing exceptions.
@@ -59,6 +100,7 @@ export type Configuration = {
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
+    query?: QueryConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -78,6 +120,18 @@ export default () =>
         sync: {
             tolerance: parseInt(process.env.SYNC_TOLERANCE, 10) || 1000,
         } as SyncConfig,
+        query: {
+            maxLimit: parseInt(process.env.QUERY_MAX_LIMIT, 10) || 500,
+            expensiveDocsExamined: parseInt(process.env.QUERY_EXPENSIVE_DOCS_EXAMINED, 10) || 1000,
+            expensiveExaminedRatio: parseInt(process.env.QUERY_EXPENSIVE_EXAMINED_RATIO, 10) || 10,
+            rateLimit: {
+                enabled: process.env.QUERY_RATE_LIMIT_ENABLED === "true",
+                freeStrikes: parseInt(process.env.QUERY_RATE_LIMIT_FREE_STRIKES, 10) || 3,
+                baseBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_BASE_BACKOFF_MS, 10) || 5000,
+                maxBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_MAX_BACKOFF_MS, 10) || 300000,
+                strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
+            },
+        } as QueryConfig,
         permissionMap: process.env.PERMISSION_MAP,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,

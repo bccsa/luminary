@@ -1,18 +1,19 @@
 ---
 name: add-sync-query
-description: Walk through adding a new Mango sync query end-to-end — the design doc (CouchDB index), the validator allowlist, the consumer's syncList registration, and the watcher in app/src/sync.ts or cms/src/sync.ts. Use when the user wants to "sync a new doc type", "add a Mango sync query", "register X in syncList", or hits a "sync query rejected by template" error.
+description: Walk through adding a new Mango sync query end-to-end — the design doc (CouchDB index), the consumer's syncList registration, and the watcher in app/src/sync.ts or cms/src/sync.ts. Use when the user wants to "sync a new doc type", "add a Mango sync query", "register X in syncList", or hits a "sync query rejected" / "Unknown index" error.
 ---
 
 # add-sync-query
 
-Adding a sync target touches four places. Miss any one and either (a) the API rejects the query, (b) CouchDB does a full table scan, or (c) the client never asks for the data in the first place. This is a multi-file procedure with strict naming conventions.
+Adding a sync target touches three places. Miss any one and either (a) the API rejects the query (`Unknown index`), (b) CouchDB does a full table scan, or (c) the client never asks for the data in the first place. This is a multi-file procedure with strict naming conventions.
 
-## The four places
+## The three places
 
-1. **Design doc** in `api/src/db/designDocs/sync-<type>-index.json` (and usually a sibling `sync-<type>-deleteCmd-index.json` for the delete-cmd column).
-2. **Validator allowlist** in `api/src/db/MongoQueryTemplates/validators/sync.ts` — only matters if you need new selector fields beyond the existing allowlist (`updatedTimeUtc`, `type`, `memberOf`, `parentType`, `language`, `docType`).
-3. **Consumer syncList** — register the doc type in `shared/`'s init config (passed in via `app/src/main.ts` / `cms/src/main.ts`).
-4. **Watcher** in `app/src/sync.ts` or `cms/src/sync.ts` — adds the actual `sync({...})` call gated on permissions/connectivity.
+1. **Design doc** in `api/src/db/designDocs/sync-<type>-index.json` (and usually a sibling `sync-<type>-deleteCmd-index.json` for the delete-cmd column). This file is also what makes the `use_index` name valid: `validation/query/validateQuery.ts` checks `use_index` against the registry built from these design-doc files at boot (`db/indexNameRegistry.ts`), so adding the JSON is what lets clients pin the index.
+2. **Consumer syncList** — register the doc type in `shared/`'s init config (passed in via `app/src/main.ts` / `cms/src/main.ts`).
+3. **Watcher** in `app/src/sync.ts` or `cms/src/sync.ts` — adds the actual `sync({...})` call gated on permissions/connectivity.
+
+> **Validation note:** `/query` no longer uses per-identifier templates with a selector-key allowlist. A single universal validator (`validation/query/validateQuery.ts`) enforces top-level shape, a `limit` cap, `use_index` registry membership, and an operator policy (no `$regex`/`$where`; `$elemMatch` only on `memberOf`/`availableTranslations`/`parentTags`/`tags`). New selector fields therefore need NO validator change. The data boundary is the permission injection in `query.service.ts`, not the validator.
 
 ## Procedure
 
@@ -48,21 +49,21 @@ Use `api/src/db/designDocs/sync-tag-index.json` as the canonical template:
 
 Rules:
 
-- File name **must** be `sync-<type>-index.json`. The validator regex requires `use_index` to start with `sync-` and end with `-index`.
+- File name **must** be `sync-<type>-index.json` by convention. The view name inside (the key under `views`, matching the `_id` suffix) is what clients pass as `use_index`, and `validateQuery.ts` accepts it only if it exists in the design-doc registry — so the name must match a real design doc here.
 - For content-type docs (parentType + language), include those in the `fields` array and adjust the partial_filter_selector. Check `sync-post-content-index.json` for the template.
 - For DeleteCmd docs, also add `sync-<type>-deleteCmd-index.json` — see `sync-tag-deleteCmd-index.json`.
 
 Design docs are picked up at API startup by `upsertDesignDocs(dbService)` in `main.ts`. After adding a JSON file, the API must be restarted for the index to materialize.
 
-### 3. Verify the validator accepts your query shape
+### 3. Verify the query passes validation
 
-Open `api/src/db/MongoQueryTemplates/validators/sync.ts` and confirm:
+Validation is now a single universal ruleset (`api/src/validation/query/validateQuery.ts`) — there is no per-identifier sync template and no selector-key allowlist. Confirm:
 
-- Your selector uses only allowed keys: `updatedTimeUtc`, `type`, `memberOf`, `parentType`, `language`, `docType`. Adding a new selector key requires extending `allowedSelectorKeys` here.
-- The query has `limit`, `sort: [{ updatedTimeUtc: "desc" }]`, and a `use_index` matching `sync-*-index`.
-- `selector.type !== "user"` (User syncing is explicitly disallowed).
+- `use_index` exists as a design doc (step 2) — otherwise `validateQuery` rejects it with `Unknown index`.
+- `limit` is within `QUERY_MAX_LIMIT` (default 500); `sort` is an array.
+- The selector obeys the operator policy: no `$regex`/`$where`, and `$elemMatch` only on `memberOf`/`availableTranslations`/`parentTags`/`tags`.
 
-If the user is asking for a fundamentally new query shape (e.g. sorting by something other than `updatedTimeUtc`), this validator is the gate — extending it is a significant change that needs review, not a quick edit.
+New selector fields (e.g. a new equality filter) need **no** validator change. Whether the query is permitted to return a doc is decided by the permission injection in `query.service.ts`, not the validator. Note that `user`-type syncing is no longer blocked at the validator (it's ACL-gated) — if you intend to keep user docs off a client, ensure no group grants it `View`.
 
 ### 4. Register in the consumer's syncList
 
@@ -122,5 +123,5 @@ Run these in parallel via the shell:
 ## What this skill is NOT
 
 - Not a query author. The user provides the query intent; this skill is the wiring.
-- Not a perf review. If the user expects high-volume sync, point them at `shared/src/rest/sync2/README.md`.
+- Not a perf review. If the user expects high-volume sync, point them at `shared/src/api/sync/README.md`.
 - Not a Vitest harness. Sync tests touch CouchDB and are user-driven.

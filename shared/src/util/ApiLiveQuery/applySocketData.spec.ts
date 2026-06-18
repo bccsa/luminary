@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { ref } from "vue";
-import { ApiSearchQuery } from "../../rest/RestApi";
+import { ApiSearchQuery } from "../../api/RestApi";
 import {
     ApiQueryResult,
     BaseDocumentDto,
@@ -12,7 +12,7 @@ import {
 import { db } from "../../db/database";
 import { applySocketData } from "./applySocketData";
 
-vi.mock("../../rest/RestApi", () => {
+vi.mock("../../api/RestApi", () => {
     return {
         getRest: vi.fn(() => ({
             search: vi.fn(),

@@ -299,4 +299,41 @@ describe("processContentDto", () => {
         expect(dbDocFr.docs[0].availableTranslations).toEqual(["lang-eng"]);
         expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
     });
+
+    it("forces a published content document to draft (with a warning) when its slug already has a redirect", async () => {
+        // The seeded `redirect-post1` owns the slug "post1-eng"; no seeded content uses it,
+        // so validateSlug leaves the slug intact and the redirect-collision guard fires.
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "content-redirect-collision";
+        changeRequest.doc.slug = "post1-eng";
+        changeRequest.doc.status = PublishStatus.Published;
+
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(res.result.ok).toBe(true);
+        expect(dbDoc.docs[0].slug).toBe("post1-eng");
+        expect(dbDoc.docs[0].status).toBe(PublishStatus.Draft);
+        expect(res.warnings).toEqual(
+            expect.arrayContaining([expect.stringContaining("a redirect already exists")]),
+        );
+    });
+
+    it("leaves a published content document published when its slug has no redirect", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "content-no-redirect-collision";
+        changeRequest.doc.slug = "a-slug-with-no-redirect";
+        changeRequest.doc.status = PublishStatus.Published;
+
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(res.result.ok).toBe(true);
+        expect(dbDoc.docs[0].status).toBe(PublishStatus.Published);
+        expect(res.warnings ?? []).not.toEqual(
+            expect.arrayContaining([expect.stringContaining("a redirect already exists")]),
+        );
+    });
 });

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref, nextTick } from "vue";
 
-vi.mock("../rest/RestApi", () => ({
+vi.mock("../api/RestApi", () => ({
     getRest: vi.fn(),
 }));
 
 import { useStorageStatus } from "./useStorageStatus";
 import { StorageStatus } from "../types/enum";
-import { getRest } from "../rest/RestApi";
+import { getRest } from "../api/RestApi";
 import type { StorageDto } from "../types";
 
 const mockGetRest = vi.mocked(getRest);

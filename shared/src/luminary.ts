@@ -1,9 +1,12 @@
 import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
-import { HttpReq } from "./rest/http";
-import { getRest } from "./rest/RestApi";
-import { initSync } from "./rest/sync2/sync";
+import { HttpReq } from "./api/http";
+import { getRest } from "./api/RestApi";
+import { initSync } from "./api/sync/sync";
+import { initLiveSync } from "./api/sync/liveSync";
 import { getSocket } from "./socket/socketio";
+import { initRoomSubscriptions } from "./socket/roomSubscriptions";
+import { initHybridQuery } from "./util/HybridQuery";
 
 /**
  * Initialize the Luminary database
@@ -24,5 +27,21 @@ export async function init(config: SharedConfig) {
 
     // Create HTTP service instance for use in sync operations
     const http = new HttpReq(config.apiUrl || "");
-    initSync(http);
+    // MUST be awaited before consumers register their {immediate:true} sync
+    // watchers: initSync loads and validates the syncList and resets degenerate
+    // chunk types. Otherwise the first sync() races that reset and persists fresh
+    // entries that re-introduce the broken shape.
+    await initSync(http);
+
+    // Socket.io is a pure change-feed transport; the sync live persister owns the
+    // decision of which live updates get written to IndexedDB (gated by isSyncableDoc,
+    // derived from sync's syncList). Registered once — the socket re-fires listeners
+    // across reconnects.
+    initLiveSync();
+
+    // Start re-joining still-wanted socket rooms on (re)connect. sync drives the
+    // rooms for synced types; HybridQuery drives them on demand for non-synced types.
+    initRoomSubscriptions();
+
+    initHybridQuery(http);
 }

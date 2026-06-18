@@ -3,30 +3,23 @@ import LModal from "@/components/form/LModal.vue";
 import LImage from "@/components/images/LImage.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { showProviderSelectionModal, loginWithProvider } from "@/auth";
-import {
-    db,
-    DocType,
-    mangoToDexie,
-    useDexieLiveQuery,
-    type AuthProviderDto,
-} from "luminary-shared";
+import { DocType, useHybridQuery, type AuthProviderDto } from "luminary-shared";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { resolveI18nEmbedded } from "@/util/resolveI18nEmbedded";
 
 const { t } = useI18n();
 const isVisible = defineModel<boolean>("isVisible");
-const allProviders = useDexieLiveQuery(
-    async () => {
-        const list = await mangoToDexie<AuthProviderDto>(db.docs, {
-            selector: { type: DocType.AuthProvider },
-        });
-        return list.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
-    },
-    { initialValue: [] as AuthProviderDto[] },
+// AuthProvider is a fully-synced type, so HybridQuery reads from IndexedDB only.
+// Sorting by sortIndex (a non-content field) stays in a computed.
+const allProviders = useHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
 );
 
-const providers = computed(() => allProviders.value ?? []);
+const providers = computed(() =>
+    [...allProviders.value].sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0)),
+);
 const resolveProviderLabel = (provider: AuthProviderDto) =>
     resolveI18nEmbedded(provider.label || provider.displayName || provider.domain || provider._id, t);
 

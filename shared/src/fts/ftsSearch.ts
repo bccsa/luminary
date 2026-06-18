@@ -8,6 +8,45 @@ const DEFAULT_LIMIT = 20;
 const DEFAULT_MAX_TRIGRAM_DOC_PERCENT = 50;
 const DEFAULT_K1 = 1.2;
 const DEFAULT_B = 0.75;
+/**
+ * Compute the (HTML-stripping) word-match bonus only for the top-K documents by BM25.
+ * Docs below this rank keep their BM25-only score — they're below the returned page
+ * anyway, so the bonus wouldn't change what the user sees but would cost a `stripHtml`
+ * per doc. The effective cap is `max(offset + limit, WORDMATCH_TOPK)`.
+ */
+const WORDMATCH_TOPK = 150;
+/**
+ * High-df trigram pruning. After dropping over-common trigrams (`maxTrigramDocPercent`),
+ * keep only the most discriminative (lowest-df) remaining trigrams within a df budget
+ * (a trigram's df ≈ the docs it contributes to the matched set). Common trigrams add many
+ * matches but little ranking signal (low IDF), so dropping them shrinks the matched-doc
+ * set — and thus the doc load and scoring — with minimal ranking impact. `PRUNE_MIN_TRIGRAMS`
+ * is a floor so short/uncommon queries still match. Mirrors the server-side pruning.
+ */
+const PRUNE_DF_BUDGET = 3000;
+const PRUNE_MIN_TRIGRAMS = 3;
+
+/**
+ * High-df trigram pruning: keep the most discriminative (lowest-df) trigrams within a df
+ * budget, always keeping at least `minTrigrams` of the rarest even if that exceeds the
+ * budget. A trigram's df ≈ the docs it contributes, so this bounds the matched-doc set.
+ * Exported for unit testing. Mirrors the server-side pruning.
+ */
+export function selectTrigramsWithinDfBudget<T extends { df: number }>(
+    usable: T[],
+    budget: number = PRUNE_DF_BUDGET,
+    minTrigrams: number = PRUNE_MIN_TRIGRAMS,
+): T[] {
+    const rankedByDf = [...usable].sort((a, b) => a.df - b.df);
+    let dfBudget = 0;
+    const kept: T[] = [];
+    for (const t of rankedByDf) {
+        if (kept.length >= minTrigrams && dfBudget + t.df > budget) break;
+        kept.push(t);
+        dfBudget += t.df;
+    }
+    return kept;
+}
 
 /**
  * FTS field configuration for search-time word match scoring.
@@ -75,44 +114,52 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
 
-    // Step 1: Count docs per trigram, filter over-represented
-    const usableTrigrams: Array<{ token: string; df: number }> = [];
-    for (const trigram of trigrams) {
-        const count = await db.docs
-            .where("fts")
-            .between(trigram + ":", trigram + ";", true, false)
-            .count();
-        if (count <= maxDocCount) {
-            usableTrigrams.push({ token: trigram, df: count });
-        }
-    }
+    // Step 1: Count docs per trigram (in parallel), drop over-common ones.
+    const counts = await Promise.all(
+        trigrams.map(async (token) => ({
+            token,
+            df: await db.docs
+                .where("fts")
+                .between(token + ":", token + ";", true, false)
+                .count(),
+        })),
+    );
+    const usableTrigrams = counts.filter((c) => c.df <= maxDocCount);
     if (usableTrigrams.length === 0) return [];
 
-    // Step 2: Compute IDF for each usable trigram
+    // Step 2: High-df pruning — keep the most discriminative (lowest-df) trigrams.
+    const keptTrigrams = selectTrigramsWithinDfBudget(usableTrigrams);
+
+    // Step 3: Compute IDF for each kept trigram
     const idfMap = new Map<string, number>();
-    for (const { token, df } of usableTrigrams) {
+    for (const { token, df } of keptTrigrams) {
         idfMap.set(token, Math.log((N - df + 0.5) / (df + 0.5) + 1));
     }
 
-    // Step 3: Collect matching doc IDs across all trigrams
+    // Step 4: Collect matching doc IDs across the kept trigrams (in parallel)
+    const idArrays = await Promise.all(
+        keptTrigrams.map(({ token }) =>
+            db.docs.where("fts").between(token + ":", token + ";", true, false).primaryKeys(),
+        ),
+    );
     const matchedDocIds = new Set<string>();
-    for (const { token } of usableTrigrams) {
-        const ids = await db.docs
-            .where("fts")
-            .between(token + ":", token + ";", true, false)
-            .primaryKeys();
-        for (const id of ids) matchedDocIds.add(id as string);
-    }
+    for (const ids of idArrays) for (const id of ids) matchedDocIds.add(id as string);
 
-    // Step 4: Load matched docs
-    const loadedDocs = await db.docs
-        .where("_id")
-        .anyOf(Array.from(matchedDocIds))
-        .toArray();
+    // Step 5: Restrict the matched IDs to the requested language BEFORE loading, so we
+    // don't read (and deserialize the large `fts` array of) docs the language filter would
+    // discard. `where("language")` is an index-only scan that returns IDs, not docs.
+    let candidateIds = Array.from(matchedDocIds);
+    if (languageId) {
+        const languageIds = new Set<string>(
+            (await db.docs.where("language").equals(languageId).primaryKeys()) as string[],
+        );
+        candidateIds = candidateIds.filter((id) => languageIds.has(id));
+    }
+    const loadedDocs = await db.docs.where("_id").anyOf(candidateIds).toArray();
     const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
 
-    // Step 5: Build per-doc trigram→tf map from fts array, compute BM25
-    const usableTokens = new Set(usableTrigrams.map((t) => t.token));
+    // Step 6: Build per-doc trigram→tf map from fts array, compute BM25
+    const usableTokens = new Set(keptTrigrams.map((t) => t.token));
     const results: FtsSearchResult[] = [];
 
     docMap.forEach((doc, docId) => {
@@ -131,7 +178,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
         const dl = doc.ftsTokenCount || 1;
         let score = 0;
-        for (const { token } of usableTrigrams) {
+        for (const { token } of keptTrigrams) {
             const tf = tfMap.get(token) || 0;
             if (tf === 0) continue;
             const idf = idfMap.get(token)!;
@@ -142,12 +189,16 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         results.push({ docId, score, wordMatchScore: 0, doc });
     });
 
-    // Step 6: Boost-weighted full-word match scoring
+    // Step 7: Boost-weighted full-word match scoring — only for the top-K by BM25, to
+    // bound the per-doc HTML-stripping cost. Docs below the cap keep their BM25-only score.
     const normalizedQuery = normalizeText(query);
     const queryWords = normalizedQuery.split(" ").filter((w) => w.length > 2);
 
     if (queryWords.length > 0 && results.length > 0) {
-        for (const result of results) {
+        results.sort((a, b) => b.score - a.score); // pre-rank by BM25 to pick the top-K
+        const wmLimit = Math.max(offset + limit, WORDMATCH_TOPK);
+        const topForWm = results.length > wmLimit ? results.slice(0, wmLimit) : results;
+        for (const result of topForWm) {
             const wordMatchBonus = computeFieldWordMatchScore(
                 queryWords,
                 result.doc as Record<string, any>,
@@ -158,7 +209,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         }
     }
 
-    // Step 7: Sort by combined score desc, then word match desc
+    // Step 8: Sort by combined score desc, then word match desc
     results.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
         return b.wordMatchScore - a.wordMatchScore;

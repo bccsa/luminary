@@ -13,7 +13,7 @@ export type MongoComparisonCriteria = {
  * DTO representing a MongoDB-like / CouchDB MangoQuery selector.
  * Supports logical operators: $or, $and.
  * Field criteria can be equality primitives or comparison objects.
- * Validation is performed using template-based validation in MongoQueryTemplates.
+ * Validation is performed by validation/query/validateQuery.ts (shape + operator policy).
  */
 export class MongoSelectorDto {
     $or?: MongoSelectorDto[];

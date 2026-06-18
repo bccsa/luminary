@@ -347,8 +347,14 @@ function compileFieldCriteria(
 
                 case "$ne":
                     predicates.push((doc, vars) => {
-                        const val = vars[idx];
+                        // CouchDB semantics: $ne requires the field to exist. A missing
+                        // field (undefined) never matches — consistent with $gt/$in/etc.
+                        // and with the Dexie index path, where notEqual() never returns
+                        // records lacking the indexed key. A single getValue() call (no
+                        // separate existence traversal) keeps the hot path cheap.
                         const docVal = getValue(doc);
+                        if (docVal === undefined) return false;
+                        const val = vars[idx];
                         if (val === null || typeof val !== "object") {
                             return docVal !== val;
                         }
@@ -422,9 +428,12 @@ function compileFieldCriteria(
 
                 case "$nin":
                     predicates.push((doc, vars) => {
+                        // CouchDB semantics: $nin requires the field to exist. A missing
+                        // field (undefined) never matches. Single getValue() call.
+                        const docVal = getValue(doc);
+                        if (docVal === undefined) return false;
                         const arr = vars[idx];
                         if (!Array.isArray(arr)) return false;
-                        const docVal = getValue(doc);
                         const len = arr.length;
                         for (let j = 0; j < len; j++) {
                             const v = arr[j];
@@ -584,10 +593,17 @@ function compileFieldCriteria(
                     }
                     break;
                 case "$ne":
+                    // CouchDB semantics: $ne requires the field to exist (missing ⇒ no match).
                     if (val === null || typeof val !== "object") {
-                        predicates.push((doc) => getValue(doc) !== val);
+                        predicates.push((doc) => {
+                            const docVal = getValue(doc);
+                            return docVal !== undefined && docVal !== val;
+                        });
                     } else {
-                        predicates.push((doc) => compareValues(getValue(doc), val) !== 0);
+                        predicates.push((doc) => {
+                            const docVal = getValue(doc);
+                            return docVal !== undefined && compareValues(docVal, val) !== 0;
+                        });
                     }
                     break;
                 default:

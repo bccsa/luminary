@@ -13,6 +13,7 @@ import {
     removeFromMediaQueue,
     clearMediaQueue,
     nextInMediaQueue,
+    isInstalledStandalone,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -189,6 +190,43 @@ describe("globalConfig.ts", () => {
 
             nextInMediaQueue();
             expect(mediaQueue.value).toHaveLength(0);
+        });
+    });
+
+    describe("isInstalledStandalone", () => {
+        const originalMatchMedia = window.matchMedia;
+
+        afterEach(() => {
+            window.matchMedia = originalMatchMedia;
+            delete (window.navigator as any).standalone;
+        });
+
+        const mockMatchMedia = (standaloneMatches: boolean) => {
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: query === "(display-mode: standalone)" && standaloneMatches,
+                media: query,
+                onchange: null,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            }));
+        };
+
+        it("returns false in a normal browser tab", () => {
+            // The global vitest.setup stub makes matchMedia report matches: false.
+            expect(isInstalledStandalone()).toBe(false);
+        });
+
+        it("returns true when launched in display-mode: standalone", () => {
+            mockMatchMedia(true);
+            expect(isInstalledStandalone()).toBe(true);
+        });
+
+        it("returns true for iOS home-screen apps (navigator.standalone)", () => {
+            (window.navigator as any).standalone = true;
+            expect(isInstalledStandalone()).toBe(true);
         });
     });
 });

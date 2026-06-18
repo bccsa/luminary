@@ -2,6 +2,8 @@ import "reflect-metadata";
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
+import { DocType, PublishStatus, RedirectType } from "../enums";
+import { ContentDto } from "../dto/ContentDto";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -352,5 +354,63 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("isAudio");
+    });
+
+    it("rejects a redirect whose slug has published content", async () => {
+        await db.upsertDoc({
+            _id: "content-published-for-redirect",
+            type: DocType.Content,
+            memberOf: ["group-public-content"],
+            parentId: "post-blog1",
+            language: "lang-eng",
+            status: PublishStatus.Published,
+            slug: "published-slug-for-redirect",
+            title: "Published",
+            publishDate: 1704114000000,
+        } as ContentDto);
+
+        const changeRequest = {
+            doc: {
+                _id: "redirect-over-published",
+                type: DocType.Redirect,
+                memberOf: ["group-public-content"],
+                redirectType: RedirectType.Permanent,
+                slug: "published-slug-for-redirect",
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toContain("Published content already exists for slug");
+    });
+
+    it("allows a redirect whose slug has only draft content", async () => {
+        await db.upsertDoc({
+            _id: "content-draft-for-redirect",
+            type: DocType.Content,
+            memberOf: ["group-public-content"],
+            parentId: "post-blog1",
+            language: "lang-eng",
+            status: PublishStatus.Draft,
+            slug: "draft-slug-for-redirect",
+            title: "Draft",
+            publishDate: 1704114000000,
+        } as ContentDto);
+
+        const changeRequest = {
+            doc: {
+                _id: "redirect-over-draft",
+                type: DocType.Redirect,
+                memberOf: ["group-public-content"],
+                redirectType: RedirectType.Permanent,
+                slug: "draft-slug-for-redirect",
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(true);
+        expect(result.error).toBeUndefined();
     });
 });

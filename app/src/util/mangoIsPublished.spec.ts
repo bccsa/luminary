@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { mangoIsPublished } from "./mangoIsPublished";
+import { __resetSessionNow } from "./sessionNow";
 import { mangoCompile, type MangoSelector, PublishStatus } from "luminary-shared";
 
 /**
@@ -28,6 +29,67 @@ function makeDoc(overrides: Record<string, unknown> = {}) {
 }
 
 describe("mangoIsPublished", () => {
+    afterEach(() => {
+        // Re-capture on the next call (models a fresh page load) and undo any fake
+        // clock so a frozen fake instant can't bleed into a later real-timer test.
+        __resetSessionNow();
+        vi.useRealTimers();
+    });
+
+    // ============================================
+    // Frozen session reference time (stable reactive query key)
+    // ============================================
+    //
+    // The publish/expiry bounds are embedded in the selector, which HybridQuery
+    // serializes as its reactive query key. Pinning "now" to one value captured on
+    // page load keeps that key byte-stable, so the API supplement POST isn't
+    // re-issued on every tracked-ref change (only `now` differed before).
+
+    describe("session reference time", () => {
+        /** Pull the numeric `now` bound out of the expiryDate `$gte` condition. */
+        function expiryNow(conditions: MangoSelector[]): number {
+            // Conditions: [status, publishDate, expiryDate, language]
+            const expiry = conditions[2] as { $or: Array<Record<string, any>> };
+            const gte = expiry.$or.find((c) => c.expiryDate?.$gte !== undefined);
+            return gte!.expiryDate.$gte;
+        }
+
+        it("produces an identical selector even after the clock advances", () => {
+            vi.useFakeTimers();
+            vi.setSystemTime(1_700_000_000_000);
+            __resetSessionNow();
+
+            const first = mangoIsPublished(["lang-eng"]); // captures now here
+            vi.setSystemTime(1_700_000_000_000 + 10 * 60_000); // +10 minutes
+            const second = mangoIsPublished(["lang-eng"]);
+
+            expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+        });
+
+        it("freezes the now bound to the page-load instant", () => {
+            vi.useFakeTimers();
+            vi.setSystemTime(1_700_000_037_123);
+            __resetSessionNow();
+
+            const now = expiryNow(mangoIsPublished(["lang-eng"]));
+
+            expect(now).toBe(1_700_000_037_123);
+        });
+
+        it("re-captures the now bound on a fresh load (reset)", () => {
+            vi.useFakeTimers();
+            vi.setSystemTime(1_700_000_000_000);
+            __resetSessionNow();
+            const before = expiryNow(mangoIsPublished(["lang-eng"]));
+
+            __resetSessionNow(); // simulate a fresh page load
+            vi.setSystemTime(1_700_000_500_000);
+            const after = expiryNow(mangoIsPublished(["lang-eng"]));
+
+            expect(after - before).toBe(500_000);
+        });
+    });
+
     // ============================================
     // Publish date checks
     // ============================================
@@ -40,10 +102,13 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(true);
         });
 
-        it("matches a document with publishDate equal to now (approximately)", () => {
-            const pred = buildPredicate(["lang-eng"]);
-            // Use a date very slightly in the past to avoid timing issues
-            const doc = makeDoc({ publishDate: Date.now() - 1 });
+        it("matches a document with publishDate at the session reference instant", () => {
+            vi.useFakeTimers();
+            vi.setSystemTime(1_700_000_000_000);
+            __resetSessionNow();
+
+            const pred = buildPredicate(["lang-eng"]); // captures now = reference instant
+            const doc = makeDoc({ publishDate: 1_700_000_000_000 }); // exactly now → $lte matches
 
             expect(pred(doc)).toBe(true);
         });
@@ -55,19 +120,22 @@ describe("mangoIsPublished", () => {
             expect(pred(doc)).toBe(false);
         });
 
-        it("matches a document with no publishDate (treated as published)", () => {
+        // Published content always carries a numeric publishDate (API-enforced), so the
+        // filter no longer matches missing/null publishDate — those branches were dead
+        // weight that defeated CouchDB's publishDate index range.
+        it("rejects a document with no publishDate (published content always has one)", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc();
             delete (doc as any).publishDate;
 
-            expect(pred(doc)).toBe(true);
+            expect(pred(doc)).toBe(false);
         });
 
-        it("matches a document with publishDate set to null (treated as published)", () => {
+        it("rejects a document with publishDate set to null", () => {
             const pred = buildPredicate(["lang-eng"]);
             const doc = makeDoc({ publishDate: null });
 
-            expect(pred(doc)).toBe(true);
+            expect(pred(doc)).toBe(false);
         });
 
         it("rejects a document with status draft", () => {

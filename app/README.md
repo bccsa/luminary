@@ -118,6 +118,31 @@ if (document.documentElement.dataset.renderState === "ready") {
 
 Note: SSG / ISR is not part of the Luminary main project — this event is provided so implementers can build their own pre-rendering pipeline on top of it.
 
+## Content freshness & the session clock
+
+Content visibility queries filter on `publishDate` and `expiryDate` relative to "now" (see [`src/util/mangoIsPublished.ts`](src/util/mangoIsPublished.ts)). That "now" is **not** a live `Date.now()` — it is captured **once on page load** and held constant for the lifetime of the page via [`src/util/sessionNow.ts`](src/util/sessionNow.ts).
+
+Why it's frozen: the publish/expiry bounds are embedded directly in the Mango query selector, and `HybridQuery` (in `luminary-shared`) uses the serialized selector as its reactive dedup key. A live clock changes the selector on every tick, so any reactive re-evaluation of a query during load would produce a new key, defeating the dedup and re-firing the API-supplement `POST`. Freezing "now" makes those selectors byte-stable, so a query only rebuilds when something _semantic_ changes. This mirrors `contentPublishDateCutoff`, which is likewise captured once at startup in [`src/main.ts`](src/main.ts).
+
+**Trade-off (intentional):** in a long-lived session the bound does not advance, so content that crosses its publish or expiry boundary _after_ load only reflects on the next page load. For example, a "coming soon" tile whose `publishDate` passes while the tab stays open keeps rendering as coming-soon until reload. This is acceptable for authored content and PWAs reload often. If a long session ever needs to pick up scheduled transitions live, promote `sessionNow` to a `ref` ticked on a coarse interval (e.g. every few minutes) — every query referencing it then rebuilds _together_, once per tick, which still avoids the per-ref-change storm.
+
+> Note: the "coming soon" badge styling on a content tile ([`src/components/content/ContentTile.vue`](src/components/content/ContentTile.vue)) is a render-time check using a live `Date.now()`, not a query, so it is unaffected by the frozen session clock.
+
+## PWA install state & content sync tiering
+
+How much content is pre-synced into IndexedDB depends on whether the app is running as an **installed PWA** (launched from the home-screen icon, in `display-mode: standalone`) or in a normal **browser tab**. The tier is decided **once per launch** in [`src/main.ts`](src/main.ts) from [`isInstalledStandalone()`](src/globalConfig.ts) (which checks the `standalone`/`minimal-ui`/`fullscreen` display modes and iOS `navigator.standalone`):
+
+- **Installed (standalone):** no `publishDate` cutoff — the full corpus syncs for offline use.
+- **Browser tab:** only the last ~1 month (`BROWSER_CONTENT_SYNC_WINDOW_MS`) is pre-synced; older content is fetched on demand by `HybridQuery` (see [`shared/src/util/HybridQuery/README.md`](../shared/src/util/HybridQuery/README.md)).
+
+Because the tier is captured at startup (like the frozen session clock above), installing the app takes effect on the **next** launch.
+
+### Matomo analytics
+
+`initAnalytics()` ([`src/analytics.ts`](src/analytics.ts)) tags each Matomo session with its display mode (`installed` vs `browser`) so install adoption and its effect on the sync window can be measured.
+
+To enable **per-pageview segmentation** in Matomo, create the custom dimension in Matomo admin and set `VITE_ANALYTICS_PWA_DIMENSION_ID` in the app's env. Until then the fallback `["trackEvent", "PWA", "displayMode", …]` event fires automatically — so the signal is captured either way, no config required to ship.
+
 ## Build for production
 
 The web version of the app can be deployed as a Docker container by building the `Dockerfile`:

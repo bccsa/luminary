@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import {
-    ApiLiveQuery,
-    type ApiSearchQuery,
     DocType,
     PostType,
     PublishStatus,
     TagType,
     db,
     isConnected,
-    mangoCompile,
-    mangoToDexie,
-    useDexieLiveQuery,
-    useDexieLiveQueryWithDeps,
-    type BaseDocumentDto,
+    queryLocal,
+    queryRemote,
+    useHybridQuery,
+    touchRetention,
     type ContentDto,
     type RedirectDto,
     type Uuid,
@@ -20,7 +17,8 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useContentQuery } from "@/composables/useContentQuery";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -32,7 +30,6 @@ import {
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import {
-    appLanguageIdsAsRef,
     appName,
     appLanguagePreferredIdAsRef,
     isDarkTheme,
@@ -50,7 +47,6 @@ import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import LImage from "@/components/images/LImage.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -127,225 +123,204 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
-const idbContent = useDexieLiveQuery(
-    () =>
-        mangoToDexie(db.docs, {
-            selector: {
-                $and: [
-                    { slug: props.slug },
-                    {
-                        $or: [
-                            { type: DocType.Redirect },
-                            {
-                                $and: [
-                                    { publishDate: { $exists: true, $lte: Date.now() } },
-                                    {
-                                        $or: [
-                                            { expiryDate: { $exists: false } },
-                                            { expiryDate: null },
-                                            { expiryDate: { $gte: Date.now() } },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ],
-            },
-        }).then((docs) => {
-            if (!docs?.length) return undefined;
+// Content by slug. HybridQuery does the local-first Dexie read + the below-cutoff
+// API supplement (incl. deferring the POST until online). The query filters publish
+// state itself (status / publishDate / expiry), so a draft / scheduled / expired slug
+// resolves to nothing → the not-found path. languageFilter is off so a direct link to
+// any translation isn't excluded by the user's language preference. cache:false avoids
+// a first-paint flash of a previously-viewed article (single-doc structural key).
+const contentArr = useContentQuery(() => [{ slug: props.slug }], {
+    includeScheduled: false,
+    languageFilter: false,
+    cache: false,
+    // Seek the single slug doc via the slug-led index instead of scanning the whole
+    // content collection on the publishDate index. The publishDate sort is required
+    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
+    useIndex: "content-slug-publishDate-index",
+    sort: [{ publishDate: "desc" }],
+    // Keep `text` (the article body, rendered below) and `memberOf` (read by
+    // canEdit) — the default strip set would drop both.
+    stripFields: ["fts", "ftsTokenCount", "_rev"],
+});
 
-            // Check if the document is a redirect
-            const redirect = docs.find((d: any) => d.type === DocType.Redirect) as
-                | RedirectDto
-                | undefined;
-            if (redirect && redirect.toSlug) {
-                // If toSlug matches a route name, redirect to that route
-                const routes = router.getRoutes();
-                const targetRoute = routes.find((r) => r.name === redirect.toSlug);
-                if (targetRoute) {
-                    router.replace({ name: redirect.toSlug });
-                } else {
-                    // Otherwise, treat as a content slug
-                    router.replace({ name: "content", params: { slug: redirect.toSlug } });
+// Redirect resolution. A redirect takes precedence over content — but that precedence
+// is enforced on the server (publishing content onto a redirect's slug is forced to
+// draft), not here. The slug invariant therefore guarantees a slug carries *either*
+// published content or a redirect, never both, so the eager local check and the content
+// bind below never contend: at most one of them resolves. Synced redirects route
+// instantly via queryLocal on slug change; a redirect that exists only on the server is
+// caught by queryRemote in the not-found resolver, so normal pages pay no redirect API call.
+function routeRedirect(redirect: RedirectDto): boolean {
+    if (!redirect?.toSlug) return false;
+    const targetRoute = router.getRoutes().find((r) => r.name === redirect.toSlug);
+    if (targetRoute) router.replace({ name: redirect.toSlug });
+    else router.replace({ name: "content", params: { slug: redirect.toSlug } });
+    return true;
+}
+
+// Loading until the content query produces an answer for the current slug.
+const isLoading = ref(true);
+const is404 = ref(false);
+
+let notFoundTimer: ReturnType<typeof setTimeout> | undefined;
+const clearNotFoundTimer = () => {
+    if (notFoundTimer) clearTimeout(notFoundTimer);
+    notFoundTimer = undefined;
+};
+
+// When nothing matches the slug, HybridQuery's (change-gated) output stays empty and
+// never emits — so after the local read + (online) API supplement have had time to
+// land, treat an empty result as "not found". Last chance before 404: a redirect that
+// exists only on the server (only reached when the slug resolves to no content).
+const scheduleNotFound = () => {
+    clearNotFoundTimer();
+    notFoundTimer = setTimeout(
+        async () => {
+            if (contentArr.value.length) return;
+            const slug = props.slug;
+            if (isConnected.value) {
+                try {
+                    const remote = await queryRemote<RedirectDto>({
+                        selector: { $and: [{ type: DocType.Redirect }, { slug }] },
+                    });
+                    if (props.slug !== slug) return; // slug changed mid-await
+                    if (remote[0] && routeRedirect(remote[0])) return;
+                } catch {
+                    /* fall through to 404 */
                 }
-                return undefined;
             }
+            if (!contentArr.value.length) {
+                content.value = undefined;
+                isLoading.value = false;
+            }
+        },
+        isConnected.value ? 5000 : 1500,
+    );
+};
 
-            return docs.find((d: any) => d.type === DocType.Content) as ContentDto | undefined;
-        }),
-    { initialValue: defaultContent },
+watch(
+    () => props.slug,
+    async (slug) => {
+        isLoading.value = true;
+        scheduleNotFound();
+        // Instant local redirect check (synced redirects route immediately).
+        const redirect = (
+            await queryLocal<RedirectDto>({
+                selector: { $and: [{ type: DocType.Redirect }, { slug }] },
+            })
+        )[0];
+        if (props.slug === slug && redirect) routeRedirect(redirect);
+    },
+    { immediate: true },
 );
 
-const unwatch = watch([idbContent, isConnected], () => {
-    if (idbContent.value) {
-        content.value = idbContent.value;
-        return;
-    }
-
-    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, we clear the content
-    if (!isConnected.value) {
-        content.value = undefined;
-        return;
-    }
-
-    // Stop the watcher on the IndexedDB content and start a new one on the API content
-    unwatch();
-
-    const query = ref<ApiSearchQuery>({ slug: props.slug });
-    const apiLiveQuery = new ApiLiveQuery(query, {
-        initialValue: [defaultContent] as BaseDocumentDto[],
-    });
-    const apiContent = apiLiveQuery.toRef();
-
-    watch(apiContent, () => {
-        if (!apiContent.value) {
-            content.value = undefined;
-            return;
+// Bind the resolved content. A found doc wins immediately and clears loading.
+watch(
+    contentArr,
+    (docs) => {
+        if (docs.length) {
+            content.value = docs[0];
+            isLoading.value = false;
+            clearNotFoundTimer();
         }
+    },
+    { immediate: true },
+);
 
-        if (apiContent.value.type === DocType.Redirect) {
-            const redirect = apiContent.value as unknown as RedirectDto;
-            if (redirect.toSlug) {
-                router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                return;
-            }
-        }
+// Drop a pending not-found timer on unmount so its remote redirect probe can't fire
+// after the user has navigated away (e.g. via a route-name redirect match).
+onUnmounted(clearNotFoundTimer);
 
-        // If the content is not a redirect, set it to the content ref
-        content.value = apiContent.value as ContentDto;
-    });
+// Keep a viewed article alive in the offline document store: refresh its retention
+// deadline whenever a real content doc is displayed, so a below-cutoff article the
+// user reads isn't evicted as stale. No-op for the placeholder / undefined.
+watch(content, (c) => {
+    if (c && c._id) touchRetention([c._id]);
 });
 
-// Load available languages from IndexedDB immediately (even when online)
-const currentParentId = ref<string>("");
+// Available translations + their languages. HybridQuery merges the local read with
+// the below-cutoff API supplement (replacing the old mangoToDexie + ApiLiveQuery
+// pair); the language list is a fully-synced type read straight from IndexedDB.
 const isLoadingTranslations = ref(false);
 
-watch([content, isConnected], async () => {
-    if (!content.value) return;
-
-    // Only reload translations if we're viewing a different parent content
-    // This prevents flash when switching between translations of the same content
-    if (
-        currentParentId.value === content.value.parentId &&
-        availableTranslations.value.length > 0
-    ) {
-        return;
-    }
-
-    currentParentId.value = content.value.parentId;
-    isLoadingTranslations.value = true;
-
-    const [availableContentTranslations, availableLanguages] = await Promise.all([
-        mangoToDexie(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: content.value.parentId },
-                    { publishDate: { $exists: true, $lte: Date.now() } },
-                    {
-                        $or: [
-                            { expiryDate: { $exists: false } },
-                            { expiryDate: null },
-                            { expiryDate: { $gte: Date.now() } },
-                        ],
-                    },
-                ],
-            },
-        }),
-        mangoToDexie(db.docs, { selector: { type: DocType.Language } }),
-    ]);
-
-    if (availableContentTranslations.length > 1) {
-        availableTranslations.value = availableContentTranslations as ContentDto[];
-        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((t) => t.language === lang._id),
-        );
-    }
-
-    isLoadingTranslations.value = false;
-
-    if (isConnected.value) {
-        // If online, do API call to get list of available languages and update dropdown
-        isLoadingTranslations.value = true;
-
-        const languageQuery = ref<ApiSearchQuery>({ types: [DocType.Language] });
-        const contentQuery = ref<ApiSearchQuery>({
-            types: [DocType.Content],
-            parentId: content.value.parentId,
-        });
-
-        const contentLiveQuery = new ApiLiveQuery(contentQuery);
-        const apiLanguageLiveQuery = new ApiLiveQuery(languageQuery);
-
-        const contentResults = contentLiveQuery.toArrayAsRef();
-        const apiLanguage = apiLanguageLiveQuery.toArrayAsRef();
-
-        watch([contentResults, apiLanguage], () => {
-            if (contentResults.value && contentResults.value.length > 1) {
-                availableTranslations.value = (contentResults.value as ContentDto[]).filter(
-                    (c) => c.status === PublishStatus.Published,
-                );
-            }
-
-            if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
-                const apiLanguages = apiLanguage.value as LanguageDto[];
-                languages.value = apiLanguages.filter((lang) =>
-                    availableTranslations.value.some((t) => t.language === lang._id),
-                );
-            }
-
-            // Mark translations as loaded once we have data from the API
-            isLoadingTranslations.value = false;
-        });
-    }
+// Per-document lookup → response cache stays off (the useContentQuery default). The
+// cache key is the query shape (parentId is stripped to a placeholder), so a seed here
+// would be a previously-viewed post's translations — which feed availableTranslations
+// and drive the auto-navigation below, redirecting this page back to that post.
+const translationsArr = useContentQuery(
+    // Before `content` resolves there is no parent to match siblings against. An
+    // empty `$in` is provably-empty, so HybridQuery short-circuits both the Dexie
+    // read and the API supplement — a `parentId: ""` placeholder instead POSTs a
+    // match-nothing query that full-scans the publishDate index.
+    () =>
+        content.value?.parentId
+            ? [{ parentId: content.value.parentId }]
+            : [{ parentId: { $in: [] } }],
+    {
+        publishedFilter: false,
+        // Seek siblings by parentId rather than scanning the publishDate index. The
+        // provably-empty `$in: []` branch short-circuits before any API call, so the
+        // index/sort only matter on the resolved-parentId (equality) branch.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+        // A language switch binds the chosen translation straight into `content`, so
+        // these docs must retain the same fields as the main content query: `text`
+        // (the article body) and `memberOf` (read by canEdit). The default strip set
+        // would drop both, blanking the body and crashing the edit check.
+        stripFields: ["fts", "ftsTokenCount", "_rev"],
+    },
+);
+const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+    // Only the i18n singleton in globalConfig needs `translations`; this query reads
+    // just id/name/languageCode/averageReadingSpeed, so drop the heavy strings map.
+    stripFields: ["translations", "_rev"],
 });
 
-const tags = useDexieLiveQueryWithDeps(
-    [content, appLanguageIdsAsRef],
-    ([content, appLanguageIds]: [ContentDto, Uuid[]]) => {
-        const parentIds = (content?.parentTags || []).concat([content?.parentId || ""]); // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
-        if (parentIds.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: { $in: parentIds } },
-                    { parentType: DocType.Tag },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: false }),
-                ],
-            },
-        }) as unknown as Promise<ContentDto[]>;
+watch(
+    [translationsArr, allLanguages, () => content.value?.parentId],
+    () => {
+        if (!content.value) return;
+        const published = (translationsArr.value as ContentDto[]).filter(
+            (c) => c.status === PublishStatus.Published,
+        );
+        if (published.length > 1) {
+            availableTranslations.value = published;
+            languages.value = allLanguages.value.filter((lang) =>
+                published.some((t) => t.language === lang._id),
+            );
+        }
     },
-    { initialValue: [] as ContentDto[] },
+    { immediate: true },
+);
+
+const tags = useContentQuery(
+    () => {
+        // Before `content` resolves, match nothing via a provably-empty `$in`
+        // rather than POSTing `{ parentId: { $in: [""] } }`, which full-scans.
+        if (!content.value?.parentId) return [{ parentId: { $in: [] } }];
+        // Include this document's parent ID to show content tagged with this
+        // document's parent (if a TagDto).
+        const parentIds = (content.value.parentTags || []).concat([content.value.parentId]);
+        return [{ parentId: { $in: parentIds } }, { parentType: DocType.Tag }];
+    },
+    // Per-document lookup → response cache stays off (the useContentQuery default): a
+    // shape-keyed seed would carry a previously-viewed post's tags, wrongly setting
+    // selectedCategoryId and RelatedContent.
+    { includeScheduled: false },
 );
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
-// If connected, we are waiting for data to load from the API, unless found in IndexedDB
-const isLoading = ref(isConnected.value);
-const is404 = ref(false);
+// isLoading / is404 are declared alongside the content sources above.
 
-// Compiled Mango filter to check if content is published (recompiles reactively when content changes)
-const isPublishedFilter = computed(() => {
-    if (!content.value?.language) return () => false;
-    return mangoCompile({
-        $and: [
-            { status: PublishStatus.Published },
-            ...mangoIsPublished([content.value.language], { includeScheduled: false }),
-        ],
-    });
-});
-
+// The content query already filters publish state, so `content` is either a valid
+// published doc or absent — 404 is purely "resolved to nothing".
 const check404 = () => {
     if (isLoading.value) return false; // Don't show 404 during loading
-
-    // If content is undefined (not found), show 404
-    if (!content.value) return true;
-
-    // If content is still the default loading content, don't show 404 yet
-    if (content.value === defaultContent) return false;
-
-    return !isPublishedFilter.value(content.value);
+    if (content.value === defaultContent) return false; // still the loading placeholder
+    return !content.value;
 };
 
 watch(content, () => {
@@ -589,10 +564,9 @@ const quickLanguageSwitch = (languageId: string) => {
 };
 
 // Check if the current content has audio files - fully reactive to data changes
-// Check both content and idbContent to ensure we always have the latest data
 const hasAudioFiles = computed(() => {
     // Check the live query result first (most up-to-date), then fall back to content ref
-    const dataSource = idbContent.value || content.value;
+    const dataSource = contentArr.value[0] || content.value;
     const fileCollections = dataSource?.parentMedia?.fileCollections;
     return !!(fileCollections && Array.isArray(fileCollections) && fileCollections.length > 0);
 });
@@ -627,7 +601,10 @@ watch([isLoading, content, is404], async () => {
 </script>
 
 <template>
-    <BasePage :showBackButton="true" desktopTopBar>
+    <BasePage
+        :showBackButton="true"
+        desktopTopBar
+    >
         <template
             #quickControls
             v-if="!is404"

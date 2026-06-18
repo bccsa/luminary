@@ -125,4 +125,4 @@ Don't fix. Just diagnose.
 
 - Not a code editor. Diagnose only.
 - Not a CouchDB admin tool. You can describe queries, but the user runs them.
-- Not for performance issues. If sync is slow but eventually delivers, the diagnosis is in `shared/src/rest/sync2/README.md`, not here.
+- Not for performance issues. If sync is slow but eventually delivers, the diagnosis is in `shared/src/api/sync/README.md`, not here.

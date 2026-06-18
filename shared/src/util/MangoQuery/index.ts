@@ -2,7 +2,9 @@ export * from "./MangoTypes";
 export * from "./queryCache";
 export * from "./mangoCompile";
 export * from "./mangoToDexie";
+export * from "./isProvablyEmpty";
 export * from "./expandMangoQuery";
+export * from "./sanitizeArrayOperators";
 export * from "./templateNormalize";
 export * from "./compileTemplateSelector";
 

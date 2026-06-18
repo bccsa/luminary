@@ -30,6 +30,9 @@ const storageBucket2 = {
 describe("useBucketInfo", () => {
     afterEach(async () => {
         await db.docs.clear();
+        // The query is cached (`cache: true`), so it writes to localStorage; clear it
+        // between tests to keep the synchronous seed from leaking across cases.
+        localStorage.clear();
     });
 
     it("returns null bucket and undefined bucketBaseUrl when bucketId is undefined", async () => {
@@ -63,5 +66,21 @@ describe("useBucketInfo", () => {
             expect(bucket.value!._id).toBe("storage-bucket-1");
             expect(bucketBaseUrl.value).toBe("https://cdn.example.com");
         });
+    });
+
+    it("seeds bucketBaseUrl synchronously from the cache on a warm remount", async () => {
+        await db.docs.bulkPut([storageBucket1, storageBucket2]);
+
+        // First mount warms the response cache (the write happens once the Dexie read lands).
+        const first = useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await waitForExpect(() => {
+            expect(first.bucketBaseUrl.value).toBe("https://cdn.example.com");
+        });
+
+        // A fresh mount must resolve the URL on the synchronous first frame from the
+        // seed — no awaiting. This is what stops <LImage> painting a fallback and then
+        // swapping to the real image (the reload flash).
+        const second = useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        expect(second.bucketBaseUrl.value).toBe("https://cdn.example.com");
     });
 });

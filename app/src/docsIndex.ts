@@ -4,4 +4,4 @@
  * to ensure test indexes match production indexes.
  */
 export const APP_DOCS_INDEX =
-    "type, parentId, [parentId+status], slug, language, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType+status], [parentType+parentTagType+status], [type+status+parentTagType], [type+parentType+status], [parentType+status]";
+    "type, parentId, [parentId+status], slug, language, publishDate, expiryDate, [type+status], [type+parentPinned], [type+parentPinned+status], [type+parentPinned+parentTagType+status], [parentType+parentTagType+status], [type+status+parentTagType], [type+parentType+status], [parentType+status], [type+parentId], [type+parentId+status], [type+parentType+parentTagType+status], [type+slug], [type+slug+status]";

@@ -1,5 +1,5 @@
 import { Ref } from "vue";
-import { ApiSearchQuery } from "../../rest/RestApi";
+import { ApiSearchQuery } from "../../api/RestApi";
 import {
     ApiQueryResult,
     BaseDocumentDto,

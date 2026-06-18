@@ -1,75 +1,48 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        // Build query inside callback so it uses current appLanguageIds
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPinned: 1 }, // 1 = true
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
-);
-
-watch(pinnedCategories as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
+const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
+    cache: true,
+    // Seek pinned category docs via the parentPinned-led index. Order is irrelevant
+    // here (contentByTag re-sorts downstream), but the publishDate sort is required
+    // for CouchDB to engage the index instead of full-scanning the content collection.
+    useIndex: "content-parentPinned-publishDate-index",
+    sort: [{ publishDate: "desc" }],
 });
 
-const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
-        // Build query inside callback so it uses current values
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    {
-                        $or: [
-                            { parentTagType: { $exists: false } },
-                            { parentTagType: TagType.Topic },
-                        ],
-                    },
-                    {
-                        parentTags: {
-                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
-                        },
-                    },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
+// Reads pinnedCategories.value inside the thunk so this query auto-rebuilds when
+// the pinned categories change.
+const pinnedCategoryContent = useContentQuery(
+    () => [
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        {
+            $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }],
+        },
+        {
+            parentId: { $in: pinnedCategories.value.flatMap((c) => c.parentTaggedDocs ?? []) },
+        },
+    ],
+    // Resolve each pinned category to the post ids tagged with it (parentTaggedDocs — the
+    // server-mirrored copy of the tag's taggedDocs) and seek child content by parentId.
+    // This indexes the local Dexie read and lets the API older-tail supplement fan out to
+    // per-parent index seeks when the combined parentId set is within the fan-out cap.
+    // Featured content can predate the sync cutoff, so the supplement is REQUIRED to surface
+    // it (it is not in the local window); when the combined set exceeds the cap the
+    // supplement falls back to a content-partition scan. sort+limit bound the window;
+    // contentByTag re-sorts per category for display.
+    { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
-
-watch(pinnedCategoryContent as any, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
-});
 
 // sort pinned content by category
-const pinnedContentByCategory = contentByTag(pinnedCategoryContent as any, pinnedCategories as any);
+const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
 </script>
 
 <template>

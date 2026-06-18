@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
-import { db, useDexieLiveQueryWithDeps, mangoToDexie, type ContentDto, type Uuid } from "luminary-shared";
+import { userPreferencesAsRef } from "@/globalConfig";
+import { type ContentDto } from "luminary-shared";
 import { computed, nextTick, onMounted } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
 import { markPageReady } from "@/util/renderState";
@@ -21,23 +21,9 @@ const bookmarks = computed(
     () => userPreferencesAsRef.value.bookmarks?.sort((a, b) => b.ts - a.ts).map((b) => b.id) ?? [],
 );
 
-const content = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, bookmarks],
-    ([appLanguageIds, bookmarkIds]: [Uuid[], Uuid[]]) => {
-        if (bookmarkIds.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: { $in: bookmarkIds } },
-                    ...mangoIsPublished(appLanguageIds, { includeScheduled: false }),
-                ],
-            },
-        });
-    },
-    {
-        initialValue: [],
-    },
-);
+const content = useContentQuery(() => [{ parentId: { $in: bookmarks.value } }], {
+    includeScheduled: false,
+});
 
 const sorted = computed(
     () =>
@@ -66,5 +52,5 @@ const sorted = computed(
             </div>
         </div>
     </BasePage>
-        
+
 </template>

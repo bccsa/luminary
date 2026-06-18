@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { ref } from "vue";
-import { getRest } from "../../rest/RestApi";
+import { getRest } from "../../api/RestApi";
 import { BaseDocumentDto, DocType } from "../../types";
 import waitForExpect from "wait-for-expect";
 import { ApiLiveQueryAsEditable } from "./ApiLiveQueryAsEditable";
 
-vi.mock("../../rest/RestApi", () => {
+vi.mock("../../api/RestApi", () => {
     return {
         getRest: vi.fn(() => ({
             search: vi.fn(),

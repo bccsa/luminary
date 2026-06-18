@@ -3,6 +3,7 @@ export type {
     FtsSearchOptions,
     FtsSearchResult,
     FtsCorpusStats,
+    ApiFtsResult,
 } from "./types";
 export {
     stripHtml,
@@ -12,6 +13,7 @@ export {
     generateSearchTrigrams,
 } from "./trigram";
 export { ftsSearch } from "./ftsSearch";
+export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 export { useFtsSearch } from "./useFtsSearch";
 export type { UseFtsSearchOptions, UseFtsSearchReturn } from "./useFtsSearch";
 export {
