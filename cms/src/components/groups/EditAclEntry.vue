@@ -5,7 +5,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import { isPermissionAvailable, validateAclEntry } from "./permissions";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
-import { isMobileScreen } from "@/globalConfig";
+import { isLargeScreen } from "@/globalConfig";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 import LDropdown from "@/components/common/LDropdown.vue";
 type Props = {
@@ -51,7 +51,7 @@ const activePermissions = computed(() => {
     <div v-if="aclEntry" class="contents">
         <div
             class="flex h-full items-center border-b border-zinc-200 pr-2 font-medium"
-            :class="isMobileScreen ? 'text-[13px]' : 'text-sm'"
+            :class="isLargeScreen ? 'text-[13px]' : 'text-sm'"
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>

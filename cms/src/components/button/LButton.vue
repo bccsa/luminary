@@ -2,7 +2,7 @@
 import { type Component, computed, useSlots, ref } from "vue";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
-import { isMobileScreen } from "@/globalConfig";
+import { isLargeScreen } from "@/globalConfig";
 
 const buttonClasses = cva({
     base: "group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default relative",
@@ -218,8 +218,8 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                     [iconVariants[variant]]: $slots.default,
                     '-mr-0.5': iconRight && $slots.default,
                     '-ml-0.5': !iconRight && $slots.default,
-                    'size-4': smallIcon && isMobileScreen,
-                    'size-5': !smallIcon || !isMobileScreen,
+                    'size-4': smallIcon && isLargeScreen,
+                    'size-5': !smallIcon || !isLargeScreen,
                     [iconClass!]: iconClass,
                 }"
             />
@@ -266,8 +266,8 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                     $slots.default ? iconVariants[variant] : '',
                     iconRight && $slots.default ? '-mr-0.5' : '',
                     !iconRight && $slots.default ? '-ml-0.5' : '',
-                    smallIcon && isMobileScreen ? 'h-4 w-4' : '',
-                    !smallIcon || !isMobileScreen ? 'h-5 w-5' : '',
+                    smallIcon && isLargeScreen ? 'h-4 w-4' : '',
+                    !smallIcon || !isLargeScreen ? 'h-5 w-5' : '',
                     iconClass,
                 )
             "

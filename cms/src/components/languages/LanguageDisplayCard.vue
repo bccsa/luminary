@@ -4,7 +4,7 @@ import { db, type LanguageDto } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
-import { isMobileScreen } from "@/globalConfig";
+import { isLargeScreen } from "@/globalConfig";
 
 type Props = {
     languagesDoc: LanguageDto;
@@ -52,7 +52,7 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
                                 db
                                     .toDateTime(languagesDoc.updatedTimeUtc)
                                     .toLocaleString(
-                                        isMobileScreen
+                                        isLargeScreen
                                             ? DateTime.DATE_SHORT
                                             : DateTime.DATETIME_SHORT,
                                     )

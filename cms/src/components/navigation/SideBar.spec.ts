@@ -26,7 +26,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
         isDevMode: false,
         sidebarSectionExpanded: ref({ posts: false, tags: false, access: false }),
         isSmallScreen: ref(false),
-        isMobileScreen: ref(false),
+        isLargeScreen: ref(false),
     };
 });
 
