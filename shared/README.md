@@ -66,7 +66,7 @@ The preferred way to read data. Pick the layer by where the data lives:
 | **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** | Vue 3 wrapper around Dexie's `liveQuery` — the preferred primitive for reading directly from IndexedDB. → [useDexieLiveQuery docs](src/util/useDexieLiveQuery/README.md) |
 | **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** | Same idea against the REST API + Socket.io directly, for data that can't or shouldn't be cached locally. |
 | **`mangoCompile` / `mangoToDexie`** | Mango-selector helpers: compile a selector to an in-memory predicate, or run a Mango query against a Dexie table with index pushdown. Plus `isProvablyEmpty`, `warmMangoCaches`. New to the selector syntax? Start with the [MangoQuery guide](src/util/MangoQuery/guide.md); reference docs: [MangoQuery docs](src/util/MangoQuery/README.md). |
-| **`toEditable`** | Clone a source ref into an editable copy that tracks user vs. source modifications so external updates don't clobber in-progress edits. (`createEditable` is a deprecated alias.) |
+| **`toEditable`** | Clone a source ref into an editable copy that tracks user vs. source modifications so external updates don't clobber in-progress edits. (`createEditable` is a deprecated alias.) → [toEditable docs](src/util/toEditable/README.md) |
 | `useDexieLiveQueryAsEditable` *(deprecated)* | `useDexieLiveQuery` + `toEditable` in one. |
 
 ### Database (IndexedDB / Dexie) — `src/db/`
@@ -153,6 +153,7 @@ mirrors them). Exports all DTOs (`BaseDocumentDto`, `ContentDto`, `PostDto`,
 | [MangoQuery guide](src/util/MangoQuery/guide.md) | **Start here for querying** — a beginner-friendly, example-led tour of the Mango selector syntax used by `HybridQuery`. |
 | [HybridQuery](src/util/HybridQuery/README.md) | Local-first query routing, live mode, caching, offline persistence, reactive queries. |
 | [useDexieLiveQuery](src/util/useDexieLiveQuery/README.md) | The IndexedDB ↔ Vue reactivity primitive. |
+| [toEditable](src/util/toEditable/README.md) | Editable clones of a source ref; user-vs-source change tracking, revert, save/baseline handoff. |
 | [MangoQuery](src/util/MangoQuery/README.md) | `mangoCompile`, `mangoToDexie`, CouchDB parity, cache warming. |
 | [Sync system](src/api/sync/README.md) | Autonomous runners, vertical/horizontal merge, cancellation, trimming. |
 | [Full-text search](src/fts/README.md) | Trigram + BM25 engine, local/server routing, corpus stats. |

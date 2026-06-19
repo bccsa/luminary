@@ -79,6 +79,6 @@ const limitedTodos = useDexieLiveQueryWithDeps(
   so the subscription is torn down on unmount. Outside an effect scope it won't
   auto-dispose.
 - **Editable variant.** `useDexieLiveQueryAsEditable` wraps the result with
-  [`toEditable`](../toEditable/) so the UI can edit a copy and diff against the
+  [`toEditable`](../toEditable/README.md) so the UI can edit a copy and diff against the
   source. It is **deprecated** — prefer `useDexieLiveQuery` + `toEditable`
   explicitly, or [`useHybridQuery`](../HybridQuery/README.md) for local-first reads.

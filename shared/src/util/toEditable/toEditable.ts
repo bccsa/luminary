@@ -1,5 +1,18 @@
 import { computed, Ref, ref, toRaw, watch } from "vue";
-import { BaseDocumentDto, Uuid } from "../../types";
+import {
+    AckStatus,
+    BaseDocumentDto,
+    ChangeReqAckDto,
+    ContentDto,
+    DocType,
+    Uuid,
+} from "../../types";
+import { db, UpsertOptions } from "../../db/database";
+import { getRest, ChangeRequestQuery } from "../../api/RestApi";
+import { LFormData } from "../LFormData";
+import { isSyncableDoc } from "../../db/isSyncable";
+import { touchRetention } from "../../db/retention";
+import { getContentPublishDateCutoff } from "../../config";
 import _ from "lodash";
 
 export type ToEditableOptions<T> = {
@@ -15,7 +28,33 @@ export type ToEditableOptions<T> = {
      * @returns
      */
     modifyFn?: (item: T) => T;
+    /**
+     * Whether the source query persists its documents offline (IndexedDB). Pass the same value
+     * the wrapped query (e.g. `useHybridQuery`/`HybridQuery`) was created with. It steers `save`:
+     * when the doc is persisted offline, edits are written locally (`db.upsert` → `docs` table +
+     * `localChanges` queue); otherwise they are POSTed straight to the API. See {@link toEditable}'s
+     * `save` for the full routing rule.
+     */
+    persistOffline?: boolean;
 };
+
+/**
+ * Decide whether a document is persisted offline (IndexedDB) and should therefore be saved via the
+ * local path rather than POSTed directly to the API. A doc is persisted offline when the query opted
+ * into offline caching (`persistOffline`), or when it is synced: for Content that means it is a
+ * syncable content type AND its `publishDate` is within the sync window (`>= cutoff`); other syncable
+ * types are always in-window. `isSyncableDoc` matches Content by type/parentType/language but
+ * intentionally ignores `publishDate`, so the window check is layered on top here.
+ */
+function isPersistedOffline(doc: BaseDocumentDto, persistOffline: boolean): boolean {
+    if (persistOffline) return true;
+    if (!isSyncableDoc(doc)) return false;
+    if (doc.type === DocType.Content) {
+        const pd = (doc as ContentDto).publishDate;
+        return pd !== undefined && pd >= getContentPublishDateCutoff();
+    }
+    return true;
+}
 
 /**
  * Converts a source array ref into an editable version, allowing modifications while keeping track of user and source modifications.
@@ -226,6 +265,62 @@ export function toEditable<T extends BaseDocumentDto>(
         }
     };
 
+    /**
+     * Save an edited item. Routes per-document: items that are persisted offline (synced, or the
+     * query opted into `persistOffline`) are written locally via `db.upsert` (the `docs` table plus
+     * a queued `localChanges` entry for later upload); items that are not persisted offline are
+     * POSTed straight to the API `/changerequest` endpoint. No-ops (returns "accepted") when the
+     * item has not been edited. The `filterFn` (if any) is applied to the item before saving.
+     * @param id - The _id of the item to save.
+     */
+    const save = async (id: Uuid): Promise<ChangeReqAckDto | undefined> => {
+        if (!isEdited.value(id)) return { ack: AckStatus.Accepted };
+
+        let item = toRaw(editable.value.find((i) => i._id === id));
+        if (!item) return { ack: AckStatus.Rejected, message: "Item not found" };
+
+        // Apply the filter function (if any) before saving, mirroring the legacy editable wrappers.
+        item = _applyFilter(item);
+
+        if (isPersistedOffline(item, options.persistOffline ?? false)) {
+            // Local path: write to the docs table and queue a localChange for upload.
+            await db.upsert({ doc: item, overwriteLocalChanges: true } as UpsertOptions<T>);
+
+            // Below-cutoff Content lives in IndexedDB only because of offline persistence; refresh
+            // its retention keep-alive so evictStaleBelowCutoff won't reap the doc we just saved.
+            // Synced (above-cutoff / other syncable) docs need no stamp — eviction never targets them.
+            const pd = (item as BaseDocumentDto as ContentDto).publishDate;
+            if (item.type === DocType.Content && pd !== undefined && pd < getContentPublishDateCutoff()) {
+                touchRetention([id]);
+            }
+
+            updateShadow(id);
+            return {
+                ack: AckStatus.Accepted,
+                message: "Saved locally and queued for upload to the server",
+            };
+        }
+
+        // API path: POST directly to /changerequest, bypassing local persistence. Use LFormData when
+        // the document carries binary upload data (ArrayBuffer is not JSON-serializable); the local
+        // path above stores it directly via IndexedDB's structured clone.
+        const hasUploadData = (item as any).imageData?.uploadData?.length > 0;
+        let res: ChangeReqAckDto | undefined;
+        if (hasUploadData) {
+            const formData = new LFormData();
+            formData.append("changeRequest", { id: 10, doc: item });
+            res = (await getRest().changeRequest(formData)) as ChangeReqAckDto | undefined;
+        } else {
+            res = (await getRest().changeRequest({
+                id: 10,
+                doc: item,
+            } as ChangeRequestQuery)) as ChangeReqAckDto | undefined;
+        }
+
+        if (res && res.ack === AckStatus.Accepted) updateShadow(id);
+        return res;
+    };
+
     function _applyModifier(item: T) {
         if (!options.modifyFn) return item;
         return options.modifyFn(item);
@@ -236,7 +331,7 @@ export function toEditable<T extends BaseDocumentDto>(
         return options.filterFn(item);
     }
 
-    return { editable, isEdited, isModified, revert, updateShadow };
+    return { editable, isEdited, isModified, revert, updateShadow, save };
 }
 
 function isEqualBase<T>(obj1: T, obj2: T): boolean {

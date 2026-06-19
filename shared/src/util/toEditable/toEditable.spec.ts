@@ -1,8 +1,22 @@
-import { describe, expect, beforeEach, test } from "vitest";
+import { describe, expect, beforeEach, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { ref, nextTick, Ref } from "vue";
 import { toEditable } from "./toEditable";
-import { BaseDocumentDto } from "../../types";
+import { AckStatus, BaseDocumentDto, ContentDto, DocType } from "../../types";
+import { getRest } from "../../api/RestApi";
+import { db } from "../../db/database";
+import { isSyncableDoc } from "../../db/isSyncable";
+import { getContentPublishDateCutoff } from "../../config";
+import { touchRetention } from "../../db/retention";
+import { LFormData } from "../LFormData";
+
+// The save() routing depends on these collaborators; mock the IO/decision inputs so the routing
+// logic itself (local db.upsert vs direct API changeRequest) is the unit under test.
+vi.mock("../../api/RestApi", () => ({ getRest: vi.fn() }));
+vi.mock("../../db/database", () => ({ db: { upsert: vi.fn() } }));
+vi.mock("../../db/isSyncable", () => ({ isSyncableDoc: vi.fn() }));
+vi.mock("../../db/retention", () => ({ touchRetention: vi.fn() }));
+vi.mock("../../config", () => ({ getContentPublishDateCutoff: vi.fn() }));
 
 type TestDoc = BaseDocumentDto & {
     value: number;
@@ -256,5 +270,223 @@ describe("toEditable", () => {
         await waitForExpect(() => {
             expect(e.editable.value[0].value).toBe(3); // The value should be 3
         });
+    });
+});
+
+describe("toEditable - save", () => {
+    const CUTOFF = 1000;
+    const changeRequestMock = vi.fn();
+
+    type ContentLike = ContentDto & { title: string };
+
+    function makeContent(id: string, publishDate?: number): ContentLike {
+        return {
+            _id: id,
+            _rev: "1",
+            type: DocType.Content,
+            updatedTimeUtc: 0,
+            updatedBy: "user",
+            publishDate,
+            title: "original",
+        } as ContentLike;
+    }
+
+    type PostLike = BaseDocumentDto & { title: string; imageData?: { uploadData?: unknown[] } };
+
+    function makePost(id: string, extra: Partial<PostLike> = {}): PostLike {
+        return {
+            _id: id,
+            _rev: "1",
+            type: DocType.Post,
+            updatedTimeUtc: 0,
+            updatedBy: "user",
+            title: "original",
+            ...extra,
+        } as PostLike;
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getRest).mockReturnValue({ changeRequest: changeRequestMock } as any);
+        vi.mocked(getContentPublishDateCutoff).mockReturnValue(CUTOFF);
+        vi.mocked(isSyncableDoc).mockReturnValue(true);
+        changeRequestMock.mockResolvedValue({ ack: AckStatus.Accepted });
+    });
+
+    test("no-ops with accepted when the item has not been edited", async () => {
+        const source = ref([makeContent("a", 2000)]);
+        const { save } = toEditable<ContentLike>(source);
+
+        const res = await save("a");
+
+        expect(res).toEqual({ ack: AckStatus.Accepted });
+        expect(db.upsert).not.toHaveBeenCalled();
+        expect(changeRequestMock).not.toHaveBeenCalled();
+    });
+
+    test("synced content (above cutoff) saves via the local path and clears the edited state", async () => {
+        const source = ref([makeContent("a", 2000)]);
+        const { editable, isEdited, save } = toEditable<ContentLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        const res = await save("a");
+
+        expect(db.upsert).toHaveBeenCalledWith({
+            doc: expect.objectContaining({ _id: "a", title: "changed" }),
+            overwriteLocalChanges: true,
+        });
+        expect(changeRequestMock).not.toHaveBeenCalled();
+        expect(touchRetention).not.toHaveBeenCalled(); // synced docs are not retention-stamped
+        expect(res).toEqual({
+            ack: AckStatus.Accepted,
+            message: "Saved locally and queued for upload to the server",
+        });
+        expect(isEdited.value("a")).toBe(false);
+    });
+
+    test("below-cutoff content with persistOffline off saves via the API path", async () => {
+        const source = ref([makeContent("a", 500)]);
+        const { editable, save } = toEditable<ContentLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(changeRequestMock).toHaveBeenCalled();
+        expect(db.upsert).not.toHaveBeenCalled();
+    });
+
+    test("below-cutoff content with persistOffline on saves locally and stamps retention", async () => {
+        const source = ref([makeContent("a", 500)]);
+        const { editable, save } = toEditable<ContentLike>(source, { persistOffline: true });
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(db.upsert).toHaveBeenCalled();
+        expect(touchRetention).toHaveBeenCalledWith(["a"]);
+        expect(changeRequestMock).not.toHaveBeenCalled();
+    });
+
+    test("content with no publishDate saves via the API path", async () => {
+        const source = ref([makeContent("a")]);
+        const { editable, save } = toEditable<ContentLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(changeRequestMock).toHaveBeenCalled();
+        expect(db.upsert).not.toHaveBeenCalled();
+    });
+
+    test("other syncable types save via the local path without retention stamping", async () => {
+        const source = ref([makePost("a")]);
+        const { editable, save } = toEditable<PostLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(db.upsert).toHaveBeenCalled();
+        expect(touchRetention).not.toHaveBeenCalled();
+        expect(changeRequestMock).not.toHaveBeenCalled();
+    });
+
+    test("non-syncable types route by persistOffline (API when off, local when on)", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+
+        const apiSource = ref([makePost("a")]);
+        const api = toEditable<PostLike>(apiSource);
+        api.editable.value[0].title = "changed";
+        await nextTick();
+        await api.save("a");
+        expect(changeRequestMock).toHaveBeenCalled();
+        expect(db.upsert).not.toHaveBeenCalled();
+
+        vi.clearAllMocks();
+        vi.mocked(getRest).mockReturnValue({ changeRequest: changeRequestMock } as any);
+
+        const localSource = ref([makePost("b")]);
+        const local = toEditable<PostLike>(localSource, { persistOffline: true });
+        local.editable.value[0].title = "changed";
+        await nextTick();
+        await local.save("b");
+        expect(db.upsert).toHaveBeenCalled();
+        expect(changeRequestMock).not.toHaveBeenCalled();
+    });
+
+    test("API path uses LFormData when the document carries binary upload data", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+        const source = ref([makePost("a", { imageData: { uploadData: [1, 2, 3] } })]);
+        const { editable, save } = toEditable<PostLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(changeRequestMock).toHaveBeenCalledTimes(1);
+        expect(changeRequestMock.mock.calls[0][0]).toBeInstanceOf(LFormData);
+    });
+
+    test("API path sends a plain change request when there is no upload data", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+        const source = ref([makePost("a")]);
+        const { editable, save } = toEditable<PostLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(changeRequestMock).toHaveBeenCalledWith({
+            id: 10,
+            doc: expect.objectContaining({ _id: "a", title: "changed" }),
+        });
+    });
+
+    test("applies the filter function to the document before saving", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+        const filterFn = (item: PostLike) => ({ ...item, title: item.title.toUpperCase() });
+        const source = ref([makePost("a")]);
+        const { editable, save } = toEditable<PostLike>(source, { filterFn });
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        await save("a");
+
+        expect(changeRequestMock).toHaveBeenCalledWith({
+            id: 10,
+            doc: expect.objectContaining({ _id: "a", title: "CHANGED" }),
+        });
+    });
+
+    test("does not clear the edited state when the API rejects the change", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+        changeRequestMock.mockResolvedValue({ ack: AckStatus.Rejected });
+        const source = ref([makePost("a")]);
+        const { editable, isEdited, save } = toEditable<PostLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        const res = await save("a");
+
+        expect(res).toEqual({ ack: AckStatus.Rejected });
+        expect(isEdited.value("a")).toBe(true);
+    });
+
+    test("returns undefined and keeps the edited state when changeRequest fails", async () => {
+        vi.mocked(isSyncableDoc).mockReturnValue(false);
+        changeRequestMock.mockResolvedValue(undefined);
+        const source = ref([makePost("a")]);
+        const { editable, isEdited, save } = toEditable<PostLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        const res = await save("a");
+
+        expect(res).toBeUndefined();
+        expect(isEdited.value("a")).toBe(true);
     });
 });
