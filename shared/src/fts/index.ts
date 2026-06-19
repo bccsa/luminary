@@ -4,6 +4,8 @@ export type {
     FtsSearchResult,
     FtsCorpusStats,
     ApiFtsResult,
+    FtsSort,
+    FtsSortField,
 } from "./types";
 export {
     stripHtml,

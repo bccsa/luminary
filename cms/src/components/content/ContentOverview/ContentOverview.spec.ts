@@ -316,6 +316,37 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("shows the search-mode toggle and switches between exact and related results", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await wrapper.find('[data-test="search-input"]').setValue("garden");
+
+        // Default search mode is strict ("exact matches") with an inline toggle link.
+        await waitForExpect(() => {
+            const toggle = wrapper.find('[data-test="toggle-related"]');
+            expect(toggle.exists()).toBe(true);
+            expect(wrapper.text()).toContain("Showing exact matches");
+            expect(toggle.text()).toContain("Click here to show related results");
+        });
+
+        await wrapper.find('[data-test="toggle-related"]').trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Showing related results");
+            expect(wrapper.find('[data-test="toggle-related"]').text()).toContain(
+                "Click here to show exact matches",
+            );
+        });
+    });
+
     it("should display sort options when sort-button is clicked", async () => {
         const wrapper = mount(ContentOverview, {
             global: {

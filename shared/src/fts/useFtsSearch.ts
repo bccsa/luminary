@@ -4,7 +4,7 @@ import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
-import type { FtsSearchOptions, FtsSearchResult } from "./types";
+import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
 import type { DocType, PublishStatus } from "../types";
 
 /**
@@ -18,6 +18,10 @@ export type FtsFilterOptions = {
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
+    /** Strict mode: require every query word (≥3 chars) as a substring of title/author. */
+    matchAllWords?: boolean;
+    /** Strict mode: order by this field/direction instead of relevance. */
+    sort?: FtsSort;
 };
 
 export type UseFtsSearchOptions = {

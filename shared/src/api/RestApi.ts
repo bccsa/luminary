@@ -23,6 +23,10 @@ export type ApiFtsQuery = {
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
+    /** Strict mode: require every query word (≥3 chars) as a substring of title/author. */
+    matchAllWords?: boolean;
+    /** Strict mode: order by this field/direction instead of relevance. */
+    sort?: { field: "title" | "publishDate" | "expiryDate" | "updatedTimeUtc"; direction: "asc" | "desc" };
     bm25k1?: number;
     bm25b?: number;
     maxTrigramDocPercent?: number;

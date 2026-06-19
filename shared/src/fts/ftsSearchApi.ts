@@ -50,6 +50,8 @@ export async function ftsSearchApi(options: FtsSearchOptions): Promise<FtsSearch
         status: options.status,
         publishedAfter: options.publishedAfter,
         publishedBefore: options.publishedBefore,
+        matchAllWords: options.matchAllWords,
+        sort: options.sort,
         limit: options.limit,
         offset: options.offset,
         cms: config.cms,

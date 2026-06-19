@@ -61,3 +61,13 @@ The remaining local bottleneck is structural: the engine loads full docs (with t
 - No local+server result-merge logic to maintain or get subtly wrong.
 - The BM25 params and word-match logic remain mirrored across `api/src/util/ftsScoring.ts`, `api/src/util/ftsIndexing.ts`, and `shared/src/fts/ftsSearch.ts` (ADR 0009/0010); routing does not add a fourth copy.
 - `useFtsSearch`'s return type gains `source` and `isPartial`; consumers may render the partial state but are not required to.
+
+### Amendment (2026-06-19): strict (sorted) search mode
+
+`FtsSearchOptions` gained `matchAllWords` + `sort` so a search can be a precise, field-ordered lookup instead of fuzzy relevance: every query word (≥3 chars) must be a **substring** of `title` or `author` (AND across words; partial/typeahead), and the full match set is ordered by the chosen field (`title`/`publishDate`/`expiryDate`/`updatedTimeUtc`) before pagination. Relevance (no `sort`/`matchAllWords`) is unchanged.
+
+This holds the same single-source, local-or-server routing as above. To keep it complete and consistent on **both** engines for a partially-synced client:
+
+- The server `fts-trigram-index` view now also emits `updatedTimeUtc`, `title`, `author` in its row value (a server-only view rebuild — no change to the `fts` field on docs, no client re-sync), so the server can substring-match title/author and order by the field straight from metadata, without fetching every matched doc.
+- Strict matching is scoped to `title`/`author` (small fields), so it is **exact on both paths** — no trigram-AND approximation. The sort comparator (nulls last, case-insensitive strings, `_id` tie-break) is mirrored in `shared/src/fts/ftsSearch.ts` and `api/src/endpoints/ftsSearch.service.ts`, adding a small parity surface (alongside the BM25/word-match parity already required by ADR 0009/0010).
+- Cost stays bounded by the existing rarest-trigram pruning (matching docs carry those rare trigrams, so the substring check loses no recall); the per-doc ordering is a cheap in-memory sort.

@@ -114,6 +114,12 @@ const showSortOptions = ref(false);
 
                     <div class="flex flex-col">
                         <LRadio
+                            label="Relevance"
+                            value="relevance"
+                            v-model="queryOptions.orderBy"
+                            data-test="sort-option-relevance"
+                        />
+                        <LRadio
                             label="Title"
                             value="title"
                             v-model="queryOptions.orderBy"
@@ -138,34 +144,37 @@ const showSortOptions = ref(false);
                             data-test="sort-option-last-updated"
                         />
                     </div>
-                    <hr class="my-2" />
-                    <div class="flex flex-col gap-1">
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="ascending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'asc'
-                                    ? 'bg-zinc-100'
-                                    : 'bg-white'
-                            "
-                            :icon="ArrowUpIcon"
-                            @click="queryOptions.orderDirection = 'asc'"
-                            >Ascending</LButton
-                        >
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="descending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'desc'
-                                    ? 'bg-zinc-100'
-                                    : 'bg-white'
-                            "
-                            variant="secondary"
-                            :icon="ArrowDownIcon"
-                            @click="queryOptions.orderDirection = 'desc'"
-                            >Descending</LButton
-                        >
-                    </div>
+                    <!-- Direction is meaningless for relevance (always best-match first). -->
+                    <template v-if="queryOptions.orderBy !== 'relevance'">
+                        <hr class="my-2" />
+                        <div class="flex flex-col gap-1">
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="ascending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'asc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                :icon="ArrowUpIcon"
+                                @click="queryOptions.orderDirection = 'asc'"
+                                >Ascending</LButton
+                            >
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="descending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'desc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                variant="secondary"
+                                :icon="ArrowDownIcon"
+                                @click="queryOptions.orderDirection = 'desc'"
+                                >Descending</LButton
+                            >
+                        </div>
+                    </template>
                 </LDropdown>
                 <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />

@@ -100,6 +100,17 @@ const searchActive = computed(
     () => (queryOptions.value.search ?? "").trim().length >= SEARCH_MIN_CHARS,
 );
 
+// Search modes: strict (default — substring AND on title/author, ordered by the sort
+// dropdown) vs related (fuzzy BM25 relevance). The "Show related results" button flips it;
+// reset to strict whenever the query text changes.
+const showRelated = ref(false);
+watch(
+    () => queryOptions.value.search,
+    () => {
+        showRelated.value = false;
+    },
+);
+
 /** Browse window size. Bumped by infinite scroll; reset whenever a browse filter changes. */
 const browseLimit = ref(PAGE_SIZE);
 watch(
@@ -111,7 +122,10 @@ watch(
 );
 
 const browse = useContentBrowseQuery(() => queryOptions.value, browseLimit);
-const search = useContentSearchQuery(() => queryOptions.value);
+const search = useContentSearchQuery(
+    () => queryOptions.value,
+    () => showRelated.value,
+);
 
 const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
 const isLoading = computed(() =>
@@ -217,6 +231,23 @@ const createNew = () => {
         </template>
 
         <div v-if="cmsLanguageIdAsRef" class="mt-1">
+            <!-- Search mode indicator with an inline toggle to fuzzy "related" results -->
+            <div v-if="searchActive" class="mb-1 px-1 text-xs text-zinc-500">
+                {{ showRelated ? "Showing related results" : "Showing exact matches" }}
+                for "{{ (queryOptions.search ?? "").trim() }}".
+                <button
+                    type="button"
+                    class="text-zinc-600 underline hover:text-zinc-900"
+                    data-test="toggle-related"
+                    @click="showRelated = !showRelated"
+                >
+                    Click here to show {{ showRelated ? "exact matches" : "related results" }}
+                </button>
+                <span v-if="showRelated" class="block text-zinc-400">
+                    Related results are ranked by relevance — sorting is not applied.
+                </span>
+            </div>
+
             <div class="mb-1 flex flex-col gap-[3px]">
                 <ContentDisplayCard
                     v-for="contentDoc in contentDocs"
@@ -228,6 +259,7 @@ const createNew = () => {
                     :language-id="queryOptions.languageId"
                     :languages="languages"
                     :search-query="searchActive ? queryOptions.search : undefined"
+                    :hide-body-snippet="searchActive && !showRelated"
                 />
 
                 <div

@@ -38,6 +38,9 @@ describe("FtsSearchService", () => {
             language: string;
             memberOf: string[];
             parentTags: string[];
+            updatedTimeUtc: number | null;
+            title: string | null;
+            author: string | null;
         }> = {},
     ): FtsCandidateValue {
         return [
@@ -49,6 +52,9 @@ describe("FtsSearchService", () => {
             partial.language ?? ENG,
             partial.memberOf ?? [POST_GROUP],
             partial.parentTags ?? [],
+            partial.updatedTimeUtc ?? 1000,
+            partial.title ?? null,
+            partial.author ?? null,
         ];
     }
 
@@ -250,5 +256,98 @@ describe("FtsSearchService", () => {
         dbService.getDocs.mockClear();
         await service.search(makeReq({ offset: 140, limit: 20 }), mockUser);
         expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(160);
+    });
+
+    describe("strict mode (matchAllWords + sort)", () => {
+        // Return a minimal body for whatever page ids the strict path fetches.
+        const echoDocs = () =>
+            dbService.getDocs.mockImplementation((ids: string[]) => ({
+                docs: ids.map((id) => ({ _id: id, ftsTokenCount: 10 })),
+            }));
+
+        it("keeps only title/author substring matches and orders by the sort field", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("party", "gar", value({ title: "Garden party", updatedTimeUtc: 100 })),
+                row("guide", "gar", value({ title: "Gardening guide", updatedTimeUtc: 300 })),
+                row("other", "gar", value({ title: "Unrelated", updatedTimeUtc: 200 })),
+            ]);
+            echoDocs();
+
+            const res = await service.search(
+                makeReq({
+                    cms: true,
+                    matchAllWords: true,
+                    sort: { field: "updatedTimeUtc", direction: "desc" },
+                }),
+                mockUser,
+            );
+            // "Unrelated" has no "garden" substring → excluded; rest sorted by updatedTimeUtc desc.
+            expect(res.map((r) => r.docId)).toEqual(["guide", "party"]);
+        });
+
+        it("supports partial (substring) matching", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("x", "gar", value({ title: "Gardening", updatedTimeUtc: 1 })),
+            ]);
+            echoDocs();
+
+            // Partial term "gard" matches "gardening".
+            const res = await service.search(
+                makeReq({ queryString: "gard", cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            expect(res.map((r) => r.docId)).toEqual(["x"]);
+        });
+
+        it("matches against author as well as title", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("byauthor", "gar", value({ title: "Nothing here", author: "Garden Smith" })),
+            ]);
+            echoDocs();
+
+            const res = await service.search(
+                makeReq({ cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            expect(res.map((r) => r.docId)).toEqual(["byauthor"]);
+        });
+
+        it("ANDs across query words", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("both", "gar", value({ title: "Garden meeting notes" })),
+                row("oneonly", "gar", value({ title: "Garden party" })),
+            ]);
+            echoDocs();
+
+            const res = await service.search(
+                makeReq({ queryString: "garden meeting", cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            expect(res.map((r) => r.docId)).toEqual(["both"]);
+        });
+
+        it("sorts by title ascending, case-insensitive, nulls last (sort without matchAllWords)", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("n", "gar", value({ title: null })),
+                row("b", "gar", value({ title: "banana" })),
+                row("a", "gar", value({ title: "Apple" })),
+            ]);
+            echoDocs();
+
+            const res = await service.search(
+                makeReq({ cms: true, sort: { field: "title", direction: "asc" } }),
+                mockUser,
+            );
+            expect(res.map((r) => r.docId)).toEqual(["a", "b", "n"]);
+        });
+
+        it("rejects an invalid sort field", async () => {
+            await expect(
+                service.search(
+                    makeReq({ sort: { field: "bogus" as any, direction: "asc" } }),
+                    mockUser,
+                ),
+            ).rejects.toEqual(new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST));
+        });
     });
 });

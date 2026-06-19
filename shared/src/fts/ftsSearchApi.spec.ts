@@ -60,6 +60,21 @@ describe("ftsSearchApi", () => {
         );
     });
 
+    it("forwards strict-mode matchAllWords + sort to the API query", async () => {
+        ftsMock.mockResolvedValue([]);
+        await ftsSearchApi({
+            query: "garden",
+            matchAllWords: true,
+            sort: { field: "updatedTimeUtc", direction: "desc" },
+        });
+        expect(ftsMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                matchAllWords: true,
+                sort: { field: "updatedTimeUtc", direction: "desc" },
+            }),
+        );
+    });
+
     it("omits languages when no languageId is given", async () => {
         ftsMock.mockResolvedValue([]);
         await ftsSearchApi({ query: "garden" });

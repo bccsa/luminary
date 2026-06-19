@@ -5,6 +5,7 @@ import {
     IsEnum,
     IsNotEmpty,
     IsNumber,
+    IsObject,
     IsOptional,
     IsString,
 } from "class-validator";
@@ -93,6 +94,26 @@ export class FtsSearchReqDto {
     @IsNumber()
     @Expose()
     publishedBefore?: number;
+
+    /**
+     * Strict mode: keep only docs where every query word (≥3 chars) is a substring of
+     * `title` or `author` (AND across words). Pairs with {@link sort} for a precise,
+     * field-ordered "find by name" search instead of fuzzy relevance.
+     */
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    matchAllWords?: boolean;
+
+    /**
+     * Strict mode: order results by this document field/direction instead of BM25
+     * relevance, over the full match set before pagination. `field` is validated against
+     * an allowlist in the service.
+     */
+    @IsOptional()
+    @IsObject()
+    @Expose()
+    sort?: { field: "title" | "publishDate" | "expiryDate" | "updatedTimeUtc"; direction: "asc" | "desc" };
 
     // ── BM25 tuning overrides (optional; default to the shared client values) ──
 

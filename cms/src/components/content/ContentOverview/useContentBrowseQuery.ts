@@ -7,8 +7,11 @@ import {
     isUntranslatedRow,
 } from "./cmsLanguageSelector";
 
+/** Browse sort fields (excludes "relevance", which is a search-only ordering). */
+type BrowseSortField = Exclude<NonNullable<ContentOverviewQueryOptions["orderBy"]>, "relevance">;
+
 /** Sort field → CouchDB index (forwarded to the API supplement; design docs in api/). */
-const USE_INDEX: Record<NonNullable<ContentOverviewQueryOptions["orderBy"]>, string> = {
+const USE_INDEX: Record<BrowseSortField, string> = {
     publishDate: "content-publishDate-index",
     title: "content-title-index",
     expiryDate: "content-expiryDate-index",
@@ -31,7 +34,9 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
     const raw = useHybridQuery<ContentDto>(
         () => {
             const o = opts();
-            const orderBy = o.orderBy ?? "updatedTimeUtc";
+            // Browse has no relevance (no query) — fall back to the default field.
+            const orderBy: BrowseSortField =
+                !o.orderBy || o.orderBy === "relevance" ? "updatedTimeUtc" : o.orderBy;
             const orderDirection = o.orderDirection ?? "desc";
             const publishStatus = o.publishStatus ?? "all";
             const translationStatus = o.translationStatus ?? "all";

@@ -89,6 +89,9 @@ export type FtsCandidateValue = [
     Uuid, // [5] language
     Uuid[], // [6] memberOf
     Uuid[], // [7] parentTags
+    number | null, // [8] updatedTimeUtc (for strict-mode sort)
+    string | null, // [9] title (for strict-mode substring match + sort)
+    string | null, // [10] author (for strict-mode substring match)
 ];
 
 /** A single candidate row returned by {@link DbService.ftsTrigramCandidates}. */

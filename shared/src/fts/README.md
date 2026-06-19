@@ -56,10 +56,18 @@ const results = await ftsSearch({
     status: PublishStatus.Published, // restrict to a single publish status
     publishedAfter: 0, // publishDate >= bound
     publishedBefore: Date.now(), // publishDate <= bound
+
+    // Strict mode (a precise "find by name" search instead of fuzzy relevance):
+    matchAllWords: true, // keep only docs where every query word (≥3 chars) is a SUBSTRING
+    //                      of `title` or `author` (AND across words; partial/typeahead —
+    //                      "sund" matches "Sunday"). Body/summary are not consulted.
+    sort: { field: "updatedTimeUtc", direction: "desc" }, // order by a field, not relevance
 });
 ```
 
 These filters apply identically on the local and server (`/fts`) paths, so a search returns the same set regardless of where it runs. Visibility (published/scheduled/expired) is **not** applied implicitly — the local index returns every permitted doc it holds; a caller that wants only published results passes `status` / `publishedBefore` itself.
+
+**Strict vs relevance.** With no `sort`/`matchAllWords`, search ranks by fuzzy BM25 relevance over all fields (the default). With `matchAllWords` + `sort`, it becomes a strict, field-ordered lookup: every query word must appear as a substring of `title`/`author`, and the full match set is ordered by the chosen field before pagination. Because matching is scoped to `title`/`author` (carried in the server's trigram-index metadata), it is **exact on both the local and server paths**; the sort comparator (nulls last, case-insensitive strings, `_id` tie-break) is mirrored too, so a partially-synced client gets the same order whether a search runs locally or against `/fts`.
 
 ### FtsSearchResult
 

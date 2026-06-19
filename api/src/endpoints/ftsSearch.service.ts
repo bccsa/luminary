@@ -20,6 +20,19 @@ import {
     queryWords,
     wordMatchScore,
 } from "../util/ftsScoring";
+import { normalizeText } from "../util/ftsIndexing";
+
+/** Document fields a strict (sorted) FTS search may order by. */
+const FTS_SORT_FIELDS = new Set(["title", "publishDate", "expiryDate", "updatedTimeUtc"]);
+
+/** Doc-level metadata captured for the strict path (substring match + field sort). */
+type StrictMeta = {
+    title: string | null;
+    author: string | null;
+    publishDate: number | null;
+    expiryDate: number | null;
+    updatedTimeUtc: number | null;
+};
 
 /**
  * Minimum number of candidate documents fetched and exact-scored per query. The
@@ -123,6 +136,19 @@ export class FtsSearchService {
                 HttpStatus.BAD_REQUEST,
             );
 
+        // Strict mode: substring AND on title/author + order by a document field, instead
+        // of fuzzy BM25 relevance. Validate the sort field against the allowlist.
+        let sortSpec: { field: string; direction: "asc" | "desc" } | undefined;
+        if (req.sort) {
+            if (
+                !FTS_SORT_FIELDS.has(req.sort.field) ||
+                (req.sort.direction !== "asc" && req.sort.direction !== "desc")
+            )
+                throw new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST);
+            sortSpec = req.sort;
+        }
+        const strict = req.matchAllWords === true || sortSpec != null;
+
         // Step 1: query trigrams
         const trigrams = generateSearchTrigrams(req.queryString);
         if (trigrams.length === 0) return [];
@@ -195,10 +221,23 @@ export class FtsSearchService {
         const candidates = await this.db.ftsTrigramCandidates(keptTrigrams);
         const perDocTf = new Map<string, Map<string, number>>();
         const accessibleDfDocs = new Map<string, Set<string>>(); // trigram → distinct surviving docIds
+        // Doc-level metadata for the strict path (captured once per surviving doc).
+        const perDocMeta = new Map<string, StrictMeta>();
 
         for (const row of candidates) {
-            const [tf, parentType, status, publishDate, expiryDate, language, memberOf, parentTags] =
-                row.value;
+            const [
+                tf,
+                parentType,
+                status,
+                publishDate,
+                expiryDate,
+                language,
+                memberOf,
+                parentTags,
+                updatedTimeUtc,
+                title,
+                author,
+            ] = row.value;
 
             // parentType / requested types
             if (!requestedTypes.has(parentType)) continue;
@@ -242,8 +281,52 @@ export class FtsSearchService {
                 accessibleDfDocs.set(row.trigram, dfSet);
             }
             dfSet.add(row.docId);
+
+            // Capture doc-level metadata once (strict path: substring match + field sort).
+            if (strict && !perDocMeta.has(row.docId)) {
+                perDocMeta.set(row.docId, {
+                    title,
+                    author,
+                    publishDate,
+                    expiryDate,
+                    updatedTimeUtc,
+                });
+            }
         }
         if (perDocTf.size === 0) return [];
+
+        // ---- Strict path: substring AND on title/author + field sort, over the full
+        // matched set (no top-K, no BM25). Candidate gen already used the rarest-trigram
+        // pruning, so matching docs are surfaced; the substring check is the precise filter.
+        if (strict) {
+            const words = queryWords(req.queryString);
+            const matched: Array<{ docId: string; meta: StrictMeta }> = [];
+            for (const [docId, meta] of perDocMeta) {
+                if (req.matchAllWords) {
+                    const title = normalizeText(meta.title ?? "");
+                    const author = normalizeText(meta.author ?? "");
+                    if (!words.every((w) => title.includes(w) || author.includes(w))) continue;
+                }
+                matched.push({ docId, meta });
+            }
+            if (sortSpec) sortStrict(matched, sortSpec.field as keyof StrictMeta, sortSpec.direction);
+            const pageIds = matched.slice(offset, offset + limit).map((m) => m.docId);
+            if (pageIds.length === 0) return [];
+
+            const fetched = await this.db.getDocs(pageIds, [DocType.Content]);
+            const docMap = new Map<string, ContentDto>(
+                (fetched.docs as ContentDto[]).map((d) => [d._id, d]),
+            );
+            return pageIds
+                .map((id) => docMap.get(id))
+                .filter((d): d is ContentDto => !!d)
+                .map((doc) => ({
+                    docId: doc._id,
+                    score: 0,
+                    wordMatchScore: 0,
+                    doc: stripFtsFields(doc),
+                }));
+        }
 
         // IDF over the accessible/visible subset (distinct surviving docIds)
         const idfMap = new Map<string, number>();
@@ -324,4 +407,32 @@ function stripFtsFields(doc: ContentDto): Partial<ContentDto> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { fts, ftsTokenCount, ...rest } = doc as Record<string, any>;
     return rest as Partial<ContentDto>;
+}
+
+/**
+ * Order strict-mode matches in place by a document field. Missing/null values sort last
+ * (both directions); ties break by `docId`; strings compare case-insensitively. Kept
+ * identical to the client's `sortByField` (`shared/src/fts/ftsSearch.ts`) so a partially-
+ * synced client gets the same order whether a search routes local or to this endpoint.
+ */
+function sortStrict(
+    arr: Array<{ docId: string; meta: StrictMeta }>,
+    field: keyof StrictMeta,
+    direction: "asc" | "desc",
+): void {
+    const dir = direction === "asc" ? 1 : -1;
+    const norm = (v: unknown): any => (typeof v === "string" ? v.toLowerCase() : v);
+    arr.sort((a, b) => {
+        const av = norm(a.meta[field]);
+        const bv = norm(b.meta[field]);
+        const an = av == null;
+        const bn = bv == null;
+        if (an || bn) {
+            if (an && bn) return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+            return an ? 1 : -1; // nulls last, regardless of direction
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+    });
 }

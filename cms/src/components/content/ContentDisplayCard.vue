@@ -30,6 +30,11 @@ type Props = {
      * renders normally.
      */
     searchQuery?: string;
+    /**
+     * Strict search matches only title/author, so the body snippet is irrelevant —
+     * suppress it. (Related/fuzzy search leaves it on.)
+     */
+    hideBodySnippet?: boolean;
 };
 
 const props = defineProps<Props>();
@@ -169,7 +174,7 @@ const navigateTo = computed(() => {
         <template #content>
             <!-- Search-match context (search mode only) -->
             <div
-                v-if="highlight && (highlight.snippetHtml || highlight.authorHtml)"
+                v-if="highlight && (highlight.authorHtml || (highlight.snippetHtml && !hideBodySnippet))"
                 data-test="search-match"
                 class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
             >
@@ -180,7 +185,7 @@ const navigateTo = computed(() => {
                 </p>
                 <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
                 <p
-                    v-if="highlight.snippetHtml"
+                    v-if="highlight.snippetHtml && !hideBodySnippet"
                     class="line-clamp-2 text-xs text-zinc-500"
                     v-html="highlight.snippetHtml"
                 ></p>

@@ -30,7 +30,11 @@ const REFILL_MAX_PAGES = 5;
  * `untranslated` filter, which searches across all languages so untranslated parents'
  * other-language matches can surface, then narrows them client-side.
  */
-export function useContentSearchQuery(opts: () => ContentOverviewQueryOptions) {
+export function useContentSearchQuery(
+    opts: () => ContentOverviewQueryOptions,
+    /** When true, use fuzzy BM25 relevance ("Show related results"); default strict. */
+    related: () => boolean = () => false,
+) {
     const queryRef = computed(() => (opts().search ?? "").trim());
 
     const languageId = computed<string | undefined>(() =>
@@ -45,6 +49,17 @@ export function useContentSearchQuery(opts: () => ContentOverviewQueryOptions) {
         if (ps === "published" || ps === "scheduled" || ps === "expired")
             f.status = PublishStatus.Published;
         else if (ps === "draft") f.status = PublishStatus.Draft;
+
+        // Strict (default): substring AND on title/author. Ordered by the overview's sort
+        // dropdown — except "relevance", which omits the field sort so the exact matches
+        // rank by BM25. Related: omit matchAllWords/sort → fuzzy BM25 over all fields.
+        if (!related()) {
+            f.matchAllWords = true;
+            const orderBy = o.orderBy ?? "updatedTimeUtc";
+            if (orderBy !== "relevance") {
+                f.sort = { field: orderBy, direction: o.orderDirection ?? "desc" };
+            }
+        }
         return f;
     });
 

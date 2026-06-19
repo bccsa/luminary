@@ -40,6 +40,12 @@ export type ApiFtsResult = {
     doc: Partial<ContentDto>;
 };
 
+/** Document fields a strict (sorted) FTS search can order by. */
+export type FtsSortField = "title" | "publishDate" | "expiryDate" | "updatedTimeUtc";
+
+/** Field + direction for strict-mode sorting (replaces relevance ordering). */
+export type FtsSort = { field: FtsSortField; direction: "asc" | "desc" };
+
 /** Search options */
 export type FtsSearchOptions = {
     query: string;
@@ -63,6 +69,17 @@ export type FtsSearchOptions = {
     publishedAfter?: number;
     /** Restrict to content with `publishDate <= publishedBefore`. */
     publishedBefore?: number;
+    /**
+     * Strict mode: keep only docs where every query word (≥3 chars) is a **substring**
+     * of `title` or `author` (AND across words). Combined with {@link FtsSearchOptions.sort}
+     * this gives a precise, field-ordered "find by name" search instead of fuzzy relevance.
+     */
+    matchAllWords?: boolean;
+    /**
+     * Strict mode: order results by this document field/direction instead of by BM25
+     * relevance. Applied over the full match set before pagination.
+     */
+    sort?: FtsSort;
     /** Page size (default: 20) */
     limit?: number;
     /** Offset for pagination */

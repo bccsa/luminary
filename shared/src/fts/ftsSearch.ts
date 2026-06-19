@@ -102,6 +102,8 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         status,
         publishedAfter,
         publishedBefore,
+        matchAllWords,
+        sort,
         limit = DEFAULT_LIMIT,
         offset = 0,
         maxTrigramDocPercent = DEFAULT_MAX_TRIGRAM_DOC_PERCENT,
@@ -212,15 +214,30 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         results.push({ docId, score, wordMatchScore: 0, doc });
     });
 
-    // Step 7: Boost-weighted full-word match scoring — only for the top-K by BM25, to
-    // bound the per-doc HTML-stripping cost. Docs below the cap keep their BM25-only score.
     const normalizedQuery = normalizeText(query);
     const queryWords = normalizedQuery.split(" ").filter((w) => w.length > 2);
 
-    if (queryWords.length > 0 && results.length > 0) {
-        results.sort((a, b) => b.score - a.score); // pre-rank by BM25 to pick the top-K
+    // Strict mode: keep only docs whose `title`/`author` contains every query word as a
+    // substring (partial match, AND across words). Matching docs were surfaced via their
+    // (rare) trigrams above; this substring check is the precise filter. Title/author are
+    // small, so no HTML strip / body read is needed — and the server mirrors this exactly.
+    const out = matchAllWords
+        ? results.filter((r) => docMatchesAllWords(r.doc, queryWords))
+        : results;
+
+    // Strict sort: order the full match set by the chosen field, then paginate. No BM25 /
+    // word-match bonus (relevance is not the ordering here).
+    if (sort) {
+        sortByField(out, sort.field, sort.direction);
+        return out.slice(offset, offset + limit);
+    }
+
+    // Relevance (default): boost-weighted full-word match — only for the top-K by BM25, to
+    // bound the per-doc HTML-stripping cost. Docs below the cap keep their BM25-only score.
+    if (queryWords.length > 0 && out.length > 0) {
+        out.sort((a, b) => b.score - a.score); // pre-rank by BM25 to pick the top-K
         const wmLimit = Math.max(offset + limit, WORDMATCH_TOPK);
-        const topForWm = results.length > wmLimit ? results.slice(0, wmLimit) : results;
+        const topForWm = out.length > wmLimit ? out.slice(0, wmLimit) : out;
         for (const result of topForWm) {
             const wordMatchBonus = computeFieldWordMatchScore(
                 queryWords,
@@ -232,11 +249,51 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         }
     }
 
-    // Step 8: Sort by combined score desc, then word match desc
-    results.sort((a, b) => {
+    // Sort by combined score desc, then word match desc
+    out.sort((a, b) => {
         if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
         return b.wordMatchScore - a.wordMatchScore;
     });
 
-    return results.slice(offset, offset + limit);
+    return out.slice(offset, offset + limit);
+}
+
+/**
+ * Strict-mode predicate: every query word (already normalized, ≥3 chars) must appear as a
+ * **substring** of the doc's `title` or `author` (normalized). Substring ⇒ partial/typeahead
+ * matching ("sund" matches "Sunday"); AND across words. Kept identical to the server `/fts`
+ * strict path so local and API agree.
+ */
+function docMatchesAllWords(doc: ContentDto, queryWords: string[]): boolean {
+    if (queryWords.length === 0) return false;
+    const title = normalizeText(doc.title ?? "");
+    const author = normalizeText((doc as Record<string, any>).author ?? "");
+    return queryWords.every((w) => title.includes(w) || author.includes(w));
+}
+
+/**
+ * Order results in place by a document field. Missing/null values sort last (both
+ * directions); ties break by `docId` for a deterministic, server-mirrorable order.
+ * Strings compare case-insensitively.
+ */
+function sortByField(
+    results: FtsSearchResult[],
+    field: "title" | "publishDate" | "expiryDate" | "updatedTimeUtc",
+    direction: "asc" | "desc",
+): void {
+    const dir = direction === "asc" ? 1 : -1;
+    const norm = (v: unknown): any => (typeof v === "string" ? v.toLowerCase() : v);
+    results.sort((a, b) => {
+        const av = norm((a.doc as Record<string, any>)[field]);
+        const bv = norm((b.doc as Record<string, any>)[field]);
+        const an = av == null;
+        const bn = bv == null;
+        if (an || bn) {
+            if (an && bn) return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+            return an ? 1 : -1; // nulls last, regardless of direction
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+    });
 }

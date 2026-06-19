@@ -142,6 +142,7 @@ const showMobileQueryOptions = ref(false);
                 data-test="filter-select"
                 v-model="queryOptions.orderBy"
                 :options="[
+                    { value: 'relevance', label: 'Relevance' },
                     { value: 'title', label: 'Title' },
                     { value: 'publishDate', label: 'Publish Date' },
                     { value: 'expiryDate', label: 'Expiry Date' },
@@ -150,7 +151,8 @@ const showMobileQueryOptions = ref(false);
                 :icon="LanguageIcon"
             />
 
-            <div class="mt-3 flex w-full gap-1">
+            <!-- Direction is meaningless for relevance (always best-match first). -->
+            <div v-if="queryOptions.orderBy !== 'relevance'" class="mt-3 flex w-full gap-1">
                 <LRadio
                     class="w-1/2"
                     label="Ascending"

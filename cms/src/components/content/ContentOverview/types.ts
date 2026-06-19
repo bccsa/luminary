@@ -12,7 +12,9 @@ export type ContentOverviewQueryOptions = {
     languageId: Uuid;
     parentType: DocType.Post | DocType.Tag;
     tagOrPostType: TagType | PostType;
-    orderBy?: "title" | "updatedTimeUtc" | "publishDate" | "expiryDate";
+    // "relevance" applies only in search mode (BM25 ordering of exact matches); browse
+    // falls back to the default field since there's no query to be relevant to.
+    orderBy?: "relevance" | "title" | "updatedTimeUtc" | "publishDate" | "expiryDate";
     orderDirection?: "asc" | "desc";
     translationStatus?: "translated" | "untranslated" | "all";
     publishStatus?: "published" | "scheduled" | "expired" | "draft" | "all";
