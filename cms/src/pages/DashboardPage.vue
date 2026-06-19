@@ -12,7 +12,7 @@ import {
     DocType,
     PublishStatus,
     useDexieLiveQuery,
-    useDexieLiveQueryWithDeps,
+    useHybridQuery,
     type ContentDto,
     type PostDto,
     type TagDto,
@@ -24,34 +24,25 @@ import { computed } from "vue";
 
 // --- Shared data queries ---
 
-const posts = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Post }).toArray() as unknown as Promise<PostDto[]>,
-    { initialValue: [] as PostDto[] },
-);
+const posts = useHybridQuery<PostDto>(() => ({
+    selector: { type: DocType.Post },
+}));
 
-const tags = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Tag }).toArray() as unknown as Promise<TagDto[]>,
-    { initialValue: [] as TagDto[] },
-);
+const tags = useHybridQuery<TagDto>(() => ({
+    selector: { type: DocType.Tag },
+}));
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+const groups = useHybridQuery<GroupDto>(() => ({
+    selector: { type: DocType.Group },
+}));
 
-const allContentDocs = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Content }).toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: [] as ContentDto[] },
-);
+const allContentDocs = useHybridQuery<ContentDto>(() => ({
+    selector: { type: DocType.Content },
+}));
 
-const contentDocs = useDexieLiveQueryWithDeps(
-    cmsLanguageIdAsRef,
-    (langId: string) =>
-        db.docs.where({ type: DocType.Content, language: langId }).toArray() as unknown as Promise<
-            ContentDto[]
-        >,
-    { initialValue: [] as ContentDto[] },
-);
+const contentDocs = useHybridQuery<ContentDto>(() => ({
+    selector: { type: DocType.Content, language: cmsLanguageIdAsRef.value },
+}));
 
 const pendingChanges = useDexieLiveQuery(
     () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
