@@ -186,7 +186,14 @@ describe("UserOverview", () => {
 
             await waitForExpect(() => {
                 expect(changeRequestCalled).toBe(true);
-                expect(changeRequestCallArgs).toEqual(expect.objectContaining({ id: 1 }));
+                expect(changeRequestCallArgs).toEqual(
+                    expect.objectContaining({
+                        doc: expect.objectContaining({
+                            email: "test@example.com",
+                            name: "New Test User",
+                        }),
+                    }),
+                );
             });
         } finally {
             restModule.getRest().changeRequest = originalChangeRequest;
@@ -220,15 +227,13 @@ describe("UserOverview", () => {
         });
     });
 
-    it("renders the paginator component", async () => {
+    it("lists users without a paginator", async () => {
         const wrapper = mount(UserOverview);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("John Doe");
         });
 
-        // LPaginator should be present
-        const paginator = wrapper.findComponent({ name: "LPaginator" });
-        expect(paginator.exists()).toBe(true);
+        expect(wrapper.findComponent({ name: "LPaginator" }).exists()).toBe(false);
     });
 });

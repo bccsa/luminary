@@ -6,6 +6,7 @@ import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
     ApiLiveQuery,
+    AckStatus,
     DocType,
     isConnected,
     hasAnyPermission,
@@ -14,14 +15,12 @@ import {
     type AuthProviderDto,
     type UserDto,
     type Uuid,
-    getRest,
-    AckStatus,
     useDexieLiveQuery,
     db,
     type GroupDto,
+    toEditable,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
-import _ from "lodash";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useNotificationStore } from "@/stores/notification";
 import { ArrowUturnLeftIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
@@ -44,28 +43,89 @@ const userQuery = ref<ApiSearchQuery>({
 });
 
 const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
-const original = apiLiveQuery.toRef();
+const liveUsers = apiLiveQuery.toArrayAsRef();
 const isLoading = apiLiveQuery.isLoadingAsRef();
+
+onBeforeUnmount(() => {
+    apiLiveQuery.stopLiveQuery();
+});
 
 const { addNotification } = useNotificationStore();
 
 const showDeleteModal = ref(false);
 
-const editable = ref<UserDto>({
-    _id: props.id,
-    type: DocType.User,
-    updatedTimeUtc: Date.now(),
-    memberOf: [],
-    email: "",
-    name: "New user",
+const currentId = ref<Uuid>(props.id);
+
+function createTemplate(id: Uuid): UserDto {
+    return {
+        _id: id,
+        type: DocType.User,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        email: "",
+        name: "New user",
+    };
+}
+
+const userSource = ref<UserDto[]>([]);
+
+watch(
+    liveUsers,
+    () => {
+        if (liveUsers.value?.length) userSource.value = liveUsers.value;
+    },
+    { immediate: true },
+);
+
+const userEditable = toEditable<UserDto>(userSource);
+
+function hydrateFromUser(user: UserDto) {
+    currentId.value = user._id;
+    userSource.value = [user];
+    userEditable.editable.value.splice(0, userEditable.editable.value.length, { ...user });
+    userEditable.updateShadow(user._id);
+}
+
+function seedCreateTemplate() {
+    userEditable.editable.value.splice(
+        0,
+        userEditable.editable.value.length,
+        createTemplate(currentId.value),
+    );
+}
+
+const editable = computed<UserDto>({
+    get: () => userEditable.editable.value[0],
+    set: (val) => {
+        const arr = userEditable.editable.value;
+        if (arr.length === 0) arr.push(val);
+        else arr.splice(0, 1, val);
+    },
 });
 
-// Clone the original user when it's loaded into the editable object
-const originalLoadedHandler = watch(original, () => {
-    if (!original.value) return;
-    editable.value = _.cloneDeep(original.value);
+function syncFromApi() {
+    if (isLoading.value) return;
+    if (liveUsers.value?.length) {
+        hydrateFromUser(liveUsers.value[0]);
+    } else {
+        userSource.value = [];
+        seedCreateTemplate();
+    }
+}
 
-    originalLoadedHandler();
+watch(() => props.id, (id) => {
+    currentId.value = id;
+    userQuery.value = { types: [DocType.User], docId: id };
+});
+
+watch([liveUsers, isLoading], syncFromApi, { immediate: true });
+
+const isNew = computed(() => userSource.value.length === 0);
+
+const isDirty = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
+    return userEditable.isEdited.value(doc._id);
 });
 
 const groups = useDexieLiveQuery(
@@ -89,9 +149,6 @@ const providerOptions = computed(() => [
     })),
 ]);
 
-// Bound separately from editable.providerId so the LSelect always has a
-// string value; writes to editable clear the field when "Any provider" is
-// picked (empty string → undefined).
 const selectedProviderId = computed({
     get: () => editable.value?.providerId ?? "",
     set: (value: string | number | null | undefined) => {
@@ -100,27 +157,6 @@ const selectedProviderId = computed({
         editable.value.providerId = next;
     },
 });
-
-// Check if the user is dirty (has unsaved changes)
-const isDirty = ref(false);
-watch(
-    [editable, original],
-    () => {
-        if (!original.value) {
-            isDirty.value = true;
-            return;
-        }
-
-        isDirty.value = !_.isEqual(
-            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
-            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
-        );
-    },
-    { deep: true, immediate: true },
-);
-
-// Track if this is a new user
-const isNew = computed(() => !original.value?._id);
 
 const hasGroupsSelected = computed(() => editable.value && editable.value.memberOf.length > 0);
 const isEmailFilled = computed(() => editable.value && editable.value.email.trim().length > 0);
@@ -139,7 +175,7 @@ const canDelete = computed(() => {
 });
 
 const revertChanges = () => {
-    editable.value = _.cloneDeep(original.value) as UserDto;
+    userEditable.revert(currentId.value);
 };
 
 const deleteUser = async () => {
@@ -168,21 +204,19 @@ const deleteUser = async () => {
 };
 
 const save = async () => {
-    // Bypass save if the user is new and marked for deletion
-    if (isNew.value && editable.value.deleteReq) {
-        return;
-    }
+    const doc = editable.value;
+    if (!doc) return;
 
-    const res = await getRest().changeRequest({
-        id: 1, // Not used for direct API change request calls.
-        doc: editable.value,
-    });
+    if (isNew.value && doc.deleteReq) return;
 
-    if (!editable.value.deleteReq) {
+    doc.updatedTimeUtc = Date.now();
+    const res = await userEditable.save(doc._id);
+
+    if (!doc.deleteReq) {
         useNotificationStore().addNotification({
             title:
                 res && res.ack == AckStatus.Accepted
-                    ? `${editable.value.name} saved`
+                    ? `${doc.name} saved`
                     : "Error saving changes",
             description:
                 res && res.ack == AckStatus.Accepted
@@ -224,7 +258,7 @@ const saveDisabled = computed(() => {
             >
             <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
         </div>
-        <LCard class="!border-0 !p-0">
+        <LCard v-if="editable" class="!border-0 !p-0">
             <LInput
                 label="Name"
                 name="userName"
@@ -303,7 +337,7 @@ const saveDisabled = computed(() => {
 
         <LDialog
             v-model:open="showDeleteModal"
-            :title="`Delete ${editable.name}?`"
+            :title="`Delete ${editable?.name ?? 'user'}?`"
             :description="`Are you sure you want to delete this user? This action cannot be undone.`"
             :primaryAction="
                 () => {

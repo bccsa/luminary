@@ -5,7 +5,6 @@ import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
 import UserFilterOptions, {
     type UserOverviewQueryOptions,
 } from "@/components/users/UserFilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
@@ -22,6 +21,7 @@ import {
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
+import { useInfiniteScrollList } from "@/composables/useInfiniteScrollList";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
@@ -43,8 +43,6 @@ const selectedUserId = ref<string>("");
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
     search: "",
-    pageSize: 20,
-    pageIndex: 0,
 };
 const savedQueryOptions = () => sessionStorage.getItem("userOverviewQueryOptions");
 function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
@@ -53,8 +51,6 @@ function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
         ...defaultQueryOptions,
         ...parsed,
         groups: parsed.groups ?? [],
-        pageSize: parsed.pageSize ?? 20,
-        pageIndex: parsed.pageIndex ?? 0,
     };
 }
 const queryOptions = ref<UserOverviewQueryOptions>(
@@ -67,10 +63,7 @@ watch(
     },
     { deep: true },
 );
-// Reset to first page when search or groups change
-watch([() => queryOptions.value.search, () => queryOptions.value.groups], () => {
-    queryOptions.value.pageIndex = 0;
-});
+
 const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
@@ -98,14 +91,10 @@ const filteredUsers = computed(() => {
     });
 });
 
-const paginatedUsers = computed(() => {
-    const pageSize = queryOptions.value.pageSize ?? 20;
-    const pageIndex = queryOptions.value.pageIndex ?? 0;
-    const start = pageIndex * pageSize;
-    return filteredUsers.value.slice(start, start + pageSize);
+const { visible: visibleUsers } = useInfiniteScrollList(filteredUsers, {
+    pageSize: 20,
+    resetWhen: [() => queryOptions.value.search, () => queryOptions.value.groups],
 });
-
-const totalUsers = computed(() => filteredUsers.value.length);
 
 const isLoading = computed(
     () => apiLiveQuery.isLoading.value && !(users.value?.length ?? 0),
@@ -151,7 +140,7 @@ const isLoading = computed(
             individual for different groups they manage.
         </p>
         <UserDisplayCard
-            v-for="user in paginatedUsers"
+            v-for="user in visibleUsers"
             :key="user._id"
             :usersDoc="user"
             v-model="isEditUserModalVisible"
@@ -166,16 +155,5 @@ const isLoading = computed(
                 isNewUserModalVisible = false;
             "
         />
-
-        <template #footer>
-            <div class="w-full sm:px-8">
-                <LPaginator
-                    :amountOfDocs="totalUsers"
-                    v-model:index="queryOptions.pageIndex as number"
-                    v-model:page-size="queryOptions.pageSize as number"
-                    variant="extended"
-                />
-            </div>
-        </template>
     </BasePage>
 </template>

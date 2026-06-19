@@ -11,7 +11,7 @@ const mockGroups: GroupDto[] = [
 ];
 
 function mountFilterOptions(overrides: Record<string, any> = {}) {
-    const queryOptions = overrides.queryOptions ?? { groups: [], search: "", pageSize: 20, pageIndex: 0 };
+    const queryOptions = overrides.queryOptions ?? { groups: [], search: "" };
     const wrapper = mount(UserFilterOptions, {
         props: {
             groups: overrides.groups ?? mockGroups,
@@ -75,7 +75,7 @@ describe("UserFilterOptions", () => {
     it("resetQueryOptions resets all fields", async () => {
         const { wrapper } = mountFilterOptions({
             isSmallScreen: false,
-            queryOptions: { groups: ["group-1"], search: "test", pageSize: 50, pageIndex: 3 },
+            queryOptions: { groups: ["group-1"], search: "test" },
         });
 
         const desktop = wrapper.findComponent(UserFilterOptionsDesktop);
@@ -88,7 +88,5 @@ describe("UserFilterOptions", () => {
         const opts = wrapper.props("queryOptions");
         expect(opts.groups).toEqual([]);
         expect(opts.search).toBe("");
-        expect(opts.pageSize).toBe(20);
-        expect(opts.pageIndex).toBe(0);
     });
 });
