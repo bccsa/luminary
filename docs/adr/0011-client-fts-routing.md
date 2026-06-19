@@ -12,13 +12,23 @@ There are now two full-text search engines: offline/local search over IndexedDB 
 
 ## Decision
 
-A routing layer in `luminary-shared` (`shared/src/fts/ftsSearchApi.ts` + the existing `useFtsSearch` composable) chooses the engine per search:
+A routing layer in `luminary-shared` (`shared/src/fts/ftsSearchApi.ts` + the existing `useFtsSearch` composable) chooses the engine per search, keyed on whether the local index can be missing permitted docs — i.e. whether a `publishDate` sync cutoff is in effect:
 
 - **Offline** (`isConnected === false`) → **local**.
-- **Full sync** (no `publishDate` cutoff) and not CMS → **local** (every doc is on the device).
-- **Online and (a cutoff is set, or the consumer is the CMS)** → **server `/fts`**.
+- **No `publishDate` cutoff** (full content sync — every permitted doc is on the device) → **local**.
+- **Online and a `publishDate` cutoff is set** (selective sync) → **server `/fts`**.
 
-`shouldUseApiFts()` encodes this as `isConnected.value && (config.cms || getContentPublishDateCutoff() !== OPEN_MIN)`.
+`shouldUseApiFts()` encodes this as `isConnected.value && getContentPublishDateCutoff() !== OPEN_MIN`.
+
+### Amendment (2026-06-19): no CMS-forced API path
+
+The original decision routed the CMS to the server `/fts` whenever online (even with no cutoff), on the rationale that the CMS wanted authoritative, server-computed full-corpus rankings. This is superseded: the CMS now searches its **local** index when online, because it has no cutoff and therefore already holds every permitted doc for the selected languages — making local authoritative. This makes search **consistent with the CMS's browse path**, which uses `HybridQuery` and likewise never calls the API with no cutoff (`decideContentApiQuery` returns `undefined`); it was incoherent for the same client to trust local for browse but not for search.
+
+Consequences of the amendment:
+
+- The CMS no longer issues a `/fts` request per search; both browse and search are local-first. Drafts/expired remain searchable because local search has no visibility filter (the CMS applies a `status` filter itself; see `useContentSearchQuery`).
+- Trade-off: a search run while the CMS is still backfilling sync (or just after switching language/group) can momentarily miss not-yet-synced docs, and BM25 corpus stats can lag a batch. This is the same "local is authoritative when fully synced" assumption already made by `HybridQuery` browse, accepted here for routing symmetry. `isPartial` stays `false` for the CMS (no cutoff), so there is no reconnect re-run.
+- `config.cms` no longer participates in `shouldUseApiFts`. Because the CMS (no cutoff) never routes to `/fts` now, the server's CMS path is no longer exercised through `useFtsSearch`; `ftsSearchApi` still forwards `cms: config.cms` (and the `status` filter it unlocks) so a direct `/fts` caller — or a future routing change — keeps that capability.
 
 ### Single-source, no merge
 

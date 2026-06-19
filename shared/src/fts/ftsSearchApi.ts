@@ -9,15 +9,24 @@ import type { FtsSearchOptions, FtsSearchResult } from "./types";
  * Decide whether a full-text search should run against the server-side `/fts`
  * endpoint instead of the local offline index.
  *
+ * The route keys purely off whether the local index can be missing permitted docs —
+ * i.e. whether a `publishDate` sync cutoff is in effect:
+ *
  * - Offline → local.
- * - Online + a `publishDate` sync cutoff is set (selective sync, app) → API, because
- *   local holds only the recent subset.
- * - Online + CMS → API, because the CMS wants authoritative full-corpus results and
- *   index-backed filtering even though it has no cutoff.
- * - Online + full sync (no cutoff, not CMS) → local, since every doc is available locally.
+ * - Online + a `publishDate` sync cutoff is set (selective sync) → API, because local
+ *   holds only the recent subset above the cutoff.
+ * - Online + no cutoff (full content sync) → local: the device already holds every
+ *   permitted doc, so local is authoritative. This is the case for the CMS (which never
+ *   sets a cutoff) and for an app that has fully synced. It mirrors `HybridQuery`'s
+ *   content routing, which likewise skips the API supplement when there is no cutoff
+ *   (`decideContentApiQuery` returns `undefined`).
+ *
+ * Note: the CMS does NOT force the API path. With no cutoff it searches its full local
+ * index (drafts/expired included — visibility is the caller's concern via the `status`
+ * filter), keeping search consistent with its local-only browse.
  */
 export function shouldUseApiFts(): boolean {
-    return isConnected.value && (!!config?.cms || getContentPublishDateCutoff() !== OPEN_MIN);
+    return isConnected.value && getContentPublishDateCutoff() !== OPEN_MIN;
 }
 
 /**
@@ -36,6 +45,11 @@ export async function ftsSearchApi(options: FtsSearchOptions): Promise<FtsSearch
     const res = await getRest().fts({
         queryString: options.query,
         languages: options.languageId ? [options.languageId] : undefined,
+        types: options.types,
+        tags: options.tags,
+        status: options.status,
+        publishedAfter: options.publishedAfter,
+        publishedBefore: options.publishedBefore,
         limit: options.limit,
         offset: options.offset,
         cms: config.cms,

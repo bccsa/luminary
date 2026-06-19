@@ -1,4 +1,5 @@
 import type { ContentDto, Uuid } from "../types";
+import type { DocType, PublishStatus } from "../types";
 
 /** Configuration for a single field to be indexed or searched */
 export type FtsFieldConfig = {
@@ -43,6 +44,25 @@ export type ApiFtsResult = {
 export type FtsSearchOptions = {
     query: string;
     languageId?: Uuid;
+    /**
+     * Restrict to content whose parent type is one of these (e.g. `[DocType.Post]`).
+     * Mirrors the `/fts` `types` param. Omit to search all content.
+     */
+    types?: DocType[];
+    /**
+     * Restrict to content whose `parentTags` intersect these tag IDs. Mirrors the
+     * `/fts` `tags` param.
+     */
+    tags?: Uuid[];
+    /**
+     * Restrict to content with this publish status. Mirrors the `/fts` `status`
+     * param (server-side this is a CMS-only capability).
+     */
+    status?: PublishStatus;
+    /** Restrict to content with `publishDate >= publishedAfter`. */
+    publishedAfter?: number;
+    /** Restrict to content with `publishDate <= publishedBefore`. */
+    publishedBefore?: number;
     /** Page size (default: 20) */
     limit?: number;
     /** Offset for pagination */

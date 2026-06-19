@@ -9,7 +9,7 @@ import {
     LanguageIcon,
     CloudArrowUpIcon,
 } from "@heroicons/vue/24/outline";
-import { type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
 import type { ContentDto, GroupDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 import LRadio from "@/components/forms/LRadio.vue";

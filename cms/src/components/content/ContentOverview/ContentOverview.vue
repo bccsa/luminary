@@ -13,16 +13,20 @@ import {
     useDexieLiveQuery,
     hasAnyPermission,
     AclPermission,
+    type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable from "@/components/content/ContentTable.vue";
+import { useIntersectionObserver } from "@vueuse/core";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
-import { contentOverviewQuery, type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
+import { useContentBrowseQuery } from "./useContentBrowseQuery";
+import { useContentSearchQuery } from "./useContentSearchQuery";
 import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
 import FilterOptions from "./FilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import ContentDisplayCard from "../ContentDisplayCard.vue";
+import LoadingBar from "../../LoadingBar.vue";
+import { PlusIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
 
@@ -33,6 +37,10 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const PAGE_SIZE = 20;
+/** Minimum characters before switching from browse to FTS search mode. */
+const SEARCH_MIN_CHARS = 3;
+
 const defaultQueryOptions: ContentOverviewQueryOptions = {
     languageId: cmsLanguageIdAsRef.value || "",
     parentType: props.docType,
@@ -40,8 +48,6 @@ const defaultQueryOptions: ContentOverviewQueryOptions = {
     translationStatus: "all",
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
-    pageSize: 20,
-    pageIndex: 0,
     tags: [],
     groups: [],
     search: "",
@@ -56,6 +62,8 @@ function mergeNewFields(saved: string | null): ContentOverviewQueryOptions {
     return {
         ...defaultQueryOptions,
         ...parsed,
+        parentType: props.docType,
+        tagOrPostType: props.tagOrPostType,
         tags: parsed.tags ?? [],
         groups: parsed.groups ?? [],
     };
@@ -84,9 +92,53 @@ watch(
     { immediate: true },
 );
 
-const tableRefreshKey = computed(() => JSON.stringify(queryOptions.value));
-
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(props.tagOrPostType)} overview`;
+
+// --- Data sources: FTS search when a query is present, HybridQuery browse otherwise ---
+
+const searchActive = computed(
+    () => (queryOptions.value.search ?? "").trim().length >= SEARCH_MIN_CHARS,
+);
+
+/** Browse window size. Bumped by infinite scroll; reset whenever a browse filter changes. */
+const browseLimit = ref(PAGE_SIZE);
+watch(
+    // Reset the window on any change except the search box (search has its own paging).
+    () => JSON.stringify({ ...queryOptions.value, search: "" }),
+    () => {
+        browseLimit.value = PAGE_SIZE;
+    },
+);
+
+const browse = useContentBrowseQuery(() => queryOptions.value, browseLimit);
+const search = useContentSearchQuery(() => queryOptions.value);
+
+const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
+const isLoading = computed(() =>
+    searchActive.value ? search.isLoading.value : browse.isLoading.value,
+);
+const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
+
+const onLoadMore = () => {
+    if (searchActive.value) {
+        search.loadMore();
+    } else {
+        browseLimit.value += PAGE_SIZE;
+    }
+};
+
+// Infinite scroll: a sentinel at the end of the list. BasePage owns the scroll container,
+// so a viewport-based IntersectionObserver is the robust fit (no scroller ref needed).
+const loadMoreSentinel = ref<HTMLElement | null>(null);
+useIntersectionObserver(
+    loadMoreSentinel,
+    ([entry]) => {
+        if (entry?.isIntersecting && hasMore.value && !isLoading.value) onLoadMore();
+    },
+    { rootMargin: "200px" },
+);
+
+// --- Supporting data for the filter UI and cards ---
 
 const tagContentDocs = useDexieLiveQueryWithDeps(
     cmsLanguageIdAsRef,
@@ -108,9 +160,12 @@ const groups = useDexieLiveQuery(
     { initialValue: [] as GroupDto[] },
 );
 
-const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
+const languages = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Language }).toArray() as unknown as Promise<LanguageDto[]>,
+    { initialValue: [] as LanguageDto[] },
+);
 
-const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: true });
+const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 
 const createNew = () => {
     router.push({
@@ -165,28 +220,36 @@ const createNew = () => {
                 v-model:query-options="queryOptions"
             />
         </template>
-        <div>
-            <div class="mt-1">
-                <ContentTable
-                    v-if="cmsLanguageIdAsRef"
-                    v-model:page-index="queryOptions.pageIndex as number"
-                    :key="tableRefreshKey"
-                    :groups="groups"
-                    :queryOptions="queryOptions"
-                    :content-docs-total="contentDocsTotal?.count"
-                    data-test="content-table"
+
+        <div v-if="cmsLanguageIdAsRef" class="mt-1">
+            <div class="mb-1 flex flex-col gap-[3px]">
+                <ContentDisplayCard
+                    v-for="contentDoc in contentDocs"
+                    data-test="content-row"
+                    :key="contentDoc._id"
+                    :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
+                    :content-doc="contentDoc as ContentDto"
+                    :parent-type="queryOptions.parentType"
+                    :language-id="queryOptions.languageId"
+                    :languages="languages"
+                    :search-query="searchActive ? queryOptions.search : undefined"
                 />
+
+                <div
+                    class="flex h-32 w-full items-center justify-center gap-2"
+                    v-if="!isLoading && contentDocs.length === 0"
+                >
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                    <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
+                </div>
+
+                <!-- Infinite-scroll trigger -->
+                <div ref="loadMoreSentinel" class="h-px w-full"></div>
+
+                <div class="flex h-16 w-full items-center justify-center" v-if="isLoading">
+                    <LoadingBar />
+                </div>
             </div>
         </div>
-        <template #footer>
-            <div class="w-full sm:px-8">
-                <LPaginator
-                    :amountOfDocs="contentDocsTotal?.count as number"
-                    v-model:index="queryOptions.pageIndex as number"
-                    v-model:page-size="queryOptions.pageSize as number"
-                    variant="extended"
-                />
-            </div>
-        </template>
     </BasePage>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ContentDto, GroupDto } from "luminary-shared";
-import { type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
 import { ref } from "vue";
 import { debouncedWatch } from "@vueuse/core";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
@@ -73,8 +73,6 @@ const resetQueryOptions = () => {
         translationStatus: "all",
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
-        pageSize: 20,
-        pageIndex: 0,
         tags: [],
         groups: [],
         search: "",

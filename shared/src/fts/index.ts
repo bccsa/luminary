@@ -15,7 +15,7 @@ export {
 export { ftsSearch } from "./ftsSearch";
 export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 export { useFtsSearch } from "./useFtsSearch";
-export type { UseFtsSearchOptions, UseFtsSearchReturn } from "./useFtsSearch";
+export type { UseFtsSearchOptions, UseFtsSearchReturn, FtsFilterOptions } from "./useFtsSearch";
 export {
     getCorpusStats,
     setCorpusStats,

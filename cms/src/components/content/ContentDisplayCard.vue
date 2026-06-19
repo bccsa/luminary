@@ -16,6 +16,7 @@ import DisplayCard from "../common/DisplayCard.vue";
 import { RouterLink } from "vue-router";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { cmsDefaultLanguage } from "@/globalConfig";
+import { buildSearchHighlight } from "./ContentOverview/searchHighlight";
 
 type Props = {
     groups: GroupDto[];
@@ -23,9 +24,21 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
+    /**
+     * When set (search mode), the card shows why it matched: a highlighted title,
+     * an author-match line, and a content snippet. When undefined (browse), the card
+     * renders normally.
+     */
+    searchQuery?: string;
 };
 
 const props = defineProps<Props>();
+
+const highlight = computed(() =>
+    props.searchQuery && props.searchQuery.trim()
+        ? buildSearchHighlight(props.contentDoc, props.searchQuery)
+        : undefined,
+);
 
 const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
 const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
@@ -105,6 +118,7 @@ const navigateTo = computed(() => {
 <template>
     <DisplayCard
         :title="contentDoc.title"
+        :title-html="highlight?.titleHtml"
         :updated-time-utc="contentDoc.updatedTimeUtc"
         :is-local-change="isLocalChange"
         :navigate-to="navigateTo"
@@ -153,6 +167,25 @@ const navigateTo = computed(() => {
         </template>
 
         <template #content>
+            <!-- Search-match context (search mode only) -->
+            <div
+                v-if="highlight && (highlight.snippetHtml || highlight.authorHtml)"
+                data-test="search-match"
+                class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+            >
+                <p v-if="highlight.authorHtml" class="text-xs text-zinc-500">
+                    <span class="text-zinc-400">Author:</span>
+                    <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
+                    <span v-html="highlight.authorHtml"></span>
+                </p>
+                <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
+                <p
+                    v-if="highlight.snippetHtml"
+                    class="line-clamp-2 text-xs text-zinc-500"
+                    v-html="highlight.snippetHtml"
+                ></p>
+            </div>
+
             <div class="flex w-full items-center gap-2 py-1 text-xs">
                 <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
                     <div>

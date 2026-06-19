@@ -97,12 +97,23 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     const {
         query,
         languageId,
+        types,
+        tags,
+        status,
+        publishedAfter,
+        publishedBefore,
         limit = DEFAULT_LIMIT,
         offset = 0,
         maxTrigramDocPercent = DEFAULT_MAX_TRIGRAM_DOC_PERCENT,
         bm25k1 = DEFAULT_K1,
         bm25b = DEFAULT_B,
     } = options;
+
+    // Optional non-language filters, applied per-doc during scoring (Step 6). Kept
+    // identical in intent to the server `/fts` path (api/src/endpoints/ftsSearch.service.ts)
+    // so local and API results agree. `null`/empty filters are treated as "no filter".
+    const typeSet = types && types.length ? new Set<string>(types) : undefined;
+    const tagSet = tags && tags.length ? new Set<string>(tags) : undefined;
 
     const trigrams = generateSearchTrigrams(query);
     if (trigrams.length === 0) return [];
@@ -164,6 +175,18 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     docMap.forEach((doc, docId) => {
         if (languageId && doc.language !== languageId) return;
+
+        // Non-language filters (parity with the server `/fts` path).
+        if (typeSet && !typeSet.has(doc.parentType as unknown as string)) return;
+        if (tagSet && !(doc.parentTags ?? []).some((t) => tagSet.has(t))) return;
+        if (status !== undefined && doc.status !== status) return;
+        if (publishedAfter !== undefined && !(doc.publishDate != null && doc.publishDate >= publishedAfter))
+            return;
+        if (
+            publishedBefore !== undefined &&
+            !(doc.publishDate != null && doc.publishDate <= publishedBefore)
+        )
+            return;
 
         const tfMap = new Map<string, number>();
         if (doc.fts) {

@@ -1,0 +1,24 @@
+{
+    "_id": "_design/content-expiryDate-index",
+    "language": "query",
+    "views": {
+        "content-expiryDate-index": {
+            "map": {
+                "fields": {
+                    "expiryDate": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["expiryDate"]
+                }
+            }
+        }
+    }
+}

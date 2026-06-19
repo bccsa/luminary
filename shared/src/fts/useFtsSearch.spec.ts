@@ -404,15 +404,16 @@ describe("useFtsSearch", () => {
         scope.stop();
     });
 
-    it("CMS routes to the API when online even without a cutoff", async () => {
+    it("CMS with no cutoff routes to local (its full local index is authoritative)", async () => {
         isConnected.value = true;
         initConfig({ ...NO_CUTOFF, cms: true } as any);
-        mockFtsSearchApi.mockResolvedValue([makeResult("a1")]);
+        mockFtsSearch.mockResolvedValue([makeResult("1")]);
         const { result, scope } = await runOnce(() =>
             useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
         );
-        expect(mockFtsSearchApi).toHaveBeenCalled();
-        expect(result.source.value).toBe("api");
+        expect(mockFtsSearch).toHaveBeenCalled();
+        expect(mockFtsSearchApi).not.toHaveBeenCalled();
+        expect(result.source.value).toBe("local");
         expect(result.isPartial.value).toBe(false);
         scope.stop();
     });

@@ -39,6 +39,27 @@ describe("ftsSearchApi", () => {
         );
     });
 
+    it("forwards the type / tag / status / publishDate filters to the API query", async () => {
+        ftsMock.mockResolvedValue([]);
+        await ftsSearchApi({
+            query: "garden",
+            types: ["post" as any],
+            tags: ["tag-1", "tag-2"],
+            status: "published" as any,
+            publishedAfter: 100,
+            publishedBefore: 200,
+        });
+        expect(ftsMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                types: ["post"],
+                tags: ["tag-1", "tag-2"],
+                status: "published",
+                publishedAfter: 100,
+                publishedBefore: 200,
+            }),
+        );
+    });
+
     it("omits languages when no languageId is given", async () => {
         ftsMock.mockResolvedValue([]);
         await ftsSearchApi({ query: "garden" });

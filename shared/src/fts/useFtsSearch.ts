@@ -5,9 +5,25 @@ import { getContentPublishDateCutoff } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult } from "./types";
+import type { DocType, PublishStatus } from "../types";
+
+/**
+ * Reactive non-language filters forwarded to each search. Changing the ref triggers a
+ * fresh search (same as changing `languageId`). All fields are optional and only narrow
+ * when present. See {@link FtsSearchOptions}.
+ */
+export type FtsFilterOptions = {
+    types?: DocType[];
+    tags?: string[];
+    status?: PublishStatus;
+    publishedAfter?: number;
+    publishedBefore?: number;
+};
 
 export type UseFtsSearchOptions = {
     languageId?: Ref<string | undefined>;
+    /** Reactive extra filters (type/tag/status/publishDate). A change re-runs the search. */
+    filters?: Ref<FtsFilterOptions | undefined>;
     /** Debounce delay in ms before running search. Use 0 or 'manual' to only search when runSearch() is called. */
     debounceMs?: number | "manual" | Ref<number | "manual">;
     pageSize?: number;
@@ -82,6 +98,7 @@ export function useFtsSearch(
         const opts: FtsSearchOptions = {
             query,
             languageId: options.languageId?.value,
+            ...(options.filters?.value ?? {}),
             limit: pageSize,
             offset,
             maxTrigramDocPercent,
@@ -215,6 +232,20 @@ export function useFtsSearch(
                 doSearch(currentQuery, 0, false);
             }
         });
+    }
+
+    // Watch filter changes — re-search immediately with current query (deep: the ref
+    // holds a plain object the caller may mutate field-by-field).
+    if (options.filters) {
+        watch(
+            options.filters,
+            () => {
+                if (currentQuery) {
+                    doSearch(currentQuery, 0, false);
+                }
+            },
+            { deep: true },
+        );
     }
 
     // Upgrade partial (offline/fallback) results when connectivity returns: re-run the

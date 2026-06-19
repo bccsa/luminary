@@ -8,6 +8,11 @@ import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     title: string;
+    /**
+     * Optional pre-highlighted title HTML (e.g. search matches wrapped in `<mark>`).
+     * Rendered with `v-html` when set; must be caller-escaped. Falls back to `title`.
+     */
+    titleHtml?: string;
     updatedTimeUtc: number;
     isLocalChange?: boolean;
     navigateTo?: RouteLocationRaw | (() => void);
@@ -60,7 +65,13 @@ const handleClick = () => {
                 }"
             >
                 <div class="flex items-center gap-0">
-                    <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                    <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
+                    <div
+                        v-if="titleHtml"
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+                        v-html="titleHtml"
+                    ></div>
+                    <div v-else class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
                         {{ title }}
                     </div>
                     <div>

@@ -34,6 +34,8 @@ const { results, isSearching, loadMore, hasMore } = useFtsSearch(query, {
     languageId,
     debounceMs: 300,
     pageSize: 20,
+    // Optional reactive filters; changing the ref re-runs the search.
+    filters: ref({ types: [DocType.Post], tags: ["tag-id"], status: PublishStatus.Published }),
 });
 ```
 
@@ -48,8 +50,16 @@ const results = await ftsSearch({
     limit: 20,
     offset: 0,
     maxTrigramDocPercent: 50,
+    // Optional filters (each narrows only when present):
+    types: [DocType.Post], // restrict to these parent content types
+    tags: ["tag-id"], // restrict to content whose parentTags intersect these
+    status: PublishStatus.Published, // restrict to a single publish status
+    publishedAfter: 0, // publishDate >= bound
+    publishedBefore: Date.now(), // publishDate <= bound
 });
 ```
+
+These filters apply identically on the local and server (`/fts`) paths, so a search returns the same set regardless of where it runs. Visibility (published/scheduled/expired) is **not** applied implicitly — the local index returns every permitted doc it holds; a caller that wants only published results passes `status` / `publishedBefore` itself.
 
 ### FtsSearchResult
 
@@ -67,11 +77,15 @@ The `useFtsSearch` composable additionally exposes `source: Ref<"local" \| "api"
 
 The library can search the **local** IndexedDB index or a **server-side** `/fts` endpoint that searches the full corpus the user is permitted to see (useful when only a subset of content is synced to the device). `useFtsSearch` routes each search automatically; `ftsSearch` / `ftsSearchApi` can be called directly.
 
-`shouldUseApiFts()` decides the route:
+`shouldUseApiFts()` decides the route purely on whether the local index can be missing
+permitted docs — i.e. whether a `publishDate` sync cutoff is in effect:
 
 - **Offline** (`isConnected === false`) → local.
-- **Full sync** (no `publishDate` cutoff) and not CMS → local (everything is on the device).
-- **Online and (a cutoff is set, or `SharedConfig.cms`)** → server `/fts`.
+- **No cutoff** (full content sync — every permitted doc is on the device) → local. This
+  covers a fully-synced consumer with no cutoff (e.g. the CMS, which never sets one), and
+  mirrors `HybridQuery`'s content routing (which also skips the API supplement with no cutoff).
+- **Online + a `publishDate` cutoff is set** (selective sync) → server `/fts`, since local
+  holds only the recent subset above the cutoff.
 
 Properties of the routing:
 

@@ -412,6 +412,84 @@ describe("FTS Indexer and Search", () => {
         });
     });
 
+    describe("ftsSearch local filters", () => {
+        // All docs share the word "garden" so the trigram search matches them all;
+        // the filters then narrow the result set.
+        async function ingestGarden(overrides: Partial<ContentDto> & { _id: string }) {
+            const g = generateSimpleFtsEntries("garden", 3.0);
+            await ingestDocWithFts(makeContentDoc({ title: "garden", ...overrides }), g.entries, g.tokenCount);
+        }
+
+        beforeEach(async () => {
+            await db.docs.clear();
+            await ingestGarden({
+                _id: "post-pub",
+                parentType: DocType.Post,
+                parentTags: ["tag-a"],
+                status: PublishStatus.Published,
+                publishDate: 1000,
+            });
+            await ingestGarden({
+                _id: "tag-draft",
+                parentType: DocType.Tag,
+                parentTags: ["tag-b"],
+                status: PublishStatus.Draft,
+                publishDate: 5000,
+            });
+            await ingestGarden({
+                _id: "post-draft",
+                parentType: DocType.Post,
+                parentTags: ["tag-a", "tag-b"],
+                status: PublishStatus.Draft,
+                publishDate: 3000,
+            });
+            await recomputeCorpusStats();
+        });
+
+        it("filters by parent type", async () => {
+            const ids = (await ftsSearch({ query: "garden", types: [DocType.Tag], maxTrigramDocPercent: 100 })).map(
+                (r) => r.docId,
+            );
+            expect(ids).toEqual(["tag-draft"]);
+        });
+
+        it("filters by tag intersection", async () => {
+            const ids = (await ftsSearch({ query: "garden", tags: ["tag-b"], maxTrigramDocPercent: 100 })).map((r) => r.docId);
+            expect(ids.sort()).toEqual(["post-draft", "tag-draft"]);
+        });
+
+        it("filters by status", async () => {
+            const ids = (await ftsSearch({ query: "garden", status: PublishStatus.Draft, maxTrigramDocPercent: 100 })).map(
+                (r) => r.docId,
+            );
+            expect(ids.sort()).toEqual(["post-draft", "tag-draft"]);
+        });
+
+        it("filters by publishDate bounds", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    publishedAfter: 2000,
+                    publishedBefore: 4000,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["post-draft"]);
+        });
+
+        it("combines filters (parity with the API path)", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    types: [DocType.Post],
+                    status: PublishStatus.Draft,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["post-draft"]);
+        });
+    });
+
     describe("selectTrigramsWithinDfBudget", () => {
         const t = (token: string, df: number) => ({ token, df });
 

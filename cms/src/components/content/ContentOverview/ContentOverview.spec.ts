@@ -35,7 +35,7 @@ import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import waitForExpect from "wait-for-expect";
-import ContentTable from "../ContentTable.vue";
+import FilterOptions from "./FilterOptions.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
@@ -205,46 +205,30 @@ describe("ContentOverview.vue", () => {
 
     it("should switch languages correctly", async () => {
         await db.docs.clear();
-        const docs: ContentDto[] = [
+        // Three distinct parents, each translated into all three languages. The
+        // language-priority selector keys off `availableTranslations` (a server-set
+        // field), so set it the way the API would in production.
+        const availableTranslations = ["lang-eng", "lang-fra", "lang-swa"];
+        const docs: ContentDto[] = ["post-A", "post-B", "post-C"].flatMap((parentId) => [
             {
                 ...mockData.mockEnglishContentDto,
-                _id: "content-post1-eng",
+                _id: `content-${parentId}-eng`,
+                parentId,
+                availableTranslations,
             },
             {
                 ...mockData.mockFrenchContentDto,
-                _id: "content-post2-fra",
+                _id: `content-${parentId}-fra`,
+                parentId,
+                availableTranslations,
             },
             {
                 ...mockData.mockSwahiliContentDto,
-                _id: "content-post3-swa",
+                _id: `content-${parentId}-swa`,
+                parentId,
+                availableTranslations,
             },
-            {
-                ...mockData.mockEnglishContentDto,
-                _id: "content-post4-eng",
-            },
-            {
-                ...mockData.mockFrenchContentDto,
-                title: "some-mock-french-post",
-                _id: "content-post5-fra",
-            },
-            {
-                ...mockData.mockSwahiliContentDto,
-                title: "some-mock-swahili-post",
-                _id: "content-post6-swa",
-            },
-            {
-                ...mockData.mockEnglishContentDto,
-                _id: "content-post7-eng",
-            },
-            {
-                ...mockData.mockFrenchContentDto,
-                _id: "content-post8-fra",
-            },
-            {
-                ...mockData.mockSwahiliContentDto,
-                _id: "content-post9-swa",
-            },
-        ];
+        ]);
 
         await db.docs.bulkPut([
             ...docs,
@@ -326,9 +310,9 @@ describe("ContentOverview.vue", () => {
         await searchInput.setValue("post 1");
 
         await waitForExpect(() => {
-            const contentTable = wrapper.findComponent(ContentTable);
+            const filterOptions = wrapper.findComponent(FilterOptions);
 
-            expect(contentTable.props("queryOptions")).toMatchObject({ search: "post 1" });
+            expect(filterOptions.props("queryOptions")).toMatchObject({ search: "post 1" });
         });
     });
 
@@ -392,29 +376,29 @@ describe("ContentOverview.vue", () => {
         const sortOptionDescending = wrapper.find('[data-test="descending-sort-toggle"]');
 
         await waitForExpect(async () => {
-            const contentTable = wrapper.findComponent(ContentTable);
+            const filterOptions = wrapper.findComponent(FilterOptions);
 
             await sortOptionTitle.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "title" });
+            expect(filterOptions.props("queryOptions")).toMatchObject({ orderBy: "title" });
 
             await sortOptionExpiryDate.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "expiryDate" });
+            expect(filterOptions.props("queryOptions")).toMatchObject({ orderBy: "expiryDate" });
 
             await sortOptionPublishDate.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({
+            expect(filterOptions.props("queryOptions")).toMatchObject({
                 orderBy: "publishDate",
             });
 
             await sortOptionLastUpdated.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({
+            expect(filterOptions.props("queryOptions")).toMatchObject({
                 orderBy: "updatedTimeUtc",
             });
 
             await sortOptionAscending.trigger("click");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "asc" });
+            expect(filterOptions.props("queryOptions")).toMatchObject({ orderDirection: "asc" });
 
             await sortOptionDescending.trigger("click");
-            expect(contentTable.props("queryOptions")).toMatchObject({
+            expect(filterOptions.props("queryOptions")).toMatchObject({
                 orderDirection: "desc",
             });
         });
@@ -457,28 +441,28 @@ describe("ContentOverview.vue", () => {
         const filterSelects = wrapper.findAllComponents(LSelect);
 
         await waitForExpect(async () => {
-            const contentTable = wrapper.findComponent(ContentTable);
+            const filterOptions = wrapper.findComponent(FilterOptions);
 
             await filterSelects[0]!.vm.$emit("update:modelValue", "translated");
-            expect(contentTable.props("queryOptions").translationStatus).toBe("translated");
+            expect(filterOptions.props("queryOptions").translationStatus).toBe("translated");
 
             await filterSelects[0]!.vm.$emit("update:modelValue", "untranslated");
-            expect(contentTable.props("queryOptions").translationStatus).toBe("untranslated");
+            expect(filterOptions.props("queryOptions").translationStatus).toBe("untranslated");
 
             await filterSelects[0]!.vm.$emit("update:modelValue", "all");
-            expect(contentTable.props("queryOptions").translationStatus).toBe("all");
+            expect(filterOptions.props("queryOptions").translationStatus).toBe("all");
 
             await filterSelects[1]!.vm.$emit("update:modelValue", "published");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("published");
+            expect(filterOptions.props("queryOptions").publishStatus).toBe("published");
 
             await filterSelects[1]!.vm.$emit("update:modelValue", "scheduled");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("scheduled");
+            expect(filterOptions.props("queryOptions").publishStatus).toBe("scheduled");
 
             await filterSelects[1]!.vm.$emit("update:modelValue", "expired");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("expired");
+            expect(filterOptions.props("queryOptions").publishStatus).toBe("expired");
 
             await filterSelects[1]!.vm.$emit("update:modelValue", "draft");
-            expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
+            expect(filterOptions.props("queryOptions").publishStatus).toBe("draft");
         });
     });
 

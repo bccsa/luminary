@@ -118,9 +118,6 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
         return executeBulkGet<T>(table, analysis, values, sort, limit);
     }
 
-    // Build a filtered collection using index pushdown
-    const col = buildFilteredCollection(table, selector, analysis, values);
-
     // Apply sorting and limiting
     if (sort && sort.length > 0) {
         const entry = sort[0];
@@ -128,8 +125,10 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
         const desc = (entry as Record<string, string>)[sortField] === "desc";
 
         if (typeof limit === "number") {
-            // Sort + limit: use orderBy for early termination.
-            // This scans rows in index order and stops after enough matches.
+            // Sort + limit: use orderBy for early termination. This scans rows in
+            // index order and stops after enough matches, so it does NOT use the
+            // index-pushdown collection (building it would only waste work and emit a
+            // spurious "missing index" warning for a query that is index-ordered).
             let ordered: Collection;
             try {
                 ordered = table.orderBy(sortField);
@@ -145,11 +144,13 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
 
         // Sort + no limit: filter first using index pushdown, then sort in memory.
         // This is much faster than scanning the entire table via orderBy.
+        const col = buildFilteredCollection(table, selector, analysis, values);
         const result = col.sortBy(sortField) as Promise<T[]>;
         return desc ? result.then((arr) => arr.reverse()) : result;
     }
 
-    // No sorting: apply limit if specified and return array
+    // No sorting: build the index-pushdown collection and apply limit if specified.
+    const col = buildFilteredCollection(table, selector, analysis, values);
     if (typeof limit === "number") {
         return col.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
     }
