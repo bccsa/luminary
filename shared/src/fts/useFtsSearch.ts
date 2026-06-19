@@ -164,6 +164,12 @@ export function useFtsSearch(
     function runSearch() {
         const q = queryRef.value.trim();
         currentQuery = q;
+        // Cancel any pending debounce timer so the explicit run doesn't race with
+        // the timer-driven doSearch and cause a duplicate API call.
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
         doSearch(q, 0, false);
     }
 

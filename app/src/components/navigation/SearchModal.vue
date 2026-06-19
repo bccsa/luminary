@@ -513,6 +513,11 @@ const handleInputKeydown = (event: KeyboardEvent) => {
 };
 
 const clearSearch = () => {
+    // Cancel any in-flight search and debounce timer synchronously before clearing state,
+    // so a slow previous run can't repopulate results after the clear.
+    cancel();
+    ftsResults.value = [];
+    lastSearchedQuery.value = "";
     searchQuery.value = "";
     inputRef.value?.focus();
 };
