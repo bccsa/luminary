@@ -22,17 +22,29 @@ Comparisons ignore the server-managed metadata fields `_rev`, `updatedTimeUtc`
 and `updatedBy`, so a re-saved-but-otherwise-identical document is not reported
 as edited.
 
+It also persists edits for you: `save(id)` writes a single item back, choosing
+the local store or the API per document (see [Saving](#saving)). The source is
+any `Ref<Array<T>>`, so it composes with any of the reactive read primitives;
+the typical pairing is [`useHybridQuery`](../HybridQuery/README.md), whose
+`output` ref plugs straight in.
+
 ## Usage
 
 ```typescript
-import { toEditable, useDexieLiveQuery, db } from "luminary-shared";
+import { toEditable, useHybridQuery, DocType, type ContentDto } from "luminary-shared";
 
-// A reactive source — any Ref<Array<T extends BaseDocumentDto>> works.
-const source = useDexieLiveQuery(() => db.docs.where("type").equals("tag").toArray(), {
-    initialValue: [],
-});
+// Whether this query keeps its documents offline. Pass the SAME value to both the
+// query and toEditable — it is what makes save() write locally vs. straight to the API.
+const persistOffline = true;
 
-const { editable, isEdited, isModified, revert, save } = toEditable(source);
+// useHybridQuery returns its `output` ref (a Ref<Array<T>>), so wrap it inline:
+const { editable, isEdited, isModified, revert, save } = toEditable<ContentDto>(
+    useHybridQuery<ContentDto>(
+        () => ({ selector: { type: DocType.Content }, $sort: [{ publishDate: "desc" }] }),
+        { live: true, persistOffline },
+    ),
+    { persistOffline },
+);
 
 // Bind `editable` to the UI and mutate it freely:
 editable.value[0].title = "New title";
@@ -45,6 +57,10 @@ await save(editable.value[0]._id);
 // Discard local edits for one item:
 revert(id);
 ```
+
+Any reactive array source works — e.g. `useDexieLiveQuery(() => db.docs.…, { initialValue: [] })`
+for a pure-IndexedDB read. When the source is a query that can persist offline,
+pass its `persistOffline` value through to `toEditable` so `save` routes correctly.
 
 ### Saving
 
