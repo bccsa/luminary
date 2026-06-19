@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, toRaw } from "vue";
+import { ref, computed, watch } from "vue";
 import {
     AclPermission,
     db,
@@ -8,11 +8,12 @@ import {
     RedirectType,
     verifyAccess,
     type GroupDto,
+    type Uuid,
     useHybridQuery,
+    toEditable,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
-import _ from "lodash";
 import {
     CheckCircleIcon,
     ExclamationCircleIcon,
@@ -24,7 +25,6 @@ import { TrashIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 
-// Props for visibility and Redirect to edit
 type Props = {
     isVisible: boolean;
     redirect?: RedirectDto;
@@ -37,51 +37,101 @@ const emit = defineEmits(["close"]);
 const isNew = computed(() => !props.redirect);
 const showDeleteModal = ref(false);
 
-const editable = ref<RedirectDto>({
-    _id: db.uuid(), // Generate new ID for create mode
-    slug: "",
-    redirectType: RedirectType.Permanent,
-    memberOf: [],
-    type: DocType.Redirect,
-    updatedTimeUtc: Date.now(),
-});
+const currentId = ref<Uuid>(props.redirect?._id ?? db.uuid());
 
-// Track the previous state for dirty checking
-const previous = ref<RedirectDto>();
+function createTemplate(id: Uuid): RedirectDto {
+    return {
+        _id: id,
+        slug: "",
+        redirectType: RedirectType.Permanent,
+        memberOf: [],
+        type: DocType.Redirect,
+        updatedTimeUtc: Date.now(),
+    };
+}
 
-// Watch the passed `Redirect` prop to set the modal in edit mode
+const redirectSource = ref<RedirectDto[]>([]);
+
+const liveRedirect = useHybridQuery<RedirectDto>(
+    () =>
+        props.redirect
+            ? { selector: { type: DocType.Redirect, _id: props.redirect._id }, $limit: 1 }
+            : { selector: { _id: { $in: [] } } },
+    { live: true },
+);
+
 watch(
-    () => props.redirect,
-    (redirect) => {
-        if (redirect) {
-            editable.value = _.cloneDeep(redirect);
-            previous.value = { ...redirect }; // Save the previous state for dirty checking
-        } else {
-            // Reset to a new Redirect if no Redirect is passed (create mode)
-            editable.value = {
-                _id: db.uuid(), // Generate new ID for create mode
-                slug: "",
-                redirectType: RedirectType.Permanent,
-                memberOf: [],
-                type: DocType.Redirect,
-                updatedTimeUtc: Date.now(),
-            };
-        }
+    liveRedirect,
+    () => {
+        if (liveRedirect.value.length) redirectSource.value = liveRedirect.value;
     },
     { immediate: true },
 );
 
+const redirectEditable = toEditable<RedirectDto>(redirectSource);
+
+function hydrateFromRedirect(redirect: RedirectDto) {
+    currentId.value = redirect._id;
+    redirectSource.value = [redirect];
+    redirectEditable.editable.value.splice(
+        0,
+        redirectEditable.editable.value.length,
+        { ...redirect },
+    );
+    redirectEditable.updateShadow(redirect._id);
+}
+
+function seedCreateTemplate() {
+    redirectEditable.editable.value.splice(
+        0,
+        redirectEditable.editable.value.length,
+        createTemplate(currentId.value),
+    );
+}
+
+const editable = computed<RedirectDto>({
+    get: () => redirectEditable.editable.value[0],
+    set: (val) => {
+        const arr = redirectEditable.editable.value;
+        if (arr.length === 0) arr.push(val);
+        else arr.splice(0, 1, val);
+    },
+});
+
+watch(
+    () => props.redirect,
+    (redirect) => {
+        if (redirect) hydrateFromRedirect(redirect);
+        else {
+            currentId.value = db.uuid();
+            redirectSource.value = [];
+            seedCreateTemplate();
+        }
+    },
+);
+
+if (props.redirect) hydrateFromRedirect(props.redirect);
+else seedCreateTemplate();
+
+const isDirty = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
+    return redirectEditable.isEdited.value(doc._id);
+});
+
 const save = async () => {
-    // Bypass save if a new redirect is being deleted
-    if (!(isNew.value && editable.value.deleteReq)) {
-        editable.value.updatedTimeUtc = Date.now();
-        await db.upsert({ doc: editable.value });
+    const doc = editable.value;
+    if (!doc) return;
+
+    if (!(isNew.value && doc.deleteReq)) {
+        doc.updatedTimeUtc = Date.now();
+        await redirectEditable.save(doc._id);
     }
 
-    if (!editable.value.deleteReq) {
+    if (!doc.deleteReq) {
         useNotificationStore().addNotification({
             title: !isNew.value ? `Redirect updated` : `Redirect created`,
-            description: `Redirecting ${editable.value.slug} to ${editable.value.toSlug ?? "HOMEPAGE"}`,
+            description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
             state: "success",
         });
     }
@@ -89,45 +139,19 @@ const save = async () => {
 };
 
 const canSave = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
     return (
-        editable.value.slug?.trim() !== "" &&
-        editable.value.memberOf.length > 0 &&
+        doc.slug?.trim() !== "" &&
+        doc.memberOf.length > 0 &&
         isDirty.value &&
         isSlugUnique.value == true
     );
 });
 
 const isTemporary = computed(() => {
-    return editable.value.redirectType == RedirectType.Temporary;
+    return editable.value?.redirectType == RedirectType.Temporary;
 });
-
-const originalDocs = useHybridQuery<RedirectDto>(
-    () =>
-        props.redirect
-            ? { selector: { type: DocType.Redirect, _id: props.redirect._id } }
-            : { selector: { _id: { $in: [] } } },
-    { live: true },
-);
-const original = computed(() => originalDocs.value[0]);
-
-const isDirty = ref(false);
-watch(
-    [editable, original, () => props.redirect],
-    () => {
-        // In edit mode, use `previous` (set synchronously when modal opens) to avoid
-        // briefly showing "Revert" while original is still loading.
-        const reference = props.redirect && previous.value ? previous.value : original.value;
-        if (!reference) {
-            isDirty.value = true;
-            return;
-        }
-        isDirty.value = !_.isEqual(
-            { ...toRaw(reference), updatedTimeUtc: 0, _rev: "" },
-            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
-        );
-    },
-    { deep: true, immediate: true },
-);
 
 const redirectExplanation = computed(() => {
     return isTemporary.value
@@ -142,11 +166,11 @@ const groups = useHybridQuery<GroupDto>(
 );
 
 watch(
-    () => editable.value.slug,
-    async () => {
-        if (editable.value.slug.length > 0) {
+    () => editable.value?.slug,
+    async (slug) => {
+        if (slug && slug.length > 0) {
             const slugIsUnique = await Slug.checkUnique(
-                editable.value.slug,
+                slug,
                 editable.value._id,
                 DocType.Redirect,
             );
@@ -160,10 +184,10 @@ const validateSlug = (slug: string | undefined) => {
     return slug.replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase();
 };
 
-// Redirect deletion
 const canDelete = computed(() => {
-    if (!editable.value) return false;
-    return verifyAccess(editable.value.memberOf, DocType.Redirect, AclPermission.Delete, "all");
+    const doc = editable.value;
+    if (!doc) return false;
+    return verifyAccess(doc.memberOf, DocType.Redirect, AclPermission.Delete, "all");
 });
 
 const deleteRedirect = () => {
@@ -188,11 +212,7 @@ const deleteRedirect = () => {
 };
 
 const revertChanges = () => {
-    if (props.redirect && previous.value) {
-        editable.value = _.cloneDeep(previous.value);
-    } else if (original.value) {
-        editable.value = _.cloneDeep(original.value);
-    }
+    redirectEditable.revert(currentId.value);
 };
 </script>
 
