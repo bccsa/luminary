@@ -19,7 +19,7 @@ import LTag from "../content/LTag.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
-import { computed, ref, useTemplateRef } from "vue";
+import { computed, reactive, ref, useTemplateRef } from "vue";
 
 type Props = {
     onOpenMobileSidebar?: () => void;
@@ -27,37 +27,15 @@ type Props = {
 
 const { onOpenMobileSidebar } = defineProps<Props>();
 
-const {
-    groups,
-    availableGroups,
-    providers,
-    isLoadingProviders,
-    canDelete,
-    canEdit,
-    showModal,
-    showDeleteModal,
-    providerToDelete,
-    isEditing,
-    editingProviderId,
-    currentProvider,
-    isLoading,
-    errors,
-    isFormDirty,
-    isDirtyAny,
-    providerIsModified,
-    isProviderEdited,
-    openCreateModal,
-    editProvider,
-    deleteProvider,
-    confirmDelete,
-    saveProvider,
-    duplicateProvider,
-    revertProvider,
-} = useAuthProviders();
+// `reactive` unwraps the composable's refs so members are read/written via dot notation
+// (no `.value`) in script, template, and v-model alike — no large destructure block.
+const authProviders = reactive(useAuthProviders());
 
 // Provider edit-state (editable ≠ shadow) for the currently edited provider.
 // FormModal combines this with its local staging-diff to derive isDirty.
-const currentProviderIsEdited = computed(() => isProviderEdited(editingProviderId.value));
+const currentProviderIsEdited = computed(() =>
+    authProviders.isProviderEdited(authProviders.editingProviderId),
+);
 
 // Imperative handle for FormModal's duplicate handoff — see prepareForDuplicate
 // in FormModal.vue for why this dance is needed.
@@ -66,12 +44,12 @@ const formModalRef = useTemplateRef<{ prepareForDuplicate: () => void }>("formMo
 const hasAttemptedSubmit = ref(false);
 
 async function handleSave() {
-    await saveProvider();
+    await authProviders.saveProvider();
 }
 
 function handleDuplicate() {
     formModalRef.value?.prepareForDuplicate();
-    duplicateProvider();
+    authProviders.duplicateProvider();
 }
 
 // ── Filter state ────────────────────────────────────────────────────────────
@@ -81,7 +59,7 @@ const selectedGroupFilter = ref<string[]>([]);
 const showMobileFilters = ref(false);
 
 const groupFilterOptions = computed(() =>
-    groups.value.map((g: any) => ({
+    authProviders.groups.map((g: any) => ({
         id: g._id,
         label: g.name,
         value: g._id,
@@ -89,7 +67,7 @@ const groupFilterOptions = computed(() =>
 );
 
 const filteredProviders = computed(() => {
-    let result = providers.value;
+    let result = authProviders.providers;
     if (selectedGroupFilter.value.length > 0) {
         result = result.filter((p) =>
             (p.memberOf ?? []).some((gid: string) => selectedGroupFilter.value.includes(gid)),
@@ -113,7 +91,7 @@ function resetFilters() {
 }
 
 defineExpose({
-    openCreateModal,
+    openCreateModal: authProviders.openCreateModal,
 });
 </script>
 
@@ -127,18 +105,18 @@ defineExpose({
         <template #pageNav>
             <div class="flex items-center gap-2">
                 <LButton
-                    v-if="canEdit && !isSmallScreen"
+                    v-if="authProviders.canEdit && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
                     data-test="create-auth-provider"
-                    @click="openCreateModal"
+                    @click="authProviders.openCreateModal"
                 >
                     Create provider
                 </LButton>
                 <PlusIcon
-                    v-else-if="canEdit && isSmallScreen"
+                    v-else-if="authProviders.canEdit && isSmallScreen"
                     class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="openCreateModal"
+                    @click="authProviders.openCreateModal"
                 />
             </div>
         </template>
@@ -182,7 +160,7 @@ defineExpose({
                             :key="groupId"
                             @remove="() => { selectedGroupFilter = selectedGroupFilter.filter((v) => v !== groupId); }"
                         >
-                            {{ groups.find((g: any) => g._id === groupId)?.name }}
+                            {{ authProviders.groups.find((g: any) => g._id === groupId)?.name }}
                         </LTag>
                     </ul>
                 </div>
@@ -216,7 +194,7 @@ defineExpose({
                             :key="groupId"
                             @remove="() => { selectedGroupFilter = selectedGroupFilter.filter((v) => v !== groupId); }"
                         >
-                            {{ groups.find((g: any) => g._id === groupId)?.name }}
+                            {{ authProviders.groups.find((g: any) => g._id === groupId)?.name }}
                         </LTag>
                     </ul>
                 </div>
@@ -243,11 +221,14 @@ defineExpose({
         </template>
 
         <div class="mt-1">
-            <div v-if="isLoadingProviders && !providers.length" class="px-6 py-8">
+            <div v-if="authProviders.isLoadingProviders && !authProviders.providers.length" class="px-6 py-8">
                 <LoadingBar />
             </div>
 
-            <div v-else-if="!filteredProviders.length && !providers.length" class="px-6 py-8 text-center">
+            <div
+                v-else-if="!filteredProviders.length && !authProviders.providers.length"
+                class="px-6 py-8 text-center"
+            >
                 <h3 class="mt-2 text-sm font-medium text-gray-900">No auth provider configured</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Get started by creating your first OIDC auth provider.
@@ -263,10 +244,10 @@ defineExpose({
                     v-for="(provider, i) in filteredProviders"
                     :key="provider._id || provider.label"
                     :provider="provider"
-                    :groups="groups"
-                    :isModified="providerIsModified(provider._id)"
+                    :groups="authProviders.groups"
+                    :isModified="authProviders.providerIsModified(provider._id)"
                     :class="{ 'mb-4': i === filteredProviders.length - 1 }"
-                    @edit="editProvider"
+                    @edit="authProviders.editProvider"
                 />
             </div>
         </div>
@@ -275,37 +256,37 @@ defineExpose({
     <!-- Create/Edit Provider Modal -->
     <FormModal
         ref="formModalRef"
-        v-model:isVisible="showModal"
-        v-model:provider="currentProvider"
-        v-model:isDirty="isFormDirty"
+        v-model:isVisible="authProviders.showModal"
+        v-model:provider="authProviders.currentProvider"
+        v-model:isDirty="authProviders.isFormDirty"
         v-model:hasAttemptedSubmit="hasAttemptedSubmit"
-        :isEditing="isEditing"
-        :isLoading="isLoading"
-        :errors="errors"
-        :availableGroups="availableGroups"
-        :canEdit="canEdit"
-        :canDelete="canDelete"
+        :isEditing="authProviders.isEditing"
+        :isLoading="authProviders.isLoading"
+        :errors="authProviders.errors"
+        :availableGroups="authProviders.availableGroups"
+        :canEdit="authProviders.canEdit"
+        :canDelete="authProviders.canDelete"
         :providerIsEdited="currentProviderIsEdited"
         @save="handleSave"
-        @delete="deleteProvider"
+        @delete="authProviders.deleteProvider"
         @duplicate="handleDuplicate"
-        @revert="revertProvider"
+        @revert="authProviders.revertProvider"
     />
 
     <LDialog
-        v-model:open="showDeleteModal"
-        :title="`Delete Provider ${providerToDelete?.displayName || providerToDelete?.label}?`"
+        v-model:open="authProviders.showDeleteModal"
+        :title="`Delete Provider ${authProviders.providerToDelete?.displayName || authProviders.providerToDelete?.label}?`"
         :description="`Are you sure you want to delete this auth provider? This action cannot be undone.`"
         :primaryAction="
             () => {
-                confirmDelete();
+                authProviders.confirmDelete();
             }
         "
-        :secondaryAction="() => (showDeleteModal = false)"
+        :secondaryAction="() => (authProviders.showDeleteModal = false)"
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
     ></LDialog>
 
-    <ConfirmBeforeLeavingModal :isDirty="isDirtyAny" />
+    <ConfirmBeforeLeavingModal :isDirty="authProviders.isDirtyAny" />
 </template>

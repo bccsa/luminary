@@ -12,7 +12,7 @@ import {
     AdjustmentsVerticalIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/vue/24/outline";
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -27,8 +27,8 @@ const notification = useNotificationStore();
 
 // Data layer: HybridQuery (mappings API-only + providers Dexie-first) + toEditable, plus the
 // create/update/delete primitives. See useAutoGroupMappings for the API-only rationale.
-const { canView, canEdit, mappings, providers, groups, isLoading, saveMapping, deleteMapping } =
-    useAutoGroupMappings();
+// `reactive` unwraps the composable's refs so members are read via dot notation (no `.value`).
+const autoGroupMappings = reactive(useAutoGroupMappings());
 
 // ── Filter state ────────────────────────────────────────────────────────────
 
@@ -42,14 +42,14 @@ const GLOBAL_FILTER = "__global__";
 const providerFilterOptions = computed(() => [
     { value: "", label: "All providers" },
     { value: GLOBAL_FILTER, label: "Global (All Users)" },
-    ...providers.value.map((p) => ({
+    ...autoGroupMappings.providers.map((p) => ({
         value: p._id,
         label: p.displayName || p.label || p.domain || p._id,
     })),
 ]);
 
 const groupFilterOptions = computed(() =>
-    groups.value.map((g) => ({
+    autoGroupMappings.groups.map((g) => ({
         id: g._id,
         label: g.name,
         value: g._id,
@@ -57,7 +57,7 @@ const groupFilterOptions = computed(() =>
 );
 
 const filteredMappings = computed(() => {
-    let result = mappings.value;
+    let result = autoGroupMappings.mappings;
     if (selectedProviderFilter.value === GLOBAL_FILTER) {
         result = result.filter((m) => !m.providerId);
     } else if (selectedProviderFilter.value) {
@@ -74,7 +74,7 @@ const filteredMappings = computed(() => {
             const pName = providerName(m.providerId).toLowerCase();
             const desc = (m.description ?? "").toLowerCase();
             const groupNames = (m.groupIds ?? [])
-                .map((gid) => groups.value.find((g) => g._id === gid)?.name ?? "")
+                .map((gid) => autoGroupMappings.groups.find((g) => g._id === gid)?.name ?? "")
                 .join(" ")
                 .toLowerCase();
             return pName.includes(q) || desc.includes(q) || groupNames.includes(q);
@@ -85,7 +85,7 @@ const filteredMappings = computed(() => {
 
 function providerName(providerId: string | undefined): string {
     if (!providerId) return "(no provider)";
-    const p = providers.value.find((prov) => prov._id === providerId);
+    const p = autoGroupMappings.providers.find((prov) => prov._id === providerId);
     return p?.displayName || p?.label || p?.domain || providerId;
 }
 
@@ -116,8 +116,8 @@ function closeModal() {
 }
 
 async function handleSave(doc: AutoGroupMappingsDto) {
-    const existing = mappings.value.some((m) => m._id === doc._id);
-    const res = await saveMapping(doc);
+    const existing = autoGroupMappings.mappings.some((m) => m._id === doc._id);
+    const res = await autoGroupMappings.saveMapping(doc);
     if (res && res.ack === AckStatus.Rejected) {
         notification.addNotification({
             title: existing ? "Failed to save" : "Failed to create",
@@ -143,7 +143,7 @@ async function handleSave(doc: AutoGroupMappingsDto) {
 }
 
 async function handleDelete(mappingId: string) {
-    const res = await deleteMapping(mappingId);
+    const res = await autoGroupMappings.deleteMapping(mappingId);
     if (res && res.ack === AckStatus.Rejected) {
         notification.addNotification({
             title: "Failed to delete",
@@ -166,9 +166,13 @@ async function handleDelete(mappingId: string) {
 </script>
 
 <template>
-    <BasePage title="Auto Group Mappings" :should-show-page-title="false" :loading="isLoading">
+    <BasePage
+        title="Auto Group Mappings"
+        :should-show-page-title="false"
+        :loading="autoGroupMappings.isLoading"
+    >
         <template #pageNav>
-            <div class="flex items-center gap-3" v-if="canEdit">
+            <div class="flex items-center gap-3" v-if="autoGroupMappings.canEdit">
                 <LButton
                     v-if="!isSmallScreen"
                     variant="primary"
@@ -241,7 +245,7 @@ async function handleDelete(mappingId: string) {
                                     }
                                 "
                             >
-                                {{ groups.find((g) => g._id === groupId)?.name }}
+                                {{ autoGroupMappings.groups.find((g) => g._id === groupId)?.name }}
                             </LTag>
                         </ul>
                     </div>
@@ -283,7 +287,7 @@ async function handleDelete(mappingId: string) {
                                     }
                                 "
                             >
-                                {{ groups.find((g) => g._id === groupId)?.name }}
+                                {{ autoGroupMappings.groups.find((g) => g._id === groupId)?.name }}
                             </LTag>
                         </ul>
                     </div>
@@ -321,12 +325,12 @@ async function handleDelete(mappingId: string) {
         </template>
 
         <!-- Permission warnings -->
-        <div v-if="!canView || !canEdit" class="mb-1 p-2">
-            <span v-if="!canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
+        <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1 p-2">
+            <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
             </span>
-            <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+            <span v-if="!autoGroupMappings.canEdit" class="flex gap-1 text-xs text-zinc-600">
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No edit permission
             </span>
@@ -335,7 +339,7 @@ async function handleDelete(mappingId: string) {
         <!-- Mapping list -->
         <p v-if="!filteredMappings.length" class="mt-1 text-sm italic text-gray-400">
             No auto group mappings configured.
-            <template v-if="canEdit">
+            <template v-if="autoGroupMappings.canEdit">
                 Click "Create mapping" to assign groups automatically based on JWT claims.
             </template>
         </p>
@@ -345,7 +349,7 @@ async function handleDelete(mappingId: string) {
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"
                 :mapping="mapping"
-                :groups="groups"
+                :groups="autoGroupMappings.groups"
                 :provider-name="providerName(mapping.providerId)"
                 @click="openEdit(mapping)"
             />
@@ -355,9 +359,9 @@ async function handleDelete(mappingId: string) {
             v-if="isModalVisible"
             :is-visible="isModalVisible"
             :mapping="editingMapping"
-            :providers="providers"
-            :groups="groups"
-            :disabled="!canEdit"
+            :providers="autoGroupMappings.providers"
+            :groups="autoGroupMappings.groups"
+            :disabled="!autoGroupMappings.canEdit"
             @close="closeModal"
             @save="handleSave"
             @delete="handleDelete"
