@@ -97,7 +97,7 @@ const handleLogin = () => {
 <template>
     <header>
         <div class="z-40 bg-zinc-100 dark:bg-slate-800">
-            <div class="flex items-center py-5 pl-6 pr-5 lg:pr-5">
+            <div class="flex items-center py-5 pl-3 pr-3 lg:pr-5">
                 <div class="flex flex-1 items-center">
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
@@ -126,11 +126,10 @@ const handleLogin = () => {
                                 :src="logo"
                             />
                         </div>
-
                     </div>
                 </div>
 
-                <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
+                <div class="ml-2 mr-2 flex cursor-pointer items-center gap-4">
                     <slot name="quickControls" />
                 </div>
                 <div class="hidden lg:block"><ProfileMenu /></div>
