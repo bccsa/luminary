@@ -13,7 +13,17 @@ vi.mock("@vueuse/core", async (importOriginal) => {
     };
 });
 
-import { useIntersectionObserver } from "@vueuse/core";
+import { useIntersectionObserver, type UseIntersectionObserverReturn } from "@vueuse/core";
+
+function stubIntersectionObserverReturn(): UseIntersectionObserverReturn {
+    return {
+        isSupported: ref(true),
+        isActive: ref(true),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        stop: vi.fn(),
+    };
+}
 
 describe("useInfiniteScrollList", () => {
     it("reveals an initial page-sized window", () => {
@@ -71,6 +81,7 @@ describe("useInfiniteScrollLoadMore", () => {
 
         vi.mocked(useIntersectionObserver).mockImplementation((_target, callback) => {
             observerCallback = callback as typeof observerCallback;
+            return stubIntersectionObserverReturn();
         });
 
         const Host = defineComponent({
@@ -96,6 +107,7 @@ describe("useInfiniteScrollLoadMore", () => {
 
         vi.mocked(useIntersectionObserver).mockImplementation((_target, callback) => {
             observerCallback = callback as typeof observerCallback;
+            return stubIntersectionObserverReturn();
         });
 
         const hasMore = ref(true);
