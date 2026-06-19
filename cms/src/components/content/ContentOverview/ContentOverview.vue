@@ -16,12 +16,12 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import { useIntersectionObserver } from "@vueuse/core";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { type ContentOverviewQueryOptions } from "./types";
 import { useContentBrowseQuery } from "./useContentBrowseQuery";
 import { useContentSearchQuery } from "./useContentSearchQuery";
+import { useInfiniteScrollLoadMore } from "@/composables/useInfiniteScrollList";
 import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
 import FilterOptions from "./FilterOptions.vue";
 import ContentDisplayCard from "../ContentDisplayCard.vue";
@@ -127,16 +127,11 @@ const onLoadMore = () => {
     }
 };
 
-// Infinite scroll: a sentinel at the end of the list. BasePage owns the scroll container,
-// so a viewport-based IntersectionObserver is the robust fit (no scroller ref needed).
-const loadMoreSentinel = ref<HTMLElement | null>(null);
-useIntersectionObserver(
-    loadMoreSentinel,
-    ([entry]) => {
-        if (entry?.isIntersecting && hasMore.value && !isLoading.value) onLoadMore();
-    },
-    { rootMargin: "200px" },
-);
+const { sentinel: loadMoreSentinel } = useInfiniteScrollLoadMore({
+    hasMore: () => hasMore.value,
+    isLoading: () => isLoading.value,
+    onLoadMore,
+});
 
 // --- Supporting data for the filter UI and cards ---
 

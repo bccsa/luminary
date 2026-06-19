@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ref, defineComponent, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
-import { useInfiniteScrollList } from "./useInfiniteScrollList";
+import { useInfiniteScrollList, useInfiniteScrollLoadMore } from "./useInfiniteScrollList";
 import { basePageScrollKey } from "@/keys/basePageScroll";
 
 vi.mock("@vueuse/core", async (importOriginal) => {
@@ -9,8 +9,11 @@ vi.mock("@vueuse/core", async (importOriginal) => {
     return {
         ...actual,
         useInfiniteScroll: vi.fn(),
+        useIntersectionObserver: vi.fn(),
     };
 });
+
+import { useIntersectionObserver } from "@vueuse/core";
 
 describe("useInfiniteScrollList", () => {
     it("reveals an initial page-sized window", () => {
@@ -58,5 +61,65 @@ describe("useInfiniteScrollList", () => {
         filter.value = "y";
         await nextTick();
         expect(visible!.value).toEqual(["a", "b"]);
+    });
+});
+
+describe("useInfiniteScrollLoadMore", () => {
+    it("calls onLoadMore when the sentinel intersects", () => {
+        const onLoadMore = vi.fn();
+        let observerCallback: ((entries: Partial<IntersectionObserverEntry>[]) => void) | undefined;
+
+        vi.mocked(useIntersectionObserver).mockImplementation((_target, callback) => {
+            observerCallback = callback as typeof observerCallback;
+        });
+
+        const Host = defineComponent({
+            setup() {
+                useInfiniteScrollLoadMore({
+                    hasMore: true,
+                    isLoading: false,
+                    onLoadMore,
+                });
+                return () => null;
+            },
+        });
+
+        mount(Host);
+
+        observerCallback?.([{ isIntersecting: true }]);
+        expect(onLoadMore).toHaveBeenCalledOnce();
+    });
+
+    it("does not call onLoadMore while loading or when there is nothing more", () => {
+        const onLoadMore = vi.fn();
+        let observerCallback: ((entries: Partial<IntersectionObserverEntry>[]) => void) | undefined;
+
+        vi.mocked(useIntersectionObserver).mockImplementation((_target, callback) => {
+            observerCallback = callback as typeof observerCallback;
+        });
+
+        const hasMore = ref(true);
+        const isLoading = ref(true);
+
+        const Host = defineComponent({
+            setup() {
+                useInfiniteScrollLoadMore({
+                    hasMore: () => hasMore.value,
+                    isLoading: () => isLoading.value,
+                    onLoadMore,
+                });
+                return () => null;
+            },
+        });
+
+        mount(Host);
+
+        observerCallback?.([{ isIntersecting: true }]);
+        expect(onLoadMore).not.toHaveBeenCalled();
+
+        isLoading.value = false;
+        hasMore.value = false;
+        observerCallback?.([{ isIntersecting: true }]);
+        expect(onLoadMore).not.toHaveBeenCalled();
     });
 });
