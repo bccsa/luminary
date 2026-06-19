@@ -10,12 +10,25 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { routes } from "./router/routes";
 import { initI18n } from "./i18n";
-import { isAppLoading } from "./globalConfig";
+import { appLanguageIdsAsRef, isAppLoading } from "./globalConfig";
+import { usePublicContentStore } from "./stores/publicContent";
+
+// The language a given route is prerendered in: the content's own language for a
+// content/tag slug, else the CMS default. The slug→lang map + default are built by
+// the route enumeration in vite.config.web.ts and shared via globalThis (same Node
+// process). Drives both the published-content filter and the dependency-key + slice
+// scoping, so a page's feeds render in its own language.
+function ssrRouteLang(routePath?: string): string {
+    const g = globalThis as Record<string, unknown>;
+    const map = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
+    const def = (g.__SSG_DEFAULT_LANG__ as string) || "";
+    return (routePath && map?.[routePath]) || def;
+}
 
 export const createApp = ViteSSG(
     App,
     { routes },
-    async ({ app, initialState }) => {
+    async ({ app, initialState, routePath }) => {
         const pinia = createPinia();
         app.use(pinia);
         app.use(initI18n());
@@ -31,8 +44,15 @@ export const createApp = ViteSSG(
         // prerender — so isClient is unreliable here. import.meta.env.SSR is true
         // in the prerender bundle and false in the browser bundle.
         if (import.meta.env.SSR) {
-            // Prerender (Node): expose the live store state for vite-ssg to
-            // serialize after the page's onServerPrefetch hooks have run.
+            // Prerender (Node): set this route's render language BEFORE rendering so
+            // the published-content filter + feeds use it, and record it (serialized)
+            // so the client computes matching slice keys.
+            const lang = ssrRouteLang(routePath);
+            appLanguageIdsAsRef.value = lang ? [lang] : [];
+            usePublicContentStore(pinia).setRenderLang(lang);
+
+            // Expose the live store state for vite-ssg to serialize after the page's
+            // onServerPrefetch hooks have run.
             initialState.pinia = pinia.state.value;
         } else {
             // Real browser client. Restore the public-tier snapshot BEFORE mount

@@ -4,11 +4,18 @@ This folder holds the **web/SSG tier**: the machinery that prerenders the app's
 **public** content to crawlable static HTML and tracks, per page, the data each page
 read so we can regenerate only the pages that go stale on a content change.
 
-> **Status (read this first):** Phase 1 and Phase 2a are **built and working**. The next
-> steps (Phase 2b feed prerendering, and the planned *simplification* of this whole
-> subsystem) are **blocked on branch `1333-shared-app-hybrid-mango-queries`**. See
-> [Parked plan — why we wait for 1333](#parked-plan--blocked-on-branch-1333) at the
-> bottom. The current code is committable as-is.
+> **Status (read this first):** Phase 1, Phase 2a, and the **Phase 2b simplification** are
+> built and working (the hybrid Mango query — branch `1333` — is now merged). The content
+> seam is **`useContentQuery`** itself: on the web build it prerenders via the public
+> `/query`, captures **facet keys**, and hydrates cleanly — so home/feed pages now
+> prerender their tiles JS-off with no per-component web branches. Dependency keys are
+> generic `facet:<field>:<value>:<lang>` + `doc:<parentId>` (see `facetKeys.ts`), derived
+> identically from a query's selector and a changed doc.
+>
+> **One piece still deferred:** routing **SingleContent's** tags/related-content through the
+> seam so TAG pages prerender their related lists (article-page *content* + SEO already
+> prerender via the older web block, which coexists behind `isWeb` guards). It needs the
+> content→tags SSR ordering; tracked in the project memory.
 
 Design specs: [`docs/seo-strategy/design-specs/`](../../../docs/seo-strategy/design-specs/).
 The web build is driven from a **separate deployment repo** (this repo is a submodule of
@@ -108,6 +115,17 @@ content is byte-idempotent — `verifyIsolation` asserts only the intended files
   shared object; parallel rendering would mis-attribute keys.
 - **Never import `src/` modules into `vite.config.web.ts`** (TS project-reference errors);
   the config talks to the collector via `globalThis.__SSG_DEPS__` directly.
+- **The client-entry rewrite (`main.ts` → `main.web.ts`) MUST be a `pre`
+  `transformIndexHtml` hook.** Vite's `build-html` plugin applies `pre` hooks *before* it
+  scans the HTML for its `<script type="module">` entry; the default (post) phase runs in
+  `generateBundle`, after the entry is locked in AND the `src` is already rewritten to the
+  hashed chunk — so a post-phase `html.replace("/src/main.ts", …)` matches nothing and is a
+  silent no-op. Symptom when wrong: the *prerender* uses `main.web.ts` (HTML looks right,
+  JS-off works) but the *client* boots `main.ts` — the full native app, with its service
+  worker, the Matomo analytics SW registration (`SecurityError … unsupported MIME type
+  'text/html'`), and no vite-ssg snapshot hydration. Verify after any change here: a
+  `clientRuntime-*.js` chunk exists in `dist-web/assets/`, and `grep -rl "Matomo SW
+  registration" dist-web/assets/*.js` is empty.
 
 ---
 

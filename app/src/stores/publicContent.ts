@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { ContentDto } from "luminary-shared";
+import type { ContentDto, StorageDto } from "luminary-shared";
 import {
     fetchPublicContentBySlug,
     fetchPublicLanguageCodes,
@@ -31,6 +31,32 @@ export const usePublicContentStore = defineStore("publicContent", () => {
     // Reciprocal hreflang alternates per slug (other-language versions of the same doc).
     const altsBySlug = ref<Record<string, HreflangAlternate[]>>({});
 
+    // Prerendered query results, keyed by `sliceKey(...)`. This is what makes the
+    // feed/tag/related sections prerender + hydrate cleanly: the build fills a slice
+    // per query (via the SSG-aware `useContentQuery`), vite-ssg serializes it into the
+    // page, and the client seeds its first render from the same slice before the live
+    // query takes over. Public data only.
+    const slices = ref<Record<string, ContentDto[]>>({});
+    const setSlice = (key: string, docs: ContentDto[]): void => {
+        slices.value[key] = docs;
+    };
+    const getSlice = (key: string): ContentDto[] | undefined => slices.value[key];
+
+    // Storage buckets (public reference data) — prerendered so <LImage> can build
+    // real image URLs in the static HTML, and seeded for clean hydration.
+    const storageBuckets = ref<StorageDto[]>([]);
+    const setStorageBuckets = (docs: StorageDto[]): void => {
+        storageBuckets.value = docs;
+    };
+
+    // The language each route was prerendered in (set per route during the build,
+    // serialized, and restored on the client) so client-side slice keys match the
+    // build's exactly. Empty on the native build.
+    const renderLang = ref<string>("");
+    const setRenderLang = (lang: string): void => {
+        renderLang.value = lang;
+    };
+
     async function ensureContentBySlug(slug: string): Promise<void> {
         if (slug in bySlug.value) return; // no-op when already present (snapshot or prior fetch)
 
@@ -49,5 +75,16 @@ export const usePublicContentStore = defineStore("publicContent", () => {
         }
     }
 
-    return { bySlug, altsBySlug, ensureContentBySlug };
+    return {
+        bySlug,
+        altsBySlug,
+        ensureContentBySlug,
+        slices,
+        setSlice,
+        getSlice,
+        renderLang,
+        setRenderLang,
+        storageBuckets,
+        setStorageBuckets,
+    };
 });
