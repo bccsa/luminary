@@ -1,17 +1,5 @@
 <script setup lang="ts">
-import {
-    AclPermission,
-    DocType,
-    hasAnyPermission,
-    ApiLiveQueryAsEditable,
-    type AutoGroupMappingsDto,
-    type AuthProviderDto,
-    type ApiSearchQuery,
-    type GroupDto,
-    db,
-    useDexieLiveQuery,
-    AckStatus,
-} from "luminary-shared";
+import { AckStatus, type AutoGroupMappingsDto } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import AutoGroupMappingDisplayCard from "./AutoGroupMappingDisplayCard.vue";
 import CreateOrEditAutoGroupMappingModal from "./CreateOrEditAutoGroupMappingModal.vue";
@@ -24,7 +12,7 @@ import {
     AdjustmentsVerticalIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/vue/24/outline";
-import { computed, ref, nextTick, onBeforeUnmount } from "vue";
+import { computed, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -33,30 +21,14 @@ import LModal from "../modals/LModal.vue";
 import LTag from "../content/LTag.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
+import { useAutoGroupMappings } from "@/composables/useAutoGroupMappings";
 
 const notification = useNotificationStore();
 
-const canView = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View));
-const canEdit = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.Edit));
-
-// Query all auto group mapping documents
-const mappingQuery = new ApiLiveQueryAsEditable<AutoGroupMappingsDto>(
-    ref<ApiSearchQuery>({ types: [DocType.AutoGroupMappings] }),
-    { filterFn: (item) => ({ ...item }) },
-);
-const mappings = mappingQuery.editable;
-
-// Query all auth providers for the provider filter and selector
-const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
-    ref<ApiSearchQuery>({ types: [DocType.AuthProvider] }),
-    { filterFn: (item) => ({ ...item }) },
-);
-const providers = providerQuery.editable;
-
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+// Data layer: HybridQuery (mappings API-only + providers Dexie-first) + toEditable, plus the
+// create/update/delete primitives. See useAutoGroupMappings for the API-only rationale.
+const { canView, canEdit, mappings, providers, groups, isLoading, saveMapping, deleteMapping } =
+    useAutoGroupMappings();
 
 // ── Filter state ────────────────────────────────────────────────────────────
 
@@ -82,11 +54,6 @@ const groupFilterOptions = computed(() =>
         label: g.name,
         value: g._id,
     })),
-);
-
-const isLoading = computed(
-    () =>
-        (mappingQuery.isLoading.value || providerQuery.isLoading.value) && !mappings.value.length,
 );
 
 const filteredMappings = computed(() => {
@@ -148,34 +115,18 @@ function closeModal() {
     editingMapping.value = undefined;
 }
 
-async function saveMapping(doc: AutoGroupMappingsDto) {
-    const existing = mappings.value.find((m) => m._id === doc._id);
-
-    if (existing) {
-        const idx = mappings.value.findIndex((m) => m._id === doc._id);
-        if (idx >= 0) {
-            mappings.value[idx] = doc;
-            await nextTick();
-            const res = await mappingQuery.save(doc._id);
-            if (res?.ack === AckStatus.Rejected) {
-                notification.addNotification({
-                    title: "Failed to save",
-                    description: res.message || "The server rejected the update.",
-                    state: "error",
-                });
-                return;
-            }
-        }
-    } else {
-        const res = await mappingQuery.duplicate(doc);
-        if (res?.ack === AckStatus.Rejected) {
-            notification.addNotification({
-                title: "Failed to create",
-                description: res.message || "The server rejected the creation.",
-                state: "error",
-            });
-            return;
-        }
+async function handleSave(doc: AutoGroupMappingsDto) {
+    const existing = mappings.value.some((m) => m._id === doc._id);
+    const res = await saveMapping(doc);
+    if (res && res.ack === AckStatus.Rejected) {
+        notification.addNotification({
+            title: existing ? "Failed to save" : "Failed to create",
+            description:
+                res.message ||
+                (existing ? "The server rejected the update." : "The server rejected the creation."),
+            state: "error",
+        });
+        return;
     }
 
     // Update editingMapping so the modal re-syncs with the saved state
@@ -191,15 +142,9 @@ async function saveMapping(doc: AutoGroupMappingsDto) {
     });
 }
 
-async function deleteMapping(mappingId: string) {
-    const mapping = mappings.value.find((m) => m._id === mappingId);
-    if (!mapping) return;
-
-    mapping.deleteReq = 1;
-    await nextTick();
-
-    const res = await mappingQuery.save(mappingId);
-    if (res?.ack === AckStatus.Rejected) {
+async function handleDelete(mappingId: string) {
+    const res = await deleteMapping(mappingId);
+    if (res && res.ack === AckStatus.Rejected) {
         notification.addNotification({
             title: "Failed to delete",
             description: res.message || "The server rejected the update.",
@@ -216,10 +161,8 @@ async function deleteMapping(mappingId: string) {
     closeModal();
 }
 
-onBeforeUnmount(() => {
-    mappingQuery.stopLiveQuery();
-    providerQuery.stopLiveQuery();
-});
+// No explicit teardown: useAutoGroupMappings' HybridQuery / useDexieLiveQuery register
+// onScopeDispose in this component's scope and tear down automatically on unmount.
 </script>
 
 <template>
@@ -416,8 +359,8 @@ onBeforeUnmount(() => {
             :groups="groups"
             :disabled="!canEdit"
             @close="closeModal"
-            @save="saveMapping"
-            @delete="deleteMapping"
+            @save="handleSave"
+            @delete="handleDelete"
         />
     </BasePage>
 </template>

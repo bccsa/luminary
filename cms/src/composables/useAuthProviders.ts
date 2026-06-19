@@ -1,17 +1,18 @@
-import { ref, computed, nextTick, watch, toRaw, onBeforeUnmount } from "vue";
+import { ref, computed, nextTick, watch, toRaw } from "vue";
 import {
     db,
     DocType,
     type AuthProviderDto,
     useDexieLiveQuery,
+    useHybridQuery,
+    toEditable,
+    queryLocal,
     type GroupDto,
     AclPermission,
     verifyAccess,
     hasAnyPermission,
     changeReqErrors,
     AckStatus,
-    ApiLiveQueryAsEditable,
-    type ApiSearchQuery,
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import _ from "lodash";
@@ -32,13 +33,21 @@ export function useAuthProviders() {
         ),
     );
 
-    const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
-        ref<ApiSearchQuery>({ types: [DocType.AuthProvider] }),
-        { filterFn: (item) => ({ ...item }) },
+    const providersSource = useHybridQuery<AuthProviderDto>(
+        () => ({ selector: { type: DocType.AuthProvider } }),
+        { live: true, persistOffline: true },
     );
-    const providers = providerQuery.editable;
-    const isLoadingProviders = providerQuery.isLoading;
-    const providerIsModified = providerQuery.isModified;
+    const providerEditable = toEditable<AuthProviderDto>(providersSource, {
+        persistOffline: true,
+        filterFn: (item) => ({ ...item }),
+    });
+    const providers = providerEditable.editable;
+    const providerIsModified = providerEditable.isModified;
+
+    const isLoadingProviders = ref(true);
+    queryLocal<AuthProviderDto>({ selector: { type: DocType.AuthProvider } }).finally(() => {
+        isLoadingProviders.value = false;
+    });
 
     const canDelete = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Delete));
     const canEdit = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Edit));
@@ -56,7 +65,7 @@ export function useAuthProviders() {
 
     const isEditing = computed(() => {
         if (!canEdit.value || !editingProviderId.value) return false;
-        return providerQuery.liveData.value.some((p) => p._id === editingProviderId.value);
+        return providersSource.value.some((p) => p._id === editingProviderId.value);
     });
 
     const currentProvider = computed({
@@ -76,7 +85,7 @@ export function useAuthProviders() {
 
     function isProviderEdited(id: string | undefined): boolean {
         if (!id) return false;
-        return providerQuery.isEdited.value(id);
+        return providerEditable.isEdited.value(id);
     }
 
     function openModal() {
@@ -89,7 +98,7 @@ export function useAuthProviders() {
 
     function revertProvider() {
         if (!editingProviderId.value) return;
-        providerQuery.revert(editingProviderId.value);
+        providerEditable.revert(editingProviderId.value);
     }
 
     watch(
@@ -183,7 +192,7 @@ export function useAuthProviders() {
             if (providerInEditable) {
                 providerInEditable.deleteReq = 1;
                 await nextTick();
-                await providerQuery.save(providerId);
+                await providerEditable.save(providerId);
             }
 
             showDeleteModal.value = false;
@@ -214,11 +223,16 @@ export function useAuthProviders() {
             const provider = currentProvider.value;
             if (!provider || !editingProviderId.value) return;
 
+            // Let toEditable's dirty-tracking watchers flush so isEdited (used here and inside
+            // save()) reflects edits made in the same tick — e.g. a just-created provider whose
+            // fields were set synchronously before saving. Mirrors confirmDelete's nextTick.
+            await nextTick();
+
             const label = provider.displayName || provider.label || provider._id;
             const creating = !isEditing.value;
 
-            if (creating || providerQuery.isEdited.value(editingProviderId.value)) {
-                const providerRes = await providerQuery.save(editingProviderId.value);
+            if (creating || providerEditable.isEdited.value(editingProviderId.value)) {
+                const providerRes = await providerEditable.save(editingProviderId.value);
                 if (providerRes?.ack === AckStatus.Rejected) {
                     errors.value = [
                         providerRes.message ||
@@ -266,10 +280,6 @@ export function useAuthProviders() {
             state: "success",
         });
     }
-
-    onBeforeUnmount(() => {
-        providerQuery.stopLiveQuery();
-    });
 
     return {
         groups,

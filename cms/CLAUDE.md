@@ -28,7 +28,7 @@ Auth bypass for local dev / e2e: set `VITE_AUTH_BYPASS=true` (mocks an `E2E Test
 Order-sensitive — read `main.ts` before reordering:
 
 1. Pinia installed early so startup watchers (e.g. `useNotificationStore`) can resolve stores.
-2. `init()` from `luminary-shared` sets up IndexedDB, the socket, and the doc index. The CMS sync list registers all editable doc types (`AuthProvider`, `AutoGroupMappings`, `Tag`, `Post`, `Redirect`, `Language`, `Group`, `Storage`); `User` is registered with `sync: false`. `AutoGroupMappings` are listed but are edited directly via `ApiLiveQuery` and intentionally not mirrored into Dexie (see comment in `sync.ts`).
+2. `init()` from `luminary-shared` sets up IndexedDB, the socket, and the doc index. The CMS sync list registers all editable doc types (`AuthProvider`, `AutoGroupMappings`, `Tag`, `Post`, `Redirect`, `Language`, `Group`, `Storage`); `User` is registered with `sync: false`. `AutoGroupMappings` are listed but are served via `useHybridQuery` in API-only mode (live over REST + on-demand socket rooms) and intentionally not mirrored into Dexie (see `useAutoGroupMappings` and the comment in `sync.ts`).
 3. The socket `connect_error` listener for `auth_failed` is registered **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (force provider re-pick) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
 4. After auth: a `serverError` watcher pushes debounced toast notifications (5s debounce). The CMS has no i18n layer — toast copy is hard-coded English here, not in shared.
 5. `changeReqWarnings` / `changeReqErrors` watchers surface change-request feedback as warning/error notifications.
