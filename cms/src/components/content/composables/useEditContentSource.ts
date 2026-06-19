@@ -114,8 +114,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // source edits so an external change doesn't clobber in-progress work; a doc present
     // in `editable` but not in `shadow` (new / just-duplicated, never saved) is never
     // removed when the source is empty — this is what protects unsaved docs.
-    const parentEditable = toEditable<ContentParentDto>(parentSource);
-    const contentEditable = toEditable<ContentDto>(contentSource);
+    const parentEditable = toEditable<ContentParentDto>(parentSource, { persistOffline: true });
+    const contentEditable = toEditable<ContentDto>(contentSource, { persistOffline: true });
     const editableContent = contentEditable.editable;
 
     // Single-doc adapter: callers bind a single doc, but toEditable works on arrays.
@@ -248,21 +248,27 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         }
         // New doc being deleted before it was ever persisted → nothing to do.
         if (!existingParent.value && parent.deleteReq) return;
+
+        // The parent is always persisted on save (even when unedited): this is the editor's
+        // established contract, so it is written directly rather than via parentEditable.save()
+        // (which would no-op an unedited parent).
         await db.upsert({ doc: parent });
         parentEditable.updateShadow(parent._id);
+
         if (!parent.deleteReq) {
-            const pList: Promise<any>[] = [];
-            editableContent.value.forEach((c) => {
-                const existed = existingContent.value?.some((d) => d._id === c._id);
-                // Delete request for a row that was never saved → nothing to upsert.
-                if (c.deleteReq && !existed) {
-                    contentEditable.updateShadow(c._id);
-                    return;
-                }
-                if (!contentEditable.isEdited.value(c._id)) return;
-                pList.push(db.upsert({ doc: c }).then(() => contentEditable.updateShadow(c._id)));
-            });
-            await Promise.all(pList);
+            // Content children delegate to toEditable.save(): it no-ops unedited rows, writes
+            // locally via db.upsert (these sources persist offline), and re-baselines the shadow.
+            await Promise.all(
+                editableContent.value.map((c: ContentDto) => {
+                    const existed = existingContent.value?.some((d) => d._id === c._id);
+                    // Delete request for a row that was never saved → nothing to upsert.
+                    if (c.deleteReq && !existed) {
+                        contentEditable.updateShadow(c._id);
+                        return Promise.resolve();
+                    }
+                    return contentEditable.save(c._id);
+                }),
+            );
         }
     };
 
