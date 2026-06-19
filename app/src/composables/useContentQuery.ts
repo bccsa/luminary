@@ -1,3 +1,4 @@
+import { onServerPrefetch, shallowRef, watch } from "vue";
 import {
     useHybridQuery,
     type ContentDto,
@@ -7,6 +8,28 @@ import {
 } from "luminary-shared";
 import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { usePublicContentStore } from "@/stores/publicContent";
+import { queryPublic } from "@/ssg/queryPublic";
+import { sliceKey } from "@/ssg/sliceKey";
+import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
+import { reportKeys } from "@/ssg/dependencyCapture";
+
+const IS_WEB = import.meta.env.VITE_BUILD_TARGET === "web";
+
+// Serializes the SSG prefetch fetches in registration order so chained queries
+// (e.g. HomePagePinned: pinnedCategories → pinnedCategoryContent reads its result)
+// resolve correctly under vite-ssg's concurrent onServerPrefetch. The parent query
+// is declared before the child, so its fetch (and ref population) completes first.
+let ssrChain: Promise<unknown> = Promise.resolve();
+
+function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
+    if (!stripFields.length) return docs;
+    return docs.map((d) => {
+        const copy = { ...d } as Record<string, unknown>;
+        for (const f of stripFields) delete copy[f];
+        return copy as ContentDto;
+    });
+}
 
 /**
  * Options for {@link useContentQuery}. Extends {@link HybridQueryOptions}
@@ -93,23 +116,72 @@ export function useContentQuery(
         ...rest
     } = options;
 
-    return useHybridQuery<ContentDto>(
-        () => ({
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    ...selector(),
-                    ...(publishedFilter
-                        ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
-                              includeScheduled,
-                          })
-                        : []),
-                ],
-            },
-            ...(sort ? { $sort: sort } : {}),
-            ...(limit !== undefined ? { $limit: limit } : {}),
-            use_index: useIndex,
-        }),
-        { live, cache, persistOffline, stripFields, ...rest },
+    const buildQuery = () => ({
+        selector: {
+            $and: [
+                { type: DocType.Content },
+                ...selector(),
+                ...(publishedFilter
+                    ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
+                          includeScheduled,
+                      })
+                    : []),
+            ] as MangoSelector[],
+        },
+        ...(sort ? { $sort: sort } : {}),
+        ...(limit !== undefined ? { $limit: limit } : {}),
+        use_index: useIndex,
+    });
+
+    const hybridOptions = { live, cache, persistOffline, stripFields, ...rest };
+
+    // --- Native / SPA build: unchanged local-first hybrid query. ---
+    if (!IS_WEB) {
+        return useHybridQuery<ContentDto>(buildQuery, hybridOptions);
+    }
+
+    // --- Web / SSG build: prerender via the public API, capture dependency keys,
+    // snapshot for clean hydration. (See app/src/ssg/README.md.) ---
+    const store = usePublicContentStore();
+    // renderLang: the language THIS page is prerendered in (set per route at build,
+    // serialized, restored on the client) — drives the slice key + facet scoping so
+    // build and client agree.
+    const renderLang = () => store.renderLang || appDisplayLanguageIdsAsRef.value[0] || "";
+    const keyFor = () => sliceKey(selector(), { sort, limit, useIndex }, renderLang());
+
+    if (import.meta.env.SSR) {
+        const out = shallowRef<ContentDto[]>([]);
+        onServerPrefetch(async () => {
+            await (ssrChain = ssrChain.then(async () => {
+                const q = buildQuery();
+                const docs = await queryPublic<ContentDto>({
+                    selector: q.selector,
+                    sort: q.$sort,
+                    limit: q.$limit,
+                    use_index: q.use_index,
+                });
+                const stripped = stripDocs(docs, stripFields);
+                store.setSlice(keyFor(), stripped);
+                out.value = stripped;
+                reportKeys([
+                    ...facetsFromSelector(q.selector, renderLang()),
+                    ...stripped.map((d) => docKey(d.parentId || d._id)),
+                ]);
+            }));
+        });
+        return out;
+    }
+
+    // Client: seed the first render from the prerendered slice (hydration match),
+    // then hand off to the live hybrid query (post-flush, after hydration).
+    const out = shallowRef<ContentDto[]>(store.getSlice(keyFor()) ?? []);
+    const liveResult = useHybridQuery<ContentDto>(buildQuery, hybridOptions);
+    watch(
+        liveResult,
+        (v) => {
+            out.value = v;
+        },
+        { flush: "post" },
     );
+    return out;
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, type ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
@@ -36,7 +36,9 @@ const publishDateText = computed(() => {
     ) {
         return "";
     }
-    return db.toDateTime(props.content.publishDate).toLocaleString(DateTime.DATETIME_MED);
+    return DateTime.fromMillis(props.content.publishDate)
+        .setLocale(typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US")
+        .toLocaleString(DateTime.DATETIME_MED);
 });
 
 const hasVideo = computed(() => Boolean(props.content.video));

@@ -5,6 +5,7 @@ import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
+import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const env = loadEnv("", process.cwd());
 
@@ -95,10 +96,21 @@ function writeSeoArtifacts() {
 
 // Rewrites the client entry in index.html from the native entry to the web/SSG
 // entry, without touching index.html on disk (keeps the native build untouched).
+//
+// MUST run in the `pre` phase. Vite's build-html plugin applies `pre`
+// transformIndexHtml hooks BEFORE it scans the HTML for its `<script
+// type="module">` entry; the default (post) phase runs in `generateBundle`,
+// by which point Vite has already (a) chosen `main.ts` as the Rollup entry and
+// (b) replaced the script `src` with the hashed chunk path — so a post-phase
+// `html.replace("/src/main.ts", …)` matches nothing and is a silent no-op. The
+// result of getting this wrong: the prerender uses `main.web.ts` (correct) but
+// the CLIENT boots `main.ts` — the full native app, with its service worker,
+// Matomo analytics SW registration, and no vite-ssg snapshot hydration.
 const rewriteWebEntry = (): Plugin => ({
     name: "ssg-web-entry",
-    transformIndexHtml(html) {
-        return html.replace("/src/main.ts", "/src/main.web.ts");
+    transformIndexHtml: {
+        order: "pre",
+        handler: (html) => html.replace("/src/main.ts", "/src/main.web.ts"),
     },
 });
 
@@ -119,18 +131,37 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
     if (!res.ok) {
         throw new Error(`[ssg] route enumeration failed: ${res.status} ${res.statusText}`);
     }
-    const data = (await res.json()) as { docs?: Array<{ slug?: string }> };
+    const data = (await res.json()) as { docs?: Array<{ slug?: string; language?: string }> };
     const docs = data.docs ?? [];
     if (docs.length >= LIMIT) {
         console.warn(`[ssg] enumeration returned ${LIMIT} docs (limit) — slugs may be truncated; paginate with a stable sort.`);
     }
+    // Build the route→language map so each page prerenders in its own language
+    // (read by main.web.ts via globalThis). Same Node process as the SSR render.
+    const routeLang: Record<string, string> = {};
     const slugs = new Set<string>();
-    for (const d of docs) if (d.slug) slugs.add(d.slug);
+    for (const d of docs) {
+        if (!d.slug) continue;
+        slugs.add(d.slug);
+        if (d.language) routeLang[`/${d.slug}`] = d.language;
+    }
+    (globalThis as Record<string, unknown>).__SSG_ROUTE_LANG__ = routeLang;
     return [...slugs];
 }
 
+// The CMS default language id — the render language for non-content routes (home).
+async function fetchDefaultLanguage(apiUrl: string): Promise<string> {
+    const res = await fetch(`${apiUrl}/search`, {
+        headers: { "X-Query": JSON.stringify({ apiVersion: "0.0.0", types: ["language"] }) },
+    });
+    if (!res.ok) return "";
+    const data = (await res.json()) as { docs?: Array<{ _id?: string; default?: number }> };
+    const langs = data.docs ?? [];
+    return (langs.find((l) => l.default === 1) ?? langs[0])?._id ?? "";
+}
+
 const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
-    plugins: [vue(), rewriteWebEntry()],
+    plugins: [buildTargetVirtuals(), vue(), rewriteWebEntry()],
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -165,7 +196,21 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // §7). Do not raise this without redesigning the collector.
         concurrency: 1,
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
-            // Scoped rebuild: render only the named routes (skip enumeration).
+            const apiUrl = env.VITE_API_URL;
+            if (!apiUrl) {
+                // Fail fast: a partial build that silently drops pages is worse
+                // than no build (Phase 1 spec §3.1).
+                throw new Error("[ssg] VITE_API_URL is required for route enumeration");
+            }
+
+            // Always populate the route→language map + default language (used per
+            // route by main.web.ts to pick the render language) — including on a
+            // scoped rebuild, which still needs the language for its routes.
+            const slugs = await fetchPublicSlugs(apiUrl);
+            (globalThis as Record<string, unknown>).__SSG_DEFAULT_LANG__ =
+                await fetchDefaultLanguage(apiUrl);
+
+            // Scoped rebuild: render only the named routes (map is now populated).
             if (IS_SCOPED) {
                 console.log(`[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s)`);
                 return SCOPED_ROUTES;
@@ -189,14 +234,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 )
                 .map((r) => r.path as string);
 
-            const apiUrl = env.VITE_API_URL;
-            if (!apiUrl) {
-                // Fail fast: a partial build that silently drops pages is worse
-                // than no build (Phase 1 spec §3.1).
-                throw new Error("[ssg] VITE_API_URL is required for route enumeration");
-            }
-
-            const slugRoutes = (await fetchPublicSlugs(apiUrl)).map((s) => `/${s}`);
+            const slugRoutes = slugs.map((s) => `/${s}`);
 
             const all = [...new Set([...staticRoutes, ...slugRoutes])].filter(
                 (p) => !exclude.has(p),

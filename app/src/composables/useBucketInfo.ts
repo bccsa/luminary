@@ -1,22 +1,46 @@
-import { computed, type Ref } from "vue";
+import { computed, onServerPrefetch, type Ref } from "vue";
 import { type StorageDto, useHybridQuery, type Uuid } from "luminary-shared";
+import { usePublicContentStore } from "@/stores/publicContent";
+import { queryPublic } from "@/ssg/queryPublic";
+
+const IS_WEB = import.meta.env.VITE_BUILD_TARGET === "web";
 
 /**
- * Get bucket information for constructing image URLs
+ * Get bucket information for constructing image URLs.
+ *
+ * Storage is a fully-synced reference type. On the native/SPA build it comes from
+ * the local-first HybridQuery (Dexie). On the web/SSG build that path can't run in
+ * Node (no Dexie/socket), so — like the content seam — the build fetches buckets via
+ * the public `/query`, the result is serialized for hydration, and the client seeds
+ * from it before the live query takes over.
  */
 export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
-    // Get all storage buckets from the database. Storage is a fully-synced type,
-    // so HybridQuery reads from IndexedDB only.
-    //
-    // `cache: true` seeds the bucket list from localStorage on the synchronous
-    // first frame. Without it, `bucketBaseUrl` is undefined for the first tick(s)
-    // (until the async Dexie read lands), so every <LImage> builds an empty srcset
-    // and paints its fallback, then swaps to the real image once the URL resolves —
-    // a visible image flash on reload. Seeding the buckets removes that swap.
-    const allBuckets = useHybridQuery<StorageDto>(() => ({ selector: { type: "storage" } }), {
-        live: true,
-        cache: true,
-    });
+    let allBuckets: Ref<StorageDto[]>;
+
+    if (!IS_WEB) {
+        // `cache: true` seeds the bucket list from localStorage on the first frame
+        // so <LImage> doesn't flash a fallback before the Dexie read lands.
+        allBuckets = useHybridQuery<StorageDto>(() => ({ selector: { type: "storage" } }), {
+            live: true,
+            cache: true,
+        });
+    } else {
+        const store = usePublicContentStore();
+        // All <LImage> instances read the SAME shared store list (reactive), so the
+        // bucket resolves for every tile — not just the one instance that fetched.
+        allBuckets = computed(() => store.storageBuckets);
+        if (import.meta.env.SSR) {
+            // First instance fetches once per build; the rest reuse the filled store.
+            onServerPrefetch(async () => {
+                if (store.storageBuckets.length) return;
+                store.setStorageBuckets(
+                    await queryPublic<StorageDto>({ selector: { type: "storage" } }),
+                );
+            });
+        }
+        // Client: the store is restored from the snapshot at hydration. Storage is
+        // stable reference data, so no client-side live query is needed.
+    }
 
     // Get the specific bucket by ID
     const bucket = computed(() => {
