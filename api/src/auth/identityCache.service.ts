@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, Optional, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "crypto";
 import { DbService } from "../db/db.service";
@@ -44,8 +44,8 @@ export class IdentityCacheService implements OnModuleInit {
         private readonly configService: ConfigService,
         private readonly db: DbService,
         // Injectable clock (ms). Shared with the BoundedTtlCache so TTL computation and the
-        // cache's expiry checks never read different clocks. Defaults to Date.now.
-        now: () => number = Date.now,
+
+        @Optional() now: () => number = Date.now,
     ) {
         this.now = now;
         const cfg = this.configService.get<IdentityCacheConfig>("identityCache");
