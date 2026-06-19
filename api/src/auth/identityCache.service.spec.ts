@@ -24,7 +24,7 @@ function authResult(over: Partial<IdentityResult["userDetails"]> = {}): Identity
     };
 }
 
-function makeService(cfg: any) {
+function makeService(cfg: any, now?: () => number) {
     const authIdentity = {
         resolveOrDefault: jest.fn().mockResolvedValue(authResult()),
     } as unknown as AuthIdentityService & { resolveOrDefault: jest.Mock };
@@ -36,7 +36,7 @@ function makeService(cfg: any) {
     // A real EventEmitter so we can drive invalidation via emit().
     const db = new EventEmitter() as unknown as DbService;
 
-    const svc = new IdentityCacheService(authIdentity, configService, db);
+    const svc = new IdentityCacheService(authIdentity, configService, db, now);
     svc.onModuleInit();
     return { svc, authIdentity, db: db as unknown as EventEmitter };
 }
@@ -142,12 +142,38 @@ describe("IdentityCacheService", () => {
             return authIdentity.resolveOrDefault.mock.calls.length === 0;
         };
 
-        it("clears on a User PermissionChange DeleteCmd (revocation)", async () => {
+        it("clears on a User permissionChange event (membership add or remove)", async () => {
+            const { svc, authIdentity, db } = makeService(enabledCfg);
+            await seed(svc);
+            db.emit("permissionChange", { docType: DocType.User, docId: "user-1" });
+            expect(await isHit(svc, authIdentity)).toBe(false);
+        });
+
+        it("does NOT clear on a non-User permissionChange event", async () => {
+            const { svc, authIdentity, db } = makeService(enabledCfg);
+            await seed(svc);
+            db.emit("permissionChange", { docType: DocType.Post, docId: "post-1" });
+            expect(await isHit(svc, authIdentity)).toBe(true);
+        });
+
+        it("clears on a User PermissionChange DeleteCmd (feed-based removal)", async () => {
             const { svc, authIdentity, db } = makeService(enabledCfg);
             await seed(svc);
             db.emit("update", {
                 type: DocType.DeleteCmd,
                 deleteReason: DeleteReason.PermissionChange,
+                docType: DocType.User,
+                docId: "user-1",
+            });
+            expect(await isHit(svc, authIdentity)).toBe(false);
+        });
+
+        it("clears on a User Deleted DeleteCmd (account deletion revocation)", async () => {
+            const { svc, authIdentity, db } = makeService(enabledCfg);
+            await seed(svc);
+            db.emit("update", {
+                type: DocType.DeleteCmd,
+                deleteReason: DeleteReason.Deleted,
                 docType: DocType.User,
                 docId: "user-1",
             });
@@ -188,6 +214,50 @@ describe("IdentityCacheService", () => {
             // Group docs come through `update` too; the service must ignore them for Layer I.
             db.emit("update", { type: DocType.Group, _id: "g1" });
             expect(await isHit(svc, authIdentity)).toBe(true);
+        });
+    });
+
+    describe("clock (injected, shared with the cache)", () => {
+        const BASE = 1_700_000_000_000; // fixed ms base so exp is relative to the fake clock
+
+        it("expires a hit once the injected clock passes the TTL (capped by maxAge)", async () => {
+            let clock = BASE;
+            const { svc, authIdentity } = makeService(enabledCfg, () => clock);
+            // Far-future exp → TTL is capped by maxAge (300000), not by expiry.
+            authIdentity.resolveOrDefault.mockResolvedValue(
+                authResult({ jwtPayload: { exp: Math.floor(BASE / 1000) + 3600 } }),
+            );
+
+            await svc.resolveOrDefault("t", "p"); // miss → cache, expiresAt = BASE + 300000
+            authIdentity.resolveOrDefault.mockClear();
+
+            clock = BASE + 299_999;
+            await svc.resolveOrDefault("t", "p"); // still live → hit
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(0);
+
+            clock = BASE + 300_001;
+            await svc.resolveOrDefault("t", "p"); // expired → re-resolve
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(1);
+        });
+
+        it("caps the TTL at the token's own exp when that is sooner than maxAge", async () => {
+            let clock = BASE;
+            const { svc, authIdentity } = makeService(enabledCfg, () => clock);
+            // exp is 10s out → TTL = min(10000, 300000) = 10000.
+            authIdentity.resolveOrDefault.mockResolvedValue(
+                authResult({ jwtPayload: { exp: Math.floor(BASE / 1000) + 10 } }),
+            );
+
+            await svc.resolveOrDefault("t", "p"); // miss → cache, expiresAt = BASE + 10000
+            authIdentity.resolveOrDefault.mockClear();
+
+            clock = BASE + 9_000;
+            await svc.resolveOrDefault("t", "p"); // still live → hit
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(0);
+
+            clock = BASE + 10_001;
+            await svc.resolveOrDefault("t", "p"); // past exp → re-resolve
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(1);
         });
     });
 });
