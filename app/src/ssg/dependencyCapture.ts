@@ -1,4 +1,4 @@
-import type { DependencyKey } from "./dependencyKeys";
+import type { DependencyKey } from "./facetKeys";
 
 /**
  * Render-time dependency CAPTURE (spec §3.2). A per-route collector that build

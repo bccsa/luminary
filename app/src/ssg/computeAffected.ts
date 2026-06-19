@@ -3,7 +3,7 @@ import {
     keysForChangedDoc,
     keysForRecategorization,
     type DependencyKey,
-} from "./dependencyKeys";
+} from "./facetKeys";
 
 /** The route → dependency-keys manifest written to `dist-web/ssg-deps.json`. */
 export type DepsManifest = Record<string, DependencyKey[]>;

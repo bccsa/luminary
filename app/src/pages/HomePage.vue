@@ -7,7 +7,7 @@ import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
 import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
-import { computed, nextTick, onActivated, onMounted, ref } from "vue";
+import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 
 const pinnedResolved = ref(false);
@@ -22,33 +22,24 @@ async function checkReady() {
 
 onActivated(checkReady);
 
-// The home feed sections are query-driven (Dexie) — prerendering them is Phase 2
-// (needs the hybrid Mango query). On the web/SSG build they would crash in Node
-// (no Dexie), so render them only after mount; the prerendered home is a clean
-// shell (header/nav + SEO). On native they render immediately (unchanged).
-const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
-const isMounted = ref(false);
-onMounted(() => {
-    isMounted.value = true;
-});
-const showDynamic = computed(() => !isWeb || isMounted.value);
+// The home feed sections now prerender on the web build (their useContentQuery is
+// SSG-aware — fetches via the public API at build, seeds + hydrates cleanly). No
+// build-time gating needed; native is unchanged.
 </script>
 
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
-            <template v-if="showDynamic">
-                <HomePageSearch v-if="isMdScreen" />
-                <Suspense @resolve="pinnedResolved = true; checkReady()">
-                    <HomePagePinned />
-                </Suspense>
-                <Suspense @resolve="newestResolved = true; checkReady()">
-                    <HomePageNewest />
-                </Suspense>
+            <HomePageSearch v-if="isMdScreen" />
+            <Suspense @resolve="pinnedResolved = true; checkReady()">
+                <HomePagePinned />
+            </Suspense>
+            <Suspense @resolve="newestResolved = true; checkReady()">
+                <HomePageNewest />
+            </Suspense>
 
-                <ContinueWatching />
-                <ContinueListening />
-            </template>
+            <ContinueWatching />
+            <ContinueListening />
         </IgnorePagePadding>
     </BasePage>
 </template>
