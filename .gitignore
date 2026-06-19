@@ -4,3 +4,9 @@ node_modules
 *.bkp
 
 stats.html
+
+# graphify knowledge-graph output (generated locally via `graphify`; not committed for now)
+graphify-out/
+
+# Claude Code agent worktrees (transient; must never be committed)
+.claude/worktrees/

@@ -15,6 +15,19 @@ Luminary is an offline-first content platform. The repo is a monorepo with no ro
 
 **Always read the relevant subpackage's `CLAUDE.md` before working there.** This file only covers cross-package concerns.
 
+## Knowledge graph (graphify)
+
+**Only applies if graphify is installed** — i.e. the `graphify` CLI is on PATH (`command -v graphify` succeeds) and `graphify-out/graph.json` exists. If graphify is **not** installed, ignore this section and answer codebase questions with the normal tools (grep, file reads, subpackage `CLAUDE.md`s); do not attempt any `graphify` command.
+
+When graphify is installed:
+
+- For codebase questions, run `graphify query "<question>"` first. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than `graphify-out/GRAPH_REPORT.md` or raw grep output.
+- If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
+- Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review or when query/path/explain don't surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+The `graphify-out/` directory is git-ignored — it's a local, generated artifact, not committed.
+
 ## Local setup
 
 The wizard `./scripts/automate-luminary.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
