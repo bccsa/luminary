@@ -36,33 +36,53 @@ type CachedIdentity = {
 export class IdentityCacheService implements OnModuleInit {
     private readonly enabled: boolean;
     private readonly maxAgeMs: number;
+    private readonly now: () => number;
     private readonly cache?: BoundedTtlCache<CachedIdentity>;
 
     constructor(
         private readonly authIdentityService: AuthIdentityService,
         private readonly configService: ConfigService,
         private readonly db: DbService,
+        // Injectable clock (ms). Shared with the BoundedTtlCache so TTL computation and the
+        // cache's expiry checks never read different clocks. Defaults to Date.now.
+        now: () => number = Date.now,
     ) {
+        this.now = now;
         const cfg = this.configService.get<IdentityCacheConfig>("identityCache");
         this.enabled = !!cfg?.enabled;
         this.maxAgeMs = cfg?.ttlMs ?? 300000;
         if (this.enabled) {
-            this.cache = new BoundedTtlCache<CachedIdentity>({ maxEntries: cfg.maxEntries });
+            this.cache = new BoundedTtlCache<CachedIdentity>({
+                maxEntries: cfg.maxEntries,
+                now: this.now,
+            });
         }
     }
 
     onModuleInit() {
         if (!this.enabled || !this.cache) return;
 
+        // Membership changes (additions AND removals) arrive as a write-side `permissionChange`
+        // event carrying the changed doc's type. We invalidate on User membership changes here
+        // rather than off the feed because a pure memberOf ADDITION produces no DeleteCmd — on
+        // the feed it is indistinguishable from a `lastLogin`-style plain User `update`, which we
+        // must keep ignoring (otherwise each miss's own `lastLogin` write would evict the entry).
+        this.db.on("permissionChange", (evt: any) => {
+            if (evt?.docType === DocType.User) this.cache.clear();
+        });
+
         // Invalidate on the rare events that change resolved membership or token-verification
         // rules. NOT `groupUpdate`: we don't cache the accessMap (it's re-derived live), so an
         // ACL edit needs no flush here. A plain User `update` (e.g. the `lastLogin` write) is
-        // intentionally ignored — only a memberOf REMOVAL emits the PermissionChange DeleteCmd
-        // below, so `lastLogin` churn never evicts the cache.
+        // intentionally ignored — membership changes come through `permissionChange` (above) and
+        // user deletion/provider/mapping changes are handled below, so `lastLogin` churn never
+        // evicts the cache. Keeping this load-bearing lets the `lastLogin` write cadence stay a
+        // free, decoupled choice.
         this.db.on("update", (doc: any) => {
             if (!doc?.type) return;
 
-            // Membership revoked: a User doc lost groups → its cached (larger) access is stale.
+            // Membership revoked via the feed (DeleteCmd): redundant with `permissionChange` on a
+            // single instance, but the feed-based path also covers removals on multi-instance.
             if (
                 doc.type === DocType.DeleteCmd &&
                 doc.deleteReason === DeleteReason.PermissionChange &&
@@ -77,10 +97,16 @@ export class IdentityCacheService implements OnModuleInit {
                 this.cache.clear();
                 return;
             }
+            // A User/provider/mapping doc was deleted. User deletion flows through the `deleteReq`
+            // path (no `permissionChange` emit), so this feed handler is the revocation hook for
+            // it: a deleted user's still-valid JWT must stop resolving from cache with stale
+            // (over-)access.
             if (
                 doc.type === DocType.DeleteCmd &&
                 doc.deleteReason === DeleteReason.Deleted &&
-                (doc.docType === DocType.AuthProvider || doc.docType === DocType.AutoGroupMappings)
+                (doc.docType === DocType.AuthProvider ||
+                    doc.docType === DocType.AutoGroupMappings ||
+                    doc.docType === DocType.User)
             ) {
                 this.cache.clear();
             }
@@ -152,7 +178,7 @@ export class IdentityCacheService implements OnModuleInit {
      */
     private computeTtlMs(expSeconds?: number): number {
         if (typeof expSeconds !== "number") return this.maxAgeMs;
-        const untilExpiry = expSeconds * 1000 - Date.now();
+        const untilExpiry = expSeconds * 1000 - this.now();
         return Math.min(untilExpiry, this.maxAgeMs);
     }
 
