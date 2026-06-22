@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import {
     type GroupAclEntryDto,
     AclPermission,
@@ -8,7 +8,7 @@ import {
     AckStatus,
     type GroupDto,
     isConnected,
-    ApiLiveQueryAsEditable,
+    toEditable,
     db,
 } from "luminary-shared";
 import { TrashIcon } from "@heroicons/vue/24/outline";
@@ -28,13 +28,13 @@ import LCombobox from "../forms/LCombobox.vue";
 const { addNotification } = useNotificationStore();
 
 type Props = {
-    groupQuery: ApiLiveQueryAsEditable<GroupDto>;
+    groupQuery: ReturnType<typeof toEditable<GroupDto>>;
     openModal: boolean;
 };
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { liveData, isEdited, revert, duplicate, save } = props.groupQuery;
+const { editable, isEdited, revert, save } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 
@@ -56,7 +56,7 @@ const isEditingGroupName = ref(false);
 const groupNameInput = ref<HTMLInputElement>();
 
 const assignedGroups = computed(() => {
-    return liveData.value
+    return editable.value
         .filter((g) => group.value.acl.some((acl) => acl.groupId == g._id))
         .sort((a, b) => {
             if (a.name < b.name) return -1;
@@ -66,7 +66,7 @@ const assignedGroups = computed(() => {
 });
 
 const availableGroups = computed(() => {
-    return liveData.value.filter((g) => {
+    return editable.value.filter((g) => {
         if (group.value.acl.some((acl) => acl.groupId == g._id)) return false;
 
         return verifyAccess([g._id], DocType.Group, AclPermission.Assign);
@@ -74,7 +74,7 @@ const availableGroups = computed(() => {
 });
 
 const original = computed(() => {
-    return liveData.value.find((g) => g._id == group.value._id);
+    return editable.value.find((g) => g._id == group.value._id);
 });
 const isNewGroup = computed(() => !original.value);
 
@@ -193,7 +193,7 @@ const handleFocusOut = () => {
 };
 
 const handleSelect = (option: { value: string }) => {
-    const selectedGroup = liveData.value.find((g) => g._id === option.value);
+    const selectedGroup = editable.value.find((g) => g._id === option.value);
     if (selectedGroup) {
         addAssignedGroup(selectedGroup);
     }
@@ -250,10 +250,24 @@ const duplicateGroup = async () => {
         return;
     }
 
-    const duplicatedGroup: GroupDto = { ...toRaw(original.value), _id: db.uuid() };
-    duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
+    const duplicatedGroupId = db.uuid();
 
-    const res = await duplicate(duplicatedGroup);
+    const duplicatedGroup: GroupDto = {
+        ...original.value,
+        _id: duplicatedGroupId,
+        _rev: undefined,
+        name: `${original.value.name} - copy`,
+        updatedTimeUtc: Date.now(),
+
+        acl: original.value.acl.map((aclEntry) => ({
+            ...aclEntry,
+            groupId: duplicatedGroupId,
+        })),
+    };
+
+    editable.value.push(duplicatedGroup);
+
+    const res = await save(duplicatedGroup._id);
 
     addNotification({
         title:

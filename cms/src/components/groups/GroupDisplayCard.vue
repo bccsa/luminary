@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, type GroupDto, ApiLiveQueryAsEditable } from "luminary-shared";
+import { db, type GroupDto, toEditable } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import DisplayCard from "../common/DisplayCard.vue";
 import { computed, ref } from "vue";
@@ -9,12 +9,12 @@ import { DateTime } from "luxon";
 import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
-    groupQuery: ApiLiveQueryAsEditable<GroupDto>;
+    groupQuery: ReturnType<typeof toEditable<GroupDto>>;
     groups?: GroupDto;
 };
 const props = defineProps<Props>();
 
-const { isModified, liveData, isEdited } = props.groupQuery;
+const { isModified, editable, isEdited } = props.groupQuery;
 
 /** The group document to be shown in this component */
 const group = defineModel<GroupDto>("group", { required: true });
@@ -35,7 +35,7 @@ const unsavedChanges = computed(() => {
 const accessGroupNames = computed(() => {
     const groupIds = group.value.acl.map((a) => a.groupId);
     const uniqueGroupIds = Array.from(new Set(groupIds));
-    return uniqueGroupIds.map((id) => liveData.value.find((g) => g._id === id)?.name || id);
+    return uniqueGroupIds.map((id) => editable.value.find((g) => g._id === id)?.name || id);
 });
 </script>
 

@@ -5,13 +5,13 @@ import LButton from "@/components/button/LButton.vue";
 import GroupDisplayCard from "./GroupDisplayCard.vue";
 import {
     AclPermission,
-    ApiLiveQueryAsEditable,
     db,
     DocType,
     hasAnyPermission,
-    type ApiSearchQuery,
+    toEditable,
     type GroupAclEntryDto,
     type GroupDto,
+    useHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import { validDocTypes } from "./permissions";
@@ -19,10 +19,21 @@ import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 
-const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
-    ref<ApiSearchQuery>({
-        types: [DocType.Group],
+const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
+    () => ({
+        selector: {
+            type: DocType.Group,
+        },
     }),
+
+    {
+        live: true,
+    },
+);
+
+const groupQuery = toEditable<GroupDto>(
+    groupsSource,
+
     {
         filterFn: (group: GroupDto) => {
             // Filter out empty acl entries for comparison and saving
@@ -56,11 +67,11 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
             group.acl.sort((a, b) => a.type.localeCompare(b.type));
             return group;
         },
+        persistOffline: true,
     },
 );
 
 const editable = groupQuery.editable;
-const isLoading = groupQuery.isLoading;
 const { isEdited } = groupQuery;
 
 const showModal = ref(false);
@@ -93,7 +104,7 @@ const isDirty = computed(() => {
 </script>
 
 <template>
-    <BasePage title="Groups" :is-full-width="true" :loading="isLoading">
+    <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
         <template #pageNav>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"
