@@ -51,10 +51,11 @@ export const sizesMap: Record<ImageSize, string> = {
     icon: "",
 };
 
-// Reduced-data `sizes` per slot: a deliberately smaller advertised width so the browser fetches a
-// lower variant (roughly one ladder rung down, ~1x instead of retina) when the user has Data Saver
-// on. Small slots already serve tiny variants, so their reduced value just drops the desktop bump;
-// the hero saves the most (half-resolution). Used via `prefers-reduced-data` and the `saveData` flag.
+// Reduced-data `sizes` per slot: the target advertised width in reduced-data mode. At render this is
+// divided by the device pixel ratio (capped at `REDUCED_DPR_CAP`, see `sizesAttr`) so a retina phone
+// fetches a ~1x image instead of a 2–3x one — the actual byte savings on mobile. Values mirror the
+// rendered mobile width per slot (the hero pre-halves to 50vw). Used via reduced-data mode and the
+// `prefers-reduced-data` media query.
 export const sizesReducedMap: Record<ImageSize, string> = {
     small: "80px",
     thumbnail: "144px",
@@ -136,21 +137,11 @@ const reducedData = computed(
     () => isSlowConnection.value || userDataSaverEnabled.value || isDataSaverEnabled(),
 );
 
-// Largest width kept in the srcset while in reduced-data mode — the high-res rungs are dropped so
-// even retina / high-DPR screens can't pull the heavy variants.
-const REDUCED_MAX_WIDTH = 600;
-
-// In reduced-data mode, trim a collection's files to the lower rungs (always keeping at least the
-// smallest, so something still loads). Otherwise hand over the full ladder: a correct `sizes`
-// attribute then lets the browser pick the variant that fits the slot AND the device pixel ratio
-// (selecting in JS was DPR-blind and dropped the high-res variants before the browser ever saw them).
-const capFiles = (files: ImageFileDto[]): ImageFileDto[] => {
-    if (!reducedData.value || !files.length) return files;
-    const capped = files.filter((f) => f.width <= REDUCED_MAX_WIDTH);
-    return capped.length ? capped : [files.reduce((a, b) => (a.width < b.width ? a : b))];
-};
-
-// All collections for this image (per-collection width trimming happens in `capFiles`).
+// All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
+// (never pre-filtering variants by width) plus a correct `sizes` attribute, so it can pick the variant
+// that fits the slot AND the device pixel ratio. Reduced-data mode lowers quality by shrinking `sizes`
+// (see `sizesAttr`), NOT by dropping rungs here — selecting in JS was DPR-blind and dropped the
+// high-res variants before the browser ever saw them.
 const allFileCollections = computed(() => props.image?.fileCollections ?? []);
 
 // Calculate the closest aspect ratio to the desired one
@@ -211,8 +202,26 @@ const inflateSizes = (sizesStr: string, factor: number): string => {
         .join(",");
 };
 
+// In reduced-data mode we cap the *effective* device pixel ratio at this. `sizes` is otherwise
+// DPR-blind (the browser multiplies by DPR itself), so a "reduced" slot equal to the rendered width
+// still fetches a 2–3x variant on a retina phone. Dividing the slot width by DPR (down to this cap)
+// makes the browser fetch a ~1x image instead. 1 = max savings / softest; bump to 1.5 for a balance.
+const REDUCED_DPR_CAP = 1;
+
+// Multiply one CSS length token (px/vw) by `factor`, rounded. Used to divide the reduced slot width
+// down by the device pixel ratio so the browser fetches a lower-density variant. factor >= 1 is a
+// no-op (e.g. a 1x display, where there's nothing to undercut).
+const scaleLength = (length: string, factor: number): string =>
+    factor >= 1
+        ? length
+        : length.replace(
+              /(\d+(?:\.\d+)?)(px|vw)/,
+              (_full, n, unit) => `${Math.round(Number(n) * factor)}${unit}`,
+          );
+
 // The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src),
-// inflated for cover-crop over-scaling (see `coverScaleFactor`). Drops to the smaller slot when:
+// inflated for cover-crop over-scaling (see `coverScaleFactor`). Drops to the smaller, DPR-capped slot
+// when:
 //   1. `reducedData` (slow connection, the user's toggle, or the OS/browser `saveData` flag): force
 //      the smaller slot — also covers Chromium browsers that expose the flag but not the media query.
 //   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
@@ -223,10 +232,13 @@ const sizesAttr = computed(() => {
     const baseInflated = inflateSizes(base, coverScaleFactor.value);
     const reduced = sizesReducedMap[props.size];
     if (!reduced) return baseInflated;
-    // Reduced-data mode deliberately fetches a smaller variant to save bytes — don't inflate it even
-    // for cover-cropped slots; lower quality is the accepted trade for the saved bandwidth.
-    if (reducedData.value) return reduced;
-    return `(prefers-reduced-data: reduce) ${reduced}, ${baseInflated}`;
+    // Divide the reduced slot width by DPR (down to REDUCED_DPR_CAP) so the browser fetches a lower-
+    // density image. DPR is known at render time, so this is also correct for the declarative branch.
+    // Reduced mode is deliberately NOT cover-crop-inflated — lower quality is the accepted trade.
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const reducedCapped = scaleLength(reduced, Math.min(1, REDUCED_DPR_CAP / dpr));
+    if (reducedData.value) return reducedCapped;
+    return `(prefers-reduced-data: reduce) ${reducedCapped}, ${baseInflated}`;
 });
 
 // Decode the collection's base64 ThumbHash into a blurred data URL, shown as the <img> background so
@@ -292,7 +304,7 @@ const srcset1 = computed(() => {
 
     return collectionsToUse
         .map((collection) => {
-            return capFiles([...collection.imageFiles])
+            return [...collection.imageFiles]
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
@@ -309,7 +321,7 @@ const srcset2 = computed(() => {
     return allFileCollections.value
         .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            return capFiles([...collection.imageFiles])
+            return [...collection.imageFiles]
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
