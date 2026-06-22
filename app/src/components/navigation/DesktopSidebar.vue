@@ -49,6 +49,16 @@ const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 
+// The sidebar itself prerenders on the web/SSG build, but the interactive
+// overlays below do not — LanguageModal runs a Dexie-backed `useHybridQuery` at
+// setup, which cannot execute during the Node prerender. They're never needed in
+// the static HTML, so only mount them on the client (after mount). On native this
+// flips true immediately.
+const isMounted = ref(false);
+onMounted(() => {
+    isMounted.value = true;
+});
+
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
 const navMetaClass = "mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300";
@@ -414,21 +424,25 @@ const handleLogin = () => {
         </div>
     </nav>
 
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+    <!-- Client-only: these overlays are interactive (and LanguageModal is
+         Dexie-backed), so they must not render during the Node prerender. -->
+    <template v-if="isMounted">
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        />
+    </template>
 </template>
