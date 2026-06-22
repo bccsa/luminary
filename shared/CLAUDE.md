@@ -13,9 +13,10 @@ Because it's a standalone published library, its documentation (this file and th
 ## Common commands
 
 ```sh
+npm run dev           # vite dev server (rarely needed — this is a library, not an app)
 npm run build         # vue-tsc + vite build → dist/
 npm run test          # vitest run (one-shot)
-npm run test:watch    # vitest watch mode
+npm run test:watch    # vitest watch mode (test:unit is an alias for the same)
 npm run lint          # eslint .vue/.ts/.cjs/.mjs/.tsx
 npm run lint:fix
 npm run format        # prettier --write src/

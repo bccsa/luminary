@@ -328,11 +328,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
     // `true` from (re)build until the generation's COMPLETE first result settles —
     // the local Dexie read AND (where applicable) the remote supplement POST. Data
-    // may already be painted (local landed) while this is still true (remote in
-    // flight): it tracks "still fetching", not "has no data". Derived from two
-    // independent pending flags so the content branch's two phases compose without a
-    // bespoke state machine; offline settles the remote leg immediately (parked, not
-    // fetching), matching ApiLiveQuery.
+    // may already be painted (local landed, or a cache seed) while this is still true
+    // (remote in flight): it tracks "still fetching", not "has no data". A query rebuild
+    // (reactive thunk / live) re-enters loading. Derived from two independent pending
+    // flags so the content branch's two phases compose without a bespoke state machine;
+    // offline settles the remote leg immediately (parked, not fetching), matching
+    // ApiLiveQuery.
     public readonly isFetching: ComputedRef<boolean>;
     // Last routing/remote/local-read error for the current generation, or undefined.
     // Last-error-wins; cleared synchronously on every rebuild.

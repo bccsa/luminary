@@ -129,6 +129,7 @@ const { editable } = toEditable(source, {
 | `filterFn(item) => T` | Applied to each item before comparison, so filtered-equivalent changes aren't counted as edits. Also applied to the item `save` writes. Affects `isEdited` / `isModified` and the saved value only; the stored `editable` value keeps the unfiltered item. |
 | `modifyFn(item) => T` | Applied to items as they enter the editable copy: initial load, source additions, newly added editable items, and after `revert`. Useful for defaults/normalization. |
 | `persistOffline: boolean` | Whether the wrapped query persists its documents offline. Steers `save`'s local-vs-API routing; pass the same value the source query was created with. Defaults to `false`. |
+| `backPatchFields: (keyof T)[]` | Fields that always track the source, even on an item the user has edited. When a listed field's source value diverges from the shadow baseline it is copied source → editable **and** source → shadow, so the back-patched value never reads as dirty (`isEdited` stays unaffected). Server-wins per listed field: a concurrent local edit to a listed field is overwritten when the source changes it; a listed field the source has _not_ changed is left untouched, so an unsaved local edit to it is preserved. Use for server-owned / out-of-band fields (e.g. upload results the server fills in asynchronously). Defaults to `[]`. |
 
 ## Caveats
 
