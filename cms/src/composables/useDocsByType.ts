@@ -40,3 +40,14 @@ export function useDocsByType<T extends BaseDocumentDto = BaseDocumentDto>(
     }
     return entry.ref as ShallowRef<T[]>;
 }
+
+/**
+ * Tear down every shared query and clear the cache. **Test-only**: the app relies on the cache
+ * living for the process lifetime (the whole point is one DB read per type), so callers in app
+ * code would defeat the sharing. Tests use it to bind a fresh query to each spec's database —
+ * a cached ref created in an earlier file would otherwise be subscribed to a stale connection.
+ */
+export function resetDocsByTypeCache(): void {
+    cache.forEach((entry) => entry.scope.stop());
+    cache.clear();
+}

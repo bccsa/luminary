@@ -10,7 +10,7 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { CMS_DOCS_INDEX } from "@/docsIndex";
-import { useDocsByType } from "./useDocsByType";
+import { useDocsByType, resetDocsByTypeCache } from "./useDocsByType";
 import waitForExpect from "wait-for-expect";
 
 const mockLang = (id: string): LanguageDto => ({
@@ -31,6 +31,10 @@ describe("useDocsByType", () => {
     });
 
     beforeEach(async () => {
+        // Bind a fresh shared query to THIS spec's database. The cache is a process-lifetime
+        // singleton, so without this a Language query created (and cached) by an earlier spec file
+        // would still be subscribed to that file's now-stale connection and never see our writes.
+        resetDocsByTypeCache();
         await db.docs.clear();
     });
 
@@ -45,9 +49,11 @@ describe("useDocsByType", () => {
 
         await db.docs.bulkPut([mockLang("eng"), mockLang("fra")]);
 
+        // Generous timeout: the Dexie liveQuery callback can be starved well past the 4.5s default
+        // when the full suite saturates the CPU across parallel workers.
         await waitForExpect(() => {
             expect(languages.value.map((l) => l._id).sort()).toEqual(["eng", "fra"]);
-        });
+        }, 15000);
     });
 
     it("returns the same shared ref for repeated calls of the same type", () => {
