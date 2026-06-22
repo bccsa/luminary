@@ -33,7 +33,7 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
-import { useNotificationStore } from "@/stores/notification";
+import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
@@ -495,13 +495,21 @@ describe("SingleContent", () => {
             expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: "content-available",
-                    title: "Translation available",
-                    description: `The content is also available in English. Click here to view it.`,
                     state: "info",
                     type: "banner",
                 }),
             );
         }, 3000);
+
+        // Title/description are getters so they re-translate on language change — resolve them to assert text.
+        const contentAvailable = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map((call) => call[0])
+            .find((n) => n.id === "content-available");
+        expect(resolveNotificationText(contentAvailable!.title)).toBe("Translation available");
+        expect(resolveNotificationText(contentAvailable!.description)).toBe(
+            "The content is also available in English. Click here to view it.",
+        );
     });
 
     it("shows the notification when opening from external link", async () => {
@@ -532,13 +540,21 @@ describe("SingleContent", () => {
             expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: "content-available",
-                    title: "Translation available",
-                    description: `The content is also available in English. Click here to view it.`,
                     state: "info",
                     type: "banner",
                 }),
             );
         }, 3000);
+
+        // Title/description are getters so they re-translate on language change — resolve them to assert text.
+        const contentAvailable = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map((call) => call[0])
+            .find((n) => n.id === "content-available");
+        expect(resolveNotificationText(contentAvailable!.title)).toBe("Translation available");
+        expect(resolveNotificationText(contentAvailable!.description)).toBe(
+            "The content is also available in English. Click here to view it.",
+        );
     });
 
     it("shows the notification when opening from direct link (URL paste/bookmark)", async () => {

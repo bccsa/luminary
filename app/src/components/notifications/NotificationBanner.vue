@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, type FunctionalComponent } from "vue";
+import { computed, ref, type FunctionalComponent } from "vue";
 import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
     InformationCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
-import { type Notification, useNotificationStore } from "@/stores/notification";
+import { type Notification, resolveNotificationText, useNotificationStore } from "@/stores/notification";
 import { RouterLink, useRouter } from "vue-router";
 
 type Props = {
@@ -14,6 +14,10 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+// Resolve text inside a computed so getter-based titles re-translate on language change.
+const title = computed(() => resolveNotificationText(props.notification.title));
+const description = computed(() => resolveNotificationText(props.notification.description));
 
 const router = useRouter();
 
@@ -97,15 +101,15 @@ const handleNotificationClick = (notification: Notification) => {
                 />
                 <div class="flex flex-col md:inline-block md:align-middle">
                     <span
-                        v-if="notification.title"
+                        v-if="title"
                         class="text-md font-medium md:text-sm"
-                        >{{ notification.title }}</span
+                        >{{ title }}</span
                     >
                     <span
-                        v-if="notification.description"
+                        v-if="description"
                         class="text-xs md:ml-3"
                     >
-                        {{ notification.description }}
+                        {{ description }}
                     </span>
                 </div>
             </component>

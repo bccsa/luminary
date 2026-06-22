@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, type FunctionalComponent } from "vue";
+import { computed, ref, type FunctionalComponent } from "vue";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
-import { type Notification, useNotificationStore } from "@/stores/notification";
+import { type Notification, resolveNotificationText, useNotificationStore } from "@/stores/notification";
 import { RouterLink } from "vue-router";
 
 type Props = {
@@ -10,6 +10,10 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+// Resolve text inside a computed so getter-based titles re-translate on language change.
+const title = computed(() => resolveNotificationText(props.notification.title));
+const description = computed(() => resolveNotificationText(props.notification.description));
 
 const show = ref(true);
 
@@ -73,10 +77,10 @@ switch (props.notification.state) {
                     </div>
                     <div class="ml-3 w-0 flex-1 pt-0.5">
                         <p class="text-sm font-medium text-zinc-900 dark:text-white">
-                            {{ notification.title }}
+                            {{ title }}
                         </p>
                         <p class="mt-1 text-sm text-zinc-500 dark:text-white">
-                            {{ notification.description }}
+                            {{ description }}
                         </p>
                     </div>
                     <div class="ml-4 flex flex-shrink-0">

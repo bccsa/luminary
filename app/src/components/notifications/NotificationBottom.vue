@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { ref, type FunctionalComponent } from "vue";
+import { computed, ref, type FunctionalComponent } from "vue";
 import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
     InformationCircleIcon,
 } from "@heroicons/vue/24/outline";
-import { type Notification } from "@/stores/notification";
+import { type Notification, resolveNotificationText } from "@/stores/notification";
 
 type Props = {
     notification: Notification;
 };
 
 const props = defineProps<Props>();
+
+// Resolve text inside a computed so getter-based titles re-translate on language change.
+const title = computed(() => resolveNotificationText(props.notification.title));
+const description = computed(() => resolveNotificationText(props.notification.description));
 
 const icon = ref<FunctionalComponent>();
 
@@ -55,9 +59,9 @@ switch (props.notification.state) {
         class="flex flex-col items-start justify-between border-t-2 border-t-zinc-100/25 bg-yellow-500/10 px-4 py-4 dark:border-t-slate-700/50 dark:bg-yellow-500/5 md:flex-row md:items-center"
     >
         <div class="flex-col md:mb-0">
-            <p class="mb-2 font-bold">{{ props.notification.title }}</p>
+            <p class="mb-2 font-bold">{{ title }}</p>
 
-            <p class="text-sm">{{ props.notification.description }}</p>
+            <p class="text-sm">{{ description }}</p>
         </div>
         <div class="w-full text-nowrap md:w-auto">
             <!-- Render actions slot or dynamic actions from props -->

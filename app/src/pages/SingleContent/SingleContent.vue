@@ -512,10 +512,11 @@ watch(
         setTimeout(() => {
             useNotificationStore().addNotification({
                 id: "content-available",
-                title: t("notification.translation_available.title"),
-                description: t("notification.translation_available.description", {
-                    language: appLanguageAsRef.value?.name,
-                }),
+                title: () => t("notification.translation_available.title"),
+                description: () =>
+                    t("notification.translation_available.description", {
+                        language: appLanguageAsRef.value?.name,
+                    }),
                 state: "info",
                 type: "banner",
                 closable: true,
