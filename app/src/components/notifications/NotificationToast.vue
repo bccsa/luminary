@@ -2,7 +2,11 @@
 import { computed, ref, type FunctionalComponent } from "vue";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
-import { type Notification, resolveNotificationText, useNotificationStore } from "@/stores/notification";
+import {
+    type Notification,
+    resolveNotificationText,
+    useNotificationStore,
+} from "@/stores/notification";
 import { RouterLink } from "vue-router";
 
 type Props = {
@@ -96,7 +100,10 @@ switch (props.notification.state) {
                             v-if="notification.closable"
                         >
                             <span class="sr-only">Close</span>
-                            <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+                            <XMarkIcon
+                                class="h-5 w-5"
+                                aria-hidden="true"
+                            />
                         </button>
                     </div>
                 </div>

@@ -65,8 +65,14 @@ switch (props.notification.state) {
         </div>
         <div class="w-full text-nowrap md:w-auto">
             <!-- Render actions slot or dynamic actions from props -->
-            <slot v-if="$slots.actions" name="actions" />
-            <component :is="props.notification.actions" v-else-if="props.notification.actions" />
+            <slot
+                v-if="$slots.actions"
+                name="actions"
+            />
+            <component
+                :is="props.notification.actions"
+                v-else-if="props.notification.actions"
+            />
         </div>
     </div>
 </template>

@@ -6,7 +6,11 @@ import {
     InformationCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
-import { type Notification, resolveNotificationText, useNotificationStore } from "@/stores/notification";
+import {
+    type Notification,
+    resolveNotificationText,
+    useNotificationStore,
+} from "@/stores/notification";
 import { RouterLink, useRouter } from "vue-router";
 
 type Props = {

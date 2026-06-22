@@ -165,10 +165,9 @@ describe("App", () => {
 
     describe("Router", () => {
         it("redirects to home when accessed externally", async () => {
-
             const routes = [
-            { path: "/", name: "home", component: HomePage },
-            { path: "/explore", name: "explore", component: ExplorePage },
+                { path: "/", name: "home", component: HomePage },
+                { path: "/explore", name: "explore", component: ExplorePage },
             ];
 
             const testRouter = createRouter({
@@ -194,10 +193,10 @@ describe("App", () => {
             await testRouter.push("/explore");
             await testRouter.isReady();
 
-           await waitForExpect(() => {
-            expect(replaceSpy).toHaveBeenCalledWith({ name: "home" });
-            expect(pushSpy).toHaveBeenCalledWith("/explore");
-           });
+            await waitForExpect(() => {
+                expect(replaceSpy).toHaveBeenCalledWith({ name: "home" });
+                expect(pushSpy).toHaveBeenCalledWith("/explore");
+            });
         });
     });
 });
