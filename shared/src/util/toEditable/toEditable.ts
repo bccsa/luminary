@@ -36,6 +36,16 @@ export type ToEditableOptions<T> = {
      * `save` for the full routing rule.
      */
     persistOffline?: boolean;
+    /**
+     * Fields that should always track the source, even on a document the user has edited. For each
+     * listed field, when the source value diverges from the baseline (shadow) it is copied
+     * source → editable AND source → shadow, so the back-patched value never reads as dirty. Use
+     * for server-owned / out-of-band fields (e.g. upload results the server fills in
+     * asynchronously). Server-wins: a concurrent local edit to a listed field is overwritten when
+     * the source changes it; a listed field the source has not changed is left untouched, so an
+     * unsaved local edit to it is preserved.
+     */
+    backPatchFields?: (keyof T)[];
 };
 
 /**
@@ -75,6 +85,8 @@ export function toEditable<T extends BaseDocumentDto>(
         _.cloneDeep(toRaw(source.value)).map((item) => _applyModifier(item)),
     ) as Ref<Array<T>>;
     const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
+
+    const backPatchFields = options.backPatchFields ?? [];
 
     const source_filtered = ref<Array<T>>([]) as Ref<Array<T>>;
     watch(
@@ -168,6 +180,24 @@ export function toEditable<T extends BaseDocumentDto>(
                         editable.value[editableIndex] = _applyModifier(
                             _.cloneDeep(updatedItem as T),
                         );
+                    }
+                }
+            }
+
+            // Back-patch server-owned fields onto edited docs. Unedited docs were already patched
+            // wholesale above (source == shadow for every field now, so this is a no-op for them);
+            // this keeps listed fields flowing into docs frozen by the edit guard above. The gate
+            // diffs the source field against the baseline (shadow), not against the editable, so an
+            // unsaved local edit to a field the source has not changed is preserved.
+            if (backPatchFields.length > 0) {
+                for (const sourceItem of source.value) {
+                    const shadowItem = shadow.value.find((s) => s._id === sourceItem._id);
+                    const editableItem = editable.value.find((e) => e._id === sourceItem._id);
+                    if (!shadowItem || !editableItem) continue;
+                    for (const field of backPatchFields) {
+                        if (backPatchFieldEqual(sourceItem[field], shadowItem[field])) continue; // unchanged in source
+                        editableItem[field] = _.cloneDeep(sourceItem[field]);
+                        shadowItem[field] = _.cloneDeep(sourceItem[field]);
                     }
                 }
             }
@@ -334,11 +364,44 @@ export function toEditable<T extends BaseDocumentDto>(
     return { editable, isEdited, isModified, revert, updateShadow, save };
 }
 
+/**
+ * `_.isEqualWith` customizer for `ArrayBuffer`s. Documents can carry binary upload payloads
+ * (`imageData`/`media` `uploadData[].fileData: ArrayBuffer`); lodash compares those via
+ * `equalByTag`, whose `byteLength` access throws ("incompatible receiver") when the buffer is
+ * reached through a Vue reactive proxy. We compare by byte length instead — a genuine change to a
+ * binary field also changes the surrounding structure (uploadData presence / fileCollections),
+ * which lodash detects before recursing into the buffer, so byte length is a sufficient (and safe)
+ * comparison here.
+ */
+function arrayBufferCustomizer(x: unknown, y: unknown): boolean | undefined {
+    if (
+        Object.prototype.toString.call(x) === "[object ArrayBuffer]" &&
+        Object.prototype.toString.call(y) === "[object ArrayBuffer]"
+    ) {
+        try {
+            return (toRaw(x) as ArrayBuffer).byteLength === (toRaw(y) as ArrayBuffer).byteLength;
+        } catch {
+            // `byteLength` throws ("incompatible receiver") when the buffer is reached through a
+            // reactive proxy the running Vue instance can't unwrap. We can't read it, so treat the
+            // field as unchanged: skipping the back-patch never clobbers a local edit, and a
+            // genuine server change to a binary field also changes the surrounding structure
+            // (uploadData presence / fileCollections), which is detected before recursing here.
+            return true;
+        }
+    }
+    return undefined;
+}
+
 function isEqualBase<T>(obj1: T, obj2: T): boolean {
-    return _.isEqual(
+    return _.isEqualWith(
         { ...obj1, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
         { ...obj2, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
+        arrayBufferCustomizer,
     );
+}
+
+function backPatchFieldEqual(a: unknown, b: unknown): boolean {
+    return _.isEqualWith(a, b, arrayBufferCustomizer);
 }
 
 /**

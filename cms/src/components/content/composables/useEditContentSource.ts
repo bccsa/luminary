@@ -70,7 +70,6 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const initialId = options.id();
     const newDocument = initialId === "new";
     const currentId = ref<Uuid>(initialId === "new" ? db.uuid() : initialId);
-    const waitForUpdate = ref(false);
 
     // Live sources — both via HybridQuery (Dexie-first + live socket). With the CMS's
     // full-content sync (OPEN_MIN cutoff), the API supplement does not run; parentId /
@@ -114,7 +113,15 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // source edits so an external change doesn't clobber in-progress work; a doc present
     // in `editable` but not in `shadow` (new / just-duplicated, never saved) is never
     // removed when the source is empty — this is what protects unsaved docs.
-    const parentEditable = toEditable<ContentParentDto>(parentSource, { persistOffline: true });
+    //
+    // `imageData`/`media` are back-patched: after an upload completes the server clears
+    // `uploadData` and populates `fileCollections`, then re-emits the parent. toEditable
+    // keeps these two fields tracking the source even while the user edits other fields, so
+    // the processed result is not lost (server-wins for these fields).
+    const parentEditable = toEditable<ContentParentDto>(parentSource, {
+        persistOffline: true,
+        backPatchFields: ["imageData", "media"],
+    });
     const contentEditable = toEditable<ContentDto>(contentSource, { persistOffline: true });
     const editableContent = contentEditable.editable;
 
@@ -192,31 +199,6 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     if (newDocument) seedTemplate(currentId.value);
     else load(currentId.value);
 
-    // Image/media writeback: after an upload the server processes imageData/media and
-    // re-emits the parent. toEditable auto-patches only docs the user hasn't edited
-    // since, so if the user keeps editing during the upload the processed result would
-    // be lost — copy just those two fields onto the editable element and re-baseline.
-    watch(
-        parentSource,
-        () => {
-            if (!waitForUpdate.value) return;
-            const src = parentSource.value[0];
-            const ed = editableParent.value;
-            if (!src || !ed) return;
-            if (ed.imageData && !src.imageData?.uploadData) {
-                ed.imageData = src.imageData;
-                parentEditable.updateShadow(ed._id);
-                waitForUpdate.value = false;
-            }
-            if (ed.media && !src.media?.uploadData) {
-                ed.media = src.media;
-                parentEditable.updateShadow(ed._id);
-                waitForUpdate.value = false;
-            }
-        },
-        { deep: true },
-    );
-
     watch(options.id, (newId) => {
         if (newId === "new") {
             currentId.value = db.uuid();
@@ -240,12 +222,6 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const save = async () => {
         const parent = editableParent.value;
         if (!parent) return;
-        if (
-            existingParent.value?.imageData?.uploadData !== parent.imageData?.uploadData ||
-            existingParent.value?.media?.uploadData !== parent.media?.uploadData
-        ) {
-            waitForUpdate.value = true;
-        }
         // New doc being deleted before it was ever persisted → nothing to do.
         if (!existingParent.value && parent.deleteReq) return;
 

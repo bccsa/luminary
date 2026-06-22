@@ -27,9 +27,9 @@ re-baseline. Confirm `toEditable.save`'s routing covers the API path
 
 - `toEditable` is generic over `BaseDocumentDto`; keep the save path doc-type-agnostic
   (no Content/Post/Tag specifics — those stay in the consumer).
-- EditContent's `save()` also does upload-writeback bookkeeping (`waitForUpdate`),
-  redirect creation, and skips delete-of-never-saved rows — that orchestration stays in
-  the consumer; only the upsert + re-baseline primitive moves down.
+- EditContent's `save()` also does redirect creation and skips delete-of-never-saved rows
+  — that orchestration stays in the consumer; only the upsert + re-baseline primitive moves
+  down. (The image/media upload writeback is now handled by `toEditable`'s `backPatchFields`.)
 
 ## Add an `isLoading` (loading) state to `HybridQuery`
 
@@ -103,39 +103,17 @@ this writing (call sites only — import/comment lines omitted). Re-grep before 
 live-only types (served by `ApiLiveQuery`) updating — remove that once the CMS finishes
 this migration.
 
-## Add field-level back-patching to `toEditable`
+## ~~Add field-level back-patching to `toEditable`~~ (DONE)
 
-**Status (not started):** no back-patch mechanism exists yet. `ToEditableOptions`
-(`shared/src/util/toEditable/toEditable.ts`) still only exposes `filterFn`, `modifyFn`, and
-`persistOffline` — there is no `backPatchFields` option or any per-field source-tracking on
-edited docs. EditContent still hand-rolls the `imageData`/`media` writeback in
-`useEditContentSource` (the `waitForUpdate` `watch(parentSource, …)`).
+**Done:** `ToEditableOptions` now exposes `backPatchFields: (keyof T)[]`
+(`shared/src/util/toEditable/toEditable.ts`). On each source update, listed fields are copied
+source → editable AND source → shadow even on user-edited docs, gated on the source field
+diverging from the baseline (shadow) — so server-owned values keep flowing in without reading
+as phantom-dirty, and an unsaved local edit to a field the source hasn't changed is preserved
+(server-wins on a genuine divergence). `useEditContentSource` declares
+`backPatchFields: ["imageData", "media"]` and the bespoke `waitForUpdate` `watch(parentSource, …)`
+writeback is gone.
 
-`toEditable` currently patches the editable from the source **only when the user hasn't
-edited that doc** — once any field is edited, the whole doc is frozen against incoming
-source updates (to avoid clobbering in-progress edits). We need a way to opt specific
-fields **into** back-patching so they always track the source, even on an edited doc.
-
-**Why:** some fields are server-owned / out-of-band and must keep flowing in regardless
-of local edits:
-
-- Server-processed upload results — `imageData` / `media` after an upload completes.
-  EditContent currently hand-rolls this in `useEditContentSource` (the `waitForUpdate`
-  `watch(parentSource, …)` that copies `imageData`/`media` onto the editable element and
-  re-baselines). This is exactly the back-patch pattern, done manually for two fields.
-- Server-set/derived fields (`fts`, `ftsTokenCount`, `availableTranslations`,
-  `parentTags`, …) that the user never edits but the source keeps updating.
-
-**Idea:** let `toEditable` take an option like `backPatchFields: (keyof T)[]` (or a
-predicate). On each source update, for edited docs, still skip the user-edited fields but
-copy the listed fields from source → editable (and into the shadow so they don't read as
-dirty). Then EditContent can drop the bespoke `imageData`/`media` writeback watch and just
-declare those fields.
-
-**Watch out for:**
-
-- Keep it doc-type-agnostic in `toEditable`; the field list is supplied by the consumer.
-- Back-patched fields must also update the shadow, or they'll show up as phantom dirty.
-- Don't back-patch a field the user is actively editing — decide precedence (server vs.
-  local) per field; the upload-result case is "server wins", but that won't hold for
-  every field.
+Future extension (not done): the same mechanism could declare server-set/derived fields
+(`fts`, `ftsTokenCount`, `availableTranslations`, `parentTags`, …) on the content editable.
+Deferred — those currently freeze on edit by design and changing that is a separate decision.

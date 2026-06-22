@@ -490,3 +490,138 @@ describe("toEditable - save", () => {
         expect(isEdited.value("a")).toBe(true);
     });
 });
+
+describe("toEditable - backPatchFields", () => {
+    // A field the user edits (`value`) plus a server-owned field (`server`) declared as a
+    // back-patch field, mirroring the imageData/media writeback pattern.
+    type BPDoc = BaseDocumentDto & {
+        value: number;
+        server?: { tag: string; uploadData?: string[] };
+    };
+
+    function makeBP(id: string, value: number, server?: BPDoc["server"]) {
+        return {
+            _id: id,
+            _rev: "1",
+            updatedTimeUtc: 0,
+            updatedBy: "user",
+            value,
+            server,
+        } as BPDoc;
+    }
+
+    let source: Ref<Array<BPDoc>>;
+
+    beforeEach(() => {
+        source = ref([makeBP("a", 1, { tag: "x" })]);
+    });
+
+    test("back-patches a listed field onto an edited doc while keeping the user's edit", async () => {
+        const { editable, isEdited } = toEditable(source, { backPatchFields: ["server"] });
+        editable.value[0].value = 42; // user edit on an unlisted field freezes the doc
+        await nextTick();
+        expect(isEdited.value("a")).toBe(true);
+
+        source.value[0].server = { tag: "y" }; // server-owned change
+        await nextTick();
+
+        expect(editable.value[0].server?.tag).toBe("y"); // back-patched in
+        expect(editable.value[0].value).toBe(42); // user edit preserved
+    });
+
+    test("back-patched field is baselined into the shadow (not phantom-dirty)", async () => {
+        const { editable, isEdited } = toEditable(source, { backPatchFields: ["server"] });
+        editable.value[0].value = 42;
+        await nextTick();
+
+        source.value[0].server = { tag: "y" };
+        await nextTick();
+
+        // Undo only the user's edit; the back-patched field must read as clean.
+        editable.value[0].value = 1;
+        await nextTick();
+        expect(isEdited.value("a")).toBe(false);
+    });
+
+    test("does not patch unlisted fields on an edited doc", async () => {
+        const { editable } = toEditable(source, { backPatchFields: ["server"] });
+        editable.value[0].value = 42; // user edit freezes the doc
+        await nextTick();
+
+        source.value[0].value = 100; // unlisted field changed in source
+        await nextTick();
+
+        expect(editable.value[0].value).toBe(42); // stays frozen
+    });
+
+    test("preserves an unsaved local edit to a listed field the source has not changed", async () => {
+        const { editable } = toEditable(source, { backPatchFields: ["server"] });
+        editable.value[0].server = { tag: "local" }; // user edits the listed field locally
+        await nextTick();
+
+        source.value[0].value = 5; // unrelated source change; server unchanged in source
+        await nextTick();
+
+        expect(editable.value[0].server?.tag).toBe("local"); // not clobbered (source == shadow)
+    });
+
+    test("server wins when the source changes a listed field with a pending local edit", async () => {
+        const { editable } = toEditable(source, { backPatchFields: ["server"] });
+        editable.value[0].server = { tag: "local" };
+        await nextTick();
+
+        source.value[0].server = { tag: "server" }; // genuine server divergence
+        await nextTick();
+
+        expect(editable.value[0].server?.tag).toBe("server"); // server wins
+    });
+
+    test("cross-user reset: an unsaved local upload is preserved when another user saves an unrelated change", async () => {
+        // imageData-like field with a processed result and no uploadData.
+        source = ref([makeBP("a", 1, { tag: "image", uploadData: undefined })]);
+        const { editable } = toEditable(source, { backPatchFields: ["server"] });
+
+        // User A queues an upload locally (never sent to the server yet).
+        editable.value[0].server = { tag: "image", uploadData: ["new-upload"] };
+        await nextTick();
+
+        // User B saves an unrelated change; the server re-emits the doc with the SAME image
+        // (no uploadData) and a bumped value.
+        source.value[0] = makeBP("a", 99, { tag: "image", uploadData: undefined });
+        await nextTick();
+
+        // The pending local upload survives because source.server == shadow.server.
+        expect(editable.value[0].server?.uploadData).toEqual(["new-upload"]);
+    });
+
+    test("compares back-patch fields carrying ArrayBuffer binary data without throwing", async () => {
+        // imageData/media uploadData carries `fileData: ArrayBuffer`; lodash's default isEqual
+        // throws on those, so the gate must tolerate binary payloads.
+        type BinDoc = BaseDocumentDto & { value: number; image?: { buf: ArrayBuffer } };
+        const src = ref<BinDoc[]>([
+            { _id: "a", _rev: "1", updatedTimeUtc: 0, updatedBy: "u", value: 1 } as BinDoc,
+        ]);
+        const { editable, isEdited } = toEditable(src, { backPatchFields: ["image"] });
+
+        // User edits an unlisted field (freezes the doc) and queues a binary upload.
+        editable.value[0].value = 9;
+        editable.value[0].image = { buf: new ArrayBuffer(8) };
+        await nextTick();
+
+        // An unrelated source change re-emits the doc; the gate compares the (unchanged) image
+        // field, which now carries an ArrayBuffer on the editable side — this must not throw.
+        expect(() => {
+            src.value[0] = {
+                _id: "a",
+                _rev: "2",
+                updatedTimeUtc: 1,
+                updatedBy: "u",
+                value: 1,
+            } as BinDoc;
+        }).not.toThrow();
+        await nextTick();
+
+        expect(isEdited.value("a")).toBe(true);
+        expect(editable.value[0].image?.buf.byteLength).toBe(8); // local upload preserved
+    });
+});
