@@ -13,11 +13,14 @@ import { getRouteHistory } from "@/router";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
-// On the web/SSG build the per-user chrome — the desktop sidebar (profile /
-// language / nav → Dexie + auth) and the notification managers (synced Dexie data)
-// — doesn't exist during the Node prerender. Render it only AFTER mount so the
-// prerendered HTML is the content-only baseline and the first client render still
-// matches (clean hydration). On native this is always true → behaviour unchanged.
+// On the web/SSG build the desktop sidebar IS prerendered — its nav / logo /
+// theme+language controls are public, the profile block self-gates on auth (false
+// during the prerender, so it matches the first client render), and its
+// interactive/Dexie-backed overlays mount client-side (see DesktopSidebar). What
+// still cannot exist during the Node prerender is the per-user notification chrome
+// (synced Dexie data) + the toast Teleport — those stay gated to AFTER mount so
+// the prerendered HTML and the first client render match (clean hydration). On
+// native showChrome is always true → behaviour unchanged.
 const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
 const isMounted = ref(false);
 const showChrome = computed(() => !isWeb || isMounted.value);
@@ -54,9 +57,9 @@ onUnmounted(() => {
 
 <template>
     <div class="flex h-full w-full scrollbar-hide">
-        <!-- Desktop left sidebar. Gated post-mount on the web build: its profile /
-             language / auth chrome is Dexie-backed and absent during the prerender. -->
-        <DesktopSidebar v-if="showChrome" />
+        <!-- Desktop left sidebar — prerendered on the web build too (public nav /
+             logo; the auth/Dexie bits self-defer inside the component). -->
+        <DesktopSidebar />
 
         <!-- Content column -->
         <div class="flex min-w-0 flex-1 flex-col scrollbar-hide">
