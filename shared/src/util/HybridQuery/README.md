@@ -64,7 +64,48 @@ const q = new HybridQuery<ContentDto>({
 | Member | Description |
 | --- | --- |
 | `output: ShallowRef<T[]>` | The reactive merged set. Bind your template to `q.output.value`. In one-shot mode, mutated **once** for the Dexie-only and API-only non-content branches; **twice** for the content branch (local read, then merged remote). In **live mode** it additionally re-emits on every local IndexedDB change (see below). |
+| `isFetching: ComputedRef<boolean>` | `true` from (re)build until the generation's **complete** first result settles. See [Loading & error state](#loading--error-state). |
+| `error: ShallowRef<unknown \| undefined>` | The last routing / remote / local-read error for the current generation, or `undefined`. Cleared on every rebuild. See [Loading & error state](#loading--error-state). |
 | `dispose(): void` | Stop the reconnect watcher and (in live mode) the Dexie live-query subscription. Idempotent. Called automatically when the owning Vue scope disposes. |
+
+### Loading & error state
+
+`isFetching` lets a consumer tell **"still fetching"** from **"fetched, genuinely
+empty"** — `output` is `[]` in both cases, so it alone can't gate an empty-state or a
+spinner.
+
+It is derived from two independent pending flags, `isFetching = localPending ||
+remotePending`, so it stays `true` until the generation's **complete** first result has
+settled across both legs:
+
+- **Local leg** — clears once the Dexie read produces its first result. The content and
+  fully-synced branches read locally; the API-only branch has no local leg.
+- **Remote leg** — clears once the supplement / API-only POST settles (resolves OR fails),
+  or, when **offline**, immediately once the fetch is parked on the reconnect watcher
+  (matching `ApiLiveQuery` — parked ≠ fetching). The later, post-reconnect background POST
+  deliberately does **not** re-enter loading (data has already painted from local/cache;
+  flipping `isFetching` back to `true` would surprise empty-state consumers).
+
+Consequences worth noting:
+
+- For the **content** branch, local settles first and paints data while the supplement is
+  still in flight — so `isFetching` can be `true` even though `output` already has rows.
+  That's intentional: it tracks "still fetching", not "has no data".
+- The **response-cache seed** paints `output` synchronously but does **not** settle
+  `isFetching` — a cache-painted window is still "fetching" until the authoritative read
+  lands.
+- A **rebuild** (reactive-thunk dep change, or a live re-evaluation) re-enters loading:
+  `isFetching` returns to `true` until the new generation settles.
+- The **provably-empty** short-circuit settles `isFetching` to `false` immediately (it
+  never reads or POSTs).
+
+`error` is last-error-wins and is cleared synchronously on every rebuild. It is set on a
+**total** remote failure (every fan-out POST failed) and on a local Dexie read failure; a
+**partial** fan-out failure (some parents returned) keeps the succeeded subset and does
+**not** raise `error`. Errors are always also `console.error`'d.
+
+> `useHybridQuery` returns only `output`. To bind `isFetching` / `error`, use
+> `useHybridQueryWithState` (below), or hold the `HybridQuery` instance directly.
 
 ### Live mode (opt-in)
 
@@ -284,6 +325,21 @@ caveats — as `useDexieLiveQuery`:
   `() => MangoQuery` **thunk** (reading `ref.value` inside) for a query that
   rebuilds when its dependencies change — see "Reactive queries (dependency
   tracking)" below. There is no `deps` array; the thunk's refs are auto-tracked.
+
+### `useHybridQueryWithState<T>(query, options?)` — composable
+
+Identical to `useHybridQuery` (same signature, lifecycle, and options), but returns the
+full reactive bundle `{ output, isFetching, error }` instead of only `output`. Use it to
+drive a spinner or an empty-state — see [Loading & error state](#loading--error-state).
+
+```ts
+const { output, isFetching, error } = useHybridQueryWithState<ContentDto>(query);
+// template: <Spinner v-if="isFetching" />
+//           <Empty v-else-if="!output.length" />
+```
+
+`useHybridQuery` is itself a thin wrapper over this — it constructs the instance the same
+way and returns `.output` — so there is a single construction path.
 
 ### Other exports
 

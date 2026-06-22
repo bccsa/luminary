@@ -2176,6 +2176,254 @@ describe("HybridQuery", () => {
             expect((q.output.value as any[])[0]).toHaveProperty("text", "keep");
         });
     });
+
+    describe("isFetching / error", () => {
+        it("content one-shot: isFetching true (output empty) before flush, false after local + POST settle", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            // Still fetching, and output is empty — the distinction the feature exists for.
+            expect(q.isFetching.value).toBe(true);
+            expect(q.output.value).toEqual([]);
+
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+            expect(q.error.value).toBeUndefined();
+        });
+
+        it("content: local fully satisfies (no POST) ⇒ settles on the local read alone", async () => {
+            const local = Array.from({ length: 10 }, (_, i) => ({
+                _id: String(i),
+                updatedTimeUtc: i,
+                publishDate: 2000 + i,
+                type: "content",
+            }));
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+
+            const q = new HybridQuery({ selector: { type: "content" }, $limit: 10 });
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("content: isFetching stays true until the supplement POST settles (covers the remote leg)", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            let resolvePost!: (v: any) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((res) => (resolvePost = res)));
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+            // Local has settled and data is painted, but the supplement is still in flight.
+            expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
+            expect(q.isFetching.value).toBe(true);
+
+            resolvePost({ docs: [] });
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("synced type: settles false on the first local emission, no POST", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "g1", updatedTimeUtc: 1, type: "group" },
+            ]);
+
+            const q = new HybridQuery({ selector: { type: "group" } });
+            expect(q.isFetching.value).toBe(true);
+
+            await flush();
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("api-only offline: settles false (parked), and the reconnect POST does not re-enter loading", async () => {
+            mocks.isConnected.value = false;
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "r1", updatedTimeUtc: 1, type: "redirect" }],
+            });
+
+            const q = track(new HybridQuery({ selector: { type: "redirect" } }));
+            await flush();
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(q.isFetching.value).toBe(false); // parked on the reconnect watcher, not fetching
+
+            mocks.isConnected.value = true;
+            await flush();
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(q.isFetching.value).toBe(false); // background supplement does NOT re-toggle loading
+        });
+
+        it("api-only online: isFetching true until the POST resolves", async () => {
+            let resolvePost!: (v: any) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((res) => (resolvePost = res)));
+
+            const q = new HybridQuery({ selector: { type: "redirect" } });
+            await flush();
+            expect(q.isFetching.value).toBe(true);
+
+            resolvePost({ docs: [] });
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("rebuild (dep change) re-enters loading until the new generation settles", async () => {
+            const cats = ref(["A"]);
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]); // gen-1 local
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })),
+            );
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+
+            // Defer the gen-2 local read so the re-entered loading window is observable.
+            let resolveLocal!: (v: any) => void;
+            mocks.mangoToDexieMock.mockReturnValueOnce(new Promise((res) => (resolveLocal = res)));
+            cats.value = ["B"];
+            await flush(); // watcher fires _rebuild ⇒ loading re-entered; gen-2 local pending
+            expect(q.isFetching.value).toBe(true);
+
+            resolveLocal([]);
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("provably-empty selector settles isFetching false and leaves error undefined", async () => {
+            const q = track(
+                new HybridQuery(
+                    {
+                        selector: {
+                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: [] } } }],
+                        },
+                    },
+                    { live: true },
+                ),
+            );
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+            expect(q.error.value).toBeUndefined();
+        });
+
+        it("error is set on a total remote failure; output preserved; isFetching settles false", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "L", updatedTimeUtc: 9, publishDate: 2000, type: "content" },
+            ]);
+            const boom = new Error("boom");
+            postHttpMock.mockRejectedValueOnce(boom);
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(q.error.value).toBe(boom);
+            expect(q.output.value.map((d) => d._id)).toEqual(["L"]); // local preserved, heals later
+            expect(q.isFetching.value).toBe(false);
+            errSpy.mockRestore();
+        });
+
+        it("a partial fan-out failure does NOT set error (some results returned)", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
+                docs: [{ _id: "c2", updatedTimeUtc: 2, publishDate: 200, type: "content", parentId: "p2" }],
+            });
+
+            const q = new HybridQuery({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+                $sort: [{ publishDate: "desc" as const }],
+            });
+            await flush();
+
+            expect(q.error.value).toBeUndefined(); // partial success ⇒ no error surfaced
+            expect(q.output.value.map((d) => d._id)).toEqual(["c2"]);
+            expect(q.isFetching.value).toBe(false);
+            errSpy.mockRestore();
+        });
+
+        it("error is cleared on rebuild", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const cats = ref(["A"]);
+            mocks.mangoToDexieMock.mockResolvedValue([
+                { _id: "a", type: "content", parentTags: ["A"], publishDate: 2000, updatedTimeUtc: 1 },
+            ]);
+            const boom = new Error("boom");
+            postHttpMock.mockRejectedValueOnce(boom);
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })),
+            );
+            await flush();
+            expect(q.error.value).toBe(boom);
+
+            cats.value = ["B"];
+            await flush();
+            expect(q.error.value).toBeUndefined();
+            errSpy.mockRestore();
+        });
+
+        it("local read failure: sets error, still settles, content branch still decides the API", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const boom = new Error("dexie boom");
+            mocks.mangoToDexieMock.mockRejectedValueOnce(boom);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(q.error.value).toBe(boom);
+            expect(postHttpMock).toHaveBeenCalledTimes(1); // decided the API off the empty local set
+            expect(q.isFetching.value).toBe(false);
+            errSpy.mockRestore();
+        });
+
+        it("a superseded generation's late POST does not clear the new generation's isFetching", async () => {
+            const cats = ref(["A"]);
+            mocks.mangoToDexieMock.mockResolvedValue([
+                { _id: "a", type: "content", parentTags: ["A"], publishDate: 2000, updatedTimeUtc: 1 },
+            ]);
+            let resolveA!: (v: any) => void;
+            let resolveB!: (v: any) => void;
+            postHttpMock
+                .mockReturnValueOnce(new Promise((res) => (resolveA = res))) // gen-1 POST pending
+                .mockReturnValueOnce(new Promise((res) => (resolveB = res))); // gen-2 POST pending
+            const q = track(
+                new HybridQuery(() => ({
+                    selector: {
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                    },
+                })),
+            );
+            await flush();
+            expect(q.isFetching.value).toBe(true); // gen-1 remote pending
+
+            cats.value = ["B"];
+            await flush();
+            expect(q.isFetching.value).toBe(true); // gen-2 remote pending
+
+            // gen-1's late POST resolves AFTER the rebuild — its settle must be a no-op.
+            resolveA({ docs: [] });
+            await flush();
+            expect(q.isFetching.value).toBe(true); // still loading on gen-2
+
+            resolveB({ docs: [] });
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+        });
+    });
 });
 
 describe("queryRemote", () => {

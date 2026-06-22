@@ -6,5 +6,9 @@ export {
     queryLocal,
     queryRemote,
 } from "./HybridQuery";
-export { useHybridQuery } from "./useHybridQuery";
+export {
+    useHybridQuery,
+    useHybridQueryWithState,
+    type UseHybridQueryState,
+} from "./useHybridQuery";
 export { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";

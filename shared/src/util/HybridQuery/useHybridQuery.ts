@@ -1,7 +1,25 @@
-import type { ShallowRef } from "vue";
+import type { ComputedRef, ShallowRef } from "vue";
 import type { BaseDocumentDto } from "../../types";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
+
+/**
+ * The reactive bundle returned by {@link useHybridQueryWithState}:
+ * - `output` — the live result window (same ref {@link useHybridQuery} returns).
+ * - `isFetching` — `true` until the query's first COMPLETE result settles (the local
+ *   read AND, where applicable, the remote supplement). Stays `true` while the remote
+ *   leg is in flight even after local data has painted; goes `false` once everything
+ *   has settled (or, offline, once the fetch is parked on the reconnect watcher). A
+ *   query rebuild (reactive thunk / live) re-enters loading. Use it to gate a spinner
+ *   or to tell "still fetching" from "fetched, genuinely empty".
+ * - `error` — the last routing/remote/local-read error, or `undefined`; cleared on
+ *   every rebuild. A partial multi-query failure (some results returned) does not set it.
+ */
+export type UseHybridQueryState<T extends BaseDocumentDto> = {
+    output: ShallowRef<T[]>;
+    isFetching: ComputedRef<boolean>;
+    error: ShallowRef<unknown | undefined>;
+};
 
 /**
  * Composable wrapper around {@link HybridQuery}: it constructs the class and
@@ -57,10 +75,37 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  * - **`<KeepAlive>`.** Disposal fires on real unmount, not on deactivation, so a
  *   cached/"recycled" page keeps its instance (and socket listener) alive in the
  *   background until the cache evicts it.
+ *
+ * **Loading / error state.** This composable returns ONLY `output`. To also drive a
+ * spinner or distinguish "still fetching" from "fetched, genuinely empty", use
+ * {@link useHybridQueryWithState}, which returns `{ output, isFetching, error }` for the
+ * same instance (same lifecycle, same options).
  */
 export function useHybridQuery<T extends BaseDocumentDto = BaseDocumentDto>(
     query: MangoQuery | (() => MangoQuery),
     options?: HybridQueryOptions,
 ): ShallowRef<T[]> {
-    return new HybridQuery<T>(query, options).output;
+    return useHybridQueryWithState<T>(query, options).output;
+}
+
+/**
+ * Like {@link useHybridQuery}, but returns the full reactive bundle
+ * `{ output, isFetching, error }` ({@link UseHybridQueryState}) instead of only the
+ * `output` ref. Same `(query, options)` signature, same lifecycle (auto-disposes on the
+ * caller's effect scope), and the same reactive-query / caching / offline semantics.
+ *
+ * ```ts
+ * const { output, isFetching, error } = useHybridQueryWithState<ContentDto>(query);
+ * // template: <Spinner v-if="isFetching" />
+ * //           <Empty v-else-if="!output.length" />
+ * ```
+ *
+ * See {@link UseHybridQueryState} for the exact `isFetching` / `error` semantics.
+ */
+export function useHybridQueryWithState<T extends BaseDocumentDto = BaseDocumentDto>(
+    query: MangoQuery | (() => MangoQuery),
+    options?: HybridQueryOptions,
+): UseHybridQueryState<T> {
+    const q = new HybridQuery<T>(query, options);
+    return { output: q.output, isFetching: q.isFetching, error: q.error };
 }
