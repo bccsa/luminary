@@ -16,7 +16,6 @@ import {
     type Uuid,
     verifyAccess,
     PostType,
-    useDexieLiveQuery,
 } from "luminary-shared";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
@@ -76,13 +75,13 @@ const source = useEditContentSource({
     },
 });
 const {
-    currentId,
     newDocument,
     editableParent,
     editableContent,
     existingParent,
     existingContent,
     isDirty,
+    hasLocalChanges,
     isLoading,
 } = source;
 
@@ -312,13 +311,6 @@ const contentActions = computed(() => {
     return actions;
 });
 
-const isLocalChange = useDexieLiveQuery(
-    async () => {
-        const res = await db.localChanges.where({ docId: currentId.value }).first();
-        return res ? true : false;
-    },
-    { initialValue: false },
-);
 const isLanguageSelectorCollapsed = ref(false);
 const languageSelectorHeight = ref(0);
 const mainContentStickyStyle = computed(() =>
@@ -342,7 +334,7 @@ const actionsWrapperProps = computed(() => ({
     isPublished: selectedContentExisting.value?.status === PublishStatus.Published,
     newDocument,
     isDirty: isDirty.value,
-    isLocalChange: isLocalChange.value,
+    isLocalChange: hasLocalChanges.value,
     actions: contentActions.value,
 }));
 </script>

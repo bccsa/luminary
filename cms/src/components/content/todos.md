@@ -63,14 +63,20 @@ All remaining CMS call sites below should be migrated to `useHybridQuery`. Inven
 this writing (call sites only — import/comment lines omitted). Re-grep before starting:
 `grep -rn "ApiLiveQuery\|useDexieLiveQuery" cms/src --include=*.ts --include=*.vue`.
 
-**`useDexieLiveQuery`** (13 call sites):
+**`useDexieLiveQuery`** (11 call sites):
 
 - `globalConfig.ts:99` — `_cmsLanguages`
 - `composables/useAuthProviders.ts:23` — `groups`
 - `composables/useAutoGroupMappings.ts:54` — `groups`
 - `components/s3/StorageOverview.vue:26` — `groups`
-- `components/content/EditContent.vue:315` — `isLocalChange` -> Move functionality to toEditable (as a queryable state)
-- `components/content/EditContentBasic.vue:106` — `existingRedirectForSlug`
+- ~~`components/content/EditContent.vue:315` — `isLocalChange`~~ — **DONE.** Moved into
+  `toEditable` as a queryable `hasLocalChanges(id)` state (reactive, backed by a single
+  `localChanges` live query). `EditContent.vue` dropped its inline `db.localChanges` query;
+  `useEditContentSource` now exposes an aggregate `hasLocalChanges` (parent + content
+  children). Not a `useHybridQuery` migration — reads the local-only outgoing change queue.
+- ~~`components/content/EditContentBasic.vue:106` — `existingRedirectForSlug`~~ — **DONE.**
+  Migrated to `useHybridQuery<RedirectDto>` (now `EditContentBasic.vue:108`), Dexie-first
+  on the `[type+slug]` compound index.
 - `components/content/ContentOverview/ContentOverview.vue:167` — `groups`
 - `components/content/ContentOverview/ContentOverview.vue:172` — `languages`
 - `components/languages/EditLanguage.vue:57` — `original`

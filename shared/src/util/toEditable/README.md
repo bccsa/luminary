@@ -22,6 +22,11 @@ Comparisons ignore the server-managed metadata fields `_rev`, `updatedTimeUtc`
 and `updatedBy`, so a re-saved-but-otherwise-identical document is not reported
 as edited.
 
+Alongside the in-memory edit state (`isEdited` / `isModified`), it also surfaces
+`hasLocalChanges(id)` — whether a document has a change saved locally and queued
+for upload but not yet acknowledged by the server. Together these three give a
+consumer the full per-document edit lifecycle without hand-rolling a queue query.
+
 It also persists edits for you: `save(id)` writes a single item back, choosing
 the local store or the API per document (see [Saving](#saving)). The source is
 any `Ref<Array<T>>`, so it composes with any of the reactive read primitives;
@@ -112,6 +117,7 @@ const { editable } = toEditable(source, {
 | `editable: Ref<Array<T>>` | The mutable clone to bind to the UI. |
 | `isEdited(id): boolean` | `true` if the item differs from its shadow baseline (the user has edited it). Reactive — accessed as `isEdited.value(id)`. |
 | `isModified(id): boolean` | `true` only when the **source** changed for an item the user has _also_ edited — i.e. a conflicting upstream update. Reactive. |
+| `hasLocalChanges(id): boolean` | `true` if the item has a change saved locally and queued for upload but not yet acknowledged by the server. Reactive — accessed as `hasLocalChanges.value(id)`. |
 | `revert(id): void` | Restore an item to its shadow baseline. If the item was newly added (not in the shadow), it is removed from `editable` entirely. |
 | `updateShadow(id): void` | Promote the current editable item to the shadow baseline. `save` calls this on success; call it directly only if you persist outside of `save`. |
 | `save(id): Promise<ChangeReqAckDto \| undefined>` | Persist one edited item, routing local-write vs direct-API-write by whether the document is persisted offline (see [Saving](#saving)). No-ops when unedited; updates the baseline on an accepted result. |

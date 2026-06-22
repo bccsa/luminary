@@ -39,6 +39,11 @@ export type UseEditContentSource = {
     existingContent: Ref<ContentDto[] | undefined>;
     /** True when the parent or any content child has unsaved user edits. */
     isDirty: Ref<boolean>;
+    /**
+     * True when the parent or any content child has a change saved locally and queued for
+     * upload but not yet acknowledged by the server (pending offline change).
+     */
+    hasLocalChanges: Ref<boolean>;
     /** True while an existing doc has not yet hydrated (drives the loading state). */
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
@@ -219,6 +224,17 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => contentEditable.isEdited.value(c._id));
     });
 
+    // Pending offline changes: the parent or any content child has a change queued in
+    // localChanges (saved locally, not yet acked by the server).
+    const hasLocalChanges = computed(() => {
+        if (
+            editableParent.value &&
+            parentEditable.hasLocalChanges.value(editableParent.value._id)
+        )
+            return true;
+        return editableContent.value.some((c) => contentEditable.hasLocalChanges.value(c._id));
+    });
+
     const save = async () => {
         const parent = editableParent.value;
         if (!parent) return;
@@ -276,6 +292,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         existingParent,
         existingContent,
         isDirty,
+        hasLocalChanges,
         isLoading,
         save,
         revert,
